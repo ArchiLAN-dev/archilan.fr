@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
+use App\Community\Application\Message\PostModerationActionToForumJob;
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Query\CommunityAdminIdsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Service\AccountModerationService;
 use App\Community\Application\Support\Notifier;
+use App\Community\Domain\Entity\ModerationAction;
 use App\Community\Domain\Repository\ContentReportRepositoryInterface;
 use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
+use App\Tests\Unit\Payments\RecordingMessageBus;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 
 final class AccountModerationServiceTest extends TestCase
@@ -38,6 +42,8 @@ final class AccountModerationServiceTest extends TestCase
             $admins,
             self::createStub(Notifier::class),
             new MockClock(),
+            new RecordingMessageBus(),
+            new NullLogger(),
         );
 
         // The whole operation aborts and rolls back rather than leaving a banned user with no audit trail.
@@ -62,9 +68,45 @@ final class AccountModerationServiceTest extends TestCase
             $admins,
             self::createStub(Notifier::class),
             new MockClock(),
+            new RecordingMessageBus(),
+            new NullLogger(),
         );
 
         self::assertSame('forbidden', $service->ban('admin', 'admin', 'self'));
         self::assertSame('forbidden', $service->ban('admin', 'target-admin', 'other admin'));
+    }
+
+    public function testEverySuccessfulSanctionIsSentToTheStaffForumAfterItsCommit(): void
+    {
+        // Story 39.1: the forum post is a side effect after the commit - never before, never on a refusal.
+        $gateway = self::createStub(MemberModerationGatewayInterface::class);
+        $gateway->method('ban')->willReturn(true);
+        $gateway->method('suspendUntil')->willReturn(true);
+        $gateway->method('lift')->willReturn(true);
+        $admins = self::createStub(CommunityAdminIdsQueryInterface::class);
+        $admins->method('adminUserIds')->willReturn([]);
+        $directory = self::createStub(CommunityUserDirectoryQueryInterface::class);
+        $directory->method('cards')->willReturn(['target' => ['userId' => 'target', 'slug' => 't', 'displayName' => 'T', 'avatarUrl' => null]]);
+        $saved = [];
+        $actions = self::createStub(ModerationActionRepositoryInterface::class);
+        $actions->method('save')->willReturnCallback(static function (ModerationAction $action) use (&$saved): void {
+            $saved[] = $action->getId();
+        });
+        $bus = new RecordingMessageBus();
+
+        $service = new AccountModerationService($gateway, $actions, self::createStub(ContentReportRepositoryInterface::class), $directory, $admins, self::createStub(Notifier::class), new MockClock('2026-09-27 10:00:00'), $bus, new NullLogger());
+
+        self::assertSame('ok', $service->warn('admin', 'target', 'Spam'));
+        self::assertSame('ok', $service->suspend('admin', 'target', new \DateTimeImmutable('2026-10-04 10:00:00'), 'Insultes'));
+        self::assertSame('ok', $service->ban('admin', 'target', 'Triche'));
+        self::assertSame('ok', $service->lift('admin', 'target', ''));
+        self::assertSame('invalid', $service->ban('admin', 'target', '   '));
+
+        self::assertCount(4, $saved);
+        self::assertEquals(
+            array_map(static fn (string $id): PostModerationActionToForumJob => new PostModerationActionToForumJob($id), $saved),
+            $bus->messagesOf(PostModerationActionToForumJob::class),
+            'one job per recorded sanction, carrying its id',
+        );
     }
 }

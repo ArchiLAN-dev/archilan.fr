@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
+use App\Community\Application\Message\PostModerationActionToForumJob;
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Query\CommunityAdminIdsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
@@ -15,6 +16,8 @@ use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
 use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Domain\Entity\Run;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Admin actions on a member's account (story 30.29): warn / suspend / ban / lift. Suspend & ban delegate
@@ -31,6 +34,8 @@ final readonly class AccountModerationService
         private CommunityAdminIdsQueryInterface $admins,
         private Notifier $notifier,
         private ClockInterface $clock,
+        private MessageBusInterface $bus,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -51,8 +56,10 @@ final readonly class AccountModerationService
             return 'not_found';
         }
 
-        $this->log($adminId, $targetUserId, ModerationAction::ACTION_WARN, $reason, $relatedReportId);
+        $action = $this->newAction($adminId, $targetUserId, ModerationAction::ACTION_WARN, $reason, $relatedReportId);
+        $this->actions->save($action);
         $this->notifier->notify($targetUserId, Notification::TYPE_MODERATION_WARNING, ['reason' => $reason]);
+        $this->mirrorInForum($action);
 
         return 'ok';
     }
@@ -70,9 +77,11 @@ final readonly class AccountModerationService
             return $denied;
         }
 
-        return $this->transactionally(fn (): string => $this->gateway->suspendUntil($targetUserId, $until, $reason)
-            ? $this->commitAction($adminId, $targetUserId, ModerationAction::ACTION_SUSPEND, $reason, $relatedReportId, autoResolve: true)
-            : 'not_found');
+        $action = $this->newAction($adminId, $targetUserId, ModerationAction::ACTION_SUSPEND, $reason, $relatedReportId);
+
+        return $this->afterCommit($action, $this->transactionally(fn (): string => $this->gateway->suspendUntil($targetUserId, $until, $reason)
+            ? $this->commitAction($action, autoResolve: true)
+            : 'not_found'));
     }
 
     /**
@@ -88,9 +97,11 @@ final readonly class AccountModerationService
             return $denied;
         }
 
-        return $this->transactionally(fn (): string => $this->gateway->ban($targetUserId, $reason)
-            ? $this->commitAction($adminId, $targetUserId, ModerationAction::ACTION_BAN, $reason, $relatedReportId, autoResolve: true)
-            : 'not_found');
+        $action = $this->newAction($adminId, $targetUserId, ModerationAction::ACTION_BAN, $reason, $relatedReportId);
+
+        return $this->afterCommit($action, $this->transactionally(fn (): string => $this->gateway->ban($targetUserId, $reason)
+            ? $this->commitAction($action, autoResolve: true)
+            : 'not_found'));
     }
 
     /**
@@ -105,9 +116,11 @@ final readonly class AccountModerationService
         $trimmed = trim($reason);
         $logReason = '' === $trimmed ? 'Levée de la sanction' : $trimmed;
 
-        return $this->transactionally(fn (): string => $this->gateway->lift($targetUserId)
-            ? $this->commitAction($adminId, $targetUserId, ModerationAction::ACTION_LIFT, $logReason, null, autoResolve: false)
-            : 'not_found');
+        $action = $this->newAction($adminId, $targetUserId, ModerationAction::ACTION_LIFT, $logReason, null);
+
+        return $this->afterCommit($action, $this->transactionally(fn (): string => $this->gateway->lift($targetUserId)
+            ? $this->commitAction($action, autoResolve: false)
+            : 'not_found'));
     }
 
     /**
@@ -129,7 +142,7 @@ final readonly class AccountModerationService
     /**
      * Action history for one account, most recent first.
      *
-     * @return list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, relatedReportId: string|null}>
+     * @return list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, relatedReportId: string|null, discordDm: string|null, discordServer: string|null}>
      */
     public function history(string $targetUserId, int $limit = 50): array
     {
@@ -142,6 +155,9 @@ final readonly class AccountModerationService
                 'createdAt' => $action->getCreatedAt()->format(\DateTimeInterface::ATOM),
                 'actorId' => $action->getActorId(),
                 'relatedReportId' => $action->getRelatedReportId(),
+                // Stories 39.4 and 39.5: how Discord took it, null until the async job has run.
+                'discordDm' => $action->getDiscordDmStatus(),
+                'discordServer' => $action->getDiscordServerStatus(),
             ];
         }
 
@@ -171,26 +187,53 @@ final readonly class AccountModerationService
     }
 
     /** Append the audit row and (for suspend/ban) auto-resolve the open reports, within the open transaction. */
-    private function commitAction(string $adminId, string $targetUserId, string $action, string $reason, ?string $relatedReportId, bool $autoResolve): string
+    private function commitAction(ModerationAction $action, bool $autoResolve): string
     {
-        $this->log($adminId, $targetUserId, $action, $reason, $relatedReportId);
+        $this->actions->save($action);
         if ($autoResolve) {
-            $this->autoResolve($targetUserId, $adminId);
+            $this->autoResolve($action->getTargetUserId(), $action->getActorId());
         }
 
         return 'ok';
     }
 
-    private function log(string $adminId, string $targetUserId, string $action, string $reason, ?string $relatedReportId): void
+    /** Built before the transaction so its id is known once the transaction has committed. */
+    private function newAction(string $adminId, string $targetUserId, string $action, string $reason, ?string $relatedReportId): ModerationAction
     {
-        $this->actions->save(ModerationAction::create(
+        return ModerationAction::create(
             $adminId,
             $targetUserId,
             $action,
             mb_substr($reason, 0, 500),
             $this->clock->now(),
             $relatedReportId,
-        ));
+        );
+    }
+
+    /** Pass the transaction's result through, mirroring the sanction in the staff forum when it committed. */
+    private function afterCommit(ModerationAction $action, string $result): string
+    {
+        if ('ok' === $result) {
+            $this->mirrorInForum($action);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Story 39.1: the member's case and its staff forum post, asynchronously and after the commit. A bus that
+     * cannot take the job never undoes the sanction: it is logged, and the case catches up with the next one.
+     */
+    private function mirrorInForum(ModerationAction $action): void
+    {
+        try {
+            $this->bus->dispatch(new PostModerationActionToForumJob($action->getId()));
+        } catch (\Throwable $e) {
+            $this->logger->error('moderation_forum.dispatch_failed', [
+                'actionId' => $action->getId(),
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /** Resolve the account's open profile reports so it leaves the "à examiner" list (story 30.29 AC-6). */

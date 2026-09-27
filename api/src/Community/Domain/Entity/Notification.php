@@ -24,6 +24,8 @@ final class Notification
     public const string TYPE_ACCOUNT_FLAGGED = 'account_flagged';
     /** Member-facing: a moderator warned the member to fix sensitive info (story 30.29). */
     public const string TYPE_MODERATION_WARNING = 'moderation_warning';
+    /** Member-facing: the staff answered the member's moderation case (story 39.3). */
+    public const string TYPE_MODERATION_REPLY = 'moderation_reply';
 
     /**
      * @param array<string, mixed> $payload

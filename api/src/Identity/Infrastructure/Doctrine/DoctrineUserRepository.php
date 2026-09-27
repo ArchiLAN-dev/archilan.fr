@@ -76,6 +76,38 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
         return $this->entityManager->getRepository(User::class)->findBy(['deletedAt' => null]);
     }
 
+    public function findSuspendedAt(\DateTimeImmutable $now): array
+    {
+        /** @var list<User> $users */
+        $users = $this->entityManager->createQueryBuilder()
+            ->select('u')
+            ->from(User::class, 'u')
+            ->where('u.suspendedUntil > :now')
+            ->andWhere('u.bannedAt IS NULL')
+            ->andWhere('u.deletedAt IS NULL')
+            ->setParameter('now', $now)
+            ->getQuery()
+            ->getResult();
+
+        return $users;
+    }
+
+    public function findBannedWithDiscord(): array
+    {
+        /** @var list<User> $users */
+        $users = $this->entityManager->createQueryBuilder()
+            ->select('u')
+            ->from(User::class, 'u')
+            ->where('u.bannedAt IS NOT NULL')
+            ->andWhere('u.discordId IS NOT NULL')
+            ->andWhere("u.discordId <> ''")
+            ->andWhere('u.deletedAt IS NULL')
+            ->getQuery()
+            ->getResult();
+
+        return $users;
+    }
+
     public function save(User $user): void
     {
         $this->entityManager->persist($user);

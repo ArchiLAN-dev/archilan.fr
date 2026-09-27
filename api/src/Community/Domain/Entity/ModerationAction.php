@@ -8,7 +8,9 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Append-only audit row for an admin moderation action on an account (story 30.29): who did what to whom,
- * why, and when. Never edited or deleted - it's the trace behind every warn/suspend/ban/lift.
+ * why, and when. Never edited or deleted - it's the trace behind every warn/suspend/ban/lift. The only things
+ * filled in afterwards, once each, are how Discord took it: the bot's direct message to the member (story
+ * 39.4) and the sanction applied on the server (story 39.5).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'community_moderation_action')]
@@ -19,6 +21,20 @@ final class ModerationAction
     public const string ACTION_SUSPEND = 'suspend';
     public const string ACTION_BAN = 'ban';
     public const string ACTION_LIFT = 'lift';
+
+    /** The actor of a sanction posed on the Discord server and applied on the site (story 39.7). */
+    public const string ACTOR_DISCORD = 'discord';
+
+    /** Outcomes of the sanction applied on the Discord server (stories 39.5 and 39.6). */
+    public const string SERVER_BANNED = 'banned';
+    public const string SERVER_LIFTED = 'lifted';
+    public const string SERVER_TIMED_OUT = 'timed_out';
+    public const string SERVER_NOT_MEMBER = 'not_member';
+    /** Already lifted or over on the site when its job ran (story 39.9): nothing applied. */
+    public const string SERVER_SUPERSEDED = 'superseded';
+    public const string SERVER_NOT_LINKED = 'not_linked';
+    public const string SERVER_UNAVAILABLE = 'unavailable';
+    public const string SERVER_FAILED = 'failed';
 
     public function __construct(
         #[ORM\Id]
@@ -36,6 +52,10 @@ final class ModerationAction
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'related_report_id', type: 'string', length: 32, nullable: true)]
         private ?string $relatedReportId = null,
+        #[ORM\Column(name: 'discord_dm_status', type: 'string', length: 16, nullable: true)]
+        private ?string $discordDmStatus = null,
+        #[ORM\Column(name: 'discord_server_status', type: 'string', length: 16, nullable: true)]
+        private ?string $discordServerStatus = null,
     ) {
     }
 
@@ -48,6 +68,28 @@ final class ModerationAction
         ?string $relatedReportId = null,
     ): self {
         return new self(bin2hex(random_bytes(16)), $actorId, $targetUserId, $action, $reason, $now, $relatedReportId);
+    }
+
+    /** The first outcome stands: the member is told once, whatever retries follow. */
+    public function recordDirectMessage(string $status): void
+    {
+        $this->discordDmStatus ??= $status;
+    }
+
+    public function getDiscordDmStatus(): ?string
+    {
+        return $this->discordDmStatus;
+    }
+
+    /** The first outcome stands: the server is acted on once, whatever retries follow. */
+    public function recordServerSanction(string $status): void
+    {
+        $this->discordServerStatus ??= $status;
+    }
+
+    public function getDiscordServerStatus(): ?string
+    {
+        return $this->discordServerStatus;
     }
 
     public function getId(): string

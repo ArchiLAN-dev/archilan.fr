@@ -37,6 +37,20 @@ interface UserRepositoryInterface
      */
     public function findAllNotDeleted(): array;
 
+    /**
+     * Accounts suspended past the given moment and not banned (story 39.6).
+     *
+     * @return list<User>
+     */
+    public function findSuspendedAt(\DateTimeImmutable $now): array;
+
+    /**
+     * Banned accounts linked to Discord (story 39.7).
+     *
+     * @return list<User>
+     */
+    public function findBannedWithDiscord(): array;
+
     public function save(User $user): void;
 
     public function flush(): void;
