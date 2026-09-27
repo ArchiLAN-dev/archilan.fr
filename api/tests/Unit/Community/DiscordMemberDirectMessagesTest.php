@@ -83,7 +83,9 @@ final class DiscordMemberDirectMessagesTest extends TestCase
     public function testItNeedsTheBotToken(): void
     {
         self::assertTrue($this->dms([])->isConfigured());
-        self::assertFalse(new DiscordMemberDirectMessages(new MockHttpClient([]), '')->isConfigured());
+        self::assertFalse(new DiscordMemberDirectMessages(new MockHttpClient([]), '', true)->isConfigured());
+        // Story 39.9: nothing is sent nor read until the synchronisation is switched on.
+        self::assertFalse(new DiscordMemberDirectMessages(new MockHttpClient([]), 'bot-token', false)->isConfigured());
     }
 
     /**
@@ -98,6 +100,6 @@ final class DiscordMemberDirectMessagesTest extends TestCase
             return array_shift($responses) ?? new MockResponse('{}');
         });
 
-        return new DiscordMemberDirectMessages($client, 'bot-token');
+        return new DiscordMemberDirectMessages($client, 'bot-token', true);
     }
 }

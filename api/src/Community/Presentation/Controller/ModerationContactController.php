@@ -85,7 +85,7 @@ final readonly class ModerationContactController
 
     private function noPass(): JsonResponse
     {
-        return $this->apiAccessGuard->errorResponse('moderation_contact_expired', 'Reconnectez-vous pour écrire à la modération.', 401);
+        return $this->apiAccessGuard->errorResponse('moderation_contact_expired', 'Reconnecte-toi pour écrire à la modération.', 401);
     }
 
     private function respond(ContactModerationOutcome $outcome): JsonResponse
@@ -94,7 +94,7 @@ final readonly class ModerationContactController
             ContactModerationOutcome::Sent => new JsonResponse(['data' => ['sent' => true]], 201),
             ContactModerationOutcome::Invalid => $this->apiAccessGuard->errorResponse('invalid_message', 'Le message doit faire entre 1 et 2000 caractères.', 422),
             ContactModerationOutcome::NotSanctioned => $this->apiAccessGuard->errorResponse('not_sanctioned', 'Aucune sanction à contester sur ce compte.', 403),
-            ContactModerationOutcome::TooMany => $this->apiAccessGuard->errorResponse('too_many_messages', 'Trop de messages en une heure, réessayez plus tard.', 429),
+            ContactModerationOutcome::TooMany => $this->apiAccessGuard->errorResponse('too_many_messages', 'Trop de messages en une heure, réessaie plus tard.', 429),
         };
     }
 

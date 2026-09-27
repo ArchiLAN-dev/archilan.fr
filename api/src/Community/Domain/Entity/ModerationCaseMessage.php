@@ -28,6 +28,8 @@ final class ModerationCaseMessage
     public const string DM_FAILED = 'failed';
     public const string DM_NOT_LINKED = 'not_linked';
     public const string DM_UNAVAILABLE = 'unavailable';
+    /** A sanction already lifted or over when its job ran (story 39.9): the member is not told. */
+    public const string DM_SUPERSEDED = 'superseded';
 
     public function __construct(
         #[ORM\Id]

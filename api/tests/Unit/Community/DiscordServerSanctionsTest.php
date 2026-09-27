@@ -145,8 +145,10 @@ final class DiscordServerSanctionsTest extends TestCase
     public function testItNeedsTheBotAndTheServer(): void
     {
         self::assertTrue($this->server([])->isConfigured());
-        self::assertFalse(new DiscordServerSanctions(new MockHttpClient([]), 'bot-token', '')->isConfigured());
-        self::assertFalse(new DiscordServerSanctions(new MockHttpClient([]), '', self::GUILD)->isConfigured());
+        self::assertFalse(new DiscordServerSanctions(new MockHttpClient([]), 'bot-token', '', true)->isConfigured());
+        self::assertFalse(new DiscordServerSanctions(new MockHttpClient([]), '', self::GUILD, true)->isConfigured());
+        // Story 39.9: the bot's token and server already serve the roles; acting on sanctions is switched on apart.
+        self::assertFalse(new DiscordServerSanctions(new MockHttpClient([]), 'bot-token', self::GUILD, false)->isConfigured());
     }
 
     /**
@@ -168,6 +170,6 @@ final class DiscordServerSanctionsTest extends TestCase
             return array_shift($responses) ?? new MockResponse('', ['http_code' => 204]);
         });
 
-        return new DiscordServerSanctions($client, 'bot-token', self::GUILD, $banPageSize);
+        return new DiscordServerSanctions($client, 'bot-token', self::GUILD, true, $banPageSize);
     }
 }

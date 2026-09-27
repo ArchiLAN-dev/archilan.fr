@@ -24,16 +24,17 @@ final readonly class DoctrineModerationCaseRepository implements ModerationCaseR
         return $this->entityManager->getRepository(ModerationCase::class)->findOneBy(['targetUserId' => $targetUserId]);
     }
 
-    public function openWithDirectMessageChannel(): array
+    public function withDirectMessagesToRead(\DateTimeImmutable $closedSince): array
     {
         /** @var list<ModerationCase> $cases */
         $cases = $this->entityManager->createQueryBuilder()
             ->select('c')
             ->from(ModerationCase::class, 'c')
-            ->where('c.status = :open')
+            ->where('c.status = :open OR c.updatedAt >= :closedSince')
             ->andWhere('c.directMessageChannelId IS NOT NULL')
             ->andWhere('c.directMessageCursor IS NOT NULL')
             ->setParameter('open', ModerationCase::STATUS_OPEN)
+            ->setParameter('closedSince', $closedSince)
             ->getQuery()
             ->getResult();
 

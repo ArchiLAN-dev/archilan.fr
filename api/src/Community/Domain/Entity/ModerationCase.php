@@ -7,8 +7,9 @@ namespace App\Community\Domain\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * A member's moderation case (story 39.1): one per member, opened by their first sanction, reopened by every
- * new one and closed by a lift. It is mirrored by one post in the staff forum on Discord, created once and
+ * A member's moderation case (story 39.1): one per member, opened by their first sanction (or their first
+ * exchange with the moderation, stories 39.2 and 39.3, when their sanctions predate the cases), reopened by
+ * every new one and closed by a lift. It is mirrored by one post in the staff forum on Discord, created once and
  * kept for good, so a member's whole history stays in one place.
  */
 #[ORM\Entity]

@@ -25,13 +25,16 @@ final readonly class DiscordMemberDirectMessages implements MemberDirectMessageI
         HttpClientInterface $httpClient,
         #[Autowire('%env(default::DISCORD_BOT_TOKEN)%')]
         string $botToken,
+        #[Autowire('%env(bool:default::DISCORD_MODERATION_SYNC)%')]
+        private bool $syncEnabled,
     ) {
         $this->rest = new DiscordBotRest($httpClient, $botToken);
     }
 
+    /** Story 39.9: the bot's token serves the roles too; its moderation messages are switched on apart. */
     public function isConfigured(): bool
     {
-        return $this->rest->hasToken();
+        return $this->syncEnabled && $this->rest->hasToken();
     }
 
     public function send(string $discordUserId, ModerationForumMessage $message): SentDirectMessage

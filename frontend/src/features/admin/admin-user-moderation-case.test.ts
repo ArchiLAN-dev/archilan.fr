@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { fetchAdminUserModeration, replyToMember } from "./admin-users-api";
+import { fetchAdminUserModeration, hasPendingDiscordOutcome, replyToMember, type AdminUserModeration } from "./admin-users-api";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -114,5 +114,48 @@ describe("fetchAdminUserModeration - dossier de modération", () => {
       ["sent", "banned"],
       [null, null],
     ]);
+  });
+
+  it("attend l'issue Discord d'une sanction ou d'une réponse récente (story 39.9)", () => {
+    const now = Date.parse("2026-09-28T10:00:00+00:00");
+    const base: AdminUserModeration = {
+      state: { suspendedUntil: null, bannedAt: null, reason: null },
+      unresolvedReportCount: 0,
+      severityScore: 0,
+      actions: [],
+      moderationCase: null,
+    };
+    const action = {
+      id: "a1",
+      action: "ban",
+      reason: "Triche",
+      actorId: "admin-1",
+      actorName: "Jean",
+      relatedReportId: null,
+      discordServer: null,
+    };
+
+    expect(hasPendingDiscordOutcome(base, now)).toBe(false);
+    expect(hasPendingDiscordOutcome({ ...base, actions: [{ ...action, createdAt: "2026-09-28T09:58:00+00:00", discordDm: null }] }, now)).toBe(true);
+    expect(
+      hasPendingDiscordOutcome({ ...base, actions: [{ ...action, createdAt: "2026-09-28T09:58:00+00:00", discordDm: "sent" }] }, now),
+    ).toBe(false);
+    // A sanction older than the epic has no outcome and never will: no endless refresh.
+    expect(hasPendingDiscordOutcome({ ...base, actions: [{ ...action, createdAt: "2026-06-01T10:00:00+00:00", discordDm: null }] }, now)).toBe(false);
+    expect(
+      hasPendingDiscordOutcome(
+        {
+          ...base,
+          moderationCase: {
+            status: "open",
+            forumThreadUrl: null,
+            messages: [
+              { id: "m1", author: "staff", authorName: "Jean", body: "Ok", source: "site", createdAt: "2026-09-28T09:59:00+00:00", discordDm: null },
+            ],
+          },
+        },
+        now,
+      ),
+    ).toBe(true);
   });
 });

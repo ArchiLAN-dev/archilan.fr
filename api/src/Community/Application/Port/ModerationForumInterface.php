@@ -13,7 +13,10 @@ use App\Community\Application\Support\ModerationForumMessage;
  */
 interface ModerationForumInterface
 {
-    /** False when no forum is configured: moderation then stays on the site only. */
+    /**
+     * False when no forum is configured: nothing is posted. The synchronisation with the Discord server is
+     * switched apart (DISCORD_MODERATION_SYNC, story 39.9).
+     */
     public function isConfigured(): bool;
 
     /**

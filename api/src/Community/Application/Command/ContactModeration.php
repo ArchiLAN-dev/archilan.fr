@@ -43,7 +43,7 @@ final readonly class ContactModeration
                 return ContactModerationOutcome::NotSanctioned;
             }
             $case = ModerationCase::open($memberId, $now);
-        } elseif ($this->messages->countFromMemberSince($case->getId(), $now->sub(new \DateInterval('PT1H'))) >= self::MAX_PER_HOUR) {
+        } elseif ($this->messages->countFromMemberSince($case->getId(), $now->sub(new \DateInterval('PT1H')), ModerationCaseMessage::SOURCE_SITE) >= self::MAX_PER_HOUR) {
             return ContactModerationOutcome::TooMany;
         }
 

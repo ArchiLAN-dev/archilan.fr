@@ -347,6 +347,22 @@ export async function applyModerationAction(
   }
 }
 
+const PENDING_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * Story 39.9 : une sanction ou une réponse récente dont l'issue Discord n'est pas encore connue (le job
+ * asynchrone n'est pas passé). Au-delà de dix minutes, elle ne viendra plus (sanction antérieure à l'épic 39,
+ * job en échec) : la fiche arrête d'attendre.
+ */
+export function hasPendingDiscordOutcome(moderation: AdminUserModeration, now: number): boolean {
+  const recent = (iso: string) => now - Date.parse(iso) < PENDING_WINDOW_MS;
+  const actionPending = moderation.actions.some((action) => action.discordDm === null && recent(action.createdAt));
+  const replyPending = (moderation.moderationCase?.messages ?? []).some(
+    (message) => message.author === "staff" && message.discordDm === null && recent(message.createdAt),
+  );
+  return actionPending || replyPending;
+}
+
 /** Story 39.3 : réponse du staff au membre. Null en cas de succès, sinon le message à afficher. */
 export async function replyToMember(userId: string, body: string): Promise<string | null> {
   try {

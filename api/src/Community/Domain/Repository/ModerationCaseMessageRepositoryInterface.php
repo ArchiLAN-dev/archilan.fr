@@ -22,7 +22,8 @@ interface ModerationCaseMessageRepositoryInterface
      */
     public function forCase(string $caseId, int $limit): array;
 
-    public function countFromMemberSince(string $caseId, \DateTimeImmutable $since): int;
+    /** What the member wrote since the given moment, from one source (site, or DM to the bot). */
+    public function countFromMemberSince(string $caseId, \DateTimeImmutable $since, string $source): int;
 
     public function flush(): void;
 }

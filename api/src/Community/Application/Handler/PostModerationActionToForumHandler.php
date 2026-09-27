@@ -6,6 +6,7 @@ namespace App\Community\Application\Handler;
 
 use App\Community\Application\Exception\DiscordServerSanctionException;
 use App\Community\Application\Exception\DiscordServerTemporarilyUnavailableException;
+use App\Community\Application\Exception\MemberDirectMessageTemporarilyUnavailableException;
 use App\Community\Application\Message\PostModerationActionToForumJob;
 use App\Community\Application\Port\DiscordServerSanctionsInterface;
 use App\Community\Application\Port\MemberModerationGatewayInterface;
@@ -16,6 +17,7 @@ use App\Community\Application\Support\ModerationForumDelivery;
 use App\Community\Application\Support\ModerationForumMessageFactory;
 use App\Community\Domain\Entity\ModerationAction;
 use App\Community\Domain\Entity\ModerationCase;
+use App\Community\Domain\Entity\ModerationCaseMessage;
 use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
 use App\Community\Domain\Repository\ModerationCaseRepositoryInterface;
 use Psr\Log\LoggerInterface;
@@ -32,7 +34,11 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  *
  * Story 39.5: a ban is then applied on the Discord server, a lift unbans - after the direct message, while the
  * bot still shares a server with the member. Story 39.6: a suspension times the member out, a lift also ends
- * the timeout. Each outcome is committed as soon as it is known, so a retry
+ * the timeout.
+ *
+ * Story 39.9: a ban or a suspension already lifted or over when its job runs (a retry overtaken by the lift)
+ * is neither told nor applied, and does not reopen the case. A passing failure of the message never holds the
+ * sanction back: the server step runs, then the message is retried. Each outcome is committed as soon as it is known, so a retry
  * (Discord down) never sends the message nor bans twice; the forum is posted once both are settled.
  */
 #[AsMessageHandler]
@@ -61,11 +67,15 @@ final readonly class PostModerationActionToForumHandler
 
         $targetId = $action->getTargetUserId();
         $now = $this->clock->now();
+        $state = $this->members->currentState($targetId);
+        $suspendedUntil = $state?->suspendedUntil;
+        $inEffect = $this->inEffect($action, $state?->bannedAt, $suspendedUntil, $now);
+
         $case = $this->cases->findByTargetUserId($targetId);
         if (null === $case) {
             $case = ModerationCase::open($targetId, $now);
             $this->cases->save($case);
-        } elseif (ModerationAction::ACTION_LIFT !== $action->getAction()) {
+        } elseif (ModerationAction::ACTION_LIFT !== $action->getAction() && $inEffect) {
             $case->reopen($now);
         }
         if (ModerationAction::ACTION_LIFT === $action->getAction()) {
@@ -73,23 +83,28 @@ final readonly class PostModerationActionToForumHandler
         }
 
         $discordId = $this->members->discordIdOf($targetId);
-        $suspendedUntil = $this->members->currentState($targetId)?->suspendedUntil;
+        $retryMessage = null;
         if (null === $action->getDiscordDmStatus()) {
-            $action->recordDirectMessage($this->directMessages->send(
-                $case,
-                $discordId,
-                $this->messages->forSanctionDirectMessage($action, $suspendedUntil),
-                ['actionId' => $action->getId()],
-            ));
+            try {
+                $action->recordDirectMessage($inEffect
+                    ? $this->directMessages->send($case, $discordId, $this->messages->forSanctionDirectMessage($action, $suspendedUntil), ['actionId' => $action->getId()])
+                    : ModerationCaseMessage::DM_SUPERSEDED);
+            } catch (MemberDirectMessageTemporarilyUnavailableException $e) {
+                $retryMessage = $e;
+            }
         }
         $this->cases->flush();
 
         if (null === $action->getDiscordServerStatus()) {
-            $serverStatus = $this->applyOnServer($action, $discordId, $suspendedUntil);
+            $serverStatus = $inEffect ? $this->applyOnServer($action, $discordId, $suspendedUntil) : ModerationAction::SERVER_SUPERSEDED;
             if (null !== $serverStatus) {
                 $action->recordServerSanction($serverStatus);
                 $this->cases->flush();
             }
+        }
+
+        if (null !== $retryMessage) {
+            throw $retryMessage;
         }
 
         if (!$this->delivery->isConfigured()) {
@@ -109,6 +124,18 @@ final readonly class PostModerationActionToForumHandler
         );
 
         $this->delivery->deliver($case, $memberName, $message, ['actionId' => $action->getId()]);
+    }
+
+    /**
+     * Story 39.9: a ban still standing, a suspension still running. A warning and a lift always stand.
+     */
+    private function inEffect(ModerationAction $action, ?string $bannedAt, ?string $suspendedUntil, \DateTimeImmutable $now): bool
+    {
+        return match ($action->getAction()) {
+            ModerationAction::ACTION_BAN => null !== $bannedAt,
+            ModerationAction::ACTION_SUSPEND => null !== $suspendedUntil && new \DateTimeImmutable($suspendedUntil) > $now,
+            default => true,
+        };
     }
 
     /**

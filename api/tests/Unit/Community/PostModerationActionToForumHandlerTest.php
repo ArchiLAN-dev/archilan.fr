@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Community;
 use App\Community\Application\Exception\DiscordServerSanctionException;
 use App\Community\Application\Exception\DiscordServerTemporarilyUnavailableException;
 use App\Community\Application\Exception\MemberDirectMessageException;
+use App\Community\Application\Exception\MemberDirectMessageTemporarilyUnavailableException;
 use App\Community\Application\Exception\ModerationForumDeliveryException;
 use App\Community\Application\Exception\ModerationForumTemporarilyUnavailableException;
 use App\Community\Application\Handler\PostModerationActionToForumHandler;
@@ -18,6 +19,7 @@ use App\Community\Application\Support\MemberDirectMessenger;
 use App\Community\Application\Support\ModerationForumDelivery;
 use App\Community\Application\Support\ModerationForumMessageFactory;
 use App\Community\Domain\Entity\ModerationAction;
+use App\Community\Domain\Entity\ModerationCase;
 use App\Community\Domain\Entity\ModerationCaseMessage;
 use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
 use App\Tests\Unit\CatalogSync\RecordingLogger;
@@ -38,6 +40,7 @@ final class PostModerationActionToForumHandlerTest extends TestCase
     private RecordingDiscordServer $server;
     private ?string $discordId = '123456789';
     private ?string $suspendedUntil = null;
+    private bool $banned = true;
     private RecordingLogger $logger;
 
     protected function setUp(): void
@@ -237,6 +240,59 @@ final class PostModerationActionToForumHandlerTest extends TestCase
         self::assertSame(ModerationAction::SERVER_BANNED, $action->getDiscordServerStatus());
     }
 
+    public function testABanAlreadyLiftedWhenItsJobRunsIsNotApplied(): void
+    {
+        // Story 39.9: the ban's job was retried after the lift's. Applying it now would ban a member the site
+        // has already let back in, and reopen a closed case.
+        $this->banned = false;
+        $case = ModerationCase::open('user-1', new \DateTimeImmutable('2026-09-20'));
+        $case->close(new \DateTimeImmutable('2026-09-27 10:00:02'));
+        $this->cases->save($case);
+        $action = $this->action('a-1', ModerationAction::ACTION_BAN, 'Triche');
+
+        $this->handle($action);
+
+        self::assertSame([], $this->server->bans);
+        self::assertSame([], $this->dms->sent, 'no "you are banned" message for a lifted ban');
+        self::assertSame(ModerationAction::SERVER_SUPERSEDED, $action->getDiscordServerStatus());
+        self::assertSame(ModerationCaseMessage::DM_SUPERSEDED, $action->getDiscordDmStatus());
+        self::assertFalse($case->isOpen());
+    }
+
+    public function testASuspensionOverWhenItsJobRunsIsNotApplied(): void
+    {
+        $this->banned = false;
+        $this->suspendedUntil = '2026-09-27T09:00:00+00:00';
+        $action = $this->action('a-1', ModerationAction::ACTION_SUSPEND, 'Comportement');
+
+        $this->handle($action);
+
+        self::assertSame([], $this->server->timeouts);
+        self::assertSame(ModerationAction::SERVER_SUPERSEDED, $action->getDiscordServerStatus());
+    }
+
+    public function testAPassingDirectMessageFailureDoesNotHoldTheServerBack(): void
+    {
+        // Story 39.9: the sanction on the server comes first; the message is retried after.
+        $this->dms->failWith = new MemberDirectMessageException('Discord 429', transient: true);
+        $action = $this->action('a-1', ModerationAction::ACTION_BAN, 'Triche');
+
+        try {
+            $this->handle($action);
+            self::fail('the message must be retried');
+        } catch (MemberDirectMessageTemporarilyUnavailableException) {
+        }
+
+        self::assertCount(1, $this->server->bans);
+        self::assertSame(ModerationAction::SERVER_BANNED, $action->getDiscordServerStatus());
+        self::assertNull($action->getDiscordDmStatus());
+
+        $this->dms->failWith = null;
+        $this->handle($action);
+        self::assertCount(1, $this->server->bans, 'not banned twice');
+        self::assertCount(1, $this->dms->sent);
+    }
+
     public function testClosedPrivateMessagesAreReported(): void
     {
         $this->dms->failWith = new MemberDirectMessageException('Discord 403: Cannot send messages to this user');
@@ -319,7 +375,7 @@ final class PostModerationActionToForumHandlerTest extends TestCase
 
         $gateway = self::createStub(MemberModerationGatewayInterface::class);
         $gateway->method('discordIdOf')->willReturn($this->discordId);
-        $gateway->method('currentState')->willReturnCallback(fn (): MemberModerationState => new MemberModerationState($this->suspendedUntil, null, null));
+        $gateway->method('currentState')->willReturnCallback(fn (): MemberModerationState => new MemberModerationState($this->suspendedUntil, $this->banned ? '2026-09-27T10:00:00+00:00' : null, null));
 
         $directory = self::createStub(CommunityUserDirectoryQueryInterface::class);
         $directory->method('namesFor')->willReturn(['user-1' => 'Lone', 'admin-1' => 'Jean']);

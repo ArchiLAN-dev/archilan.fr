@@ -49,10 +49,16 @@ framework:
             'App\PersonalRuns\Application\Message\StopPersonalRunJob': run_server
             'App\Community\Application\Message\RecomputeAchievementsForUserMessage': async
             'App\Community\Application\Message\RecomputeAllAchievementsMessage': async
-            # Stories 39.1 to 39.3: the staff forum and the bot's DMs, never in the request that sanctions or writes.
+            # Epic 39: the staff forum and the bot's DMs and sanctions, never in the request that sanctions or writes.
+            # A job still failing after its retries is parked in async_failed: `messenger:failed:retry`.
             'App\Community\Application\Message\PostModerationActionToForumJob': async
             'App\Community\Application\Message\PostModerationMessageToForumJob': async
             'App\Community\Application\Message\DeliverStaffReplyJob': async
+            # Story 39.9: the Discord passes call Discord; they run on the async worker, never in the scheduler,
+            # where they would hold back the other periodic tasks (see 38.5 below).
+            'App\Community\Application\Message\PollModerationDirectMessagesMessage': async
+            'App\Community\Application\Message\SyncDiscordBansMessage': async
+            'App\Community\Application\Message\ExtendDiscordTimeoutsMessage': async
             # Story 38.5 review: the nightly GitHub pass runs on the async worker, not in the scheduler,
             # so the two-minute stuck-run reconciliation is never held up behind it.
             'App\CatalogSync\Application\Message\CheckApworldUpdatesMessage': async

@@ -60,6 +60,29 @@ final class ModerationContactTest extends FunctionalTestCase
         self::assertSame('Bad', $case['messages'][0]['authorName']);
     }
 
+    public function testASuspendedMemberGetsAPassToo(): void
+    {
+        // Story 39.9: the pass was only tested for a ban.
+        $this->registerUser('late@example.org', displayName: 'Late');
+        $user = $this->entityManager->getRepository(User::class)->findOneBy(['emailCanonical' => 'late@example.org']);
+        self::assertInstanceOf(User::class, $user);
+        $user->suspendUntil(new \DateTimeImmutable('+10 days'), 'Comportement', new \DateTimeImmutable());
+        $this->entityManager->persist(ModerationAction::create('admin-id', $user->getId(), ModerationAction::ACTION_SUSPEND, 'Comportement', new \DateTimeImmutable()));
+        $this->entityManager->flush();
+
+        $this->client->jsonRequest('POST', '/api/v1/auth/login', ['email' => 'late@example.org', 'password' => self::PASSWORD]);
+        self::assertResponseStatusCodeSame(403);
+        $pass = $this->passCookie();
+        self::assertNotNull($pass);
+
+        $this->usePass((string) $pass->getValue());
+        $this->client->jsonRequest('GET', ModerationContactPass::COOKIE_PATH);
+        self::assertResponseIsSuccessful();
+        $data = $this->data();
+        self::assertSame('suspended', $data['status'] ?? null);
+        self::assertNotNull($data['suspendedUntil'] ?? null);
+    }
+
     public function testAWrongPasswordGetsNoPass(): void
     {
         $this->bannedMember();

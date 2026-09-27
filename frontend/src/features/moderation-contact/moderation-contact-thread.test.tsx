@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { ModerationContactThread, sanctionLine } from "./moderation-contact-thread";
 
-const noop = () => undefined;
+const noop = () => Promise.resolve(true);
 
 /** Story 39.2 : ce que le membre sanctionné voit de son échange avec la modération. */
 describe("ModerationContactThread", () => {
