@@ -1,6 +1,6 @@
 # Epic 39: Modération synchronisée avec Discord
 
-**Statut :** validé le 2026-09-27 ; 39.1 à 39.5 livrées, 39.6 en revue
+**Statut :** validé le 2026-09-27 ; 39.1 à 39.6 livrées, 39.7 en revue
 **Date :** 2026-09-27
 **Origine :** demande de Jean le 2026-09-27 - suivre chaque sanction dans un forum staff sur Discord, échanger
 avec le membre sanctionné (« OK pour le ban, mais j'aimerais être remboursé »), et appliquer les sanctions des

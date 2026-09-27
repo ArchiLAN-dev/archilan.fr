@@ -41,4 +41,14 @@ interface MemberModerationGatewayInterface
      * @return list<SuspendedMember>
      */
     public function currentlySuspended(\DateTimeImmutable $now): array;
+
+    /** The site account linked to this Discord account, if any (story 39.7). */
+    public function userIdForDiscordId(string $discordId): ?string;
+
+    /**
+     * The linked accounts banned on the site (story 39.7).
+     *
+     * @return list<BannedMember>
+     */
+    public function currentlyBanned(): array;
 }

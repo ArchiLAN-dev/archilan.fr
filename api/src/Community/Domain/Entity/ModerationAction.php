@@ -22,6 +22,9 @@ final class ModerationAction
     public const string ACTION_BAN = 'ban';
     public const string ACTION_LIFT = 'lift';
 
+    /** The actor of a sanction posed on the Discord server and applied on the site (story 39.7). */
+    public const string ACTOR_DISCORD = 'discord';
+
     /** Outcomes of the sanction applied on the Discord server (stories 39.5 and 39.6). */
     public const string SERVER_BANNED = 'banned';
     /** A lift recorded by story 39.5, before a lift also ended the timeout. */

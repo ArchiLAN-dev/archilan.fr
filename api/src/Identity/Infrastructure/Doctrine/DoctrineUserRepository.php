@@ -92,6 +92,22 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
         return $users;
     }
 
+    public function findBannedWithDiscord(): array
+    {
+        /** @var list<User> $users */
+        $users = $this->entityManager->createQueryBuilder()
+            ->select('u')
+            ->from(User::class, 'u')
+            ->where('u.bannedAt IS NOT NULL')
+            ->andWhere('u.discordId IS NOT NULL')
+            ->andWhere("u.discordId <> ''")
+            ->andWhere('u.deletedAt IS NULL')
+            ->getQuery()
+            ->getResult();
+
+        return $users;
+    }
+
     public function save(User $user): void
     {
         $this->entityManager->persist($user);

@@ -120,6 +120,20 @@ final class PostModerationActionToForumHandlerTest extends TestCase
         self::assertContains(['name' => 'Serveur Discord', 'value' => 'banni'], $this->forum->openedThreads[0]['message']->fields);
     }
 
+    public function testABanThatCameFromDiscordIsNotPosedAgain(): void
+    {
+        // Story 39.7: banning again would overwrite the reason with the site's prefix, and the ban would then
+        // pass for one of the site's.
+        $action = new ModerationAction('a-1', ModerationAction::ACTOR_DISCORD, 'user-1', ModerationAction::ACTION_BAN, 'Raid', new \DateTimeImmutable('2026-09-27 10:00:00'));
+        $this->actions['a-1'] = $action;
+
+        $this->handle($action);
+
+        self::assertSame([], $this->server->bans);
+        self::assertSame(ModerationAction::SERVER_BANNED, $action->getDiscordServerStatus());
+        self::assertContains(['name' => 'Modérateur', 'value' => 'Discord'], $this->forum->openedThreads[0]['message']->fields);
+    }
+
     public function testALiftUnbansAndEndsTheTimeout(): void
     {
         $action = $this->action('a-1', ModerationAction::ACTION_LIFT, 'Appel accepté');

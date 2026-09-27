@@ -138,6 +138,23 @@ final class AdminAccountModerationOverviewTest extends FunctionalTestCase
         self::assertNull($this->data()['case']);
     }
 
+    public function testABanFromDiscordIsNamedAsSuch(): void
+    {
+        // Story 39.7: the actor of a ban posed on Discord is not a site account.
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $target = $this->createUser('target@example.org', ['ROLE_USER'], 'Target', slug: 'target');
+        $this->entityManager->persist(\App\Community\Domain\Entity\ModerationAction::create(\App\Community\Domain\Entity\ModerationAction::ACTOR_DISCORD, $target->getId(), 'ban', 'Ban posé sur Discord : Raid', new \DateTimeImmutable('2026-09-27 12:00:00')));
+        $this->entityManager->flush();
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('GET', $this->url($target->getId()));
+
+        $actions = $this->data()['actions'] ?? null;
+        self::assertIsArray($actions);
+        self::assertIsArray($actions[0]);
+        self::assertSame('Discord', $actions[0]['actorName']);
+    }
+
     public function testUnknownAccountIsNotFound(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Support;
 
+use App\Community\Application\Port\DiscordBan;
 use App\Community\Domain\Entity\ModerationAction;
 use App\Community\Domain\Entity\ModerationCaseMessage;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -140,6 +141,18 @@ final readonly class ModerationForumMessageFactory
             : ['name' => 'Contester ou poser une question', 'value' => sprintf('Réponds à ce message : l\'équipe de modération le lira. Tu peux aussi écrire depuis ton espace compte (%s/compte), ou depuis la page de connexion si ton compte est suspendu ou banni.', $site)];
 
         return new ModerationForumMessage($label.' sur ArchiLAN', $action->getReason(), self::COLORS[$action->getAction()] ?? 0x95A5A6, $fields, null);
+    }
+
+    /**
+     * A ban of the Discord server the site does not apply (story 39.7): no linked account, or an admin's.
+     */
+    public function forUnappliedDiscordBan(DiscordBan $ban, ?string $author, bool $admin): ModerationForumMessage
+    {
+        return new ModerationForumMessage('Ban posé sur Discord', $ban->reason ?? 'Sans raison', self::COLORS[ModerationAction::ACTION_BAN], [
+            ['name' => 'Compte Discord', 'value' => sprintf('%s (<@%s>)', $ban->username, $ban->discordUserId)],
+            ['name' => 'Posé par', 'value' => $author ?? 'inconnu (journal d\'audit illisible)'],
+            ['name' => 'Sur le site', 'value' => $admin ? 'compte d\'un admin du site : jamais sanctionné' : 'aucun compte lié : rien n\'est appliqué'],
+        ], self::LABELS[ModerationAction::ACTION_BAN]);
     }
 
     private static function parisTime(string $atom): string

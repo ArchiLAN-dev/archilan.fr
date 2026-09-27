@@ -48,6 +48,24 @@ interface DiscordServerSanctionsInterface
     public function clearTimeout(string $discordUserId): void;
 
     /**
+     * The server's whole ban list (story 39.7): every page, or an exception - never a partial list, which would
+     * read as unbans.
+     *
+     * @return list<DiscordBan>
+     *
+     * @throws DiscordServerSanctionException
+     */
+    public function bans(): array;
+
+    /**
+     * Who posed each recent ban, from the server's audit log: banned member's Discord id => author's name.
+     * Empty when the bot may not read the audit log.
+     *
+     * @return array<string, string>
+     */
+    public function banAuthors(): array;
+
+    /**
      * Lifts the ban; a member who was not banned is no error.
      *
      * @throws DiscordServerSanctionException

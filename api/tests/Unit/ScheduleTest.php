@@ -7,6 +7,7 @@ namespace App\Tests\Unit;
 use App\CatalogSync\Application\Message\CheckApworldUpdatesMessage;
 use App\Community\Application\Message\ExtendDiscordTimeoutsMessage;
 use App\Community\Application\Message\PollModerationDirectMessagesMessage;
+use App\Community\Application\Message\SyncDiscordBansMessage;
 use App\GameSelection\Application\Message\SweepApworldCatalogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\Schedule;
@@ -70,6 +71,18 @@ final class ScheduleTest extends TestCase
 
         self::assertNotNull($next);
         self::assertSame('2026-09-28 04:30', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
+    }
+
+    public function testDiscordBansAreReadEveryFiveMinutes(): void
+    {
+        // Story 39.7: the bot holds no live connection; the server's ban list is read back.
+        $recurring = $this->recurringMessageFor(SyncDiscordBansMessage::class);
+
+        $from = new \DateTimeImmutable('2026-09-27 12:30:00', new \DateTimeZone('UTC'));
+        $next = $recurring->getTrigger()->getNextRunDate($from);
+
+        self::assertNotNull($next);
+        self::assertLessThanOrEqual(300, $next->getTimestamp() - $from->getTimestamp());
     }
 
     /**
