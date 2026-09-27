@@ -125,6 +125,24 @@ function StateBanner({ moderation }: { moderation: AdminUserModeration }) {
           ? "Aucun signalement de profil non résolu."
           : `${unresolvedReportCount} signalement${unresolvedReportCount > 1 ? "s" : ""} non résolu${unresolvedReportCount > 1 ? "s" : ""} · gravité ${severityScore}`}
       </p>
+      {moderation.moderationCase !== null ? (
+        <p className="text-xs text-muted-foreground">
+          Dossier de modération {moderation.moderationCase.status === "open" ? "ouvert" : "clos"}
+          {moderation.moderationCase.forumThreadUrl !== null ? (
+            <>
+              {" · "}
+              <a
+                className="font-semibold text-accent-text underline-offset-2 hover:underline"
+                href={moderation.moderationCase.forumThreadUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                voir le post sur Discord
+              </a>
+            </>
+          ) : null}
+        </p>
+      ) : null}
     </div>
   );
 }

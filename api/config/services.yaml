@@ -328,6 +328,9 @@ services:
     App\Community\Domain\Repository\ContentReportRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineContentReportRepository'
     App\Community\Domain\Repository\ModerationActionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineModerationActionRepository'
     App\Community\Application\Port\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\Adapter\IdentityMemberModerationGateway'
+    # Story 39.1: each member's moderation case, and its post in the staff forum on Discord.
+    App\Community\Domain\Repository\ModerationCaseRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineModerationCaseRepository'
+    App\Community\Application\Port\ModerationForumInterface: '@App\Community\Infrastructure\Adapter\DiscordModerationForum'
     App\Community\Domain\Repository\KudosRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineKudosRepository'
     App\Community\Domain\Repository\NotificationRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineNotificationRepository'
     App\Community\Application\Support\Notifier: '@App\Community\Application\Service\NotificationService'

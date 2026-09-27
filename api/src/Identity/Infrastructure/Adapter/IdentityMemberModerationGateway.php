@@ -72,6 +72,13 @@ final readonly class IdentityMemberModerationGateway implements MemberModeration
         );
     }
 
+    public function discordIdOf(string $userId): ?string
+    {
+        $discordId = $this->load($userId)?->getDiscordId();
+
+        return null === $discordId || '' === $discordId ? null : $discordId;
+    }
+
     private function load(string $userId): ?User
     {
         $user = $this->users->findById($userId);

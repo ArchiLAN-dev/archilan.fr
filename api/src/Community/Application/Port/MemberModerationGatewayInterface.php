@@ -28,4 +28,10 @@ interface MemberModerationGatewayInterface
      * had no way to tell whether they already were - so the moderation panel had nothing to show.
      */
     public function currentState(string $userId): ?MemberModerationState;
+
+    /**
+     * The Discord account linked to the member, or null (story 39.1: mentioned in the staff forum, and the
+     * account the sanction reaches on Discord in the next stories of epic 39).
+     */
+    public function discordIdOf(string $userId): ?string;
 }

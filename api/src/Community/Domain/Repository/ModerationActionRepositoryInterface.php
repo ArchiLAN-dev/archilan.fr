@@ -10,6 +10,8 @@ interface ModerationActionRepositoryInterface
 {
     public function save(ModerationAction $action): void;
 
+    public function findById(string $id): ?ModerationAction;
+
     /**
      * Action history for one account, most recent first.
      *

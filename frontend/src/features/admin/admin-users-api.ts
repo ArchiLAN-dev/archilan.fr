@@ -212,7 +212,18 @@ export type AdminUserModeration = {
   unresolvedReportCount: number;
   severityScore: number;
   actions: AdminModerationAction[];
+  // Story 39.1: the member's moderation case and its post in the staff forum on Discord; null without one.
+  moderationCase: AdminModerationCase | null;
 };
+
+export type AdminModerationCase = { status: "open" | "closed"; forumThreadUrl: string | null };
+
+function parseModerationCase(v: unknown): AdminModerationCase | null {
+  if (typeof v !== "object" || v === null) return null;
+  if (!("status" in v) || (v.status !== "open" && v.status !== "closed")) return null;
+  if (!hasNullableStringProp(v, "forumThreadUrl")) return null;
+  return { status: v.status, forumThreadUrl: v.forumThreadUrl };
+}
 
 function isModerationAction(v: unknown): v is AdminModerationAction {
   if (typeof v !== "object" || v === null) return false;
@@ -256,6 +267,7 @@ export async function fetchAdminUserModeration(userId: string): Promise<AdminUse
       unresolvedReportCount: data.unresolvedReportCount,
       severityScore: data.severityScore,
       actions: data.actions,
+      moderationCase: "case" in data ? parseModerationCase(data.case) : null,
     };
   } catch {
     return null;

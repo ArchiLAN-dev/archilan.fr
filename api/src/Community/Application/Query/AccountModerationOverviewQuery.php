@@ -6,7 +6,9 @@ namespace App\Community\Application\Query;
 
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Service\AccountModerationService;
+use App\Community\Domain\Repository\ModerationCaseRepositoryInterface;
 use App\Community\Domain\ValueObject\ReportSeverity;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Everything the moderation panel of an admin user sheet shows (story 36.2): the member's current access
@@ -25,6 +27,9 @@ final readonly class AccountModerationOverviewQuery
         private AccountModerationService $actions,
         private AccountReportScoreQueryInterface $reportScores,
         private CommunityUserDirectoryQueryInterface $cards,
+        private ModerationCaseRepositoryInterface $cases,
+        #[Autowire('%env(default::DISCORD_GUILD_ID)%')]
+        private string $discordGuildId,
     ) {
     }
 
@@ -36,7 +41,8 @@ final readonly class AccountModerationOverviewQuery
      *     state: array{suspendedUntil: string|null, bannedAt: string|null, reason: string|null},
      *     unresolvedReportCount: int,
      *     severityScore: int,
-     *     actions: list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, actorName: string|null, relatedReportId: string|null}>
+     *     actions: list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, actorName: string|null, relatedReportId: string|null}>,
+     *     case: array{status: string, forumThreadUrl: string|null}|null
      * }|null
      */
     public function forUser(string $userId): ?array
@@ -60,6 +66,7 @@ final readonly class AccountModerationOverviewQuery
             // first time a problem's weight is adjusted.
             'severityScore' => ReportSeverity::sum($problems),
             'actions' => $this->withActorNames($history),
+            'case' => $this->moderationCase($userId),
         ];
     }
 
@@ -92,5 +99,27 @@ final readonly class AccountModerationOverviewQuery
         }
 
         return $out;
+    }
+
+    /**
+     * Story 39.1: the member's moderation case and the link to its post in the staff forum on Discord.
+     *
+     * @return array{status: string, forumThreadUrl: string|null}|null
+     */
+    private function moderationCase(string $userId): ?array
+    {
+        $case = $this->cases->findByTargetUserId($userId);
+        if (null === $case) {
+            return null;
+        }
+
+        $threadId = $case->getForumThreadId();
+
+        return [
+            'status' => $case->getStatus(),
+            'forumThreadUrl' => null !== $threadId && '' !== $this->discordGuildId
+                ? sprintf('https://discord.com/channels/%s/%s', $this->discordGuildId, $threadId)
+                : null,
+        ];
     }
 }
