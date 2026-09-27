@@ -22,9 +22,13 @@ final class ModerationAction
     public const string ACTION_BAN = 'ban';
     public const string ACTION_LIFT = 'lift';
 
-    /** Outcomes of the sanction applied on the Discord server (story 39.5). */
+    /** Outcomes of the sanction applied on the Discord server (stories 39.5 and 39.6). */
     public const string SERVER_BANNED = 'banned';
+    /** A lift recorded by story 39.5, before a lift also ended the timeout. */
     public const string SERVER_UNBANNED = 'unbanned';
+    public const string SERVER_LIFTED = 'lifted';
+    public const string SERVER_TIMED_OUT = 'timed_out';
+    public const string SERVER_NOT_MEMBER = 'not_member';
     public const string SERVER_NOT_LINKED = 'not_linked';
     public const string SERVER_UNAVAILABLE = 'unavailable';
     public const string SERVER_FAILED = 'failed';

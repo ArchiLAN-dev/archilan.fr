@@ -19,6 +19,18 @@ final class RecordingDiscordServer implements DiscordServerSanctionsInterface
     /** @var list<string> */
     public array $unbans = [];
 
+    /** @var list<array{discordUserId: string, until: string, reason: string}> */
+    public array $timeouts = [];
+
+    /** @var list<string> */
+    public array $clearedTimeouts = [];
+
+    /** @var list<string> members the server does not have */
+    public array $absent = [];
+
+    /** @var list<string> members whose timeout fails as Discord being down */
+    public array $failingMembers = [];
+
     public ?DiscordServerSanctionException $failWith = null;
 
     public function __construct(
@@ -38,6 +50,30 @@ final class RecordingDiscordServer implements DiscordServerSanctionsInterface
             throw $this->failWith;
         }
         $this->bans[] = ['discordUserId' => $discordUserId, 'reason' => $reason, 'directMessagesBefore' => \count($this->directMessages->sent ?? [])];
+    }
+
+    public function timeout(string $discordUserId, \DateTimeImmutable $until, string $reason): bool
+    {
+        if (null !== $this->failWith) {
+            throw $this->failWith;
+        }
+        if (\in_array($discordUserId, $this->failingMembers, true)) {
+            throw new DiscordServerSanctionException('Discord 503', transient: true);
+        }
+        if (\in_array($discordUserId, $this->absent, true)) {
+            return false;
+        }
+        $this->timeouts[] = ['discordUserId' => $discordUserId, 'until' => $until->format(\DateTimeInterface::ATOM), 'reason' => $reason];
+
+        return true;
+    }
+
+    public function clearTimeout(string $discordUserId): void
+    {
+        if (null !== $this->failWith) {
+            throw $this->failWith;
+        }
+        $this->clearedTimeouts[] = $discordUserId;
     }
 
     public function unban(string $discordUserId): void

@@ -34,4 +34,11 @@ interface MemberModerationGatewayInterface
      * account the sanction reaches on Discord in the next stories of epic 39).
      */
     public function discordIdOf(string $userId): ?string;
+
+    /**
+     * The members whose suspension still runs at the given moment, banned ones excepted (story 39.6).
+     *
+     * @return list<SuspendedMember>
+     */
+    public function currentlySuspended(\DateTimeImmutable $now): array;
 }

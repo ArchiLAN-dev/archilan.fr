@@ -10,7 +10,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Bans and unbans on the ArchiLAN Discord server by the project's bot (story 39.5). The reason goes to the
+ * Bans and unbans (story 39.5), timeouts (story 39.6) on the ArchiLAN Discord server by the project's bot. The reason goes to the
  * server's audit log, URL-encoded as Discord asks, and opens with {@see DiscordServerSanctionsInterface::AUDIT_PREFIX}.
  */
 final readonly class DiscordServerSanctions implements DiscordServerSanctionsInterface
@@ -43,6 +43,33 @@ final readonly class DiscordServerSanctions implements DiscordServerSanctionsInt
         }
     }
 
+    public function timeout(string $discordUserId, \DateTimeImmutable $until, string $reason): bool
+    {
+        try {
+            $this->rest->request('PATCH', $this->memberPath($discordUserId), ['communication_disabled_until' => $until->format(\DateTimeInterface::ATOM)], $this->audit($reason));
+        } catch (DiscordRestFailure $e) {
+            // Unknown Member: not on the server, nothing to time out.
+            if (404 === $e->status) {
+                return false;
+            }
+            throw new DiscordServerSanctionException($e->getMessage(), $e, $e->transient);
+        }
+
+        return true;
+    }
+
+    public function clearTimeout(string $discordUserId): void
+    {
+        try {
+            $this->rest->request('PATCH', $this->memberPath($discordUserId), ['communication_disabled_until' => null], $this->audit(self::LIFT_REASON));
+        } catch (DiscordRestFailure $e) {
+            if (404 === $e->status) {
+                return;
+            }
+            throw new DiscordServerSanctionException($e->getMessage(), $e, $e->transient);
+        }
+    }
+
     public function unban(string $discordUserId): void
     {
         try {
@@ -54,6 +81,11 @@ final readonly class DiscordServerSanctions implements DiscordServerSanctionsInt
             }
             throw new DiscordServerSanctionException($e->getMessage(), $e, $e->transient);
         }
+    }
+
+    private function memberPath(string $discordUserId): string
+    {
+        return sprintf('/guilds/%s/members/%s', $this->guildId, $discordUserId);
     }
 
     private function banPath(string $discordUserId): string

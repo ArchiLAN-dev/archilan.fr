@@ -6,6 +6,7 @@ namespace App\Identity\Infrastructure\Adapter;
 
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Port\MemberModerationState;
+use App\Community\Application\Port\SuspendedMember;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 
@@ -77,6 +78,26 @@ final readonly class IdentityMemberModerationGateway implements MemberModeration
         $discordId = $this->load($userId)?->getDiscordId();
 
         return null === $discordId || '' === $discordId ? null : $discordId;
+    }
+
+    public function currentlySuspended(\DateTimeImmutable $now): array
+    {
+        $suspended = [];
+        foreach ($this->users->findSuspendedAt($now) as $user) {
+            $until = $user->getSuspendedUntil();
+            if (null === $until) {
+                continue;
+            }
+            $discordId = $user->getDiscordId();
+            $suspended[] = new SuspendedMember(
+                $user->getId(),
+                null === $discordId || '' === $discordId ? null : $discordId,
+                $until->format(\DateTimeInterface::ATOM),
+                $user->getModerationReason(),
+            );
+        }
+
+        return $suspended;
     }
 
     private function load(string $userId): ?User

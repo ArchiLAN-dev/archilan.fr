@@ -62,6 +62,30 @@ final class DiscordServerSanctionsTest extends TestCase
         }
     }
 
+    public function testATimeoutRunsUntilTheGivenMomentAndSignsTheAuditLog(): void
+    {
+        $server = $this->server([new MockResponse('{"user":{"id":"123456789"}}')]);
+
+        self::assertTrue($server->timeout('123456789', new \DateTimeImmutable('2026-10-10T08:00:00+00:00'), 'Comportement'));
+
+        self::assertSame(['PATCH', 'https://discord.com/api/v10/guilds/'.self::GUILD.'/members/123456789'], [$this->requests[0]['method'], $this->requests[0]['url']]);
+        self::assertSame(['communication_disabled_until' => '2026-10-10T08:00:00+00:00'], $this->requests[0]['body']);
+        self::assertSame(DiscordServerSanctionsInterface::AUDIT_PREFIX.' Comportement', $this->requests[0]['auditReason']);
+    }
+
+    public function testSomeoneOffTheServerCannotBeTimedOutAndThatIsNoError(): void
+    {
+        $server = $this->server([
+            new MockResponse('{"message":"Unknown Member","code":10007}', ['http_code' => 404]),
+            new MockResponse('{"message":"Unknown Member","code":10007}', ['http_code' => 404]),
+        ]);
+
+        self::assertFalse($server->timeout('123456789', new \DateTimeImmutable('2026-10-10T08:00:00+00:00'), 'Comportement'));
+        $server->clearTimeout('123456789');
+
+        self::assertSame(['communication_disabled_until' => null], $this->requests[1]['body']);
+    }
+
     public function testItNeedsTheBotAndTheServer(): void
     {
         self::assertTrue($this->server([])->isConfigured());

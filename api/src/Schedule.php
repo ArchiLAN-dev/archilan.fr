@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\CatalogSync\Application\Message\CheckApworldUpdatesMessage;
+use App\Community\Application\Message\ExtendDiscordTimeoutsMessage;
 use App\Community\Application\Message\PollModerationDirectMessagesMessage;
 use App\Community\Application\Message\RecomputeAllAchievementsMessage;
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
@@ -90,6 +91,10 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Story 39.4: what members answer the bot in private. The bot holds no live connection to
                 // Discord, so its DM channels are read back, for the open moderation cases only.
                 RecurringMessage::every('1 minute', new PollModerationDirectMessagesMessage()),
+            )
+            ->add(
+                // Story 39.6: Discord caps a timeout at 28 days; a nightly pass keeps a longer suspension going.
+                RecurringMessage::cron('30 4 * * *', new ExtendDiscordTimeoutsMessage(), new \DateTimeZone('Europe/Paris')),
             )
             ->add(
                 RecurringMessage::cron('0 0 * * 1', new GenerateWeeklyRunsMessage(), new \DateTimeZone('UTC')),

@@ -35,6 +35,9 @@ final readonly class ModerationForumMessageFactory
     private const array SERVER_OUTCOMES = [
         ModerationAction::SERVER_BANNED => 'banni',
         ModerationAction::SERVER_UNBANNED => 'débanni',
+        ModerationAction::SERVER_LIFTED => 'sanction levée sur le serveur',
+        ModerationAction::SERVER_TIMED_OUT => 'exclu temporairement',
+        ModerationAction::SERVER_NOT_MEMBER => 'pas sur le serveur',
         ModerationAction::SERVER_NOT_LINKED => 'compte Discord non lié',
         ModerationAction::SERVER_UNAVAILABLE => 'bot ou serveur non configuré',
         ModerationAction::SERVER_FAILED => 'échec (permission ou rôle du bot)',
