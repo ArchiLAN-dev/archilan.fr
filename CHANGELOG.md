@@ -5,6 +5,33 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.21.2] - 2026-09-27
+
+Correctif d'infrastructure : les images MinIO ont disparu de Docker Hub.
+
+### Corrigé
+
+- **MinIO se déploie de nouveau.** MinIO ne publie plus d'image communautaire : `minio/minio` et
+  `minio/mc` n'existent plus sur Docker Hub, si bien que tout téléchargement échouait, et avec lui
+  un `docker compose pull` de déploiement. Les deux fichiers compose utilisent désormais les builds
+  communautaires du même code, `pgsty/minio` (épinglé sur `RELEASE.2026-08-04T00-00-00Z`) et
+  `pgsty/mc`. Même commande, mêmes identifiants, même volume : les données existantes sont reprises
+  telles quelles.
+- **L'image `api-web` reste publiable après le 1er octobre.** Quatre exclusions Trivy du binaire
+  FrankenPHP expiraient ce jour-là ; FrankenPHP n'a toujours rien publié après la 1.12.7. Elles sont
+  repoussées au 10 octobre, comme les trois autres, pour être revues ensemble (#518, #521, #585).
+
+### Notes de déploiement
+
+- **Sauvegarder les buckets MinIO avant la bascule** (par exemple `mc mirror`) : une version plus
+  récente de MinIO peut mettre à jour ses métadonnées sur disque, et l'ancienne image n'est plus
+  téléchargeable.
+- Mettre à jour `docker-compose.prod.yml` sur le serveur, puis, depuis le même dossier (même nom de
+  projet Compose, donc même volume) :
+  `docker compose -f docker-compose.prod.yml pull minio createbuckets` puis
+  `docker compose -f docker-compose.prod.yml up -d minio createbuckets`.
+- Aucune migration. Les images `api-web`, `api-worker` et `frontend` ne changent pas de contenu.
+
 ## [0.21.1] - 2026-09-27
 
 Correctif : une version d'apworld forcée pendant son test gardait sa dérogation après l'avoir réussi.
