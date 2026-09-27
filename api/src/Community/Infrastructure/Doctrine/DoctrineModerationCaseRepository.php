@@ -14,6 +14,11 @@ final readonly class DoctrineModerationCaseRepository implements ModerationCaseR
     {
     }
 
+    public function findById(string $id): ?ModerationCase
+    {
+        return $this->entityManager->find(ModerationCase::class, $id);
+    }
+
     public function findByTargetUserId(string $targetUserId): ?ModerationCase
     {
         return $this->entityManager->getRepository(ModerationCase::class)->findOneBy(['targetUserId' => $targetUserId]);

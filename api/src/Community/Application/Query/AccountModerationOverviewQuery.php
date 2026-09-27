@@ -6,6 +6,8 @@ namespace App\Community\Application\Query;
 
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Service\AccountModerationService;
+use App\Community\Domain\Entity\ModerationCaseMessage;
+use App\Community\Domain\Repository\ModerationCaseMessageRepositoryInterface;
 use App\Community\Domain\Repository\ModerationCaseRepositoryInterface;
 use App\Community\Domain\ValueObject\ReportSeverity;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -21,6 +23,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 final readonly class AccountModerationOverviewQuery
 {
     private const int HISTORY_LIMIT = 50;
+    private const int MESSAGES_LIMIT = 100;
 
     public function __construct(
         private MemberModerationGatewayInterface $moderation,
@@ -28,6 +31,7 @@ final readonly class AccountModerationOverviewQuery
         private AccountReportScoreQueryInterface $reportScores,
         private CommunityUserDirectoryQueryInterface $cards,
         private ModerationCaseRepositoryInterface $cases,
+        private ModerationCaseMessageRepositoryInterface $caseMessages,
         #[Autowire('%env(default::DISCORD_GUILD_ID)%')]
         private string $discordGuildId,
     ) {
@@ -42,7 +46,7 @@ final readonly class AccountModerationOverviewQuery
      *     unresolvedReportCount: int,
      *     severityScore: int,
      *     actions: list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, actorName: string|null, relatedReportId: string|null}>,
-     *     case: array{status: string, forumThreadUrl: string|null}|null
+     *     case: array{status: string, forumThreadUrl: string|null, messages: list<array{id: string, author: string, authorName: string|null, body: string, source: string, createdAt: string}>}|null
      * }|null
      */
     public function forUser(string $userId): ?array
@@ -102,9 +106,10 @@ final readonly class AccountModerationOverviewQuery
     }
 
     /**
-     * Story 39.1: the member's moderation case and the link to its post in the staff forum on Discord.
+     * Story 39.1: the member's moderation case and the link to its post in the staff forum on Discord; story
+     * 39.2: its messages, oldest first.
      *
-     * @return array{status: string, forumThreadUrl: string|null}|null
+     * @return array{status: string, forumThreadUrl: string|null, messages: list<array{id: string, author: string, authorName: string|null, body: string, source: string, createdAt: string}>}|null
      */
     private function moderationCase(string $userId): ?array
     {
@@ -120,6 +125,28 @@ final readonly class AccountModerationOverviewQuery
             'forumThreadUrl' => null !== $threadId && '' !== $this->discordGuildId
                 ? sprintf('https://discord.com/channels/%s/%s', $this->discordGuildId, $threadId)
                 : null,
+            'messages' => $this->messages($case->getId()),
         ];
+    }
+
+    /**
+     * @return list<array{id: string, author: string, authorName: string|null, body: string, source: string, createdAt: string}>
+     */
+    private function messages(string $caseId): array
+    {
+        $messages = $this->caseMessages->forCase($caseId, self::MESSAGES_LIMIT);
+        $names = $this->cards->namesFor(array_values(array_unique(array_map(
+            static fn (ModerationCaseMessage $m): string => $m->getAuthorUserId(),
+            $messages,
+        ))));
+
+        return array_map(static fn (ModerationCaseMessage $m): array => [
+            'id' => $m->getId(),
+            'author' => $m->getAuthorRole(),
+            'authorName' => $names[$m->getAuthorUserId()] ?? null,
+            'body' => $m->getBody(),
+            'source' => $m->getSource(),
+            'createdAt' => $m->getCreatedAt()->format(\DateTimeInterface::ATOM),
+        ], $messages);
     }
 }

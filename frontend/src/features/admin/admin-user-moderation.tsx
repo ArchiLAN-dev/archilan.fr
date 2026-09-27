@@ -9,6 +9,7 @@ import {
   applyModerationAction,
   fetchAdminUserModeration,
   type AdminModerationAction,
+  type AdminModerationCaseMessage,
   type AdminUserModeration,
   type ModerationCommand,
 } from "./admin-users-api";
@@ -78,6 +79,10 @@ export function AdminUserModeration({ userId, isAdmin, isSelf }: Props) {
         />
       )}
 
+      {data.moderationCase !== null && data.moderationCase.messages.length > 0 ? (
+        <CaseMessages messages={data.moderationCase.messages} />
+      ) : null}
+
       <div className="grid gap-2">
         <h3 className="text-sm font-semibold text-foreground">Historique</h3>
         {data.actions.length === 0 ? (
@@ -143,6 +148,26 @@ function StateBanner({ moderation }: { moderation: AdminUserModeration }) {
           ) : null}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+/** Story 39.2 : ce que le membre a écrit à la modération, dans l'ordre. */
+function CaseMessages({ messages }: { messages: AdminModerationCaseMessage[] }) {
+  return (
+    <div className="grid gap-2">
+      <h3 className="text-sm font-semibold text-foreground">Messages du dossier</h3>
+      <ul className="grid gap-2" role="list">
+        {messages.map((message) => (
+          <li className="grid gap-1 rounded-lg border border-border bg-surface px-4 py-3" key={message.id}>
+            <p className="text-xs text-muted-foreground">
+              {message.author === "member" ? "Membre" : "Staff"}
+              {message.authorName !== null ? ` · ${message.authorName}` : ""} · {formatDate(message.createdAt)}
+            </p>
+            <p className="whitespace-pre-line text-sm text-foreground">{message.body}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

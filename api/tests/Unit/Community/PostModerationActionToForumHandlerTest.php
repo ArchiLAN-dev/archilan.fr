@@ -11,6 +11,7 @@ use App\Community\Application\Message\PostModerationActionToForumJob;
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Port\MemberModerationState;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\ModerationForumDelivery;
 use App\Community\Application\Support\ModerationForumMessageFactory;
 use App\Community\Domain\Entity\ModerationAction;
 use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
@@ -146,9 +147,8 @@ final class PostModerationActionToForumHandlerTest extends TestCase
             $gateway,
             $directory,
             new ModerationForumMessageFactory('https://archilan.fr'),
-            $this->forum,
+            new ModerationForumDelivery($this->forum, $this->cases, $this->logger),
             new MockClock('2026-09-27 10:00:05'),
-            $this->logger,
         );
     }
 }

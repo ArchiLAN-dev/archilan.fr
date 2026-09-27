@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { BlockedModerationContact } from "@/features/moderation-contact/moderation-contact";
 import { useAuth } from "./auth-context";
 import { DiscordButton } from "./discord-button";
 import type { AuthUser } from "./auth-context";
@@ -45,7 +46,11 @@ const DISCORD_ERROR_MESSAGES: Record<string, string> = {
     "Un compte existe déjà avec l'adresse email associée à ce compte Discord. Connecte-toi avec ton email et mot de passe.",
   access_denied: "Connexion Discord annulée ou refusée.",
   generic: "Une erreur s'est produite lors de la connexion Discord. Réessaie.",
+  account_blocked: "Ton compte est suspendu ou banni : la connexion est refusée.",
 };
+
+// Story 39.2 : une connexion refusée pour sanction laisse le membre écrire à la modération.
+const BLOCKED_CODES = ["account_banned", "account_suspended"];
 
 export function LoginForm({ returnTo, discordError }: { returnTo?: string; discordError?: string }) {
   const emailId = useId();
@@ -57,6 +62,7 @@ export function LoginForm({ returnTo, discordError }: { returnTo?: string; disco
     discordError ? (DISCORD_ERROR_MESSAGES[discordError] ?? DISCORD_ERROR_MESSAGES.generic) : null,
   );
   const [submitting, setSubmitting] = useState(false);
+  const [blocked, setBlocked] = useState(discordError === "account_blocked");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,6 +93,7 @@ export function LoginForm({ returnTo, discordError }: { returnTo?: string; disco
 
       if ("error" in payload) {
         setMessage(payload.error.message);
+        setBlocked(BLOCKED_CODES.includes(payload.error.code));
         return;
       }
 
@@ -107,6 +114,7 @@ export function LoginForm({ returnTo, discordError }: { returnTo?: string; disco
           {message}
         </p>
       )}
+      {blocked && <BlockedModerationContact />}
 
       <form className="grid gap-5" onSubmit={handleSubmit}>
         <div className="grid gap-2">
