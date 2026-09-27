@@ -43,4 +43,28 @@ final class ModerationCaseTest extends TestCase
 
         self::assertSame('thread-1', $case->getForumThreadId(), 'a case keeps its post: one post per member');
     }
+
+    public function testTheDirectMessageChannelStartsTheCursorAtTheBotsFirstMessage(): void
+    {
+        $case = ModerationCase::open('user-1', new \DateTimeImmutable());
+
+        $case->attachDirectMessageChannel('dm-1', '1000');
+        self::assertSame('dm-1', $case->getDirectMessageChannelId());
+        self::assertSame('1000', $case->getDirectMessageCursor());
+
+        // A later message of the bot never skips what the member wrote in between.
+        $case->attachDirectMessageChannel('dm-1', '1200');
+        self::assertSame('1000', $case->getDirectMessageCursor());
+    }
+
+    public function testTheCursorOnlyMovesForward(): void
+    {
+        $case = ModerationCase::open('user-1', new \DateTimeImmutable());
+        $case->attachDirectMessageChannel('dm-1', '999');
+
+        $case->advanceDirectMessageCursor('1001');
+        $case->advanceDirectMessageCursor('1000');
+
+        self::assertSame('1001', $case->getDirectMessageCursor(), 'snowflakes compare as numbers, not strings');
+    }
 }

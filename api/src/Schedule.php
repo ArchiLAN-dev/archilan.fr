@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\CatalogSync\Application\Message\CheckApworldUpdatesMessage;
+use App\Community\Application\Message\PollModerationDirectMessagesMessage;
 use App\Community\Application\Message\RecomputeAllAchievementsMessage;
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
 use App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage;
@@ -84,6 +85,11 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Derive apworld incidents from the orchestrator's test verdicts (story 38.1). A pull,
                 // not a webhook: orchestrator webhooks have no retry, a lost one would be a lost alert.
                 RecurringMessage::every('5 minutes', new ReconcileApworldIncidentsMessage()),
+            )
+            ->add(
+                // Story 39.4: what members answer the bot in private. The bot holds no live connection to
+                // Discord, so its DM channels are read back, for the open moderation cases only.
+                RecurringMessage::every('1 minute', new PollModerationDirectMessagesMessage()),
             )
             ->add(
                 RecurringMessage::cron('0 0 * * 1', new GenerateWeeklyRunsMessage(), new \DateTimeZone('UTC')),

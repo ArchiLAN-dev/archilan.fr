@@ -23,7 +23,9 @@ final class DiscordMemberDirectMessagesTest extends TestCase
     {
         $dms = $this->dms([new MockResponse('{"id":"dm-1"}'), new MockResponse('{"id":"message-1"}')]);
 
-        $dms->send('123456789', new ModerationForumMessage('Réponse de la modération', 'Bonjour <@&42>', 0x3498DB, [], null));
+        $sent = $dms->send('123456789', new ModerationForumMessage('Réponse de la modération', 'Bonjour <@&42>', 0x3498DB, [], null));
+
+        self::assertSame(['dm-1', 'message-1'], [$sent->channelId, $sent->messageId], 'story 39.4: where to read the answers from');
 
         self::assertSame(['POST', 'https://discord.com/api/v10/users/@me/channels'], [$this->requests[0]['method'], $this->requests[0]['url']]);
         self::assertSame(['recipient_id' => '123456789'], $this->requests[0]['body']);
@@ -60,6 +62,22 @@ final class DiscordMemberDirectMessagesTest extends TestCase
         } catch (MemberDirectMessageException $e) {
             self::assertTrue($e->transient);
         }
+    }
+
+    public function testItReadsTheAnswersAfterTheCursorOldestFirst(): void
+    {
+        $dms = $this->dms([new MockResponse((string) json_encode([
+            ['id' => '1003', 'author' => ['id' => 'member-1'], 'content' => '', 'timestamp' => '2026-09-27T12:02:00+00:00', 'attachments' => [['url' => 'https://cdn.discordapp.com/attachments/1/2/preuve.png']]],
+            ['id' => '1002', 'author' => ['id' => 'member-1'], 'content' => 'Bonjour', 'timestamp' => '2026-09-27T12:01:00+00:00', 'attachments' => []],
+            ['id' => 'broken'],
+        ]))]);
+
+        $messages = $dms->messagesAfter('dm-1', '1001');
+
+        self::assertSame(['GET', 'https://discord.com/api/v10/channels/dm-1/messages?after=1001&limit=100'], [$this->requests[0]['method'], $this->requests[0]['url']]);
+        self::assertCount(2, $messages, 'a message Discord sends without its fields is skipped');
+        self::assertSame(['1002', 'member-1', 'Bonjour', '2026-09-27T12:01:00+00:00'], [$messages[0]->id, $messages[0]->authorId, $messages[0]->content, $messages[0]->sentAt]);
+        self::assertSame('https://cdn.discordapp.com/attachments/1/2/preuve.png', $messages[1]->content, 'an attachment is kept as its link');
     }
 
     public function testItNeedsTheBotToken(): void

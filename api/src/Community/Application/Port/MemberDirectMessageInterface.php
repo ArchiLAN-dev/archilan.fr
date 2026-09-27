@@ -8,16 +8,25 @@ use App\Community\Application\Exception\MemberDirectMessageException;
 use App\Community\Application\Support\ModerationForumMessage;
 
 /**
- * A direct message from the project's bot to a member on Discord (story 39.3). The message is the same card
- * the staff forum takes.
+ * Direct messages between the project's bot and a member on Discord (stories 39.3 and 39.4). The message sent
+ * is the same card the staff forum takes; the answers are read back, the bot holding no live connection.
  */
 interface MemberDirectMessageInterface
 {
-    /** False without a bot token: nothing can be sent. */
+    /** False without a bot token: nothing can be sent or read. */
     public function isConfigured(): bool;
 
     /**
      * @throws MemberDirectMessageException
      */
-    public function send(string $discordUserId, ModerationForumMessage $message): void;
+    public function send(string $discordUserId, ModerationForumMessage $message): SentDirectMessage;
+
+    /**
+     * The messages of the channel after the given one, oldest first, whoever wrote them.
+     *
+     * @return list<IncomingDirectMessage>
+     *
+     * @throws MemberDirectMessageException
+     */
+    public function messagesAfter(string $channelId, string $afterMessageId): array;
 }

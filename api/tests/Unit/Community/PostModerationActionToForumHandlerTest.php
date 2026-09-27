@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
+use App\Community\Application\Exception\MemberDirectMessageException;
 use App\Community\Application\Exception\ModerationForumDeliveryException;
 use App\Community\Application\Exception\ModerationForumTemporarilyUnavailableException;
 use App\Community\Application\Handler\PostModerationActionToForumHandler;
@@ -11,9 +12,11 @@ use App\Community\Application\Message\PostModerationActionToForumJob;
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Port\MemberModerationState;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\MemberDirectMessenger;
 use App\Community\Application\Support\ModerationForumDelivery;
 use App\Community\Application\Support\ModerationForumMessageFactory;
 use App\Community\Domain\Entity\ModerationAction;
+use App\Community\Domain\Entity\ModerationCaseMessage;
 use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
 use App\Tests\Unit\CatalogSync\RecordingLogger;
 use PHPUnit\Framework\TestCase;
@@ -29,12 +32,14 @@ final class PostModerationActionToForumHandlerTest extends TestCase
     private array $actions = [];
     private InMemoryModerationCaseRepository $cases;
     private RecordingModerationForum $forum;
+    private RecordingMemberDirectMessages $dms;
     private RecordingLogger $logger;
 
     protected function setUp(): void
     {
         $this->cases = new InMemoryModerationCaseRepository();
         $this->forum = new RecordingModerationForum();
+        $this->dms = new RecordingMemberDirectMessages();
         $this->logger = new RecordingLogger();
     }
 
@@ -72,14 +77,58 @@ final class PostModerationActionToForumHandlerTest extends TestCase
         self::assertTrue($this->cases->findByTargetUserId('user-1')?->isOpen());
     }
 
-    public function testAnUnconfiguredForumDoesNothing(): void
+    public function testWithoutAForumTheCaseAndTheDirectMessageStillHappen(): void
     {
         $this->forum = new RecordingModerationForum(configured: false);
 
         $this->handle($this->action('a-1', ModerationAction::ACTION_BAN, 'Triche'));
 
         self::assertSame([], $this->forum->openedThreads);
-        self::assertNull($this->cases->findByTargetUserId('user-1'), 'no case without a forum to mirror it yet');
+        self::assertNotNull($this->cases->findByTargetUserId('user-1'), 'story 39.4: the case carries the DM channel');
+        self::assertCount(1, $this->dms->sent);
+    }
+
+    public function testTheMemberIsToldInPrivateAndTheForumSaysSo(): void
+    {
+        $action = $this->action('a-1', ModerationAction::ACTION_BAN, 'Triche');
+
+        $this->handle($action);
+
+        self::assertCount(1, $this->dms->sent);
+        $dm = $this->dms->sent[0]['message'];
+        self::assertSame('Ban sur ArchiLAN', $dm->title);
+        self::assertSame('Triche', $dm->description);
+        self::assertSame(ModerationCaseMessage::DM_SENT, $action->getDiscordDmStatus());
+        self::assertSame('dm-123456789', $this->cases->findByTargetUserId('user-1')?->getDirectMessageChannelId());
+        self::assertContains(['name' => 'Message privé Discord', 'value' => 'envoyé'], $this->forum->openedThreads[0]['message']->fields);
+    }
+
+    public function testClosedPrivateMessagesAreReported(): void
+    {
+        $this->dms->failWith = new MemberDirectMessageException('Discord 403: Cannot send messages to this user');
+        $action = $this->action('a-1', ModerationAction::ACTION_WARN, 'Spam');
+
+        $this->handle($action);
+
+        self::assertSame(ModerationCaseMessage::DM_FAILED, $action->getDiscordDmStatus());
+        self::assertContains(['name' => 'Message privé Discord', 'value' => 'impossible (MP fermés ou serveur quitté)'], $this->forum->openedThreads[0]['message']->fields);
+    }
+
+    public function testARetryAfterAForumFailureNeverSendsTheDirectMessageTwice(): void
+    {
+        $action = $this->action('a-1', ModerationAction::ACTION_BAN, 'Triche');
+        $this->forum->failWith = new ModerationForumDeliveryException('Discord 503', transient: true);
+        try {
+            $this->handle($action);
+            self::fail('retried');
+        } catch (ModerationForumTemporarilyUnavailableException) {
+        }
+
+        $this->forum->failWith = null;
+        $this->handle($action);
+
+        self::assertCount(1, $this->dms->sent);
+        self::assertCount(1, $this->forum->openedThreads);
     }
 
     public function testAPassingFailureIsHandedBackForARetry(): void
@@ -147,6 +196,7 @@ final class PostModerationActionToForumHandlerTest extends TestCase
             $gateway,
             $directory,
             new ModerationForumMessageFactory('https://archilan.fr'),
+            new MemberDirectMessenger($this->dms, $this->logger),
             new ModerationForumDelivery($this->forum, $this->cases, $this->logger),
             new MockClock('2026-09-27 10:00:05'),
         );

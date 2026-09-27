@@ -33,6 +33,14 @@ final class InMemoryModerationCaseRepository implements ModerationCaseRepository
         return $this->byTarget[$targetUserId] ?? null;
     }
 
+    public function openWithDirectMessageChannel(): array
+    {
+        return array_values(array_filter(
+            $this->byTarget,
+            static fn (ModerationCase $case): bool => $case->isOpen() && null !== $case->getDirectMessageChannelId(),
+        ));
+    }
+
     public function save(ModerationCase $case): void
     {
         $this->byTarget[$case->getTargetUserId()] = $case;

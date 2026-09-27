@@ -12,6 +12,7 @@ use App\Community\Application\Handler\DeliverStaffReplyHandler;
 use App\Community\Application\Message\DeliverStaffReplyJob;
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\MemberDirectMessenger;
 use App\Community\Application\Support\ModerationForumDelivery;
 use App\Community\Application\Support\ModerationForumMessageFactory;
 use App\Community\Domain\Entity\ModerationCase;
@@ -53,6 +54,7 @@ final class DeliverStaffReplyHandlerTest extends TestCase
         self::assertSame('123456789', $this->dms->sent[0]['discordUserId']);
         self::assertSame('Le remboursement est en cours.', $this->dms->sent[0]['message']->description);
         self::assertSame(ModerationCaseMessage::DM_SENT, $reply->getDiscordDmStatus());
+        self::assertSame('dm-123456789', $this->case->getDirectMessageChannelId(), 'story 39.4: the member may answer the bot');
 
         self::assertCount(1, $this->forum->posts);
         $post = $this->forum->posts[0]['message'];
@@ -82,7 +84,7 @@ final class DeliverStaffReplyHandlerTest extends TestCase
 
         self::assertSame(ModerationCaseMessage::DM_FAILED, $reply->getDiscordDmStatus());
         self::assertContains(['name' => 'Message privé Discord', 'value' => 'impossible (MP fermés ou serveur quitté)'], $this->forum->posts[0]['message']->fields);
-        self::assertContains(['level' => 'warning', 'message' => 'moderation_reply.dm_not_sent'], $this->logger->logs);
+        self::assertContains(['level' => 'warning', 'message' => 'moderation_dm.not_sent'], $this->logger->logs);
     }
 
     public function testABotWithoutTokenIsReported(): void
@@ -167,9 +169,8 @@ final class DeliverStaffReplyHandlerTest extends TestCase
             $gateway,
             $directory,
             new ModerationForumMessageFactory('https://archilan.fr'),
-            $this->dms,
+            new MemberDirectMessenger($this->dms, $this->logger),
             new ModerationForumDelivery($this->forum, $this->cases, $this->logger),
-            $this->logger,
         );
     }
 }

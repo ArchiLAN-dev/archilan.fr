@@ -14,11 +14,13 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(name: 'moderation_case_message')]
 #[ORM\Index(name: 'idx_moderation_case_message_case', columns: ['case_id', 'created_at'])]
+#[ORM\UniqueConstraint(name: 'uniq_moderation_case_message_discord', columns: ['discord_message_id'])]
 final class ModerationCaseMessage
 {
     public const string AUTHOR_MEMBER = 'member';
     public const string AUTHOR_STAFF = 'staff';
     public const string SOURCE_SITE = 'site';
+    public const string SOURCE_DISCORD_DM = 'discord_dm';
     public const int MAX_LENGTH = 2000;
 
     /** Outcomes of the direct message carrying a staff reply (story 39.3). */
@@ -45,6 +47,8 @@ final class ModerationCaseMessage
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'discord_dm_status', type: 'string', length: 16, nullable: true)]
         private ?string $discordDmStatus = null,
+        #[ORM\Column(name: 'discord_message_id', type: 'string', length: 32, nullable: true)]
+        private ?string $discordMessageId = null,
     ) {
     }
 
@@ -62,6 +66,26 @@ final class ModerationCaseMessage
     public static function fromStaff(string $caseId, string $staffId, string $body, \DateTimeImmutable $now): self
     {
         return new self(bin2hex(random_bytes(16)), $caseId, $staffId, self::AUTHOR_STAFF, self::checkedBody($body), self::SOURCE_SITE, $now);
+    }
+
+    /**
+     * What the member answered the bot in private (story 39.4). Already sent, so a message too long is cut
+     * rather than refused; an empty one is the caller's to skip.
+     *
+     * @throws \InvalidArgumentException an empty message
+     */
+    public static function fromMemberDirectMessage(string $caseId, string $memberId, string $content, \DateTimeImmutable $sentAt, string $discordMessageId): self
+    {
+        return new self(
+            bin2hex(random_bytes(16)),
+            $caseId,
+            $memberId,
+            self::AUTHOR_MEMBER,
+            self::checkedBody(mb_substr(trim($content), 0, self::MAX_LENGTH)),
+            self::SOURCE_DISCORD_DM,
+            $sentAt,
+            discordMessageId: $discordMessageId,
+        );
     }
 
     /** The first outcome stands: a direct message is sent once, whatever retries follow. */
@@ -118,5 +142,10 @@ final class ModerationCaseMessage
     public function getDiscordDmStatus(): ?string
     {
         return $this->discordDmStatus;
+    }
+
+    public function getDiscordMessageId(): ?string
+    {
+        return $this->discordMessageId;
     }
 }

@@ -24,6 +24,11 @@ final readonly class DoctrineModerationCaseMessageRepository implements Moderati
         return $this->entityManager->find(ModerationCaseMessage::class, $id);
     }
 
+    public function findByDiscordMessageId(string $discordMessageId): ?ModerationCaseMessage
+    {
+        return $this->entityManager->getRepository(ModerationCaseMessage::class)->findOneBy(['discordMessageId' => $discordMessageId]);
+    }
+
     public function forCase(string $caseId, int $limit): array
     {
         /** @var list<ModerationCaseMessage> $latest */

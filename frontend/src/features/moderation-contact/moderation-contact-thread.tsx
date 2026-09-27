@@ -68,7 +68,12 @@ export function ModerationContactThread({
               key={message.id}
             >
               <span className="text-xs text-muted-foreground">
-                {message.author === "staff" ? "Réponse de la modération" : "Envoyé"} le {MOMENT.format(new Date(message.createdAt))}
+                {message.author === "staff"
+                  ? "Réponse de la modération"
+                  : message.source === "discord_dm"
+                    ? "Envoyé en MP au bot"
+                    : "Envoyé"}{" "}
+                le {MOMENT.format(new Date(message.createdAt))}
               </span>
               <p className="whitespace-pre-line text-sm text-foreground">{message.body}</p>
             </li>

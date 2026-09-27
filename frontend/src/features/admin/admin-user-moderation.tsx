@@ -180,6 +180,7 @@ function CaseMessages({ messages }: { messages: AdminModerationCaseMessage[] }) 
             <p className="text-xs text-muted-foreground">
               {message.author === "member" ? "Membre" : "Staff"}
               {message.authorName !== null ? ` · ${message.authorName}` : ""} · {formatDate(message.createdAt)}
+              {message.source === "discord_dm" ? " · en MP au bot" : ""}
               {message.author === "staff" ? ` · ${message.discordDm !== null ? (DM_LABELS[message.discordDm] ?? message.discordDm) : "MP Discord en cours"}` : ""}
             </p>
             <p className="whitespace-pre-line text-sm text-foreground">{message.body}</p>

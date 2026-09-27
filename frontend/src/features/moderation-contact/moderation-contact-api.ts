@@ -1,10 +1,14 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
-/** Story 39.2 : un message du membre à la modération ; story 39.3 : ou une réponse de la modération. */
+/**
+ * Story 39.2 : un message du membre à la modération ; story 39.3 : ou une réponse de la modération ;
+ * story 39.4 : écrit sur le site, ou en réponse au MP du bot.
+ */
 export type ModerationContactMessage = {
   id: string;
   author: "member" | "staff";
+  source: "site" | "discord_dm";
   body: string;
   createdAt: string;
 };
@@ -35,7 +39,15 @@ function parseMessages(value: unknown): ModerationContactMessage[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item: unknown) =>
     isRecord(item) && typeof item.id === "string" && typeof item.body === "string" && typeof item.createdAt === "string"
-      ? [{ id: item.id, author: item.author === "staff" ? ("staff" as const) : ("member" as const), body: item.body, createdAt: item.createdAt }]
+      ? [
+          {
+            id: item.id,
+            author: item.author === "staff" ? ("staff" as const) : ("member" as const),
+            source: item.source === "discord_dm" ? ("discord_dm" as const) : ("site" as const),
+            body: item.body,
+            createdAt: item.createdAt,
+          },
+        ]
       : [],
   );
 }

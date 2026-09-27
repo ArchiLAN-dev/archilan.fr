@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit;
 
 use App\CatalogSync\Application\Message\CheckApworldUpdatesMessage;
+use App\Community\Application\Message\PollModerationDirectMessagesMessage;
 use App\GameSelection\Application\Message\SweepApworldCatalogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\Schedule;
@@ -46,6 +47,17 @@ final class ScheduleTest extends TestCase
 
         self::assertNotNull($next);
         self::assertSame('2026-09-27 13:10', $next->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i'));
+    }
+
+    public function testTheAnswersToTheBotAreReadEveryMinute(): void
+    {
+        // Story 39.4: the bot holds no live connection; its DM channels are read back.
+        $recurring = $this->recurringMessageFor(PollModerationDirectMessagesMessage::class);
+
+        $next = $recurring->getTrigger()->getNextRunDate(new \DateTimeImmutable('2026-09-27 12:30:00', new \DateTimeZone('UTC')));
+
+        self::assertNotNull($next);
+        self::assertLessThanOrEqual(60, $next->getTimestamp() - new \DateTimeImmutable('2026-09-27 12:30:00', new \DateTimeZone('UTC'))->getTimestamp());
     }
 
     /**

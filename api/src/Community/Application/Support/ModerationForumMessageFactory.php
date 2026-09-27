@@ -47,8 +47,9 @@ final readonly class ModerationForumMessageFactory
 
     /**
      * @param string|null $suspendedUntil the end of the suspension (ATOM), for a suspension
+     * @param string|null $dmStatus       how the bot's direct message told the member (story 39.4)
      */
-    public function forAction(ModerationAction $action, string $memberName, ?string $discordId, string $actorName, ?string $suspendedUntil): ModerationForumMessage
+    public function forAction(ModerationAction $action, string $memberName, ?string $discordId, string $actorName, ?string $suspendedUntil, ?string $dmStatus = null): ModerationForumMessage
     {
         $label = self::LABELS[$action->getAction()] ?? $action->getAction();
         $site = rtrim($this->siteUrl, '/');
@@ -58,7 +59,10 @@ final readonly class ModerationForumMessageFactory
             ['name' => 'Modérateur', 'value' => $actorName],
         ];
         if (ModerationAction::ACTION_SUSPEND === $action->getAction() && null !== $suspendedUntil) {
-            $fields[] = ['name' => 'Jusqu\'au', 'value' => new \DateTimeImmutable($suspendedUntil)->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m/Y H:i')];
+            $fields[] = ['name' => 'Jusqu\'au', 'value' => self::parisTime($suspendedUntil)];
+        }
+        if (null !== $dmStatus) {
+            $fields[] = ['name' => 'Message privé Discord', 'value' => self::DM_OUTCOMES[$dmStatus] ?? $dmStatus];
         }
         $fields[] = ['name' => 'Fiche', 'value' => $site.'/admin/utilisateurs/'.$action->getTargetUserId()];
         if (null !== $action->getRelatedReportId()) {
@@ -76,7 +80,7 @@ final readonly class ModerationForumMessageFactory
     {
         return new ModerationForumMessage('Message du membre', $message->getBody(), self::MEMBER_MESSAGE_COLOR, [
             ['name' => 'Membre', 'value' => $this->member($memberName, $discordId)],
-            ['name' => 'Écrit depuis', 'value' => 'le site'],
+            ['name' => 'Écrit depuis', 'value' => ModerationCaseMessage::SOURCE_DISCORD_DM === $message->getSource() ? 'un MP au bot' : 'le site'],
             ['name' => 'Fiche', 'value' => rtrim($this->siteUrl, '/').'/admin/utilisateurs/'.$message->getAuthorUserId()],
         ], null);
     }
@@ -97,8 +101,35 @@ final readonly class ModerationForumMessageFactory
     public function forMemberDirectMessage(ModerationCaseMessage $reply): ModerationForumMessage
     {
         return new ModerationForumMessage('Réponse de la modération ArchiLAN', $reply->getBody(), self::STAFF_REPLY_COLOR, [
-            ['name' => 'Pour répondre', 'value' => sprintf('Depuis ton espace compte (%s/compte), ou depuis la page de connexion si ton compte est suspendu ou banni.', rtrim($this->siteUrl, '/'))],
+            ['name' => 'Pour répondre', 'value' => sprintf('Réponds à ce message, ou écris depuis ton espace compte (%s/compte), ou depuis la page de connexion si ton compte est suspendu ou banni.', rtrim($this->siteUrl, '/'))],
         ], null);
+    }
+
+    /**
+     * The sanction, as the member receives it from the bot (story 39.4): what, why, until when, and how to
+     * answer. The moderator stays unnamed: it is the team speaking.
+     *
+     * @param string|null $suspendedUntil the end of the suspension (ATOM), for a suspension
+     */
+    public function forSanctionDirectMessage(ModerationAction $action, ?string $suspendedUntil): ModerationForumMessage
+    {
+        $label = self::LABELS[$action->getAction()] ?? $action->getAction();
+        $site = rtrim($this->siteUrl, '/');
+
+        $fields = [];
+        if (ModerationAction::ACTION_SUSPEND === $action->getAction() && null !== $suspendedUntil) {
+            $fields[] = ['name' => 'Jusqu\'au', 'value' => self::parisTime($suspendedUntil).' (heure de Paris)'];
+        }
+        $fields[] = ModerationAction::ACTION_LIFT === $action->getAction()
+            ? ['name' => 'Et maintenant', 'value' => sprintf('Tu retrouves l\'accès à ton compte : %s/connexion', $site)]
+            : ['name' => 'Contester ou poser une question', 'value' => sprintf('Réponds à ce message : l\'équipe de modération le lira. Tu peux aussi écrire depuis ton espace compte (%s/compte), ou depuis la page de connexion si ton compte est suspendu ou banni.', $site)];
+
+        return new ModerationForumMessage($label.' sur ArchiLAN', $action->getReason(), self::COLORS[$action->getAction()] ?? 0x95A5A6, $fields, null);
+    }
+
+    private static function parisTime(string $atom): string
+    {
+        return new \DateTimeImmutable($atom)->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m/Y H:i');
     }
 
     private function member(string $memberName, ?string $discordId): string

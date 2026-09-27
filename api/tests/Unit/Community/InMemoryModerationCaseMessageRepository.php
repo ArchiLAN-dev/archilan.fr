@@ -33,6 +33,17 @@ final class InMemoryModerationCaseMessageRepository implements ModerationCaseMes
         return null;
     }
 
+    public function findByDiscordMessageId(string $discordMessageId): ?ModerationCaseMessage
+    {
+        foreach ($this->messages as $message) {
+            if ($message->getDiscordMessageId() === $discordMessageId) {
+                return $message;
+            }
+        }
+
+        return null;
+    }
+
     public function forCase(string $caseId, int $limit): array
     {
         $found = array_values(array_filter($this->messages, static fn (ModerationCaseMessage $m): bool => $m->getCaseId() === $caseId));

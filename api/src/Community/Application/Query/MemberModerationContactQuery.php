@@ -32,7 +32,7 @@ final readonly class MemberModerationContactQuery
     /**
      * A logged-in member: whether they have a sanction to talk about, and the exchange so far.
      *
-     * @return array{available: bool, messages: list<array{id: string, author: string, body: string, createdAt: string}>}
+     * @return array{available: bool, messages: list<array{id: string, author: string, source: string, body: string, createdAt: string}>}
      */
     public function forMember(string $userId): array
     {
@@ -48,7 +48,7 @@ final readonly class MemberModerationContactQuery
      * A blocked member, named by their contact pass. Null once they are no longer blocked: the pass then
      * opens nothing, and the member logs in again to write from their account.
      *
-     * @return array{status: 'banned'|'suspended', reason: string|null, suspendedUntil: string|null, messages: list<array{id: string, author: string, body: string, createdAt: string}>}|null
+     * @return array{status: 'banned'|'suspended', reason: string|null, suspendedUntil: string|null, messages: list<array{id: string, author: string, source: string, body: string, createdAt: string}>}|null
      */
     public function forBlockedMember(string $userId): ?array
     {
@@ -71,13 +71,15 @@ final readonly class MemberModerationContactQuery
     }
 
     /**
-     * @return list<array{id: string, author: string, body: string, createdAt: string}>
+     * @return list<array{id: string, author: string, source: string, body: string, createdAt: string}>
      */
     private function thread(string $caseId): array
     {
         return array_map(static fn (ModerationCaseMessage $m): array => [
             'id' => $m->getId(),
             'author' => $m->getAuthorRole(),
+            // Story 39.4: written on the site, or answered to the bot in private.
+            'source' => $m->getSource(),
             'body' => $m->getBody(),
             'createdAt' => $m->getCreatedAt()->format(\DateTimeInterface::ATOM),
         ], $this->messages->forCase($caseId, self::MESSAGES_LIMIT));
