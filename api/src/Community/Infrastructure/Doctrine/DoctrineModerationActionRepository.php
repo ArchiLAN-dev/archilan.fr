@@ -20,6 +20,11 @@ final readonly class DoctrineModerationActionRepository implements ModerationAct
         $this->entityManager->flush();
     }
 
+    public function findById(string $id): ?ModerationAction
+    {
+        return $this->entityManager->find(ModerationAction::class, $id);
+    }
+
     public function forTarget(string $targetUserId, int $limit): array
     {
         $qb = $this->entityManager->getRepository(ModerationAction::class)->createQueryBuilder('a');
