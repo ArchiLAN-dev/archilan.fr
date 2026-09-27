@@ -83,4 +83,36 @@ describe("fetchAdminUserModeration - dossier de modération", () => {
     expect(received).toEqual({ body: "C'est en cours" });
     await expect(replyToMember("u2", "Bonjour")).resolves.toBe("Aucune sanction sur ce compte : pas de dossier où répondre.");
   });
+
+  it("lit l'issue Discord de chaque sanction (stories 39.4 et 39.5)", async () => {
+    const action = {
+      id: "a1",
+      action: "ban",
+      reason: "Triche",
+      createdAt: "2026-09-27T10:00:00+00:00",
+      actorId: "admin-1",
+      actorName: "Jean",
+      relatedReportId: null,
+    };
+    server.use(
+      http.get(`${BASE}/admin/community/accounts/u1/moderation`, () =>
+        HttpResponse.json({
+          data: {
+            state: { suspendedUntil: null, bannedAt: "2026-09-27T10:00:00+00:00", reason: "Triche" },
+            unresolvedReportCount: 0,
+            severityScore: 0,
+            actions: [{ ...action, discordDm: "sent", discordServer: "banned" }, { ...action, id: "a0" }],
+            case: null,
+          },
+        }),
+      ),
+    );
+
+    const moderation = await fetchAdminUserModeration("u1");
+
+    expect(moderation?.actions.map((a) => [a.discordDm, a.discordServer])).toEqual([
+      ["sent", "banned"],
+      [null, null],
+    ]);
+  });
 });

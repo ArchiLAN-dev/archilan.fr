@@ -8,8 +8,9 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Append-only audit row for an admin moderation action on an account (story 30.29): who did what to whom,
- * why, and when. Never edited or deleted - it's the trace behind every warn/suspend/ban/lift. The one thing
- * filled in afterwards is how the bot's direct message told the member (story 39.4), once.
+ * why, and when. Never edited or deleted - it's the trace behind every warn/suspend/ban/lift. The only things
+ * filled in afterwards, once each, are how Discord took it: the bot's direct message to the member (story
+ * 39.4) and the sanction applied on the server (story 39.5).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'community_moderation_action')]
@@ -20,6 +21,13 @@ final class ModerationAction
     public const string ACTION_SUSPEND = 'suspend';
     public const string ACTION_BAN = 'ban';
     public const string ACTION_LIFT = 'lift';
+
+    /** Outcomes of the sanction applied on the Discord server (story 39.5). */
+    public const string SERVER_BANNED = 'banned';
+    public const string SERVER_UNBANNED = 'unbanned';
+    public const string SERVER_NOT_LINKED = 'not_linked';
+    public const string SERVER_UNAVAILABLE = 'unavailable';
+    public const string SERVER_FAILED = 'failed';
 
     public function __construct(
         #[ORM\Id]
@@ -39,6 +47,8 @@ final class ModerationAction
         private ?string $relatedReportId = null,
         #[ORM\Column(name: 'discord_dm_status', type: 'string', length: 16, nullable: true)]
         private ?string $discordDmStatus = null,
+        #[ORM\Column(name: 'discord_server_status', type: 'string', length: 16, nullable: true)]
+        private ?string $discordServerStatus = null,
     ) {
     }
 
@@ -62,6 +72,17 @@ final class ModerationAction
     public function getDiscordDmStatus(): ?string
     {
         return $this->discordDmStatus;
+    }
+
+    /** The first outcome stands: the server is acted on once, whatever retries follow. */
+    public function recordServerSanction(string $status): void
+    {
+        $this->discordServerStatus ??= $status;
+    }
+
+    public function getDiscordServerStatus(): ?string
+    {
+        return $this->discordServerStatus;
     }
 
     public function getId(): string

@@ -45,7 +45,7 @@ final readonly class AccountModerationOverviewQuery
      *     state: array{suspendedUntil: string|null, bannedAt: string|null, reason: string|null},
      *     unresolvedReportCount: int,
      *     severityScore: int,
-     *     actions: list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, actorName: string|null, relatedReportId: string|null}>,
+     *     actions: list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, actorName: string|null, relatedReportId: string|null, discordDm: string|null, discordServer: string|null}>,
      *     case: array{status: string, forumThreadUrl: string|null, messages: list<array{id: string, author: string, authorName: string|null, body: string, source: string, createdAt: string, discordDm: string|null}>}|null
      * }|null
      */
@@ -78,9 +78,9 @@ final readonly class AccountModerationOverviewQuery
      * `AccountModerationService::history()` returns a bare `actorId`; an id tells a reviewer nothing.
      * Resolved in one batch, never one lookup per row.
      *
-     * @param list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, relatedReportId: string|null}> $history
+     * @param list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, relatedReportId: string|null, discordDm: string|null, discordServer: string|null}> $history
      *
-     * @return list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, actorName: string|null, relatedReportId: string|null}>
+     * @return list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, actorName: string|null, relatedReportId: string|null, discordDm: string|null, discordServer: string|null}>
      */
     private function withActorNames(array $history): array
     {

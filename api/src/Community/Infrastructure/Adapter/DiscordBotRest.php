@@ -32,14 +32,15 @@ final readonly class DiscordBotRest
 
     /**
      * @param array<string, mixed>|null $json
+     * @param array<string, string>     $headers
      *
      * @return array<string, mixed>
      *
      * @throws DiscordRestFailure
      */
-    public function request(string $method, string $path, ?array $json = null): array
+    public function request(string $method, string $path, ?array $json = null, array $headers = []): array
     {
-        $decoded = $this->call($method, $path, $json);
+        $decoded = $this->call($method, $path, $json, $headers);
 
         return is_array($decoded) ? array_filter($decoded, is_string(...), \ARRAY_FILTER_USE_KEY) : [];
     }
@@ -53,19 +54,20 @@ final readonly class DiscordBotRest
      */
     public function requestList(string $method, string $path): array
     {
-        $decoded = $this->call($method, $path, null);
+        $decoded = $this->call($method, $path, null, []);
 
         return is_array($decoded) ? array_values(array_filter($decoded, is_array(...))) : [];
     }
 
     /**
      * @param array<string, mixed>|null $json
+     * @param array<string, string>     $headers
      *
      * @throws DiscordRestFailure
      */
-    private function call(string $method, string $path, ?array $json): mixed
+    private function call(string $method, string $path, ?array $json, array $headers): mixed
     {
-        $options = ['headers' => ['Authorization' => 'Bot '.$this->botToken]];
+        $options = ['headers' => ['Authorization' => 'Bot '.$this->botToken, ...$headers]];
         if (null !== $json) {
             $options['json'] = $json;
         }
@@ -79,10 +81,10 @@ final readonly class DiscordBotRest
         }
 
         if (429 === $status || $status >= 500) {
-            throw new DiscordRestFailure(sprintf('Discord %d on %s %s', $status, $method, $path), transient: true);
+            throw new DiscordRestFailure(sprintf('Discord %d on %s %s', $status, $method, $path), transient: true, status: $status);
         }
         if ($status >= 400) {
-            throw new DiscordRestFailure(sprintf('Discord %d on %s %s: %s', $status, $method, $path, mb_substr($content, 0, 300)));
+            throw new DiscordRestFailure(sprintf('Discord %d on %s %s: %s', $status, $method, $path, mb_substr($content, 0, 300)), status: $status);
         }
 
         return '' === $content ? [] : json_decode($content, true);

@@ -205,6 +205,10 @@ export type AdminModerationAction = {
   actorId: string;
   actorName: string | null;
   relatedReportId: string | null;
+  /** Story 39.4 : issue du MP du bot au membre ; null tant que le job n'est pas passé. */
+  discordDm: string | null;
+  /** Story 39.5 : issue sur le serveur Discord (ban, levée) ; null si rien à faire ou pas encore passé. */
+  discordServer: string | null;
 };
 
 export type AdminUserModeration = {
@@ -262,7 +266,7 @@ function parseModerationCase(v: unknown): AdminModerationCase | null {
   return { status: v.status, forumThreadUrl: v.forumThreadUrl, messages };
 }
 
-function isModerationAction(v: unknown): v is AdminModerationAction {
+function isModerationAction(v: unknown): v is Omit<AdminModerationAction, "discordDm" | "discordServer"> {
   if (typeof v !== "object" || v === null) return false;
   return (
     hasStringProp(v, "id") &&
@@ -303,7 +307,11 @@ export async function fetchAdminUserModeration(userId: string): Promise<AdminUse
       state: { suspendedUntil: state.suspendedUntil, bannedAt: state.bannedAt, reason: state.reason },
       unresolvedReportCount: data.unresolvedReportCount,
       severityScore: data.severityScore,
-      actions: data.actions,
+      actions: data.actions.map((action) => ({
+        ...action,
+        discordDm: "discordDm" in action && typeof action.discordDm === "string" ? action.discordDm : null,
+        discordServer: "discordServer" in action && typeof action.discordServer === "string" ? action.discordServer : null,
+      })),
       moderationCase: "case" in data ? parseModerationCase(data.case) : null,
     };
   } catch {

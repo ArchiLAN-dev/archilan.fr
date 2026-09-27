@@ -58,6 +58,9 @@ final class AdminAccountModerationOverviewTest extends FunctionalTestCase
         self::assertSame('suspend', $action['action']);
         // The raw actorId says nothing to a reviewer; the panel needs the name.
         self::assertSame('Admin', $action['actorName']);
+        // Stories 39.4 and 39.5: how Discord took it, once the async job has run.
+        self::assertArrayHasKey('discordDm', $action);
+        self::assertArrayHasKey('discordServer', $action);
     }
 
     public function testABanIsReportedAsSuch(): void

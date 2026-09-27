@@ -336,7 +336,26 @@ function ActionForm({ userId, onDone }: { userId: string; onDone: () => Promise<
   );
 }
 
+const SERVER_LABELS: Record<string, string> = {
+  banned: "banni du serveur Discord",
+  unbanned: "débanni du serveur Discord",
+  not_linked: "compte Discord non lié",
+  unavailable: "bot ou serveur Discord non configuré",
+  failed: "échec sur le serveur Discord (permission ou rôle du bot)",
+};
+
+/** Stories 39.4 et 39.5 : ce que Discord a fait de la sanction. */
+function discordLine(action: AdminModerationAction): string | null {
+  const parts = [
+    action.discordDm !== null ? (DM_LABELS[action.discordDm] ?? action.discordDm) : null,
+    action.discordServer !== null ? (SERVER_LABELS[action.discordServer] ?? action.discordServer) : null,
+  ].filter((part): part is string => part !== null);
+  return parts.length > 0 ? `Discord : ${parts.join(" · ")}` : null;
+}
+
 function ActionRow({ action }: { action: AdminModerationAction }) {
+  const discord = discordLine(action);
+
   return (
     <li className="grid gap-1 rounded-lg border border-border bg-surface px-4 py-3">
       <p className="text-sm font-semibold text-foreground">
@@ -349,6 +368,7 @@ function ActionRow({ action }: { action: AdminModerationAction }) {
       <time className="text-xs text-muted-foreground" dateTime={action.createdAt}>
         {formatDate(action.createdAt)}
       </time>
+      {discord !== null ? <p className="text-xs text-muted-foreground">{discord}</p> : null}
     </li>
   );
 }
