@@ -33,6 +33,10 @@ final class ModerationCase
         private \DateTimeImmutable $openedAt,
         #[ORM\Column(name: 'updated_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $updatedAt,
+        #[ORM\Column(name: 'dm_channel_id', type: 'string', length: 32, nullable: true)]
+        private ?string $directMessageChannelId = null,
+        #[ORM\Column(name: 'dm_cursor', type: 'string', length: 32, nullable: true)]
+        private ?string $directMessageCursor = null,
     ) {
     }
 
@@ -59,6 +63,40 @@ final class ModerationCase
         if (null === $this->forumThreadId) {
             $this->forumThreadId = $threadId;
         }
+    }
+
+    /**
+     * The member's DM channel with the bot, known from the bot's first message (story 39.4). The cursor starts
+     * at that message and is never moved back by a later one: what the member wrote in between is still read.
+     */
+    public function attachDirectMessageChannel(string $channelId, string $sentMessageId): void
+    {
+        $this->directMessageChannelId = $channelId;
+        $this->directMessageCursor ??= $sentMessageId;
+    }
+
+    /** Past the given message of the DM channel, whoever wrote it. Discord ids grow with time. */
+    public function advanceDirectMessageCursor(string $messageId): void
+    {
+        if (null === $this->directMessageCursor || self::isAfter($messageId, $this->directMessageCursor)) {
+            $this->directMessageCursor = $messageId;
+        }
+    }
+
+    public function getDirectMessageChannelId(): ?string
+    {
+        return $this->directMessageChannelId;
+    }
+
+    public function getDirectMessageCursor(): ?string
+    {
+        return $this->directMessageCursor;
+    }
+
+    /** Snowflakes are decimal strings too long for an int on every platform: compare them as numbers, by length first. */
+    private static function isAfter(string $id, string $other): bool
+    {
+        return strlen($id) !== strlen($other) ? strlen($id) > strlen($other) : strcmp($id, $other) > 0;
     }
 
     public function getId(): string

@@ -39,6 +39,32 @@ final readonly class DiscordBotRest
      */
     public function request(string $method, string $path, ?array $json = null): array
     {
+        $decoded = $this->call($method, $path, $json);
+
+        return is_array($decoded) ? array_filter($decoded, is_string(...), \ARRAY_FILTER_USE_KEY) : [];
+    }
+
+    /**
+     * A call answering with a list, such as the messages of a channel.
+     *
+     * @return list<array<mixed>>
+     *
+     * @throws DiscordRestFailure
+     */
+    public function requestList(string $method, string $path): array
+    {
+        $decoded = $this->call($method, $path, null);
+
+        return is_array($decoded) ? array_values(array_filter($decoded, is_array(...))) : [];
+    }
+
+    /**
+     * @param array<string, mixed>|null $json
+     *
+     * @throws DiscordRestFailure
+     */
+    private function call(string $method, string $path, ?array $json): mixed
+    {
         $options = ['headers' => ['Authorization' => 'Bot '.$this->botToken]];
         if (null !== $json) {
             $options['json'] = $json;
@@ -59,9 +85,7 @@ final readonly class DiscordBotRest
             throw new DiscordRestFailure(sprintf('Discord %d on %s %s: %s', $status, $method, $path, mb_substr($content, 0, 300)));
         }
 
-        $decoded = '' === $content ? [] : json_decode($content, true);
-
-        return is_array($decoded) ? array_filter($decoded, is_string(...), \ARRAY_FILTER_USE_KEY) : [];
+        return '' === $content ? [] : json_decode($content, true);
     }
 
     /**

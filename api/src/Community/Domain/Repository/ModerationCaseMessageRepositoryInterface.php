@@ -13,6 +13,8 @@ interface ModerationCaseMessageRepositoryInterface
 
     public function findById(string $id): ?ModerationCaseMessage;
 
+    public function findByDiscordMessageId(string $discordMessageId): ?ModerationCaseMessage;
+
     /**
      * The case's latest messages, oldest first.
      *

@@ -63,4 +63,14 @@ final class ModerationCaseMessageTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         ModerationCaseMessage::fromStaff('case-1', 'admin-1', '  ', new \DateTimeImmutable());
     }
+
+    public function testAnAnswerToTheBotKeepsItsDiscordOrigin(): void
+    {
+        $message = ModerationCaseMessage::fromMemberDirectMessage('case-1', 'user-1', str_repeat('a', 2100), new \DateTimeImmutable('2026-09-27 12:00:00'), '1300');
+
+        self::assertSame(ModerationCaseMessage::AUTHOR_MEMBER, $message->getAuthorRole());
+        self::assertSame(ModerationCaseMessage::SOURCE_DISCORD_DM, $message->getSource());
+        self::assertSame('1300', $message->getDiscordMessageId());
+        self::assertSame(ModerationCaseMessage::MAX_LENGTH, mb_strlen($message->getBody()), 'cut, not refused: the member already sent it');
+    }
 }

@@ -49,6 +49,7 @@ final class ModerationReplyTest extends FunctionalTestCase
         self::assertCount(2, $messages);
         self::assertIsArray($messages[1]);
         self::assertSame('staff', $messages[1]['author']);
+        self::assertSame('site', $messages[1]['source']);
         self::assertSame('Ton pseudo contenait ton adresse.', $messages[1]['body']);
         self::assertArrayNotHasKey('authorName', $messages[1], 'the member reads "la modération", not a name');
     }

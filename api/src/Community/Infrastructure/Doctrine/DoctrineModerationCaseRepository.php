@@ -24,6 +24,22 @@ final readonly class DoctrineModerationCaseRepository implements ModerationCaseR
         return $this->entityManager->getRepository(ModerationCase::class)->findOneBy(['targetUserId' => $targetUserId]);
     }
 
+    public function openWithDirectMessageChannel(): array
+    {
+        /** @var list<ModerationCase> $cases */
+        $cases = $this->entityManager->createQueryBuilder()
+            ->select('c')
+            ->from(ModerationCase::class, 'c')
+            ->where('c.status = :open')
+            ->andWhere('c.directMessageChannelId IS NOT NULL')
+            ->andWhere('c.directMessageCursor IS NOT NULL')
+            ->setParameter('open', ModerationCase::STATUS_OPEN)
+            ->getQuery()
+            ->getResult();
+
+        return $cases;
+    }
+
     public function save(ModerationCase $case): void
     {
         $this->entityManager->persist($case);

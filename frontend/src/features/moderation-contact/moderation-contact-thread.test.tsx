@@ -21,8 +21,8 @@ describe("ModerationContactThread", () => {
         error={null}
         intro="Ton compte a été banni."
         messages={[
-          { id: "m1", author: "member", body: "J'aimerais être remboursé", createdAt: "2026-09-27T10:00:00+00:00" },
-          { id: "m2", author: "staff", body: "Le remboursement est en cours.", createdAt: "2026-09-27T11:00:00+00:00" },
+          { id: "m1", author: "member", source: "discord_dm", body: "J'aimerais être remboursé", createdAt: "2026-09-27T10:00:00+00:00" },
+          { id: "m2", author: "staff", source: "site", body: "Le remboursement est en cours.", createdAt: "2026-09-27T11:00:00+00:00" },
         ]}
         onSend={noop}
         sending={false}
@@ -34,6 +34,7 @@ describe("ModerationContactThread", () => {
     expect(html).toContain("Ton compte a été banni.");
     expect(html).toContain("J&#x27;aimerais être remboursé");
     expect(html).toContain("Réponse de la modération");
+    expect(html).toContain("Envoyé en MP au bot");
     expect(html).toContain("Le remboursement est en cours.");
     expect(html).toContain("maxLength=\"2000\"");
     expect(html).toContain("Envoyer");
