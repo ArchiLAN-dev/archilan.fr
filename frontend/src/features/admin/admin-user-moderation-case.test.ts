@@ -31,7 +31,27 @@ describe("fetchAdminUserModeration - dossier de modération", () => {
 
     const moderation = await fetchAdminUserModeration("u1");
 
-    expect(moderation?.moderationCase).toEqual({ status: "open", forumThreadUrl: "https://discord.com/channels/g/t" });
+    expect(moderation?.moderationCase).toEqual({ status: "open", forumThreadUrl: "https://discord.com/channels/g/t", messages: [] });
+  });
+
+  it("lit les messages du dossier (story 39.2)", async () => {
+    const message = {
+      id: "m1",
+      author: "member",
+      authorName: "Lone",
+      body: "J'aimerais être remboursé",
+      source: "site",
+      createdAt: "2026-09-27T10:00:00+00:00",
+    };
+    server.use(
+      http.get(`${BASE}/admin/community/accounts/u1/moderation`, () =>
+        HttpResponse.json(overview({ status: "open", forumThreadUrl: null, messages: [message, { id: 42 }] })),
+      ),
+    );
+
+    const moderation = await fetchAdminUserModeration("u1");
+
+    expect(moderation?.moderationCase?.messages).toEqual([message]);
   });
 
   it("un membre sans dossier n'en a pas", async () => {

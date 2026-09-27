@@ -1,6 +1,6 @@
 # Epic 39: Modération synchronisée avec Discord
 
-**Statut :** validé le 2026-09-27 ; 39.1 en cours
+**Statut :** validé le 2026-09-27 ; 39.1 livrée, 39.2 en revue
 **Date :** 2026-09-27
 **Origine :** demande de Jean le 2026-09-27 - suivre chaque sanction dans un forum staff sur Discord, échanger
 avec le membre sanctionné (« OK pour le ban, mais j'aimerais être remboursé »), et appliquer les sanctions des
@@ -54,6 +54,8 @@ Qu'une sanction soit **la même partout**, **suivie dans un dossier**, et que le
 
 - Dans son espace compte, sur sa sanction : « Contacter la modération ». Marche sans compte Discord et même
   banni du serveur.
+- Un membre banni ou suspendu ne peut plus se connecter au site : un laissez-passer de contact (cookie signé,
+  1 h, limité à cette route) est posé quand ses identifiants sont validés, par mot de passe ou par Discord.
 - Le message est enregistré dans le dossier (page admin) et posté dans le post du forum par le bot.
 
 ### 39.3 Réponse du staff depuis le site

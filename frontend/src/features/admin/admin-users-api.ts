@@ -216,13 +216,40 @@ export type AdminUserModeration = {
   moderationCase: AdminModerationCase | null;
 };
 
-export type AdminModerationCase = { status: "open" | "closed"; forumThreadUrl: string | null };
+/** Story 39.2 : un message du dossier (celui du membre pour l'instant, les réponses du staff viendront). */
+export type AdminModerationCaseMessage = {
+  id: string;
+  author: string;
+  authorName: string | null;
+  body: string;
+  source: string;
+  createdAt: string;
+};
+
+export type AdminModerationCase = {
+  status: "open" | "closed";
+  forumThreadUrl: string | null;
+  messages: AdminModerationCaseMessage[];
+};
+
+function isModerationCaseMessage(v: unknown): v is AdminModerationCaseMessage {
+  if (typeof v !== "object" || v === null) return false;
+  return (
+    hasStringProp(v, "id") &&
+    hasStringProp(v, "author") &&
+    hasNullableStringProp(v, "authorName") &&
+    hasStringProp(v, "body") &&
+    hasStringProp(v, "source") &&
+    hasStringProp(v, "createdAt")
+  );
+}
 
 function parseModerationCase(v: unknown): AdminModerationCase | null {
   if (typeof v !== "object" || v === null) return null;
   if (!("status" in v) || (v.status !== "open" && v.status !== "closed")) return null;
   if (!hasNullableStringProp(v, "forumThreadUrl")) return null;
-  return { status: v.status, forumThreadUrl: v.forumThreadUrl };
+  const messages = "messages" in v && Array.isArray(v.messages) ? v.messages.filter(isModerationCaseMessage) : [];
+  return { status: v.status, forumThreadUrl: v.forumThreadUrl, messages };
 }
 
 function isModerationAction(v: unknown): v is AdminModerationAction {

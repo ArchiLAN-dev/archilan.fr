@@ -117,7 +117,7 @@ final class AdminAccountModerationOverviewTest extends FunctionalTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame(
-            ['status' => 'open', 'forumThreadUrl' => 'https://discord.com/channels/test-discord-guild-id/1422000000000000042'],
+            ['status' => 'open', 'forumThreadUrl' => 'https://discord.com/channels/test-discord-guild-id/1422000000000000042', 'messages' => []],
             $this->data()['case'] ?? null,
         );
     }

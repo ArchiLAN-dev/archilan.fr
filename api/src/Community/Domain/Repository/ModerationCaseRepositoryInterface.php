@@ -8,6 +8,8 @@ use App\Community\Domain\Entity\ModerationCase;
 
 interface ModerationCaseRepositoryInterface
 {
+    public function findById(string $id): ?ModerationCase;
+
     public function findByTargetUserId(string $targetUserId): ?ModerationCase;
 
     /** Tracks a new case; written by the next flush. */

@@ -9,6 +9,7 @@ use App\Identity\Application\Query\MemberDisplayNameQueryInterface;
 use App\Identity\Application\Service\AuthenticateUser;
 use App\Identity\Application\Service\CurrentUserProvider;
 use App\Identity\Application\Support\AuthSessionSigner;
+use App\Identity\Application\Support\ModerationContactPass;
 use App\Identity\Application\Support\RefreshTokenFactory;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
@@ -31,6 +32,7 @@ final readonly class AuthController
         private RefreshTokenRepositoryInterface $refreshTokenRepository,
         private RotateRefreshToken $rotateRefreshToken,
         private MemberDisplayNameQueryInterface $memberDisplayNames,
+        private ModerationContactPass $moderationContactPass,
     ) {
     }
 
@@ -58,7 +60,11 @@ final readonly class AuthController
 
         $now = new \DateTimeImmutable();
         if ($user->isAccessBlocked($now)) {
-            return $this->blockedError($user, $now);
+            // Story 39.2: the credentials checked out, so the member may still write to the moderation.
+            $response = $this->blockedError($user, $now);
+            $response->headers->setCookie(self::moderationContactCookie($this->moderationContactPass->issue($user->getId())));
+
+            return $response;
         }
 
         $rememberMe = true === ($payload['rememberMe'] ?? true);
@@ -196,6 +202,21 @@ final readonly class AuthController
             ->withValue($value)
             ->withExpires(time() + AuthSessionSigner::ACCESS_TOKEN_TTL)
             ->withPath('/')
+            ->withSecure(true)
+            ->withHttpOnly(true)
+            ->withSameSite(Cookie::SAMESITE_LAX);
+    }
+
+    /**
+     * The pass of a blocked member (story 39.2), sent on the moderation contact route only. Shared with the
+     * Discord sign-in, which blocks the same way.
+     */
+    public static function moderationContactCookie(string $value): Cookie
+    {
+        return Cookie::create(ModerationContactPass::COOKIE_NAME)
+            ->withValue($value)
+            ->withExpires(time() + ModerationContactPass::TTL)
+            ->withPath(ModerationContactPass::COOKIE_PATH)
             ->withSecure(true)
             ->withHttpOnly(true)
             ->withSameSite(Cookie::SAMESITE_LAX);

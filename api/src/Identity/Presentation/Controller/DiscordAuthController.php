@@ -9,6 +9,7 @@ use App\Identity\Application\Command\HandleDiscordAuthCallback;
 use App\Identity\Application\Port\DiscordOAuthClientInterface;
 use App\Identity\Application\Support\AuthSessionSigner;
 use App\Identity\Application\Support\DiscordStateToken;
+use App\Identity\Application\Support\ModerationContactPass;
 use App\Identity\Application\Support\RefreshTokenFactory;
 use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
 use Symfony\Component\HttpFoundation\Cookie;
@@ -25,6 +26,7 @@ final readonly class DiscordAuthController
         private AuthSessionSigner $authSessionSigner,
         private RefreshTokenFactory $refreshTokenFactory,
         private RefreshTokenRepositoryInterface $refreshTokenRepository,
+        private ModerationContactPass $moderationContactPass,
         private string $discordRedirectUriAuth,
         private string $siteUrl,
     ) {
@@ -57,6 +59,14 @@ final readonly class DiscordAuthController
 
         if (DiscordAuthOutcome::EmailConflict === $result->outcome) {
             return new RedirectResponse($this->siteUrl.'/connexion?discord_error=email_conflict');
+        }
+
+        // Story 39.2: a banned or suspended member gets no session, only the pass to write to the moderation.
+        if (DiscordAuthOutcome::AccessBlocked === $result->outcome && null !== $result->userId) {
+            $response = new RedirectResponse($this->siteUrl.'/connexion?discord_error=account_blocked');
+            $response->headers->setCookie(AuthController::moderationContactCookie($this->moderationContactPass->issue($result->userId)));
+
+            return $response;
         }
 
         // Only logged_in / registered carry a user id; every other outcome authenticates no one.

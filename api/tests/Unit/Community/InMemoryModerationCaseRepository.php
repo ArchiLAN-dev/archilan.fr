@@ -17,6 +17,17 @@ final class InMemoryModerationCaseRepository implements ModerationCaseRepository
 
     public int $flushes = 0;
 
+    public function findById(string $id): ?ModerationCase
+    {
+        foreach ($this->byTarget as $case) {
+            if ($case->getId() === $id) {
+                return $case;
+            }
+        }
+
+        return null;
+    }
+
     public function findByTargetUserId(string $targetUserId): ?ModerationCase
     {
         return $this->byTarget[$targetUserId] ?? null;
