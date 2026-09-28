@@ -5,6 +5,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Search } from "lucide-react";
 
 import { Markdown } from "@/components/markdown/markdown";
+import { buttonVariants } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { InstallStepsView } from "@/features/games/install-steps-view";
 import {
   approveContribution,
@@ -129,7 +132,7 @@ export function ContributionsModerationPanel() {
       ) : isError || data === undefined ? (
         <p className="text-sm text-muted-foreground">Impossible de charger les contributions.</p>
       ) : data.items.length === 0 ? (
-        <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
           {isDefault ? "Aucune contribution en attente. 🎉" : "Aucune contribution ne correspond à ces filtres."}
         </p>
       ) : (
@@ -139,8 +142,8 @@ export function ContributionsModerationPanel() {
               <ContributionCard
                 busy={busyId === item.id}
                 item={item}
-                onApprove={() => void run(item.id, () => approveContribution(item.id))}
-                onReject={(reason) => void run(item.id, () => rejectContribution(item.id, reason))}
+                onApprove={() => run(item.id, () => approveContribution(item.id))}
+                onReject={(reason) => run(item.id, () => rejectContribution(item.id, reason))}
               />
             </li>
           ))}
@@ -182,11 +185,12 @@ function ContributionCard({
 }: {
   item: ContributionItem;
   busy: boolean;
-  onApprove: () => void;
-  onReject: (reason: string) => void;
+  onApprove: () => Promise<void>;
+  onReject: (reason: string) => Promise<void>;
 }) {
+  // Story 39.11: approving replaces the whole tutorial, so it is confirmed; rejecting asks its reason in a window.
+  const [confirming, setConfirming] = useState(false);
   const [rejecting, setRejecting] = useState(false);
-  const [reason, setReason] = useState("");
 
   return (
     <article className="grid gap-4 rounded-lg border border-border bg-surface p-5">
@@ -205,10 +209,7 @@ function ContributionCard({
       </div>
 
       {item.message ? (
-        <Markdown
-          className="rounded border border-border bg-background px-3 py-2 text-sm text-muted-foreground"
-          untrusted
-        >
+        <Markdown className="border-l-2 border-border pl-3 text-sm text-muted-foreground" untrusted>
           {item.message}
         </Markdown>
       ) : null}
@@ -230,54 +231,79 @@ function ContributionCard({
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Approuver <strong className="text-foreground">remplace l&apos;intégralité</strong> du tutoriel par la
-        version proposée.
-      </p>
+      <div className="flex flex-wrap justify-end gap-2">
+        <button className={buttonVariants({ variant: "secondary" })} disabled={busy} onClick={() => setRejecting(true)} type="button">
+          Rejeter
+        </button>
+        <button className={buttonVariants({ variant: "primary" })} disabled={busy} onClick={() => setConfirming(true)} type="button">
+          Approuver
+        </button>
+      </div>
 
-      {rejecting ? (
-        <div className="grid gap-2">
+      <ConfirmDialog
+        confirmLabel="Approuver"
+        description={
+          <>
+            La version proposée <strong className="text-foreground">remplace l&apos;intégralité</strong> du tutoriel de{" "}
+            {item.target}.
+          </>
+        }
+        onConfirm={() => void onApprove().then(() => setConfirming(false))}
+        onOpenChange={setConfirming}
+        open={confirming}
+        pending={busy}
+        title="Approuver cette contribution ?"
+      />
+
+      {rejecting ? <RejectDialog busy={busy} onClose={() => setRejecting(false)} onReject={onReject} target={item.target} /> : null}
+    </article>
+  );
+}
+
+function RejectDialog({
+  target,
+  busy,
+  onReject,
+  onClose,
+}: {
+  target: string;
+  busy: boolean;
+  onReject: (reason: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState("");
+
+  return (
+    <Dialog
+      description="La raison est envoyée à l'auteur de la contribution."
+      onOpenChange={(open) => (open ? undefined : onClose())}
+      open
+      title={`Rejeter la contribution sur ${target}`}
+    >
+      <DialogBody>
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium text-foreground">Raison du refus (obligatoire)</span>
           <textarea
-            aria-label="Raison du refus"
-            className="min-h-16 w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Raison du refus (envoyée à l'auteur)"
+            className="min-h-24 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
+            onChange={(event) => setReason(event.target.value)}
             value={reason}
           />
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              className="inline-flex min-h-9 items-center justify-center rounded bg-danger px-4 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
-              disabled={busy || reason.trim() === ""}
-              onClick={() => onReject(reason)}
-              type="button"
-            >
-              Confirmer le refus
-            </button>
-            <button className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setRejecting(false)} type="button">
-              Annuler
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            className="inline-flex min-h-9 items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-            disabled={busy}
-            onClick={onApprove}
-            type="button"
-          >
-            {busy ? "…" : "Approuver"}
-          </button>
-          <button
-            className="inline-flex min-h-9 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-danger disabled:opacity-50"
-            disabled={busy}
-            onClick={() => setRejecting(true)}
-            type="button"
-          >
-            Rejeter
-          </button>
-        </div>
-      )}
-    </article>
+        </label>
+      </DialogBody>
+      <DialogFooter>
+        <button className={buttonVariants({ variant: "ghost" })} onClick={onClose} type="button">
+          Annuler
+        </button>
+        <button
+          className={buttonVariants({ variant: "danger" })}
+          disabled={busy || reason.trim() === ""}
+          onClick={() => void onReject(reason).then(onClose)}
+          type="button"
+        >
+          {busy ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
+          Rejeter
+        </button>
+      </DialogFooter>
+    </Dialog>
   );
 }
