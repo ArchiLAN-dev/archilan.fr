@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarX2, KeyRound, Loader2, ShieldPlus, Trash2, UserCog, Wrench } from "lucide-react";
+import { CalendarX2, History as HistoryIcon, KeyRound, Loader2, ShieldPlus, Trash2, UserCog, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+
+import { SHEET_LIST_CLASS, SheetEmpty, SheetSection } from "./admin-sheet-section";
 import { fetchAdminUserActivity, type AdminUserActivityEntry } from "./admin-users-api";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -51,16 +53,14 @@ export function AdminUserActivity({ userId }: { userId: string }) {
   if (data.length === 0) {
     return (
       <Panel>
-        <p className="rounded-lg border border-border bg-surface px-4 py-6 text-center text-sm text-muted-foreground">
-          Aucune entrée enregistrée pour ce compte.
-        </p>
+        <SheetEmpty>Aucune entrée enregistrée pour ce compte.</SheetEmpty>
       </Panel>
     );
   }
 
   return (
     <Panel>
-      <ol className="grid gap-2" role="list">
+      <ol className={SHEET_LIST_CLASS} role="list">
         {data.map((entry, index) => (
           <TimelineRow entry={entry} key={`${entry.type}-${entry.occurredAt}-${index}`} />
         ))}
@@ -71,10 +71,14 @@ export function AdminUserActivity({ userId }: { userId: string }) {
 
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <section className="grid gap-4">
-      <h2 className="font-heading text-xl font-semibold text-foreground">Journal d&apos;activité</h2>
+    <SheetSection
+      description="Ce qui est arrivé à ce compte, du plus récent au plus ancien."
+      icon={HistoryIcon}
+      id="journal"
+      title="Journal d'activité"
+    >
       {children}
-    </section>
+    </SheetSection>
   );
 }
 
@@ -82,7 +86,7 @@ function TimelineRow({ entry }: { entry: AdminUserActivityEntry }) {
   const { Icon, tone } = visualFor(entry);
 
   return (
-    <li className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3">
+    <li className="flex items-start gap-3 px-4 py-3">
       <span
         aria-hidden
         className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full ${tone}`}
