@@ -67,7 +67,7 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
       {!loading && profile && !profile.emailVerifiedAt && <EmailVerificationBanner />}
 
       {/* User header */}
-      <div className="card-glow flex items-center gap-4 rounded-xl border border-border p-5">
+      <div className="card-glow flex items-center gap-4 rounded-xl border border-border p-4 md:p-5">
         {loading ? (
           <div
             aria-hidden="true"
