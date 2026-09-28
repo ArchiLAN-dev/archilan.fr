@@ -64,7 +64,7 @@ interface RunnerGatewayInterface
      * Returns an empty array when the runner is unreachable - callers MUST fail open (never
      * block on missing data).
      *
-     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}>
+     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string}>
      */
     public function fetchApworldPreflights(): array;
 
@@ -86,7 +86,7 @@ interface RunnerGatewayInterface
      * Toggle the admin "force allow" override on a preflight verdict (story 9.38 AC4).
      * Returns the updated verdict, or null when the runner is unreachable.
      *
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}|null
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string}|null
      */
     public function overrideApworldPreflight(string $hash, bool $overridden): ?array;
 

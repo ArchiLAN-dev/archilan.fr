@@ -50,10 +50,13 @@ final readonly class SubmitAvailableApworldUpdates
     }
 
     /**
-     * @param list<ApworldUpdateAvailable> $updates in the order the check produced them
+     * @param list<ApworldUpdateAvailable> $updates   in the order the check produced them
+     * @param int|null                     $batchSize replaces the nightly cap for one run (story 38.11:
+     *                                                the on-demand pass of `app:check-apworld-updates`)
      */
-    public function submit(array $updates): AutoUpdateSubmissionReport
+    public function submit(array $updates, ?int $batchSize = null): AutoUpdateSubmissionReport
     {
+        $cap = $batchSize ?? $this->autoUpdateBatchSize;
         $jobs = [];
         $skipped = 0;
         $failed = 0;
@@ -61,7 +64,7 @@ final readonly class SubmitAvailableApworldUpdates
         $considered = 0;
 
         foreach ($updates as $update) {
-            if (\count($jobs) >= $this->autoUpdateBatchSize) {
+            if (\count($jobs) >= $cap) {
                 break;
             }
             ++$considered;

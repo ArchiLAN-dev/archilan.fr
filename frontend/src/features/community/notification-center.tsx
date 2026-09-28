@@ -193,6 +193,8 @@ export function messageFor(item: NotificationItem): string {
       return hasStringProp(item.data, "displayName") && item.data.displayName !== ""
         ? `Compte à examiner : ${item.data.displayName}`
         : "Un compte a atteint le seuil de modération";
+    case "moderation_reply":
+      return "La modération t'a répondu";
     case "moderation_warning":
       return hasStringProp(item.data, "reason") && item.data.reason !== ""
         ? `Avertissement de la modération : ${item.data.reason}`

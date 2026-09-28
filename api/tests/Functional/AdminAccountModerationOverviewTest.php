@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Community\Domain\Entity\ModerationCase;
+
 /**
  * The moderation panel's consolidated read (story 36.2). Everything it composes already existed; the
  * missing piece was reading the member's current access state back through Community's port, which was
@@ -56,6 +58,9 @@ final class AdminAccountModerationOverviewTest extends FunctionalTestCase
         self::assertSame('suspend', $action['action']);
         // The raw actorId says nothing to a reviewer; the panel needs the name.
         self::assertSame('Admin', $action['actorName']);
+        // Stories 39.4 and 39.5: how Discord took it, once the async job has run.
+        self::assertArrayHasKey('discordDm', $action);
+        self::assertArrayHasKey('discordServer', $action);
     }
 
     public function testABanIsReportedAsSuch(): void
@@ -98,6 +103,56 @@ final class AdminAccountModerationOverviewTest extends FunctionalTestCase
         self::assertNull($data['state']['bannedAt']);
         self::assertIsArray($data['actions']);
         self::assertCount(2, $data['actions'], 'ban + lift both remain recorded');
+    }
+
+    public function testTheCaseAndItsDiscordPostAreShown(): void
+    {
+        // Story 39.1: the member's case, mirrored by one post in the staff forum.
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $target = $this->createUser('target@example.org', ['ROLE_USER'], 'Target', slug: 'target');
+        $case = ModerationCase::open($target->getId(), new \DateTimeImmutable('2026-09-27 10:00:00'));
+        $case->attachForumThread('1422000000000000042');
+        $this->entityManager->persist($case);
+        $this->entityManager->flush();
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('GET', $this->url($target->getId()));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(
+            ['status' => 'open', 'forumThreadUrl' => 'https://discord.com/channels/test-discord-guild-id/1422000000000000042', 'messages' => []],
+            $this->data()['case'] ?? null,
+        );
+    }
+
+    public function testNoCaseYetIsShownAsSuch(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $target = $this->createUser('target@example.org', ['ROLE_USER'], 'Target', slug: 'target');
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('GET', $this->url($target->getId()));
+
+        self::assertResponseIsSuccessful();
+        self::assertArrayHasKey('case', $this->data());
+        self::assertNull($this->data()['case']);
+    }
+
+    public function testABanFromDiscordIsNamedAsSuch(): void
+    {
+        // Story 39.7: the actor of a ban posed on Discord is not a site account.
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $target = $this->createUser('target@example.org', ['ROLE_USER'], 'Target', slug: 'target');
+        $this->entityManager->persist(\App\Community\Domain\Entity\ModerationAction::create(\App\Community\Domain\Entity\ModerationAction::ACTOR_DISCORD, $target->getId(), 'ban', 'Ban posé sur Discord : Raid', new \DateTimeImmutable('2026-09-27 12:00:00')));
+        $this->entityManager->flush();
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('GET', $this->url($target->getId()));
+
+        $actions = $this->data()['actions'] ?? null;
+        self::assertIsArray($actions);
+        self::assertIsArray($actions[0]);
+        self::assertSame('Discord', $actions[0]['actorName']);
     }
 
     public function testUnknownAccountIsNotFound(): void

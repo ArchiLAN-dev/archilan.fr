@@ -59,6 +59,17 @@ final class DecideApworldCandidatesTest extends TestCase
         self::assertSame(1, $this->candidates->flushes);
     }
 
+    public function testAPassWithAWarningPromotesAsWell(): void
+    {
+        // Story 38.12: a warning (accessibility not met, as the Launcher allows) is shown to the admin; the
+        // test still passed.
+        $candidate = $this->candidate('hash-new', 'CrystalProject-v0.18.2');
+
+        $this->decide(['hash-new' => ['warning' => 'Missing: [A]'] + $this->verdict('passed')]);
+
+        self::assertSame(ApworldCandidateStatus::Promoted, $candidate->getStatus());
+    }
+
     public function testAPromotionKeepsTheStory951RuleOnDictVocabularies(): void
     {
         // The rule used to run only when an upload switched the game at once. A sub-setting with fewer

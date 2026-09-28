@@ -41,4 +41,26 @@ final class AdminGameApworldImageTest extends FunctionalTestCase
         self::assertSame(['apImage' => 'ghcr.io/archilan-dev/archipelago:0.16.1', 'apImageId' => 'sha256:new'], $data['archipelagoRuntime'] ?? null);
         self::assertFalse($data['apworldPreflightOnCurrentImage'] ?? null);
     }
+
+    public function testTheGamePageShowsTheWarningOfAPass(): void
+    {
+        // Story 38.12: the admin sees what the generator reported on a passed test.
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $game = $this->createGame('Dragon Ball Z Budokai Tenkaichi 2', 'dbz-bt2');
+        $game->configureApworld('h2.apworld', 'h2', 'Dragon Ball Z Budokai Tenkaichi 2', "game: Dragon Ball Z Budokai Tenkaichi 2\n", new \DateTimeImmutable());
+        $this->entityManager->flush();
+        NullRunnerGateway::$apworldPreflights = ['h2' => [
+            'status' => 'passed', 'error' => '', 'checkedAt' => '2026-09-28T04:00:00Z', 'overridden' => false, 'blocks' => false,
+            'image' => null, 'imageId' => null, 'warning' => 'Missing: [Discover: Evil Dragon]',
+        ]];
+
+        $this->loginAs($admin);
+        $this->client->request('GET', '/api/v1/admin/games/'.$game->getId());
+
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertIsArray($data['apworldPreflight'] ?? null);
+        self::assertSame('Missing: [Discover: Evil Dragon]', $data['apworldPreflight']['warning'] ?? null);
+    }
 }

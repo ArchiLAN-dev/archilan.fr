@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Adapter;
 
+use App\Community\Application\Port\BannedMember;
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Port\MemberModerationState;
+use App\Community\Application\Port\SuspendedMember;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 
@@ -70,6 +72,53 @@ final readonly class IdentityMemberModerationGateway implements MemberModeration
             $user->getBannedAt()?->format(\DateTimeInterface::ATOM),
             $user->getModerationReason(),
         );
+    }
+
+    public function discordIdOf(string $userId): ?string
+    {
+        $discordId = $this->load($userId)?->getDiscordId();
+
+        return null === $discordId || '' === $discordId ? null : $discordId;
+    }
+
+    public function currentlySuspended(\DateTimeImmutable $now): array
+    {
+        $suspended = [];
+        foreach ($this->users->findSuspendedAt($now) as $user) {
+            $until = $user->getSuspendedUntil();
+            if (null === $until) {
+                continue;
+            }
+            $discordId = $user->getDiscordId();
+            $suspended[] = new SuspendedMember(
+                $user->getId(),
+                null === $discordId || '' === $discordId ? null : $discordId,
+                $until->format(\DateTimeInterface::ATOM),
+                $user->getModerationReason(),
+            );
+        }
+
+        return $suspended;
+    }
+
+    public function userIdForDiscordId(string $discordId): ?string
+    {
+        $user = $this->users->findByDiscordId($discordId);
+
+        return $user instanceof User && !$user->isDeleted() ? $user->getId() : null;
+    }
+
+    public function currentlyBanned(): array
+    {
+        $banned = [];
+        foreach ($this->users->findBannedWithDiscord() as $user) {
+            $discordId = $user->getDiscordId();
+            if (null !== $discordId && '' !== $discordId) {
+                $banned[] = new BannedMember($user->getId(), $discordId);
+            }
+        }
+
+        return $banned;
     }
 
     private function load(string $userId): ?User

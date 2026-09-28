@@ -8,7 +8,10 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   applyModerationAction,
   fetchAdminUserModeration,
+  hasPendingDiscordOutcome,
+  replyToMember,
   type AdminModerationAction,
+  type AdminModerationCaseMessage,
   type AdminUserModeration,
   type ModerationCommand,
 } from "./admin-users-api";
@@ -39,6 +42,8 @@ export function AdminUserModeration({ userId, isAdmin, isSelf }: Props) {
     queryKey,
     queryFn: () => fetchAdminUserModeration(userId),
     staleTime: DEFAULT_STALE_TIME,
+    // Story 39.9: the Discord outcome of a fresh sanction or reply arrives with the async job.
+    refetchInterval: (query) => (query.state.data && hasPendingDiscordOutcome(query.state.data, Date.now()) ? 5000 : false),
   });
 
   if (isPending) {
@@ -77,6 +82,19 @@ export function AdminUserModeration({ userId, isAdmin, isSelf }: Props) {
           userId={userId}
         />
       )}
+
+      {data.moderationCase !== null && data.moderationCase.messages.length > 0 ? (
+        <CaseMessages messages={data.moderationCase.messages} />
+      ) : null}
+
+      {!isAdmin && !isSelf && (data.moderationCase !== null || data.actions.length > 0) ? (
+        <ReplyForm
+          onDone={async () => {
+            await queryClient.invalidateQueries({ queryKey });
+          }}
+          userId={userId}
+        />
+      ) : null}
 
       <div className="grid gap-2">
         <h3 className="text-sm font-semibold text-foreground">Historique</h3>
@@ -125,7 +143,110 @@ function StateBanner({ moderation }: { moderation: AdminUserModeration }) {
           ? "Aucun signalement de profil non résolu."
           : `${unresolvedReportCount} signalement${unresolvedReportCount > 1 ? "s" : ""} non résolu${unresolvedReportCount > 1 ? "s" : ""} · gravité ${severityScore}`}
       </p>
+      {moderation.moderationCase !== null ? (
+        <p className="text-xs text-muted-foreground">
+          Dossier de modération {moderation.moderationCase.status === "open" ? "ouvert" : "clos"}
+          {moderation.moderationCase.forumThreadUrl !== null ? (
+            <>
+              {" · "}
+              <a
+                className="font-semibold text-accent-text underline-offset-2 hover:underline"
+                href={moderation.moderationCase.forumThreadUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                voir le post sur Discord
+              </a>
+            </>
+          ) : null}
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+const DM_LABELS: Record<string, string> = {
+  sent: "MP Discord envoyé",
+  failed: "MP Discord impossible (MP fermés ou serveur quitté)",
+  not_linked: "compte Discord non lié, pas de MP",
+  unavailable: "synchronisation Discord désactivée, pas de MP",
+  superseded: "MP non envoyé : sanction déjà levée",
+};
+
+/** Story 39.2 : l'échange du dossier dans l'ordre ; story 39.3 : avec les réponses du staff et l'issue de leur MP. */
+function CaseMessages({ messages }: { messages: AdminModerationCaseMessage[] }) {
+  return (
+    <div className="grid gap-2">
+      <h3 className="text-sm font-semibold text-foreground">Messages du dossier</h3>
+      <ul className="grid gap-2" role="list">
+        {messages.map((message) => (
+          <li className="grid gap-1 rounded-lg border border-border bg-surface px-4 py-3" key={message.id}>
+            <p className="text-xs text-muted-foreground">
+              {message.author === "member" ? "Membre" : "Staff"}
+              {message.authorName !== null ? ` · ${message.authorName}` : ""} · {formatDate(message.createdAt)}
+              {message.source === "discord_dm" ? " · en MP au bot" : ""}
+              {message.author === "staff" ? ` · ${message.discordDm !== null ? (DM_LABELS[message.discordDm] ?? message.discordDm) : "MP Discord en cours"}` : ""}
+            </p>
+            <p className="whitespace-pre-line text-sm text-foreground">{message.body}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Story 39.3 : la réponse part du site, vers le membre (notification, fil, MP du bot si son compte est lié) et
+ * dans le forum staff. Ce qui s'écrit dans le post du forum, lui, reste entre membres du staff.
+ */
+function ReplyForm({ userId, onDone }: { userId: string; onDone: () => Promise<void> }) {
+  const [body, setBody] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setPending(true);
+    setError(null);
+    const failure = await replyToMember(userId, body);
+    setPending(false);
+    if (failure !== null) {
+      setError(failure);
+      return;
+    }
+    setBody("");
+    await onDone();
+  }
+
+  return (
+    <form className="grid gap-2 rounded-lg border border-border bg-surface px-4 py-3" onSubmit={submit}>
+      <label className="text-sm font-semibold text-foreground" htmlFor={`reply-${userId}`}>
+        Répondre au membre
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Envoyé au membre sur le site et en MP Discord si son compte est lié, et posté dans le forum staff.
+      </p>
+      <textarea
+        className="min-h-24 rounded border border-border bg-background p-3 text-sm text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
+        id={`reply-${userId}`}
+        maxLength={2000}
+        onChange={(event) => setBody(event.target.value)}
+        required
+        value={body}
+      />
+      {error !== null ? (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <button
+        className="inline-flex min-h-10 items-center justify-center justify-self-start rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={pending || body.trim() === ""}
+        type="submit"
+      >
+        {pending ? "Envoi..." : "Envoyer la réponse"}
+      </button>
+    </form>
   );
 }
 
@@ -219,7 +340,29 @@ function ActionForm({ userId, onDone }: { userId: string; onDone: () => Promise<
   );
 }
 
+const SERVER_LABELS: Record<string, string> = {
+  banned: "banni du serveur Discord",
+  lifted: "sanction levée sur le serveur Discord",
+  timed_out: "exclu temporairement du serveur Discord",
+  not_member: "pas sur le serveur Discord",
+  not_linked: "compte Discord non lié",
+  unavailable: "synchronisation Discord désactivée",
+  superseded: "non appliquée sur Discord : sanction déjà levée",
+  failed: "échec sur le serveur Discord (permission ou rôle du bot)",
+};
+
+/** Stories 39.4 et 39.5 : ce que Discord a fait de la sanction. */
+function discordLine(action: AdminModerationAction): string | null {
+  const parts = [
+    action.discordDm !== null ? (DM_LABELS[action.discordDm] ?? action.discordDm) : null,
+    action.discordServer !== null ? (SERVER_LABELS[action.discordServer] ?? action.discordServer) : null,
+  ].filter((part): part is string => part !== null);
+  return parts.length > 0 ? `Discord : ${parts.join(" · ")}` : null;
+}
+
 function ActionRow({ action }: { action: AdminModerationAction }) {
+  const discord = discordLine(action);
+
   return (
     <li className="grid gap-1 rounded-lg border border-border bg-surface px-4 py-3">
       <p className="text-sm font-semibold text-foreground">
@@ -232,6 +375,7 @@ function ActionRow({ action }: { action: AdminModerationAction }) {
       <time className="text-xs text-muted-foreground" dateTime={action.createdAt}>
         {formatDate(action.createdAt)}
       </time>
+      {discord !== null ? <p className="text-xs text-muted-foreground">{discord}</p> : null}
     </li>
   );
 }

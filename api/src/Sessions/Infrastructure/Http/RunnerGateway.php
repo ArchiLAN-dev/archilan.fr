@@ -265,7 +265,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
                 // them with an empty status so the backfill can find them (never blocking).
                 $verdicts[$entry->hash] = null !== $entry->preflight
                     ? $this->preflightPayload($entry->preflight)
-                    : ['status' => '', 'error' => '', 'checkedAt' => '', 'overridden' => false, 'blocks' => false];
+                    : ['status' => '', 'error' => '', 'checkedAt' => '', 'overridden' => false, 'blocks' => false, 'warning' => ''];
             }
 
             return $verdicts;
@@ -314,7 +314,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null}
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null, warning: string}
      */
     private function preflightPayload(ApworldPreflight $preflight): array
     {
@@ -327,6 +327,9 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
             // Story 38.8: the Archipelago image the verdict was produced with, null before that story.
             'image' => $preflight->image,
             'imageId' => $preflight->imageId,
+            // Story 38.12: what the generator reported on a pass (accessibility not met, as the Launcher
+            // allows); empty otherwise.
+            'warning' => $preflight->warning,
         ];
     }
 

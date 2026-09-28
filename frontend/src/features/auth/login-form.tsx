@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { BlockedModerationContact } from "@/features/moderation-contact/moderation-contact";
 import { useAuth } from "./auth-context";
 import { DiscordButton } from "./discord-button";
 import type { AuthUser } from "./auth-context";
@@ -45,7 +46,11 @@ const DISCORD_ERROR_MESSAGES: Record<string, string> = {
     "Un compte existe déjà avec l'adresse email associée à ce compte Discord. Connecte-toi avec ton email et mot de passe.",
   access_denied: "Connexion Discord annulée ou refusée.",
   generic: "Une erreur s'est produite lors de la connexion Discord. Réessaie.",
+  account_blocked: "Ton compte est suspendu ou banni : la connexion est refusée.",
 };
+
+// Story 39.2 : une connexion refusée pour sanction laisse le membre écrire à la modération.
+const BLOCKED_CODES = ["account_banned", "account_suspended"];
 
 export function LoginForm({ returnTo, discordError }: { returnTo?: string; discordError?: string }) {
   const emailId = useId();
@@ -57,6 +62,9 @@ export function LoginForm({ returnTo, discordError }: { returnTo?: string; disco
     discordError ? (DISCORD_ERROR_MESSAGES[discordError] ?? DISCORD_ERROR_MESSAGES.generic) : null,
   );
   const [submitting, setSubmitting] = useState(false);
+  const [blocked, setBlocked] = useState(discordError === "account_blocked");
+  // Story 39.9: each refusal remounts the contact block, which reads the new pass.
+  const [refusals, setRefusals] = useState(0);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,6 +95,8 @@ export function LoginForm({ returnTo, discordError }: { returnTo?: string; disco
 
       if ("error" in payload) {
         setMessage(payload.error.message);
+        setBlocked(BLOCKED_CODES.includes(payload.error.code));
+        setRefusals((count) => count + 1);
         return;
       }
 
@@ -102,10 +112,14 @@ export function LoginForm({ returnTo, discordError }: { returnTo?: string; disco
 
   return (
     <div className="grid gap-5 card-glow rounded-lg border border-border p-6">
-      {message && (
-        <p className="rounded border border-border bg-background p-3 text-sm text-muted-foreground" role="alert">
-          {message}
-        </p>
+      {blocked ? (
+        <BlockedModerationContact fallback={message} key={refusals} />
+      ) : (
+        message && (
+          <p className="rounded border border-border bg-background p-3 text-sm text-muted-foreground" role="alert">
+            {message}
+          </p>
+        )
       )}
 
       <form className="grid gap-5" onSubmit={handleSubmit}>

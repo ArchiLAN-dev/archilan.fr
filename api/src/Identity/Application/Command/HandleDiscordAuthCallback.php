@@ -49,6 +49,9 @@ final readonly class HandleDiscordAuthCallback
 
         $user = $this->userRepository->findByDiscordId($discordId);
         if ($user instanceof User) {
+            if ($user->isAccessBlocked($this->clock->now())) {
+                return new DiscordAuthResult(DiscordAuthOutcome::AccessBlocked, $user->getId());
+            }
             $this->logger->info('discord.login', ['userId' => $user->getId()]);
 
             return new DiscordAuthResult(DiscordAuthOutcome::LoggedIn, $user->getId());
