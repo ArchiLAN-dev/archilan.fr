@@ -33,6 +33,23 @@ final class RunnerGatewayImageTest extends TestCase
         self::assertNull($verdicts['h0']['imageId'] ?? null);
     }
 
+    public function testThePreflightPayloadCarriesTheWarningOfAPass(): void
+    {
+        // Story 38.12: a pass the generator warned about (accessibility not met, as the Launcher allows).
+        $gateway = $this->gateway(new MockResponse((string) json_encode(['apworlds' => [
+            ['hash' => 'h1', 'game' => 'Dragon Ball Z Budokai Tenkaichi 2', 'preflight' => [
+                'status' => 'passed', 'checkedAt' => '2026-09-28T04:00:00Z', 'warning' => 'Missing: [Discover: Evil Dragon]',
+            ]],
+            ['hash' => 'h0', 'game' => 'Clean', 'preflight' => ['status' => 'passed', 'checkedAt' => '2026-09-28T04:00:00Z']],
+        ]])));
+
+        $verdicts = $gateway->fetchApworldPreflights();
+
+        self::assertSame('Missing: [Discover: Evil Dragon]', $verdicts['h1']['warning'] ?? null);
+        self::assertSame('', $verdicts['h0']['warning'] ?? null, 'a clean pass has no warning');
+        self::assertFalse($verdicts['h1']['blocks'], 'a pass with a warning never blocks');
+    }
+
     public function testFetchRuntimeReturnsTheImageInUse(): void
     {
         $gateway = $this->gateway(new MockResponse((string) json_encode(['apImage' => 'ghcr.io/archilan-dev/archipelago:0.16.1', 'apImageId' => 'sha256:abc123'])));

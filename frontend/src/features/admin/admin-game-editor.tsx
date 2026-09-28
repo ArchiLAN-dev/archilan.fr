@@ -35,6 +35,7 @@ import {DEFAULT_STALE_TIME} from "@/lib/query-client";
 import {APWORLD_INCIDENTS_QUERY_KEY, fetchApworldIncidents} from "./admin-apworld-health-api";
 import {ApworldCandidateStatus} from "./apworld-candidate-status";
 import {ApworldPreflightImage} from "./apworld-preflight-image";
+import {ApworldPreflightWarning} from "./apworld-preflight-warning";
 import {overrideIsActive} from "./apworld-preflight-override";
 import {ApworldIncidentBanner} from "./apworld-incident-banner";
 import {updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone} from "./apworld-update-status";
@@ -1669,6 +1670,8 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
                     ) : null}
                 </div>
             </div>
+
+            {preflight?.status === "passed" && preflight.warning ? <ApworldPreflightWarning warning={preflight.warning} /> : null}
 
             {/* Only a verdict that ran names an image: pending and skipped ones claim none (story 38.8 review). */}
             {preflight !== null && (preflight.status === "passed" || preflight.status === "failed") ? (

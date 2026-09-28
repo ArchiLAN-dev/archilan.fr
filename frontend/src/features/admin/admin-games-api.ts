@@ -138,6 +138,8 @@ export type ApworldPreflight = {
   // Story 38.8: the Archipelago image the verdict was produced on; absent before that story.
   image?: string | null;
   imageId?: string | null;
+  // Story 38.12: what the generator reported on a pass (accessibility not met, as the Launcher allows).
+  warning?: string;
 };
 
 export function isApworldPreflight(v: unknown): v is ApworldPreflight {
