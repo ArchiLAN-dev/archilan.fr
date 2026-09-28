@@ -5,6 +5,64 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.22.0] - 2026-09-28
+
+Modération synchronisée avec Discord (épic 39), passe de mise à jour des apworlds à la demande, tests de
+génération alignés sur le Launcher officiel, et stats plus justes quand un joueur abandonne en cours de partie.
+
+### Ajouté
+
+- **Dossier de modération et forum staff Discord** (stories 39.1 à 39.3). Chaque sanction ouvre ou alimente le
+  dossier du membre, reflété par un post dans un forum staff Discord tenu par le bot du projet. Le membre écrit
+  à la modération depuis son compte, ou, s'il est banni ou suspendu, depuis la page de connexion (laissez-passer
+  de contact : cookie signé d'une heure, limité à cette route). Le staff lui répond depuis la fiche admin : la
+  réponse arrive sur le site (notification, fil) et en message privé du bot si son compte Discord est lié.
+- **Sanctions appliquées sur Discord** (stories 39.4 à 39.7). Pour un compte Discord lié : message privé du bot
+  à chaque sanction, réponses du membre relevées chaque minute, ban du site = ban Discord, suspension =
+  exclusion temporaire (prolongée chaque nuit au-delà des 28 jours de Discord), levée = débannissement et fin de
+  l'exclusion. Un ban posé directement sur Discord bannit le compte lié sur le site ; un débannissement sur
+  Discord lève un ban venu de Discord, jamais un ban du site. Un membre sans compte lié n'est jamais concerné.
+- **Passe de mise à jour des apworlds à la demande** (story 38.11) :
+  `php bin/console app:check-apworld-updates --submit [--limit=N]` soumet les nouvelles versions au test sans
+  attendre la nuit ; `php bin/console app:apworlds:incidents-reconcile` décide aussitôt les candidats testés.
+- **Avertissement sur un test de génération réussi** (story 38.12). Un apworld dont certains emplacements sont
+  inatteignables avec ses options, mais dont la partie reste gagnable, passe désormais son test, comme dans le
+  Launcher officiel d'Archipelago. La page admin du jeu affiche les emplacements concernés, à signaler à
+  l'auteur de l'apworld.
+
+### Corrigé
+
+- **Un release ou un collect fait par le joueur l'exclut des stats** (story 32.14). Seule la commande admin
+  envoyée depuis le site était détectée ; un `!release` ou `!collect` tapé dans le client laissait le slot
+  compté. Seul ce slot sort des stats, le reste de la partie reste compté ; un slot qui a atteint son objectif
+  avant reste compté.
+- **Une tâche planifiée en échec ne fait plus tomber le worker** (#631, #632). Le transport du scheduler tentait
+  de relancer la tâche et arrêtait tout le worker, traitement des messages async compris. Une tâche en échec
+  part désormais dans `async_failed` et repasse à son prochain créneau.
+- **La connexion Discord d'un compte banni ou suspendu ne pose plus de session** ; elle mène au formulaire de
+  contact de la modération.
+
+### Notes de déploiement
+
+- **Migrations** : `Version20260927120000`, `Version20260927180000`, `Version20260927220000`,
+  `Version20260928090000`, `Version20260928120000`, `Version20260928150000`, `Version20260928180000`.
+- **Services** : image `archipelago` `v0.16.4` (test de génération en avertissement), `orchestrateur` `v0.19.0`
+  (avertissement sur le verdict), `bridge` `v0.13.0` (joueur des événements release / collect ; facultatif, le
+  site lit aussi le texte de l'annonce). Ordre conseillé : archipelago, orchestrateur, puis le site.
+- **Modération Discord désactivée par défaut.** Rien n'agit sur Discord tant que `DISCORD_MODERATION_SYNC` vaut
+  `0`, même si le jeton du bot et le serveur sont renseignés (ils servent déjà aux rôles). Pour l'activer (voir
+  `envs/api.env.example`) :
+  1. créer un salon forum staff avec les étiquettes « Avertissement », « Suspension », « Ban », « Levée » et
+     renseigner `DISCORD_MODERATION_FORUM_ID` ;
+  2. donner au bot : Bannir des membres, Exclure temporairement des membres, Voir les logs du serveur, et, sur le
+     forum, voir le salon, créer des posts, envoyer des messages dans les fils, gérer les fils ; son rôle doit
+     être au-dessus de ceux des membres ;
+  3. passer `DISCORD_MODERATION_SYNC=1`. Au premier relevé, les bans déjà présents sur le serveur sont montrés
+     une fois dans le forum, à décider, et jamais appliqués au site.
+- Le worker du scheduler doit tourner (relevé des MP chaque minute, bans toutes les 5 minutes, prolongation des
+  exclusions chaque nuit). Un job en échec après ses relances : `php bin/console messenger:failed:show` / `:retry`.
+- Le client `archilan/orchestrateur-client` passe en `1.11.0` (dans le lock).
+
 ## [0.21.2] - 2026-09-27
 
 Correctif d'infrastructure : les images MinIO ont disparu de Docker Hub.
