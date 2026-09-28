@@ -75,7 +75,8 @@ final readonly class PostModerationActionToForumHandler
         if (null === $case) {
             $case = ModerationCase::open($targetId, $now);
             $this->cases->save($case);
-        } elseif (ModerationAction::ACTION_LIFT !== $action->getAction() && $inEffect) {
+        } elseif (ModerationAction::ACTION_LIFT !== $action->getAction() && $action->isSanction() && $inEffect) {
+            // A note (story 39.10) is filed in the case as it stands: it reopens nothing.
             $case->reopen($now);
         }
         if (ModerationAction::ACTION_LIFT === $action->getAction()) {
@@ -86,9 +87,12 @@ final readonly class PostModerationActionToForumHandler
         $retryMessage = null;
         if (null === $action->getDiscordDmStatus()) {
             try {
-                $action->recordDirectMessage($inEffect
-                    ? $this->directMessages->send($case, $discordId, $this->messages->forSanctionDirectMessage($action, $suspendedUntil), ['actionId' => $action->getId()])
-                    : ModerationCaseMessage::DM_SUPERSEDED);
+                $action->recordDirectMessage(match (true) {
+                    // Story 39.10: a note is for the staff only.
+                    !$action->isSanction() => ModerationCaseMessage::DM_INTERNAL,
+                    $inEffect => $this->directMessages->send($case, $discordId, $this->messages->forSanctionDirectMessage($action, $suspendedUntil), ['actionId' => $action->getId()]),
+                    default => ModerationCaseMessage::DM_SUPERSEDED,
+                });
             } catch (MemberDirectMessageTemporarilyUnavailableException $e) {
                 $retryMessage = $e;
             }
@@ -147,7 +151,7 @@ final readonly class PostModerationActionToForumHandler
     private function applyOnServer(ModerationAction $action, ?string $discordId, ?string $suspendedUntil): ?string
     {
         $kind = $action->getAction();
-        if (ModerationAction::ACTION_WARN === $kind || (ModerationAction::ACTION_SUSPEND === $kind && null === $suspendedUntil)) {
+        if (ModerationAction::ACTION_WARN === $kind || ModerationAction::ACTION_NOTE === $kind || (ModerationAction::ACTION_SUSPEND === $kind && null === $suspendedUntil)) {
             return null;
         }
         if (null === $discordId) {

@@ -23,6 +23,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 final readonly class ReplyToMember
 {
+    private const int HISTORY_SCAN = 200;
+
     public function __construct(
         private ModerationCaseRepositoryInterface $cases,
         private ModerationCaseMessageRepositoryInterface $messages,
@@ -40,7 +42,7 @@ final readonly class ReplyToMember
         $case = $this->cases->findByTargetUserId($memberId);
         if (null === $case) {
             // Same rule as the member's side: a case belongs to a sanctioned member.
-            if ([] === $this->actions->forTarget($memberId, 1)) {
+            if (!$this->hasSanction($memberId)) {
                 return ReplyToMemberOutcome::NotSanctioned;
             }
             $case = ModerationCase::open($memberId, $now);
@@ -68,5 +70,11 @@ final readonly class ReplyToMember
         }
 
         return ReplyToMemberOutcome::Sent;
+    }
+
+    /** Story 39.10: a note is for the staff only, it is nothing the member could talk about. */
+    private function hasSanction(string $memberId): bool
+    {
+        return array_any($this->actions->forTarget($memberId, self::HISTORY_SCAN), fn ($action) => $action->isSanction());
     }
 }

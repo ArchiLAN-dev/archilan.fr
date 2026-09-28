@@ -43,6 +43,18 @@ final readonly class AccountModerationController
         return $this->respond($this->moderation->warn($admin->getId(), $userId, $this->reason($payload), $this->reportId($payload)));
     }
 
+    /** Story 39.10: a note for the staff only, the member is not told. */
+    #[Route('/api/v1/admin/community/accounts/{userId}/note', name: 'api_admin_community_account_note', methods: ['POST'])]
+    public function note(Request $request, string $userId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return $this->respond($this->moderation->note($admin->getId(), $userId, $this->reason($this->jsonPayload($request))));
+    }
+
     #[Route('/api/v1/admin/community/accounts/{userId}/suspend', name: 'api_admin_community_account_suspend', methods: ['POST'])]
     public function suspend(Request $request, string $userId): JsonResponse
     {

@@ -39,7 +39,8 @@ final readonly class MemberModerationContactQuery
         $case = $this->cases->findByTargetUserId($userId);
 
         return [
-            'available' => null !== $case || [] !== $this->actions->forTarget($userId, 1),
+            // Story 39.10: a note alone is not something the member knows of, nor could contest.
+            'available' => $this->hasSanction($userId),
             'messages' => null !== $case ? $this->thread($case->getId()) : [],
         ];
     }
@@ -83,5 +84,10 @@ final readonly class MemberModerationContactQuery
             'body' => $m->getBody(),
             'createdAt' => $m->getCreatedAt()->format(\DateTimeInterface::ATOM),
         ], $this->messages->forCase($caseId, self::MESSAGES_LIMIT));
+    }
+
+    private function hasSanction(string $userId): bool
+    {
+        return array_any($this->actions->forTarget($userId, 200), fn ($action) => $action->isSanction());
     }
 }

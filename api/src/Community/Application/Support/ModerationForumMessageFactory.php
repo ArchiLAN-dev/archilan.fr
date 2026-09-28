@@ -22,6 +22,7 @@ final readonly class ModerationForumMessageFactory
         ModerationAction::ACTION_SUSPEND => 'Suspension',
         ModerationAction::ACTION_BAN => 'Ban',
         ModerationAction::ACTION_LIFT => 'Levée',
+        ModerationAction::ACTION_NOTE => 'Note',
     ];
 
     private const int MEMBER_MESSAGE_COLOR = 0x3498DB;
@@ -33,6 +34,7 @@ final readonly class ModerationForumMessageFactory
         ModerationCaseMessage::DM_NOT_LINKED => 'compte Discord non lié',
         ModerationCaseMessage::DM_UNAVAILABLE => 'synchronisation Discord désactivée',
         ModerationCaseMessage::DM_SUPERSEDED => 'non envoyé : sanction déjà levée',
+        ModerationCaseMessage::DM_INTERNAL => 'aucun : note interne',
     ];
 
     private const array SERVER_OUTCOMES = [
@@ -51,6 +53,7 @@ final readonly class ModerationForumMessageFactory
         ModerationAction::ACTION_SUSPEND => 0xE67E22,
         ModerationAction::ACTION_BAN => 0xE74C3C,
         ModerationAction::ACTION_LIFT => 0x2ECC71,
+        ModerationAction::ACTION_NOTE => 0x95A5A6,
     ];
 
     public function __construct(
@@ -76,7 +79,10 @@ final readonly class ModerationForumMessageFactory
         if (ModerationAction::ACTION_SUSPEND === $action->getAction() && null !== $suspendedUntil) {
             $fields[] = ['name' => 'Jusqu\'au', 'value' => self::parisTime($suspendedUntil)];
         }
-        if (null !== $dmStatus) {
+        if (!$action->isSanction()) {
+            // Story 39.10: said in the post itself, so nobody takes the note for something the member saw.
+            $fields[] = ['name' => 'Visibilité', 'value' => 'interne : le membre n\'est pas prévenu'];
+        } elseif (null !== $dmStatus) {
             $fields[] = ['name' => 'Message privé Discord', 'value' => self::DM_OUTCOMES[$dmStatus] ?? $dmStatus];
         }
         if (null !== $serverStatus) {
