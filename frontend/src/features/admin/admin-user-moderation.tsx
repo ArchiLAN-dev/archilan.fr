@@ -1,42 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Ban, Gavel, Loader2, ShieldCheck } from "lucide-react";
+import { Gavel, Loader2, MessageSquareReply, NotebookPen } from "lucide-react";
 
+import { buttonVariants } from "@/components/ui/button";
+import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import {
-  applyModerationAction,
-  fetchAdminUserModeration,
-  hasPendingDiscordOutcome,
-  replyToMember,
-  type AdminModerationAction,
-  type AdminModerationCaseMessage,
-  type AdminUserModeration,
-  type ModerationCommand,
-} from "./admin-users-api";
 
-const ACTION_LABELS: Record<string, string> = {
-  warn: "Avertissement",
-  suspend: "Suspension",
-  ban: "Bannissement",
-  lift: "Levée de sanction",
-};
+import { fetchAdminUserModeration, hasPendingDiscordOutcome, replyToMember, type ModerationCommand } from "./admin-users-api";
+import { ModerationActionList, ModerationCaseMessages, ModerationStateBanner } from "./moderation-history";
+import { SanctionDialog } from "./sanction-dialog";
 
 type Props = {
   userId: string;
+  /** Shown in the dialog titles. */
+  name: string;
   /** An admin account cannot be moderated - the server refuses it, so the UI says so up front. */
   isAdmin: boolean;
   isSelf: boolean;
 };
 
 /**
- * Moderation panel of the admin user sheet (story 36.2). Everything it drives already existed as
- * endpoints since story 30.29; it was simply invisible from a person's sheet.
+ * Moderation panel of the admin user sheet (story 36.2). Story 39.11: the state, a bar of actions that open
+ * their own window, then the case messages and the history as flat lists.
  */
-export function AdminUserModeration({ userId, isAdmin, isSelf }: Props) {
+export function AdminUserModeration({ userId, name, isAdmin, isSelf }: Props) {
   const queryClient = useQueryClient();
   const queryKey = ["admin-user-moderation", userId];
+  const [sanction, setSanction] = useState<ModerationCommand | null>(null);
+  const [replying, setReplying] = useState(false);
 
   const { data, isPending } = useQuery({
     queryKey,
@@ -45,6 +38,10 @@ export function AdminUserModeration({ userId, isAdmin, isSelf }: Props) {
     // Story 39.9: the Discord outcome of a fresh sanction or reply arrives with the async job.
     refetchInterval: (query) => (query.state.data && hasPendingDiscordOutcome(query.state.data, Date.now()) ? 5000 : false),
   });
+
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey });
+  };
 
   if (isPending) {
     return (
@@ -64,134 +61,57 @@ export function AdminUserModeration({ userId, isAdmin, isSelf }: Props) {
     );
   }
 
+  const canModerate = !isAdmin && !isSelf;
+  const canReply = canModerate && (data.moderationCase !== null || data.actions.length > 0);
+  const messages = data.moderationCase?.messages ?? [];
+
   return (
     <Panel>
-      <StateBanner moderation={data} />
+      <ModerationStateBanner moderation={data} />
 
-      {isAdmin || isSelf ? (
-        <p className="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-muted-foreground">
-          {isSelf
-            ? "Tu ne peux pas te modérer toi-même."
-            : "Un compte administrateur ne peut pas être modéré. Retire-lui d'abord ses droits."}
-        </p>
+      {canModerate ? (
+        <div className="flex flex-wrap gap-2">
+          <button className={buttonVariants({ variant: "primary" })} onClick={() => setSanction("warn")} type="button">
+            <Gavel aria-hidden className="size-4" /> Sanctionner
+          </button>
+          <button className={buttonVariants({ variant: "secondary" })} onClick={() => setSanction("note")} type="button">
+            <NotebookPen aria-hidden className="size-4" /> Note interne
+          </button>
+          {canReply ? (
+            <button className={buttonVariants({ variant: "secondary" })} onClick={() => setReplying(true)} type="button">
+              <MessageSquareReply aria-hidden className="size-4" /> Répondre au membre
+            </button>
+          ) : null}
+        </div>
       ) : (
-        <ActionForm
-          onDone={async () => {
-            await queryClient.invalidateQueries({ queryKey });
-          }}
-          userId={userId}
-        />
+        <p className="text-sm text-muted-foreground">
+          {isSelf ? "Tu ne peux pas te modérer toi-même." : "Un compte administrateur ne peut pas être modéré. Retire-lui d'abord ses droits."}
+        </p>
       )}
 
-      {data.moderationCase !== null && data.moderationCase.messages.length > 0 ? (
-        <CaseMessages messages={data.moderationCase.messages} />
+      {messages.length > 0 ? (
+        <Block title="Messages du dossier">
+          <ModerationCaseMessages messages={messages} />
+        </Block>
       ) : null}
 
-      {!isAdmin && !isSelf && (data.moderationCase !== null || data.actions.length > 0) ? (
-        <ReplyForm
-          onDone={async () => {
-            await queryClient.invalidateQueries({ queryKey });
-          }}
+      <Block title="Historique">
+        <ModerationActionList actions={data.actions} />
+      </Block>
+
+      {sanction !== null ? (
+        <SanctionDialog
+          initialCommand={sanction}
+          name={name}
+          onDone={refresh}
+          onOpenChange={(open) => (open ? undefined : setSanction(null))}
+          open
           userId={userId}
         />
       ) : null}
 
-      <div className="grid gap-2">
-        <h3 className="text-sm font-semibold text-foreground">Historique</h3>
-        {data.actions.length === 0 ? (
-          <p className="rounded-lg border border-border bg-surface px-4 py-6 text-center text-sm text-muted-foreground">
-            Aucune sanction enregistrée pour ce compte.
-          </p>
-        ) : (
-          <ul className="grid gap-2" role="list">
-            {data.actions.map((action) => (
-              <ActionRow action={action} key={action.id} />
-            ))}
-          </ul>
-        )}
-      </div>
+      {replying ? <ReplyDialog name={name} onClose={() => setReplying(false)} onDone={refresh} userId={userId} /> : null}
     </Panel>
-  );
-}
-
-function StateBanner({ moderation }: { moderation: AdminUserModeration }) {
-  const { state, unresolvedReportCount, severityScore } = moderation;
-  const banned = state.bannedAt !== null;
-  const suspended = !banned && state.suspendedUntil !== null;
-
-  const tone = banned
-    ? "border-danger/50 bg-danger/10 text-danger"
-    : suspended
-      ? "border-accent-warm/50 bg-accent-warm/10 text-accent-warm"
-      : "border-border bg-surface text-success";
-
-  const Icon = banned ? Ban : suspended ? AlertTriangle : ShieldCheck;
-
-  return (
-    <div className={`grid gap-2 rounded-lg border px-4 py-3 ${tone}`}>
-      <p className="flex items-center gap-2 text-sm font-semibold">
-        <Icon aria-hidden className="size-4" />
-        {banned
-          ? `Banni depuis le ${formatDate(state.bannedAt)}`
-          : suspended
-            ? `Suspendu jusqu'au ${formatDate(state.suspendedUntil)}`
-            : "Compte sain"}
-      </p>
-      {state.reason !== null ? <p className="text-sm">Motif : {state.reason}</p> : null}
-      <p className="text-xs text-muted-foreground">
-        {unresolvedReportCount === 0
-          ? "Aucun signalement de profil non résolu."
-          : `${unresolvedReportCount} signalement${unresolvedReportCount > 1 ? "s" : ""} non résolu${unresolvedReportCount > 1 ? "s" : ""} · gravité ${severityScore}`}
-      </p>
-      {moderation.moderationCase !== null ? (
-        <p className="text-xs text-muted-foreground">
-          Dossier de modération {moderation.moderationCase.status === "open" ? "ouvert" : "clos"}
-          {moderation.moderationCase.forumThreadUrl !== null ? (
-            <>
-              {" · "}
-              <a
-                className="font-semibold text-accent-text underline-offset-2 hover:underline"
-                href={moderation.moderationCase.forumThreadUrl}
-                rel="noreferrer"
-                target="_blank"
-              >
-                voir le post sur Discord
-              </a>
-            </>
-          ) : null}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-const DM_LABELS: Record<string, string> = {
-  sent: "MP Discord envoyé",
-  failed: "MP Discord impossible (MP fermés ou serveur quitté)",
-  not_linked: "compte Discord non lié, pas de MP",
-  unavailable: "synchronisation Discord désactivée, pas de MP",
-  superseded: "MP non envoyé : sanction déjà levée",
-};
-
-/** Story 39.2 : l'échange du dossier dans l'ordre ; story 39.3 : avec les réponses du staff et l'issue de leur MP. */
-function CaseMessages({ messages }: { messages: AdminModerationCaseMessage[] }) {
-  return (
-    <div className="grid gap-2">
-      <h3 className="text-sm font-semibold text-foreground">Messages du dossier</h3>
-      <ul className="grid gap-2" role="list">
-        {messages.map((message) => (
-          <li className="grid gap-1 rounded-lg border border-border bg-surface px-4 py-3" key={message.id}>
-            <p className="text-xs text-muted-foreground">
-              {message.author === "member" ? "Membre" : "Staff"}
-              {message.authorName !== null ? ` · ${message.authorName}` : ""} · {formatDate(message.createdAt)}
-              {message.source === "discord_dm" ? " · en MP au bot" : ""}
-              {message.author === "staff" ? ` · ${message.discordDm !== null ? (DM_LABELS[message.discordDm] ?? message.discordDm) : "MP Discord en cours"}` : ""}
-            </p>
-            <p className="whitespace-pre-line text-sm text-foreground">{message.body}</p>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 
@@ -199,7 +119,8 @@ function CaseMessages({ messages }: { messages: AdminModerationCaseMessage[] }) 
  * Story 39.3 : la réponse part du site, vers le membre (notification, fil, MP du bot si son compte est lié) et
  * dans le forum staff. Ce qui s'écrit dans le post du forum, lui, reste entre membres du staff.
  */
-function ReplyForm({ userId, onDone }: { userId: string; onDone: () => Promise<void> }) {
+function ReplyDialog({ userId, name, onClose, onDone }: { userId: string; name: string; onClose: () => void; onDone: () => Promise<void> }) {
+  const formId = useId();
   const [body, setBody] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -214,169 +135,55 @@ function ReplyForm({ userId, onDone }: { userId: string; onDone: () => Promise<v
       setError(failure);
       return;
     }
-    setBody("");
+    onClose();
     await onDone();
   }
 
   return (
-    <form className="grid gap-2 rounded-lg border border-border bg-surface px-4 py-3" onSubmit={submit}>
-      <label className="text-sm font-semibold text-foreground" htmlFor={`reply-${userId}`}>
-        Répondre au membre
-      </label>
-      <p className="text-xs text-muted-foreground">
-        Envoyé au membre sur le site et en MP Discord si son compte est lié, et posté dans le forum staff.
-      </p>
-      <textarea
-        className="min-h-24 rounded border border-border bg-background p-3 text-sm text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
-        id={`reply-${userId}`}
-        maxLength={2000}
-        onChange={(event) => setBody(event.target.value)}
-        required
-        value={body}
-      />
-      {error !== null ? (
-        <p className="text-sm text-danger" role="alert">
-          {error}
-        </p>
-      ) : null}
-      <button
-        className="inline-flex min-h-10 items-center justify-center justify-self-start rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={pending || body.trim() === ""}
-        type="submit"
-      >
-        {pending ? "Envoi..." : "Envoyer la réponse"}
-      </button>
-    </form>
-  );
-}
-
-function ActionForm({ userId, onDone }: { userId: string; onDone: () => Promise<void> }) {
-  const [command, setCommand] = useState<ModerationCommand>("warn");
-  const [reason, setReason] = useState("");
-  const [until, setUntil] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-
-    const message = await applyModerationAction(
-      userId,
-      command,
-      reason,
-      command === "suspend" && until !== "" ? new Date(until).toISOString() : undefined,
-    );
-
-    if (message === null) {
-      setReason("");
-      setUntil("");
-      await onDone();
-    } else {
-      setError(message);
-    }
-    setPending(false);
-  }
-
-  return (
-    <form className="grid gap-3 rounded-lg border border-border bg-surface px-4 py-3" onSubmit={submit}>
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="text-sm text-muted-foreground" htmlFor="moderation-action">
-          Action :
-        </label>
-        <select
-          className="min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:border-accent focus:outline-none"
-          id="moderation-action"
-          onChange={(e) => setCommand(toCommand(e.target.value))}
-          value={command}
-        >
-          <option value="warn">Avertir</option>
-          <option value="suspend">Suspendre</option>
-          <option value="ban">Bannir</option>
-          <option value="lift">Lever la sanction</option>
-        </select>
-
-        {command === "suspend" ? (
-          <>
-            <label className="text-sm text-muted-foreground" htmlFor="moderation-until">
-              Jusqu&apos;au :
-            </label>
-            <input
-              className="min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:border-accent focus:outline-none"
-              id="moderation-until"
-              onChange={(e) => setUntil(e.target.value)}
+    <Dialog
+      description="Envoyé au membre sur le site et en MP Discord si son compte est lié, et posté dans le forum staff."
+      onOpenChange={(open) => (open ? undefined : onClose())}
+      open
+      title={`Répondre à ${name}`}
+    >
+      <DialogBody>
+        <form className="grid gap-2" id={formId} onSubmit={submit}>
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-foreground">Message</span>
+            <textarea
+              className="min-h-32 rounded-lg border border-border bg-background p-3 text-sm text-foreground focus:border-accent focus:outline-none"
+              maxLength={2000}
+              onChange={(event) => setBody(event.target.value)}
               required
-              type="datetime-local"
-              value={until}
+              value={body}
             />
-          </>
-        ) : null}
-      </div>
-
-      <label className="grid gap-1">
-        <span className="text-sm text-muted-foreground">Motif (obligatoire)</span>
-        <input
-          className="min-h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Ce motif est conservé dans l'historique"
-          required
-          value={reason}
-        />
-      </label>
-
-      <div className="flex items-center gap-3">
-        <button
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:opacity-40"
-          disabled={pending || reason.trim() === ""}
-          type="submit"
-        >
-          {pending ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <Gavel aria-hidden className="size-4" />}
-          Appliquer
+          </label>
+          {error !== null ? (
+            <p className="text-sm text-danger" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </form>
+      </DialogBody>
+      <DialogFooter>
+        <button className={buttonVariants({ variant: "ghost" })} onClick={onClose} type="button">
+          Annuler
         </button>
-        {error !== null ? <p className="text-sm text-danger">{error}</p> : null}
-      </div>
-    </form>
+        <button className={buttonVariants({ variant: "primary" })} disabled={pending || body.trim() === ""} form={formId} type="submit">
+          {pending ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
+          Envoyer la réponse
+        </button>
+      </DialogFooter>
+    </Dialog>
   );
 }
 
-const SERVER_LABELS: Record<string, string> = {
-  banned: "banni du serveur Discord",
-  lifted: "sanction levée sur le serveur Discord",
-  timed_out: "exclu temporairement du serveur Discord",
-  not_member: "pas sur le serveur Discord",
-  not_linked: "compte Discord non lié",
-  unavailable: "synchronisation Discord désactivée",
-  superseded: "non appliquée sur Discord : sanction déjà levée",
-  failed: "échec sur le serveur Discord (permission ou rôle du bot)",
-};
-
-/** Stories 39.4 et 39.5 : ce que Discord a fait de la sanction. */
-function discordLine(action: AdminModerationAction): string | null {
-  const parts = [
-    action.discordDm !== null ? (DM_LABELS[action.discordDm] ?? action.discordDm) : null,
-    action.discordServer !== null ? (SERVER_LABELS[action.discordServer] ?? action.discordServer) : null,
-  ].filter((part): part is string => part !== null);
-  return parts.length > 0 ? `Discord : ${parts.join(" · ")}` : null;
-}
-
-function ActionRow({ action }: { action: AdminModerationAction }) {
-  const discord = discordLine(action);
-
+function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <li className="grid gap-1 rounded-lg border border-border bg-surface px-4 py-3">
-      <p className="text-sm font-semibold text-foreground">
-        {ACTION_LABELS[action.action] ?? action.action}
-        <span className="ml-2 text-xs font-normal text-muted-foreground">
-          par {action.actorName ?? "un compte supprimé"}
-        </span>
-      </p>
-      <p className="text-sm text-muted-foreground">{action.reason}</p>
-      <time className="text-xs text-muted-foreground" dateTime={action.createdAt}>
-        {formatDate(action.createdAt)}
-      </time>
-      {discord !== null ? <p className="text-xs text-muted-foreground">{discord}</p> : null}
-    </li>
+    <div className="grid gap-2">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <div className="rounded-lg border border-border bg-surface px-4 py-3">{children}</div>
+    </div>
   );
 }
 
@@ -387,16 +194,4 @@ function Panel({ children }: { children: React.ReactNode }) {
       {children}
     </section>
   );
-}
-
-function toCommand(value: string): ModerationCommand {
-  return value === "suspend" || value === "ban" || value === "lift" ? value : "warn";
-}
-
-function formatDate(iso: string | null): string {
-  if (iso === null) return "-";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "-";
-
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" }).format(date);
 }

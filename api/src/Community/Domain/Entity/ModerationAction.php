@@ -21,6 +21,8 @@ final class ModerationAction
     public const string ACTION_SUSPEND = 'suspend';
     public const string ACTION_BAN = 'ban';
     public const string ACTION_LIFT = 'lift';
+    /** A note for the staff only (story 39.10): the member is not told, nothing changes for them. */
+    public const string ACTION_NOTE = 'note';
 
     /** The actor of a sanction posed on the Discord server and applied on the site (story 39.7). */
     public const string ACTOR_DISCORD = 'discord';
@@ -68,6 +70,12 @@ final class ModerationAction
         ?string $relatedReportId = null,
     ): self {
         return new self(bin2hex(random_bytes(16)), $actorId, $targetUserId, $action, $reason, $now, $relatedReportId);
+    }
+
+    /** Something done to the member (story 39.10): every action but a note, which only the staff knows of. */
+    public function isSanction(): bool
+    {
+        return self::ACTION_NOTE !== $this->action;
     }
 
     /** The first outcome stands: the member is told once, whatever retries follow. */

@@ -20,7 +20,8 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
- * Admin actions on a member's account (story 30.29): warn / suspend / ban / lift. Suspend & ban delegate
+ * Admin actions on a member's account (story 30.29): warn / suspend / ban / lift, and a note for the staff
+ * only (story 39.10). Suspend & ban delegate
  * the access-state change to Identity through {@see MemberModerationGatewayInterface}, then audit-log it and
  * auto-resolve the account's open profile reports. Warn only notifies + logs (no access change).
  */
@@ -59,6 +60,32 @@ final readonly class AccountModerationService
         $action = $this->newAction($adminId, $targetUserId, ModerationAction::ACTION_WARN, $reason, $relatedReportId);
         $this->actions->save($action);
         $this->notifier->notify($targetUserId, Notification::TYPE_MODERATION_WARNING, ['reason' => $reason]);
+        $this->mirrorInForum($action);
+
+        return 'ok';
+    }
+
+    /**
+     * Story 39.10: a note for the staff only - recorded in the history and the member's case, posted in the
+     * staff forum, never told to the member (no notification, no direct message) and changing nothing for them.
+     *
+     * @return string 'ok' | 'not_found' | 'invalid' | 'forbidden'
+     */
+    public function note(string $adminId, string $targetUserId, string $reason): string
+    {
+        $reason = trim($reason);
+        if ('' === $reason) {
+            return 'invalid';
+        }
+        if (null !== ($denied = $this->guard($adminId, $targetUserId))) {
+            return $denied;
+        }
+        if (!isset($this->directory->cards([$targetUserId])[$targetUserId])) {
+            return 'not_found';
+        }
+
+        $action = $this->newAction($adminId, $targetUserId, ModerationAction::ACTION_NOTE, $reason, null);
+        $this->actions->save($action);
         $this->mirrorInForum($action);
 
         return 'ok';

@@ -149,7 +149,7 @@ export function AdminUserDetailPage({ userId }: Props) {
         <RolePanel isSelf={isSelf} onChanged={reload} user={user} />
       </Section>
 
-      <AdminUserModeration isAdmin={user.role === "admin"} isSelf={isSelf} userId={user.id} />
+      <AdminUserModeration isAdmin={user.role === "admin"} isSelf={isSelf} name={user.displayName ?? user.email} userId={user.id} />
 
       <AdminUserParticipation userId={user.id} />
 

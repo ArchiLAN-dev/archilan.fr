@@ -319,7 +319,8 @@ export async function fetchAdminUserModeration(userId: string): Promise<AdminUse
   }
 }
 
-export type ModerationCommand = "warn" | "suspend" | "ban" | "lift";
+// Story 39.10 : "note" est une note interne, le membre n'en est pas prévenu.
+export type ModerationCommand = "warn" | "suspend" | "ban" | "lift" | "note";
 
 /** Returns null on success, or a message to show. The server owns the rules; this only relays them. */
 export async function applyModerationAction(

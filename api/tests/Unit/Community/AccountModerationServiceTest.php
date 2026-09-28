@@ -109,4 +109,33 @@ final class AccountModerationServiceTest extends TestCase
             'one job per recorded sanction, carrying its id',
         );
     }
+
+    public function testANoteIsRecordedAndSentToTheForumWithoutTellingTheMember(): void
+    {
+        // Story 39.10: a trace for the staff only.
+        $admins = self::createStub(CommunityAdminIdsQueryInterface::class);
+        $admins->method('adminUserIds')->willReturn(['target-admin']);
+        $directory = self::createStub(CommunityUserDirectoryQueryInterface::class);
+        $directory->method('cards')->willReturn(['target' => ['userId' => 'target', 'slug' => 't', 'displayName' => 'T', 'avatarUrl' => null]]);
+        $saved = [];
+        $actions = self::createStub(ModerationActionRepositoryInterface::class);
+        $actions->method('save')->willReturnCallback(static function (ModerationAction $action) use (&$saved): void {
+            $saved[] = $action;
+        });
+        $notifier = $this->createMock(Notifier::class);
+        $notifier->expects(self::never())->method('notify');
+        $bus = new RecordingMessageBus();
+
+        $service = new AccountModerationService(self::createStub(MemberModerationGatewayInterface::class), $actions, self::createStub(ContentReportRepositoryInterface::class), $directory, $admins, $notifier, new MockClock('2026-09-28 20:00:00'), $bus, new NullLogger());
+
+        self::assertSame('ok', $service->note('admin', 'target', 'Rappelé à l\'ordre en vocal'));
+        self::assertCount(1, $saved);
+        self::assertSame(ModerationAction::ACTION_NOTE, $saved[0]->getAction());
+        self::assertSame('Rappelé à l\'ordre en vocal', $saved[0]->getReason());
+        self::assertEquals([new PostModerationActionToForumJob($saved[0]->getId())], $bus->messages, 'the staff forum gets it');
+
+        self::assertSame('invalid', $service->note('admin', 'target', '  '));
+        self::assertSame('forbidden', $service->note('admin', 'admin', 'self'));
+        self::assertSame('forbidden', $service->note('admin', 'target-admin', 'an admin'));
+    }
 }

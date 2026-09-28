@@ -1,7 +1,13 @@
 import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { fetchAdminUserModeration, hasPendingDiscordOutcome, replyToMember, type AdminUserModeration } from "./admin-users-api";
+import {
+  applyModerationAction,
+  fetchAdminUserModeration,
+  hasPendingDiscordOutcome,
+  replyToMember,
+  type AdminUserModeration,
+} from "./admin-users-api";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -157,5 +163,42 @@ describe("fetchAdminUserModeration - dossier de modération", () => {
         now,
       ),
     ).toBe(true);
+  });
+
+  it("pose une note interne sur sa propre route (story 39.10)", async () => {
+    let received: unknown = null;
+    server.use(
+      http.post(`${BASE}/admin/community/accounts/u1/note`, async ({ request }) => {
+        received = await request.json();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await expect(applyModerationAction("u1", "note", "Rappelé à l'ordre en vocal")).resolves.toBeNull();
+    expect(received).toEqual({ reason: "Rappelé à l'ordre en vocal" });
+  });
+
+  it("n'attend pas d'issue Discord pour une note interne (story 39.10)", () => {
+    const now = Date.parse("2026-09-28T10:00:00+00:00");
+    const note = {
+      id: "a1",
+      action: "note",
+      reason: "À surveiller",
+      createdAt: "2026-09-28T09:59:00+00:00",
+      actorId: "admin-1",
+      actorName: "Jean",
+      relatedReportId: null,
+      discordDm: "internal",
+      discordServer: null,
+    };
+    const moderation: AdminUserModeration = {
+      state: { suspendedUntil: null, bannedAt: null, reason: null },
+      unresolvedReportCount: 0,
+      severityScore: 0,
+      actions: [note],
+      moderationCase: null,
+    };
+
+    expect(hasPendingDiscordOutcome(moderation, now)).toBe(false);
   });
 });

@@ -5,6 +5,39 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.23.0] - 2026-09-29
+
+Écrans de modération repensés autour de fenêtres dédiées, note interne sur un membre, et espace membre enfin
+utilisable sur téléphone.
+
+### Ajouté
+
+- **Note de modération interne** (story 39.10). Nouvelle action « Note interne » sur la fiche admin : consignée
+  dans l'historique et dans le post du membre sur le forum staff, sans le prévenir (ni notification, ni message
+  privé) et sans effet sur son accès. Une note seule n'ouvre pas au membre la section « Contacter la
+  modération ».
+
+### Modifié
+
+- **Refonte des écrans de modération** (story 39.11). Une seule fenêtre de sanction (avertir, suspendre,
+  bannir, lever, note interne), ouverte depuis l'onglet Signalements comme depuis la fiche admin, qui affiche le
+  refus du serveur au lieu de l'ignorer. Comptes à examiner et signalements en listes à plat, historique d'un
+  compte dans un panneau latéral. Masquer un commentaire et approuver une contribution demandent confirmation ;
+  le refus d'une contribution se fait dans une fenêtre.
+- Mise à jour des dépendances du frontend (#618).
+
+### Corrigé
+
+- **L'espace membre ne défile plus horizontalement sur téléphone** (#648). La carte d'identité en haut de
+  `/compte/*` imposait sa largeur à toute la page.
+
+### Notes de déploiement
+
+- Frontend et API seulement : aucune migration, aucune nouvelle variable d'environnement, services inchangés
+  (depuis la v0.22.0, seule l'image `archipelago` est passée en `v0.16.5`, correctif GTFO).
+- Facultatif : créer l'étiquette « Note » dans le forum staff Discord ; sans elle, le post du membre garde son
+  étiquette.
+
 ## [0.22.0] - 2026-09-28
 
 Modération synchronisée avec Discord (épic 39), passe de mise à jour des apworlds à la demande, tests de

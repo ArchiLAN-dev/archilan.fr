@@ -72,6 +72,14 @@ final class ContactModerationTest extends TestCase
         self::assertSame([], $this->bus->messages);
     }
 
+    public function testANoteAloneGivesNothingToContest(): void
+    {
+        // Story 39.10: the member does not even know about it.
+        $this->history[] = new ModerationAction('a-0', 'admin-1', 'user-1', ModerationAction::ACTION_NOTE, 'À surveiller', new \DateTimeImmutable('2026-09-20'));
+
+        self::assertSame(ContactModerationOutcome::NotSanctioned, $this->command()->write('user-1', 'Bonjour'));
+    }
+
     public function testAnEmptyOrOversizedMessageIsInvalid(): void
     {
         $this->sanctioned();

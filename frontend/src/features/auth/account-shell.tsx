@@ -60,8 +60,10 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
   const pendingFriends = friends ? friends.incoming.length : undefined;
   const registrationsCount = registrations ? registrations.length : undefined;
 
+  // `grid-cols-1` bounds the column to the screen: an implicit track grows to the identity card's
+  // min-content and made every `/compte/*` page scroll sideways on a phone.
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       {!loading && profile && !profile.emailVerifiedAt && <EmailVerificationBanner />}
 
       {/* User header */}
@@ -99,7 +101,7 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Sidebar + active section */}
-      <div className="grid gap-6 md:grid-cols-[13rem_1fr] md:items-start">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[13rem_1fr] md:items-start">
         <AccountNav pendingFriends={pendingFriends} registrationsCount={registrationsCount} />
         <div className="min-w-0">{children}</div>
       </div>

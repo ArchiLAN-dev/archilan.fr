@@ -24,6 +24,16 @@ final class ModerationActionDirectMessageTest extends TestCase
         self::assertSame(ModerationCaseMessage::DM_SENT, $action->getDiscordDmStatus());
     }
 
+    public function testOnlyANoteIsNoSanction(): void
+    {
+        // Story 39.10: a note tells the staff, not the member; it opens nothing to them.
+        $now = new \DateTimeImmutable();
+        self::assertFalse(ModerationAction::create('a', 'u', ModerationAction::ACTION_NOTE, 'x', $now)->isSanction());
+        foreach ([ModerationAction::ACTION_WARN, ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN, ModerationAction::ACTION_LIFT] as $kind) {
+            self::assertTrue(ModerationAction::create('a', 'u', $kind, 'x', $now)->isSanction(), $kind);
+        }
+    }
+
     public function testTheServerOutcomeIsRecordedOnceToo(): void
     {
         $action = ModerationAction::create('admin-1', 'user-1', ModerationAction::ACTION_BAN, 'Triche', new \DateTimeImmutable());
