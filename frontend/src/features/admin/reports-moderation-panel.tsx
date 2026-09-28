@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EyeOff, Eye, Loader2, Search, ShieldCheck } from "lucide-react";
 
-import { AccountModerationControls } from "./account-moderation-controls";
+import { buttonVariants } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
+import { FlaggedAccounts } from "./flagged-accounts";
 
 import {
   CATEGORY_LABELS,
   DEFAULT_REPORT_FILTERS,
-  type FlaggedAccount,
   fetchModerationQueue,
   hideModerationComment,
   PROBLEM_LABELS,
@@ -74,6 +76,8 @@ export function ReportsModerationPanel() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Story 39.11: hiding a comment is confirmed first.
+  const [hiding, setHiding] = useState<ModerationReport | null>(null);
 
   useEffect(() => {
     const handle = setTimeout(() => setSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
@@ -182,16 +186,16 @@ export function ReportsModerationPanel() {
       ) : isError || data === null || data === undefined ? (
         <p className="text-sm text-muted-foreground">Impossible de charger la file de modération.</p>
       ) : data.reports.length === 0 ? (
-        <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
           {isDefault ? "Aucun signalement en attente. 🎉" : "Aucun signalement ne correspond à ces filtres."}
         </p>
       ) : (
-        <ul aria-busy={isFetching} className="grid gap-4" role="list">
+        <ul aria-busy={isFetching} className="divide-y divide-border rounded-lg border border-border bg-surface" role="list">
           {data.reports.map((report) => (
             <li key={report.id}>
-              <ReportCard
+              <ReportRow
                 busy={busyId === report.id}
-                onHide={() => void run(report.id, () => hideModerationComment(report.comment?.id ?? ""))}
+                onHide={() => setHiding(report)}
                 onResolve={() => void run(report.id, () => resolveModerationReport(report.id))}
                 onRestore={() => void run(report.id, () => restoreModerationComment(report.comment?.id ?? ""))}
                 report={report}
@@ -200,6 +204,21 @@ export function ReportsModerationPanel() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        confirmLabel="Masquer"
+        description="Le commentaire disparaît du profil pour tout le monde. Tu pourras le restaurer depuis cette file."
+        onConfirm={() => {
+          if (hiding === null) return;
+          const report = hiding;
+          void run(report.id, () => hideModerationComment(report.comment?.id ?? "")).then(() => setHiding(null));
+        }}
+        onOpenChange={(open) => (open ? undefined : setHiding(null))}
+        open={hiding !== null}
+        pending={hiding !== null && busyId === hiding.id}
+        title="Masquer ce commentaire ?"
+        tone="danger"
+      />
     </div>
   );
 }
@@ -228,7 +247,7 @@ function FilterSelect({
   );
 }
 
-function ReportCard({
+function ReportRow({
   report,
   busy,
   onHide,
@@ -244,7 +263,7 @@ function ReportCard({
   const comment = report.comment;
 
   return (
-    <article className="grid gap-3 rounded-lg border border-border bg-surface p-4">
+    <article className="grid gap-3 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="inline-flex flex-wrap items-center gap-2 text-sm">
           <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-400">
@@ -260,7 +279,7 @@ function ReportCard({
         </time>
       </div>
 
-      {report.note ? <p className="rounded-md border border-border bg-background/50 px-3 py-2 text-sm text-foreground">« {report.note} »</p> : null}
+      {report.note ? <p className="border-l-2 border-border pl-3 text-sm italic text-foreground">« {report.note} »</p> : null}
 
       <p className="text-xs text-muted-foreground">
         Signalé par{" "}
@@ -275,7 +294,7 @@ function ReportCard({
 
       {comment ? (
         <blockquote
-          className={`rounded-md border border-border bg-background/50 px-3 py-2 text-sm ${
+          className={`border-l-2 border-red-500/50 pl-3 text-sm ${
             comment.hidden ? "text-muted-foreground line-through" : "text-foreground"
           }`}
         >
@@ -310,7 +329,7 @@ function ReportCard({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         {comment ? (
           comment.hidden ? (
             <ActionButton busy={busy} onClick={onRestore}>
@@ -342,16 +361,7 @@ function ActionButton({
   onClick: () => void;
 }) {
   return (
-    <button
-      className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors disabled:opacity-50 ${
-        primary
-          ? "border-accent bg-accent text-white hover:bg-accent-hover"
-          : "border-border text-muted-foreground hover:border-accent hover:text-foreground"
-      }`}
-      disabled={busy}
-      onClick={onClick}
-      type="button"
-    >
+    <button className={buttonVariants({ variant: primary ? "primary" : "secondary" })} disabled={busy} onClick={onClick} type="button">
       {children}
     </button>
   );
@@ -363,35 +373,6 @@ function SeverityChip({ severity, uncategorized }: { severity: number; uncategor
   }
   const tone = severity >= 8 ? "bg-red-500/20 text-red-400" : severity >= 5 ? "bg-amber-500/20 text-amber-400" : "bg-sky-500/15 text-sky-400";
   return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}>Gravité {severity}</span>;
-}
-
-function FlaggedAccounts({ accounts, threshold, onActed }: { accounts: FlaggedAccount[]; threshold: number; onActed: () => void }) {
-  return (
-    <section className="grid gap-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4" aria-label="Comptes à examiner">
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-400">
-        <ShieldCheck aria-hidden className="size-4" /> À examiner - comptes au-delà du seuil ({threshold})
-      </h3>
-      <ul className="grid gap-3" role="list">
-        {accounts.map((account) => (
-          <li className="grid gap-2 rounded-md border border-border bg-surface/60 p-3" key={account.userId}>
-            <div className="flex items-center justify-between gap-3 text-sm">
-              {account.slug ? (
-                <Link className="font-medium text-foreground hover:text-accent-text" href={`/joueurs/${account.slug}`}>
-                  {account.displayName ?? account.slug}
-                </Link>
-              ) : (
-                <span className="text-muted-foreground">Compte supprimé</span>
-              )}
-              <span className="text-xs text-muted-foreground">
-                score <strong className="text-amber-400">{account.score}</strong> · {account.reportCount} signalement{account.reportCount > 1 ? "s" : ""}
-              </span>
-            </div>
-            <AccountModerationControls name={account.displayName ?? account.slug ?? "ce compte"} onActed={onActed} userId={account.userId} />
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
 }
 
 function formatDate(iso: string): string {
