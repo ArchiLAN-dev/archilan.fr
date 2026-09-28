@@ -1,4 +1,4 @@
-# Story 9.55: Supprimer le slot observateur `Bridge` injecte dans chaque partie generee
+# Story 9.56: Supprimer le slot observateur `Bridge` injecte dans chaque partie generee
 
 **Status:** draft
 **Epic:** 9 - Archipelago session management
