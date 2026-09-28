@@ -21,6 +21,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 final readonly class ContactModeration
 {
+    private const int HISTORY_SCAN = 200;
+
     public const int MAX_PER_HOUR = 5;
 
     public function __construct(
@@ -39,7 +41,7 @@ final readonly class ContactModeration
         $case = $this->cases->findByTargetUserId($memberId);
         if (null === $case) {
             // Nothing to contest without a sanction: the route is not a general contact form.
-            if ([] === $this->actions->forTarget($memberId, 1)) {
+            if (!$this->hasSanction($memberId)) {
                 return ContactModerationOutcome::NotSanctioned;
             }
             $case = ModerationCase::open($memberId, $now);
@@ -68,5 +70,11 @@ final readonly class ContactModeration
         }
 
         return ContactModerationOutcome::Sent;
+    }
+
+    /** Story 39.10: a note is for the staff only, it is nothing the member could talk about. */
+    private function hasSanction(string $memberId): bool
+    {
+        return array_any($this->actions->forTarget($memberId, self::HISTORY_SCAN), fn ($action) => $action->isSanction());
     }
 }

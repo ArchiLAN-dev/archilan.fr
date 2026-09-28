@@ -293,6 +293,37 @@ final class PostModerationActionToForumHandlerTest extends TestCase
         self::assertCount(1, $this->dms->sent);
     }
 
+    public function testANoteIsPostedForTheStaffAndNeverSentToTheMember(): void
+    {
+        // Story 39.10.
+        $case = ModerationCase::open('user-1', new \DateTimeImmutable('2026-09-01'));
+        $case->attachForumThread('thread-7');
+        $case->close(new \DateTimeImmutable('2026-09-10'));
+        $this->cases->save($case);
+        $action = $this->action('a-1', ModerationAction::ACTION_NOTE, 'Rappelé à l\'ordre en vocal');
+
+        $this->handle($action);
+
+        self::assertSame([], $this->dms->sent, 'no message to the member');
+        self::assertSame([], $this->server->bans);
+        self::assertSame(ModerationCaseMessage::DM_INTERNAL, $action->getDiscordDmStatus());
+        self::assertNull($action->getDiscordServerStatus());
+        self::assertFalse($case->isOpen(), 'a note does not reopen a closed case');
+        $post = $this->forum->posts[0]['message'];
+        self::assertSame('thread-7', $this->forum->posts[0]['threadId']);
+        self::assertSame('Note', $post->title);
+        self::assertSame('Note', $post->tag);
+        self::assertContains(['name' => 'Visibilité', 'value' => 'interne : le membre n\'est pas prévenu'], $post->fields);
+    }
+
+    public function testAFirstNoteOpensTheCase(): void
+    {
+        $this->handle($this->action('a-1', ModerationAction::ACTION_NOTE, 'À surveiller'));
+
+        self::assertNotNull($this->cases->findByTargetUserId('user-1'));
+        self::assertCount(1, $this->forum->openedThreads);
+    }
+
     public function testClosedPrivateMessagesAreReported(): void
     {
         $this->dms->failWith = new MemberDirectMessageException('Discord 403: Cannot send messages to this user');

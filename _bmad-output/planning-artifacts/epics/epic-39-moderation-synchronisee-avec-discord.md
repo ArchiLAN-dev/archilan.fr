@@ -97,6 +97,11 @@ Qu'une sanction soit **la même partout**, **suivie dans un dossier**, et que le
   l'activation montrés une fois au staff et jamais appliqués, levée en attente jamais défaite, sanction dépassée
   non appliquée, MP non bloquant, relevés en async, plafond des MP relevés, ergonomie.
 
+### 39.10 Note de modération
+
+- Action « Note interne » sur la fiche admin : enregistrée dans l'historique et le dossier, postée dans le forum
+  staff (étiquette « Note »), jamais montrée au membre (ni notification, ni MP), sans effet sur son accès.
+
 ### 39.8 (optionnel) Exclusions temporaires posées sur Discord
 
 - Même principe pour les exclusions temporaires ; plus coûteux (Discord ne les liste pas, il faut parcourir les

@@ -30,6 +30,8 @@ final class ModerationCaseMessage
     public const string DM_UNAVAILABLE = 'unavailable';
     /** A sanction already lifted or over when its job ran (story 39.9): the member is not told. */
     public const string DM_SUPERSEDED = 'superseded';
+    /** A note for the staff only (story 39.10): the member is never sent anything. */
+    public const string DM_INTERNAL = 'internal';
 
     public function __construct(
         #[ORM\Id]

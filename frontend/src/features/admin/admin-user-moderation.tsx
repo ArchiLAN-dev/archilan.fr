@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<string, string> = {
   suspend: "Suspension",
   ban: "Bannissement",
   lift: "Levée de sanction",
+  note: "Note interne",
 };
 
 type Props = {
@@ -295,6 +296,7 @@ function ActionForm({ userId, onDone }: { userId: string; onDone: () => Promise<
           <option value="suspend">Suspendre</option>
           <option value="ban">Bannir</option>
           <option value="lift">Lever la sanction</option>
+          <option value="note">Note interne</option>
         </select>
 
         {command === "suspend" ? (
@@ -314,8 +316,15 @@ function ActionForm({ userId, onDone }: { userId: string; onDone: () => Promise<
         ) : null}
       </div>
 
+      {command === "note" ? (
+        <p className="text-xs text-muted-foreground">
+          Visible par le staff seulement (fiche et forum staff) : le membre n&apos;est pas prévenu, ni notification ni MP,
+          et rien ne change pour lui.
+        </p>
+      ) : null}
+
       <label className="grid gap-1">
-        <span className="text-sm text-muted-foreground">Motif (obligatoire)</span>
+        <span className="text-sm text-muted-foreground">{command === "note" ? "Note (obligatoire)" : "Motif (obligatoire)"}</span>
         <input
           className="min-h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
           onChange={(e) => setReason(e.target.value)}
@@ -375,7 +384,11 @@ function ActionRow({ action }: { action: AdminModerationAction }) {
       <time className="text-xs text-muted-foreground" dateTime={action.createdAt}>
         {formatDate(action.createdAt)}
       </time>
-      {discord !== null ? <p className="text-xs text-muted-foreground">{discord}</p> : null}
+      {action.action === "note" ? (
+        <p className="text-xs text-muted-foreground">Note interne : le membre n&apos;est pas prévenu.</p>
+      ) : discord !== null ? (
+        <p className="text-xs text-muted-foreground">{discord}</p>
+      ) : null}
     </li>
   );
 }
@@ -390,7 +403,7 @@ function Panel({ children }: { children: React.ReactNode }) {
 }
 
 function toCommand(value: string): ModerationCommand {
-  return value === "suspend" || value === "ban" || value === "lift" ? value : "warn";
+  return value === "suspend" || value === "ban" || value === "lift" || value === "note" ? value : "warn";
 }
 
 function formatDate(iso: string | null): string {
