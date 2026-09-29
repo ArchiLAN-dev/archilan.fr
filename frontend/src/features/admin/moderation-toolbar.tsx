@@ -1,48 +1,43 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
-import { Popover } from "radix-ui";
+import { ChevronDown, Search } from "lucide-react";
 
 import { Switch } from "@/components/switch";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import type { Chip, Option } from "./moderation-filters";
+import type { Option } from "./moderation-filters";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
 /**
- * The moderation tabs' toolbar (story 39.12): search first, a filters button counting what is on, the sort on
- * the side; then the active filters as removable chips and the number of results. Both tabs use it, so
- * reports and contributions read the same way.
+ * The moderation tabs' toolbar (story 39.12): search and sort, then the filters, a reset and the number of
+ * results. Story 39.13: the filters are dropdowns always on the page - what is filtered reads at a glance,
+ * with no panel to open. Both tabs use it, so reports and contributions read the same way.
  */
-export function ModerationToolbar<S extends string, K extends string>({
+export function ModerationToolbar<S extends string>({
   search,
   searchPlaceholder,
   onSearch,
-  filterCount,
   filters,
+  active,
+  onReset,
   sort,
   sortOptions,
   onSort,
-  chips,
-  onRemoveChip,
-  onReset,
   resultLabel,
 }: {
   search: string;
   searchPlaceholder: string;
   onSearch: (search: string) => void;
-  filterCount: number;
-  /** The filter groups, shown in the panel the "Filtres" button opens. */
+  /** The tab's filter dropdowns (and toggles), laid out in a row. */
   filters: ReactNode;
+  /** A filter or a search narrows the list: the reset shows. */
+  active: boolean;
+  onReset: () => void;
   sort: S;
   sortOptions: Option<S>[];
   onSort: (sort: S) => void;
-  chips: Chip<K>[];
-  onRemoveChip: (key: K) => void;
-  onReset: () => void;
   /** "12 signalements", or null while loading. */
   resultLabel: string | null;
 }) {
@@ -50,33 +45,21 @@ export function ModerationToolbar<S extends string, K extends string>({
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <SearchField onCommit={onSearch} placeholder={searchPlaceholder} value={search} />
-        <div className="flex flex-1 items-center justify-between gap-2 sm:flex-none">
-          <FiltersButton count={filterCount} onReset={onReset}>
-            {filters}
-          </FiltersButton>
-          <SortSelect onChange={onSort} options={sortOptions} value={sort} />
-        </div>
+        <FilterSelect defaultValue={sort} label="Tri" onChange={onSort} options={sortOptions} value={sort} />
       </div>
 
-      {chips.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {chips.map((chip) => (
-            <button
-              aria-label={`Retirer le filtre ${chip.label}`}
-              className="inline-flex min-h-7 items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 text-xs font-semibold text-foreground transition-colors hover:border-accent"
-              key={chip.key}
-              onClick={() => onRemoveChip(chip.key)}
-              type="button"
-            >
-              {chip.label}
-              <X aria-hidden className="size-3.5" />
-            </button>
-          ))}
-          <button className="text-xs font-semibold text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" onClick={onReset} type="button">
+      <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
+        {filters}
+        {active ? (
+          <button
+            className="col-span-2 justify-self-start px-1 text-sm font-semibold text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:ml-auto"
+            onClick={onReset}
+            type="button"
+          >
             Réinitialiser
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {resultLabel !== null ? <p className="text-sm text-muted-foreground">{resultLabel}</p> : null}
     </div>
@@ -85,7 +68,7 @@ export function ModerationToolbar<S extends string, K extends string>({
 
 /**
  * The search box keeps what is typed and hands it over after a pause; a query changed from outside (a
- * chip removed, a reset, the back button) replaces the typed text.
+ * reset, the back button) replaces the typed text.
  */
 function SearchField({ value, placeholder, onCommit }: { value: string; placeholder: string; onCommit: (search: string) => void }) {
   const [input, setInput] = useState(value);
@@ -118,39 +101,38 @@ function SearchField({ value, placeholder, onCommit }: { value: string; placehol
   );
 }
 
-function FiltersButton({ count, onReset, children }: { count: number; onReset: () => void; children: ReactNode }) {
-  return (
-    <Popover.Root>
-      <Popover.Trigger className={cn(buttonVariants({ variant: "secondary" }), "min-h-10")}>
-        <SlidersHorizontal aria-hidden className="size-4" />
-        Filtres
-        {count > 0 ? <span className="inline-flex min-w-5 justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white">{count}</span> : null}
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          align="start"
-          className="z-50 grid w-[min(22rem,calc(100vw-2rem))] gap-4 rounded-xl border border-border bg-surface p-4 shadow-xl focus:outline-none"
-          sideOffset={8}
-        >
-          {children}
-          <div className="flex justify-between border-t border-border pt-3">
-            <button className="text-sm font-semibold text-muted-foreground hover:text-foreground" onClick={onReset} type="button">
-              Réinitialiser les filtres
-            </button>
-            <Popover.Close className={buttonVariants({ variant: "primary" })}>Fermer</Popover.Close>
-          </div>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
-  );
-}
+/**
+ * A dropdown that names itself inside the control ("Cible  Tous ▾") and stands out while it filters, i.e.
+ * while its value is not the default.
+ */
+export function FilterSelect<T extends string>({
+  label,
+  options,
+  value,
+  defaultValue,
+  onChange,
+}: {
+  label: string;
+  options: Option<T>[];
+  value: T;
+  defaultValue: T;
+  onChange: (value: T) => void;
+}) {
+  const filtering = value !== defaultValue;
 
-function SortSelect<S extends string>({ value, options, onChange }: { value: S; options: Option<S>[]; onChange: (sort: S) => void }) {
   return (
-    <label className="relative">
-      <span className="sr-only">Trier par</span>
+    <label
+      className={cn(
+        "relative flex min-h-10 min-w-0 items-center gap-2 rounded-lg border pl-3 pr-9 text-sm transition-colors focus-within:ring-2 focus-within:ring-accent/60",
+        filtering ? "border-accent-text/70 bg-accent/20" : "border-border bg-background hover:border-accent/60",
+      )}
+    >
+      <span className="shrink-0 text-muted-foreground">{label}</span>
       <select
-        className="min-h-10 appearance-none rounded-lg border border-border bg-background pl-3 pr-9 text-sm font-semibold text-foreground focus:border-accent focus:outline-none"
+        className={cn(
+          "min-w-0 flex-1 cursor-pointer appearance-none truncate bg-transparent py-2 font-semibold focus:outline-none",
+          filtering ? "text-accent-text" : "text-foreground",
+        )}
         onChange={(event) => {
           const next = options.find((option) => option.value === event.target.value);
           if (next !== undefined) onChange(next.value);
@@ -168,19 +150,32 @@ function SortSelect<S extends string>({ value, options, onChange }: { value: S; 
   );
 }
 
-/** Mutually exclusive choices as a row of buttons: the status, or a group of the filter panel. */
+/** An on/off filter, in the same row and shape as the dropdowns. */
+export function FilterToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-10 items-center justify-between gap-3 rounded-lg border px-3 text-sm",
+        checked ? "border-accent-text/70 bg-accent/20" : "border-border bg-background",
+      )}
+    >
+      <span className="font-semibold text-foreground">{label}</span>
+      <Switch ariaLabel={label} checked={checked} onChange={onChange} />
+    </div>
+  );
+}
+
+/** Mutually exclusive choices as a row of buttons: the status of the list. */
 export function SegmentedControl<T extends string>({
   label,
   options,
   value,
   onChange,
-  size = "md",
 }: {
   label: string;
   options: Option<T>[];
   value: T;
   onChange: (value: T) => void;
-  size?: "sm" | "md";
 }) {
   return (
     <div aria-label={label} className="flex flex-wrap gap-1.5" role="radiogroup">
@@ -190,8 +185,7 @@ export function SegmentedControl<T extends string>({
           <button
             aria-checked={checked}
             className={cn(
-              "rounded-full border font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
-              size === "sm" ? "min-h-8 px-3 text-xs" : "min-h-9 px-3.5 text-sm",
+              "min-h-9 rounded-full border px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
               checked ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted-foreground hover:border-accent hover:text-foreground",
             )}
             key={option.value}
@@ -203,25 +197,6 @@ export function SegmentedControl<T extends string>({
           </button>
         );
       })}
-    </div>
-  );
-}
-
-/** One group of the filter panel: its name above its choices. */
-export function FilterGroup<T extends string>({ label, options, value, onChange }: { label: string; options: Option<T>[]; value: T; onChange: (value: T) => void }) {
-  return (
-    <div className="grid gap-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <SegmentedControl label={label} onChange={onChange} options={options} size="sm" value={value} />
-    </div>
-  );
-}
-
-export function FilterToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-sm font-medium text-foreground">{label}</span>
-      <Switch ariaLabel={label} checked={checked} onChange={onChange} />
     </div>
   );
 }

@@ -24,9 +24,8 @@ import {
   contributionChips,
   contributionFiltersFromParams,
   contributionFiltersToParams,
-  withoutContributionChip,
 } from "./moderation-filters";
-import { FilterGroup, ModerationToolbar, SegmentedControl } from "./moderation-toolbar";
+import { FilterSelect, ModerationToolbar, SegmentedControl } from "./moderation-toolbar";
 
 const QUERY_PREFIX = ["admin-game-contributions"] as const;
 const STALE_TIME = 15_000;
@@ -66,10 +65,10 @@ export function ContributionsModerationPanel({ params, onParams }: { params: URL
       <SegmentedControl label="Statut des contributions" onChange={(status) => update({ ...filters, status })} options={CONTRIBUTION_STATUS_OPTIONS} value={filters.status} />
 
       <ModerationToolbar
-        chips={chips}
-        filterCount={chips.filter((chip) => chip.key !== "search").length}
-        filters={<FilterGroup label="Cible" onChange={(target) => update({ ...filters, target })} options={CONTRIBUTION_TARGET_OPTIONS} value={filters.target} />}
-        onRemoveChip={(key) => update(withoutContributionChip(filters, key))}
+        active={chips.length > 0}
+        filters={
+          <FilterSelect defaultValue="any" label="Cible" onChange={(target) => update({ ...filters, target })} options={CONTRIBUTION_TARGET_OPTIONS} value={filters.target} />
+        }
         onReset={() => update(clearedContributionFilters(filters))}
         onSearch={onSearch}
         onSort={(sort) => update({ ...filters, sort })}

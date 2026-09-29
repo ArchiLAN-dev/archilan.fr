@@ -8,13 +8,11 @@ import {
   reportChips,
   reportFiltersFromParams,
   reportFiltersToParams,
-  withoutContributionChip,
-  withoutReportChip,
 } from "./moderation-filters";
 
 /**
  * Story 39.12. The moderation view lives in the page address: a reload, the back button or a shared link
- * gives the same tab, filters, sort and search. Active filters read as removable chips.
+ * gives the same tab, filters, sort and search. What narrows the list is listed, to offer a reset.
  */
 describe("report filters and the URL", () => {
   test("the defaults make a clean address", () => {
@@ -52,13 +50,6 @@ describe("report chips", () => {
 
     expect(chips.map((chip) => chip.label)).toEqual(["Profils", "Haine", "Commentaires visibles", "Non catégorisés", "« spam »"]);
   });
-
-  test("removing a chip resets that filter only", () => {
-    const filters = { ...DEFAULT_REPORT_FILTERS, targetType: "profile" as const, problem: "hate" as const };
-
-    expect(withoutReportChip(filters, "targetType")).toEqual({ ...filters, targetType: "any" });
-    expect(withoutReportChip({ ...filters, search: "x" }, "search")).toEqual(filters);
-  });
 });
 
 describe("contribution filters", () => {
@@ -73,11 +64,10 @@ describe("contribution filters", () => {
     expect(contributionFiltersFromParams(new URLSearchParams("statut=resolved&cible=comment"))).toEqual(DEFAULT_CONTRIBUTION_FILTERS);
   });
 
-  test("chips and their removal", () => {
+  test("what narrows the list, search included", () => {
     const filters = { ...DEFAULT_CONTRIBUTION_FILTERS, target: "listed" as const, search: "hk" };
 
     expect(contributionChips(filters).map((chip) => chip.label)).toEqual(["Jeux listés", "« hk »"]);
-    expect(withoutContributionChip(filters, "target")).toEqual({ ...filters, target: "any" });
   });
 });
 
