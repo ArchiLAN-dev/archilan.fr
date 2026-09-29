@@ -22,10 +22,11 @@ import {
   CONTRIBUTION_STATUS_OPTIONS,
   CONTRIBUTION_TARGET_OPTIONS,
   contributionChips,
+  contributionFiltersActive,
   contributionFiltersFromParams,
   contributionFiltersToParams,
 } from "./moderation-filters";
-import { FilterSelect, ModerationToolbar, SegmentedControl } from "./moderation-toolbar";
+import { FilterSelect, ModerationToolbar } from "./moderation-toolbar";
 
 const QUERY_PREFIX = ["admin-game-contributions"] as const;
 const STALE_TIME = 15_000;
@@ -62,12 +63,19 @@ export function ContributionsModerationPanel({ params, onParams }: { params: URL
 
   return (
     <div className="grid gap-4">
-      <SegmentedControl label="Statut des contributions" onChange={(status) => update({ ...filters, status })} options={CONTRIBUTION_STATUS_OPTIONS} value={filters.status} />
-
       <ModerationToolbar
-        active={chips.length > 0}
+        active={contributionFiltersActive(filters)}
         filters={
-          <FilterSelect defaultValue="any" label="Cible" onChange={(target) => update({ ...filters, target })} options={CONTRIBUTION_TARGET_OPTIONS} value={filters.target} />
+          <>
+            <FilterSelect
+              defaultValue="pending"
+              label="Statut"
+              onChange={(status) => update({ ...filters, status })}
+              options={CONTRIBUTION_STATUS_OPTIONS}
+              value={filters.status}
+            />
+            <FilterSelect defaultValue="any" label="Cible" onChange={(target) => update({ ...filters, target })} options={CONTRIBUTION_TARGET_OPTIONS} value={filters.target} />
+          </>
         }
         onReset={() => update(clearedContributionFilters(filters))}
         onSearch={onSearch}

@@ -259,7 +259,7 @@ export function messageFor(item: NotificationItem): string {
 
 export function hrefFor(item: NotificationItem): string {
   if (item.type === "account_flagged") {
-    return "/admin/moderation";
+    return "/admin/moderation/signalements";
   }
   if (item.type === "apworld_incident_opened") {
     // The apworld health page (story 38.3): the incident, who holds it, and the actions.

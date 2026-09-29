@@ -5,8 +5,10 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Bot, Calendar, CreditCard, Gamepad2, HeartPulse, LayoutDashboard, Library, LogOut, Menu, Newspaper, ShieldAlert, SlidersHorizontal, Timer, Trophy, Users, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Bot, Calendar, CreditCard, Flag, Gamepad2, HeartPulse, LayoutDashboard, Library, LogOut, Menu, Newspaper, NotebookPen, SlidersHorizontal, Timer, Trophy, Users, X } from "lucide-react";
 import { APWORLD_INCIDENT_SUMMARY_QUERY_KEY, fetchApworldIncidentSummary } from "@/features/admin/admin-apworld-health-api";
+import { DEFAULT_CONTRIBUTION_FILTERS, fetchContributionQueue } from "@/features/admin/admin-game-contributions-api";
+import { DEFAULT_REPORT_FILTERS, fetchModerationQueue } from "@/features/admin/admin-moderation-api";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -32,8 +34,15 @@ const navGroups = [
     items: [
       { href: "/admin/utilisateurs", icon: Users, label: "Utilisateurs", shortLabel: "Users", exact: false },
       { href: "/admin/adhesions", icon: CreditCard, label: "Adhésions", shortLabel: "Adhés.", exact: false },
-      { href: "/admin/moderation", icon: ShieldAlert, label: "Modération", shortLabel: "Modé.", exact: false },
       { href: "/admin/achievements", icon: Trophy, label: "Succès", shortLabel: "Succès", exact: false },
+    ],
+  },
+  {
+    // Story 39.13: each moderation queue has its own page and its own count of what waits.
+    label: "Modération",
+    items: [
+      { href: "/admin/moderation/signalements", icon: Flag, label: "Signalements", shortLabel: "Signal.", exact: false },
+      { href: "/admin/moderation/contributions", icon: NotebookPen, label: "Contributions", shortLabel: "Contrib.", exact: false },
     ],
   },
   {
@@ -125,7 +134,24 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
     enabled: isAdmin,
     staleTime: 60_000,
   });
-  const badges: Record<string, number> = { "/admin/sante-apworlds": apworldSummary?.unacknowledged ?? 0 };
+  // Story 39.13: what waits in each moderation queue (same queries, hence same cache, as their pages).
+  const { data: pendingReports } = useQuery({
+    queryKey: ["admin-moderation", "pending-count"],
+    queryFn: () => fetchModerationQueue(DEFAULT_REPORT_FILTERS),
+    enabled: isAdmin,
+    staleTime: 60_000,
+  });
+  const { data: pendingContributions } = useQuery({
+    queryKey: ["admin-game-contributions", "pending-count"],
+    queryFn: () => fetchContributionQueue(DEFAULT_CONTRIBUTION_FILTERS),
+    enabled: isAdmin,
+    staleTime: 60_000,
+  });
+  const badges: Record<string, number> = {
+    "/admin/sante-apworlds": apworldSummary?.unacknowledged ?? 0,
+    "/admin/moderation/signalements": pendingReports?.count ?? 0,
+    "/admin/moderation/contributions": pendingContributions?.count ?? 0,
+  };
 
   useEffect(() => {
     document.body.classList.toggle("overflow-hidden", mobileMenuOpen);

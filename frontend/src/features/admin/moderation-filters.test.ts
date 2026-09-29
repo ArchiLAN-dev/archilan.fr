@@ -1,11 +1,16 @@
 import { DEFAULT_CONTRIBUTION_FILTERS } from "./admin-game-contributions-api";
 import { DEFAULT_REPORT_FILTERS } from "./admin-moderation-api";
 import {
+  clearedContributionFilters,
+  clearedReportFilters,
   contributionChips,
+  contributionFiltersActive,
   contributionFiltersFromParams,
   contributionFiltersToParams,
+  moderationPathFor,
   moderationTabFromParams,
   reportChips,
+  reportFiltersActive,
   reportFiltersFromParams,
   reportFiltersToParams,
 } from "./moderation-filters";
@@ -76,5 +81,32 @@ describe("moderation tab", () => {
     expect(moderationTabFromParams(new URLSearchParams())).toBe("reports");
     expect(moderationTabFromParams(new URLSearchParams("onglet=contributions"))).toBe("contributions");
     expect(moderationTabFromParams(new URLSearchParams("onglet=autre"))).toBe("reports");
+  });
+});
+
+describe("reset and the status (story 39.13)", () => {
+  test("the status is a filter like the others: it counts as active and the reset brings it back", () => {
+    const resolved = { ...DEFAULT_REPORT_FILTERS, status: "resolved" as const, sort: "recent" as const };
+
+    expect(reportFiltersActive(DEFAULT_REPORT_FILTERS)).toBe(false);
+    expect(reportFiltersActive({ ...DEFAULT_REPORT_FILTERS, sort: "recent" })).toBe(false);
+    expect(reportFiltersActive(resolved)).toBe(true);
+    expect(clearedReportFilters({ ...resolved, targetType: "profile" })).toEqual({ ...DEFAULT_REPORT_FILTERS, sort: "recent" });
+  });
+
+  test("same for the contributions", () => {
+    const approved = { ...DEFAULT_CONTRIBUTION_FILTERS, status: "approved" as const, sort: "oldest" as const };
+
+    expect(contributionFiltersActive(DEFAULT_CONTRIBUTION_FILTERS)).toBe(false);
+    expect(contributionFiltersActive(approved)).toBe(true);
+    expect(clearedContributionFilters({ ...approved, search: "hk" })).toEqual({ ...DEFAULT_CONTRIBUTION_FILTERS, sort: "oldest" });
+  });
+});
+
+describe("the old single page (story 39.13)", () => {
+  test("redirects to the page of its tab, filters kept", () => {
+    expect(moderationPathFor(new URLSearchParams())).toBe("/admin/moderation/signalements");
+    expect(moderationPathFor(new URLSearchParams("cible=profile&q=spam"))).toBe("/admin/moderation/signalements?cible=profile&q=spam");
+    expect(moderationPathFor(new URLSearchParams("onglet=contributions&statut=approved"))).toBe("/admin/moderation/contributions?statut=approved");
   });
 });

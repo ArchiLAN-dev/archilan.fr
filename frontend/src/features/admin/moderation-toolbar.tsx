@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronDown, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { Switch } from "@/components/switch";
+import { SelectField } from "@/components/ui/select-field";
 import { cn } from "@/lib/utils";
 
 import type { Option } from "./moderation-filters";
@@ -102,8 +103,8 @@ function SearchField({ value, placeholder, onCommit }: { value: string; placehol
 }
 
 /**
- * A dropdown that names itself inside the control ("Cible  Tous ▾") and stands out while it filters, i.e.
- * while its value is not the default.
+ * A filter dropdown on the site's own `SelectField` (a native select opens a grey list that ignores the theme on
+ * Windows). It stands out while it filters, i.e. while its value is not the default.
  */
 export function FilterSelect<T extends string>({
   label,
@@ -118,39 +119,10 @@ export function FilterSelect<T extends string>({
   defaultValue: T;
   onChange: (value: T) => void;
 }) {
-  const filtering = value !== defaultValue;
-
-  return (
-    <label
-      className={cn(
-        "relative flex min-h-10 min-w-0 items-center gap-2 rounded-lg border pl-3 pr-9 text-sm transition-colors focus-within:ring-2 focus-within:ring-accent/60",
-        filtering ? "border-accent-text/70 bg-accent/20" : "border-border bg-background hover:border-accent/60",
-      )}
-    >
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-      <select
-        className={cn(
-          "min-w-0 flex-1 cursor-pointer appearance-none truncate bg-transparent py-2 font-semibold focus:outline-none",
-          filtering ? "text-accent-text" : "text-foreground",
-        )}
-        onChange={(event) => {
-          const next = options.find((option) => option.value === event.target.value);
-          if (next !== undefined) onChange(next.value);
-        }}
-        value={value}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown aria-hidden className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-    </label>
-  );
+  return <SelectField highlighted={value !== defaultValue} label={label} onChange={onChange} options={options} value={value} />;
 }
 
-/** An on/off filter, in the same row and shape as the dropdowns. */
+/** An on/off filter, in the same row and frame as the dropdowns. */
 export function FilterToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <div
@@ -159,44 +131,8 @@ export function FilterToggle({ label, checked, onChange }: { label: string; chec
         checked ? "border-accent-text/70 bg-accent/20" : "border-border bg-background",
       )}
     >
-      <span className="font-semibold text-foreground">{label}</span>
+      <span className="text-muted-foreground">{label}</span>
       <Switch ariaLabel={label} checked={checked} onChange={onChange} />
-    </div>
-  );
-}
-
-/** Mutually exclusive choices as a row of buttons: the status of the list. */
-export function SegmentedControl<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: Option<T>[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div aria-label={label} className="flex flex-wrap gap-1.5" role="radiogroup">
-      {options.map((option) => {
-        const checked = option.value === value;
-        return (
-          <button
-            aria-checked={checked}
-            className={cn(
-              "min-h-9 rounded-full border px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
-              checked ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted-foreground hover:border-accent hover:text-foreground",
-            )}
-            key={option.value}
-            onClick={() => onChange(option.value)}
-            role="radio"
-            type="button"
-          >
-            {option.label}
-          </button>
-        );
-      })}
     </div>
   );
 }

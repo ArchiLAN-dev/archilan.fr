@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { FilterSelect, ModerationToolbar, SegmentedControl } from "./moderation-toolbar";
+import { FilterSelect, ModerationToolbar } from "./moderation-toolbar";
 
 const noop = () => undefined;
 
@@ -40,14 +40,14 @@ describe("ModerationToolbar", () => {
 
     expect(html).toMatch(/<input[^>]*type="search"[^>]*value="spam"|<input[^>]*value="spam"[^>]*type="search"/);
     expect(html.indexOf('type="search"')).toBeLessThan(html.indexOf("Gravité"));
-    expect(html).toMatch(/<option selected="" value="severity">Gravité<\/option>|<option value="severity" selected="">Gravité<\/option>/);
+    expect(html).toContain('aria-label="Tri : Gravité"');
   });
 
   test("the filters are always on the page, no panel to open (story 39.13)", () => {
     const html = toolbar();
 
     expect(html).toContain(">Cible<");
-    expect(html).toContain("<select");
+    expect(html).toContain('aria-label="Cible : Profils"');
     expect(html).not.toContain("Filtres");
     expect(html).not.toContain('aria-haspopup="dialog"');
   });
@@ -67,37 +67,17 @@ describe("FilterSelect", () => {
     return renderToStaticMarkup(<FilterSelect defaultValue="any" label="Cible" onChange={noop} options={[...TARGETS]} value={value} />);
   }
 
-  test("names itself inside the control and shows its choice", () => {
+  test("uses the site's dropdown, not the browser's native select", () => {
     const html = select("any");
 
+    expect(html).toContain('role="combobox"');
     expect(html).toContain(">Cible<");
-    expect(html).toMatch(/<option selected="" value="any">Tous<\/option>|<option value="any" selected="">Tous<\/option>/);
+    expect(html).toContain(">Tous<");
+    expect(html).not.toMatch(/<select[^>]*class=/);
   });
 
   test("stands out when it filters", () => {
-    expect(select("profile")).toContain("border-accent-text/70 bg-accent/20");
-    expect(select("profile")).toMatch(/<select class="[^"]*text-accent-text/);
-    expect(select("any")).not.toContain("bg-accent/20");
-  });
-});
-
-describe("SegmentedControl", () => {
-  test("one radio per option, the current one checked", () => {
-    const html = renderToStaticMarkup(
-      <SegmentedControl
-        label="Statut"
-        onChange={noop}
-        options={[
-          { value: "pending", label: "En attente" },
-          { value: "resolved", label: "Résolus" },
-        ]}
-        value="resolved"
-      />,
-    );
-
-    expect(html).toContain('role="radiogroup"');
-    expect(html).toContain('aria-label="Statut"');
-    expect(html).toMatch(/aria-checked="true"[^>]*>Résolus/);
-    expect(html).toMatch(/aria-checked="false"[^>]*>En attente/);
+    expect(select("profile")).toContain("border-accent-text/70");
+    expect(select("any")).not.toContain("border-accent-text/70");
   });
 });
