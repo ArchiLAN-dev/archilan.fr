@@ -18,7 +18,7 @@ RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
 
 RUN apk add --no-cache --virtual .build-deps \
         $PHPIZE_DEPS rabbitmq-c-dev postgresql-dev icu-dev \
-    && docker-php-ext-install pdo_pgsql intl \
+    && docker-php-ext-install pdo_pgsql intl bcmath \
     && pecl install amqp \
     && docker-php-ext-enable amqp \
     && apk del .build-deps \

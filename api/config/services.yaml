@@ -330,6 +330,9 @@ services:
     App\Community\Application\Port\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\Adapter\IdentityMemberModerationGateway'
     # Story 39.1: each member's moderation case, and its post in the staff forum on Discord.
     App\Community\Domain\Repository\ModerationCaseRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineModerationCaseRepository'
+    # Story 40.2: browser pushes.
+    App\Community\Domain\Repository\PushSubscriptionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrinePushSubscriptionRepository'
+    App\Community\Application\Port\WebPushSender: '@App\Community\Infrastructure\Adapter\MinishlinkWebPushSender'
     App\Community\Domain\Repository\ModerationCaseMessageRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineModerationCaseMessageRepository'
     App\Community\Application\Port\ModerationForumInterface: '@App\Community\Infrastructure\Adapter\DiscordModerationForum'
     App\Community\Application\Port\MemberDirectMessageInterface: '@App\Community\Infrastructure\Adapter\DiscordMemberDirectMessages'
