@@ -40,14 +40,14 @@ describe("ModerationToolbar", () => {
 
     expect(html).toMatch(/<input[^>]*type="search"[^>]*value="spam"|<input[^>]*value="spam"[^>]*type="search"/);
     expect(html.indexOf('type="search"')).toBeLessThan(html.indexOf("Gravité"));
-    expect(html).toMatch(/<option selected="" value="severity">Gravité<\/option>|<option value="severity" selected="">Gravité<\/option>/);
+    expect(html).toContain('aria-label="Tri : Gravité"');
   });
 
   test("the filters are always on the page, no panel to open (story 39.13)", () => {
     const html = toolbar();
 
     expect(html).toContain(">Cible<");
-    expect(html).toContain("<select");
+    expect(html).toContain('aria-label="Cible : Profils"');
     expect(html).not.toContain("Filtres");
     expect(html).not.toContain('aria-haspopup="dialog"');
   });
@@ -67,17 +67,18 @@ describe("FilterSelect", () => {
     return renderToStaticMarkup(<FilterSelect defaultValue="any" label="Cible" onChange={noop} options={[...TARGETS]} value={value} />);
   }
 
-  test("is built like the admin's other selects: label above, native select on the page background", () => {
+  test("uses the site's dropdown, not the browser's native select", () => {
     const html = select("any");
 
-    expect(html).toMatch(/<label class="grid[^"]*">Cible<select class="[^"]*bg-background/);
-    expect(html).not.toContain("appearance-none");
-    expect(html).toMatch(/<option selected="" value="any">Tous<\/option>|<option value="any" selected="">Tous<\/option>/);
+    expect(html).toContain('role="combobox"');
+    expect(html).toContain(">Cible<");
+    expect(html).toContain(">Tous<");
+    expect(html).not.toMatch(/<select[^>]*class=/);
   });
 
   test("stands out when it filters", () => {
-    expect(select("profile")).toMatch(/<select class="[^"]*border-accent-text\/70[^"]*text-accent-text/);
-    expect(select("any")).not.toContain("text-accent-text");
+    expect(select("profile")).toContain("border-accent-text/70");
+    expect(select("any")).not.toContain("border-accent-text/70");
   });
 });
 

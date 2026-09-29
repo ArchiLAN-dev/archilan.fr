@@ -66,3 +66,11 @@ et Chrome peint la liste depuis ce fond. Les filtres reprennent le modèle des a
 utilisateurs) : nom au-dessus, `select` natif sur le fond de la page (`bg-background`), flèche native ; la liste
 ouverte suit alors le thème sombre (`color-scheme: dark`). Recherche et interrupteur alignés sur ce modèle
 (libellé au-dessus, même hauteur). Filtre actif : bordure et valeur violettes, fond inchangé.
+
+### Suite 2 (retour de Jean : « c'est moche »)
+
+Même sombre, la liste ouverte d'un `select` natif reste dessinée par Windows (grise, carrée, hors charte).
+Nouveau composant partagé `components/ui/select-field.tsx` sur Radix Select : liste ouverte aux couleurs du
+site (panneau sombre, survol, coche sur le choix courant), clavier et lecteurs d'écran conservés. Les filtres et
+le tri l'utilisent, avec la mise en page « nom dans le cadre » (« Cible  Tous ▾ ») ; recherche et interrupteur
+reviennent à ce format. Vérifié sur le serveur de dev de Jean (`localhost:3000`) : liste ouverte conforme.

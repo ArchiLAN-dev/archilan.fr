@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 
 import { Switch } from "@/components/switch";
+import { SelectField } from "@/components/ui/select-field";
 import { cn } from "@/lib/utils";
 
 import type { Option } from "./moderation-filters";
@@ -43,16 +44,16 @@ export function ModerationToolbar<S extends string>({
 }) {
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchField onCommit={onSearch} placeholder={searchPlaceholder} value={search} />
         <FilterSelect defaultValue={sort} label="Tri" onChange={onSort} options={sortOptions} value={sort} />
       </div>
 
-      <div className="grid grid-cols-2 items-end gap-2 sm:flex sm:flex-wrap">
+      <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
         {filters}
         {active ? (
           <button
-            className="col-span-2 min-h-10 justify-self-start px-1 text-sm font-semibold text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:ml-auto"
+            className="col-span-2 justify-self-start px-1 text-sm font-semibold text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:ml-auto"
             onClick={onReset}
             type="button"
           >
@@ -87,26 +88,23 @@ function SearchField({ value, placeholder, onCommit }: { value: string; placehol
   }, [input, committed, onCommit]);
 
   return (
-    <label className="grid w-full min-w-0 gap-1 text-xs font-medium text-muted-foreground sm:w-auto sm:flex-1">
-      Recherche
-      <span className="relative">
-        <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          className="min-h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
-          onChange={(event) => setInput(event.target.value)}
-          placeholder={placeholder}
-          type="search"
-          value={input}
-        />
-      </span>
+    <label className="relative w-full min-w-0 sm:w-auto sm:flex-1">
+      <span className="sr-only">Rechercher</span>
+      <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <input
+        className="min-h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
+        onChange={(event) => setInput(event.target.value)}
+        placeholder={placeholder}
+        type="search"
+        value={input}
+      />
     </label>
   );
 }
 
 /**
- * A filter dropdown, built like the other selects of the admin (label above, native select on the page
- * background, so the browser draws its opened list in the dark theme). It stands out while it filters, i.e.
- * while its value is not the default.
+ * A filter dropdown on the site's own `SelectField` (a native select opens a grey list that ignores the theme on
+ * Windows). It stands out while it filters, i.e. while its value is not the default.
  */
 export function FilterSelect<T extends string>({
   label,
@@ -121,45 +119,20 @@ export function FilterSelect<T extends string>({
   defaultValue: T;
   onChange: (value: T) => void;
 }) {
-  const filtering = value !== defaultValue;
-
-  return (
-    <label className="grid min-w-0 gap-1 text-xs font-medium text-muted-foreground">
-      {label}
-      <select
-        className={cn(
-          "min-h-10 min-w-0 rounded-lg border bg-background px-3 text-sm text-foreground focus:border-accent focus:outline-none",
-          filtering ? "border-accent-text/70 font-semibold text-accent-text" : "border-border",
-        )}
-        onChange={(event) => {
-          const next = options.find((option) => option.value === event.target.value);
-          if (next !== undefined) onChange(next.value);
-        }}
-        value={value}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+  return <SelectField highlighted={value !== defaultValue} label={label} onChange={onChange} options={options} value={value} />;
 }
 
-/** An on/off filter, laid out like the dropdowns: its label above, the switch in a field of the same height. */
+/** An on/off filter, in the same row and frame as the dropdowns. */
 export function FilterToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <div className="grid gap-1 text-xs font-medium text-muted-foreground">
-      {label}
-      <div
-        className={cn(
-          "flex min-h-10 items-center rounded-lg border bg-background px-3",
-          checked ? "border-accent-text/70" : "border-border",
-        )}
-      >
-        <Switch ariaLabel={label} checked={checked} onChange={onChange} />
-      </div>
+    <div
+      className={cn(
+        "flex min-h-10 items-center justify-between gap-3 rounded-lg border px-3 text-sm",
+        checked ? "border-accent-text/70 bg-accent/20" : "border-border bg-background",
+      )}
+    >
+      <span className="text-muted-foreground">{label}</span>
+      <Switch ariaLabel={label} checked={checked} onChange={onChange} />
     </div>
   );
 }
