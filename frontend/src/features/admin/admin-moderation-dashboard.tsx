@@ -8,16 +8,12 @@ import { DEFAULT_REPORT_FILTERS, fetchModerationQueue } from "./admin-moderation
 import { DEFAULT_CONTRIBUTION_FILTERS, fetchContributionQueue } from "./admin-game-contributions-api";
 import { ContributionsModerationPanel } from "./contributions-moderation-panel";
 import { moderationTabFromParams, TAB_PARAM, type ModerationTab } from "./moderation-filters";
+import { ModerationTabs } from "./moderation-tabs";
 import { ReportsModerationPanel } from "./reports-moderation-panel";
 
 const REPORTS_COUNT_QUERY_KEY = ["admin-moderation", "pending-count"] as const;
 const CONTRIBUTIONS_COUNT_QUERY_KEY = ["admin-game-contributions", "pending-count"] as const;
 const STALE_TIME = 15_000;
-
-const TABS: { value: ModerationTab; label: string }[] = [
-  { value: "reports", label: "Signalements" },
-  { value: "contributions", label: "Contributions tutoriels" },
-];
 
 /**
  * The moderation page. Story 39.12: the tab and the active tab's view live in the address (`?onglet=`,
@@ -68,27 +64,11 @@ export function AdminModerationDashboard() {
         <p className="text-sm text-muted-foreground">Signalements de commentaires et de profils, contributions aux tutoriels.</p>
       </header>
 
-      <div className="flex flex-wrap gap-2 border-b border-border" role="tablist">
-        {TABS.map((item) => {
-          const count = counts[item.value];
-          const selected = tab === item.value;
-          return (
-            <button
-              aria-selected={selected}
-              className={`-mb-px inline-flex min-h-10 items-center gap-2 border-b-2 px-4 text-sm font-semibold transition-colors ${selected ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-              key={item.value}
-              onClick={() => go(new URLSearchParams(item.value === "contributions" ? `${TAB_PARAM}=contributions` : ""))}
-              role="tab"
-              type="button"
-            >
-              {item.label}
-              {count !== undefined && count > 0 ? (
-                <span className="inline-flex min-w-5 justify-center rounded-full bg-accent/15 px-1.5 text-xs font-bold text-accent-text">{count}</span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+      <ModerationTabs
+        counts={counts}
+        onChange={(next) => go(new URLSearchParams(next === "contributions" ? `${TAB_PARAM}=contributions` : ""))}
+        tab={tab}
+      />
 
       {tab === "contributions" ? (
         <ContributionsModerationPanel onParams={onParams} params={params} />

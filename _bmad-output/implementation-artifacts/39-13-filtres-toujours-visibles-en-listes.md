@@ -81,3 +81,9 @@ Le statut (En attente / Résolus / Tous ; contributions : En attente / Approuvé
 liste comme les autres, en tête de la rangée (« Statut  En attente ▾ ») ; le contrôle segmenté est supprimé. Le
 statut compte comme un filtre (`reportFiltersActive`, `contributionFiltersActive`) : mis en évidence hors « En
 attente », et « Réinitialiser » le remet à sa valeur par défaut (seul le tri est conservé).
+
+### Suite 4 (retour de Jean : onglets « brouillon »)
+
+Les onglets Signalements / Contributions tutoriels (texte souligné) deviennent une vraie barre d'onglets
+(`moderation-tabs.tsx`) : cadre segmenté, icône (drapeau, livre), libellé et pastille du nombre en attente,
+onglet courant en relief ; largeur naturelle sur ordinateur, partagée sur téléphone. Vu sur le serveur de dev.
