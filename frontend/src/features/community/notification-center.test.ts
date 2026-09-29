@@ -99,3 +99,28 @@ describe("moderation reply notification (story 39.3)", () => {
     expect(hrefFor(reply)).toBe("/compte");
   });
 });
+
+describe("slot unblocked notification (story 40.1)", () => {
+  const unblocked = item("slot_unblocked", { runId: "run-1", runTitle: "Ma run", slotName: "Alice_HK1", reachableNow: 3 });
+
+  it("says which run and slot are playable again, and how many checks", () => {
+    expect(messageFor(unblocked)).toBe("Tu n'es plus bloqué dans « Ma run » (Alice_HK1) : 3 checks accessibles");
+  });
+
+  it("agrees with a single check", () => {
+    expect(messageFor(item("slot_unblocked", { runTitle: "Ma run", slotName: "Alice_HK1", reachableNow: 1 }))).toBe(
+      "Tu n'es plus bloqué dans « Ma run » (Alice_HK1) : 1 check accessible",
+    );
+  });
+
+  it("leads to the run", () => {
+    expect(hrefFor(unblocked)).toBe("/runs/run-1");
+  });
+
+  it("stays readable with a bare payload", () => {
+    const bare = item("slot_unblocked", {});
+
+    expect(messageFor(bare)).toBe("Tu n'es plus bloqué dans ta partie");
+    expect(hrefFor(bare)).toBe("/compte/parties");
+  });
+});
