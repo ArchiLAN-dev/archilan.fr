@@ -43,6 +43,22 @@ describe("AccountShell", () => {
     expect(html).toContain('class="grid grid-cols-1 gap-6 md:grid-cols-[13rem_1fr] md:items-start"');
   });
 
+  test("on a phone, the card, the section menu and the overview cards share one inner gutter", () => {
+    const html = render();
+
+    // 16px everywhere: the identity card, the menu and the overview cards (p-4) start their text at the
+    // same distance from their border. The card used to sit at 20px and the menu at 12px.
+    expect(html).toContain('class="card-glow flex items-center gap-4 rounded-xl border border-border p-4 md:p-5"');
+    expect(html).toMatch(/<select class="[^"]*\bpx-4\b[^"]*"/);
+  });
+
+  test("the section menu draws its own arrow, off the border like the text", () => {
+    const html = render();
+
+    expect(html).toMatch(/<select class="[^"]*\bappearance-none\b[^"]*\bpr-10\b[^"]*"/);
+    expect(html).toMatch(/<\/select><svg[^>]*lucide-chevron-down[^>]*right-4/);
+  });
+
   test("the long email stays truncatable inside the card", () => {
     const html = render();
 
