@@ -82,6 +82,8 @@ framework:
             'App\Communications\Application\Message\SessionRestartFailedMessage': async
             'App\Sessions\Application\Message\BuildSessionRecapJob': async
             'App\Sessions\Application\Message\NotifyGenerationFailureJob': async
+            # Story 40.1: a slot left a real BK.
+            'App\Sessions\Application\Message\NotifySlotUnblockedJob': async
             'App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob': async
             'App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob': async
             'App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob': async
