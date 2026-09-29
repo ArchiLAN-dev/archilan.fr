@@ -3,6 +3,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ApworldIncident } from "./admin-apworld-health-api";
 import { ApworldIncidentList } from "./apworld-incident-list";
 
+// The real ConfirmDialog renders into a portal, absent from static markup: a stand-in shows its props.
+jest.mock("../../components/ui/confirm-dialog", () => ({
+  ConfirmDialog: ({ open, title, description, confirmLabel, tone }: { open: boolean; title: string; description: React.ReactNode; confirmLabel: string; tone?: string }) => (
+    <div data-confirm="" data-open={String(open)} data-tone={tone ?? "default"}>
+      {title}|{description}|{confirmLabel}
+    </div>
+  ),
+}));
+
 const noop = () => undefined;
 
 const handlers = { onAcknowledge: noop, onResolve: noop, onIgnore: noop };
@@ -75,10 +84,15 @@ describe("ApworldIncidentList", () => {
     expect(html).not.toContain("Je m&#x27;en occupe");
   });
 
-  test("ignoring asks for confirmation, because it holds for this version", () => {
+  test("ignoring asks for confirmation in a modal, because it holds for this version", () => {
     const html = render([incident()]);
 
     expect(html).toContain('aria-haspopup="dialog"');
+    // Story 38.13: a modal, closed until asked, never a block unfolded inside the card.
+    expect(html).toMatch(/data-confirm="" data-open="false"[^>]*>Ignorer cet incident \?\|/);
+    expect(html).toContain("tant que Crystal Project sert cette version");
+    expect(html).toContain("|Ignorer quand même");
+    expect(html).not.toContain('role="dialog"');
   });
 
   test("a closed incident tells how it ended and offers no action", () => {
