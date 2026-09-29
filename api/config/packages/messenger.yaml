@@ -84,6 +84,8 @@ framework:
             'App\Sessions\Application\Message\NotifyGenerationFailureJob': async
             # Story 40.1: a slot left a real BK.
             'App\Sessions\Application\Message\NotifySlotUnblockedJob': async
+            # Story 40.2: a pushable notification goes to the recipient's devices.
+            'App\Community\Application\Message\SendWebPushJob': async
             'App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob': async
             'App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob': async
             'App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob': async

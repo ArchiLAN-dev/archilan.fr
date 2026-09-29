@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
+use App\Community\Application\Message\SendWebPushJob;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Support\Notifier;
+use App\Community\Application\Support\PushMessageFactory;
 use App\Community\Domain\Entity\Notification;
 use App\Community\Domain\Repository\NotificationRepositoryInterface;
 use App\Realtime\Application\Service\RealtimePublisher;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * In-app notification center (story 30.12): write side (emit + realtime push) and read side (recent list,
@@ -27,6 +30,7 @@ final readonly class NotificationService implements Notifier
         private RealtimePublisher $realtime,
         private LoggerInterface $logger,
         private ClockInterface $clock,
+        private MessageBusInterface $messageBus,
     ) {
     }
 
@@ -47,6 +51,11 @@ final readonly class NotificationService implements Notifier
                 'type' => $type,
                 'id' => $notification->getId(),
             ]);
+
+            // Story 40.2: a few types also go to the recipient's devices, as a browser push.
+            if (PushMessageFactory::isPushable($type)) {
+                $this->messageBus->dispatch(new SendWebPushJob($notification->getId()));
+            }
         } catch (\Throwable $e) {
             $this->logger->error('community.notification_emit_failed', [
                 'recipientId' => $recipientId,
