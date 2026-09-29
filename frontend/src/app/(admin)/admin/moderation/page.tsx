@@ -1,17 +1,17 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { AdminModerationDashboard } from "@/features/admin/admin-moderation-dashboard";
+import { moderationPathFor } from "@/features/admin/moderation-filters";
 
-export const metadata: Metadata = {
-  title: "Modération",
+type Props = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-export default function AdminModerationPage() {
-  // The dashboard reads its view from the address (story 39.12): useSearchParams needs a Suspense boundary.
-  return (
-    <Suspense>
-      <AdminModerationDashboard />
-    </Suspense>
-  );
+/** Story 39.13: the queues have their own pages; old links land on the right one, filters kept. */
+export default async function AdminModerationPage({ searchParams }: Props) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) {
+    if (typeof value === "string") params.set(key, value);
+  }
+
+  redirect(moderationPathFor(params));
 }

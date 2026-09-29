@@ -106,6 +106,23 @@ export function moderationTabFromParams(params: URLSearchParams): ModerationTab 
   return params.get(TAB_PARAM) === "contributions" ? "contributions" : "reports";
 }
 
+export const MODERATION_PATHS: Record<ModerationTab, string> = {
+  reports: "/admin/moderation/signalements",
+  contributions: "/admin/moderation/contributions",
+};
+
+/**
+ * Story 39.13: the queues have their own pages. The old single page (`/admin/moderation?onglet=...`) sends
+ * each link to the page of its tab, with its filters.
+ */
+export function moderationPathFor(params: URLSearchParams): string {
+  const next = new URLSearchParams(params.toString());
+  const path = MODERATION_PATHS[moderationTabFromParams(next)];
+  next.delete(TAB_PARAM);
+  const query = next.toString();
+  return query === "" ? path : `${path}?${query}`;
+}
+
 // ── Reports ──
 
 export function reportFiltersFromParams(params: URLSearchParams): ReportFilters {

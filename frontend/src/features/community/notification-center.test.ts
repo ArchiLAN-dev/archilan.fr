@@ -124,3 +124,9 @@ describe("slot unblocked notification (story 40.1)", () => {
     expect(hrefFor(bare)).toBe("/compte/parties");
   });
 });
+
+describe("account flagged notification (story 39.13)", () => {
+  it("leads to the reports page", () => {
+    expect(hrefFor(item("account_flagged", { displayName: "Troll42" }))).toBe("/admin/moderation/signalements");
+  });
+});

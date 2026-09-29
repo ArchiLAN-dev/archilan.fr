@@ -7,6 +7,7 @@ import {
   contributionFiltersActive,
   contributionFiltersFromParams,
   contributionFiltersToParams,
+  moderationPathFor,
   moderationTabFromParams,
   reportChips,
   reportFiltersActive,
@@ -99,5 +100,13 @@ describe("reset and the status (story 39.13)", () => {
     expect(contributionFiltersActive(DEFAULT_CONTRIBUTION_FILTERS)).toBe(false);
     expect(contributionFiltersActive(approved)).toBe(true);
     expect(clearedContributionFilters({ ...approved, search: "hk" })).toEqual({ ...DEFAULT_CONTRIBUTION_FILTERS, sort: "oldest" });
+  });
+});
+
+describe("the old single page (story 39.13)", () => {
+  test("redirects to the page of its tab, filters kept", () => {
+    expect(moderationPathFor(new URLSearchParams())).toBe("/admin/moderation/signalements");
+    expect(moderationPathFor(new URLSearchParams("cible=profile&q=spam"))).toBe("/admin/moderation/signalements?cible=profile&q=spam");
+    expect(moderationPathFor(new URLSearchParams("onglet=contributions&statut=approved"))).toBe("/admin/moderation/contributions?statut=approved");
   });
 });

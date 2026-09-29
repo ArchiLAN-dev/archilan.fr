@@ -87,3 +87,12 @@ attente », et « Réinitialiser » le remet à sa valeur par défaut (seul le t
 Les onglets Signalements / Contributions tutoriels (texte souligné) deviennent une vraie barre d'onglets
 (`moderation-tabs.tsx`) : cadre segmenté, icône (drapeau, livre), libellé et pastille du nombre en attente,
 onglet courant en relief ; largeur naturelle sur ordinateur, partagée sur téléphone. Vu sur le serveur de dev.
+
+### Suite 5 (retour de Jean : onglets à repenser de zéro)
+
+Choix de Jean parmi quatre maquettes : **deux pages séparées**. Plus d'onglets : `/admin/moderation/signalements`
+et `/admin/moderation/contributions`, chacune avec son titre ; une section « Modération » du menu admin porte
+les deux entrées et le nombre en attente de chacune (mêmes requêtes et même cache que les pages). L'ancienne
+`/admin/moderation` (et `?onglet=contributions`) redirige vers la bonne page en gardant les filtres
+(`moderationPathFor`) ; la notification « compte à examiner » mène aux signalements. Supprimés : le tableau de
+bord à onglets et la barre d'onglets. Vérifié sur le serveur de dev (redirection, menu, page).
