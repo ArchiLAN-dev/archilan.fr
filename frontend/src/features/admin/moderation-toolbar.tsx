@@ -136,39 +136,3 @@ export function FilterToggle({ label, checked, onChange }: { label: string; chec
     </div>
   );
 }
-
-/** Mutually exclusive choices as a row of buttons: the status of the list. */
-export function SegmentedControl<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: Option<T>[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div aria-label={label} className="flex flex-wrap gap-1.5" role="radiogroup">
-      {options.map((option) => {
-        const checked = option.value === value;
-        return (
-          <button
-            aria-checked={checked}
-            className={cn(
-              "min-h-9 rounded-full border px-3.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
-              checked ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted-foreground hover:border-accent hover:text-foreground",
-            )}
-            key={option.value}
-            onClick={() => onChange(option.value)}
-            role="radio"
-            type="button"
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}

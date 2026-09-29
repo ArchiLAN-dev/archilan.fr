@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { FilterSelect, ModerationToolbar, SegmentedControl } from "./moderation-toolbar";
+import { FilterSelect, ModerationToolbar } from "./moderation-toolbar";
 
 const noop = () => undefined;
 
@@ -79,26 +79,5 @@ describe("FilterSelect", () => {
   test("stands out when it filters", () => {
     expect(select("profile")).toContain("border-accent-text/70");
     expect(select("any")).not.toContain("border-accent-text/70");
-  });
-});
-
-describe("SegmentedControl", () => {
-  test("one radio per option, the current one checked", () => {
-    const html = renderToStaticMarkup(
-      <SegmentedControl
-        label="Statut"
-        onChange={noop}
-        options={[
-          { value: "pending", label: "En attente" },
-          { value: "resolved", label: "Résolus" },
-        ]}
-        value="resolved"
-      />,
-    );
-
-    expect(html).toContain('role="radiogroup"');
-    expect(html).toContain('aria-label="Statut"');
-    expect(html).toMatch(/aria-checked="true"[^>]*>Résolus/);
-    expect(html).toMatch(/aria-checked="false"[^>]*>En attente/);
   });
 });

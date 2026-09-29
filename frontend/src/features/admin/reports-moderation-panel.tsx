@@ -28,10 +28,11 @@ import {
   REPORT_STATUS_OPTIONS,
   REPORT_TARGET_OPTIONS,
   reportChips,
+  reportFiltersActive,
   reportFiltersFromParams,
   reportFiltersToParams,
 } from "./moderation-filters";
-import { FilterSelect, FilterToggle, ModerationToolbar, SegmentedControl } from "./moderation-toolbar";
+import { FilterSelect, FilterToggle, ModerationToolbar } from "./moderation-toolbar";
 
 const QUERY_PREFIX = ["admin-moderation"] as const;
 const STALE_TIME = 15_000;
@@ -82,12 +83,11 @@ export function ReportsModerationPanel({ params, onParams }: { params: URLSearch
         />
       ) : null}
 
-      <SegmentedControl label="Statut des signalements" onChange={(status) => update({ ...filters, status })} options={REPORT_STATUS_OPTIONS} value={filters.status} />
-
       <ModerationToolbar
-        active={chips.length > 0}
+        active={reportFiltersActive(filters)}
         filters={
           <>
+            <FilterSelect defaultValue="pending" label="Statut" onChange={(status) => update({ ...filters, status })} options={REPORT_STATUS_OPTIONS} value={filters.status} />
             <FilterSelect
               defaultValue="any"
               label="Cible"

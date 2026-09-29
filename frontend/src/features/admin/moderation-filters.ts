@@ -150,9 +150,14 @@ export function reportChips(filters: ReportFilters): Chip<ReportChipKey>[] {
   return chips;
 }
 
-/** The filters of the panel back to their defaults; status and sort are kept, they are not filters. */
+/** Anything narrowing the list, status included (story 39.13); the sort only orders it. */
+export function reportFiltersActive(filters: ReportFilters): boolean {
+  return filters.status !== DEFAULT_REPORT_FILTERS.status || reportChips(filters).length > 0;
+}
+
+/** Back to the default view; the sort is kept, it narrows nothing. */
 export function clearedReportFilters(filters: ReportFilters): ReportFilters {
-  return { ...DEFAULT_REPORT_FILTERS, status: filters.status, sort: filters.sort };
+  return { ...DEFAULT_REPORT_FILTERS, sort: filters.sort };
 }
 
 // ── Contributions ──
@@ -187,6 +192,10 @@ export function contributionChips(filters: ContributionFilters): Chip<Contributi
   return chips;
 }
 
+export function contributionFiltersActive(filters: ContributionFilters): boolean {
+  return filters.status !== DEFAULT_CONTRIBUTION_FILTERS.status || contributionChips(filters).length > 0;
+}
+
 export function clearedContributionFilters(filters: ContributionFilters): ContributionFilters {
-  return { ...DEFAULT_CONTRIBUTION_FILTERS, status: filters.status, sort: filters.sort };
+  return { ...DEFAULT_CONTRIBUTION_FILTERS, sort: filters.sort };
 }

@@ -74,3 +74,10 @@ Nouveau composant partagé `components/ui/select-field.tsx` sur Radix Select : l
 site (panneau sombre, survol, coche sur le choix courant), clavier et lecteurs d'écran conservés. Les filtres et
 le tri l'utilisent, avec la mise en page « nom dans le cadre » (« Cible  Tous ▾ ») ; recherche et interrupteur
 reviennent à ce format. Vérifié sur le serveur de dev de Jean (`localhost:3000`) : liste ouverte conforme.
+
+### Suite 3 (retour de Jean)
+
+Le statut (En attente / Résolus / Tous ; contributions : En attente / Approuvées / Rejetées / Toutes) devient une
+liste comme les autres, en tête de la rangée (« Statut  En attente ▾ ») ; le contrôle segmenté est supprimé. Le
+statut compte comme un filtre (`reportFiltersActive`, `contributionFiltersActive`) : mis en évidence hors « En
+attente », et « Réinitialiser » le remet à sa valeur par défaut (seul le tri est conservé).
