@@ -74,6 +74,11 @@ describe("FilterSelect", () => {
     expect(html).toMatch(/<option selected="" value="any">Tous<\/option>|<option value="any" selected="">Tous<\/option>/);
   });
 
+  test("its opened list is dark like the page, not the browser's white box", () => {
+    // The select itself is transparent to blend into its frame; Chrome would paint the list from that.
+    expect(select("any")).toMatch(/<select class="[^"]*\[&amp;&gt;option\]:bg-surface[^"]*\[&amp;&gt;option\]:text-foreground/);
+  });
+
   test("stands out when it filters", () => {
     expect(select("profile")).toContain("border-accent-text/70 bg-accent/20");
     expect(select("profile")).toMatch(/<select class="[^"]*text-accent-text/);

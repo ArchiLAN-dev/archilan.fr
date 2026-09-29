@@ -130,7 +130,9 @@ export function FilterSelect<T extends string>({
       <span className="shrink-0 text-muted-foreground">{label}</span>
       <select
         className={cn(
-          "min-w-0 flex-1 cursor-pointer appearance-none truncate bg-transparent py-2 font-semibold focus:outline-none",
+          // Transparent to blend into its frame; the options get the page's colours, or Chrome paints the opened
+          // list from that transparent background: a white box.
+          "min-w-0 flex-1 cursor-pointer appearance-none truncate bg-transparent py-2 font-semibold focus:outline-none [&>option]:bg-surface [&>option]:text-foreground",
           filtering ? "text-accent-text" : "text-foreground",
         )}
         onChange={(event) => {
