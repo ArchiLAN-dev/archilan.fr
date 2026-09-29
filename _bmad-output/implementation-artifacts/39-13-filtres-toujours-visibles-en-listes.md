@@ -58,3 +58,11 @@ Gates : `pnpm gates` vert (635 tests, build).
 Rendu avec des données d'exemple et le CSS du build, vu dans Chrome : bureau (rangée Cible / Contenu /
 Commentaire / Non catégorisés, les filtres actifs en violet, Réinitialiser à droite) et 390 px (tri sous la
 recherche, filtres sur deux colonnes, rien de tronqué, aucun défilement horizontal).
+
+### Suite (retour de Jean, 2026-09-29)
+
+La liste ouverte d'un filtre s'affichait en boîte blanche : le `select` était transparent (nom dans le contrôle)
+et Chrome peint la liste depuis ce fond. Les filtres reprennent le modèle des autres listes de l'admin (annuaire
+utilisateurs) : nom au-dessus, `select` natif sur le fond de la page (`bg-background`), flèche native ; la liste
+ouverte suit alors le thème sombre (`color-scheme: dark`). Recherche et interrupteur alignés sur ce modèle
+(libellé au-dessus, même hauteur). Filtre actif : bordure et valeur violettes, fond inchangé.

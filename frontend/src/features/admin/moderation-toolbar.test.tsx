@@ -67,22 +67,17 @@ describe("FilterSelect", () => {
     return renderToStaticMarkup(<FilterSelect defaultValue="any" label="Cible" onChange={noop} options={[...TARGETS]} value={value} />);
   }
 
-  test("names itself inside the control and shows its choice", () => {
+  test("is built like the admin's other selects: label above, native select on the page background", () => {
     const html = select("any");
 
-    expect(html).toContain(">Cible<");
+    expect(html).toMatch(/<label class="grid[^"]*">Cible<select class="[^"]*bg-background/);
+    expect(html).not.toContain("appearance-none");
     expect(html).toMatch(/<option selected="" value="any">Tous<\/option>|<option value="any" selected="">Tous<\/option>/);
   });
 
-  test("its opened list is dark like the page, not the browser's white box", () => {
-    // The select itself is transparent to blend into its frame; Chrome would paint the list from that.
-    expect(select("any")).toMatch(/<select class="[^"]*\[&amp;&gt;option\]:bg-surface[^"]*\[&amp;&gt;option\]:text-foreground/);
-  });
-
   test("stands out when it filters", () => {
-    expect(select("profile")).toContain("border-accent-text/70 bg-accent/20");
-    expect(select("profile")).toMatch(/<select class="[^"]*text-accent-text/);
-    expect(select("any")).not.toContain("bg-accent/20");
+    expect(select("profile")).toMatch(/<select class="[^"]*border-accent-text\/70[^"]*text-accent-text/);
+    expect(select("any")).not.toContain("text-accent-text");
   });
 });
 
