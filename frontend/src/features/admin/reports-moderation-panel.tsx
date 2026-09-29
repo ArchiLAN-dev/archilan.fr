@@ -30,9 +30,8 @@ import {
   reportChips,
   reportFiltersFromParams,
   reportFiltersToParams,
-  withoutReportChip,
 } from "./moderation-filters";
-import { FilterGroup, FilterToggle, ModerationToolbar, SegmentedControl } from "./moderation-toolbar";
+import { FilterSelect, FilterToggle, ModerationToolbar, SegmentedControl } from "./moderation-toolbar";
 
 const QUERY_PREFIX = ["admin-moderation"] as const;
 const STALE_TIME = 15_000;
@@ -70,7 +69,6 @@ export function ReportsModerationPanel({ params, onParams }: { params: URLSearch
   }
 
   const chips = reportChips(filters);
-  const filterCount = chips.filter((chip) => chip.key !== "search").length;
   const shown = data?.reports.length ?? 0;
 
   return (
@@ -87,22 +85,27 @@ export function ReportsModerationPanel({ params, onParams }: { params: URLSearch
       <SegmentedControl label="Statut des signalements" onChange={(status) => update({ ...filters, status })} options={REPORT_STATUS_OPTIONS} value={filters.status} />
 
       <ModerationToolbar
-        chips={chips}
-        filterCount={filterCount}
+        active={chips.length > 0}
         filters={
           <>
-            <FilterGroup label="Cible" onChange={(targetType) => update({ ...filters, targetType })} options={REPORT_TARGET_OPTIONS} value={filters.targetType} />
-            <FilterGroup label="Contenu" onChange={(problem) => update({ ...filters, problem })} options={REPORT_PROBLEM_OPTIONS} value={filters.problem} />
-            <FilterGroup
-              label="État du commentaire"
+            <FilterSelect
+              defaultValue="any"
+              label="Cible"
+              onChange={(targetType) => update({ ...filters, targetType })}
+              options={REPORT_TARGET_OPTIONS}
+              value={filters.targetType}
+            />
+            <FilterSelect defaultValue="any" label="Contenu" onChange={(problem) => update({ ...filters, problem })} options={REPORT_PROBLEM_OPTIONS} value={filters.problem} />
+            <FilterSelect
+              defaultValue="any"
+              label="Commentaire"
               onChange={(commentState) => update({ ...filters, commentState })}
               options={REPORT_COMMENT_OPTIONS}
               value={filters.commentState}
             />
-            <FilterToggle checked={filters.uncategorized} label="Non catégorisés seulement" onChange={(uncategorized) => update({ ...filters, uncategorized })} />
+            <FilterToggle checked={filters.uncategorized} label="Non catégorisés" onChange={(uncategorized) => update({ ...filters, uncategorized })} />
           </>
         }
-        onRemoveChip={(key) => update(withoutReportChip(filters, key))}
         onReset={() => update(clearedReportFilters(filters))}
         onSearch={onSearch}
         onSort={(sort) => update({ ...filters, sort })}

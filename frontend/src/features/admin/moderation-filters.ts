@@ -150,10 +150,6 @@ export function reportChips(filters: ReportFilters): Chip<ReportChipKey>[] {
   return chips;
 }
 
-export function withoutReportChip(filters: ReportFilters, key: ReportChipKey): ReportFilters {
-  return { ...filters, [key]: DEFAULT_REPORT_FILTERS[key] };
-}
-
 /** The filters of the panel back to their defaults; status and sort are kept, they are not filters. */
 export function clearedReportFilters(filters: ReportFilters): ReportFilters {
   return { ...DEFAULT_REPORT_FILTERS, status: filters.status, sort: filters.sort };
@@ -189,10 +185,6 @@ export function contributionChips(filters: ContributionFilters): Chip<Contributi
   if (filters.target !== "any") chips.push({ key: "target", label: labelOf(CONTRIBUTION_TARGET_OPTIONS, filters.target) });
   if (filters.search.trim() !== "") chips.push({ key: "search", label: `« ${filters.search.trim()} »` });
   return chips;
-}
-
-export function withoutContributionChip(filters: ContributionFilters, key: ContributionChipKey): ContributionFilters {
-  return { ...filters, [key]: DEFAULT_CONTRIBUTION_FILTERS[key] };
 }
 
 export function clearedContributionFilters(filters: ContributionFilters): ContributionFilters {

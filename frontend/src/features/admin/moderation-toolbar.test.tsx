@@ -1,19 +1,19 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { ModerationToolbar, SegmentedControl } from "./moderation-toolbar";
+import { FilterSelect, ModerationToolbar, SegmentedControl } from "./moderation-toolbar";
 
 const noop = () => undefined;
+
+const TARGETS = [
+  { value: "any", label: "Tous" },
+  { value: "profile", label: "Profils" },
+] as const;
 
 function toolbar(overrides: Partial<Parameters<typeof ModerationToolbar>[0]> = {}): string {
   return renderToStaticMarkup(
     <ModerationToolbar
-      chips={[
-        { key: "targetType", label: "Profils" },
-        { key: "search", label: "« spam »" },
-      ]}
-      filterCount={1}
-      filters={<p>panneau</p>}
-      onRemoveChip={noop}
+      active
+      filters={<FilterSelect defaultValue="any" label="Cible" onChange={noop} options={[...TARGETS]} value="profile" />}
       onReset={noop}
       onSearch={noop}
       onSort={noop}
@@ -31,40 +31,53 @@ function toolbar(overrides: Partial<Parameters<typeof ModerationToolbar>[0]> = {
 }
 
 /**
- * Story 39.12. One toolbar for both moderation tabs: search first, a filters button that says how many are
- * on, the sort on the side, then the active filters as chips and the number of results.
+ * Stories 39.12 and 39.13. One toolbar for both moderation tabs: search and sort, then the filters as
+ * always-visible dropdowns, a reset when something narrows the list, and the number of results.
  */
 describe("ModerationToolbar", () => {
-  test("search comes first and keeps the current query", () => {
+  test("search comes first and keeps the current query, the sort beside it", () => {
     const html = toolbar();
 
     expect(html).toMatch(/<input[^>]*type="search"[^>]*value="spam"|<input[^>]*value="spam"[^>]*type="search"/);
-    expect(html.indexOf('type="search"')).toBeLessThan(html.indexOf("Filtres"));
-    expect(html.indexOf("Filtres")).toBeLessThan(html.indexOf("Gravité"));
-  });
-
-  test("the filters button counts the active filters", () => {
-    expect(toolbar()).toMatch(/Filtres<span[^>]*>1<\/span>/);
-    expect(toolbar({ filterCount: 0 })).not.toMatch(/Filtres<span/);
-  });
-
-  test("each active filter is a removable chip, with a reset", () => {
-    const html = toolbar();
-
-    expect(html).toContain('aria-label="Retirer le filtre Profils"');
-    expect(html).toContain('aria-label="Retirer le filtre « spam »"');
-    expect(html).toContain("Réinitialiser");
-  });
-
-  test("no chip, no reset", () => {
-    expect(toolbar({ chips: [] })).not.toContain("Réinitialiser");
-  });
-
-  test("the number of results sits above the list, and the sort shows its choice", () => {
-    const html = toolbar();
-
-    expect(html).toContain("12 signalements");
+    expect(html.indexOf('type="search"')).toBeLessThan(html.indexOf("Gravité"));
     expect(html).toMatch(/<option selected="" value="severity">Gravité<\/option>|<option value="severity" selected="">Gravité<\/option>/);
+  });
+
+  test("the filters are always on the page, no panel to open (story 39.13)", () => {
+    const html = toolbar();
+
+    expect(html).toContain(">Cible<");
+    expect(html).toContain("<select");
+    expect(html).not.toContain("Filtres");
+    expect(html).not.toContain('aria-haspopup="dialog"');
+  });
+
+  test("a reset shows only when something narrows the list", () => {
+    expect(toolbar()).toContain("Réinitialiser");
+    expect(toolbar({ active: false })).not.toContain("Réinitialiser");
+  });
+
+  test("the number of results sits above the list", () => {
+    expect(toolbar()).toContain("12 signalements");
+  });
+});
+
+describe("FilterSelect", () => {
+  function select(value: "any" | "profile"): string {
+    return renderToStaticMarkup(<FilterSelect defaultValue="any" label="Cible" onChange={noop} options={[...TARGETS]} value={value} />);
+  }
+
+  test("names itself inside the control and shows its choice", () => {
+    const html = select("any");
+
+    expect(html).toContain(">Cible<");
+    expect(html).toMatch(/<option selected="" value="any">Tous<\/option>|<option value="any" selected="">Tous<\/option>/);
+  });
+
+  test("stands out when it filters", () => {
+    expect(select("profile")).toContain("border-accent-text/70 bg-accent/20");
+    expect(select("profile")).toMatch(/<select class="[^"]*text-accent-text/);
+    expect(select("any")).not.toContain("bg-accent/20");
   });
 });
 
