@@ -1,5 +1,5 @@
 /*
- * Story 30.44: a titled name - legendary orange for an admin, silver for a member (the epic tier). On the
+ * Story 30.44: a titled name - legendary orange for an admin, platinum for a member (the epic tier). On the
  * profile page, the title stands large above the name with its emblem and embers rise from the name; on a card, the emblem sits before the name and its glow rises on hover.
  */
 
@@ -10,12 +10,12 @@
   --rarity-spark: #ffb347;
 }
 
-/* A member's tier keeps its rarity name, but wears silver (Jean's choice at the test). */
+/* A member's tier keeps its rarity name, but wears platinum: a bright, cool white metal (Jean's choice). */
 .epic {
-  --rarity-light: #f5f8fc;
-  --rarity: #9ea9b9;
-  --rarity-glow: rgb(200 220 245 / 0.45);
-  --rarity-spark: #e6eef8;
+  --rarity-light: #ffffff;
+  --rarity: #a9bdd6;
+  --rarity-glow: rgb(170 205 255 / 0.5);
+  --rarity-spark: #dce9ff;
 }
 
 /* The name in the rarity colours, a solid colour where the gradient cannot be clipped to the text. */

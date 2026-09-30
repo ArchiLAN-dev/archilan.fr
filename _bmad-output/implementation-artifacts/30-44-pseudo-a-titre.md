@@ -84,7 +84,7 @@ disparaît quand l'adhésion expire ou que le rôle admin est retiré, et revien
   flux (positionné au-dessus du pseudo) : le titre de la page ne garde que la hauteur du pseudo, recentré sur la
   photo comme avant (vérifié sur l'aperçu : centre du pseudo = centre de la photo).
 - Retour de Jean au test : la barre de lumière sous le pseudo est retirée.
-- Retour de Jean au test : les adhérents passent en argent (le palier garde son nom `epic` dans l'API).
+- Retour de Jean au test : les adhérents passent en argent, puis en platine (le palier garde son nom `epic` dans l'API).
 - Historique : pseudo holographique (or / argent, reflet puis quatre couches) écarté au test ; page de
   comparaison de cinq pistes (rareté, plaque de titre, néon, couronné, aura) ; fusion rareté + plaque retenue.
 - Vérification visuelle sur une page d'aperçu reprenant la structure de l'en-tête du profil (bureau et mobile) et

@@ -27,8 +27,8 @@ function Emblem({ style }: { style: NameStyle }) {
 }
 
 /**
- * A member's name with the title their status gives (story 30.44): legendary orange for an admin, silver for
- * a member (the epic tier).
+ * A member's name with the title their status gives (story 30.44): legendary orange for an admin, platinum
+ * for a member (the epic tier).
  *
  * - `profile`: the title stands large above the name with its emblem and embers rise from the name. The title
  *   is hidden from screen readers: the profile badges already say it.
