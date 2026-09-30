@@ -44,6 +44,7 @@ import { RunTitle } from "./run-title";
 import { showsRunStatusLine, showsSettingsDelete } from "./run-overview-visibility";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 import { AvatarImage } from "../community/avatar-image";
+import type { ImageFraming } from "@/features/community/image-framing";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -101,7 +102,7 @@ function MyGamesCard({ run, mySlotCount }: { run: PersonalRun; mySlotCount: numb
 
 // ─── Participant list ─────────────────────────────────────────────────────────
 
-function ParticipantAvatar({ avatarUrl, animatedUrl = null, name }: { avatarUrl: string | null; animatedUrl?: string | null; name: string }) {
+function ParticipantAvatar({ avatarUrl, animatedUrl = null, framing = null, name }: { avatarUrl: string | null; animatedUrl?: string | null; framing?: ImageFraming | null; name: string }) {
   const [failed, setFailed] = useState(false);
 
   if (avatarUrl !== null && !failed) {
@@ -109,6 +110,7 @@ function ParticipantAvatar({ avatarUrl, animatedUrl = null, name }: { avatarUrl:
       <AvatarImage
         animatedSrc={animatedUrl}
         className="size-8 shrink-0 rounded-full bg-surface object-cover"
+        framing={framing}
         onError={() => setFailed(true)}
         src={avatarUrl}
       />
@@ -136,7 +138,7 @@ function ParticipantList({ runId, participants }: { runId: string; participants:
 
         return (
           <li className="flex items-center gap-3" key={p.userId}>
-            <ParticipantAvatar animatedUrl={p.avatarAnimatedUrl} avatarUrl={p.avatarUrl} name={name} />
+            <ParticipantAvatar animatedUrl={p.avatarAnimatedUrl} avatarUrl={p.avatarUrl} framing={p.avatarFraming} name={name} />
             <div className="min-w-0 flex-1">
               {p.slug !== null ? (
                 <Link

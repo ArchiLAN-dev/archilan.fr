@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import type { ImageFraming } from "@/features/community/image-framing";
 
 export type PlayingNowEntry = {
   slug: string;
@@ -7,6 +8,8 @@ export type PlayingNowEntry = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.43: the framing of an uploaded avatar (null = centred).
+  avatarFraming?: ImageFraming | null;
   /** null when the viewer may not know what is being played (unpublished personal run). */
   game: string | null;
 };
@@ -21,6 +24,8 @@ export type RecentAchievement = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.43: the framing of an uploaded avatar (null = centred).
+  avatarFraming?: ImageFraming | null;
 };
 
 export type CommunityOverview = {

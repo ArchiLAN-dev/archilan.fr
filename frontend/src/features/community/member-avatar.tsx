@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { AvatarImage } from "./avatar-image";
+import type { ImageFraming } from "@/features/community/image-framing";
 
 type Props = {
   avatarUrl: string | null;
   /** Story 30.42: an admin's GIF, animated on hover. */
   animatedUrl?: string | null;
+  framing?: ImageFraming | null;
   name: string;
   /** Tailwind size class, e.g. "size-10". */
   size?: string;
@@ -16,7 +18,7 @@ type Props = {
  * A member's avatar with the project-wide fallback: a snapshotted Discord/Steam URL can 404 later, so a
  * load error degrades to the initial rather than a broken image.
  */
-export function MemberAvatar({ avatarUrl, animatedUrl = null, name, size = "size-10" }: Props) {
+export function MemberAvatar({ avatarUrl, animatedUrl = null, framing = null, name, size = "size-10" }: Props) {
   const [failed, setFailed] = useState(false);
   const initial = name.slice(0, 1).toUpperCase();
 
@@ -25,6 +27,7 @@ export function MemberAvatar({ avatarUrl, animatedUrl = null, name, size = "size
       <AvatarImage
         animatedSrc={animatedUrl}
         className={`${size} shrink-0 rounded-full bg-surface object-cover`}
+        framing={framing}
         onError={() => setFailed(true)}
         src={avatarUrl}
       />

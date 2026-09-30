@@ -10,6 +10,7 @@ use App\Community\Domain\ValueObject\Audience;
 use App\Community\Domain\ValueObject\AvatarFrame;
 use App\Community\Domain\ValueObject\BannerOverlay;
 use App\Community\Domain\ValueObject\BannerPreset;
+use App\Community\Domain\ValueObject\ImageFraming;
 use App\Community\Domain\ValueObject\ShowcaseWidget;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
@@ -57,6 +58,10 @@ final readonly class UpdateCommunityProfile
             $errors->add('bannerOverlay', 'Intensité invalide.');
         }
 
+        // Story 30.43: an omitted framing keeps what the profile holds.
+        $avatarFraming = $this->framing($input, 'avatarFraming', $errors);
+        $bannerFraming = $this->framing($input, 'bannerFraming', $errors);
+
         // Left null when the client omits it, and resolved from the stored profile below rather than
         // from the default. This endpoint is a full replace, so falling back to the default here meant a
         // payload without `audience` silently rewrote the setting. That was harmless while the default
@@ -96,7 +101,29 @@ final readonly class UpdateCommunityProfile
         if (is_int($bannerOverlay)) {
             $profile->adjustBannerOverlay($bannerOverlay, $now);
         }
+        if (null !== $avatarFraming) {
+            $profile->reframeAvatar($avatarFraming, $now);
+        }
+        if (null !== $bannerFraming) {
+            $profile->reframeBanner($bannerFraming, $now);
+        }
         $this->profiles->flush();
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     */
+    private function framing(array $input, string $field, ValidationErrors $errors): ?ImageFraming
+    {
+        if (!array_key_exists($field, $input) || null === $input[$field]) {
+            return null;
+        }
+        $framing = ImageFraming::fromInput($input[$field]);
+        if (null === $framing) {
+            $errors->add($field, 'Cadrage invalide.');
+        }
+
+        return $framing;
     }
 
     /**

@@ -11,6 +11,7 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchMyCommunityProfile } from "@/features/community/community-profile-api";
 import { useAuth, type AuthUser } from "./auth-context";
 import { AvatarImage } from "../community/avatar-image";
+import type { ImageFraming } from "@/features/community/image-framing";
 
 /**
  * Account dropdown for the desktop nav. Collapses everything that used to be a row of buttons
@@ -81,7 +82,7 @@ export function UserMenu({ user }: { user: AuthUser }) {
         onClick={() => setOpen((value) => !value)}
         type="button"
       >
-        <Avatar animatedUrl={profile?.avatarAnimatedUrl} avatarUrl={avatarUrl} className="size-8" user={user} />
+        <Avatar animatedUrl={profile?.avatarAnimatedUrl} avatarUrl={avatarUrl} className="size-8" framing={profile?.avatarFraming} user={user} />
         <span className="max-w-32 truncate">{name}</span>
         <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -92,7 +93,7 @@ export function UserMenu({ user }: { user: AuthUser }) {
           id={panelId}
         >
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-            <Avatar animatedUrl={profile?.avatarAnimatedUrl} avatarUrl={avatarUrl} className="size-10" user={user} />
+            <Avatar animatedUrl={profile?.avatarAnimatedUrl} avatarUrl={avatarUrl} className="size-10" framing={profile?.avatarFraming} user={user} />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{name}</p>
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>
@@ -124,7 +125,7 @@ export function UserMenu({ user }: { user: AuthUser }) {
 }
 
 /** Community photo when available, else initials on a tinted disc; falls back too on image load error. */
-function Avatar({ avatarUrl, animatedUrl = null, className, user }: { avatarUrl: string | null; animatedUrl?: string | null; className: string; user: AuthUser }) {
+function Avatar({ avatarUrl, animatedUrl = null, framing = null, className, user }: { avatarUrl: string | null; animatedUrl?: string | null; framing?: ImageFraming | null; className: string; user: AuthUser }) {
   const [failed, setFailed] = useState(false);
 
   if (avatarUrl !== null && !failed) {
@@ -132,6 +133,7 @@ function Avatar({ avatarUrl, animatedUrl = null, className, user }: { avatarUrl:
       <AvatarImage
         animatedSrc={animatedUrl}
         className={`${className} shrink-0 rounded-full bg-surface object-cover`}
+        framing={framing}
         onError={() => setFailed(true)}
         src={avatarUrl}
       />

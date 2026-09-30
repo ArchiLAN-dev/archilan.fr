@@ -200,9 +200,9 @@ final readonly class FriendshipService
 
     /**
      * @return array{
-     *     friends: list<array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null}>,
-     *     incoming: list<array{friendshipId: string, userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null}>,
-     *     outgoing: list<array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null}>
+     *     friends: list<array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}>,
+     *     incoming: list<array{friendshipId: string, userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}>,
+     *     outgoing: list<array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}>
      * }
      */
     public function friends(string $userId): array

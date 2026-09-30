@@ -86,7 +86,7 @@ final class AccountModerationServiceTest extends TestCase
         $admins = self::createStub(CommunityAdminIdsQueryInterface::class);
         $admins->method('adminUserIds')->willReturn([]);
         $directory = self::createStub(CommunityUserDirectoryQueryInterface::class);
-        $directory->method('cards')->willReturn(['target' => ['userId' => 'target', 'slug' => 't', 'displayName' => 'T', 'avatarUrl' => null, 'avatarAnimatedUrl' => null]]);
+        $directory->method('cards')->willReturn(['target' => ['userId' => 'target', 'slug' => 't', 'displayName' => 'T', 'avatarUrl' => null, 'avatarAnimatedUrl' => null, 'avatarFraming' => null]]);
         $saved = [];
         $actions = self::createStub(ModerationActionRepositoryInterface::class);
         $actions->method('save')->willReturnCallback(static function (ModerationAction $action) use (&$saved): void {
@@ -116,7 +116,7 @@ final class AccountModerationServiceTest extends TestCase
         $admins = self::createStub(CommunityAdminIdsQueryInterface::class);
         $admins->method('adminUserIds')->willReturn(['target-admin']);
         $directory = self::createStub(CommunityUserDirectoryQueryInterface::class);
-        $directory->method('cards')->willReturn(['target' => ['userId' => 'target', 'slug' => 't', 'displayName' => 'T', 'avatarUrl' => null, 'avatarAnimatedUrl' => null]]);
+        $directory->method('cards')->willReturn(['target' => ['userId' => 'target', 'slug' => 't', 'displayName' => 'T', 'avatarUrl' => null, 'avatarAnimatedUrl' => null, 'avatarFraming' => null]]);
         $saved = [];
         $actions = self::createStub(ModerationActionRepositoryInterface::class);
         $actions->method('save')->willReturnCallback(static function (ModerationAction $action) use (&$saved): void {

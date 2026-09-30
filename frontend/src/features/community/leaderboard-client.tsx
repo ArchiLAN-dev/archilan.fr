@@ -13,6 +13,7 @@ import {
   type LeaderboardResponse,
 } from "./community-api";
 import { AvatarImage } from "./avatar-image";
+import type { ImageFraming } from "@/features/community/image-framing";
 
 const TABS: { axis: LeaderboardAxis; label: string }[] = [
   { axis: "goals", label: "Objectifs" },
@@ -126,7 +127,7 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
                   {entry.rank}
                 </span>
 
-                <PlayerAvatar animatedUrl={entry.avatarAnimatedUrl} avatarUrl={entry.avatarUrl} displayName={entry.displayName} slug={entry.slug} />
+                <PlayerAvatar animatedUrl={entry.avatarAnimatedUrl} avatarUrl={entry.avatarUrl} displayName={entry.displayName} framing={entry.avatarFraming} slug={entry.slug} />
 
                 <Link
                   className="min-w-0 flex-1 truncate font-semibold text-foreground hover:text-accent transition-colors"
@@ -170,11 +171,13 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
 function PlayerAvatar({
   avatarUrl,
   animatedUrl = null,
+  framing = null,
   displayName,
   slug,
 }: {
   avatarUrl: string | null;
   animatedUrl?: string | null;
+  framing?: ImageFraming | null;
   displayName: string;
   slug: string;
 }) {
@@ -188,6 +191,7 @@ function PlayerAvatar({
       <AvatarImage
         animatedSrc={animatedUrl}
         className="size-9 shrink-0 rounded-full bg-surface object-cover"
+        framing={framing}
         onError={() => setFailed(true)}
         src={avatarUrl}
       />

@@ -4,13 +4,15 @@ import { ArrowLeft } from "lucide-react";
 import type { PlayerAchievementsCatalogue } from "@/features/players/player-profile-api";
 import { AchievementCard } from "./achievement-card";
 import { AvatarImage } from "./avatar-image";
+import type { ImageFraming } from "@/features/community/image-framing";
 
-function CatalogueAvatar({ avatarUrl, animatedUrl = null, name }: { avatarUrl: string | null; animatedUrl?: string | null; name: string }) {
+function CatalogueAvatar({ avatarUrl, animatedUrl = null, framing = null, name }: { avatarUrl: string | null; animatedUrl?: string | null; framing?: ImageFraming | null; name: string }) {
   if (avatarUrl !== null) {
     return (
       <AvatarImage
         animatedSrc={animatedUrl}
         className="size-12 shrink-0 rounded-full bg-surface object-cover"
+        framing={framing}
         src={avatarUrl}
       />
     );
@@ -45,7 +47,7 @@ export function AchievementsCataloguePage({ catalogue }: { catalogue: PlayerAchi
       </Link>
 
       <header className="flex items-center gap-4 rounded-lg border border-border bg-surface p-5">
-        <CatalogueAvatar animatedUrl={catalogue.avatarAnimatedUrl} avatarUrl={catalogue.avatarUrl} name={name} />
+        <CatalogueAvatar animatedUrl={catalogue.avatarAnimatedUrl} avatarUrl={catalogue.avatarUrl} framing={catalogue.avatarFraming} name={name} />
         <div className="min-w-0">
           <h1 className="truncate font-heading text-2xl font-bold text-foreground">
             Succès de {name}

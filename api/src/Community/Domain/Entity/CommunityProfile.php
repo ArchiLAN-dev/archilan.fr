@@ -8,6 +8,7 @@ use App\Community\Domain\ValueObject\Audience;
 use App\Community\Domain\ValueObject\AvatarFrame;
 use App\Community\Domain\ValueObject\BannerOverlay;
 use App\Community\Domain\ValueObject\BannerPreset;
+use App\Community\Domain\ValueObject\ImageFraming;
 use App\Identity\Domain\Entity\User;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -85,6 +86,19 @@ final class CommunityProfile
         /** Opacity (percent) of the banner preset laid over a banner image (story 30.41). */
         #[ORM\Column(name: 'banner_overlay', type: 'smallint', options: ['default' => BannerOverlay::DEFAULT])]
         private int $bannerOverlay = BannerOverlay::DEFAULT,
+        /** Framing of the uploaded avatar and banner image (story 30.43): point aimed at (percent) and zoom. */
+        #[ORM\Column(name: 'avatar_framing_x', type: 'smallint', options: ['default' => 50])]
+        private int $avatarFramingX = 50,
+        #[ORM\Column(name: 'avatar_framing_y', type: 'smallint', options: ['default' => 50])]
+        private int $avatarFramingY = 50,
+        #[ORM\Column(name: 'avatar_framing_zoom', type: 'smallint', options: ['default' => ImageFraming::MIN_ZOOM])]
+        private int $avatarFramingZoom = ImageFraming::MIN_ZOOM,
+        #[ORM\Column(name: 'banner_framing_x', type: 'smallint', options: ['default' => 50])]
+        private int $bannerFramingX = 50,
+        #[ORM\Column(name: 'banner_framing_y', type: 'smallint', options: ['default' => 50])]
+        private int $bannerFramingY = 50,
+        #[ORM\Column(name: 'banner_framing_zoom', type: 'smallint', options: ['default' => ImageFraming::MIN_ZOOM])]
+        private int $bannerFramingZoom = ImageFraming::MIN_ZOOM,
     ) {
     }
 
@@ -125,7 +139,7 @@ final class CommunityProfile
     {
         $this->customAvatarKey = $key;
         $this->customAvatarStillKey = $stillKey;
-        $this->updatedAt = $now;
+        $this->reframeAvatar(ImageFraming::centred(), $now);
     }
 
     /**
@@ -136,7 +150,7 @@ final class CommunityProfile
     {
         $this->customAvatarKey = null;
         $this->customAvatarStillKey = null;
-        $this->updatedAt = $now;
+        $this->reframeAvatar(ImageFraming::centred(), $now);
     }
 
     /** First frame of a GIF avatar (story 30.40), or null for a still one. */
@@ -154,7 +168,7 @@ final class CommunityProfile
     {
         $this->customBannerKey = $key;
         $this->customBannerStillKey = $stillKey;
-        $this->updatedAt = $now;
+        $this->reframeBanner(ImageFraming::centred(), $now);
     }
 
     /** Clear the banner image: the banner preset shows again. */
@@ -162,7 +176,7 @@ final class CommunityProfile
     {
         $this->customBannerKey = null;
         $this->customBannerStillKey = null;
-        $this->updatedAt = $now;
+        $this->reframeBanner(ImageFraming::centred(), $now);
     }
 
     public function getCustomBannerKey(): ?string
@@ -185,6 +199,34 @@ final class CommunityProfile
     public function getBannerOverlay(): int
     {
         return $this->bannerOverlay;
+    }
+
+    /** Story 30.43: the part of the uploaded avatar shown; a new upload or its removal centres it again. */
+    public function reframeAvatar(ImageFraming $framing, \DateTimeImmutable $now): void
+    {
+        $this->avatarFramingX = $framing->x;
+        $this->avatarFramingY = $framing->y;
+        $this->avatarFramingZoom = $framing->zoom;
+        $this->updatedAt = $now;
+    }
+
+    public function getAvatarFraming(): ImageFraming
+    {
+        return new ImageFraming($this->avatarFramingX, $this->avatarFramingY, $this->avatarFramingZoom);
+    }
+
+    /** Story 30.43: the part of the banner image shown; a new upload or its removal centres it again. */
+    public function reframeBanner(ImageFraming $framing, \DateTimeImmutable $now): void
+    {
+        $this->bannerFramingX = $framing->x;
+        $this->bannerFramingY = $framing->y;
+        $this->bannerFramingZoom = $framing->zoom;
+        $this->updatedAt = $now;
+    }
+
+    public function getBannerFraming(): ImageFraming
+    {
+        return new ImageFraming($this->bannerFramingX, $this->bannerFramingY, $this->bannerFramingZoom);
     }
 
     /** The member-uploaded avatar object key, or null when none is set. */

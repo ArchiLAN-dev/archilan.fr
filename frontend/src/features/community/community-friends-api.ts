@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
+import type { ImageFraming } from "@/features/community/image-framing";
 
 export type RelationshipState =
   | "none"
@@ -20,6 +21,8 @@ export type FriendCard = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.43: the framing of an uploaded avatar (null = centred).
+  avatarFraming?: ImageFraming | null;
 };
 
 export type IncomingRequest = FriendCard & { friendshipId: string };

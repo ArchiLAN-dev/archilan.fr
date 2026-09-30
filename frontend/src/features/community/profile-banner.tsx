@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { getBannerPreset, type BannerPresetConfig } from "./banner-presets";
+import { framingStyle, type ImageFraming } from "./image-framing";
 import styles from "./profile-banner.module.css";
 
 /** Default strength of the preset laid over a banner image (story 30.41), mirroring `BannerOverlay::DEFAULT`. */
@@ -19,6 +20,7 @@ export function ProfileBanner({
   imageUrl = null,
   imageStillUrl = null,
   overlay = DEFAULT_BANNER_OVERLAY,
+  framing = null,
   className,
   compact = false,
 }: {
@@ -26,6 +28,8 @@ export function ProfileBanner({
   imageUrl?: string | null;
   imageStillUrl?: string | null;
   overlay?: number;
+  /** Story 30.43: the part of the image shown. */
+  framing?: ImageFraming | null;
   className?: string;
   compact?: boolean;
 }) {
@@ -39,7 +43,7 @@ export function ProfileBanner({
         <picture>
           {imageStillUrl !== null ? <source media="(prefers-reduced-motion: reduce)" srcSet={imageStillUrl} /> : null}
           {/* A plain img, like the avatars: a presigned storage URL, possibly an animated GIF. */}
-          <img alt="" className="absolute inset-0 size-full object-cover" src={imageUrl} />
+          <img alt="" className="absolute inset-0 size-full object-cover" src={imageUrl} style={framingStyle(framing)} />
         </picture>
         {opacity > 0 ? (
           <div className="absolute inset-0" style={{ ...presetVariables(preset), opacity }}>

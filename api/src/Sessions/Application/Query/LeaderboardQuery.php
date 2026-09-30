@@ -11,7 +11,7 @@ final readonly class LeaderboardQuery
     }
 
     /**
-     * @return array{list<array{slug: string, displayName: string, avatarUrl: string|null, avatarAnimatedUrl: string|null, value: int}>, int}
+     * @return array{list<array{slug: string, displayName: string, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, value: int}>, int}
      */
     public function computeAggregatePage(string $axis, ?string $eventId, int $limit, int $offset): array
     {
@@ -19,7 +19,7 @@ final readonly class LeaderboardQuery
     }
 
     /**
-     * @return array{list<array{slug: string, displayName: string, avatarUrl: string|null, avatarAnimatedUrl: string|null, value: int}>, int}
+     * @return array{list<array{slug: string, displayName: string, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, value: int}>, int}
      */
     public function computeSpeedPage(?string $eventId, int $limit, int $offset): array
     {

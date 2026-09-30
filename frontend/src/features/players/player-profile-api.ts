@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { isImageFraming, type ImageFraming } from "@/features/community/image-framing";
 
 export type PlayerStats = {
   runsParticipated: number;
@@ -29,6 +30,8 @@ export type ProfileCustomization = {
   bannerImageStillUrl?: string | null;
   // Story 30.41: opacity (percent) of the preset laid over the banner image.
   bannerOverlay?: number;
+  // Story 30.43: the framing of the banner image.
+  bannerFraming?: ImageFraming;
   avatarFrame: string | null;
   socialLinks: ProfileSocialLink[];
   favoriteGames: ProfileFavoriteGame[];
@@ -60,6 +63,8 @@ export type PlayerAchievementsCatalogue = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.43: the framing of an uploaded avatar (null = centred).
+  avatarFraming?: ImageFraming | null;
   achievements: CatalogueAchievement[];
 };
 
@@ -82,6 +87,8 @@ export type PlayerProfile = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.43: the framing of an uploaded avatar (null = centred).
+  avatarFraming?: ImageFraming | null;
   audience: string;
   badges: ProfileBadges;
   level: ProfileLevel;
@@ -260,6 +267,7 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       displayName: data.displayName,
       joinedAt: data.joinedAt,
       avatarUrl: data.avatarUrl ?? null,
+      avatarFraming: isImageFraming(data.avatarFraming) ? data.avatarFraming : null,
       audience: typeof data.audience === "string" ? data.audience : "members",
       badges: parseBadges("badges" in data ? data.badges : null),
       level: isProfileLevel(data.level) ? data.level : DEFAULT_LEVEL,
@@ -313,6 +321,8 @@ export const getPlayerAchievements = cache(async (slug: string): Promise<PlayerA
       slug: data.slug,
       displayName: data.displayName,
       avatarUrl: data.avatarUrl ?? null,
+      avatarAnimatedUrl: typeof data.avatarAnimatedUrl === "string" ? data.avatarAnimatedUrl : null,
+      avatarFraming: isImageFraming(data.avatarFraming) ? data.avatarFraming : null,
       achievements: data.achievements,
     };
   } catch {

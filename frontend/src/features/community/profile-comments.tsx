@@ -109,7 +109,7 @@ export function ProfileComments({ slug }: { slug: string }) {
                 className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/15 text-sm font-bold text-accent-text"
               >
                 {comment.author?.avatarUrl ? (
-                  <AvatarImage animatedSrc={comment.author.avatarAnimatedUrl} className="size-full object-cover" src={comment.author.avatarUrl} />
+                  <AvatarImage animatedSrc={comment.author.avatarAnimatedUrl} className="size-full object-cover" framing={comment.author.avatarFraming} src={comment.author.avatarUrl} />
                 ) : (
                   (comment.author?.displayName ?? comment.author?.slug ?? "?").slice(0, 1).toUpperCase()
                 )}
