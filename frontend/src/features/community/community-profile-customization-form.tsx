@@ -599,7 +599,8 @@ export function CommunityProfileCustomizationForm({
               />
               Pseudo à titre
             </label>
-            <span className="font-heading text-xl font-bold text-foreground">
+            {/* Room for the title, which hangs above the name. */}
+            <span className="pt-5 font-heading text-xl font-bold text-foreground">
               <TitledName style={titledName ? titledNameStyle : null} variant="profile">{displayName.trim() || accountName || slug || "Ton pseudo"}</TitledName>
             </span>
             <span className="text-xs text-muted-foreground">

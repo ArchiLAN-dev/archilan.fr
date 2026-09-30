@@ -81,6 +81,9 @@ disparaît quand l'adhésion expire ou que le rôle admin est retiré, et revien
   `text-overflow: ellipsis`, lueur renforcée au survol du lien de la carte. Branché sur la page de profil, les
   cartes membres, la communauté, les amis, les commentaires, les classements, les participants des parties
   privées ; case « Pseudo à titre » avec aperçu dans la section Identité.
+- Retour de Jean au test : le titre poussait le pseudo sous la coupure bannière / carte. Le titre est sorti du
+  flux (positionné au-dessus du pseudo) : le titre de la page ne garde que la hauteur du pseudo, recentré sur la
+  photo comme avant (vérifié sur l'aperçu : centre du pseudo = centre de la photo).
 - Historique : pseudo holographique (or / argent, reflet puis quatre couches) écarté au test ; page de
   comparaison de cinq pistes (rareté, plaque de titre, néon, couronné, aura) ; fusion rareté + plaque retenue.
 - Vérification visuelle sur une page d'aperçu reprenant la structure de l'en-tête du profil (bureau et mobile) et

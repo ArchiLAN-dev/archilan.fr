@@ -44,10 +44,14 @@
 
 /* ---------- Profile ---------- */
 
+/*
+ * The title hangs above the name, out of the flow: the heading keeps the height of the name alone, so the name
+ * stays where it was, centred on the avatar across the edge of the banner.
+ */
 .profile {
-  display: inline-grid;
-  gap: 0.12em;
-  justify-items: start;
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
 }
 
 .title {
@@ -62,6 +66,11 @@
   text-transform: uppercase;
   color: var(--rarity-light);
   text-shadow: 0 0 10px var(--rarity-glow), 0 1px 2px rgb(0 0 0 / 0.7);
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 0.3em;
+  white-space: nowrap;
 }
 
 .title .emblem {
@@ -73,7 +82,6 @@
   position: relative;
   display: inline-block;
   max-width: 100%;
-  padding-bottom: 0.14em;
 }
 
 /* B's bar of light, in the rarity colour, running under the name. */
@@ -82,7 +90,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: -0.12em;
   height: 3px;
   border-radius: 3px;
   background: linear-gradient(90deg, transparent, var(--rarity) 20%, #fff 50%, var(--rarity) 80%, transparent) 0 0 / 200% 100%;
