@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LiveMark } from "@/features/streaming/live-mark";
 import { MemberAvatar } from "./member-avatar";
 import type { DirectoryRow } from "./community-directory-api";
+import { TitledName } from "@/features/community/titled-name";
 
 type Props = {
   row: DirectoryRow;
@@ -50,7 +51,11 @@ export function MemberCard({ row, rank = null }: Props) {
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-foreground">{name}</span>
+          <span className="block truncate text-sm font-semibold text-foreground">
+            <TitledName style={row.nameStyle} variant="card">
+              {name}
+            </TitledName>
+          </span>
           <span className="mt-1 flex items-center gap-2">
             <span className="shrink-0 text-xs text-muted-foreground">Niv. {row.level}</span>
             <span aria-hidden className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-border">

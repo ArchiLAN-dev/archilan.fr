@@ -62,6 +62,12 @@ final readonly class UpdateCommunityProfile
         $avatarFraming = $this->framing($input, 'avatarFraming', $errors);
         $bannerFraming = $this->framing($input, 'bannerFraming', $errors);
 
+        // Story 30.44: an omitted switch keeps what the profile holds.
+        $titledName = $input['titledName'] ?? null;
+        if (null !== $titledName && !is_bool($titledName)) {
+            $errors->add('titledName', 'Valeur invalide.');
+        }
+
         // Left null when the client omits it, and resolved from the stored profile below rather than
         // from the default. This endpoint is a full replace, so falling back to the default here meant a
         // payload without `audience` silently rewrote the setting. That was harmless while the default
@@ -106,6 +112,9 @@ final readonly class UpdateCommunityProfile
         }
         if (null !== $bannerFraming) {
             $profile->reframeBanner($bannerFraming, $now);
+        }
+        if (is_bool($titledName)) {
+            $profile->toggleTitledName($titledName, $now);
         }
         $this->profiles->flush();
     }

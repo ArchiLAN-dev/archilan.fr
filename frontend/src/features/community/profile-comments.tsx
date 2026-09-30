@@ -17,6 +17,7 @@ import {
   type ProfileComment,
 } from "./community-comments-api";
 import { AvatarImage } from "./avatar-image";
+import { TitledName } from "@/features/community/titled-name";
 
 export function ProfileComments({ slug }: { slug: string }) {
   const { user } = useAuth();
@@ -118,7 +119,9 @@ export function ProfileComments({ slug }: { slug: string }) {
                 <div className="flex flex-wrap items-baseline gap-x-2">
                   {comment.author ? (
                     <Link className="text-sm font-semibold text-foreground hover:text-accent-text" href={`/joueurs/${comment.author.slug}`}>
-                      {comment.author.displayName ?? comment.author.slug}
+                      <TitledName style={comment.author.nameStyle} variant="card">
+                        {comment.author.displayName ?? comment.author.slug}
+                      </TitledName>
                     </Link>
                   ) : (
                     <span className="text-sm font-semibold text-muted-foreground">Membre</span>

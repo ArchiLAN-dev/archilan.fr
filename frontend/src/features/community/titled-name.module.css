@@ -1,0 +1,179 @@
+/*
+ * Story 30.44: a titled name - legendary orange for an admin, platinum for a member (the epic tier). On the
+ * profile page, the title stands large above the name with its emblem and embers rise from the name; on a card, the emblem sits before the name and its glow rises on hover.
+ */
+
+.legendary {
+  --rarity-light: #ffd27a;
+  --rarity: #ff8000;
+  --rarity-glow: rgb(255 128 0 / 0.55);
+  --rarity-spark: #ffb347;
+}
+
+/* A member's tier keeps its rarity name, but wears platinum: a bright, cool white metal (Jean's choice). */
+.epic {
+  --rarity-light: #ffffff;
+  --rarity: #a9bdd6;
+  --rarity-glow: rgb(170 205 255 / 0.5);
+  --rarity-spark: #dce9ff;
+}
+
+/* The name in the rarity colours, a solid colour where the gradient cannot be clipped to the text. */
+.name {
+  color: var(--rarity-light);
+  text-shadow: none;
+  filter: drop-shadow(0 0 10px var(--rarity-glow)) drop-shadow(0 2px 2px rgb(0 0 0 / 0.6));
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .name {
+    background-image: linear-gradient(180deg, var(--rarity-light), var(--rarity));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/*
+ * The crown / star wears the same effect as the name: its shape masks the rarity gradient, and the glow sits on
+ * the wrapper (a filter on the masked element itself would be cut by its own mask).
+ */
+.emblem {
+  display: inline-block;
+  flex: none;
+  filter: drop-shadow(0 0 5px var(--rarity-glow)) drop-shadow(0 1px 1px rgb(0 0 0 / 0.6));
+}
+
+.emblemShape {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--rarity);
+  -webkit-mask: var(--emblem) center / contain no-repeat;
+  mask: var(--emblem) center / contain no-repeat;
+}
+
+@supports (mask: none) or (-webkit-mask: none) {
+  .emblemShape {
+    background: linear-gradient(180deg, var(--rarity-light), var(--rarity));
+  }
+}
+
+.crown {
+  --emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 18h18l-1.5-10-4.5 4-3-7-3 7-4.5-4z'/%3E%3C/svg%3E");
+}
+
+.star {
+  --emblem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7L5.8 21l1.6-7L2 9.3l7.1-.7z'/%3E%3C/svg%3E");
+}
+
+/* ---------- Profile ---------- */
+
+/*
+ * The title hangs above the name, out of the flow: the heading keeps the height of the name alone, so the name
+ * stays where it was, centred on the avatar across the edge of the banner.
+ */
+.profile {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font-family: var(--font-sans, Inter, sans-serif);
+  font-size: max(13px, 0.5em);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--rarity-light);
+  text-shadow: 0 0 10px var(--rarity-glow), 0 1px 2px rgb(0 0 0 / 0.7);
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 0.3em;
+  white-space: nowrap;
+}
+
+.title .emblem {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.nameLine {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.embers {
+  position: absolute;
+  inset: -0.35em -0.1em 0;
+  pointer-events: none;
+}
+
+.embers i {
+  position: absolute;
+  bottom: 0.2em;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--rarity-spark);
+  box-shadow: 0 0 6px var(--rarity-spark);
+  opacity: 0;
+  animation: rise 2.8s ease-in infinite;
+}
+
+.embers i:nth-child(1) { left: 8%; animation-delay: 0s; }
+.embers i:nth-child(2) { left: 24%; animation-delay: 0.9s; }
+.embers i:nth-child(3) { left: 41%; animation-delay: 1.7s; }
+.embers i:nth-child(4) { left: 58%; animation-delay: 0.4s; }
+.embers i:nth-child(5) { left: 74%; animation-delay: 1.3s; }
+.embers i:nth-child(6) { left: 90%; animation-delay: 2.1s; }
+
+@keyframes rise {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(6px, -1.2em) scale(0.3); opacity: 0; }
+}
+
+/* ---------- Card ---------- */
+
+.card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+
+.card .emblem {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+.card .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: filter 0.2s ease;
+}
+
+:global(a):hover .card .name,
+.card:hover .name {
+  filter: drop-shadow(0 0 7px var(--rarity-glow)) drop-shadow(0 0 14px var(--rarity-glow)) drop-shadow(0 1px 1px rgb(0 0 0 / 0.6));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .embers {
+    display: none;
+  }
+
+  .card .name {
+    transition: none;
+  }
+}

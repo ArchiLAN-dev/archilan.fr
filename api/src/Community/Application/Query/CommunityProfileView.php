@@ -9,6 +9,7 @@ use App\Community\Application\Support\AvatarUrlResolver;
 use App\Community\Application\Support\ProfileVisibility;
 use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Entity\Kudos;
+use App\Community\Domain\Enum\NameStyle;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
@@ -62,6 +63,7 @@ final readonly class CommunityProfileView
      *     joinedAt: string,
      *     avatarUrl: string|null,
      *     avatarFraming: array{x: int, y: int, zoom: int}|null,
+     *     nameStyle: string|null,
      *     audience: string,
      *     badges: array{member: bool, admin: bool},
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
@@ -136,6 +138,8 @@ final readonly class CommunityProfileView
             'joinedAt' => $model['joinedAt'],
             'avatarUrl' => $this->avatarUrl($profile, $model['isAdmin']),
             'avatarFraming' => null !== $profile ? AvatarUrlResolver::framing($profile->getCustomAvatarKey(), $profile->getAvatarFraming()) : null,
+            // Story 30.44: legendary admin, epic member, unless the owner turned it off.
+            'nameStyle' => NameStyle::for($badges['admin'], $badges['member'], $profile?->hasTitledName() ?? true)?->value,
             'audience' => $audience,
             'badges' => $badges,
             'stats' => $model['stats'],
@@ -257,7 +261,7 @@ final readonly class CommunityProfileView
      *
      * Story 30.40: the images are those the owner's status allows, and the upload rights say what they may send.
      *
-     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, titledName: bool, titledNameStyle: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId, bool $isAdmin): array
     {
@@ -282,6 +286,9 @@ final readonly class CommunityProfileView
             'avatarFraming' => ($profile?->getAvatarFraming() ?? ImageFraming::centred())->toArray(),
             'hasCustomAvatar' => null !== $profile?->getCustomAvatarKey(),
             'avatarGifAllowed' => $isAdmin,
+            // Story 30.44: the owner's switch, and the style their status gives (null = nothing to offer).
+            'titledName' => $profile?->hasTitledName() ?? true,
+            'titledNameStyle' => NameStyle::for($isAdmin, $isMember, true)?->value,
             'socialLinks' => $profile?->getSocialLinks() ?? [],
             'favoriteGames' => $this->resolveFavoriteGames($profile?->getFavoriteGameIds() ?? []),
             // The owner's own settings form: with no row yet, show what a first save will actually

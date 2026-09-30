@@ -38,13 +38,13 @@ final readonly class ModerationService
      * @return array{
      *     count: int,
      *     threshold: int,
-     *     flagged: list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, score: int, reportCount: int}>,
+     *     flagged: list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, score: int, reportCount: int}>,
      *     reports: list<array{
      *         id: string, targetType: string, targetId: string, reason: string, createdAt: string,
      *         category: string, problem: string, note: string|null, severity: int, uncategorized: bool,
-     *         reporter: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}|null,
-     *         comment: array{id: string, body: string, hidden: bool, createdAt: string, author: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}|null, profileSlug: string|null}|null,
-     *         profile: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}|null
+     *         reporter: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}|null,
+     *         comment: array{id: string, body: string, hidden: bool, createdAt: string, author: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}|null, profileSlug: string|null}|null,
+     *         profile: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}|null
      *     }>
      * }
      */
@@ -65,7 +65,7 @@ final readonly class ModerationService
      * Accounts whose unresolved profile reports sum (by severity) to at least the escalation threshold,
      * most severe first - the "à examiner" list (story 30.28).
      *
-     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, score: int, reportCount: int}>
+     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, score: int, reportCount: int}>
      */
     private function flaggedAccounts(): array
     {
@@ -96,6 +96,7 @@ final readonly class ModerationService
                 'avatarUrl' => $card['avatarUrl'] ?? null,
                 'avatarAnimatedUrl' => $card['avatarAnimatedUrl'] ?? null,
                 'avatarFraming' => $card['avatarFraming'] ?? null,
+                'nameStyle' => $card['nameStyle'] ?? null,
                 'score' => $agg['score'],
                 'reportCount' => $agg['reportCount'],
             ];
@@ -112,9 +113,9 @@ final readonly class ModerationService
      * @return list<array{
      *     id: string, targetType: string, targetId: string, reason: string, createdAt: string,
      *     category: string, problem: string, note: string|null, severity: int, uncategorized: bool,
-     *     reporter: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}|null,
-     *     comment: array{id: string, body: string, hidden: bool, createdAt: string, author: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}|null, profileSlug: string|null}|null,
-     *     profile: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}|null
+     *     reporter: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}|null,
+     *     comment: array{id: string, body: string, hidden: bool, createdAt: string, author: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}|null, profileSlug: string|null}|null,
+     *     profile: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}|null
      * }>
      */
     private function assemble(array $reports): array
@@ -238,9 +239,9 @@ final readonly class ModerationService
     }
 
     /**
-     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}> $cards
+     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}> $cards
      *
-     * @return array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}|null
+     * @return array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}|null
      */
     private function card(array $cards, string $userId): ?array
     {
@@ -249,6 +250,6 @@ final readonly class ModerationService
             return null;
         }
 
-        return ['slug' => $card['slug'], 'displayName' => $card['displayName'], 'avatarUrl' => $card['avatarUrl'], 'avatarAnimatedUrl' => $card['avatarAnimatedUrl'], 'avatarFraming' => $card['avatarFraming']];
+        return ['slug' => $card['slug'], 'displayName' => $card['displayName'], 'avatarUrl' => $card['avatarUrl'], 'avatarAnimatedUrl' => $card['avatarAnimatedUrl'], 'avatarFraming' => $card['avatarFraming'], 'nameStyle' => $card['nameStyle']];
     }
 }

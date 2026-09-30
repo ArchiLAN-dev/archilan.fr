@@ -145,6 +145,7 @@ final readonly class CommunityFeedQuery
                     'avatarUrl' => $card['avatarUrl'],
                     'avatarAnimatedUrl' => $card['avatarAnimatedUrl'],
                     'avatarFraming' => $card['avatarFraming'],
+                    'nameStyle' => $card['nameStyle'],
                     'playing' => isset($playing[$entry->getActorId()]),
                 ];
             }

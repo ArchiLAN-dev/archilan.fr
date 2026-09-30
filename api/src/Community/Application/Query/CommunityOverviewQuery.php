@@ -45,8 +45,8 @@ final readonly class CommunityOverviewQuery
     /**
      * @return array{
      *     memberCount: int,
-     *     playingNow: list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, game: string|null}>,
-     *     recentAchievements: list<array{achievementKey: string, name: string, imageUrl: string|null, unlockedAt: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}>
+     *     playingNow: list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, game: string|null}>,
+     *     recentAchievements: list<array{achievementKey: string, name: string, imageUrl: string|null, unlockedAt: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}>
      * }
      */
     public function forViewer(?string $viewerId): array
@@ -68,10 +68,10 @@ final readonly class CommunityOverviewQuery
     }
 
     /**
-     * @param list<array{userId: string, sessionId: string, game: string|null}>                                                                                                                          $rows
-     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}> $cards
+     * @param list<array{userId: string, sessionId: string, game: string|null}>                                                                                                                                                  $rows
+     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}> $cards
      *
-     * @return list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, game: string|null}>
+     * @return list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, game: string|null}>
      */
     private function presentPlaying(array $rows, array $cards, ?string $viewerId): array
     {
@@ -92,6 +92,7 @@ final readonly class CommunityOverviewQuery
                 'avatarUrl' => $card['avatarUrl'],
                 'avatarAnimatedUrl' => $card['avatarAnimatedUrl'],
                 'avatarFraming' => $card['avatarFraming'],
+                'nameStyle' => $card['nameStyle'],
                 // Named only when this viewer may know what is being played; "en jeu" otherwise.
                 'game' => ($viewable[$row['sessionId']] ?? false) ? $row['game'] : null,
             ];
@@ -101,10 +102,10 @@ final readonly class CommunityOverviewQuery
     }
 
     /**
-     * @param list<array{userId: string, achievementKey: string, unlockedAt: string}>                                                                                                                    $rows
-     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}> $cards
+     * @param list<array{userId: string, achievementKey: string, unlockedAt: string}>                                                                                                                                            $rows
+     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}> $cards
      *
-     * @return list<array{achievementKey: string, name: string, imageUrl: string|null, unlockedAt: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}>
+     * @return list<array{achievementKey: string, name: string, imageUrl: string|null, unlockedAt: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}>
      */
     private function presentAchievements(array $rows, array $cards): array
     {
@@ -132,6 +133,7 @@ final readonly class CommunityOverviewQuery
                 'avatarUrl' => $card['avatarUrl'],
                 'avatarAnimatedUrl' => $card['avatarAnimatedUrl'],
                 'avatarFraming' => $card['avatarFraming'],
+                'nameStyle' => $card['nameStyle'],
             ];
         }
 
