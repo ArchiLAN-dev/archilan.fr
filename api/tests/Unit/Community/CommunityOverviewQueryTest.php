@@ -123,7 +123,7 @@ final class CommunityOverviewQueryTest extends TestCase
         // Only u1 is listable; "ghost" has no card.
         $cards = self::createStub(CommunityUserDirectoryQueryInterface::class);
         $cards->method('cards')->willReturn([
-            'u1' => ['userId' => 'u1', 'slug' => 'alice', 'displayName' => 'Alice', 'avatarUrl' => null, 'avatarAnimatedUrl' => null, 'avatarFraming' => null],
+            'u1' => ['userId' => 'u1', 'slug' => 'alice', 'displayName' => 'Alice', 'avatarUrl' => null, 'avatarAnimatedUrl' => null, 'avatarFraming' => null, 'nameStyle' => null],
         ]);
 
         $definitions = self::createStub(AchievementDefinitionRepositoryInterface::class);

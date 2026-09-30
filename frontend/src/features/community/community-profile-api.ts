@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import { isImageFraming, type ImageFraming } from "@/features/community/image-framing";
+import { isNameStyle, type NameStyle } from "@/features/community/holo-name";
 
 export type EditableSocialLink = { label: string; url: string };
 
@@ -42,6 +43,9 @@ export type MyCommunityProfile = {
   hasCustomAvatar: boolean;
   // Story 30.40: an admin may upload a GIF avatar.
   avatarGifAllowed: boolean;
+  // Story 30.44: the owner's switch for the holographic name, and the style their status gives (null = none).
+  holoName: boolean;
+  holoNameStyle: NameStyle | null;
   socialLinks: EditableSocialLink[];
   favoriteGames: EditableFavoriteGame[];
   audience: string;
@@ -57,6 +61,7 @@ export type UpdateCommunityProfileInput = {
   bannerOverlay: number;
   avatarFraming: ImageFraming;
   bannerFraming: ImageFraming;
+  holoName: boolean;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -82,6 +87,9 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
   if (!hasNullableStringProp(v, "avatarUrl") || !hasBooleanProp(v, "hasCustomAvatar")) return false;
   if (!hasNullableStringProp(v, "bannerImageUrl") || !hasNullableStringProp(v, "bannerImageStillUrl")) return false;
   if (!hasBooleanProp(v, "hasCustomBanner") || !hasBooleanProp(v, "avatarGifAllowed")) return false;
+  if (!hasBooleanProp(v, "holoName") || !("holoNameStyle" in v) || (v.holoNameStyle !== null && !isNameStyle(v.holoNameStyle))) {
+    return false;
+  }
   if (!hasNumberProp(v, "bannerOverlay")) return false;
   if (!("avatarFraming" in v) || !isImageFraming(v.avatarFraming) || !("bannerFraming" in v) || !isImageFraming(v.bannerFraming)) {
     return false;

@@ -1,6 +1,6 @@
 # Story 30.44: Pseudo holographique, argenté pour les adhérents, doré pour les admins
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 30 - Communauté
 **Date:** 2026-09-30
 
@@ -43,18 +43,18 @@ disparaît quand l'adhésion expire ou que le rôle admin est retiré, et revien
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1, 6) - Règle `NameStyle` (domaine, pure : admin, adhérent, activé -> or / argent / null) ;
+- [x] **Task 1** (AC 1, 6) - Règle `NameStyle` (domaine, pure : admin, adhérent, activé -> or / argent / null) ;
       `nameStyle` sur les cartes (requêtes brutes de l'annuaire et des classements, via la requête groupée des
       adhésions) et recopie partout où une carte est reconstruite (mêmes endroits que `avatarAnimatedUrl`) ;
       profil public et édition ; tests unitaires et fonctionnels (admin, adhérent, adhésion expirée, rôle retiré,
       désactivé).
-- [ ] **Task 2** (AC 2) - Colonne `holo_name` (booléen, défaut vrai) + migration,
+- [x] **Task 2** (AC 2) - Colonne `holo_name` (booléen, défaut vrai) + migration,
       `CommunityProfile::toggleHoloName()` (pas de `set*`), validation dans la mise à jour du profil ; tests.
-- [ ] **Task 3** (AC 3, 4, 5) - Front : composant `HoloName` (texte en `background-clip: text`, dégradé
+- [x] **Task 3** (AC 3, 4, 5) - Front : composant `HoloName` (texte en `background-clip: text`, dégradé
       métallique or / argent, reflet animé ; mode « au survol » pour les cartes ; repli et reduced-motion) ;
       branché sur la page de profil et sur les cartes ; tests.
-- [ ] **Task 4** (AC 2) - Case « Pseudo holographique » dans la personnalisation, avec aperçu.
-- [ ] **Task 5** (AC 7) - Gates et vérification visuelle (clair / sombre, or / argent, survol, reduced-motion).
+- [x] **Task 4** (AC 2) - Case « Pseudo holographique » dans la personnalisation, avec aperçu.
+- [x] **Task 5** (AC 7) - Gates et vérification visuelle (clair / sombre, or / argent, survol, reduced-motion).
 
 ## Notes techniques
 
@@ -64,3 +64,38 @@ disparaît quand l'adhésion expire ou que le rôle admin est retiré, et revien
 - Les cartes du front qui reçoivent `avatarAnimatedUrl` (30.42) reçoivent `nameStyle` au même endroit ; le
   composant `HoloName` remplace le texte brut du pseudo.
 - Rien à voir avec les badges « Adhérent » / « Admin » existants du profil, qui restent.
+
+## Dev Agent Record
+
+### TDD
+
+| Test | Rouge avant | Vert après |
+|------|-------------|------------|
+| `NameStyleTest` (or admin, argent adhérent, rien, désactivé) | enum absente | `NameStyle::for` |
+| `CommunityHoloNameTest` (adhérent, admin, ni l'un ni l'autre, adhésion expirée, désactivation + absent = inchangé, refus) | 4 échecs + champs absents | colonne, `toggleHoloName`, `NameStyleResolver`, exposition |
+| `holo-name.test.tsx` (nom brut, or / argent, survol, lecture) | écrit avec le composant | `HoloName` |
+
+### Notes
+
+- API : enum `NameStyle` (domaine, pure), `NameStyleResolver` (Application, une requête groupée
+  `activeMemberIds` par liste) branché dans les requêtes brutes de l'annuaire et des classements ; `nameStyle`
+  recopié partout où une carte est reconstruite. Profil public : `nameStyle` (badges déjà calculés). Édition :
+  `holoName` et `holoNameStyle` (le style que donne le statut, pour l'aperçu). Colonne `holo_name` (migration
+  `Version20260930200000`), `CommunityProfile::toggleHoloName()`, `holoName` dans la mise à jour (absent =
+  inchangé, non booléen = 422).
+- Front : `HoloName` + module CSS (dégradé métallique avec une bande irisée qui balaie le texte,
+  `background-clip: text` sous `@supports`, couleur pleine en repli, ombre en `drop-shadow` car un
+  `text-shadow` recouvrirait le dégradé ; figé sous reduced-motion ; sur les cartes, animé au survol du lien de
+  la carte ou du nom). Branché sur la page de profil (toujours animé), les cartes membres, la communauté, les
+  amis, les commentaires, les classements, les participants des parties privées. Case « Pseudo holographique »
+  avec aperçu dans la section Identité, visible seulement si le statut donne un style.
+- Le site n'a qu'un thème sombre (`color-scheme: dark`) : l'AC « clair et sombre » se réduit au sombre.
+
+### Gates
+
+- `composer gates` : OK (2550 tests, 15149 assertions).
+- `pnpm gates` : typecheck, lint (0 erreur), 671 tests, build OK.
+
+### Vérification visuelle
+
+À faire sur le serveur de dev (migration `Version20260930200000` à appliquer).

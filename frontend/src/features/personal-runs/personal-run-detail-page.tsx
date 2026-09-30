@@ -45,6 +45,7 @@ import { showsRunStatusLine, showsSettingsDelete } from "./run-overview-visibili
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 import { AvatarImage } from "../community/avatar-image";
 import type { ImageFraming } from "@/features/community/image-framing";
+import { HoloName } from "@/features/community/holo-name";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -145,10 +146,16 @@ function ParticipantList({ runId, participants }: { runId: string; participants:
                   className="block truncate text-sm font-medium text-foreground transition-colors hover:text-accent-text hover:underline"
                   href={`/joueurs/${p.slug}`}
                 >
-                  {name}
+                  <HoloName onHover style={p.nameStyle}>
+                    {name}
+                  </HoloName>
                 </Link>
               ) : (
-                <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                <p className="truncate text-sm font-medium text-foreground">
+                  <HoloName onHover style={p.nameStyle}>
+                    {name}
+                  </HoloName>
+                </p>
               )}
               <PlayerBadges
                 className="mt-1"

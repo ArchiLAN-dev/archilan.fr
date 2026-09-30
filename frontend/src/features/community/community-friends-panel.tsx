@@ -15,6 +15,7 @@ import {
   type IncomingRequest,
 } from "./community-friends-api";
 import { AvatarImage } from "./avatar-image";
+import { HoloName } from "@/features/community/holo-name";
 
 export function CommunityFriendsPanel() {
   const queryClient = useQueryClient();
@@ -129,7 +130,11 @@ function FriendIdentity({ card, link = false }: { card: FriendCard; link?: boole
           name.slice(0, 1).toUpperCase()
         )}
       </span>
-      <span className="min-w-0 truncate text-sm font-medium text-foreground">{name}</span>
+      <span className="min-w-0 truncate text-sm font-medium text-foreground">
+        <HoloName onHover style={card.nameStyle}>
+          {name}
+        </HoloName>
+      </span>
     </span>
   );
 

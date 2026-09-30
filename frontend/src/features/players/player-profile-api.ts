@@ -2,6 +2,7 @@ import { cache } from "react";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import { isImageFraming, type ImageFraming } from "@/features/community/image-framing";
+import { isNameStyle, type NameStyle } from "@/features/community/holo-name";
 
 export type PlayerStats = {
   runsParticipated: number;
@@ -65,6 +66,8 @@ export type PlayerAchievementsCatalogue = {
   avatarAnimatedUrl?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
+  // Story 30.44: gold admin, silver member (null = a plain name).
+  nameStyle?: NameStyle | null;
   achievements: CatalogueAchievement[];
 };
 
@@ -89,6 +92,8 @@ export type PlayerProfile = {
   avatarAnimatedUrl?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
+  // Story 30.44: gold admin, silver member (null = a plain name).
+  nameStyle?: NameStyle | null;
   audience: string;
   badges: ProfileBadges;
   level: ProfileLevel;
@@ -268,6 +273,7 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       joinedAt: data.joinedAt,
       avatarUrl: data.avatarUrl ?? null,
       avatarFraming: isImageFraming(data.avatarFraming) ? data.avatarFraming : null,
+      nameStyle: isNameStyle(data.nameStyle) ? data.nameStyle : null,
       audience: typeof data.audience === "string" ? data.audience : "members",
       badges: parseBadges("badges" in data ? data.badges : null),
       level: isProfileLevel(data.level) ? data.level : DEFAULT_LEVEL,

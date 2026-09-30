@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import type { ImageFraming } from "@/features/community/image-framing";
+import type { NameStyle } from "@/features/community/holo-name";
 
 export type DirectorySort = "xp" | "recent";
 
@@ -13,6 +14,8 @@ export type DirectoryRow = {
   avatarAnimatedUrl?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
+  // Story 30.44: gold admin, silver member (null = a plain name).
+  nameStyle?: NameStyle | null;
   level: number;
   xp: number;
   xpIntoLevel: number;

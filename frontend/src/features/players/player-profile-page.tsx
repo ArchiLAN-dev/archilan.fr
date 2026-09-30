@@ -16,6 +16,7 @@ import { ProfileComments } from "@/features/community/profile-comments";
 import { ProfileBanner } from "@/features/community/profile-banner";
 import { resolveLinkType } from "@/features/community/social-links";
 import { Markdown } from "@/components/markdown/markdown";
+import { HoloName } from "@/features/community/holo-name";
 
 export function PlayerProfilePage({
   profile,
@@ -50,7 +51,7 @@ export function PlayerProfilePage({
             <div className="-mt-12 flex items-center gap-4 sm:-mt-14">
               <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} framing={profile.avatarFraming} name={displayName} />
               <h1 className="min-w-0 font-heading text-2xl font-bold leading-tight text-foreground [overflow-wrap:anywhere] [text-shadow:0_2px_6px_rgba(0,0,0,0.7)] sm:text-3xl md:text-4xl">
-                {displayName}
+                <HoloName style={profile.nameStyle}>{displayName}</HoloName>
               </h1>
             </div>
             <div className="-mt-6 flex flex-wrap items-center gap-2 pl-28 sm:-mt-8 sm:pl-32">
