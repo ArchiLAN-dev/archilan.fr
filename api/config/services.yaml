@@ -330,6 +330,8 @@ services:
     App\Community\Application\Port\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\Adapter\IdentityMemberModerationGateway'
     # Story 39.1: each member's moderation case, and its post in the staff forum on Discord.
     App\Community\Domain\Repository\ModerationCaseRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineModerationCaseRepository'
+    # Story 30.40: first frame of a GIF avatar or banner.
+    App\Community\Application\Port\ImageStillExtractor: '@App\Community\Infrastructure\Adapter\GdImageStillExtractor'
     # Story 40.2: browser pushes.
     App\Community\Domain\Repository\PushSubscriptionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrinePushSubscriptionRepository'
     App\Community\Application\Port\WebPushSender: '@App\Community\Infrastructure\Adapter\MinishlinkWebPushSender'

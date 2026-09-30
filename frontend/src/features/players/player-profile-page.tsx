@@ -33,7 +33,12 @@ export function PlayerProfilePage({
     // and on a phone the name alone made the card clip its stat tiles.
     <article className="mx-auto grid w-full max-w-content grid-cols-1 gap-12">
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <ProfileBanner className="h-28 sm:h-36" presetKey={profile.customization?.bannerPreset ?? "default"} />
+        <ProfileBanner
+          className="h-28 sm:h-36"
+          imageStillUrl={profile.customization?.bannerImageStillUrl ?? null}
+          imageUrl={profile.customization?.bannerImageUrl ?? null}
+          presetKey={profile.customization?.bannerPreset ?? "default"}
+        />
 
         {/* z-10 keeps the overlapping content above the positioned banner. */}
         <div className="relative z-10 grid grid-cols-1 gap-5 px-5 pb-6 sm:px-8">
