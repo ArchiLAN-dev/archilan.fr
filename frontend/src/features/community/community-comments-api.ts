@@ -2,7 +2,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
 
-export type CommentAuthor = { slug: string; displayName: string | null; avatarUrl: string | null };
+export type CommentAuthor = { slug: string; displayName: string | null; avatarUrl: string | null; avatarAnimatedUrl?: string | null };
 
 export type ProfileComment = {
   id: string;

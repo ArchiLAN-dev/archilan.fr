@@ -187,7 +187,7 @@ final readonly class CommunityProfileView
         return [
             'slug' => $model['slug'],
             'displayName' => $profile?->getDisplayName() ?? $model['displayName'],
-            'avatarUrl' => $this->avatarUrl($profile, $model['isAdmin']),
+            ...$this->cardAvatar($profile, $model['isAdmin']),
             'achievements' => $withRarity,
         ];
     }
@@ -253,7 +253,7 @@ final readonly class CommunityProfileView
      *
      * Story 30.40: the images are those the owner's status allows, and the upload rights say what they may send.
      *
-     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, avatarUrl: string|null, hasCustomAvatar: bool, avatarGifAllowed: bool, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, hasCustomAvatar: bool, avatarGifAllowed: bool, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId, bool $isAdmin): array
     {
@@ -272,7 +272,7 @@ final readonly class CommunityProfileView
             'hasCustomBanner' => null !== $banner['bannerImageUrl'],
             'bannerUpload' => ['image' => $isAdmin || $isMember, 'gif' => $isAdmin],
             'avatarFrame' => $profile?->getAvatarFrame(),
-            'avatarUrl' => $this->avatarUrl($profile, $isAdmin),
+            ...$this->cardAvatar($profile, $isAdmin),
             'hasCustomAvatar' => null !== $profile?->getCustomAvatarKey(),
             'avatarGifAllowed' => $isAdmin,
             'socialLinks' => $profile?->getSocialLinks() ?? [],
@@ -371,5 +371,15 @@ final readonly class CommunityProfileView
             'bannerImageUrl' => null !== $key ? $this->avatarUrls->resolve($key, null) : null,
             'bannerImageStillUrl' => $moving ? $this->avatarUrls->resolve($stillKey, null) : null,
         ];
+    }
+
+    /**
+     * Story 30.42: off the profile page the avatar is still, with an admin's GIF to animate on hover.
+     *
+     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null}
+     */
+    private function cardAvatar(?CommunityProfile $profile, bool $isAdmin): array
+    {
+        return $this->avatarUrls->forCard($profile?->getCustomAvatarKey(), $profile?->getCustomAvatarStillKey(), $isAdmin, $profile?->getAvatarUrl());
     }
 }

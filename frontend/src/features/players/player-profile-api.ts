@@ -58,6 +58,8 @@ export type PlayerAchievementsCatalogue = {
   slug: string;
   displayName: string | null;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
   achievements: CatalogueAchievement[];
 };
 
@@ -78,6 +80,8 @@ export type PlayerProfile = {
   displayName: string | null;
   joinedAt: string;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
   audience: string;
   badges: ProfileBadges;
   level: ProfileLevel;

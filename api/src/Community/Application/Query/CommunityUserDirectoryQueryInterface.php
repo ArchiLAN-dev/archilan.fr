@@ -13,7 +13,7 @@ interface CommunityUserDirectoryQueryInterface
      *
      * @param list<string> $userIds
      *
-     * @return array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null}> keyed by userId
+     * @return array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null}> keyed by userId
      */
     public function cards(array $userIds): array;
 

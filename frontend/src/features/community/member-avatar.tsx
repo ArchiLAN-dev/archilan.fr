@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { AvatarImage } from "./avatar-image";
 
 type Props = {
   avatarUrl: string | null;
+  /** Story 30.42: an admin's GIF, animated on hover. */
+  animatedUrl?: string | null;
   name: string;
   /** Tailwind size class, e.g. "size-10". */
   size?: string;
@@ -13,16 +16,14 @@ type Props = {
  * A member's avatar with the project-wide fallback: a snapshotted Discord/Steam URL can 404 later, so a
  * load error degrades to the initial rather than a broken image.
  */
-export function MemberAvatar({ avatarUrl, name, size = "size-10" }: Props) {
+export function MemberAvatar({ avatarUrl, animatedUrl = null, name, size = "size-10" }: Props) {
   const [failed, setFailed] = useState(false);
   const initial = name.slice(0, 1).toUpperCase();
 
   if (avatarUrl !== null && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- external Discord/Steam CDN URL, not a local asset
-      <img
-        alt=""
-        aria-hidden="true"
+      <AvatarImage
+        animatedSrc={animatedUrl}
         className={`${size} shrink-0 rounded-full bg-surface object-cover`}
         onError={() => setFailed(true)}
         src={avatarUrl}

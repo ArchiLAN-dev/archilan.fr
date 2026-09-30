@@ -11,21 +11,20 @@ import { fetchParticipantGameSelection, fetchPersonalRun } from "./personal-runs
 import type { ParticipantGameSlot, ParticipantLevel, ParticipantStats } from "./types";
 import { PersonalRunYamlViewerDialog } from "./personal-run-yaml-viewer-dialog";
 import { SlotCoPlayers, type CoPlayerCandidate } from "./slot-co-players";
+import { AvatarImage } from "../community/avatar-image";
 
 const availabilityConfig: Record<string, { label: string; className: string }> = {
   available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
   experimental: { label: "Expérimental", className: "border-warning/50 bg-warning/10 text-warning" },
 };
 
-function Avatar({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {
+function Avatar({ avatarUrl, animatedUrl = null, name }: { avatarUrl: string | null; animatedUrl?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
 
   if (avatarUrl !== null && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- remote/presigned avatar URL, not a local asset
-      <img
-        alt=""
-        aria-hidden="true"
+      <AvatarImage
+        animatedSrc={animatedUrl}
         className="size-16 shrink-0 rounded-full bg-background object-cover"
         onError={() => setFailed(true)}
         src={avatarUrl}
@@ -176,7 +175,7 @@ export function PersonalRunParticipantDetailPage({
       {/* ── Player header ── */}
       <header className="grid gap-4 rounded-lg border border-border bg-surface p-5">
         <div className="flex items-center gap-4">
-          <Avatar avatarUrl={participant.avatarUrl} name={name} />
+          <Avatar animatedUrl={participant.avatarAnimatedUrl} avatarUrl={participant.avatarUrl} name={name} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               {participant.slug !== null ? (

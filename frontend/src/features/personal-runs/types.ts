@@ -17,6 +17,8 @@ export type PersonalRunParticipant = {
   slug: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
   joinedAt: string;
   slotCount: number;
   // Status badges, coherent with the player profile (story 30.37): live membership, admin, level,
@@ -46,6 +48,8 @@ export type ParticipantIdentity = {
   slug: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
   isAdmin: boolean;
   level: ParticipantLevel;
   stats: ParticipantStats;
@@ -57,6 +61,8 @@ export type SlotCoPlayer = {
   displayName: string;
   slug: string | null;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
 };
 
 export type ParticipantGameSlot = {

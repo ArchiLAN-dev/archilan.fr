@@ -16,6 +16,7 @@ import {
   reportComment,
   type ProfileComment,
 } from "./community-comments-api";
+import { AvatarImage } from "./avatar-image";
 
 export function ProfileComments({ slug }: { slug: string }) {
   const { user } = useAuth();
@@ -108,8 +109,7 @@ export function ProfileComments({ slug }: { slug: string }) {
                 className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/15 text-sm font-bold text-accent-text"
               >
                 {comment.author?.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- external avatar
-                  <img alt="" className="size-full object-cover" src={comment.author.avatarUrl} />
+                  <AvatarImage animatedSrc={comment.author.avatarAnimatedUrl} className="size-full object-cover" src={comment.author.avatarUrl} />
                 ) : (
                   (comment.author?.displayName ?? comment.author?.slug ?? "?").slice(0, 1).toUpperCase()
                 )}

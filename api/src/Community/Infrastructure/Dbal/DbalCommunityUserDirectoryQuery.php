@@ -101,9 +101,9 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
                 'userId' => $id,
                 'slug' => $slug,
                 'displayName' => is_string($row['display_name'] ?? null) ? $row['display_name'] : null,
-                // Custom uploaded avatar (presigned) wins over the cached external URL (story 30.27); a GIF shows its
-                // first frame once the account is no longer admin (story 30.40).
-                'avatarUrl' => $this->avatarUrls->resolveForRow(
+                // Custom uploaded avatar (presigned) wins over the cached external URL (story 30.27); a card is still,
+                // an admin's GIF animating on hover only (stories 30.40, 30.42).
+                ...$this->avatarUrls->resolveForRow(
                     $row['custom_avatar_key'] ?? null,
                     $row['custom_avatar_still_key'] ?? null,
                     $row['roles'] ?? null,

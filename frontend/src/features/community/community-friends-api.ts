@@ -18,6 +18,8 @@ export type FriendCard = {
   slug: string;
   displayName: string | null;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
 };
 
 export type IncomingRequest = FriendCard & { friendshipId: string };

@@ -8,6 +8,8 @@ export type DirectoryRow = {
   slug: string;
   displayName: string | null;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
   level: number;
   xp: number;
   xpIntoLevel: number;

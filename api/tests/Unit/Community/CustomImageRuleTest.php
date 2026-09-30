@@ -73,6 +73,22 @@ final class CustomImageRuleTest extends TestCase
         self::assertNull(CustomImageRule::displayedBannerKey(null, null, true, true));
     }
 
+    public function testACardAlwaysShowsAStillAvatar(): void
+    {
+        // Story 30.42: off the profile page, a GIF avatar shows its first frame, whoever owns it.
+        self::assertSame('a.png', CustomImageRule::cardAvatarKey('a.gif', 'a.png'));
+        self::assertSame('a.webp', CustomImageRule::cardAvatarKey('a.webp', null));
+        self::assertNull(CustomImageRule::cardAvatarKey(null, null));
+    }
+
+    public function testOnlyAnAdminGifHasAnAnimatedVersionForTheHover(): void
+    {
+        self::assertSame('a.gif', CustomImageRule::animatedAvatarKey('a.gif', 'a.png', true));
+        self::assertNull(CustomImageRule::animatedAvatarKey('a.gif', 'a.png', false));
+        self::assertNull(CustomImageRule::animatedAvatarKey('a.webp', null, true));
+        self::assertNull(CustomImageRule::animatedAvatarKey(null, null, true));
+    }
+
     public function testMaxSizesAreStated(): void
     {
         self::assertSame(5 * self::MB, CustomImageRule::maxBytes(CustomImageSlot::Avatar, ImageFormat::Png));

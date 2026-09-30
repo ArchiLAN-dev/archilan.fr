@@ -32,6 +32,8 @@ export type MyCommunityProfile = {
   avatarFrame: string | null;
   // Resolved avatar URL (custom upload presigned, else external cache); null = render the default.
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
   // Whether the member has uploaded a custom avatar (vs. an external/default one).
   hasCustomAvatar: boolean;
   // Story 30.40: an admin may upload a GIF avatar.

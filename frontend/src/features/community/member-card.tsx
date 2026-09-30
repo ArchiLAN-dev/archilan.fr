@@ -39,7 +39,7 @@ export function MemberCard({ row, rank = null }: Props) {
 
         {/* Positioning context only (no clip) so the "En jeu" badge can overflow the avatar circle. */}
         <span className="relative inline-flex size-10 shrink-0">
-          <MemberAvatar avatarUrl={row.avatarUrl} name={name} />
+          <MemberAvatar animatedUrl={row.avatarAnimatedUrl} avatarUrl={row.avatarUrl} name={name} />
           {row.playing ? (
             <span
               aria-label="En jeu"
