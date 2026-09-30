@@ -27,6 +27,8 @@ export type ProfileCustomization = {
   // Story 30.40: a banner image in place of the preset (null = the preset), and its first frame when it moves.
   bannerImageUrl?: string | null;
   bannerImageStillUrl?: string | null;
+  // Story 30.41: opacity (percent) of the preset laid over the banner image.
+  bannerOverlay?: number;
   avatarFrame: string | null;
   socialLinks: ProfileSocialLink[];
   favoriteGames: ProfileFavoriteGame[];
@@ -157,6 +159,7 @@ function isProfileCustomization(v: unknown): v is ProfileCustomization {
   if (!hasStringProp(v, "bannerPreset")) return false;
   if ("bannerImageUrl" in v && v.bannerImageUrl !== null && typeof v.bannerImageUrl !== "string") return false;
   if ("bannerImageStillUrl" in v && v.bannerImageStillUrl !== null && typeof v.bannerImageStillUrl !== "string") return false;
+  if ("bannerOverlay" in v && typeof v.bannerOverlay !== "number") return false;
   if ("avatarFrame" in v && v.avatarFrame !== null && typeof v.avatarFrame !== "string") return false;
   if (!("socialLinks" in v) || !Array.isArray(v.socialLinks)) return false;
   if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;

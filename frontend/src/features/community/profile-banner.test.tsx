@@ -28,4 +28,18 @@ describe("ProfileBanner", () => {
 
     expect(html).toMatch(/<source[^>]*media="\(prefers-reduced-motion: reduce\)"[^>]*srcSet="https:\/\/m.test\/b-still.png"|<source[^>]*srcSet="https:\/\/m.test\/b-still.png"[^>]*media="\(prefers-reduced-motion: reduce\)"/);
   });
+
+  test("the preset lies over the image at the chosen intensity (story 30.41)", () => {
+    const html = renderToStaticMarkup(<ProfileBanner imageUrl="https://m.test/b.gif" overlay={30} presetKey="neon" />);
+
+    expect(html).toMatch(/<img[^>]*src="https:\/\/m.test\/b.gif"/);
+    // The preset layer, after the image, at 30 % opacity.
+    expect(html.indexOf("<img")).toBeLessThan(html.indexOf("opacity:0.3"));
+  });
+
+  test("at 0 % the image shows alone, no preset layer", () => {
+    const html = renderToStaticMarkup(<ProfileBanner imageUrl="https://m.test/b.gif" overlay={0} presetKey="neon" />);
+
+    expect(html).not.toContain("opacity:");
+  });
 });

@@ -37,6 +37,7 @@ export function PlayerProfilePage({
           className="h-28 sm:h-36"
           imageStillUrl={profile.customization?.bannerImageStillUrl ?? null}
           imageUrl={profile.customization?.bannerImageUrl ?? null}
+          overlay={profile.customization?.bannerOverlay}
           presetKey={profile.customization?.bannerPreset ?? "default"}
         />
 
