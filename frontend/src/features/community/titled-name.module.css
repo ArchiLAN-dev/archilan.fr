@@ -1,5 +1,5 @@
 /*
- * Story 30.44: a titled name - the colours of loot rarity (legendary for an admin, epic for a member). On the
+ * Story 30.44: a titled name - legendary orange for an admin, silver for a member (the epic tier). On the
  * profile page, the title stands large above the name with its emblem and embers rise from the name; on a card, the emblem sits before the name and its glow rises on hover.
  */
 
@@ -10,11 +10,12 @@
   --rarity-spark: #ffb347;
 }
 
+/* A member's tier keeps its rarity name, but wears silver (Jean's choice at the test). */
 .epic {
-  --rarity-light: #e2b6ff;
-  --rarity: #a335ee;
-  --rarity-glow: rgb(163 53 238 / 0.55);
-  --rarity-spark: #d9a6ff;
+  --rarity-light: #f5f8fc;
+  --rarity: #9ea9b9;
+  --rarity-glow: rgb(200 220 245 / 0.45);
+  --rarity-spark: #e6eef8;
 }
 
 /* The name in the rarity colours, a solid colour where the gradient cannot be clipped to the text. */

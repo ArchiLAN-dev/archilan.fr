@@ -606,7 +606,7 @@ export function CommunityProfileCustomizationForm({
             <span className="text-xs text-muted-foreground">
               {titledNameStyle === "legendary"
                 ? "Titre « Administrateur », couleurs légendaires : en grand sur ton profil, avec ta couronne sur tes cartes dans la communauté."
-                : "Titre « Adhérent ArchiLAN », couleurs épiques : en grand sur ton profil, avec ton étoile sur tes cartes dans la communauté."}
+                : "Titre « Adhérent ArchiLAN », en argent : en grand sur ton profil, avec ton étoile sur tes cartes dans la communauté."}
             </span>
           </div>
         ) : null}
