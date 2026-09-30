@@ -1,8 +1,9 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
+import type { ImageFraming } from "@/features/community/image-framing";
 
-export type CommentAuthor = { slug: string; displayName: string | null; avatarUrl: string | null; avatarAnimatedUrl?: string | null };
+export type CommentAuthor = { slug: string; displayName: string | null; avatarUrl: string | null; avatarAnimatedUrl?: string | null; avatarFraming?: ImageFraming | null };
 
 export type ProfileComment = {
   id: string;

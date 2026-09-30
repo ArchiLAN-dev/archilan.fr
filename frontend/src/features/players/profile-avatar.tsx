@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AvatarFrame } from "@/features/community/avatar-frame";
+import { framingStyle, type ImageFraming } from "@/features/community/image-framing";
 
 const SIZE = "size-24 shrink-0 sm:size-28";
 
@@ -14,10 +15,13 @@ export function ProfileAvatar({
   avatarUrl,
   name,
   frame = null,
+  framing = null,
 }: {
   avatarUrl: string | null;
   name: string;
   frame?: string | null;
+  /** Story 30.43: the framing of an uploaded photo (the frame clips the zoom). */
+  framing?: ImageFraming | null;
 }) {
   const [failed, setFailed] = useState(false);
 
@@ -29,6 +33,7 @@ export function ProfileAvatar({
         className="h-full w-full bg-surface object-cover"
         onError={() => setFailed(true)}
         src={avatarUrl}
+        style={framingStyle(framing)}
       />
     ) : (
       <div

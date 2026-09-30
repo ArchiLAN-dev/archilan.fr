@@ -188,7 +188,7 @@ function PlayingCard({ entry }: { entry: PlayingNowEntry }) {
       href={`/joueurs/${entry.slug}`}
     >
       <span className="relative inline-flex size-10 shrink-0">
-        <MemberAvatar animatedUrl={entry.avatarAnimatedUrl} avatarUrl={entry.avatarUrl} name={name} />
+        <MemberAvatar animatedUrl={entry.avatarAnimatedUrl} avatarUrl={entry.avatarUrl} framing={entry.avatarFraming} name={name} />
         <span
           aria-hidden
           className="absolute -bottom-0.5 -right-0.5 size-3 animate-pulse rounded-full border-2 border-surface bg-emerald-400"

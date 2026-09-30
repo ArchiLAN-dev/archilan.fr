@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import type { ImageFraming } from "@/features/community/image-framing";
 
 export type LeaderboardAxis = "goals" | "checks" | "speed";
 
@@ -10,6 +11,8 @@ export type LeaderboardEntry = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.43: the framing of an uploaded avatar (null = centred).
+  avatarFraming?: ImageFraming | null;
   value: number;
   unit: string;
 };

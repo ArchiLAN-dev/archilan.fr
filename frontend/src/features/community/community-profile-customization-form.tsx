@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, ArrowDown, ArrowUp, Check, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, Check, Crop, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -13,6 +13,8 @@ import { AvatarFrame } from "./avatar-frame";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
 import { imageAccept, imageFormatsHint, imageUploadError } from "./custom-image-rules";
+import { ImageFramingDialog, type FramingShape } from "./image-framing-dialog";
+import { CENTRED_FRAMING, type ImageFraming } from "./image-framing";
 import { DEFAULT_BANNER_OVERLAY, ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
 import {
@@ -66,6 +68,8 @@ type FormValues = {
   pronouns: string;
   bannerPreset: string;
   bannerOverlay: number;
+  avatarFraming: ImageFraming;
+  bannerFraming: ImageFraming;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -84,6 +88,8 @@ function serialize(v: FormValues): string {
     pronouns: v.pronouns.trim(),
     bannerPreset: v.bannerPreset,
     bannerOverlay: v.bannerOverlay,
+    avatarFraming: v.avatarFraming,
+    bannerFraming: v.bannerFraming,
     avatarFrame: v.avatarFrame,
     audience: v.audience,
     socialLinks: v.socialLinks
@@ -113,6 +119,10 @@ export function CommunityProfileCustomizationForm({
   // Story 30.41: how strongly the preset lies over the banner image; saved with the profile.
   const [bannerOverlay, setBannerOverlay] = useState<number>(DEFAULT_BANNER_OVERLAY);
   const [avatarFrame, setAvatarFrame] = useState<string | null>(null);
+  // Story 30.43: the framing of the uploaded photo and banner image, saved with the profile; the dialog that sets it.
+  const [avatarFraming, setAvatarFraming] = useState<ImageFraming>(CENTRED_FRAMING);
+  const [bannerFraming, setBannerFraming] = useState<ImageFraming>(CENTRED_FRAMING);
+  const [framingShape, setFramingShape] = useState<FramingShape | null>(null);
   // Avatar upload is applied immediately (not through the save bar), so it lives outside `values`.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasCustomAvatar, setHasCustomAvatar] = useState(false);
@@ -157,8 +167,8 @@ export function CommunityProfileCustomizationForm({
   const loading = loadingProfile || loadingCatalog;
 
   const values: FormValues = useMemo(
-    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFrame, audience, socialLinks, favorites, showcase }),
-    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFrame, audience, socialLinks, favorites, showcase],
+    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, avatarFrame, audience, socialLinks, favorites, showcase }),
+    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, avatarFrame, audience, socialLinks, favorites, showcase],
   );
   const serialized = useMemo(() => serialize(values), [values]);
   const isDirty = baseline !== "" && serialized !== baseline;
@@ -174,6 +184,8 @@ export function CommunityProfileCustomizationForm({
     setPronouns(profile.pronouns ?? "");
     setBannerPreset(profile.bannerPreset);
     setBannerOverlay(profile.bannerOverlay);
+    setAvatarFraming(profile.avatarFraming);
+    setBannerFraming(profile.bannerFraming);
     setAvatarFrame(frame);
     // The editor previews the photo as it moves on the profile page (story 30.42).
     setAvatarUrl(profile.avatarAnimatedUrl ?? profile.avatarUrl);
@@ -193,6 +205,8 @@ export function CommunityProfileCustomizationForm({
         pronouns: profile.pronouns ?? "",
         bannerPreset: profile.bannerPreset,
         bannerOverlay: profile.bannerOverlay,
+        avatarFraming: profile.avatarFraming,
+        bannerFraming: profile.bannerFraming,
         avatarFrame: frame,
         audience: profile.audience,
         socialLinks: profile.socialLinks,
@@ -235,6 +249,8 @@ export function CommunityProfileCustomizationForm({
       pronouns: pronouns.trim() === "" ? null : pronouns.trim(),
       bannerPreset,
       bannerOverlay,
+      avatarFraming,
+      bannerFraming,
       avatarFrame,
       audience,
       socialLinks: socialLinks.filter((l) => l.url.trim() !== "").map((l) => ({ label: l.label, url: l.url })),
@@ -264,13 +280,22 @@ export function CommunityProfileCustomizationForm({
     registerSave?.(handleSave);
   });
 
+  // A new or removed image comes back centred from the API: the draft and the baseline follow, so the form
+  // does not turn dirty for it.
+  function recentre(field: "avatarFraming" | "bannerFraming") {
+    (field === "avatarFraming" ? setAvatarFraming : setBannerFraming)(CENTRED_FRAMING);
+    setBaseline((prev) => (prev === "" ? prev : JSON.stringify({ ...(JSON.parse(prev) as object), [field]: CENTRED_FRAMING })));
+  }
+
   async function handleAvatarPick(file: File) {
     setAvatar({ kind: "saving" });
     const result = await uploadCommunityAvatar(file);
     if (result.ok) {
       setAvatarUrl(result.url);
       setHasCustomAvatar(true);
+      recentre("avatarFraming");
       setAvatar({ kind: "saved" });
+      setFramingShape("avatar");
     } else {
       setAvatar({ kind: "error", message: imageUploadError(result.code) });
     }
@@ -282,7 +307,9 @@ export function CommunityProfileCustomizationForm({
     const result = await uploadCommunityBanner(file);
     if (result.ok) {
       setBannerImageUrl(result.url);
+      recentre("bannerFraming");
       setBannerImage({ kind: "saved" });
+      setFramingShape("banner");
     } else {
       setBannerImage({ kind: "error", message: imageUploadError(result.code) });
     }
@@ -293,6 +320,7 @@ export function CommunityProfileCustomizationForm({
     setBannerImage({ kind: "saving" });
     if (await removeCommunityBanner()) {
       setBannerImageUrl(null);
+      recentre("bannerFraming");
       setBannerImage({ kind: "idle" });
     } else {
       setBannerImage({ kind: "error", message: "Impossible de retirer l'image." });
@@ -305,6 +333,7 @@ export function CommunityProfileCustomizationForm({
     if (result) {
       setAvatarUrl(result.avatarUrl);
       setHasCustomAvatar(false);
+      recentre("avatarFraming");
       setAvatar({ kind: "idle" });
     } else {
       setAvatar({ kind: "error", message: "Impossible de retirer la photo." });
@@ -325,8 +354,22 @@ export function CommunityProfileCustomizationForm({
     return <CommunityLoadingSkeleton rows={5} />;
   }
 
+  const framingImage = framingShape === "avatar" ? (hasCustomAvatar ? avatarUrl : null) : framingShape === "banner" ? bannerImageUrl : null;
+
   return (
     <div className="grid gap-5 pb-2">
+      {framingShape !== null && framingImage !== null ? (
+        <ImageFramingDialog
+          framing={framingShape === "avatar" ? avatarFraming : bannerFraming}
+          imageUrl={framingImage}
+          onConfirm={framingShape === "avatar" ? setAvatarFraming : setBannerFraming}
+          onOpenChange={(open) => {
+            if (!open) setFramingShape(null);
+          }}
+          open
+          shape={framingShape}
+        />
+      ) : null}
       <Section title="Apparence" description="La bannière animée en tête de ton profil.">
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {BANNER_PRESETS.map((preset) => {
@@ -358,7 +401,13 @@ export function CommunityProfileCustomizationForm({
           description={`Ta propre image en tête de profil, sous la bannière choisie ci-dessus. ${imageFormatsHint("banner", bannerUpload.gif)}`}
         >
           <div className="grid gap-3">
-            <ProfileBanner className="h-24 w-full rounded-lg" imageUrl={bannerImageUrl} overlay={bannerOverlay} presetKey={bannerPreset} />
+            <ProfileBanner
+              className="h-24 w-full rounded-lg"
+              framing={bannerFraming}
+              imageUrl={bannerImageUrl}
+              overlay={bannerOverlay}
+              presetKey={bannerPreset}
+            />
             {bannerImageUrl !== null ? (
               <label className="grid gap-1.5 text-sm">
                 <span className="flex items-center justify-between font-medium text-foreground">
@@ -390,6 +439,16 @@ export function CommunityProfileCustomizationForm({
                 {bannerImage.kind === "saving" ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <ImagePlus aria-hidden className="size-4" />}
                 {bannerImageUrl !== null ? "Changer l'image" : "Importer une image"}
               </button>
+              {bannerImageUrl !== null ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
+                  disabled={bannerImage.kind === "saving"}
+                  onClick={() => setFramingShape("banner")}
+                  type="button"
+                >
+                  <Crop aria-hidden className="size-4" /> Recadrer
+                </button>
+              ) : null}
               {bannerImageUrl !== null ? (
                 <button
                   className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-destructive disabled:opacity-50"
@@ -425,7 +484,12 @@ export function CommunityProfileCustomizationForm({
         description={`Importe ta propre image (${imageFormatsHint("avatar", avatarGifAllowed)}) Sans image, un avatar par défaut est généré.`}
       >
         <div className="flex flex-wrap items-center gap-4">
-          <ProfileAvatar avatarUrl={avatarUrl} frame={avatarFrame} name={displayName.trim() || accountName || slug || "?"} />
+          <ProfileAvatar
+            avatarUrl={avatarUrl}
+            frame={avatarFrame}
+            framing={hasCustomAvatar ? avatarFraming : null}
+            name={displayName.trim() || accountName || slug || "?"}
+          />
           <div className="grid gap-2">
             <div className="flex flex-wrap gap-2">
               <button
@@ -437,6 +501,16 @@ export function CommunityProfileCustomizationForm({
                 {avatar.kind === "saving" ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <ImagePlus aria-hidden className="size-4" />}
                 {hasCustomAvatar ? "Changer la photo" : "Importer une photo"}
               </button>
+              {hasCustomAvatar ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
+                  disabled={avatar.kind === "saving"}
+                  onClick={() => setFramingShape("avatar")}
+                  type="button"
+                >
+                  <Crop aria-hidden className="size-4" /> Recadrer
+                </button>
+              ) : null}
               {hasCustomAvatar ? (
                 <button
                   className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-destructive disabled:opacity-50"

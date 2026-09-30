@@ -115,7 +115,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $userRows = $userQb
             // Display the community pseudo (override) falling back to the account name;
             // avatar_url + custom_avatar_key feed the presigned-avatar resolution below.
-            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key')
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($userQb->expr()->in('u.id', $placeholders))
@@ -130,7 +130,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             }
         }
 
-        /** @var list<array{slug: string, displayName: string, avatarUrl: string|null, avatarAnimatedUrl: string|null, sortName: string, value: int}> $entries */
+        /** @var list<array{slug: string, displayName: string, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, sortName: string, value: int}> $entries */
         $entries = [];
         foreach ($totals as $userId => $value) {
             $userRow = $userMap[$userId] ?? null;
@@ -166,6 +166,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
                 'displayName' => $entry['displayName'],
                 'avatarUrl' => $entry['avatarUrl'],
                 'avatarAnimatedUrl' => $entry['avatarAnimatedUrl'],
+                'avatarFraming' => $entry['avatarFraming'],
                 'value' => $entry['value'],
             ];
         }
@@ -178,16 +179,11 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
      *
      * @param array<string, mixed> $userRow
      *
-     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null}
+     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}
      */
     private function resolveAvatar(array $userRow): array
     {
-        return $this->avatarUrls->resolveForRow(
-            $userRow['custom_avatar_key'] ?? null,
-            $userRow['custom_avatar_still_key'] ?? null,
-            $userRow['roles'] ?? null,
-            $userRow['avatar_url'] ?? null,
-        );
+        return $this->avatarUrls->resolveForRow($userRow);
     }
 
     public function computeSpeedPage(?string $eventId, int $limit, int $offset): array
@@ -271,7 +267,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $userRows = $userQb
             // Display the community pseudo (override) falling back to the account name;
             // avatar_url + custom_avatar_key feed the presigned-avatar resolution below.
-            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key')
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($userQb->expr()->in('u.id', $placeholders))
@@ -286,7 +282,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             }
         }
 
-        /** @var list<array{slug: string, displayName: string, avatarUrl: string|null, avatarAnimatedUrl: string|null, sortName: string, value: int}> $entries */
+        /** @var list<array{slug: string, displayName: string, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, sortName: string, value: int}> $entries */
         $entries = [];
         foreach ($scores as $userId => $value) {
             $userRow = $userMap[$userId] ?? null;
@@ -323,6 +319,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
                 'displayName' => $entry['displayName'],
                 'avatarUrl' => $entry['avatarUrl'],
                 'avatarAnimatedUrl' => $entry['avatarAnimatedUrl'],
+                'avatarFraming' => $entry['avatarFraming'],
                 'value' => $entry['value'],
             ];
         }

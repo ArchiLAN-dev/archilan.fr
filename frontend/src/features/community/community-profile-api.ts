@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { isImageFraming, type ImageFraming } from "@/features/community/image-framing";
 
 export type EditableSocialLink = { label: string; url: string };
 
@@ -27,6 +28,7 @@ export type MyCommunityProfile = {
   bannerImageStillUrl: string | null;
   // Story 30.41: opacity (percent) of the preset laid over the banner image.
   bannerOverlay: number;
+  bannerFraming: ImageFraming;
   hasCustomBanner: boolean;
   bannerUpload: { image: boolean; gif: boolean };
   avatarFrame: string | null;
@@ -34,6 +36,8 @@ export type MyCommunityProfile = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.43: the framing of the uploaded avatar and banner image (centred by default).
+  avatarFraming: ImageFraming;
   // Whether the member has uploaded a custom avatar (vs. an external/default one).
   hasCustomAvatar: boolean;
   // Story 30.40: an admin may upload a GIF avatar.
@@ -51,6 +55,8 @@ export type UpdateCommunityProfileInput = {
   pronouns: string | null;
   bannerPreset: string;
   bannerOverlay: number;
+  avatarFraming: ImageFraming;
+  bannerFraming: ImageFraming;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -77,6 +83,9 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
   if (!hasNullableStringProp(v, "bannerImageUrl") || !hasNullableStringProp(v, "bannerImageStillUrl")) return false;
   if (!hasBooleanProp(v, "hasCustomBanner") || !hasBooleanProp(v, "avatarGifAllowed")) return false;
   if (!hasNumberProp(v, "bannerOverlay")) return false;
+  if (!("avatarFraming" in v) || !isImageFraming(v.avatarFraming) || !("bannerFraming" in v) || !isImageFraming(v.bannerFraming)) {
+    return false;
+  }
   if (!("bannerUpload" in v) || typeof v.bannerUpload !== "object" || v.bannerUpload === null) return false;
   if (!hasBooleanProp(v.bannerUpload, "image") || !hasBooleanProp(v.bannerUpload, "gif")) return false;
   if ("avatarFrame" in v && v.avatarFrame !== null && typeof v.avatarFrame !== "string") return false;

@@ -26,4 +26,18 @@ describe("AvatarImage", () => {
     expect(html).toMatch(/<img[^>]*src="still.png"/);
     expect(html).toContain('class="size-10"');
   });
+
+  test("story 30.43: positions the image on the member's point", () => {
+    const html = renderToStaticMarkup(<AvatarImage className="size-10" framing={{ x: 20, y: 70, zoom: 100 }} src="p.png" />);
+
+    expect(html).toMatch(/(^|>)<img[^>]*class="size-10"/);
+    expect(html).toContain("object-position:20% 70%");
+  });
+
+  test("story 30.43: a zoom clips the image in a box that takes the classes", () => {
+    const html = renderToStaticMarkup(<AvatarImage className="size-10 rounded-full" framing={{ x: 20, y: 70, zoom: 150 }} src="p.png" />);
+
+    expect(html).toMatch(/<span class="size-10 rounded-full block overflow-hidden"><img[^>]*class="size-full object-cover"/);
+    expect(html).toContain("transform:scale(1.5)");
+  });
 });
