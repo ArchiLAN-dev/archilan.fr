@@ -30,8 +30,8 @@ function Emblem({ style }: { style: NameStyle }) {
  * A member's name with the title their status gives (story 30.44), in the colours of loot rarity: legendary
  * (orange) for an admin, epic (violet) for a member.
  *
- * - `profile`: the title stands large above the name with its emblem, embers rise from the name and a bar of
- *   light runs under it. The title is hidden from screen readers: the profile badges already say it.
+ * - `profile`: the title stands large above the name with its emblem and embers rise from the name. The title
+ *   is hidden from screen readers: the profile badges already say it.
  * - `card`: the emblem before the name, which glows more on hover; the card keeps its height.
  *
  * Without a style, the name is rendered as is.

@@ -18,8 +18,7 @@ comparaison (cinq pistes) la **fusion de deux pistes** :
 
 - **Rareté** : couleurs des objets de jeu, **Légendaire** (orange-or) pour un admin, **Épique** (violet) pour un
   adhérent ; un admin qui est aussi adhérent est légendaire ;
-- **Plaque de titre** : le titre écrit **en grand au-dessus du pseudo** avec son emblème (couronne / étoile),
-  une barre de lumière qui court sous le pseudo.
+- **Plaque de titre** : le titre écrit **en grand au-dessus du pseudo** avec son emblème (couronne / étoile).
 
 Comme pour les images (30.40), le statut est lu **au moment de l'affichage** : rien n'est enregistré, le titre
 disparaît quand l'adhésion expire ou que le rôle admin est retiré, et revient avec le statut.
@@ -32,13 +31,13 @@ disparaît quand l'adhésion expire ou que le rôle admin est retiré, et revien
    pour un adhérent ou un admin) permet de garder un pseudo normal. Enregistrée avec le profil (`titledName`,
    booléen ; absent = inchangé ; non booléen = 422 « Valeur invalide. »), aperçu en direct.
 3. **Page de profil** : au-dessus du pseudo, le titre en grand avec son emblème (« ♛ Administrateur »,
-   « ★ Adhérent ArchiLAN ») ; le pseudo dans les couleurs de rareté, des braises qui montent, une barre de lumière
-   qui court dessous.
+   « ★ Adhérent ArchiLAN ») ; le pseudo dans les couleurs de rareté, des braises qui montent (la barre de lumière
+   d'abord prévue dessous a été retirée au test).
 4. **Cartes** : partout où un pseudo de membre est affiché à côté de sa photo (les mêmes surfaces que 30.42),
    l'emblème devant le pseudo, dans les couleurs de rareté ; la lueur monte au survol ; la hauteur des cartes ne
    change pas.
 5. **Lisibilité et accessibilité** : couleur pleine de repli si `background-clip: text` n'est pas pris en charge ;
-   « Réduire les animations » : ni braises ni barre qui court ; le titre est masqué aux lecteurs d'écran (les
+   « Réduire les animations » : pas de braises ; le titre est masqué aux lecteurs d'écran (les
    badges du profil le disent déjà), le pseudo reste du texte.
 6. **Performances** : le statut des cartes d'une liste est résolu en une requête groupée (`activeMemberIds`),
    sans N+1.
@@ -77,13 +76,14 @@ disparaît quand l'adhésion expire ou que le rôle admin est retiré, et revien
   `Version20260930210000` la renomme `titled_name` (pas de retour arrière sur la base de dev).
 - Front : `TitledName` + module CSS. Profil : titre en `max(13px, 0.5em)` au-dessus du pseudo (emblème, lettres
   espacées, lueur), pseudo en dégradé de rareté clippé au texte (ombre en `drop-shadow`, un `text-shadow`
-  recouvrirait le dégradé), six braises animées, barre de lumière. Carte : emblème + pseudo en couleur,
+  recouvrirait le dégradé), six braises animées. Carte : emblème + pseudo en couleur,
   `text-overflow: ellipsis`, lueur renforcée au survol du lien de la carte. Branché sur la page de profil, les
   cartes membres, la communauté, les amis, les commentaires, les classements, les participants des parties
   privées ; case « Pseudo à titre » avec aperçu dans la section Identité.
 - Retour de Jean au test : le titre poussait le pseudo sous la coupure bannière / carte. Le titre est sorti du
   flux (positionné au-dessus du pseudo) : le titre de la page ne garde que la hauteur du pseudo, recentré sur la
   photo comme avant (vérifié sur l'aperçu : centre du pseudo = centre de la photo).
+- Retour de Jean au test : la barre de lumière sous le pseudo est retirée.
 - Historique : pseudo holographique (or / argent, reflet puis quatre couches) écarté au test ; page de
   comparaison de cinq pistes (rareté, plaque de titre, néon, couronné, aura) ; fusion rareté + plaque retenue.
 - Vérification visuelle sur une page d'aperçu reprenant la structure de l'en-tête du profil (bureau et mobile) et

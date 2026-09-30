@@ -1,7 +1,6 @@
 /*
  * Story 30.44: a titled name - the colours of loot rarity (legendary for an admin, epic for a member). On the
- * profile page, the title stands large above the name with its emblem, embers rise from the name and a bar of
- * light runs under it; on a card, the emblem sits before the name and its glow rises on hover.
+ * profile page, the title stands large above the name with its emblem and embers rise from the name; on a card, the emblem sits before the name and its glow rises on hover.
  */
 
 .legendary {
@@ -84,26 +83,6 @@
   max-width: 100%;
 }
 
-/* B's bar of light, in the rarity colour, running under the name. */
-.nameLine::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -0.12em;
-  height: 3px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, transparent, var(--rarity) 20%, #fff 50%, var(--rarity) 80%, transparent) 0 0 / 200% 100%;
-  box-shadow: 0 0 10px var(--rarity-glow);
-  animation: bar 3s linear infinite;
-}
-
-@keyframes bar {
-  to {
-    background-position: -200% 0;
-  }
-}
-
 .embers {
   position: absolute;
   inset: -0.35em -0.1em 0;
@@ -165,11 +144,6 @@
 @media (prefers-reduced-motion: reduce) {
   .embers {
     display: none;
-  }
-
-  .nameLine::after {
-    animation: none;
-    background-position: 50% 0;
   }
 
   .card .name {
