@@ -85,6 +85,9 @@ disparaît quand l'adhésion expire ou que le rôle admin est retiré, et revien
   photo comme avant (vérifié sur l'aperçu : centre du pseudo = centre de la photo).
 - Retour de Jean au test : la barre de lumière sous le pseudo est retirée.
 - Retour de Jean au test : les adhérents passent en argent, puis en platine (le palier garde son nom `epic` dans l'API).
+- Retour de Jean au test : la couronne et l'étoile prennent le même effet que le pseudo (dégradé de rareté et
+  lueur) : la forme masque le dégradé (`mask` + SVG en data URI, sans id à dédoublonner), la lueur est sur
+  l'enveloppe pour ne pas être coupée par le masque.
 - Historique : pseudo holographique (or / argent, reflet puis quatre couches) écarté au test ; page de
   comparaison de cinq pistes (rareté, plaque de titre, néon, couronné, aura) ; fusion rareté + plaque retenue.
 - Vérification visuelle sur une page d'aperçu reprenant la structure de l'en-tête du profil (bureau et mobile) et

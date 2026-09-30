@@ -16,13 +16,9 @@ const TITLES: Record<NameStyle, string> = {
 
 function Emblem({ style }: { style: NameStyle }) {
   return (
-    <svg aria-hidden="true" className={styles.emblem} viewBox="0 0 24 24">
-      {style === "legendary" ? (
-        <path d="M3 18h18l-1.5-10-4.5 4-3-7-3 7-4.5-4z" />
-      ) : (
-        <path d="M12 2l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7L5.8 21l1.6-7L2 9.3l7.1-.7z" />
-      )}
-    </svg>
+    <span aria-hidden="true" className={styles.emblem} data-emblem={style === "legendary" ? "crown" : "star"}>
+      <span className={`${styles.emblemShape} ${style === "legendary" ? styles.crown : styles.star}`} />
+    </span>
   );
 }
 

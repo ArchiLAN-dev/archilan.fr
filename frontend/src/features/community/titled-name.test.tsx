@@ -16,6 +16,7 @@ describe("TitledName", () => {
       </TitledName>,
     );
     expect(admin).toContain('data-name-style="legendary"');
+    expect(admin).toContain('data-emblem="crown"');
     expect(admin).toMatch(/aria-hidden="true"[^>]*>.*Administrateur<\/span>.*>Ada<\/span>/);
 
     const member = renderToStaticMarkup(
@@ -32,7 +33,7 @@ describe("TitledName", () => {
         Bob
       </TitledName>,
     );
-    expect(html).toContain("<svg");
+    expect(html).toContain('data-emblem="star"');
     expect(html).not.toContain("Adhérent");
     expect(html).toMatch(/>Bob<\/span><\/span>$/);
   });
