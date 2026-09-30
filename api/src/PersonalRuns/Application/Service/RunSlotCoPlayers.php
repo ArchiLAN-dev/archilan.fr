@@ -47,7 +47,7 @@ final readonly class RunSlotCoPlayers
      *
      * @param list<string> $userIds
      *
-     * @return array{found: bool, authorized: bool, errors: array<string, list<string>>, coPlayers: list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null}>|null}
+     * @return array{found: bool, authorized: bool, errors: array<string, list<string>>, coPlayers: list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}>|null}
      */
     public function replace(string $runId, string $callerId, string $slotId, array $userIds): array
     {
@@ -127,7 +127,7 @@ final readonly class RunSlotCoPlayers
      *
      * @param list<string> $slotIds
      *
-     * @return array<string, list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null}>>
+     * @return array<string, list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}>>
      */
     public function forSlots(array $slotIds): array
     {
@@ -191,7 +191,7 @@ final readonly class RunSlotCoPlayers
     /**
      * @param list<string> $userIds
      *
-     * @return list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null}>
+     * @return list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}>
      */
     private function identities(array $userIds): array
     {
@@ -203,11 +203,11 @@ final readonly class RunSlotCoPlayers
     }
 
     /**
-     * @param list<string>                                                                                         $userIds
-     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null}> $cards
-     * @param array<string, string>                                                                                $names
+     * @param list<string>                                                                                                                                                                                                       $userIds
+     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}> $cards
+     * @param array<string, string>                                                                                                                                                                                              $names
      *
-     * @return list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null}>
+     * @return list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}>
      */
     private function toIdentities(array $userIds, array $cards, array $names): array
     {
@@ -224,6 +224,9 @@ final readonly class RunSlotCoPlayers
                 'displayName' => null !== $cardName && '' !== $cardName ? $cardName : ($names[$userId] ?? ''),
                 'slug' => '' !== $slug ? $slug : null,
                 'avatarUrl' => $card['avatarUrl'] ?? null,
+                'avatarAnimatedUrl' => $card['avatarAnimatedUrl'] ?? null,
+                'avatarFraming' => $card['avatarFraming'] ?? null,
+                'nameStyle' => $card['nameStyle'] ?? null,
             ];
         }
 
@@ -250,10 +253,10 @@ final readonly class RunSlotCoPlayers
     }
 
     /**
-     * @param array<string, list<string>>                                                                      $errors
-     * @param list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null}>|null $coPlayers
+     * @param array<string, list<string>>                                                                                                                                                                                    $errors
+     * @param list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}>|null $coPlayers
      *
-     * @return array{found: bool, authorized: bool, errors: array<string, list<string>>, coPlayers: list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null}>|null}
+     * @return array{found: bool, authorized: bool, errors: array<string, list<string>>, coPlayers: list<array{userId: string, displayName: string, slug: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}>|null}
      */
     private function result(bool $found = false, bool $authorized = true, array $errors = [], ?array $coPlayers = null): array
     {

@@ -1,8 +1,10 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
+import type { ImageFraming } from "@/features/community/image-framing";
+import type { NameStyle } from "@/features/community/titled-name";
 
-export type CommentAuthor = { slug: string; displayName: string | null; avatarUrl: string | null };
+export type CommentAuthor = { slug: string; displayName: string | null; avatarUrl: string | null; avatarAnimatedUrl?: string | null; avatarFraming?: ImageFraming | null; nameStyle?: NameStyle | null };
 
 export type ProfileComment = {
   id: string;

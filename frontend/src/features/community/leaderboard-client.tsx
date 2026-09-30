@@ -12,6 +12,9 @@ import {
   type LeaderboardAxis,
   type LeaderboardResponse,
 } from "./community-api";
+import { AvatarImage } from "./avatar-image";
+import type { ImageFraming } from "@/features/community/image-framing";
+import { TitledName } from "@/features/community/titled-name";
 
 const TABS: { axis: LeaderboardAxis; label: string }[] = [
   { axis: "goals", label: "Objectifs" },
@@ -125,13 +128,15 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
                   {entry.rank}
                 </span>
 
-                <PlayerAvatar avatarUrl={entry.avatarUrl} displayName={entry.displayName} slug={entry.slug} />
+                <PlayerAvatar animatedUrl={entry.avatarAnimatedUrl} avatarUrl={entry.avatarUrl} displayName={entry.displayName} framing={entry.avatarFraming} slug={entry.slug} />
 
                 <Link
                   className="min-w-0 flex-1 truncate font-semibold text-foreground hover:text-accent transition-colors"
                   href={`/joueurs/${entry.slug}`}
                 >
-                  {entry.displayName || entry.slug}
+                  <TitledName style={entry.nameStyle} variant="card">
+                    {entry.displayName || entry.slug}
+                  </TitledName>
                 </Link>
               </div>
 
@@ -168,10 +173,14 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
 
 function PlayerAvatar({
   avatarUrl,
+  animatedUrl = null,
+  framing = null,
   displayName,
   slug,
 }: {
   avatarUrl: string | null;
+  animatedUrl?: string | null;
+  framing?: ImageFraming | null;
   displayName: string;
   slug: string;
 }) {
@@ -182,11 +191,10 @@ function PlayerAvatar({
   // broken image (mirrors ProfileAvatar).
   if (avatarUrl !== null && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- external Discord/Steam CDN URL, not a local asset
-      <img
-        alt=""
-        aria-hidden="true"
+      <AvatarImage
+        animatedSrc={animatedUrl}
         className="size-9 shrink-0 rounded-full bg-surface object-cover"
+        framing={framing}
         onError={() => setFailed(true)}
         src={avatarUrl}
       />

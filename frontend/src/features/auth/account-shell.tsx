@@ -12,6 +12,8 @@ import { accountRoleLabel } from "./account-role";
 import { AccountNav } from "./account-nav";
 import { EmailVerificationBanner } from "./email-verification-banner";
 import type { Profile } from "./account-profile";
+import { AvatarImage } from "../community/avatar-image";
+import type { ImageFraming } from "@/features/community/image-framing";
 
 /**
  * Shared chrome for every `/compte/*` section: fetches the profile once (header, role, email banner)
@@ -76,7 +78,7 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
             …
           </div>
         ) : (
-          <HeaderAvatar avatarUrl={avatarUrl} initials={getInitials(profile)} />
+          <HeaderAvatar animatedUrl={communityProfile?.avatarAnimatedUrl} avatarUrl={avatarUrl} framing={communityProfile?.avatarFraming} initials={getInitials(profile)} />
         )}
         <div className="min-w-0 flex-1">
           {loading ? (
@@ -111,16 +113,15 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
 
 // ── Helpers (moved from the former AccountTabs) ─────────────────────────────────
 
-function HeaderAvatar({ avatarUrl, initials }: { avatarUrl: string | null; initials: string }) {
+function HeaderAvatar({ avatarUrl, animatedUrl = null, framing = null, initials }: { avatarUrl: string | null; animatedUrl?: string | null; framing?: ImageFraming | null; initials: string }) {
   const [failed, setFailed] = useState(false);
 
   if (avatarUrl !== null && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- external/presigned avatar URL, not a local asset
-      <img
-        alt=""
-        aria-hidden="true"
+      <AvatarImage
+        animatedSrc={animatedUrl}
         className="h-14 w-14 shrink-0 rounded-full bg-surface object-cover"
+        framing={framing}
         onError={() => setFailed(true)}
         src={avatarUrl}
       />

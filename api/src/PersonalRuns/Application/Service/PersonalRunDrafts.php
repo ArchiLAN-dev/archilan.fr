@@ -385,7 +385,7 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}>
+     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}>
      */
     private function getParticipants(string $runId): array
     {
@@ -426,6 +426,9 @@ final readonly class PersonalRunDrafts
                 'displayName' => (null !== $card ? $card['displayName'] : null)
                     ?? $user?->getDisplayName() ?? $user?->getEmail(),
                 'avatarUrl' => null !== $card ? $card['avatarUrl'] : null,
+                'avatarAnimatedUrl' => null !== $card ? $card['avatarAnimatedUrl'] : null,
+                'avatarFraming' => null !== $card ? $card['avatarFraming'] : null,
+                'nameStyle' => null !== $card ? $card['nameStyle'] : null,
                 'joinedAt' => $p->getJoinedAt()->format(\DateTimeInterface::ATOM),
                 'slotCount' => count($p->getGameSlots()),
                 'isMember' => isset($memberIds[$p->getUserId()]),
@@ -437,8 +440,8 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @param list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}> $participants
-     * @param bool                                                                                                                                                                                         $isParticipant l'appelant est-il rattaché à la run sans en être propriétaire (story 16.14)
+     * @param list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}> $participants
+     * @param bool                                                                                                                                                                                                                                                                                                       $isParticipant l'appelant est-il rattaché à la run sans en être propriétaire (story 16.14)
      *
      * @return array<string, mixed>
      */

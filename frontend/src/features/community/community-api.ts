@@ -1,5 +1,7 @@
 import { env } from "@/lib/env";
 import { hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import type { ImageFraming } from "@/features/community/image-framing";
+import type { NameStyle } from "@/features/community/titled-name";
 
 export type LeaderboardAxis = "goals" | "checks" | "speed";
 
@@ -8,6 +10,12 @@ export type LeaderboardEntry = {
   slug: string;
   displayName: string;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
+  // Story 30.43: the framing of an uploaded avatar (null = centred).
+  avatarFraming?: ImageFraming | null;
+  // Story 30.44: legendary admin, epic member (null = a plain name).
+  nameStyle?: NameStyle | null;
   value: number;
   unit: string;
 };

@@ -1,6 +1,8 @@
 import { cache } from "react";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { isImageFraming, type ImageFraming } from "@/features/community/image-framing";
+import { isNameStyle, type NameStyle } from "@/features/community/titled-name";
 
 export type PlayerStats = {
   runsParticipated: number;
@@ -24,6 +26,13 @@ export type ProfileCustomization = {
   tagline: string | null;
   pronouns: string | null;
   bannerPreset: string;
+  // Story 30.40: a banner image in place of the preset (null = the preset), and its first frame when it moves.
+  bannerImageUrl?: string | null;
+  bannerImageStillUrl?: string | null;
+  // Story 30.41: opacity (percent) of the preset laid over the banner image.
+  bannerOverlay?: number;
+  // Story 30.43: the framing of the banner image.
+  bannerFraming?: ImageFraming;
   avatarFrame: string | null;
   socialLinks: ProfileSocialLink[];
   favoriteGames: ProfileFavoriteGame[];
@@ -53,6 +62,12 @@ export type PlayerAchievementsCatalogue = {
   slug: string;
   displayName: string | null;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
+  // Story 30.43: the framing of an uploaded avatar (null = centred).
+  avatarFraming?: ImageFraming | null;
+  // Story 30.44: legendary admin, epic member (null = a plain name).
+  nameStyle?: NameStyle | null;
   achievements: CatalogueAchievement[];
 };
 
@@ -73,6 +88,12 @@ export type PlayerProfile = {
   displayName: string | null;
   joinedAt: string;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
+  // Story 30.43: the framing of an uploaded avatar (null = centred).
+  avatarFraming?: ImageFraming | null;
+  // Story 30.44: legendary admin, epic member (null = a plain name).
+  nameStyle?: NameStyle | null;
   audience: string;
   badges: ProfileBadges;
   level: ProfileLevel;
@@ -152,6 +173,9 @@ function isProfileCustomization(v: unknown): v is ProfileCustomization {
     return false;
   }
   if (!hasStringProp(v, "bannerPreset")) return false;
+  if ("bannerImageUrl" in v && v.bannerImageUrl !== null && typeof v.bannerImageUrl !== "string") return false;
+  if ("bannerImageStillUrl" in v && v.bannerImageStillUrl !== null && typeof v.bannerImageStillUrl !== "string") return false;
+  if ("bannerOverlay" in v && typeof v.bannerOverlay !== "number") return false;
   if ("avatarFrame" in v && v.avatarFrame !== null && typeof v.avatarFrame !== "string") return false;
   if (!("socialLinks" in v) || !Array.isArray(v.socialLinks)) return false;
   if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;
@@ -248,6 +272,8 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       displayName: data.displayName,
       joinedAt: data.joinedAt,
       avatarUrl: data.avatarUrl ?? null,
+      avatarFraming: isImageFraming(data.avatarFraming) ? data.avatarFraming : null,
+      nameStyle: isNameStyle(data.nameStyle) ? data.nameStyle : null,
       audience: typeof data.audience === "string" ? data.audience : "members",
       badges: parseBadges("badges" in data ? data.badges : null),
       level: isProfileLevel(data.level) ? data.level : DEFAULT_LEVEL,
@@ -301,6 +327,8 @@ export const getPlayerAchievements = cache(async (slug: string): Promise<PlayerA
       slug: data.slug,
       displayName: data.displayName,
       avatarUrl: data.avatarUrl ?? null,
+      avatarAnimatedUrl: typeof data.avatarAnimatedUrl === "string" ? data.avatarAnimatedUrl : null,
+      avatarFraming: isImageFraming(data.avatarFraming) ? data.avatarFraming : null,
       achievements: data.achievements,
     };
   } catch {

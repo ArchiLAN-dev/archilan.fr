@@ -67,6 +67,9 @@ final readonly class ProfileCommentService
                     'slug' => $card['slug'],
                     'displayName' => $card['displayName'],
                     'avatarUrl' => $card['avatarUrl'],
+                    'avatarAnimatedUrl' => $card['avatarAnimatedUrl'],
+                    'avatarFraming' => $card['avatarFraming'],
+                    'nameStyle' => $card['nameStyle'],
                 ],
                 'canDelete' => null !== $viewerId && ($comment->isAuthor($viewerId) || $comment->isOnProfileOf($viewerId)),
             ];

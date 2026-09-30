@@ -43,6 +43,9 @@ import { PlayerBadges } from "@/features/community/player-badges";
 import { RunTitle } from "./run-title";
 import { showsRunStatusLine, showsSettingsDelete } from "./run-overview-visibility";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
+import { AvatarImage } from "../community/avatar-image";
+import type { ImageFraming } from "@/features/community/image-framing";
+import { TitledName } from "@/features/community/titled-name";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -100,16 +103,15 @@ function MyGamesCard({ run, mySlotCount }: { run: PersonalRun; mySlotCount: numb
 
 // ─── Participant list ─────────────────────────────────────────────────────────
 
-function ParticipantAvatar({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {
+function ParticipantAvatar({ avatarUrl, animatedUrl = null, framing = null, name }: { avatarUrl: string | null; animatedUrl?: string | null; framing?: ImageFraming | null; name: string }) {
   const [failed, setFailed] = useState(false);
 
   if (avatarUrl !== null && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- external/presigned avatar URL, not a local asset
-      <img
-        alt=""
-        aria-hidden="true"
+      <AvatarImage
+        animatedSrc={animatedUrl}
         className="size-8 shrink-0 rounded-full bg-surface object-cover"
+        framing={framing}
         onError={() => setFailed(true)}
         src={avatarUrl}
       />
@@ -137,17 +139,23 @@ function ParticipantList({ runId, participants }: { runId: string; participants:
 
         return (
           <li className="flex items-center gap-3" key={p.userId}>
-            <ParticipantAvatar avatarUrl={p.avatarUrl} name={name} />
+            <ParticipantAvatar animatedUrl={p.avatarAnimatedUrl} avatarUrl={p.avatarUrl} framing={p.avatarFraming} name={name} />
             <div className="min-w-0 flex-1">
               {p.slug !== null ? (
                 <Link
                   className="block truncate text-sm font-medium text-foreground transition-colors hover:text-accent-text hover:underline"
                   href={`/joueurs/${p.slug}`}
                 >
-                  {name}
+                  <TitledName style={p.nameStyle} variant="card">
+                    {name}
+                  </TitledName>
                 </Link>
               ) : (
-                <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                <p className="truncate text-sm font-medium text-foreground">
+                  <TitledName style={p.nameStyle} variant="card">
+                    {name}
+                  </TitledName>
+                </p>
               )}
               <PlayerBadges
                 className="mt-1"

@@ -10,6 +10,7 @@ import { MemberAvatar } from "./member-avatar";
 import type { CommunityStats, LeaderboardResponse } from "./community-api";
 import type { CommunityOverview, PlayingNowEntry, RecentAchievement } from "./community-overview-api";
 import type { DirectoryRow } from "./community-directory-api";
+import { TitledName } from "@/features/community/titled-name";
 
 type Props = {
   overview: CommunityOverview | null;
@@ -188,14 +189,18 @@ function PlayingCard({ entry }: { entry: PlayingNowEntry }) {
       href={`/joueurs/${entry.slug}`}
     >
       <span className="relative inline-flex size-10 shrink-0">
-        <MemberAvatar avatarUrl={entry.avatarUrl} name={name} />
+        <MemberAvatar animatedUrl={entry.avatarAnimatedUrl} avatarUrl={entry.avatarUrl} framing={entry.avatarFraming} name={name} />
         <span
           aria-hidden
           className="absolute -bottom-0.5 -right-0.5 size-3 animate-pulse rounded-full border-2 border-surface bg-emerald-400"
         />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{name}</span>
+        <span className="block truncate text-sm font-semibold text-foreground">
+          <TitledName style={entry.nameStyle} variant="card">
+            {name}
+          </TitledName>
+        </span>
         {/* A private run withholds its game server-side; the presence itself stays public. */}
         <span className="block truncate text-xs text-muted-foreground">
           {entry.game !== null ? `joue à ${entry.game}` : "en jeu"}

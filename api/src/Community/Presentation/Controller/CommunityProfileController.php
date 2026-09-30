@@ -37,7 +37,7 @@ final readonly class CommunityProfileController
         return new JsonResponse(['data' => [
             'slug' => $user->getSlug(),
             'accountName' => $user->getDisplayName(),
-            ...$this->profileView->editableForUser($user->getId()),
+            ...$this->profileView->editableForUser($user->getId(), in_array('ROLE_ADMIN', $user->getRoles(), true)),
         ]]);
     }
 
@@ -56,7 +56,7 @@ final readonly class CommunityProfileController
         return new JsonResponse(['data' => [
             'slug' => $user->getSlug(),
             'accountName' => $user->getDisplayName(),
-            ...$this->profileView->editableForUser($user->getId()),
+            ...$this->profileView->editableForUser($user->getId(), in_array('ROLE_ADMIN', $user->getRoles(), true)),
         ]]);
     }
 

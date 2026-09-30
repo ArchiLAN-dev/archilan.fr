@@ -6,6 +6,7 @@ namespace App\Community\Infrastructure\Dbal;
 
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Support\AvatarUrlResolver;
+use App\Community\Application\Support\NameStyleResolver;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
@@ -17,6 +18,7 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
     public function __construct(
         private Connection $connection,
         private AvatarUrlResolver $avatarUrls,
+        private NameStyleResolver $nameStyles,
     ) {
         $this->userTable = $connection->quoteSingleIdentifier('user');
     }
@@ -77,7 +79,7 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
         $rows = $qb
             // Pseudo = community display-name override (else account name); custom_avatar_key feeds the
             // presigned-avatar resolution below.
-            ->select('u.id', 'u.slug', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key')
+            ->select('u.id', 'u.slug', 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.titled_name')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
             ->where($qb->expr()->in('u.id', ':ids'))
@@ -90,6 +92,9 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
             ->executeQuery()
             ->fetchAllAssociative();
 
+        // Story 30.44: legendary admin, epic member - one membership lookup for the whole list.
+        $nameStyles = $this->nameStyles->forRows($rows);
+
         $cards = [];
         foreach ($rows as $row) {
             $id = $row['id'] ?? null;
@@ -101,11 +106,10 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
                 'userId' => $id,
                 'slug' => $slug,
                 'displayName' => is_string($row['display_name'] ?? null) ? $row['display_name'] : null,
-                // Custom uploaded avatar (presigned) wins over the cached external URL (story 30.27).
-                'avatarUrl' => $this->avatarUrls->resolve(
-                    is_string($row['custom_avatar_key'] ?? null) ? $row['custom_avatar_key'] : null,
-                    is_string($row['avatar_url'] ?? null) ? $row['avatar_url'] : null,
-                ),
+                // Custom uploaded avatar (presigned) wins over the cached external URL (story 30.27); a card is still,
+                // an admin's GIF animating on hover only (stories 30.40, 30.42).
+                ...$this->avatarUrls->resolveForRow($row),
+                'nameStyle' => $nameStyles[$id] ?? null,
             ];
         }
 

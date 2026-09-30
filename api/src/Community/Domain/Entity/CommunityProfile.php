@@ -6,7 +6,9 @@ namespace App\Community\Domain\Entity;
 
 use App\Community\Domain\ValueObject\Audience;
 use App\Community\Domain\ValueObject\AvatarFrame;
+use App\Community\Domain\ValueObject\BannerOverlay;
 use App\Community\Domain\ValueObject\BannerPreset;
+use App\Community\Domain\ValueObject\ImageFraming;
 use App\Identity\Domain\Entity\User;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -69,6 +71,37 @@ final class CommunityProfile
          */
         #[ORM\Column(name: 'custom_avatar_key', type: 'string', length: 512, nullable: true)]
         private ?string $customAvatarKey = null,
+        /**
+         * First frame (PNG) of a GIF avatar, extracted at upload (story 30.40): shown instead of the GIF once the
+         * account is no longer admin. Null for a still avatar.
+         */
+        #[ORM\Column(name: 'custom_avatar_still_key', type: 'string', length: 512, nullable: true)]
+        private ?string $customAvatarStillKey = null,
+        /** MinIO object key of an uploaded banner image (story 30.40); null = the banner preset shows. */
+        #[ORM\Column(name: 'custom_banner_key', type: 'string', length: 512, nullable: true)]
+        private ?string $customBannerKey = null,
+        /** First frame (PNG) of a GIF banner, extracted at upload (story 30.40); null for a still image. */
+        #[ORM\Column(name: 'custom_banner_still_key', type: 'string', length: 512, nullable: true)]
+        private ?string $customBannerStillKey = null,
+        /** Opacity (percent) of the banner preset laid over a banner image (story 30.41). */
+        #[ORM\Column(name: 'banner_overlay', type: 'smallint', options: ['default' => BannerOverlay::DEFAULT])]
+        private int $bannerOverlay = BannerOverlay::DEFAULT,
+        /** Framing of the uploaded avatar and banner image (story 30.43): point aimed at (percent) and zoom. */
+        #[ORM\Column(name: 'avatar_framing_x', type: 'smallint', options: ['default' => 50])]
+        private int $avatarFramingX = 50,
+        #[ORM\Column(name: 'avatar_framing_y', type: 'smallint', options: ['default' => 50])]
+        private int $avatarFramingY = 50,
+        #[ORM\Column(name: 'avatar_framing_zoom', type: 'smallint', options: ['default' => ImageFraming::MIN_ZOOM])]
+        private int $avatarFramingZoom = ImageFraming::MIN_ZOOM,
+        #[ORM\Column(name: 'banner_framing_x', type: 'smallint', options: ['default' => 50])]
+        private int $bannerFramingX = 50,
+        #[ORM\Column(name: 'banner_framing_y', type: 'smallint', options: ['default' => 50])]
+        private int $bannerFramingY = 50,
+        #[ORM\Column(name: 'banner_framing_zoom', type: 'smallint', options: ['default' => ImageFraming::MIN_ZOOM])]
+        private int $bannerFramingZoom = ImageFraming::MIN_ZOOM,
+        /** Whether the name shows its title when the status gives one (story 30.44); on by default. */
+        #[ORM\Column(name: 'titled_name', type: 'boolean', options: ['default' => true])]
+        private bool $titledName = true,
     ) {
     }
 
@@ -105,10 +138,11 @@ final class CommunityProfile
     /**
      * Record the member-uploaded avatar key. Uploading overrides the external source (story 30.27).
      */
-    public function uploadCustomAvatar(string $key, \DateTimeImmutable $now): void
+    public function uploadCustomAvatar(string $key, ?string $stillKey, \DateTimeImmutable $now): void
     {
         $this->customAvatarKey = $key;
-        $this->updatedAt = $now;
+        $this->customAvatarStillKey = $stillKey;
+        $this->reframeAvatar(ImageFraming::centred(), $now);
     }
 
     /**
@@ -118,7 +152,96 @@ final class CommunityProfile
     public function removeCustomAvatar(\DateTimeImmutable $now): void
     {
         $this->customAvatarKey = null;
+        $this->customAvatarStillKey = null;
+        $this->reframeAvatar(ImageFraming::centred(), $now);
+    }
+
+    /** First frame of a GIF avatar (story 30.40), or null for a still one. */
+    public function getCustomAvatarStillKey(): ?string
+    {
+        return $this->customAvatarStillKey;
+    }
+
+    /**
+     * Record an uploaded banner image (story 30.40); it replaces the preset while the owner's status allows it.
+     *
+     * @param string|null $stillKey the first frame of a GIF, null for a still image
+     */
+    public function uploadCustomBanner(string $key, ?string $stillKey, \DateTimeImmutable $now): void
+    {
+        $this->customBannerKey = $key;
+        $this->customBannerStillKey = $stillKey;
+        $this->reframeBanner(ImageFraming::centred(), $now);
+    }
+
+    /** Clear the banner image: the banner preset shows again. */
+    public function removeCustomBanner(\DateTimeImmutable $now): void
+    {
+        $this->customBannerKey = null;
+        $this->customBannerStillKey = null;
+        $this->reframeBanner(ImageFraming::centred(), $now);
+    }
+
+    public function getCustomBannerKey(): ?string
+    {
+        return $this->customBannerKey;
+    }
+
+    public function getCustomBannerStillKey(): ?string
+    {
+        return $this->customBannerStillKey;
+    }
+
+    /** Story 30.41: how strongly the preset is laid over the banner image, in percent (0 to 100). */
+    public function adjustBannerOverlay(int $percent, \DateTimeImmutable $now): void
+    {
+        $this->bannerOverlay = max(0, min(100, $percent));
         $this->updatedAt = $now;
+    }
+
+    public function getBannerOverlay(): int
+    {
+        return $this->bannerOverlay;
+    }
+
+    /** Story 30.43: the part of the uploaded avatar shown; a new upload or its removal centres it again. */
+    public function reframeAvatar(ImageFraming $framing, \DateTimeImmutable $now): void
+    {
+        $this->avatarFramingX = $framing->x;
+        $this->avatarFramingY = $framing->y;
+        $this->avatarFramingZoom = $framing->zoom;
+        $this->updatedAt = $now;
+    }
+
+    public function getAvatarFraming(): ImageFraming
+    {
+        return new ImageFraming($this->avatarFramingX, $this->avatarFramingY, $this->avatarFramingZoom);
+    }
+
+    /** Story 30.43: the part of the banner image shown; a new upload or its removal centres it again. */
+    public function reframeBanner(ImageFraming $framing, \DateTimeImmutable $now): void
+    {
+        $this->bannerFramingX = $framing->x;
+        $this->bannerFramingY = $framing->y;
+        $this->bannerFramingZoom = $framing->zoom;
+        $this->updatedAt = $now;
+    }
+
+    public function getBannerFraming(): ImageFraming
+    {
+        return new ImageFraming($this->bannerFramingX, $this->bannerFramingY, $this->bannerFramingZoom);
+    }
+
+    /** Story 30.44: keep a plain name even when the status gives a titled one. */
+    public function toggleTitledName(bool $on, \DateTimeImmutable $now): void
+    {
+        $this->titledName = $on;
+        $this->updatedAt = $now;
+    }
+
+    public function hasTitledName(): bool
+    {
+        return $this->titledName;
     }
 
     /** The member-uploaded avatar object key, or null when none is set. */

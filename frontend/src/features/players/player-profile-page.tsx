@@ -16,6 +16,7 @@ import { ProfileComments } from "@/features/community/profile-comments";
 import { ProfileBanner } from "@/features/community/profile-banner";
 import { resolveLinkType } from "@/features/community/social-links";
 import { Markdown } from "@/components/markdown/markdown";
+import { TitledName } from "@/features/community/titled-name";
 
 export function PlayerProfilePage({
   profile,
@@ -33,7 +34,14 @@ export function PlayerProfilePage({
     // and on a phone the name alone made the card clip its stat tiles.
     <article className="mx-auto grid w-full max-w-content grid-cols-1 gap-12">
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <ProfileBanner className="h-28 sm:h-36" presetKey={profile.customization?.bannerPreset ?? "default"} />
+        <ProfileBanner
+          className="h-40 sm:h-56"
+          framing={profile.customization?.bannerFraming ?? null}
+          imageStillUrl={profile.customization?.bannerImageStillUrl ?? null}
+          imageUrl={profile.customization?.bannerImageUrl ?? null}
+          overlay={profile.customization?.bannerOverlay}
+          presetKey={profile.customization?.bannerPreset ?? "default"}
+        />
 
         {/* z-10 keeps the overlapping content above the positioned banner. */}
         <div className="relative z-10 grid grid-cols-1 gap-5 px-5 pb-6 sm:px-8">
@@ -41,9 +49,11 @@ export function PlayerProfilePage({
               badges sit just below the name and beside the avatar - pulled up so they aren't below the photo. */}
           <div>
             <div className="-mt-12 flex items-center gap-4 sm:-mt-14">
-              <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} name={displayName} />
+              <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} framing={profile.avatarFraming} name={displayName} />
               <h1 className="min-w-0 font-heading text-2xl font-bold leading-tight text-foreground [overflow-wrap:anywhere] [text-shadow:0_2px_6px_rgba(0,0,0,0.7)] sm:text-3xl md:text-4xl">
-                {displayName}
+                <TitledName style={profile.nameStyle} variant="profile">
+                  {displayName}
+                </TitledName>
               </h1>
             </div>
             <div className="-mt-6 flex flex-wrap items-center gap-2 pl-28 sm:-mt-8 sm:pl-32">

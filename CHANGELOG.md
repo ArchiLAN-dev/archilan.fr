@@ -5,6 +5,43 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.25.0] - 2026-10-01
+
+Des profils qui se personnalisent vraiment : image de bannière et photo à soi (GIF pour les admins), cadrées au
+choix, bannière prédéfinie posée par-dessus, et un pseudo à titre pour les admins et les adhérents.
+
+### Ajouté
+
+- **Image de bannière et photo personnalisées** (story 30.40). Les adhérents et les admins importent leur propre
+  image de bannière ; tout membre peut importer sa photo. Le GIF est réservé aux admins (animation uniquement en
+  GIF). Tout se décide à l'affichage selon le statut du moment, sans rien effacer : un GIF se fige sur sa première
+  image quand le compte n'est plus admin, l'image de bannière disparaît pour qui n'est plus ni adhérent ni admin,
+  et tout revient avec le statut.
+- **Bannière prédéfinie superposée à l'image** (story 30.41) : la bannière choisie (dégradé, taches, texture) se
+  pose en transparence sur l'image de bannière, avec un curseur d'intensité de 0 à 100 %.
+- **Cadrage des images** (story 30.43). Une fenêtre de cadrage s'ouvre après l'import (et via « Recadrer ») :
+  on déplace l'image à la souris, au doigt ou au clavier et on zoome, dans la forme finale (rond ou bandeau).
+  Rien n'est découpé, un GIF reste animé ; le cadrage s'applique partout où l'image s'affiche.
+- **Pseudo à titre** (story 30.44). Sur la page de profil, le titre en grand au-dessus du pseudo avec son
+  emblème : « Administrateur » en orange-or légendaire, « Adhérent ArchiLAN » en platine, pseudo aux mêmes
+  couleurs avec des braises. Sur les cartes de la communauté, l'emblème devant le pseudo et une lueur au survol.
+  Lu à l'affichage selon le statut, désactivable dans la personnalisation (« Pseudo à titre »).
+
+### Modifié
+
+- **Photo animée seulement sur le profil** (story 30.42) : ailleurs (annuaire, commentaires, classements,
+  parties privées, menu du compte...), la photo GIF d'un admin montre sa première image et ne s'anime qu'au
+  survol, jamais sous « réduire les animations ».
+- **Bannière de la page de profil plus haute** (160 px sur téléphone, 224 px au-delà).
+
+### Notes de déploiement
+
+- **Migrations** : `Version20260930100000` (images personnalisées), `Version20260930140000` (intensité de la
+  bannière), `Version20260930180000` (cadrage), `Version20260930200000` et `Version20260930210000` (pseudo à
+  titre).
+- **Image `api-web`** reconstruite avec l'extension `gd` (première image des GIF, extraite à l'import).
+- Services inchangés : `archipelago` `v0.16.5`, `orchestrateur` `v0.19.0`, `bridge` `v0.13.0`.
+
 ## [0.24.0] - 2026-09-30
 
 Notification quand on sort d'un BK en partie privée, jusque dans le navigateur même site fermé, et une

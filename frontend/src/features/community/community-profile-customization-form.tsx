@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, ArrowDown, ArrowUp, Check, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, Check, Crop, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -12,17 +12,23 @@ import { AVATAR_FRAME_KEYS, AVATAR_FRAMES, type AvatarFrameCategory } from "./av
 import { AvatarFrame } from "./avatar-frame";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
-import { ProfileBanner } from "./profile-banner";
+import { imageAccept, imageFormatsHint, imageUploadError } from "./custom-image-rules";
+import { ImageFramingDialog, type FramingShape } from "./image-framing-dialog";
+import { TitledName, type NameStyle } from "./titled-name";
+import { CENTRED_FRAMING, type ImageFraming } from "./image-framing";
+import { DEFAULT_BANNER_OVERLAY, ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
 import {
   AUDIENCES,
   DEFAULT_AUDIENCE,
   fetchMyCommunityProfile,
   removeCommunityAvatar,
+  removeCommunityBanner,
   SHOWCASE_WIDGETS,
   SHOWCASE_WIDGET_LABELS,
   updateMyCommunityProfile,
   uploadCommunityAvatar,
+  uploadCommunityBanner,
   type EditableFavoriteGame,
   type EditableSocialLink,
   type MyCommunityProfile,
@@ -62,6 +68,10 @@ type FormValues = {
   tagline: string;
   pronouns: string;
   bannerPreset: string;
+  bannerOverlay: number;
+  avatarFraming: ImageFraming;
+  bannerFraming: ImageFraming;
+  titledName: boolean;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -79,6 +89,10 @@ function serialize(v: FormValues): string {
     tagline: v.tagline.trim(),
     pronouns: v.pronouns.trim(),
     bannerPreset: v.bannerPreset,
+    bannerOverlay: v.bannerOverlay,
+    avatarFraming: v.avatarFraming,
+    bannerFraming: v.bannerFraming,
+    titledName: v.titledName,
     avatarFrame: v.avatarFrame,
     audience: v.audience,
     socialLinks: v.socialLinks
@@ -105,12 +119,27 @@ export function CommunityProfileCustomizationForm({
   const [tagline, setTagline] = useState("");
   const [pronouns, setPronouns] = useState("");
   const [bannerPreset, setBannerPreset] = useState<string>("default");
+  // Story 30.41: how strongly the preset lies over the banner image; saved with the profile.
+  const [bannerOverlay, setBannerOverlay] = useState<number>(DEFAULT_BANNER_OVERLAY);
   const [avatarFrame, setAvatarFrame] = useState<string | null>(null);
+  // Story 30.43: the framing of the uploaded photo and banner image, saved with the profile; the dialog that sets it.
+  const [avatarFraming, setAvatarFraming] = useState<ImageFraming>(CENTRED_FRAMING);
+  const [bannerFraming, setBannerFraming] = useState<ImageFraming>(CENTRED_FRAMING);
+  const [framingShape, setFramingShape] = useState<FramingShape | null>(null);
+  // Story 30.44: the titled name - the owner's switch, and the style their status gives (null = none).
+  const [titledName, setTitledName] = useState(true);
+  const [titledNameStyle, setTitledNameStyle] = useState<NameStyle | null>(null);
   // Avatar upload is applied immediately (not through the save bar), so it lives outside `values`.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasCustomAvatar, setHasCustomAvatar] = useState(false);
   const [avatar, setAvatar] = useState<SaveState>({ kind: "idle" });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  // Story 30.40: GIF avatar for an admin; banner image for members and admins, applied immediately too.
+  const [avatarGifAllowed, setAvatarGifAllowed] = useState(false);
+  const [bannerUpload, setBannerUpload] = useState<{ image: boolean; gif: boolean }>({ image: false, gif: false });
+  const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(null);
+  const [bannerImage, setBannerImage] = useState<SaveState>({ kind: "idle" });
+  const bannerInputRef = useRef<HTMLInputElement | null>(null);
   const [audience, setAudience] = useState<string>(DEFAULT_AUDIENCE);
   const [socialLinks, setSocialLinks] = useState<SocialLinkRowState[]>([]);
   const [favorites, setFavorites] = useState<EditableFavoriteGame[]>([]);
@@ -144,8 +173,8 @@ export function CommunityProfileCustomizationForm({
   const loading = loadingProfile || loadingCatalog;
 
   const values: FormValues = useMemo(
-    () => ({ displayName, bio, tagline, pronouns, bannerPreset, avatarFrame, audience, socialLinks, favorites, showcase }),
-    [displayName, bio, tagline, pronouns, bannerPreset, avatarFrame, audience, socialLinks, favorites, showcase],
+    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, avatarFrame, audience, socialLinks, favorites, showcase }),
+    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, avatarFrame, audience, socialLinks, favorites, showcase],
   );
   const serialized = useMemo(() => serialize(values), [values]);
   const isDirty = baseline !== "" && serialized !== baseline;
@@ -160,9 +189,18 @@ export function CommunityProfileCustomizationForm({
     setTagline(profile.tagline ?? "");
     setPronouns(profile.pronouns ?? "");
     setBannerPreset(profile.bannerPreset);
+    setBannerOverlay(profile.bannerOverlay);
+    setAvatarFraming(profile.avatarFraming);
+    setBannerFraming(profile.bannerFraming);
+    setTitledName(profile.titledName);
+    setTitledNameStyle(profile.titledNameStyle);
     setAvatarFrame(frame);
-    setAvatarUrl(profile.avatarUrl);
+    // The editor previews the photo as it moves on the profile page (story 30.42).
+    setAvatarUrl(profile.avatarAnimatedUrl ?? profile.avatarUrl);
     setHasCustomAvatar(profile.hasCustomAvatar);
+    setAvatarGifAllowed(profile.avatarGifAllowed);
+    setBannerUpload(profile.bannerUpload);
+    setBannerImageUrl(profile.bannerImageUrl);
     setAudience(profile.audience);
     setSocialLinks(profile.socialLinks.map((l) => ({ ...l, rowId: crypto.randomUUID() })));
     setFavorites(profile.favoriteGames);
@@ -174,6 +212,10 @@ export function CommunityProfileCustomizationForm({
         tagline: profile.tagline ?? "",
         pronouns: profile.pronouns ?? "",
         bannerPreset: profile.bannerPreset,
+        bannerOverlay: profile.bannerOverlay,
+        avatarFraming: profile.avatarFraming,
+        bannerFraming: profile.bannerFraming,
+        titledName: profile.titledName,
         avatarFrame: frame,
         audience: profile.audience,
         socialLinks: profile.socialLinks,
@@ -215,6 +257,10 @@ export function CommunityProfileCustomizationForm({
       tagline: tagline.trim() === "" ? null : tagline.trim(),
       pronouns: pronouns.trim() === "" ? null : pronouns.trim(),
       bannerPreset,
+      bannerOverlay,
+      avatarFraming,
+      bannerFraming,
+      titledName,
       avatarFrame,
       audience,
       socialLinks: socialLinks.filter((l) => l.url.trim() !== "").map((l) => ({ label: l.label, url: l.url })),
@@ -244,17 +290,51 @@ export function CommunityProfileCustomizationForm({
     registerSave?.(handleSave);
   });
 
+  // A new or removed image comes back centred from the API: the draft and the baseline follow, so the form
+  // does not turn dirty for it.
+  function recentre(field: "avatarFraming" | "bannerFraming") {
+    (field === "avatarFraming" ? setAvatarFraming : setBannerFraming)(CENTRED_FRAMING);
+    setBaseline((prev) => (prev === "" ? prev : JSON.stringify({ ...(JSON.parse(prev) as object), [field]: CENTRED_FRAMING })));
+  }
+
   async function handleAvatarPick(file: File) {
     setAvatar({ kind: "saving" });
     const result = await uploadCommunityAvatar(file);
-    if (result) {
-      setAvatarUrl(result.avatarUrl);
+    if (result.ok) {
+      setAvatarUrl(result.url);
       setHasCustomAvatar(true);
+      recentre("avatarFraming");
       setAvatar({ kind: "saved" });
+      setFramingShape("avatar");
     } else {
-      setAvatar({ kind: "error", message: "Image refusée (format JPEG/PNG/WebP, 5 Mo max) ou envoi impossible." });
+      setAvatar({ kind: "error", message: imageUploadError(result.code) });
     }
     if (avatarInputRef.current) avatarInputRef.current.value = "";
+  }
+
+  async function handleBannerPick(file: File) {
+    setBannerImage({ kind: "saving" });
+    const result = await uploadCommunityBanner(file);
+    if (result.ok) {
+      setBannerImageUrl(result.url);
+      recentre("bannerFraming");
+      setBannerImage({ kind: "saved" });
+      setFramingShape("banner");
+    } else {
+      setBannerImage({ kind: "error", message: imageUploadError(result.code) });
+    }
+    if (bannerInputRef.current) bannerInputRef.current.value = "";
+  }
+
+  async function handleBannerRemove() {
+    setBannerImage({ kind: "saving" });
+    if (await removeCommunityBanner()) {
+      setBannerImageUrl(null);
+      recentre("bannerFraming");
+      setBannerImage({ kind: "idle" });
+    } else {
+      setBannerImage({ kind: "error", message: "Impossible de retirer l'image." });
+    }
   }
 
   async function handleAvatarRemove() {
@@ -263,6 +343,7 @@ export function CommunityProfileCustomizationForm({
     if (result) {
       setAvatarUrl(result.avatarUrl);
       setHasCustomAvatar(false);
+      recentre("avatarFraming");
       setAvatar({ kind: "idle" });
     } else {
       setAvatar({ kind: "error", message: "Impossible de retirer la photo." });
@@ -283,8 +364,22 @@ export function CommunityProfileCustomizationForm({
     return <CommunityLoadingSkeleton rows={5} />;
   }
 
+  const framingImage = framingShape === "avatar" ? (hasCustomAvatar ? avatarUrl : null) : framingShape === "banner" ? bannerImageUrl : null;
+
   return (
     <div className="grid gap-5 pb-2">
+      {framingShape !== null && framingImage !== null ? (
+        <ImageFramingDialog
+          framing={framingShape === "avatar" ? avatarFraming : bannerFraming}
+          imageUrl={framingImage}
+          onConfirm={framingShape === "avatar" ? setAvatarFraming : setBannerFraming}
+          onOpenChange={(open) => {
+            if (!open) setFramingShape(null);
+          }}
+          open
+          shape={framingShape}
+        />
+      ) : null}
       <Section title="Apparence" description="La bannière animée en tête de ton profil.">
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {BANNER_PRESETS.map((preset) => {
@@ -310,9 +405,101 @@ export function CommunityProfileCustomizationForm({
         </div>
       </Section>
 
-      <Section title="Photo de profil" description="Importe ta propre image (JPEG, PNG ou WebP, 5 Mo max). Sans image, un avatar par défaut est généré.">
+      {bannerUpload.image ? (
+        <Section
+          title="Image de bannière"
+          description={`Ta propre image en tête de profil, sous la bannière choisie ci-dessus. ${imageFormatsHint("banner", bannerUpload.gif)}`}
+        >
+          <div className="grid gap-3">
+            <ProfileBanner
+              className="h-24 w-full rounded-lg"
+              framing={bannerFraming}
+              imageUrl={bannerImageUrl}
+              overlay={bannerOverlay}
+              presetKey={bannerPreset}
+            />
+            {bannerImageUrl !== null ? (
+              <label className="grid gap-1.5 text-sm">
+                <span className="flex items-center justify-between font-medium text-foreground">
+                  Intensité de la bannière
+                  <span className="text-xs font-semibold text-muted-foreground">{bannerOverlay} %</span>
+                </span>
+                <input
+                  aria-describedby="banner-overlay-help"
+                  className="w-full accent-accent"
+                  max={100}
+                  min={0}
+                  onChange={(e) => setBannerOverlay(Number(e.target.value))}
+                  step={5}
+                  type="range"
+                  value={bannerOverlay}
+                />
+                <span className="text-xs text-muted-foreground" id="banner-overlay-help">
+                  La bannière choisie ci-dessus se pose sur ton image : 0 % montre l&apos;image seule, 100 % la recouvre.
+                </span>
+              </label>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
+                disabled={bannerImage.kind === "saving"}
+                onClick={() => bannerInputRef.current?.click()}
+                type="button"
+              >
+                {bannerImage.kind === "saving" ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <ImagePlus aria-hidden className="size-4" />}
+                {bannerImageUrl !== null ? "Changer l'image" : "Importer une image"}
+              </button>
+              {bannerImageUrl !== null ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
+                  disabled={bannerImage.kind === "saving"}
+                  onClick={() => setFramingShape("banner")}
+                  type="button"
+                >
+                  <Crop aria-hidden className="size-4" /> Recadrer
+                </button>
+              ) : null}
+              {bannerImageUrl !== null ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-destructive disabled:opacity-50"
+                  disabled={bannerImage.kind === "saving"}
+                  onClick={() => void handleBannerRemove()}
+                  type="button"
+                >
+                  <Trash2 aria-hidden className="size-4" /> Retirer
+                </button>
+              ) : null}
+            </div>
+            {bannerImage.kind === "error" ? (
+              <span className="flex items-center gap-1.5 text-xs text-destructive">
+                <AlertCircle aria-hidden className="size-3.5" /> {bannerImage.message}
+              </span>
+            ) : null}
+            <input
+              accept={imageAccept(bannerUpload.gif)}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleBannerPick(file);
+              }}
+              ref={bannerInputRef}
+              type="file"
+            />
+          </div>
+        </Section>
+      ) : null}
+
+      <Section
+        title="Photo de profil"
+        description={`Importe ta propre image (${imageFormatsHint("avatar", avatarGifAllowed)}) Sans image, un avatar par défaut est généré.`}
+      >
         <div className="flex flex-wrap items-center gap-4">
-          <ProfileAvatar avatarUrl={avatarUrl} frame={avatarFrame} name={displayName.trim() || accountName || slug || "?"} />
+          <ProfileAvatar
+            avatarUrl={avatarUrl}
+            frame={avatarFrame}
+            framing={hasCustomAvatar ? avatarFraming : null}
+            name={displayName.trim() || accountName || slug || "?"}
+          />
           <div className="grid gap-2">
             <div className="flex flex-wrap gap-2">
               <button
@@ -324,6 +511,16 @@ export function CommunityProfileCustomizationForm({
                 {avatar.kind === "saving" ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <ImagePlus aria-hidden className="size-4" />}
                 {hasCustomAvatar ? "Changer la photo" : "Importer une photo"}
               </button>
+              {hasCustomAvatar ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
+                  disabled={avatar.kind === "saving"}
+                  onClick={() => setFramingShape("avatar")}
+                  type="button"
+                >
+                  <Crop aria-hidden className="size-4" /> Recadrer
+                </button>
+              ) : null}
               {hasCustomAvatar ? (
                 <button
                   className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-destructive disabled:opacity-50"
@@ -341,7 +538,7 @@ export function CommunityProfileCustomizationForm({
               </span>
             ) : null}
             <input
-              accept="image/jpeg,image/png,image/webp"
+              accept={imageAccept(avatarGifAllowed)}
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -391,6 +588,28 @@ export function CommunityProfileCustomizationForm({
             value={displayName}
           />
         </Field>
+        {titledNameStyle !== null ? (
+          <div className="grid gap-2 rounded-lg border border-border bg-surface-2/40 p-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <input
+                checked={titledName}
+                className="size-4 accent-accent"
+                onChange={(e) => setTitledName(e.target.checked)}
+                type="checkbox"
+              />
+              Pseudo à titre
+            </label>
+            {/* Room for the title, which hangs above the name. */}
+            <span className="pt-5 font-heading text-xl font-bold text-foreground">
+              <TitledName style={titledName ? titledNameStyle : null} variant="profile">{displayName.trim() || accountName || slug || "Ton pseudo"}</TitledName>
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {titledNameStyle === "legendary"
+                ? "Titre « Administrateur », couleurs légendaires : en grand sur ton profil, avec ta couronne sur tes cartes dans la communauté."
+                : "Titre « Adhérent ArchiLAN », en platine : en grand sur ton profil, avec ton étoile sur tes cartes dans la communauté."}
+            </span>
+          </div>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Accroche" counter={<CharCount value={tagline} max={MAX_TAGLINE} />}>
             <input

@@ -14,6 +14,8 @@ import {
   type FriendCard,
   type IncomingRequest,
 } from "./community-friends-api";
+import { AvatarImage } from "./avatar-image";
+import { TitledName } from "@/features/community/titled-name";
 
 export function CommunityFriendsPanel() {
   const queryClient = useQueryClient();
@@ -123,13 +125,16 @@ function FriendIdentity({ card, link = false }: { card: FriendCard; link?: boole
         className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/15 text-sm font-bold text-accent-text"
       >
         {card.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- external Discord/Steam avatar
-          <img alt={name} className="size-full object-cover" src={card.avatarUrl} />
+          <AvatarImage animatedSrc={card.avatarAnimatedUrl} className="size-full object-cover" framing={card.avatarFraming} src={card.avatarUrl} />
         ) : (
           name.slice(0, 1).toUpperCase()
         )}
       </span>
-      <span className="min-w-0 truncate text-sm font-medium text-foreground">{name}</span>
+      <span className="min-w-0 truncate text-sm font-medium text-foreground">
+        <TitledName style={card.nameStyle} variant="card">
+          {name}
+        </TitledName>
+      </span>
     </span>
   );
 

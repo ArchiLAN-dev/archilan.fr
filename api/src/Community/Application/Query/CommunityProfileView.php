@@ -9,12 +9,16 @@ use App\Community\Application\Support\AvatarUrlResolver;
 use App\Community\Application\Support\ProfileVisibility;
 use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Entity\Kudos;
+use App\Community\Domain\Enum\NameStyle;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\Repository\KudosRepositoryInterface;
+use App\Community\Domain\Service\CustomImageRule;
 use App\Community\Domain\ValueObject\Audience;
+use App\Community\Domain\ValueObject\BannerOverlay;
 use App\Community\Domain\ValueObject\BannerPreset;
+use App\Community\Domain\ValueObject\ImageFraming;
 use App\Community\Domain\ValueObject\Level;
 use App\Community\Domain\ValueObject\ShowcaseWidget;
 use App\GameSelection\Domain\Entity\Game;
@@ -58,6 +62,8 @@ final readonly class CommunityProfileView
      *     displayName: string|null,
      *     joinedAt: string,
      *     avatarUrl: string|null,
+     *     avatarFraming: array{x: int, y: int, zoom: int}|null,
+     *     nameStyle: string|null,
      *     audience: string,
      *     badges: array{member: bool, admin: bool},
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
@@ -115,6 +121,9 @@ final readonly class CommunityProfileView
                 'tagline' => $profile->getTagline(),
                 'pronouns' => $profile->getPronouns(),
                 'bannerPreset' => $profile->getBannerPreset(),
+                ...$this->bannerImage($profile, $badges['admin'], $badges['member']),
+                'bannerOverlay' => $profile->getBannerOverlay(),
+                'bannerFraming' => $profile->getBannerFraming()->toArray(),
                 'avatarFrame' => $profile->getAvatarFrame(),
                 'socialLinks' => $profile->getSocialLinks(),
                 'favoriteGames' => $this->resolveFavoriteGames($profile->getFavoriteGameIds()),
@@ -127,7 +136,10 @@ final readonly class CommunityProfileView
             // The owner's display-name override wins over the account name; falls back when unset.
             'displayName' => $profile?->getDisplayName() ?? $model['displayName'],
             'joinedAt' => $model['joinedAt'],
-            'avatarUrl' => $this->avatarUrls->resolve($profile?->getCustomAvatarKey(), $profile?->getAvatarUrl()),
+            'avatarUrl' => $this->avatarUrl($profile, $model['isAdmin']),
+            'avatarFraming' => null !== $profile ? AvatarUrlResolver::framing($profile->getCustomAvatarKey(), $profile->getAvatarFraming()) : null,
+            // Story 30.44: legendary admin, epic member, unless the owner turned it off.
+            'nameStyle' => NameStyle::for($badges['admin'], $badges['member'], $profile?->hasTitledName() ?? true)?->value,
             'audience' => $audience,
             'badges' => $badges,
             'stats' => $model['stats'],
@@ -183,7 +195,7 @@ final readonly class CommunityProfileView
         return [
             'slug' => $model['slug'],
             'displayName' => $profile?->getDisplayName() ?? $model['displayName'],
-            'avatarUrl' => $this->avatarUrls->resolve($profile?->getCustomAvatarKey(), $profile?->getAvatarUrl()),
+            ...$this->cardAvatar($profile, $model['isAdmin']),
             'achievements' => $withRarity,
         ];
     }
@@ -247,11 +259,15 @@ final readonly class CommunityProfileView
     /**
      * Raw, always-full customization for the owner's edit form (self only).
      *
-     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, avatarFrame: string|null, avatarUrl: string|null, hasCustomAvatar: bool, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * Story 30.40: the images are those the owner's status allows, and the upload rights say what they may send.
+     *
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, titledName: bool, titledNameStyle: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
-    public function editableForUser(string $userId): array
+    public function editableForUser(string $userId, bool $isAdmin): array
     {
         $profile = $this->ensureProfile($userId);
+        $isMember = $this->memberships->hasActiveMembership($userId);
+        $banner = null !== $profile ? $this->bannerImage($profile, $isAdmin, $isMember) : ['bannerImageUrl' => null, 'bannerImageStillUrl' => null];
 
         return [
             'displayName' => $profile?->getDisplayName(),
@@ -259,9 +275,20 @@ final readonly class CommunityProfileView
             'tagline' => $profile?->getTagline(),
             'pronouns' => $profile?->getPronouns(),
             'bannerPreset' => $profile?->getBannerPreset() ?? BannerPreset::DEFAULT,
+            ...$banner,
+            'bannerOverlay' => $profile?->getBannerOverlay() ?? BannerOverlay::DEFAULT,
+            'bannerFraming' => ($profile?->getBannerFraming() ?? ImageFraming::centred())->toArray(),
+            'hasCustomBanner' => null !== $banner['bannerImageUrl'],
+            'bannerUpload' => ['image' => $isAdmin || $isMember, 'gif' => $isAdmin],
             'avatarFrame' => $profile?->getAvatarFrame(),
-            'avatarUrl' => $this->avatarUrls->resolve($profile?->getCustomAvatarKey(), $profile?->getAvatarUrl()),
+            ...$this->cardAvatar($profile, $isAdmin),
+            // The editor always holds a framing (a card's is null when centred).
+            'avatarFraming' => ($profile?->getAvatarFraming() ?? ImageFraming::centred())->toArray(),
             'hasCustomAvatar' => null !== $profile?->getCustomAvatarKey(),
+            'avatarGifAllowed' => $isAdmin,
+            // Story 30.44: the owner's switch, and the style their status gives (null = nothing to offer).
+            'titledName' => $profile?->hasTitledName() ?? true,
+            'titledNameStyle' => NameStyle::for($isAdmin, $isMember, true)?->value,
             'socialLinks' => $profile?->getSocialLinks() ?? [],
             'favoriteGames' => $this->resolveFavoriteGames($profile?->getFavoriteGameIds() ?? []),
             // The owner's own settings form: with no row yet, show what a first save will actually
@@ -331,5 +358,42 @@ final readonly class CommunityProfileView
         } catch (UniqueConstraintViolationException) {
             return $this->profiles->findByUserId($userId);
         }
+    }
+
+    /** Story 30.40: a GIF avatar freezes on its first frame once the account is no longer admin. */
+    private function avatarUrl(?CommunityProfile $profile, bool $isAdmin): ?string
+    {
+        return $this->avatarUrls->resolve(
+            CustomImageRule::displayedAvatarKey($profile?->getCustomAvatarKey(), $profile?->getCustomAvatarStillKey(), $isAdmin),
+            $profile?->getAvatarUrl(),
+        );
+    }
+
+    /**
+     * Story 30.40: the banner image the owner's status allows (none = the preset shows), and for a moving GIF its
+     * first frame, which a visitor asking for less motion sees instead.
+     *
+     * @return array{bannerImageUrl: string|null, bannerImageStillUrl: string|null}
+     */
+    private function bannerImage(CommunityProfile $profile, bool $isAdmin, bool $isMember): array
+    {
+        $key = CustomImageRule::displayedBannerKey($profile->getCustomBannerKey(), $profile->getCustomBannerStillKey(), $isAdmin, $isMember);
+        $stillKey = $profile->getCustomBannerStillKey();
+        $moving = null !== $key && null !== $stillKey && $key !== $stillKey;
+
+        return [
+            'bannerImageUrl' => null !== $key ? $this->avatarUrls->resolve($key, null) : null,
+            'bannerImageStillUrl' => $moving ? $this->avatarUrls->resolve($stillKey, null) : null,
+        ];
+    }
+
+    /**
+     * Story 30.42: off the profile page the avatar is still, with an admin's GIF to animate on hover.
+     *
+     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}
+     */
+    private function cardAvatar(?CommunityProfile $profile, bool $isAdmin): array
+    {
+        return $this->avatarUrls->forCard($profile?->getCustomAvatarKey(), $profile?->getCustomAvatarStillKey(), $isAdmin, $profile?->getAvatarUrl(), $profile?->getAvatarFraming() ?? ImageFraming::centred());
     }
 }

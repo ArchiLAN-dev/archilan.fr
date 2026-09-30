@@ -11,22 +11,24 @@ import { fetchParticipantGameSelection, fetchPersonalRun } from "./personal-runs
 import type { ParticipantGameSlot, ParticipantLevel, ParticipantStats } from "./types";
 import { PersonalRunYamlViewerDialog } from "./personal-run-yaml-viewer-dialog";
 import { SlotCoPlayers, type CoPlayerCandidate } from "./slot-co-players";
+import { AvatarImage } from "../community/avatar-image";
+import type { ImageFraming } from "@/features/community/image-framing";
+import { TitledName } from "@/features/community/titled-name";
 
 const availabilityConfig: Record<string, { label: string; className: string }> = {
   available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
   experimental: { label: "Expérimental", className: "border-warning/50 bg-warning/10 text-warning" },
 };
 
-function Avatar({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {
+function Avatar({ avatarUrl, animatedUrl = null, framing = null, name }: { avatarUrl: string | null; animatedUrl?: string | null; framing?: ImageFraming | null; name: string }) {
   const [failed, setFailed] = useState(false);
 
   if (avatarUrl !== null && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- remote/presigned avatar URL, not a local asset
-      <img
-        alt=""
-        aria-hidden="true"
+      <AvatarImage
+        animatedSrc={animatedUrl}
         className="size-16 shrink-0 rounded-full bg-background object-cover"
+        framing={framing}
         onError={() => setFailed(true)}
         src={avatarUrl}
       />
@@ -176,7 +178,7 @@ export function PersonalRunParticipantDetailPage({
       {/* ── Player header ── */}
       <header className="grid gap-4 rounded-lg border border-border bg-surface p-5">
         <div className="flex items-center gap-4">
-          <Avatar avatarUrl={participant.avatarUrl} name={name} />
+          <Avatar animatedUrl={participant.avatarAnimatedUrl} avatarUrl={participant.avatarUrl} framing={participant.avatarFraming} name={name} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               {participant.slug !== null ? (
@@ -184,10 +186,16 @@ export function PersonalRunParticipantDetailPage({
                   className="truncate font-heading text-2xl font-bold text-foreground transition-colors hover:text-accent-text"
                   href={`/joueurs/${participant.slug}`}
                 >
-                  {name}
+                  <TitledName style={participant.nameStyle} variant="card">
+                    {name}
+                  </TitledName>
                 </Link>
               ) : (
-                <h1 className="truncate font-heading text-2xl font-bold text-foreground">{name}</h1>
+                <h1 className="truncate font-heading text-2xl font-bold text-foreground">
+                  <TitledName style={participant.nameStyle} variant="card">
+                    {name}
+                  </TitledName>
+                </h1>
               )}
               <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
                 Niv. {participant.level.level}
