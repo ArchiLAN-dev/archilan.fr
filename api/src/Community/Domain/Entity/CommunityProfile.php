@@ -99,9 +99,9 @@ final class CommunityProfile
         private int $bannerFramingY = 50,
         #[ORM\Column(name: 'banner_framing_zoom', type: 'smallint', options: ['default' => ImageFraming::MIN_ZOOM])]
         private int $bannerFramingZoom = ImageFraming::MIN_ZOOM,
-        /** Whether the name shows its holographic look when the status allows it (story 30.44); on by default. */
-        #[ORM\Column(name: 'holo_name', type: 'boolean', options: ['default' => true])]
-        private bool $holoName = true,
+        /** Whether the name shows its title when the status gives one (story 30.44); on by default. */
+        #[ORM\Column(name: 'titled_name', type: 'boolean', options: ['default' => true])]
+        private bool $titledName = true,
     ) {
     }
 
@@ -232,16 +232,16 @@ final class CommunityProfile
         return new ImageFraming($this->bannerFramingX, $this->bannerFramingY, $this->bannerFramingZoom);
     }
 
-    /** Story 30.44: keep a plain name even when the status gives a holographic one. */
-    public function toggleHoloName(bool $on, \DateTimeImmutable $now): void
+    /** Story 30.44: keep a plain name even when the status gives a titled one. */
+    public function toggleTitledName(bool $on, \DateTimeImmutable $now): void
     {
-        $this->holoName = $on;
+        $this->titledName = $on;
         $this->updatedAt = $now;
     }
 
-    public function hasHoloName(): bool
+    public function hasTitledName(): bool
     {
-        return $this->holoName;
+        return $this->titledName;
     }
 
     /** The member-uploaded avatar object key, or null when none is set. */

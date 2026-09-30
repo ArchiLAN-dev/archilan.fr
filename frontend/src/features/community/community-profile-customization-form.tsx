@@ -14,7 +14,7 @@ import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
 import { imageAccept, imageFormatsHint, imageUploadError } from "./custom-image-rules";
 import { ImageFramingDialog, type FramingShape } from "./image-framing-dialog";
-import { HoloName, type NameStyle } from "./holo-name";
+import { TitledName, type NameStyle } from "./titled-name";
 import { CENTRED_FRAMING, type ImageFraming } from "./image-framing";
 import { DEFAULT_BANNER_OVERLAY, ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
@@ -71,7 +71,7 @@ type FormValues = {
   bannerOverlay: number;
   avatarFraming: ImageFraming;
   bannerFraming: ImageFraming;
-  holoName: boolean;
+  titledName: boolean;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -92,7 +92,7 @@ function serialize(v: FormValues): string {
     bannerOverlay: v.bannerOverlay,
     avatarFraming: v.avatarFraming,
     bannerFraming: v.bannerFraming,
-    holoName: v.holoName,
+    titledName: v.titledName,
     avatarFrame: v.avatarFrame,
     audience: v.audience,
     socialLinks: v.socialLinks
@@ -126,9 +126,9 @@ export function CommunityProfileCustomizationForm({
   const [avatarFraming, setAvatarFraming] = useState<ImageFraming>(CENTRED_FRAMING);
   const [bannerFraming, setBannerFraming] = useState<ImageFraming>(CENTRED_FRAMING);
   const [framingShape, setFramingShape] = useState<FramingShape | null>(null);
-  // Story 30.44: the holographic name - the owner's switch, and the style their status gives (null = none).
-  const [holoName, setHoloName] = useState(true);
-  const [holoNameStyle, setHoloNameStyle] = useState<NameStyle | null>(null);
+  // Story 30.44: the titled name - the owner's switch, and the style their status gives (null = none).
+  const [titledName, setTitledName] = useState(true);
+  const [titledNameStyle, setTitledNameStyle] = useState<NameStyle | null>(null);
   // Avatar upload is applied immediately (not through the save bar), so it lives outside `values`.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasCustomAvatar, setHasCustomAvatar] = useState(false);
@@ -173,8 +173,8 @@ export function CommunityProfileCustomizationForm({
   const loading = loadingProfile || loadingCatalog;
 
   const values: FormValues = useMemo(
-    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, holoName, avatarFrame, audience, socialLinks, favorites, showcase }),
-    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, holoName, avatarFrame, audience, socialLinks, favorites, showcase],
+    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, avatarFrame, audience, socialLinks, favorites, showcase }),
+    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, avatarFrame, audience, socialLinks, favorites, showcase],
   );
   const serialized = useMemo(() => serialize(values), [values]);
   const isDirty = baseline !== "" && serialized !== baseline;
@@ -192,8 +192,8 @@ export function CommunityProfileCustomizationForm({
     setBannerOverlay(profile.bannerOverlay);
     setAvatarFraming(profile.avatarFraming);
     setBannerFraming(profile.bannerFraming);
-    setHoloName(profile.holoName);
-    setHoloNameStyle(profile.holoNameStyle);
+    setTitledName(profile.titledName);
+    setTitledNameStyle(profile.titledNameStyle);
     setAvatarFrame(frame);
     // The editor previews the photo as it moves on the profile page (story 30.42).
     setAvatarUrl(profile.avatarAnimatedUrl ?? profile.avatarUrl);
@@ -215,7 +215,7 @@ export function CommunityProfileCustomizationForm({
         bannerOverlay: profile.bannerOverlay,
         avatarFraming: profile.avatarFraming,
         bannerFraming: profile.bannerFraming,
-        holoName: profile.holoName,
+        titledName: profile.titledName,
         avatarFrame: frame,
         audience: profile.audience,
         socialLinks: profile.socialLinks,
@@ -260,7 +260,7 @@ export function CommunityProfileCustomizationForm({
       bannerOverlay,
       avatarFraming,
       bannerFraming,
-      holoName,
+      titledName,
       avatarFrame,
       audience,
       socialLinks: socialLinks.filter((l) => l.url.trim() !== "").map((l) => ({ label: l.label, url: l.url })),
@@ -588,24 +588,24 @@ export function CommunityProfileCustomizationForm({
             value={displayName}
           />
         </Field>
-        {holoNameStyle !== null ? (
+        {titledNameStyle !== null ? (
           <div className="grid gap-2 rounded-lg border border-border bg-surface-2/40 p-3">
             <label className="flex items-center gap-2 text-sm font-medium text-foreground">
               <input
-                checked={holoName}
+                checked={titledName}
                 className="size-4 accent-accent"
-                onChange={(e) => setHoloName(e.target.checked)}
+                onChange={(e) => setTitledName(e.target.checked)}
                 type="checkbox"
               />
-              Pseudo holographique
+              Pseudo à titre
             </label>
             <span className="font-heading text-xl font-bold text-foreground">
-              <HoloName style={holoName ? holoNameStyle : null}>{displayName.trim() || accountName || slug || "Ton pseudo"}</HoloName>
+              <TitledName style={titledName ? titledNameStyle : null} variant="profile">{displayName.trim() || accountName || slug || "Ton pseudo"}</TitledName>
             </span>
             <span className="text-xs text-muted-foreground">
-              {holoNameStyle === "gold"
-                ? "Doré, réservé aux admins : sur ton profil, et au survol de tes cartes dans la communauté."
-                : "Argenté, réservé aux adhérents : sur ton profil, et au survol de tes cartes dans la communauté."}
+              {titledNameStyle === "legendary"
+                ? "Titre « Administrateur », couleurs légendaires : en grand sur ton profil, avec ta couronne sur tes cartes dans la communauté."
+                : "Titre « Adhérent ArchiLAN », couleurs épiques : en grand sur ton profil, avec ton étoile sur tes cartes dans la communauté."}
             </span>
           </div>
         ) : null}

@@ -63,9 +63,9 @@ final readonly class UpdateCommunityProfile
         $bannerFraming = $this->framing($input, 'bannerFraming', $errors);
 
         // Story 30.44: an omitted switch keeps what the profile holds.
-        $holoName = $input['holoName'] ?? null;
-        if (null !== $holoName && !is_bool($holoName)) {
-            $errors->add('holoName', 'Valeur invalide.');
+        $titledName = $input['titledName'] ?? null;
+        if (null !== $titledName && !is_bool($titledName)) {
+            $errors->add('titledName', 'Valeur invalide.');
         }
 
         // Left null when the client omits it, and resolved from the stored profile below rather than
@@ -113,8 +113,8 @@ final readonly class UpdateCommunityProfile
         if (null !== $bannerFraming) {
             $profile->reframeBanner($bannerFraming, $now);
         }
-        if (is_bool($holoName)) {
-            $profile->toggleHoloName($holoName, $now);
+        if (is_bool($titledName)) {
+            $profile->toggleTitledName($titledName, $now);
         }
         $this->profiles->flush();
     }

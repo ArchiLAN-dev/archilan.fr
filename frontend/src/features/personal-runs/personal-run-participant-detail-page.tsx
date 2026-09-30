@@ -13,7 +13,7 @@ import { PersonalRunYamlViewerDialog } from "./personal-run-yaml-viewer-dialog";
 import { SlotCoPlayers, type CoPlayerCandidate } from "./slot-co-players";
 import { AvatarImage } from "../community/avatar-image";
 import type { ImageFraming } from "@/features/community/image-framing";
-import { HoloName } from "@/features/community/holo-name";
+import { TitledName } from "@/features/community/titled-name";
 
 const availabilityConfig: Record<string, { label: string; className: string }> = {
   available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
@@ -186,15 +186,15 @@ export function PersonalRunParticipantDetailPage({
                   className="truncate font-heading text-2xl font-bold text-foreground transition-colors hover:text-accent-text"
                   href={`/joueurs/${participant.slug}`}
                 >
-                  <HoloName onHover style={participant.nameStyle}>
+                  <TitledName style={participant.nameStyle} variant="card">
                     {name}
-                  </HoloName>
+                  </TitledName>
                 </Link>
               ) : (
                 <h1 className="truncate font-heading text-2xl font-bold text-foreground">
-                  <HoloName onHover style={participant.nameStyle}>
+                  <TitledName style={participant.nameStyle} variant="card">
                     {name}
-                  </HoloName>
+                  </TitledName>
                 </h1>
               )}
               <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">

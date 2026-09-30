@@ -117,14 +117,14 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $userRows = $userQb
             // Display the community pseudo (override) falling back to the account name;
             // avatar_url + custom_avatar_key feed the presigned-avatar resolution below.
-            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.holo_name')
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.titled_name')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($userQb->expr()->in('u.id', $placeholders))
             ->executeQuery()
             ->fetchAllAssociative();
 
-        // Story 30.44: gold admin, silver member - one membership lookup for the board.
+        // Story 30.44: legendary admin, epic member - one membership lookup for the board.
         $nameStyles = $this->nameStyles->forRows($userRows);
 
         $userMap = [];
@@ -274,14 +274,14 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $userRows = $userQb
             // Display the community pseudo (override) falling back to the account name;
             // avatar_url + custom_avatar_key feed the presigned-avatar resolution below.
-            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.holo_name')
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.titled_name')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($userQb->expr()->in('u.id', $placeholders))
             ->executeQuery()
             ->fetchAllAssociative();
 
-        // Story 30.44: gold admin, silver member - one membership lookup for the board.
+        // Story 30.44: legendary admin, epic member - one membership lookup for the board.
         $nameStyles = $this->nameStyles->forRows($userRows);
 
         $userMap = [];

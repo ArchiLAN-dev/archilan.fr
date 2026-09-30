@@ -10,7 +10,7 @@ use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 /**
  * Story 30.44, for the card surfaces that read raw rows (directory, leaderboards): the name style of each row,
  * with one grouped membership lookup for the whole list. A row holds the user's `id` and `roles` JSON, and the
- * profile's `holo_name` (null without a profile row: the default, on).
+ * profile's `titled_name` (null without a profile row: the default, on).
  */
 final readonly class NameStyleResolver
 {
@@ -45,7 +45,7 @@ final readonly class NameStyleResolver
             $rawRoles = $row['roles'] ?? null;
             $roles = is_string($rawRoles) ? json_decode($rawRoles, true) : null;
             $isAdmin = is_array($roles) && in_array('ROLE_ADMIN', $roles, true);
-            $styles[$id] = NameStyle::for($isAdmin, isset($members[$id]), $this->enabled($row['holo_name'] ?? null))?->value;
+            $styles[$id] = NameStyle::for($isAdmin, isset($members[$id]), $this->enabled($row['titled_name'] ?? null))?->value;
         }
 
         return $styles;

@@ -79,7 +79,7 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
         $rows = $qb
             // Pseudo = community display-name override (else account name); custom_avatar_key feeds the
             // presigned-avatar resolution below.
-            ->select('u.id', 'u.slug', 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.holo_name')
+            ->select('u.id', 'u.slug', 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.titled_name')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
             ->where($qb->expr()->in('u.id', ':ids'))
@@ -92,7 +92,7 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
             ->executeQuery()
             ->fetchAllAssociative();
 
-        // Story 30.44: gold admin, silver member - one membership lookup for the whole list.
+        // Story 30.44: legendary admin, epic member - one membership lookup for the whole list.
         $nameStyles = $this->nameStyles->forRows($rows);
 
         $cards = [];

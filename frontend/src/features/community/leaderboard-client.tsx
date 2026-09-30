@@ -14,7 +14,7 @@ import {
 } from "./community-api";
 import { AvatarImage } from "./avatar-image";
 import type { ImageFraming } from "@/features/community/image-framing";
-import { HoloName } from "@/features/community/holo-name";
+import { TitledName } from "@/features/community/titled-name";
 
 const TABS: { axis: LeaderboardAxis; label: string }[] = [
   { axis: "goals", label: "Objectifs" },
@@ -134,9 +134,9 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
                   className="min-w-0 flex-1 truncate font-semibold text-foreground hover:text-accent transition-colors"
                   href={`/joueurs/${entry.slug}`}
                 >
-                  <HoloName onHover style={entry.nameStyle}>
+                  <TitledName style={entry.nameStyle} variant="card">
                     {entry.displayName || entry.slug}
-                  </HoloName>
+                  </TitledName>
                 </Link>
               </div>
 

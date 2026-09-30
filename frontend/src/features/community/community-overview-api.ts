@@ -1,7 +1,7 @@
 import { env } from "@/lib/env";
 import { hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import type { ImageFraming } from "@/features/community/image-framing";
-import type { NameStyle } from "@/features/community/holo-name";
+import type { NameStyle } from "@/features/community/titled-name";
 
 export type PlayingNowEntry = {
   slug: string;
@@ -11,7 +11,7 @@ export type PlayingNowEntry = {
   avatarAnimatedUrl?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
-  // Story 30.44: gold admin, silver member (null = a plain name).
+  // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
   /** null when the viewer may not know what is being played (unpublished personal run). */
   game: string | null;
@@ -29,7 +29,7 @@ export type RecentAchievement = {
   avatarAnimatedUrl?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
-  // Story 30.44: gold admin, silver member (null = a plain name).
+  // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
 };
 

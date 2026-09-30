@@ -8,20 +8,20 @@ use App\Community\Domain\Enum\NameStyle;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Story 30.44. The holographic name follows the account's status at read time: gold for an admin, silver for a
+ * Story 30.44. The titled name follows the account's status at read time: legendary for an admin, epic for a
  * member, nothing otherwise or when the owner turned it off.
  */
 final class NameStyleTest extends TestCase
 {
-    public function testAnAdminIsGoldMemberOrNot(): void
+    public function testAnAdminIsLegendaryMemberOrNot(): void
     {
-        self::assertSame(NameStyle::Gold, NameStyle::for(isAdmin: true, isMember: false, enabled: true));
-        self::assertSame(NameStyle::Gold, NameStyle::for(isAdmin: true, isMember: true, enabled: true));
+        self::assertSame(NameStyle::Legendary, NameStyle::for(isAdmin: true, isMember: false, enabled: true));
+        self::assertSame(NameStyle::Legendary, NameStyle::for(isAdmin: true, isMember: true, enabled: true));
     }
 
-    public function testAMemberIsSilver(): void
+    public function testAMemberIsEpic(): void
     {
-        self::assertSame(NameStyle::Silver, NameStyle::for(isAdmin: false, isMember: true, enabled: true));
+        self::assertSame(NameStyle::Epic, NameStyle::for(isAdmin: false, isMember: true, enabled: true));
     }
 
     public function testNeitherHasNone(): void

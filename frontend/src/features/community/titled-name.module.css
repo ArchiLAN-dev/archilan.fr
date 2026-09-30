@@ -1,0 +1,170 @@
+/*
+ * Story 30.44: a titled name - the colours of loot rarity (legendary for an admin, epic for a member). On the
+ * profile page, the title stands large above the name with its emblem, embers rise from the name and a bar of
+ * light runs under it; on a card, the emblem sits before the name and its glow rises on hover.
+ */
+
+.legendary {
+  --rarity-light: #ffd27a;
+  --rarity: #ff8000;
+  --rarity-glow: rgb(255 128 0 / 0.55);
+  --rarity-spark: #ffb347;
+}
+
+.epic {
+  --rarity-light: #e2b6ff;
+  --rarity: #a335ee;
+  --rarity-glow: rgb(163 53 238 / 0.55);
+  --rarity-spark: #d9a6ff;
+}
+
+/* The name in the rarity colours, a solid colour where the gradient cannot be clipped to the text. */
+.name {
+  color: var(--rarity-light);
+  text-shadow: none;
+  filter: drop-shadow(0 0 10px var(--rarity-glow)) drop-shadow(0 2px 2px rgb(0 0 0 / 0.6));
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .name {
+    background-image: linear-gradient(180deg, var(--rarity-light), var(--rarity));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+.emblem {
+  display: inline-block;
+  flex: none;
+  fill: var(--rarity);
+  filter: drop-shadow(0 0 4px var(--rarity-glow));
+}
+
+/* ---------- Profile ---------- */
+
+.profile {
+  display: inline-grid;
+  gap: 0.12em;
+  justify-items: start;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font-family: var(--font-sans, Inter, sans-serif);
+  font-size: max(13px, 0.5em);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--rarity-light);
+  text-shadow: 0 0 10px var(--rarity-glow), 0 1px 2px rgb(0 0 0 / 0.7);
+}
+
+.title .emblem {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.nameLine {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  padding-bottom: 0.14em;
+}
+
+/* B's bar of light, in the rarity colour, running under the name. */
+.nameLine::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, var(--rarity) 20%, #fff 50%, var(--rarity) 80%, transparent) 0 0 / 200% 100%;
+  box-shadow: 0 0 10px var(--rarity-glow);
+  animation: bar 3s linear infinite;
+}
+
+@keyframes bar {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.embers {
+  position: absolute;
+  inset: -0.35em -0.1em 0;
+  pointer-events: none;
+}
+
+.embers i {
+  position: absolute;
+  bottom: 0.2em;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--rarity-spark);
+  box-shadow: 0 0 6px var(--rarity-spark);
+  opacity: 0;
+  animation: rise 2.8s ease-in infinite;
+}
+
+.embers i:nth-child(1) { left: 8%; animation-delay: 0s; }
+.embers i:nth-child(2) { left: 24%; animation-delay: 0.9s; }
+.embers i:nth-child(3) { left: 41%; animation-delay: 1.7s; }
+.embers i:nth-child(4) { left: 58%; animation-delay: 0.4s; }
+.embers i:nth-child(5) { left: 74%; animation-delay: 1.3s; }
+.embers i:nth-child(6) { left: 90%; animation-delay: 2.1s; }
+
+@keyframes rise {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(6px, -1.2em) scale(0.3); opacity: 0; }
+}
+
+/* ---------- Card ---------- */
+
+.card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+
+.card .emblem {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+.card .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: filter 0.2s ease;
+}
+
+:global(a):hover .card .name,
+.card:hover .name {
+  filter: drop-shadow(0 0 7px var(--rarity-glow)) drop-shadow(0 0 14px var(--rarity-glow)) drop-shadow(0 1px 1px rgb(0 0 0 / 0.6));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .embers {
+    display: none;
+  }
+
+  .nameLine::after {
+    animation: none;
+    background-position: 50% 0;
+  }
+
+  .card .name {
+    transition: none;
+  }
+}

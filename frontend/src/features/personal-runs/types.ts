@@ -1,5 +1,5 @@
 import type { ImageFraming } from "@/features/community/image-framing";
-import type { NameStyle } from "@/features/community/holo-name";
+import type { NameStyle } from "@/features/community/titled-name";
 
 export type PersonalRunStatus =
   | "draft"
@@ -24,7 +24,7 @@ export type PersonalRunParticipant = {
   avatarAnimatedUrl?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
-  // Story 30.44: gold admin, silver member (null = a plain name).
+  // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
   joinedAt: string;
   slotCount: number;
@@ -59,7 +59,7 @@ export type ParticipantIdentity = {
   avatarAnimatedUrl?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
-  // Story 30.44: gold admin, silver member (null = a plain name).
+  // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
   isAdmin: boolean;
   level: ParticipantLevel;
@@ -76,7 +76,7 @@ export type SlotCoPlayer = {
   avatarAnimatedUrl?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
-  // Story 30.44: gold admin, silver member (null = a plain name).
+  // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
 };
 
