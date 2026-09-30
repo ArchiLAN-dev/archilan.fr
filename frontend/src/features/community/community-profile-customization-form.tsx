@@ -12,6 +12,7 @@ import { AVATAR_FRAME_KEYS, AVATAR_FRAMES, type AvatarFrameCategory } from "./av
 import { AvatarFrame } from "./avatar-frame";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
+import { imageAccept, imageFormatsHint, imageUploadError } from "./custom-image-rules";
 import { ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
 import {
@@ -19,10 +20,12 @@ import {
   DEFAULT_AUDIENCE,
   fetchMyCommunityProfile,
   removeCommunityAvatar,
+  removeCommunityBanner,
   SHOWCASE_WIDGETS,
   SHOWCASE_WIDGET_LABELS,
   updateMyCommunityProfile,
   uploadCommunityAvatar,
+  uploadCommunityBanner,
   type EditableFavoriteGame,
   type EditableSocialLink,
   type MyCommunityProfile,
@@ -111,6 +114,12 @@ export function CommunityProfileCustomizationForm({
   const [hasCustomAvatar, setHasCustomAvatar] = useState(false);
   const [avatar, setAvatar] = useState<SaveState>({ kind: "idle" });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  // Story 30.40: GIF avatar for an admin; banner image for members and admins, applied immediately too.
+  const [avatarGifAllowed, setAvatarGifAllowed] = useState(false);
+  const [bannerUpload, setBannerUpload] = useState<{ image: boolean; gif: boolean }>({ image: false, gif: false });
+  const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(null);
+  const [bannerImage, setBannerImage] = useState<SaveState>({ kind: "idle" });
+  const bannerInputRef = useRef<HTMLInputElement | null>(null);
   const [audience, setAudience] = useState<string>(DEFAULT_AUDIENCE);
   const [socialLinks, setSocialLinks] = useState<SocialLinkRowState[]>([]);
   const [favorites, setFavorites] = useState<EditableFavoriteGame[]>([]);
@@ -163,6 +172,9 @@ export function CommunityProfileCustomizationForm({
     setAvatarFrame(frame);
     setAvatarUrl(profile.avatarUrl);
     setHasCustomAvatar(profile.hasCustomAvatar);
+    setAvatarGifAllowed(profile.avatarGifAllowed);
+    setBannerUpload(profile.bannerUpload);
+    setBannerImageUrl(profile.bannerImageUrl);
     setAudience(profile.audience);
     setSocialLinks(profile.socialLinks.map((l) => ({ ...l, rowId: crypto.randomUUID() })));
     setFavorites(profile.favoriteGames);
@@ -247,14 +259,36 @@ export function CommunityProfileCustomizationForm({
   async function handleAvatarPick(file: File) {
     setAvatar({ kind: "saving" });
     const result = await uploadCommunityAvatar(file);
-    if (result) {
-      setAvatarUrl(result.avatarUrl);
+    if (result.ok) {
+      setAvatarUrl(result.url);
       setHasCustomAvatar(true);
       setAvatar({ kind: "saved" });
     } else {
-      setAvatar({ kind: "error", message: "Image refusée (format JPEG/PNG/WebP, 5 Mo max) ou envoi impossible." });
+      setAvatar({ kind: "error", message: imageUploadError(result.code) });
     }
     if (avatarInputRef.current) avatarInputRef.current.value = "";
+  }
+
+  async function handleBannerPick(file: File) {
+    setBannerImage({ kind: "saving" });
+    const result = await uploadCommunityBanner(file);
+    if (result.ok) {
+      setBannerImageUrl(result.url);
+      setBannerImage({ kind: "saved" });
+    } else {
+      setBannerImage({ kind: "error", message: imageUploadError(result.code) });
+    }
+    if (bannerInputRef.current) bannerInputRef.current.value = "";
+  }
+
+  async function handleBannerRemove() {
+    setBannerImage({ kind: "saving" });
+    if (await removeCommunityBanner()) {
+      setBannerImageUrl(null);
+      setBannerImage({ kind: "idle" });
+    } else {
+      setBannerImage({ kind: "error", message: "Impossible de retirer l'image." });
+    }
   }
 
   async function handleAvatarRemove() {
@@ -310,7 +344,57 @@ export function CommunityProfileCustomizationForm({
         </div>
       </Section>
 
-      <Section title="Photo de profil" description="Importe ta propre image (JPEG, PNG ou WebP, 5 Mo max). Sans image, un avatar par défaut est généré.">
+      {bannerUpload.image ? (
+        <Section
+          title="Image de bannière"
+          description={`Ta propre image en tête de profil, à la place de la bannière choisie ci-dessus. ${imageFormatsHint("banner", bannerUpload.gif)}`}
+        >
+          <div className="grid gap-3">
+            <ProfileBanner className="h-24 w-full rounded-lg" imageUrl={bannerImageUrl} presetKey={bannerPreset} />
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
+                disabled={bannerImage.kind === "saving"}
+                onClick={() => bannerInputRef.current?.click()}
+                type="button"
+              >
+                {bannerImage.kind === "saving" ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <ImagePlus aria-hidden className="size-4" />}
+                {bannerImageUrl !== null ? "Changer l'image" : "Importer une image"}
+              </button>
+              {bannerImageUrl !== null ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-destructive disabled:opacity-50"
+                  disabled={bannerImage.kind === "saving"}
+                  onClick={() => void handleBannerRemove()}
+                  type="button"
+                >
+                  <Trash2 aria-hidden className="size-4" /> Retirer
+                </button>
+              ) : null}
+            </div>
+            {bannerImage.kind === "error" ? (
+              <span className="flex items-center gap-1.5 text-xs text-destructive">
+                <AlertCircle aria-hidden className="size-3.5" /> {bannerImage.message}
+              </span>
+            ) : null}
+            <input
+              accept={imageAccept(bannerUpload.gif)}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleBannerPick(file);
+              }}
+              ref={bannerInputRef}
+              type="file"
+            />
+          </div>
+        </Section>
+      ) : null}
+
+      <Section
+        title="Photo de profil"
+        description={`Importe ta propre image (${imageFormatsHint("avatar", avatarGifAllowed)}) Sans image, un avatar par défaut est généré.`}
+      >
         <div className="flex flex-wrap items-center gap-4">
           <ProfileAvatar avatarUrl={avatarUrl} frame={avatarFrame} name={displayName.trim() || accountName || slug || "?"} />
           <div className="grid gap-2">
@@ -341,7 +425,7 @@ export function CommunityProfileCustomizationForm({
               </span>
             ) : null}
             <input
-              accept="image/jpeg,image/png,image/webp"
+              accept={imageAccept(avatarGifAllowed)}
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];

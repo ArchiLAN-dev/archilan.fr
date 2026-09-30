@@ -115,7 +115,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $userRows = $userQb
             // Display the community pseudo (override) falling back to the account name;
             // avatar_url + custom_avatar_key feed the presigned-avatar resolution below.
-            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key')
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($userQb->expr()->in('u.id', $placeholders))
@@ -180,9 +180,12 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
      */
     private function resolveAvatarUrl(array $userRow): ?string
     {
-        return $this->avatarUrls->resolve(
-            is_string($userRow['custom_avatar_key'] ?? null) ? $userRow['custom_avatar_key'] : null,
-            is_string($userRow['avatar_url'] ?? null) ? $userRow['avatar_url'] : null,
+        // A GIF shows its first frame once the account is no longer admin (story 30.40).
+        return $this->avatarUrls->resolveForRow(
+            $userRow['custom_avatar_key'] ?? null,
+            $userRow['custom_avatar_still_key'] ?? null,
+            $userRow['roles'] ?? null,
+            $userRow['avatar_url'] ?? null,
         );
     }
 
@@ -267,7 +270,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $userRows = $userQb
             // Display the community pseudo (override) falling back to the account name;
             // avatar_url + custom_avatar_key feed the presigned-avatar resolution below.
-            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key')
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($userQb->expr()->in('u.id', $placeholders))

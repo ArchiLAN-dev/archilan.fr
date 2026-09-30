@@ -77,7 +77,7 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
         $rows = $qb
             // Pseudo = community display-name override (else account name); custom_avatar_key feeds the
             // presigned-avatar resolution below.
-            ->select('u.id', 'u.slug', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key')
+            ->select('u.id', 'u.slug', 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
             ->where($qb->expr()->in('u.id', ':ids'))
@@ -101,10 +101,13 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
                 'userId' => $id,
                 'slug' => $slug,
                 'displayName' => is_string($row['display_name'] ?? null) ? $row['display_name'] : null,
-                // Custom uploaded avatar (presigned) wins over the cached external URL (story 30.27).
-                'avatarUrl' => $this->avatarUrls->resolve(
-                    is_string($row['custom_avatar_key'] ?? null) ? $row['custom_avatar_key'] : null,
-                    is_string($row['avatar_url'] ?? null) ? $row['avatar_url'] : null,
+                // Custom uploaded avatar (presigned) wins over the cached external URL (story 30.27); a GIF shows its
+                // first frame once the account is no longer admin (story 30.40).
+                'avatarUrl' => $this->avatarUrls->resolveForRow(
+                    $row['custom_avatar_key'] ?? null,
+                    $row['custom_avatar_still_key'] ?? null,
+                    $row['roles'] ?? null,
+                    $row['avatar_url'] ?? null,
                 ),
             ];
         }

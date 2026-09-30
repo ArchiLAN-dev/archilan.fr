@@ -69,6 +69,18 @@ final class CommunityProfile
          */
         #[ORM\Column(name: 'custom_avatar_key', type: 'string', length: 512, nullable: true)]
         private ?string $customAvatarKey = null,
+        /**
+         * First frame (PNG) of a GIF avatar, extracted at upload (story 30.40): shown instead of the GIF once the
+         * account is no longer admin. Null for a still avatar.
+         */
+        #[ORM\Column(name: 'custom_avatar_still_key', type: 'string', length: 512, nullable: true)]
+        private ?string $customAvatarStillKey = null,
+        /** MinIO object key of an uploaded banner image (story 30.40); null = the banner preset shows. */
+        #[ORM\Column(name: 'custom_banner_key', type: 'string', length: 512, nullable: true)]
+        private ?string $customBannerKey = null,
+        /** First frame (PNG) of a GIF banner, extracted at upload (story 30.40); null for a still image. */
+        #[ORM\Column(name: 'custom_banner_still_key', type: 'string', length: 512, nullable: true)]
+        private ?string $customBannerStillKey = null,
     ) {
     }
 
@@ -105,9 +117,10 @@ final class CommunityProfile
     /**
      * Record the member-uploaded avatar key. Uploading overrides the external source (story 30.27).
      */
-    public function uploadCustomAvatar(string $key, \DateTimeImmutable $now): void
+    public function uploadCustomAvatar(string $key, ?string $stillKey, \DateTimeImmutable $now): void
     {
         $this->customAvatarKey = $key;
+        $this->customAvatarStillKey = $stillKey;
         $this->updatedAt = $now;
     }
 
@@ -118,7 +131,44 @@ final class CommunityProfile
     public function removeCustomAvatar(\DateTimeImmutable $now): void
     {
         $this->customAvatarKey = null;
+        $this->customAvatarStillKey = null;
         $this->updatedAt = $now;
+    }
+
+    /** First frame of a GIF avatar (story 30.40), or null for a still one. */
+    public function getCustomAvatarStillKey(): ?string
+    {
+        return $this->customAvatarStillKey;
+    }
+
+    /**
+     * Record an uploaded banner image (story 30.40); it replaces the preset while the owner's status allows it.
+     *
+     * @param string|null $stillKey the first frame of a GIF, null for a still image
+     */
+    public function uploadCustomBanner(string $key, ?string $stillKey, \DateTimeImmutable $now): void
+    {
+        $this->customBannerKey = $key;
+        $this->customBannerStillKey = $stillKey;
+        $this->updatedAt = $now;
+    }
+
+    /** Clear the banner image: the banner preset shows again. */
+    public function removeCustomBanner(\DateTimeImmutable $now): void
+    {
+        $this->customBannerKey = null;
+        $this->customBannerStillKey = null;
+        $this->updatedAt = $now;
+    }
+
+    public function getCustomBannerKey(): ?string
+    {
+        return $this->customBannerKey;
+    }
+
+    public function getCustomBannerStillKey(): ?string
+    {
+        return $this->customBannerStillKey;
     }
 
     /** The member-uploaded avatar object key, or null when none is set. */
