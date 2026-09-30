@@ -89,6 +89,11 @@ disparaît quand l'adhésion expire ou que le rôle admin est retiré, et revien
   la carte ou du nom). Branché sur la page de profil (toujours animé), les cartes membres, la communauté, les
   amis, les commentaires, les classements, les participants des parties privées. Case « Pseudo holographique »
   avec aperçu dans la section Identité, visible seulement si le statut donne un style.
+- Retour de Jean au test (effet trop simple, coupure visible à la boucle) : effet refait en quatre couches
+  (éclat qui balaie puis marque une pause, paillettes éparses sur des tuiles de tailles premières, film irisé en
+  `soft-light` sur une tuile de 260 px qui avance d'exactement sa largeur, métal chromé avec ligne d'horizon).
+  Vérifié dans un navigateur sur une page d'aperçu (instants figés via l'API Web Animations, position du film à
+  -260 px en fin de boucle = départ).
 - Le site n'a qu'un thème sombre (`color-scheme: dark`) : l'AC « clair et sombre » se réduit au sombre.
 
 ### Gates
