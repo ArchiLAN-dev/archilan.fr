@@ -108,6 +108,8 @@ enregistre un point visé et un zoom, appliqués à l'affichage en CSS. Raisons 
   perte à l'arrondi), flèches du clavier, curseur de zoom, « Recentrer ». Ouverte après un upload et par
   « Recadrer ». Le formulaire suit la remise au centre de l'API sans se marquer modifié.
 - Écart : la fenêtre montre le cadre final seul, pas le reste de l'image grisé autour.
+- Ajustement demandé par Jean au test : bannière de la page de profil plus haute (`h-40 sm:h-56` au lieu de
+  `h-28 sm:h-36`), pour laisser plus de place à l'image cadrée.
 - Au passage (30.42) : le parseur de la page des succès perdait `avatarAnimatedUrl`, il le garde maintenant.
 
 ### Gates

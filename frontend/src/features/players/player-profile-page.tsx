@@ -34,7 +34,7 @@ export function PlayerProfilePage({
     <article className="mx-auto grid w-full max-w-content grid-cols-1 gap-12">
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
         <ProfileBanner
-          className="h-28 sm:h-36"
+          className="h-40 sm:h-56"
           framing={profile.customization?.bannerFraming ?? null}
           imageStillUrl={profile.customization?.bannerImageStillUrl ?? null}
           imageUrl={profile.customization?.bannerImageUrl ?? null}
