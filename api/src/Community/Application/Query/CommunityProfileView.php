@@ -15,6 +15,7 @@ use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\Repository\KudosRepositoryInterface;
 use App\Community\Domain\Service\CustomImageRule;
 use App\Community\Domain\ValueObject\Audience;
+use App\Community\Domain\ValueObject\BannerOverlay;
 use App\Community\Domain\ValueObject\BannerPreset;
 use App\Community\Domain\ValueObject\Level;
 use App\Community\Domain\ValueObject\ShowcaseWidget;
@@ -117,6 +118,7 @@ final readonly class CommunityProfileView
                 'pronouns' => $profile->getPronouns(),
                 'bannerPreset' => $profile->getBannerPreset(),
                 ...$this->bannerImage($profile, $badges['admin'], $badges['member']),
+                'bannerOverlay' => $profile->getBannerOverlay(),
                 'avatarFrame' => $profile->getAvatarFrame(),
                 'socialLinks' => $profile->getSocialLinks(),
                 'favoriteGames' => $this->resolveFavoriteGames($profile->getFavoriteGameIds()),
@@ -251,7 +253,7 @@ final readonly class CommunityProfileView
      *
      * Story 30.40: the images are those the owner's status allows, and the upload rights say what they may send.
      *
-     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, avatarUrl: string|null, hasCustomAvatar: bool, avatarGifAllowed: bool, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, avatarUrl: string|null, hasCustomAvatar: bool, avatarGifAllowed: bool, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId, bool $isAdmin): array
     {
@@ -266,6 +268,7 @@ final readonly class CommunityProfileView
             'pronouns' => $profile?->getPronouns(),
             'bannerPreset' => $profile?->getBannerPreset() ?? BannerPreset::DEFAULT,
             ...$banner,
+            'bannerOverlay' => $profile?->getBannerOverlay() ?? BannerOverlay::DEFAULT,
             'hasCustomBanner' => null !== $banner['bannerImageUrl'],
             'bannerUpload' => ['image' => $isAdmin || $isMember, 'gif' => $isAdmin],
             'avatarFrame' => $profile?->getAvatarFrame(),

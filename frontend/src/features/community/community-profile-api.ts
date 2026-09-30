@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { hasBooleanProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 export type EditableSocialLink = { label: string; url: string };
 
@@ -25,6 +25,8 @@ export type MyCommunityProfile = {
   // moves, whether one is set, and what the owner may upload.
   bannerImageUrl: string | null;
   bannerImageStillUrl: string | null;
+  // Story 30.41: opacity (percent) of the preset laid over the banner image.
+  bannerOverlay: number;
   hasCustomBanner: boolean;
   bannerUpload: { image: boolean; gif: boolean };
   avatarFrame: string | null;
@@ -46,6 +48,7 @@ export type UpdateCommunityProfileInput = {
   tagline: string | null;
   pronouns: string | null;
   bannerPreset: string;
+  bannerOverlay: number;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -71,6 +74,7 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
   if (!hasNullableStringProp(v, "avatarUrl") || !hasBooleanProp(v, "hasCustomAvatar")) return false;
   if (!hasNullableStringProp(v, "bannerImageUrl") || !hasNullableStringProp(v, "bannerImageStillUrl")) return false;
   if (!hasBooleanProp(v, "hasCustomBanner") || !hasBooleanProp(v, "avatarGifAllowed")) return false;
+  if (!hasNumberProp(v, "bannerOverlay")) return false;
   if (!("bannerUpload" in v) || typeof v.bannerUpload !== "object" || v.bannerUpload === null) return false;
   if (!hasBooleanProp(v.bannerUpload, "image") || !hasBooleanProp(v.bannerUpload, "gif")) return false;
   if ("avatarFrame" in v && v.avatarFrame !== null && typeof v.avatarFrame !== "string") return false;

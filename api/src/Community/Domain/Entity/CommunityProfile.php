@@ -6,6 +6,7 @@ namespace App\Community\Domain\Entity;
 
 use App\Community\Domain\ValueObject\Audience;
 use App\Community\Domain\ValueObject\AvatarFrame;
+use App\Community\Domain\ValueObject\BannerOverlay;
 use App\Community\Domain\ValueObject\BannerPreset;
 use App\Identity\Domain\Entity\User;
 use Doctrine\DBAL\Types\Types;
@@ -81,6 +82,9 @@ final class CommunityProfile
         /** First frame (PNG) of a GIF banner, extracted at upload (story 30.40); null for a still image. */
         #[ORM\Column(name: 'custom_banner_still_key', type: 'string', length: 512, nullable: true)]
         private ?string $customBannerStillKey = null,
+        /** Opacity (percent) of the banner preset laid over a banner image (story 30.41). */
+        #[ORM\Column(name: 'banner_overlay', type: 'smallint', options: ['default' => BannerOverlay::DEFAULT])]
+        private int $bannerOverlay = BannerOverlay::DEFAULT,
     ) {
     }
 
@@ -169,6 +173,18 @@ final class CommunityProfile
     public function getCustomBannerStillKey(): ?string
     {
         return $this->customBannerStillKey;
+    }
+
+    /** Story 30.41: how strongly the preset is laid over the banner image, in percent (0 to 100). */
+    public function adjustBannerOverlay(int $percent, \DateTimeImmutable $now): void
+    {
+        $this->bannerOverlay = max(0, min(100, $percent));
+        $this->updatedAt = $now;
+    }
+
+    public function getBannerOverlay(): int
+    {
+        return $this->bannerOverlay;
     }
 
     /** The member-uploaded avatar object key, or null when none is set. */

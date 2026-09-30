@@ -13,7 +13,7 @@ import { AvatarFrame } from "./avatar-frame";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
 import { imageAccept, imageFormatsHint, imageUploadError } from "./custom-image-rules";
-import { ProfileBanner } from "./profile-banner";
+import { DEFAULT_BANNER_OVERLAY, ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
 import {
   AUDIENCES,
@@ -65,6 +65,7 @@ type FormValues = {
   tagline: string;
   pronouns: string;
   bannerPreset: string;
+  bannerOverlay: number;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -82,6 +83,7 @@ function serialize(v: FormValues): string {
     tagline: v.tagline.trim(),
     pronouns: v.pronouns.trim(),
     bannerPreset: v.bannerPreset,
+    bannerOverlay: v.bannerOverlay,
     avatarFrame: v.avatarFrame,
     audience: v.audience,
     socialLinks: v.socialLinks
@@ -108,6 +110,8 @@ export function CommunityProfileCustomizationForm({
   const [tagline, setTagline] = useState("");
   const [pronouns, setPronouns] = useState("");
   const [bannerPreset, setBannerPreset] = useState<string>("default");
+  // Story 30.41: how strongly the preset lies over the banner image; saved with the profile.
+  const [bannerOverlay, setBannerOverlay] = useState<number>(DEFAULT_BANNER_OVERLAY);
   const [avatarFrame, setAvatarFrame] = useState<string | null>(null);
   // Avatar upload is applied immediately (not through the save bar), so it lives outside `values`.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -153,8 +157,8 @@ export function CommunityProfileCustomizationForm({
   const loading = loadingProfile || loadingCatalog;
 
   const values: FormValues = useMemo(
-    () => ({ displayName, bio, tagline, pronouns, bannerPreset, avatarFrame, audience, socialLinks, favorites, showcase }),
-    [displayName, bio, tagline, pronouns, bannerPreset, avatarFrame, audience, socialLinks, favorites, showcase],
+    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFrame, audience, socialLinks, favorites, showcase }),
+    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFrame, audience, socialLinks, favorites, showcase],
   );
   const serialized = useMemo(() => serialize(values), [values]);
   const isDirty = baseline !== "" && serialized !== baseline;
@@ -169,6 +173,7 @@ export function CommunityProfileCustomizationForm({
     setTagline(profile.tagline ?? "");
     setPronouns(profile.pronouns ?? "");
     setBannerPreset(profile.bannerPreset);
+    setBannerOverlay(profile.bannerOverlay);
     setAvatarFrame(frame);
     setAvatarUrl(profile.avatarUrl);
     setHasCustomAvatar(profile.hasCustomAvatar);
@@ -186,6 +191,7 @@ export function CommunityProfileCustomizationForm({
         tagline: profile.tagline ?? "",
         pronouns: profile.pronouns ?? "",
         bannerPreset: profile.bannerPreset,
+        bannerOverlay: profile.bannerOverlay,
         avatarFrame: frame,
         audience: profile.audience,
         socialLinks: profile.socialLinks,
@@ -227,6 +233,7 @@ export function CommunityProfileCustomizationForm({
       tagline: tagline.trim() === "" ? null : tagline.trim(),
       pronouns: pronouns.trim() === "" ? null : pronouns.trim(),
       bannerPreset,
+      bannerOverlay,
       avatarFrame,
       audience,
       socialLinks: socialLinks.filter((l) => l.url.trim() !== "").map((l) => ({ label: l.label, url: l.url })),
@@ -347,10 +354,31 @@ export function CommunityProfileCustomizationForm({
       {bannerUpload.image ? (
         <Section
           title="Image de bannière"
-          description={`Ta propre image en tête de profil, à la place de la bannière choisie ci-dessus. ${imageFormatsHint("banner", bannerUpload.gif)}`}
+          description={`Ta propre image en tête de profil, sous la bannière choisie ci-dessus. ${imageFormatsHint("banner", bannerUpload.gif)}`}
         >
           <div className="grid gap-3">
-            <ProfileBanner className="h-24 w-full rounded-lg" imageUrl={bannerImageUrl} presetKey={bannerPreset} />
+            <ProfileBanner className="h-24 w-full rounded-lg" imageUrl={bannerImageUrl} overlay={bannerOverlay} presetKey={bannerPreset} />
+            {bannerImageUrl !== null ? (
+              <label className="grid gap-1.5 text-sm">
+                <span className="flex items-center justify-between font-medium text-foreground">
+                  Intensité de la bannière
+                  <span className="text-xs font-semibold text-muted-foreground">{bannerOverlay} %</span>
+                </span>
+                <input
+                  aria-describedby="banner-overlay-help"
+                  className="w-full accent-accent"
+                  max={100}
+                  min={0}
+                  onChange={(e) => setBannerOverlay(Number(e.target.value))}
+                  step={5}
+                  type="range"
+                  value={bannerOverlay}
+                />
+                <span className="text-xs text-muted-foreground" id="banner-overlay-help">
+                  La bannière choisie ci-dessus se pose sur ton image : 0 % montre l&apos;image seule, 100 % la recouvre.
+                </span>
+              </label>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <button
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
