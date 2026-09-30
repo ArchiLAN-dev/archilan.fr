@@ -5,6 +5,8 @@ export type PlayingNowEntry = {
   slug: string;
   displayName: string | null;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
   /** null when the viewer may not know what is being played (unpublished personal run). */
   game: string | null;
 };
@@ -17,6 +19,8 @@ export type RecentAchievement = {
   slug: string;
   displayName: string | null;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
 };
 
 export type CommunityOverview = {

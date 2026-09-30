@@ -68,7 +68,7 @@ final readonly class NotificationService implements Notifier
     /**
      * @return array{
      *     unreadCount: int,
-     *     items: list<array{id: string, type: string, createdAt: string, read: bool, actor: array{slug: string, displayName: string|null, avatarUrl: string|null}|null, data: array<string, mixed>}>
+     *     items: list<array{id: string, type: string, createdAt: string, read: bool, actor: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null}|null, data: array<string, mixed>}>
      * }
      */
     public function recent(string $recipientId, int $limit): array
@@ -99,6 +99,7 @@ final readonly class NotificationService implements Notifier
                     'slug' => $card['slug'],
                     'displayName' => $card['displayName'],
                     'avatarUrl' => $card['avatarUrl'],
+                    'avatarAnimatedUrl' => $card['avatarAnimatedUrl'],
                 ],
                 'data' => $payload,
             ];

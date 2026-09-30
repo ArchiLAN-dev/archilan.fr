@@ -8,6 +8,8 @@ export type LeaderboardEntry = {
   slug: string;
   displayName: string;
   avatarUrl: string | null;
+  // Story 30.42: an admin's GIF, animated on hover off the profile page.
+  avatarAnimatedUrl?: string | null;
   value: number;
   unit: string;
 };

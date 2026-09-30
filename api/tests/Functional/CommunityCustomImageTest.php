@@ -122,6 +122,47 @@ final class CommunityCustomImageTest extends FunctionalTestCase
         self::assertStringContainsString('.png', $this->text($profile['customization']['bannerImageUrl']));
     }
 
+    public function testAGifAvatarMovesOnTheProfileOnlyAndOffersItsGifForTheHoverElsewhere(): void
+    {
+        // Story 30.42.
+        $admin = $this->createUser('amo@example.org', ['ROLE_USER', 'ROLE_ADMIN'], slug: 'amo');
+        $this->loginAs($admin);
+        $this->client->request('POST', '/api/v1/community/profile/avatar', [], ['file' => $this->upload($this->gif(), 'a.gif')]);
+        self::assertResponseStatusCodeSame(200);
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['audience' => 'public']);
+        $this->client->jsonRequest('POST', '/api/v1/community/profiles/amo/comments', ['body' => 'Salut']);
+
+        // The editor (and the account menu that reads it): still, with the GIF for the hover.
+        $this->client->jsonRequest('GET', '/api/v1/community/profile');
+        self::assertStringContainsString('-still.png', $this->text($this->data()['avatarUrl']));
+        self::assertStringContainsString('.gif', $this->text($this->data()['avatarAnimatedUrl']));
+
+        // A card (here the comment author): the same.
+        $this->client->jsonRequest('GET', '/api/v1/community/profiles/amo/comments');
+        $comments = $this->data();
+        self::assertIsArray($comments[0]);
+        $author = $comments[0]['author'];
+        self::assertIsArray($author);
+        self::assertStringContainsString('-still.png', $this->text($author['avatarUrl']));
+        self::assertStringContainsString('.gif', $this->text($author['avatarAnimatedUrl']));
+
+        // The profile page: the GIF itself.
+        $this->client->jsonRequest('GET', '/api/v1/community/profiles/amo');
+        self::assertStringContainsString('.gif', $this->text($this->data()['avatarUrl']));
+
+        // No longer admin: still everywhere, nothing to animate.
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE "user" SET roles = :roles WHERE id = :id',
+            ['roles' => '["ROLE_USER"]', 'id' => $admin->getId()],
+        );
+        $this->client->jsonRequest('GET', '/api/v1/community/profiles/amo/comments');
+        $comments = $this->data();
+        self::assertIsArray($comments[0]);
+        $author = $comments[0]['author'];
+        self::assertIsArray($author);
+        self::assertNull($author['avatarAnimatedUrl']);
+    }
+
     public function testRemovingTheBannerFallsBackToThePreset(): void
     {
         $this->loginAs($this->member('mel@example.org', 'mel'));

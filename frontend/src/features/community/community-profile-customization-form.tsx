@@ -175,7 +175,8 @@ export function CommunityProfileCustomizationForm({
     setBannerPreset(profile.bannerPreset);
     setBannerOverlay(profile.bannerOverlay);
     setAvatarFrame(frame);
-    setAvatarUrl(profile.avatarUrl);
+    // The editor previews the photo as it moves on the profile page (story 30.42).
+    setAvatarUrl(profile.avatarAnimatedUrl ?? profile.avatarUrl);
     setHasCustomAvatar(profile.hasCustomAvatar);
     setAvatarGifAllowed(profile.avatarGifAllowed);
     setBannerUpload(profile.bannerUpload);

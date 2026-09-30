@@ -130,7 +130,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             }
         }
 
-        /** @var list<array{slug: string, displayName: string, avatarUrl: string|null, sortName: string, value: int}> $entries */
+        /** @var list<array{slug: string, displayName: string, avatarUrl: string|null, avatarAnimatedUrl: string|null, sortName: string, value: int}> $entries */
         $entries = [];
         foreach ($totals as $userId => $value) {
             $userRow = $userMap[$userId] ?? null;
@@ -143,7 +143,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             $entries[] = [
                 'slug' => $slug,
                 'displayName' => $displayName,
-                'avatarUrl' => $this->resolveAvatarUrl($userRow),
+                ...$this->resolveAvatar($userRow),
                 'sortName' => $sortName,
                 'value' => $value,
             ];
@@ -165,6 +165,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
                 'slug' => $entry['slug'],
                 'displayName' => $entry['displayName'],
                 'avatarUrl' => $entry['avatarUrl'],
+                'avatarAnimatedUrl' => $entry['avatarAnimatedUrl'],
                 'value' => $entry['value'],
             ];
         }
@@ -173,14 +174,14 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
     }
 
     /**
-     * Resolve the avatar URL for a hydrated user row, applying the directory precedence
-     * (custom uploaded avatar presigned > cached external URL > null).
+     * The still avatar of a hydrated user row, and an admin's GIF to animate on hover (stories 30.27, 30.42).
      *
      * @param array<string, mixed> $userRow
+     *
+     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null}
      */
-    private function resolveAvatarUrl(array $userRow): ?string
+    private function resolveAvatar(array $userRow): array
     {
-        // A GIF shows its first frame once the account is no longer admin (story 30.40).
         return $this->avatarUrls->resolveForRow(
             $userRow['custom_avatar_key'] ?? null,
             $userRow['custom_avatar_still_key'] ?? null,
@@ -285,7 +286,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             }
         }
 
-        /** @var list<array{slug: string, displayName: string, avatarUrl: string|null, sortName: string, value: int}> $entries */
+        /** @var list<array{slug: string, displayName: string, avatarUrl: string|null, avatarAnimatedUrl: string|null, sortName: string, value: int}> $entries */
         $entries = [];
         foreach ($scores as $userId => $value) {
             $userRow = $userMap[$userId] ?? null;
@@ -298,7 +299,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             $entries[] = [
                 'slug' => $slug,
                 'displayName' => $displayName,
-                'avatarUrl' => $this->resolveAvatarUrl($userRow),
+                ...$this->resolveAvatar($userRow),
                 'sortName' => $sortName,
                 'value' => $value,
             ];
@@ -321,6 +322,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
                 'slug' => $entry['slug'],
                 'displayName' => $entry['displayName'],
                 'avatarUrl' => $entry['avatarUrl'],
+                'avatarAnimatedUrl' => $entry['avatarAnimatedUrl'],
                 'value' => $entry['value'],
             ];
         }

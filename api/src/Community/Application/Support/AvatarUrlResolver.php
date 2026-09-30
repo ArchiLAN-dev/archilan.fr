@@ -38,21 +38,30 @@ final readonly class AvatarUrlResolver
     }
 
     /**
-     * Story 30.40, for the card surfaces that read raw rows (directory, leaderboards): a GIF avatar shows its first
-     * frame once the account (roles as the JSON stored on the user row) is no longer admin.
+     * Story 30.42, for the card surfaces that read raw rows (directory, leaderboards): the still avatar (a GIF's
+     * first frame) and, for an admin's GIF, the GIF to animate on hover. Roles are the JSON stored on the user row.
+     *
+     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null}
      */
-    public function resolveForRow(mixed $customAvatarKey, mixed $customAvatarStillKey, mixed $rawRoles, mixed $cachedExternalUrl): ?string
+    public function resolveForRow(mixed $customAvatarKey, mixed $customAvatarStillKey, mixed $rawRoles, mixed $cachedExternalUrl): array
     {
         $roles = is_string($rawRoles) ? json_decode($rawRoles, true) : null;
-        $isAdmin = is_array($roles) && in_array('ROLE_ADMIN', $roles, true);
+        $key = is_string($customAvatarKey) ? $customAvatarKey : null;
+        $stillKey = is_string($customAvatarStillKey) ? $customAvatarStillKey : null;
 
-        return $this->resolve(
-            CustomImageRule::displayedAvatarKey(
-                is_string($customAvatarKey) ? $customAvatarKey : null,
-                is_string($customAvatarStillKey) ? $customAvatarStillKey : null,
-                $isAdmin,
-            ),
-            is_string($cachedExternalUrl) ? $cachedExternalUrl : null,
-        );
+        return $this->forCard($key, $stillKey, is_array($roles) && in_array('ROLE_ADMIN', $roles, true), is_string($cachedExternalUrl) ? $cachedExternalUrl : null);
+    }
+
+    /**
+     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null}
+     */
+    public function forCard(?string $key, ?string $stillKey, bool $isAdmin, ?string $cachedExternalUrl): array
+    {
+        $animatedKey = CustomImageRule::animatedAvatarKey($key, $stillKey, $isAdmin);
+
+        return [
+            'avatarUrl' => $this->resolve(CustomImageRule::cardAvatarKey($key, $stillKey), $cachedExternalUrl),
+            'avatarAnimatedUrl' => null !== $animatedKey ? $this->resolve($animatedKey, null) : null,
+        ];
     }
 }

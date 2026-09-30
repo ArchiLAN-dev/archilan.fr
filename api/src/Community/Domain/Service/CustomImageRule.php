@@ -61,6 +61,26 @@ final class CustomImageRule
     }
 
     /**
+     * Story 30.42: off the profile page an avatar is always still - a GIF shows its first frame, whoever owns it.
+     *
+     * @param string|null $stillKey the first frame of a GIF upload, null for a still image
+     */
+    public static function cardAvatarKey(?string $key, ?string $stillKey): ?string
+    {
+        return null === $key ? null : ($stillKey ?? $key);
+    }
+
+    /**
+     * Story 30.42: the GIF a card animates on hover - only an admin's, only a GIF.
+     *
+     * @param string|null $stillKey the first frame of a GIF upload, null for a still image
+     */
+    public static function animatedAvatarKey(?string $key, ?string $stillKey, bool $isAdmin): ?string
+    {
+        return null !== $key && null !== $stillKey && $isAdmin ? $key : null;
+    }
+
+    /**
      * @param string|null $stillKey the first frame of a GIF upload, null for a still image
      */
     public static function displayedBannerKey(?string $key, ?string $stillKey, bool $isAdmin, bool $isMember): ?string
