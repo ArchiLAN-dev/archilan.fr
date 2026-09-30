@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { AlertTriangle, CheckCircle2, EyeOff, Hand } from "lucide-react";
 
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
 import { INCIDENT_STATUS_LABELS, INCIDENT_TYPE_LABELS, type ApworldIncident } from "./admin-apworld-health-api";
 import { formatIncidentDate, incidentOwnerLine } from "./apworld-incident-format";
 
@@ -132,30 +134,19 @@ function IncidentCard({ incident, busy, onAcknowledge, onResolve, onIgnore }: Ca
         </div>
       )}
 
-      {confirmingIgnore && (
-        <div aria-modal="true" className="grid gap-3 rounded-md border border-border bg-background p-3 text-sm" role="dialog">
-          <p className="text-foreground">
-            Ignorer cet incident ? Il ne se rouvrira pas tant que {incident.gameName} sert cette version de l&apos;apworld,
-            même si le test échoue encore. Une nouvelle version sera surveillée normalement.
-          </p>
-          <div className="flex gap-2">
-            <button
-              className={BUTTON}
-              disabled={busy}
-              onClick={() => {
-                setConfirmingIgnore(false);
-                onIgnore(incident.id);
-              }}
-              type="button"
-            >
-              Ignorer quand même
-            </button>
-            <button className={BUTTON} onClick={() => setConfirmingIgnore(false)} type="button">
-              Annuler
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Story 38.13: a modal, not a confirmation unfolded inside the card. */}
+      <ConfirmDialog
+        confirmLabel="Ignorer quand même"
+        description={`Il ne se rouvrira pas tant que ${incident.gameName} sert cette version de l'apworld, même si le test échoue encore. Une nouvelle version sera surveillée normalement.`}
+        onConfirm={() => {
+          setConfirmingIgnore(false);
+          onIgnore(incident.id);
+        }}
+        onOpenChange={setConfirmingIgnore}
+        open={confirmingIgnore}
+        pending={busy}
+        title="Ignorer cet incident ?"
+      />
     </article>
   );
 }

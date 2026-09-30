@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { EyeOff, Eye, Loader2, Search, ShieldCheck } from "lucide-react";
+import { EyeOff, Eye, Loader2, ShieldCheck } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -12,84 +12,55 @@ import { FlaggedAccounts } from "./flagged-accounts";
 
 import {
   CATEGORY_LABELS,
-  DEFAULT_REPORT_FILTERS,
   fetchModerationQueue,
   hideModerationComment,
   PROBLEM_LABELS,
   resolveModerationReport,
   restoreModerationComment,
   type ModerationReport,
-  type ReportCommentState,
   type ReportFilters,
-  type ReportProblem,
-  type ReportSort,
-  type ReportStatus,
-  type ReportTargetType,
 } from "./admin-moderation-api";
+import {
+  clearedReportFilters,
+  REPORT_COMMENT_OPTIONS,
+  REPORT_PROBLEM_OPTIONS,
+  REPORT_SORT_OPTIONS,
+  REPORT_STATUS_OPTIONS,
+  REPORT_TARGET_OPTIONS,
+  reportChips,
+  reportFiltersActive,
+  reportFiltersFromParams,
+  reportFiltersToParams,
+} from "./moderation-filters";
+import { FilterSelect, FilterToggle, ModerationToolbar } from "./moderation-toolbar";
 
 const QUERY_PREFIX = ["admin-moderation"] as const;
 const STALE_TIME = 15_000;
-const SEARCH_DEBOUNCE_MS = 300;
+/** The API returns at most this many reports per query (its default limit). */
+const PAGE_LIMIT = 50;
 
-const STATUS_OPTIONS: { value: ReportStatus; label: string }[] = [
-  { value: "pending", label: "En attente" },
-  { value: "resolved", label: "Résolus" },
-  { value: "all", label: "Tous" },
-];
-
-const COMMENT_OPTIONS: { value: ReportCommentState; label: string }[] = [
-  { value: "any", label: "Tous états" },
-  { value: "hidden", label: "Masqués" },
-  { value: "visible", label: "Visibles" },
-];
-
-const TARGET_OPTIONS: { value: ReportTargetType; label: string }[] = [
-  { value: "any", label: "Toutes cibles" },
-  { value: "comment", label: "Commentaires" },
-  { value: "profile", label: "Profils" },
-];
-
-const SORT_OPTIONS: { value: ReportSort; label: string }[] = [
-  { value: "severity", label: "Gravité" },
-  { value: "recent", label: "Plus récents" },
-  { value: "oldest", label: "Plus anciens" },
-];
-
-const PROBLEM_OPTIONS: { value: ReportProblem; label: string }[] = [
-  { value: "any", label: "Tous contenus" },
-  { value: "nudity", label: "Nudité" },
-  { value: "violence", label: "Violence" },
-  { value: "hate", label: "Haine" },
-  { value: "harassment", label: "Harcèlement" },
-  { value: "spam", label: "Spam" },
-  { value: "other", label: "Autre" },
-];
-
-export function ReportsModerationPanel() {
+/**
+ * The reports tab. Story 39.12: its view (status, filters, sort, search) lives in the page address, owned by
+ * the dashboard; this panel reads it and writes changes back.
+ */
+export function ReportsModerationPanel({ params, onParams }: { params: URLSearchParams; onParams: (next: URLSearchParams) => void }) {
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<ReportStatus>("pending");
-  const [commentState, setCommentState] = useState<ReportCommentState>("any");
-  const [targetType, setTargetType] = useState<ReportTargetType>("any");
-  const [problem, setProblem] = useState<ReportProblem>("any");
-  const [uncategorized, setUncategorized] = useState(false);
-  const [sort, setSort] = useState<ReportSort>("severity");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const filters = reportFiltersFromParams(params);
   const [busyId, setBusyId] = useState<string | null>(null);
   // Story 39.11: hiding a comment is confirmed first.
   const [hiding, setHiding] = useState<ModerationReport | null>(null);
 
-  useEffect(() => {
-    const handle = setTimeout(() => setSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(handle);
-  }, [searchInput]);
-
-  const filters: ReportFilters = { status, commentState, targetType, problem, uncategorized, sort, search };
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: [...QUERY_PREFIX, "reports", filters],
     queryFn: () => fetchModerationQueue(filters),
     staleTime: STALE_TIME,
   });
+
+  const update = (next: ReportFilters) => onParams(reportFiltersToParams(next));
+  const onSearch = useCallback(
+    (search: string) => onParams(reportFiltersToParams({ ...reportFiltersFromParams(params), search })),
+    [onParams, params],
+  );
 
   async function run(id: string, action: () => Promise<boolean>): Promise<void> {
     setBusyId(id);
@@ -98,79 +69,12 @@ export function ReportsModerationPanel() {
     setBusyId(null);
   }
 
-  const isDefault =
-    status === DEFAULT_REPORT_FILTERS.status &&
-    commentState === DEFAULT_REPORT_FILTERS.commentState &&
-    targetType === DEFAULT_REPORT_FILTERS.targetType &&
-    problem === DEFAULT_REPORT_FILTERS.problem &&
-    !uncategorized &&
-    search === "";
+  const chips = reportChips(filters);
+  const shown = data?.reports.length ?? 0;
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Statut des signalements">
-        {STATUS_OPTIONS.map((option) => (
-          <button
-            aria-selected={status === option.value}
-            className={`min-h-9 rounded-full border px-3 text-sm font-semibold transition-colors ${
-              status === option.value
-                ? "border-accent bg-accent/15 text-foreground"
-                : "border-border text-muted-foreground hover:border-accent hover:text-foreground"
-            }`}
-            key={option.value}
-            onClick={() => setStatus(option.value)}
-            role="tab"
-            type="button"
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          Commentaire
-          <FilterSelect
-            onChange={(value) => setCommentState(value as ReportCommentState)}
-            options={COMMENT_OPTIONS}
-            value={commentState}
-          />
-        </label>
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          Cible
-          <FilterSelect
-            onChange={(value) => setTargetType(value as ReportTargetType)}
-            options={TARGET_OPTIONS}
-            value={targetType}
-          />
-        </label>
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          Contenu
-          <FilterSelect onChange={(value) => setProblem(value as ReportProblem)} options={PROBLEM_OPTIONS} value={problem} />
-        </label>
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          Tri
-          <FilterSelect onChange={(value) => setSort(value as ReportSort)} options={SORT_OPTIONS} value={sort} />
-        </label>
-        <label className="flex min-h-9 cursor-pointer items-center gap-2 self-end rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground">
-          <input checked={uncategorized} className="accent-accent" onChange={(e) => setUncategorized(e.target.checked)} type="checkbox" />
-          Non catégorisés
-        </label>
-        <label className="grid flex-1 gap-1 text-xs font-medium text-muted-foreground">
-          Recherche
-          <span className="relative">
-            <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              className="min-h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Commentaire, raison ou auteur…"
-              type="search"
-              value={searchInput}
-            />
-          </span>
-        </label>
-      </div>
-
+      {/* Accounts over the threshold do not depend on the filters: they come first. */}
       {data && data.flagged.length > 0 ? (
         <FlaggedAccounts
           accounts={data.flagged}
@@ -179,6 +83,43 @@ export function ReportsModerationPanel() {
         />
       ) : null}
 
+      <ModerationToolbar
+        active={reportFiltersActive(filters)}
+        filters={
+          <>
+            <FilterSelect defaultValue="pending" label="Statut" onChange={(status) => update({ ...filters, status })} options={REPORT_STATUS_OPTIONS} value={filters.status} />
+            <FilterSelect
+              defaultValue="any"
+              label="Cible"
+              onChange={(targetType) => update({ ...filters, targetType })}
+              options={REPORT_TARGET_OPTIONS}
+              value={filters.targetType}
+            />
+            <FilterSelect defaultValue="any" label="Contenu" onChange={(problem) => update({ ...filters, problem })} options={REPORT_PROBLEM_OPTIONS} value={filters.problem} />
+            <FilterSelect
+              defaultValue="any"
+              label="Commentaire"
+              onChange={(commentState) => update({ ...filters, commentState })}
+              options={REPORT_COMMENT_OPTIONS}
+              value={filters.commentState}
+            />
+            <FilterToggle checked={filters.uncategorized} label="Non catégorisés" onChange={(uncategorized) => update({ ...filters, uncategorized })} />
+          </>
+        }
+        onReset={() => update(clearedReportFilters(filters))}
+        onSearch={onSearch}
+        onSort={(sort) => update({ ...filters, sort })}
+        resultLabel={
+          data === undefined || data === null
+            ? null
+            : `${shown} signalement${shown > 1 ? "s" : ""}${shown >= PAGE_LIMIT ? ` (les ${PAGE_LIMIT} premiers)` : ""}`
+        }
+        search={filters.search}
+        searchPlaceholder="Commentaire, raison ou auteur…"
+        sort={filters.sort}
+        sortOptions={REPORT_SORT_OPTIONS}
+      />
+
       {isLoading ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 aria-hidden className="size-4 animate-spin" /> Chargement…
@@ -186,9 +127,7 @@ export function ReportsModerationPanel() {
       ) : isError || data === null || data === undefined ? (
         <p className="text-sm text-muted-foreground">Impossible de charger la file de modération.</p>
       ) : data.reports.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-          {isDefault ? "Aucun signalement en attente. 🎉" : "Aucun signalement ne correspond à ces filtres."}
-        </p>
+        <EmptyState filtered={chips.length > 0} onClear={() => update(clearedReportFilters(filters))} />
       ) : (
         <ul aria-busy={isFetching} className="divide-y divide-border rounded-lg border border-border bg-surface" role="list">
           {data.reports.map((report) => (
@@ -223,27 +162,16 @@ export function ReportsModerationPanel() {
   );
 }
 
-function FilterSelect({
-  value,
-  options,
-  onChange,
-}: {
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-}) {
+function EmptyState({ filtered, onClear }: { filtered: boolean; onClear: () => void }) {
   return (
-    <select
-      className="min-h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground focus:border-accent focus:outline-none"
-      onChange={(event) => onChange(event.target.value)}
-      value={value}
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <div className="grid justify-items-center gap-3 rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+      <p>{filtered ? "Aucun signalement ne correspond à ces filtres." : "Aucun signalement ici. 🎉"}</p>
+      {filtered ? (
+        <button className={buttonVariants({ variant: "secondary" })} onClick={onClear} type="button">
+          Effacer les filtres
+        </button>
+      ) : null}
+    </div>
   );
 }
 

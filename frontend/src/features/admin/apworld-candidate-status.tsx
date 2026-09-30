@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { FlaskConical, RotateCcw, ShieldAlert, XCircle } from "lucide-react";
 
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
 import type { ApworldCandidate } from "./admin-games-api";
 
 type Props = {
@@ -73,30 +75,20 @@ export function ApworldCandidateStatus({ candidate, busy, onForce, onRetry }: Pr
         </button>
       </div>
 
-      {confirmingForce && (
-        <div aria-modal="true" className="grid gap-3 rounded border border-border bg-background p-3" role="dialog">
-          <p className="text-foreground">
-            Mettre {version} en service sans attendre {decided ? "un test qui passe" : "le verdict du test"} ? Les joueurs l&apos;auront
-            dès maintenant. Le salon staff sera prévenu que la version a été forcée.
-          </p>
-          <div className="flex gap-2">
-            <button
-              className={BUTTON}
-              disabled={busy}
-              onClick={() => {
-                setConfirmingForce(false);
-                onForce();
-              }}
-              type="button"
-            >
-              Forcer la mise en service
-            </button>
-            <button className={BUTTON} onClick={() => setConfirmingForce(false)} type="button">
-              Annuler
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Story 38.13: a modal, not a confirmation unfolded inside the block. */}
+      <ConfirmDialog
+        confirmLabel="Forcer la mise en service"
+        description="Les joueurs l'auront dès maintenant. Le salon staff sera prévenu que la version a été forcée."
+        onConfirm={() => {
+          setConfirmingForce(false);
+          onForce();
+        }}
+        onOpenChange={setConfirmingForce}
+        open={confirmingForce}
+        pending={busy}
+        title={`Mettre ${version} en service sans attendre ${decided ? "un test qui passe" : "le verdict du test"} ?`}
+        tone="danger"
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { type LucideIcon, Gamepad2, LayoutDashboard, Settings, Users } from "lucide-react";
+import { type LucideIcon, ChevronDown, Gamepad2, LayoutDashboard, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -37,6 +37,7 @@ const GROUPS: NavGroup[] = [
     icon: Settings,
     items: [
       { href: "/compte/adhesion", label: "Adhésion" },
+      { href: "/compte/notifications", label: "Notifications" },
       { href: "/compte/confidentialite", label: "Confidentialité" },
       { href: "/compte/securite", label: "Connexions & sécurité", danger: true },
     ],
@@ -61,11 +62,12 @@ export function AccountNav({ registrationsCount, pendingFriends }: AccountNavPro
 
   return (
     <>
-      {/* Mobile: a dropdown that navigates */}
-      <label className="md:hidden">
+      {/* Mobile: a dropdown that navigates. Its own arrow, 16px off the border like its text and the
+          cards below it; the native one sat against the border. */}
+      <label className="relative md:hidden">
         <span className="sr-only">Section de l&apos;espace membre</span>
         <select
-          className="min-h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          className="min-h-11 w-full appearance-none rounded-lg border border-border bg-surface px-4 pr-10 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
           onChange={(e) => router.push(e.target.value)}
           value={pathname}
         >
@@ -78,6 +80,7 @@ export function AccountNav({ registrationsCount, pendingFriends }: AccountNavPro
             </optgroup>
           ))}
         </select>
+        <ChevronDown aria-hidden className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       </label>
 
       {/* Desktop: settings sidebar */}

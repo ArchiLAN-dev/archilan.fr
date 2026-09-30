@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Square } from "lucide-react";
+import { Gamepad2, Loader2, Square } from "lucide-react";
 import { useState } from "react";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+
+import { SHEET_LIST_CLASS, SheetEmpty, SheetSection } from "./admin-sheet-section";
 import {
   fetchAdminUserGaming,
   stopAdminUserRun,
@@ -61,7 +63,7 @@ export function AdminUserGaming({ userId }: { userId: string }) {
       <div className="grid gap-2">
         <h3 className="text-sm font-semibold text-foreground">Runs personnelles</h3>
         {data.ownedRuns.length === 0 && data.joinedRuns.length === 0 ? (
-          <Empty>Ce membre n&apos;a ni créé ni rejoint de run personnelle.</Empty>
+          <SheetEmpty>Ce membre n&apos;a ni créé ni rejoint de run personnelle.</SheetEmpty>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             <RunList runs={data.ownedRuns} title="Dont il est propriétaire" userId={userId} onStopped={async () => { await queryClient.invalidateQueries({ queryKey: ["admin-user-gaming", userId] }); }} />
@@ -73,9 +75,9 @@ export function AdminUserGaming({ userId }: { userId: string }) {
       <div className="grid gap-2">
         <h3 className="text-sm font-semibold text-foreground">Parties terminées</h3>
         {data.history.length === 0 ? (
-          <Empty>Aucune partie terminée.</Empty>
+          <SheetEmpty>Aucune partie terminée.</SheetEmpty>
         ) : (
-          <ul className="grid gap-2" role="list">
+          <ul className={SHEET_LIST_CLASS} role="list">
             {data.history.map((entry, index) => (
               <HistoryRow entry={entry} key={`${entry.sessionId ?? "x"}-${index}`} />
             ))}
@@ -116,8 +118,8 @@ function Accounts({ gaming }: { gaming: Gaming }) {
   return (
     <div className="grid gap-2">
       <h3 className="text-sm font-semibold text-foreground">Comptes liés</h3>
-      <dl className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+      <dl className="grid gap-x-8 gap-y-4 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2">
+        <div className="min-w-0">
           <dt className="text-xs uppercase tracking-wide text-muted-foreground">Discord</dt>
           <dd className="mt-1 text-sm text-foreground">
             {discordId === null ? (
@@ -130,7 +132,7 @@ function Accounts({ gaming }: { gaming: Gaming }) {
             )}
           </dd>
         </div>
-        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+        <div className="min-w-0">
           <dt className="text-xs uppercase tracking-wide text-muted-foreground">Steam</dt>
           <dd className="mt-1 truncate text-sm text-foreground">
             {steamProfile === null ? <span className="text-muted-foreground">Non renseigné</span> : steamProfile}
@@ -159,9 +161,9 @@ function RunList({
       {runs.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aucune</p>
       ) : (
-        <ul className="grid gap-2" role="list">
+        <ul className={SHEET_LIST_CLASS} role="list">
           {runs.map((run) => (
-            <li className="rounded-lg border border-border bg-surface px-3 py-2" key={run.id}>
+            <li className="px-3 py-2" key={run.id}>
               <Link className="text-sm font-semibold text-accent-text hover:underline" href={`/runs/${run.id}`}>
                 {run.title === "" ? "Sans titre" : run.title}
               </Link>
@@ -223,7 +225,7 @@ function HistoryRow({ entry }: { entry: AdminUserHistoryEntry }) {
   // Not linked, for the same reason as the audit timeline: a finished session only has a recap when
   // one was built, and a dead link is worse than a plain label.
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-2">
+    <li className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
       <span className="min-w-0 text-sm text-foreground">
         {entry.game ?? "Jeu inconnu"}
         {entry.context !== null ? <span className="text-muted-foreground"> · {entry.context}</span> : null}
@@ -239,18 +241,14 @@ function HistoryRow({ entry }: { entry: AdminUserHistoryEntry }) {
 
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <section className="grid gap-4">
-      <h2 className="font-heading text-xl font-semibold text-foreground">Jeu</h2>
+    <SheetSection
+      description="Progression, comptes liés, runs personnelles et parties terminées."
+      icon={Gamepad2}
+      id="jeu"
+      title="Jeu"
+    >
       {children}
-    </section>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="rounded-lg border border-border bg-surface px-4 py-6 text-center text-sm text-muted-foreground">
-      {children}
-    </p>
+    </SheetSection>
   );
 }
 

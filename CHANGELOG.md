@@ -5,6 +5,50 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.24.0] - 2026-09-30
+
+Notification quand on sort d'un BK en partie privée, jusque dans le navigateur même site fermé, et une
+administration plus lisible : modération sur deux pages avec des filtres clairs, fiche utilisateur aérée.
+
+### Ajouté
+
+- **Sortie d'un BK notifiée** (story 40.1). Dans une partie privée, un joueur resté bloqué au moins 2 minutes
+  (aucun check atteignable) est prévenu dès qu'un check redevient faisable : « Tu n'es plus bloqué dans « Titre »
+  (Slot) : N checks accessibles », avec ses co-joueurs, une seule fois par blocage. Tout part de l'état que le
+  bridge envoie déjà ; un redémarrage de partie ne produit pas de fausse alerte.
+- **Notifications push du navigateur** (story 40.2). Nouvelle section « Notifications » dans l'espace membre :
+  on les active appareil par appareil, et la notification arrive en popup système même site fermé (pour
+  l'instant la sortie de BK). Sur iPhone et iPad, iOS les réserve aux sites installés comme une application : pas
+  encore disponible.
+
+### Modifié
+
+- **Modération sur deux pages** (stories 39.12 et 39.13). Signalements et contributions tutoriels ont chacun leur
+  page et leur entrée dans une section « Modération » du menu admin, avec le nombre en attente ; l'ancienne
+  adresse redirige vers la bonne page. Recherche, statut, filtres et tri en une barre, avec des listes
+  déroulantes aux couleurs du site ; les filtres actifs sont mis en évidence et gardés dans l'adresse de la page
+  (recharger ou partager le lien redonne la même vue).
+- **Fiche utilisateur admin aérée** (story 36.7) : marges et largeur bornée, en-tête avec sommaire des volets,
+  volets nettement séparés, moins de cartes imbriquées.
+- **Confirmations en fenêtre sur la santé des apworlds** (story 38.13) : « Ignorer » un incident et « Forcer »
+  une version candidate ouvrent une fenêtre au lieu d'un bloc déplié dans la carte.
+
+### Corrigé
+
+- **Espace membre et profil public sur téléphone** (#652) : texte aligné dans les cartes de `/compte`, flèche du
+  menu décollée de la bordure ; sur le profil, le pseudo et les tuiles de stats ne sortent plus de la carte.
+
+### Notes de déploiement
+
+- **Migrations** : `Version20260929100000` (épisodes de BK), `Version20260929140000` (abonnements push).
+- **Notifications push** : générer la paire de clés VAPID **une seule fois**, dans le conteneur `api-web` :
+  `php bin/console app:web-push:generate-keys`, puis renseigner dans `envs/api.env`
+  `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY` et `WEB_PUSH_SUBJECT` (voir
+  `envs/api.env.example`). Sans elles, le push est simplement coupé ; une nouvelle paire désinscrit tous les
+  appareils.
+- **Image worker** reconstruite (extension `bcmath` pour la cryptographie du push).
+- Services inchangés : `archipelago` `v0.16.5`, `orchestrateur` `v0.19.0`, `bridge` `v0.13.0`.
+
 ## [0.23.0] - 2026-09-29
 
 Écrans de modération repensés autour de fenêtres dédiées, note interne sur un membre, et espace membre enfin

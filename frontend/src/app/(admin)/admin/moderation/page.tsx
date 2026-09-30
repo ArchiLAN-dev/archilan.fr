@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
-import { AdminModerationDashboard } from "@/features/admin/admin-moderation-dashboard";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Modération",
+import { moderationPathFor } from "@/features/admin/moderation-filters";
+
+type Props = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-export default function AdminModerationPage() {
-  return <AdminModerationDashboard />;
+/** Story 39.13: the queues have their own pages; old links land on the right one, filters kept. */
+export default async function AdminModerationPage({ searchParams }: Props) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) {
+    if (typeof value === "string") params.set(key, value);
+  }
+
+  redirect(moderationPathFor(params));
 }

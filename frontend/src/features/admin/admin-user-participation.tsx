@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { CalendarCheck, CreditCard, Loader2 } from "lucide-react";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+
+import { SHEET_LIST_CLASS, SheetEmpty, SheetSection } from "./admin-sheet-section";
 import {
   fetchAdminUserParticipation,
   type AdminUserMembership,
@@ -45,23 +47,19 @@ export function AdminUserParticipation({ userId }: { userId: string }) {
 
   if (isPending) {
     return (
-      <section className="grid gap-4">
-        <h2 className="font-heading text-xl font-semibold text-foreground">Adhésion et inscriptions</h2>
+      <MembershipSection>
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 aria-hidden className="size-4 animate-spin" /> Chargement…
         </p>
-      </section>
+      </MembershipSection>
     );
   }
 
   if (data === null || data === undefined) {
     return (
-      <section className="grid gap-4">
-        <h2 className="font-heading text-xl font-semibold text-foreground">Adhésion et inscriptions</h2>
-        <p className="text-sm text-muted-foreground">
-          Impossible de charger l&apos;adhésion et les inscriptions.
-        </p>
-      </section>
+      <MembershipSection>
+        <p className="text-sm text-muted-foreground">Impossible de charger l&apos;adhésion et les inscriptions.</p>
+      </MembershipSection>
     );
   }
 
@@ -70,40 +68,43 @@ export function AdminUserParticipation({ userId }: { userId: string }) {
   // to render.
   return (
     <>
-      <section className="grid gap-4">
-        <h2 className="font-heading text-xl font-semibold text-foreground">Adhésion</h2>
+      <MembershipSection>
         {data.memberships.length === 0 ? (
-          <EmptyState>Aucune adhésion enregistrée pour ce compte.</EmptyState>
+          <SheetEmpty>Aucune adhésion enregistrée pour ce compte.</SheetEmpty>
         ) : (
-          <ul className="grid gap-3" role="list">
+          <ul className={SHEET_LIST_CLASS} role="list">
             {data.memberships.map((membership) => (
               <MembershipRow key={membership.id} membership={membership} />
             ))}
           </ul>
         )}
-      </section>
+      </MembershipSection>
 
-      <section className="grid gap-4">
-        <h2 className="font-heading text-xl font-semibold text-foreground">Inscriptions</h2>
+      <SheetSection
+        description="Les événements auxquels il s'est inscrit."
+        icon={CalendarCheck}
+        id="inscriptions"
+        title="Inscriptions"
+      >
         {data.registrations.length === 0 ? (
-          <EmptyState>Ce membre ne s&apos;est inscrit à aucun événement.</EmptyState>
+          <SheetEmpty>Ce membre ne s&apos;est inscrit à aucun événement.</SheetEmpty>
         ) : (
-          <ul className="grid gap-3" role="list">
+          <ul className={SHEET_LIST_CLASS} role="list">
             {data.registrations.map((registration) => (
               <RegistrationRow key={registration.registrationId} registration={registration} />
             ))}
           </ul>
         )}
-      </section>
+      </SheetSection>
     </>
   );
 }
 
-function EmptyState({ children }: { children: React.ReactNode }) {
+function MembershipSection({ children }: { children: React.ReactNode }) {
   return (
-    <p className="rounded-lg border border-border bg-surface px-4 py-6 text-center text-sm text-muted-foreground">
+    <SheetSection description="Est-il à jour de sa cotisation ?" icon={CreditCard} id="adhesion" title="Adhésion">
       {children}
-    </p>
+    </SheetSection>
   );
 }
 
@@ -114,7 +115,7 @@ function MembershipRow({ membership }: { membership: AdminUserMembership }) {
   };
 
   return (
-    <li className="grid gap-2 rounded-lg border border-border bg-surface px-4 py-3">
+    <li className="grid gap-2 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className={`text-sm font-semibold ${status.tone}`}>{status.label}</p>
         <p className="text-xs text-muted-foreground">
@@ -139,7 +140,7 @@ function MembershipRow({ membership }: { membership: AdminUserMembership }) {
 
 function RegistrationRow({ registration }: { registration: AdminUserRegistration }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3">
+    <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold text-foreground">{registration.eventTitle}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">

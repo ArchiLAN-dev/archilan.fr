@@ -2,13 +2,14 @@
 
 import { useId, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Gavel, Loader2, MessageSquareReply, NotebookPen } from "lucide-react";
+import { Gavel, Loader2, MessageSquareReply, NotebookPen, ShieldAlert } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 
 import { fetchAdminUserModeration, hasPendingDiscordOutcome, replyToMember, type ModerationCommand } from "./admin-users-api";
+import { SheetSection } from "./admin-sheet-section";
 import { ModerationActionList, ModerationCaseMessages, ModerationStateBanner } from "./moderation-history";
 import { SanctionDialog } from "./sanction-dialog";
 
@@ -189,9 +190,13 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <section className="grid gap-4">
-      <h2 className="font-heading text-xl font-semibold text-foreground">Modération</h2>
+    <SheetSection
+      description="Sanctions, notes internes et échanges avec le membre."
+      icon={ShieldAlert}
+      id="moderation"
+      title="Modération"
+    >
       {children}
-    </section>
+    </SheetSection>
   );
 }

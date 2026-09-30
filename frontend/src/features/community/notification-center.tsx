@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, Loader2 } from "lucide-react";
 
 import { useAuth } from "@/features/auth/auth-context";
-import { hasStringProp } from "@/lib/type-guards";
+import { hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import {
   fetchNotificationStreamToken,
   fetchNotifications,
@@ -199,6 +199,17 @@ export function messageFor(item: NotificationItem): string {
       return hasStringProp(item.data, "reason") && item.data.reason !== ""
         ? `Avertissement de la modération : ${item.data.reason}`
         : "La modération t'a envoyé un avertissement";
+    case "slot_unblocked": {
+      // Story 40.1: a slot of a private run left a real BK.
+      const runTitle = hasStringProp(item.data, "runTitle") && item.data.runTitle !== "" ? item.data.runTitle : null;
+      if (runTitle === null) {
+        return "Tu n'es plus bloqué dans ta partie";
+      }
+      const slot = hasStringProp(item.data, "slotName") && item.data.slotName !== "" ? ` (${item.data.slotName})` : "";
+      const count = hasNumberProp(item.data, "reachableNow") ? item.data.reachableNow : null;
+      const checks = count === null ? "" : ` : ${count} ${count > 1 ? "checks accessibles" : "check accessible"}`;
+      return `Tu n'es plus bloqué dans « ${runTitle} »${slot}${checks}`;
+    }
     case "generation_failed": {
       const runTitle =
         hasStringProp(item.data, "runTitle") && item.data.runTitle !== "" ? ` « ${item.data.runTitle} »` : "";
@@ -248,7 +259,7 @@ export function messageFor(item: NotificationItem): string {
 
 export function hrefFor(item: NotificationItem): string {
   if (item.type === "account_flagged") {
-    return "/admin/moderation";
+    return "/admin/moderation/signalements";
   }
   if (item.type === "apworld_incident_opened") {
     // The apworld health page (story 38.3): the incident, who holds it, and the actions.
@@ -256,6 +267,9 @@ export function hrefFor(item: NotificationItem): string {
   }
   if (item.type === "generation_failed") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte";
+  }
+  if (item.type === "slot_unblocked") {
+    return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte/parties";
   }
   if (item.type === "slot_yaml_needs_review") {
     // Where the slot is marked "à revoir" (story 38.7): the run game selection, or the registration

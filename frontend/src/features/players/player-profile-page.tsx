@@ -29,18 +29,20 @@ export function PlayerProfilePage({
   const historyError = history === null;
 
   return (
-    <article className="mx-auto w-full max-w-content grid gap-12">
+    // `grid-cols-1` on this grid and on the card's: an implicit column grows to its content's min-content,
+    // and on a phone the name alone made the card clip its stat tiles.
+    <article className="mx-auto grid w-full max-w-content grid-cols-1 gap-12">
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
         <ProfileBanner className="h-28 sm:h-36" presetKey={profile.customization?.bannerPreset ?? "default"} />
 
         {/* z-10 keeps the overlapping content above the positioned banner. */}
-        <div className="relative z-10 grid gap-5 px-5 pb-6 sm:px-8">
+        <div className="relative z-10 grid grid-cols-1 gap-5 px-5 pb-6 sm:px-8">
           {/* Identity: avatar + name straddle the banner (name centered on the avatar, not shifted). The
               badges sit just below the name and beside the avatar - pulled up so they aren't below the photo. */}
           <div>
             <div className="-mt-12 flex items-center gap-4 sm:-mt-14">
               <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} name={displayName} />
-              <h1 className="font-heading text-3xl font-bold leading-tight text-foreground [text-shadow:0_2px_6px_rgba(0,0,0,0.7)] md:text-4xl">
+              <h1 className="min-w-0 font-heading text-2xl font-bold leading-tight text-foreground [overflow-wrap:anywhere] [text-shadow:0_2px_6px_rgba(0,0,0,0.7)] sm:text-3xl md:text-4xl">
                 {displayName}
               </h1>
             </div>

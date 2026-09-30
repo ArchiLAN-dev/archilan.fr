@@ -57,6 +57,11 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: securityHeaders },
       {
+        // Story 40.2: the service worker is revalidated on every check, so a fix reaches browsers at once.
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache" }],
+      },
+      {
         // Committed public assets (logo, event photos shipped in the build) are content-hashed
         // rarely-changing files; cache them hard. (/_next/static is already immutable by default.)
         source: "/images/:path*",

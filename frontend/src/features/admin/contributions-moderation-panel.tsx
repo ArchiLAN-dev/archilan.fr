@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Search } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { Markdown } from "@/components/markdown/markdown";
 import { buttonVariants } from "@/components/ui/button";
@@ -11,58 +11,45 @@ import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { InstallStepsView } from "@/features/games/install-steps-view";
 import {
   approveContribution,
-  DEFAULT_CONTRIBUTION_FILTERS,
   fetchContributionQueue,
   rejectContribution,
   type ContributionFilters,
   type ContributionItem,
-  type ContributionSort,
-  type ContributionStatus,
-  type ContributionTarget,
 } from "./admin-game-contributions-api";
+import {
+  clearedContributionFilters,
+  CONTRIBUTION_SORT_OPTIONS,
+  CONTRIBUTION_STATUS_OPTIONS,
+  CONTRIBUTION_TARGET_OPTIONS,
+  contributionChips,
+  contributionFiltersActive,
+  contributionFiltersFromParams,
+  contributionFiltersToParams,
+} from "./moderation-filters";
+import { FilterSelect, ModerationToolbar } from "./moderation-toolbar";
 
 const QUERY_PREFIX = ["admin-game-contributions"] as const;
 const STALE_TIME = 15_000;
-const SEARCH_DEBOUNCE_MS = 300;
 
-const STATUS_OPTIONS: { value: ContributionStatus; label: string }[] = [
-  { value: "pending", label: "En attente" },
-  { value: "approved", label: "Approuvées" },
-  { value: "rejected", label: "Rejetées" },
-  { value: "all", label: "Toutes" },
-];
-
-const TARGET_OPTIONS: { value: ContributionTarget; label: string }[] = [
-  { value: "any", label: "Toutes cibles" },
-  { value: "listed", label: "Jeux listés" },
-  { value: "unlisted", label: "Jeux non listés" },
-];
-
-const SORT_OPTIONS: { value: ContributionSort; label: string }[] = [
-  { value: "recent", label: "Plus récentes" },
-  { value: "oldest", label: "Plus anciennes" },
-];
-
-export function ContributionsModerationPanel() {
+/**
+ * The tutorial contributions tab. Story 39.12: same toolbar as the reports, its view in the page address.
+ */
+export function ContributionsModerationPanel({ params, onParams }: { params: URLSearchParams; onParams: (next: URLSearchParams) => void }) {
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<ContributionStatus>("pending");
-  const [target, setTarget] = useState<ContributionTarget>("any");
-  const [sort, setSort] = useState<ContributionSort>("recent");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const filters = contributionFiltersFromParams(params);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const handle = setTimeout(() => setSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(handle);
-  }, [searchInput]);
-
-  const filters: ContributionFilters = { status, target, sort, search };
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: [...QUERY_PREFIX, "list", filters],
     queryFn: () => fetchContributionQueue(filters),
     staleTime: STALE_TIME,
   });
+
+  const update = (next: ContributionFilters) => onParams(contributionFiltersToParams(next));
+  const onSearch = useCallback(
+    (search: string) => onParams(contributionFiltersToParams({ ...contributionFiltersFromParams(params), search })),
+    [onParams, params],
+  );
 
   async function run(id: string, action: () => Promise<boolean>): Promise<void> {
     setBusyId(id);
@@ -71,59 +58,34 @@ export function ContributionsModerationPanel() {
     setBusyId(null);
   }
 
-  const isDefault =
-    status === DEFAULT_CONTRIBUTION_FILTERS.status &&
-    target === DEFAULT_CONTRIBUTION_FILTERS.target &&
-    search === "";
+  const chips = contributionChips(filters);
+  const shown = data?.items.length ?? 0;
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Statut des contributions">
-        {STATUS_OPTIONS.map((option) => (
-          <button
-            aria-selected={status === option.value}
-            className={`min-h-9 rounded-full border px-3 text-sm font-semibold transition-colors ${
-              status === option.value
-                ? "border-accent bg-accent/15 text-foreground"
-                : "border-border text-muted-foreground hover:border-accent hover:text-foreground"
-            }`}
-            key={option.value}
-            onClick={() => setStatus(option.value)}
-            role="tab"
-            type="button"
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          Cible
-          <FilterSelect
-            onChange={(value) => setTarget(value as ContributionTarget)}
-            options={TARGET_OPTIONS}
-            value={target}
-          />
-        </label>
-        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-          Tri
-          <FilterSelect onChange={(value) => setSort(value as ContributionSort)} options={SORT_OPTIONS} value={sort} />
-        </label>
-        <label className="grid flex-1 gap-1 text-xs font-medium text-muted-foreground">
-          Recherche
-          <span className="relative">
-            <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              className="min-h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Jeu, nom proposé, auteur ou message…"
-              type="search"
-              value={searchInput}
+      <ModerationToolbar
+        active={contributionFiltersActive(filters)}
+        filters={
+          <>
+            <FilterSelect
+              defaultValue="pending"
+              label="Statut"
+              onChange={(status) => update({ ...filters, status })}
+              options={CONTRIBUTION_STATUS_OPTIONS}
+              value={filters.status}
             />
-          </span>
-        </label>
-      </div>
+            <FilterSelect defaultValue="any" label="Cible" onChange={(target) => update({ ...filters, target })} options={CONTRIBUTION_TARGET_OPTIONS} value={filters.target} />
+          </>
+        }
+        onReset={() => update(clearedContributionFilters(filters))}
+        onSearch={onSearch}
+        onSort={(sort) => update({ ...filters, sort })}
+        resultLabel={data === undefined ? null : `${shown} contribution${shown > 1 ? "s" : ""}`}
+        search={filters.search}
+        searchPlaceholder="Jeu, nom proposé, auteur ou message…"
+        sort={filters.sort}
+        sortOptions={CONTRIBUTION_SORT_OPTIONS}
+      />
 
       {isLoading ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -132,9 +94,14 @@ export function ContributionsModerationPanel() {
       ) : isError || data === undefined ? (
         <p className="text-sm text-muted-foreground">Impossible de charger les contributions.</p>
       ) : data.items.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-          {isDefault ? "Aucune contribution en attente. 🎉" : "Aucune contribution ne correspond à ces filtres."}
-        </p>
+        <div className="grid justify-items-center gap-3 rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+          <p>{chips.length > 0 ? "Aucune contribution ne correspond à ces filtres." : "Aucune contribution ici. 🎉"}</p>
+          {chips.length > 0 ? (
+            <button className={buttonVariants({ variant: "secondary" })} onClick={() => update(clearedContributionFilters(filters))} type="button">
+              Effacer les filtres
+            </button>
+          ) : null}
+        </div>
       ) : (
         <ul aria-busy={isFetching} className="grid gap-4" role="list">
           {data.items.map((item) => (
@@ -150,30 +117,6 @@ export function ContributionsModerationPanel() {
         </ul>
       )}
     </div>
-  );
-}
-
-function FilterSelect({
-  value,
-  options,
-  onChange,
-}: {
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <select
-      className="min-h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground focus:border-accent focus:outline-none"
-      onChange={(event) => onChange(event.target.value)}
-      value={value}
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
   );
 }
 

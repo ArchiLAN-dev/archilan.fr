@@ -3,6 +3,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ApworldCandidate } from "./admin-games-api";
 import { ApworldCandidateStatus } from "./apworld-candidate-status";
 
+// The real ConfirmDialog renders into a portal, absent from static markup: a stand-in shows its props.
+jest.mock("../../components/ui/confirm-dialog", () => ({
+  ConfirmDialog: ({ open, title, description, confirmLabel, tone }: { open: boolean; title: string; description: React.ReactNode; confirmLabel: string; tone?: string }) => (
+    <div data-confirm="" data-open={String(open)} data-tone={tone ?? "default"}>
+      {title}|{description}|{confirmLabel}
+    </div>
+  ),
+}));
+
 const noop = () => undefined;
 
 function candidate(overrides: Partial<ApworldCandidate> = {}): ApworldCandidate {
@@ -74,5 +83,13 @@ describe("ApworldCandidateStatus", () => {
 
   test("nothing is shown without a candidate", () => {
     expect(render(null)).toBe("");
+  });
+
+  test("forcing asks for confirmation in a modal, in the danger tone (story 38.13)", () => {
+    const html = render(candidate());
+
+    expect(html).toMatch(/data-confirm="" data-open="false" data-tone="danger">Mettre CrystalProject-v0.18.2 en service/);
+    expect(html).toContain("|Forcer la mise en service");
+    expect(html).not.toContain('role="dialog"');
   });
 });
