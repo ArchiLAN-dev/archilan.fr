@@ -182,6 +182,7 @@ passer une panne qui n'affecte que les mods.
 | Réponse du serveur Archipelago | Tout va bien. |
 | Connexion refusée | L'entrypoint n'existe pas, ou le port n'est pas publié. |
 | Certificat invalide / `TRAEFIK DEFAULT CERT` | Le nom du certresolver ne correspond pas à celui du proxy, ou le certificat n'existe pas pour ce nom d'hôte. |
+| `wss` qui passe sous Chrome mais **échoue sous Firefox** | L'ALPN négocie `h2` : l'option TLS `ap-runs` (story 37.9) n'est plus référencée par le routeur, ou plus déclarée. |
 
 Le 404 est le piège : `curl` renvoie un code de sortie 0, la connexion « marche », et seul le
 contenu trahit le problème. Pour un client WebSocket, cela se présente comme un échec de
@@ -192,12 +193,22 @@ curl -sk -o /dev/null -w "wss=%{http_code}\n" https://{hôte}:35042/   # 404 = a
 curl -s  -o /dev/null -w "ws=%{http_code}\n"  http://{hôte}:35042/    # 404 = aucun routeur clair
 openssl s_client -connect {hôte}:35042 -servername {hôte} </dev/null 2>/dev/null \
   | openssl x509 -noout -issuer -subject
+openssl s_client -connect {hôte}:35042 -servername {hôte} -alpn h2,http/1.1 </dev/null 2>/dev/null   | grep ALPN                                                         # doit dire http/1.1, jamais h2
 docker logs traefik | grep -i "entryPoint"                            # « EntryPoint doesn't exist »
 curl -s -H "X-Traefik-Token: $TRAEFIK_TOKEN" http://api-web/api/v1/internal/traefik | jq '.tcp.routers | keys'
 ```
 
 La dernière commande liste ce que l'API sert réellement au proxy : chaque run en cours doit y
 apparaître **deux fois**, en `run-{sessionId}` et en `plain-{sessionId}`.
+
+**Pourquoi `http/1.1` seulement (story 37.9, #525).** Sans option TLS, Traefik applique ses options
+par défaut, qui annoncent `h2`. Firefox sait faire du WebSocket sur HTTP/2 (RFC 8441) et annonce
+`h2` : il l'obtient et parle HTTP/2. Mais le routeur est TCP : Traefik relaie les octets déchiffrés
+au serveur Archipelago, qui ne comprend que HTTP/1.1, et la connexion échoue. Chrome n'annonce que
+`http/1.1` sur un WebSocket, d'où un bug invisible ailleurs. L'API déclare donc l'option `ap-runs`
+(`alpnProtocols: [http/1.1]`) dans sa configuration et la fait référencer par chaque routeur
+`run-{sessionId}` ; le reste du proxy n'est pas concerné et garde HTTP/2. Mesuré le 2026-10-01 : `h2`
+en production avant le correctif, `http/1.1` sur un banc `traefik:v3.6` avec.
 
 Cause la plus probable d'un 404 : la plage des entrypoints et le port du run ne concordent plus -
 typiquement `PORT_RANGE_*` ou `AP_SERVER_PORT_OFFSET` modifié d'un côté sans régénérer de l'autre.
