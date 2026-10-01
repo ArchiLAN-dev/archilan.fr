@@ -110,6 +110,9 @@ enregistre un point visé et un zoom, appliqués à l'affichage en CSS. Raisons 
 - Écart : la fenêtre montre le cadre final seul, pas le reste de l'image grisé autour.
 - Ajustement demandé par Jean au test : bannière de la page de profil plus haute (`h-40 sm:h-56` au lieu de
   `h-28 sm:h-36`), pour laisser plus de place à l'image cadrée.
+- Retour de Jean (2026-10-01, après la v0.25.0) : l'aperçu de l'image de bannière dans la personnalisation
+  restait à `h-24` ; il prend la hauteur de la page de profil (`h-40 sm:h-56`), pour que le cadrage choisi
+  corresponde à ce qui s'affiche.
 - Au passage (30.42) : le parseur de la page des succès perdait `avatarAnimatedUrl`, il le garde maintenant.
 
 ### Gates

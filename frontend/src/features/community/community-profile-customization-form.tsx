@@ -412,7 +412,7 @@ export function CommunityProfileCustomizationForm({
         >
           <div className="grid gap-3">
             <ProfileBanner
-              className="h-24 w-full rounded-lg"
+              className="h-40 w-full rounded-lg sm:h-56"
               framing={bannerFraming}
               imageUrl={bannerImageUrl}
               overlay={bannerOverlay}
