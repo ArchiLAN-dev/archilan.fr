@@ -60,10 +60,9 @@ Une partie relancée change donc presque toujours d'adresse.
   `RestartSession` appelle `StopSession` en nettoyage, ce chemin-là doit garder le port.
 - **D2. Crash** : réserver comme une pause ? Recommandation : **oui**, la relance après crash est le cas où un
   joueur a le plus besoin de retrouver la même adresse.
-- **D3. Capacité** : vérifier en production combien de parties sont en pause depuis moins de 14 jours. Au-delà
-  d'une centaine de façon régulière, raccourcir la durée ou élargir la plage (pool, entrypoints Traefik,
-  pare-feu). Requête indicative côté API :
-  `SELECT count(*) FROM session WHERE status IN ('idle', 'stopped', 'crashed') AND stopped_at > now() - interval '14 days';`
+- **D3. Capacité - tranchée (Jean, 2026-10-01)** : une vingtaine de parties par semaine au plus, soit environ
+  40 ports réservés sur 14 jours en plus des parties en cours, pour un pool de 100. Marge suffisante : ni la durée
+  ni la plage ne changent, la reprise de la plus ancienne réservation reste un filet de sécurité.
 
 ## Tasks / Subtasks
 
