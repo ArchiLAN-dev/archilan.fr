@@ -141,6 +141,34 @@ final class TraefikConfigBuilderTest extends TestCase
         self::assertSame(['run-sess-1', 'plain-sess-1'], $this->routerKeys($config));
     }
 
+    /**
+     * Story 37.9 (#525) : Firefox annonce `h2` sur une connexion WebSocket ; avec les options TLS par défaut de
+     * Traefik, il l'obtient, parle HTTP/2, et le serveur Archipelago (HTTP/1.1 seulement) le rejette.
+     */
+    public function testRunPortsOnlyNegotiateHttp1EvenWithoutRunningSession(): void
+    {
+        foreach ([[], [$this->runningSession('sess-1', 35042)]] as $sessions) {
+            $config = $this->buildWith($sessions);
+
+            $tls = $config['tls'] ?? null;
+            self::assertIsArray($tls);
+            $options = $tls['options'] ?? null;
+            self::assertIsArray($options);
+            self::assertSame(['ap-runs' => ['alpnProtocols' => ['http/1.1']]], $options);
+        }
+    }
+
+    public function testTheTlsRouterUsesTheRunTlsOptions(): void
+    {
+        $config = $this->buildWith([$this->runningSession('sess-1', 35042)]);
+
+        $tls = (array) $this->router($config, 'run-sess-1')['tls'];
+
+        self::assertSame('ap-runs', $tls['options']);
+        self::assertSame('https', $tls['certResolver']);
+        self::assertSame([['main' => 'runs.example.org']], $tls['domains']);
+    }
+
     private function runningSession(string $id, int $port): Session
     {
         return Session::createRunning(
