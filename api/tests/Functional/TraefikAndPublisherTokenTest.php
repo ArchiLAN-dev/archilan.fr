@@ -54,6 +54,21 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
         self::assertArrayHasKey('services', $tcp);
     }
 
+    /**
+     * Traefik's HTTP provider decodes the response as YAML (JSON being a subset of it). PHP's default JSON escapes
+     * "/" as "\/", which YAML 1.1 rejects ("found unknown escape character"): Traefik then kept its last valid
+     * configuration and no run launched afterwards was routed. The ALPN option (story 37.9) carries "http/1.1".
+     */
+    public function testTraefikEndpointNeverEscapesSlashes(): void
+    {
+        $this->client->request('GET', '/api/v1/internal/traefik', [], [], ['HTTP_X_TRAEFIK_TOKEN' => 'test-traefik-token']);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('"http/1.1"', $body);
+        self::assertStringNotContainsString('\/', $body);
+    }
+
     public function testTraefikEndpointExcludesNonRunningSessions(): void
     {
         $admin = $this->createAdmin();
