@@ -28,6 +28,12 @@ final readonly class TraefikConfigController
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Token Traefik invalide.', 401);
         }
 
-        return new JsonResponse($this->traefikConfigBuilder->build());
+        // Traefik's HTTP provider decodes this body as YAML, and YAML 1.1 rejects the "\/" that PHP writes for
+        // "/" by default ("found unknown escape character"): Traefik would keep its last valid configuration and
+        // route no newly launched run. Slashes stay plain.
+        $response = new JsonResponse();
+        $response->setEncodingOptions(JsonResponse::DEFAULT_ENCODING_OPTIONS | \JSON_UNESCAPED_SLASHES);
+
+        return $response->setData($this->traefikConfigBuilder->build());
     }
 }
