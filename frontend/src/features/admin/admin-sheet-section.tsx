@@ -12,6 +12,7 @@ export const SHEET_SECTIONS = [
   { id: "adhesion", label: "Adhésion" },
   { id: "inscriptions", label: "Inscriptions" },
   { id: "jeu", label: "Jeu" },
+  { id: "pelles", label: "Pelles" },
   { id: "journal", label: "Journal d'activité" },
 ] as const;
 

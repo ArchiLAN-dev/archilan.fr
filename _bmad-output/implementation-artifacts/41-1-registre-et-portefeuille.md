@@ -1,6 +1,6 @@
 # Story 41.1: Registre des pelles et portefeuille
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-10-02
 
@@ -63,12 +63,12 @@ coup serait une migration pénible.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-4) - Domaine : mouvement, types, motifs, règle de solde non négatif ; table et migration
+- [x] **Task 1** (AC 1-4) - Domaine : mouvement, types, motifs, règle de solde non négatif ; table et migration
       (index unique sur la clé d'unicité) ; repository ; tests.
-- [ ] **Task 2** (AC 7, 9) - Commande admin créditer / débiter, audit, notification après commit ; tests.
-- [ ] **Task 3** (AC 5, 6, 8) - Requêtes solde, historique, circulation ; endpoints ; tests.
-- [ ] **Task 4** (AC 5-8) - Front : page portefeuille, solde dans le menu, action admin, tableau de bord ; tests.
-- [ ] **Task 5** (AC 10) - Gates.
+- [x] **Task 2** (AC 7, 9) - Commande admin créditer / débiter, audit, notification après commit ; tests.
+- [x] **Task 3** (AC 5, 6, 8) - Requêtes solde, historique, circulation ; endpoints ; tests.
+- [x] **Task 4** (AC 5-8) - Front : page portefeuille, solde dans le menu, action admin, tableau de bord ; tests.
+- [x] **Task 5** (AC 10) - Gates.
 
 ## Notes techniques
 
@@ -82,3 +82,20 @@ coup serait une migration pénible.
   justifie. Débit et contrôle du solde dans la même transaction, avec verrou sur le membre, pour qu'un double
   clic ne passe pas sous zéro.
 - Décision 6 de l'epic (bonus de lancement) à trancher avant la mise en production, pas avant le développement.
+
+## Dev Agent Record
+
+- **Contexte `Wallet`** : `PelleMovement` (entité append-only, clé unique optionnelle), `PelleKind` (gold/event),
+  `PelleReason` (admin_credit/admin_debit) ; table `pelle_movement` (migration Version20261003100000).
+- **`RecordPelleMovement`** : seul point d'écriture du registre. Verrou `SELECT ... FOR UPDATE` sur la ligne du
+  membre, solde relu sous verrou, refus `insufficient_pelles` (422, `details.available`), clé déjà vue = mouvement
+  existant renvoyé. Membre supprimé = 404, banni = 403 sauf `byAdmin`. Une fermeture optionnelle écrit dans la
+  même transaction (audit admin).
+- **`AdjustMemberPelles`** : bornes 1..10000, motif obligatoire (200 car.), refus sur soi (403), audit
+  `pelles_credit` / `pelles_debit` dans la transaction, notification `pelles_adjusted` après commit.
+- **Endpoints** : `GET /api/v1/me/wallet?page=`, `GET|POST /api/v1/admin/users/{id}/pelles`,
+  `GET /api/v1/admin/pelles/circulation` (or seulement, 12 semaines, par motif).
+- **Front** : `/compte/portefeuille`, solde or dans le menu du compte, section « Pelles » de la fiche admin
+  (confirmation avant/après), `/admin/pelles`, notification, et le journal admin affiche enfin les actions
+  admin (`admin_action_received/performed`, jusque-là « Entrée inconnue »).
+- Compte supprimé : l'utilisateur est anonymisé, pas supprimé, donc ses lignes restent (test dédié).

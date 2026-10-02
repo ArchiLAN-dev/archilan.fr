@@ -35,6 +35,7 @@ describe("SheetNav", () => {
       "adhesion",
       "inscriptions",
       "jeu",
+      "pelles",
       "journal",
     ]);
     for (const section of SHEET_SECTIONS) {

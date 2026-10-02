@@ -26,6 +26,8 @@ final class Notification
     public const string TYPE_MODERATION_WARNING = 'moderation_warning';
     /** Member-facing: the staff answered the member's moderation case (story 39.3). */
     public const string TYPE_MODERATION_REPLY = 'moderation_reply';
+    /** Member-facing: an admin credited or debited the member's pelles (story 41.1). */
+    public const string TYPE_PELLES_ADJUSTED = 'pelles_adjusted';
 
     /**
      * @param array<string, mixed> $payload

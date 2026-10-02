@@ -130,3 +130,16 @@ describe("account flagged notification (story 39.13)", () => {
     expect(hrefFor(item("account_flagged", { displayName: "Troll42" }))).toBe("/admin/moderation/signalements");
   });
 });
+
+describe("pelles adjusted notification (story 41.1)", () => {
+  it("tells a credit with its reason, and leads to the wallet", () => {
+    const credit = item("pelles_adjusted", { amount: 50, kind: "gold", reason: "Aide au montage" });
+
+    expect(messageFor(credit)).toBe("Tu as reçu 50 pelles : Aide au montage");
+    expect(hrefFor(credit)).toBe("/compte/portefeuille");
+  });
+
+  it("tells a debit", () => {
+    expect(messageFor(item("pelles_adjusted", { amount: -1, kind: "gold", reason: "" }))).toBe("L'équipe t'a retiré 1 pelle");
+  });
+});
