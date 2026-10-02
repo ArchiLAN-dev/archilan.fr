@@ -21,15 +21,15 @@ export function AdminPellesDashboard() {
   });
 
   return (
-    <div className="grid gap-6">
+    <section className="grid gap-6 p-6 md:p-8">
       <header>
-        <h1 className="font-heading text-3xl font-bold text-foreground">Pelles</h1>
+        <h1 className="font-heading text-2xl font-bold text-foreground">Pelles</h1>
         <p className="mt-1 text-sm text-muted-foreground">Circulation des pelles d&apos;or. Les pelles d&apos;événement n&apos;y figurent pas.</p>
       </header>
       {isLoading ? <p className="text-sm text-muted-foreground">Chargement…</p> : null}
       {!isLoading && !data ? <p className="text-sm text-danger">Impossible de charger la circulation des pelles.</p> : null}
       {data ? <CirculationView circulation={data} /> : null}
-    </div>
+    </section>
   );
 }
 
