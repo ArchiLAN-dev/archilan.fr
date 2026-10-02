@@ -64,6 +64,8 @@ export type PlayerAchievementsCatalogue = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.47: the member's avatar frame, shown wherever the avatar is.
+  avatarFrame?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
   // Story 30.44: legendary admin, epic member (null = a plain name).
@@ -328,6 +330,7 @@ export const getPlayerAchievements = cache(async (slug: string): Promise<PlayerA
       displayName: data.displayName,
       avatarUrl: data.avatarUrl ?? null,
       avatarAnimatedUrl: typeof data.avatarAnimatedUrl === "string" ? data.avatarAnimatedUrl : null,
+      avatarFrame: typeof data.avatarFrame === "string" ? data.avatarFrame : null,
       avatarFraming: isImageFraming(data.avatarFraming) ? data.avatarFraming : null,
       achievements: data.achievements,
     };
