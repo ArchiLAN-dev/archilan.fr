@@ -5,6 +5,21 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.26.1] - 2026-10-02
+
+Correctif de sécurité : l'image `api-worker` de la v0.26.0 n'avait pas pu être publiée.
+
+### Sécurité
+
+- **`pcre2` mis à jour dans les images de l'API** (CVE-2026-103111, faille HIGH d'écriture hors limites via une
+  expression régulière forgée, corrigée en 10.49-r0 dans Alpine). Le scan Trivy bloquait la publication de
+  l'image `api-worker` : ses couches système sont reconstruites (et celles d'`api-web` par précaution).
+
+### Notes de déploiement
+
+- Déployer `api-worker` `0.26.1` avec le reste de la v0.26.x (l'image `0.26.0` du worker n'existe pas).
+- Aucune migration en plus de la v0.26.0. Services inchangés.
+
 ## [0.26.0] - 2026-10-02
 
 Des cadres d'avatar légendaires en vidéo, un sélecteur de cadres repensé, un statut « En jeu » qui suit le jeu
