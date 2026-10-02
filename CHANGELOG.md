@@ -5,6 +5,22 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.27.1] - 2026-10-02
+
+Correctif : les parties redeviennent joignables.
+
+### Corrigé
+
+- **Plus aucune partie joignable depuis la v0.26.0.** La configuration des parties envoyée à Traefik contenait
+  `"http/1.1"` (option ALPN de la story 37.9, correctif Firefox), que l'API écrivait `"http\/1.1"`. Traefik lit
+  cette configuration en YAML, qui refuse cet échappement : il gardait sa dernière configuration valide et ne
+  routait plus aucune partie lancée ensuite. L'API n'échappe plus les `/` (#689).
+
+### Notes de déploiement
+
+- **Image `api-web`** à mettre à jour. Aucune migration. Traefik reprend la configuration en 5 secondes, sans
+  redémarrage.
+
 ## [0.27.0] - 2026-10-02
 
 La photo de profil et son cadre, partout sur le site.
