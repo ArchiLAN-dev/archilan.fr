@@ -34,16 +34,28 @@ Elle **remplace les « happenings »** des ArchiLAN, où des coins étaient gér
   story (tableau de bord admin : pelles créées, détruites, en circulation, par semaine).
 - **Aucun visuel généré par IA** pour les cosmétiques et les jetons physiques : des dessins faits par des membres
   (règle de l'équipe, 2026-10-01).
+- **Solde privé.** Le solde et l'historique ne sont visibles que du membre et des admins : pas de classement des
+  plus riches, qui pousserait au farm.
+- **Une expiration ou une confiscation est un mouvement, jamais un filtre.** Les pelles d'event qui expirent sont
+  détruites par une ligne du registre (motif `event_expired`), pour que l'audit et le tableau de bord de
+  circulation restent justes.
+- **Compte banni ou supprimé.** Un compte banni ne gagne ni ne dépense (solde gelé, rendu à la levée du
+  bannissement). À la suppression d'un compte, ses mouvements restent dans le registre, rattachés à un membre
+  anonymisé (`DeleteAccount`), pour que la circulation reste juste.
 
 ## Existant réutilisé
 
 - **Hint gratuit en partie** : le bridge sait déjà donner un hint d'objet ou de lieu sans toucher aux points de
-  hint d'Archipelago (`rest_hints.py`, `free=true`, stories 9.28 à 9.30) ; l'API le propose aux admins
-  (`PlayerStateController`). Acheter un hint = débiter des pelles, puis demander ce hint gratuit.
+  hint d'Archipelago (`rest_hints.py`, `free=true`, stories 9.28 à 9.30). **Ce chemin est réservé aux admins
+  à dessein** (story 9.31 : « un joueur ne peut que payer », `PlayerStateController`). Acheter un hint avec des
+  pelles ouvre donc un **nouveau chemin serveur** qui débite d'abord, puis appelle le hint gratuit pour le
+  compte du joueur : il ne doit jamais rouvrir l'accès direct au mode gratuit, et un joueur ne peut demander de
+  hint que pour un slot qu'il joue (issue #253).
 - **Config de partie** (epic 27, `SessionServerConfig`) : un réglage « hints contre pelles » s'y ajoute avec les
   mêmes règles de qui le règle (admin pour les hebdos et les events, propriétaire pour les parties privées).
-- **Qui a trouvé quoi** : le fil d'événements des récaps (epic 32) connaît l'envoi de chaque item, ce qui permet
-  de payer une prime à celui qui l'a trouvé.
+- **Qui a trouvé quoi** : le fil d'événements des récaps (epic 32, `SessionFeedEvent` de type `item-received`)
+  garde, pour chaque item reçu, le slot qui l'a envoyé (`sender_slot`, `sender_name`). C'est la base des primes,
+  avec des limites à traiter en 41.4 (voir plus bas).
 - **Actions admin auditées** sur la fiche utilisateur (epic 36, `AdminUserActionAudit`).
 - **Validation des contributions tutoriels** (page « Contributions », epic 39).
 - **Notifications** (`Notifier`, epic 30) pour prévenir d'un gain.
@@ -58,11 +70,35 @@ dépendent pas des barèmes ni des cosmétiques.
 | 41.1 | **Socle** : registre, deux types de pelles, solde, page « Mon portefeuille » (solde et historique), crédit et débit admin audités, tableau de bord de circulation |
 | 41.2 | **Distribution pendant un event** : créditer des pelles d'event à tous les inscrits d'un event ou à une sélection ; expiration à la fin de l'event |
 | 41.3 | **Hints contre pelles** : réglage de partie (autorisé ou non, prix), achat d'un hint d'objet ou de lieu, remboursement automatique si le hint échoue ; pelles d'event d'abord, puis en or si la partie l'accepte |
-| 41.4 | **Primes sur les items** : un joueur bloqué offre des pelles pour un item ; celui qui l'envoie la reçoit automatiquement ; petite commission détruite ; prime remboursée si la partie se termine sans l'item |
+| 41.4 | **Primes sur les items** : un joueur bloqué offre des pelles pour un item ; celui qui l'envoie la reçoit automatiquement ; petite commission détruite ; prime remboursée si la partie se termine sans l'item. Points durs listés plus bas |
 | 41.5 | **Contributions validées** : un tutoriel validé rapporte des pelles en or, montant choisi par l'admin à la validation (barème par défaut) |
 | 41.6 | **Quêtes hebdomadaires** : objectifs de la semaine (atteindre un goal, jouer avec quelqu'un de nouveau, participer à 3 hebdos d'affilée), plafond hebdomadaire ; c'est la réponse au farm, plutôt que de payer chaque check |
 | 41.7 | **Boutique de cosmétiques** : cadres, bannières, déblocages permanents, objets **saisonniers** disponibles pendant une fenêtre (ArchiLAN) puis plus jamais |
 | plus tard | Prédictions sur un event, récompenses créées par les organisateurs, kudos entre joueurs, cagnotte communautaire, dépenses d'identité, jetons physiques à QR code, remerciement des dons (voir « Idées en réserve ») |
+
+## Points durs identifiés à la revue
+
+- **Hints contre pelles (41.3)** : le mode gratuit est réservé aux admins par conception (story 9.31). Le nouveau
+  chemin doit être le seul accès joueur au mode gratuit, débit inclus, sur ses seuls slots. « Le hint échoue »
+  doit être défini précisément : bridge injoignable ou en erreur, session arrêtée, ou aucun hint créé (lieu déjà
+  vérifié, objet déjà trouvé ou déjà indiqué). Le remboursement est automatique dans tous ces cas.
+- **Primes (41.4)** :
+  - **qui est payé** : un slot a un propriétaire et des co-joueurs, et Archipelago ne dit pas lequel a fait le
+    check (même constat qu'en story 30.45). Partage égal entre les joueurs du slot, ou propriétaire seul : à
+    trancher ;
+  - **ce qui compte** : un item reçu par `!release` ou `!collect` n'a été « trouvé » par personne. Il ne doit pas
+    payer de prime (sinon abandonner une partie rapporte). Il faut distinguer ces envois dans le fil, ou les
+    exclure par le marquage des slots releasés ;
+  - **le slot observateur `Bridge`** et le joueur lui-même (qui trouverait son propre item) ne touchent rien ;
+  - **un item en plusieurs exemplaires** : la prime porte sur le prochain exemplaire reçu ;
+  - **fiabilité** : un événement manqué par le bridge (redémarrage) ne doit pas laisser une prime bloquée. Une
+    prime non versée est remboursée à la fin de la partie.
+- **Pelles d'event (41.2)** : un événement est un `Event` (contexte `Events`). Les hebdos (`WeeklyRuns`) et les
+  parties privées n'en sont pas : les pelles d'event ne s'y dépensent pas. La « fin » d'un event est sa date de
+  fin, et l'expiration est un mouvement du registre.
+- **Comptes multiples (41.6)** : une quête comme « jouer avec quelqu'un de nouveau » se triche avec un second
+  compte. Les quêtes ne doivent compter que des parties réellement jouées (checks, goal), et un plafond
+  hebdomadaire borne le reste.
 
 ## Décisions à prendre
 
@@ -77,6 +113,8 @@ dépendent pas des barèmes ni des cosmétiques.
    actuels des adhérents et des admins, stories 30.40 à 30.46, ne doivent pas perdre leur valeur). (bloque 41.7)
 6. **Démarrage** : bonus de lancement calculé sur l'historique de chacun, ou tout le monde part de zéro ?
    (bloque la mise en production de 41.1)
+7. **Primes** : la prime d'un slot joué à plusieurs va au propriétaire seul, ou se partage entre ses joueurs ?
+   (bloque 41.4)
 
 ## Idées en réserve
 

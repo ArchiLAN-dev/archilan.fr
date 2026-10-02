@@ -27,26 +27,35 @@ coup serait une migration pénible.
 1. Un mouvement = membre, montant (entier, positif en gain, négatif en dépense, jamais nul), **type** (`gold` ou
    `event`), pour un `event` l'identifiant de l'événement, **motif** (`admin_credit`, `admin_debit`, et ceux des
    stories suivantes), libellé lisible, auteur (admin ou système), date, **clé d'unicité** facultative.
-2. Une clé d'unicité déjà utilisée refuse le mouvement sans erreur (pas de double crédit si une action est
-   rejouée).
+2. **Idempotence** : enregistrer un mouvement avec une clé d'unicité déjà utilisée ne crée rien et rend le mouvement
+   existant (pas de double crédit si une action est rejouée). Garanti par un index unique, pas seulement par une
+   lecture préalable.
 3. Le solde d'un membre se calcule par type (et par événement pour les pelles d'event) ; **un solde ne peut
-   jamais devenir négatif** : un débit qui le ferait passer sous zéro est refusé.
+   jamais devenir négatif** : un débit qui le ferait passer sous zéro est refusé. Le contrôle et l'écriture se
+   font dans la même transaction, avec un verrou sur le membre : deux débits simultanés ne passent pas tous les
+   deux.
 4. Un mouvement ne se modifie ni ne se supprime : une correction est un mouvement inverse.
+4 bis. **Compte supprimé** : ses mouvements restent, rattachés au membre anonymisé (`DeleteAccount`).
+   **Compte banni** : aucun mouvement ne peut être enregistré pour lui (gain comme dépense), sauf par un admin.
 
 ### Portefeuille
 
 5. Page **« Mon portefeuille »** dans l'espace membre : solde en or, soldes d'event en cours, historique paginé
-   (date, libellé, montant, type).
+   (25 par page ; date, libellé, montant, type). Le solde est **privé** : visible du membre et des admins
+   seulement, absent du profil public.
 6. Le solde en or s'affiche aussi dans le menu du compte, avec l'icône de pelle.
 
 ### Admin
 
-7. Sur la fiche admin d'un membre (epic 36), action **« Créditer / débiter des pelles »** : montant, type
-   (et événement pour une pelle d'event), motif libre obligatoire ; confirmation ; tracée dans le journal
-   d'audit admin et dans le registre ; le membre reçoit une notification du site.
+7. Sur la fiche admin d'un membre (epic 36), action **« Créditer / débiter des pelles »** : montant entre 1 et
+   10 000 (garde-fou contre une faute de frappe), type (et événement pour une pelle d'event), motif libre
+   obligatoire ; la confirmation affiche le solde avant et après ; tracée dans le journal d'audit admin et dans
+   le registre ; le membre reçoit une notification du site (après la transaction). Un débit qui passerait sous
+   zéro est refusé avec le solde disponible.
 8. **Tableau de bord de circulation** (admin) : pelles en or en circulation, créées et détruites par semaine,
    par motif. C'est l'alerte d'inflation de l'epic.
-9. Un admin ne peut pas se créditer lui-même (comme les autres actions ciblées de l'epic 36).
+9. Un admin ne peut pas se créditer ni se débiter lui-même (même règle que les actions ciblées de l'epic 36,
+   `AdminUserActions`).
 
 ### Gates
 
@@ -63,7 +72,12 @@ coup serait une migration pénible.
 
 ## Notes techniques
 
-- Nouveau contexte `Wallet` (ou dans `Community`, à trancher à l'implémentation selon le validateur DDD).
+- **Nouveau contexte `Wallet`** : il doit être ajouté à `DddArchitectureValidator::CONTEXTS`, sinon le validateur
+  le rejette. Il dépend d'`Identity` (membres, bannissement), d'`Events` (pelles d'event) et de `Community`
+  (notifications), jamais l'inverse ; les contextes qui créditeront plus tard (Sessions, primes, quêtes) passeront
+  par une commande de `Wallet`.
+- Les pelles d'event existent dès cette story dans le modèle et dans l'action admin, mais rien ne les dépense ni ne
+  les fait expirer avant la 41.2 : c'est voulu, pour ne pas migrer le registre ensuite.
 - Calcul du solde par agrégat SQL sur le registre ; un solde matérialisé ne sera ajouté que si la mesure le
   justifie. Débit et contrôle du solde dans la même transaction, avec verrou sur le membre, pour qu'un double
   clic ne passe pas sous zéro.
