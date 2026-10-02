@@ -83,8 +83,8 @@ describe("CirculationView", () => {
     );
 
     expect(html).toContain("En circulation");
-    expect(html).toContain("100 créées");
-    expect(html).toContain("40 détruites");
+    // The bars draw client-side; the same numbers sit in the screen-reader table.
+    expect(html).toContain("<td>28 sept.</td><td>100</td><td>40</td>");
     expect(html).toContain("Crédit de l&#x27;équipe");
   });
 });

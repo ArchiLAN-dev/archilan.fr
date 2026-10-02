@@ -4,9 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount } from "./pelle-amount";
+import { PelleWeeksChart } from "./pelle-weeks-chart";
 import { fetchPelleCirculation, pelleReasonLabel, type PelleCirculation } from "./wallet-api";
-
-const weekFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" });
 
 /**
  * The circulation of gold pelles (story 41.1 AC8): what exists, what was created and destroyed, week by
@@ -34,8 +33,6 @@ export function AdminPellesDashboard() {
 }
 
 export function CirculationView({ circulation }: { circulation: PelleCirculation }) {
-  const peak = Math.max(1, ...circulation.weeks.map((week) => Math.max(week.created, week.destroyed)));
-
   return (
     <div className="grid gap-6">
       <dl className="grid gap-4 sm:grid-cols-3">
@@ -52,19 +49,9 @@ export function CirculationView({ circulation }: { circulation: PelleCirculation
 
       <section aria-labelledby="pelles-weeks" className="grid gap-3 rounded-xl border border-border p-5">
         <h2 className="font-heading text-lg font-semibold text-foreground" id="pelles-weeks">
-          Par semaine
+          Par semaine (12 dernières)
         </h2>
-        <ul className="grid gap-2">
-          {circulation.weeks.map((week) => (
-            <li className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 text-xs" key={week.weekStart}>
-              <span className="text-muted-foreground">{weekFormatter.format(new Date(`${week.weekStart}T00:00:00Z`))}</span>
-              <span className="grid gap-1">
-                <Bar label={`${week.created} créées`} tone="bg-success" width={(week.created / peak) * 100} />
-                <Bar label={`${week.destroyed} détruites`} tone="bg-danger" width={(week.destroyed / peak) * 100} />
-              </span>
-            </li>
-          ))}
-        </ul>
+        <PelleWeeksChart weeks={circulation.weeks} />
       </section>
 
       <section aria-labelledby="pelles-reasons" className="grid gap-3 rounded-xl border border-border p-5">
@@ -104,14 +91,5 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-heading text-2xl font-bold">{children}</dd>
     </div>
-  );
-}
-
-function Bar({ width, tone, label }: { width: number; tone: string; label: string }) {
-  return (
-    <span className="flex items-center gap-2">
-      <span aria-hidden className={`h-2 rounded-full ${tone}`} style={{ width: `${Math.max(width, 0.5)}%` }} />
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-    </span>
   );
 }
