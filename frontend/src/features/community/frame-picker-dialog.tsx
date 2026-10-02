@@ -1,18 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Lock } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
-import { AvatarContent } from "@/features/players/profile-avatar";
 import { AvatarFrame } from "./avatar-frame";
 import { AVATAR_FRAMES, type AvatarFrameCategory } from "./avatar-frames";
 import { FramePreview, type FramePreviewBanner } from "./frame-preview";
+import { AvatarContent } from "./member-avatar";
 import type { ImageFraming } from "./image-framing";
 
 export const FRAME_CATEGORIES: readonly AvatarFrameCategory[] = ["Couleurs", "Néon", "Effets", "Légendaires"];
 export const LEGENDARY_CATEGORY: AvatarFrameCategory = "Légendaires";
+// The cards draw their 48 px avatar with the frame scaled to it (story 30.47).
+const CARD_SCALE = { "--s": 48 / 112 } as CSSProperties;
 
 type Avatar = { avatarUrl: string | null; name: string; framing: ImageFraming | null };
 
@@ -183,8 +185,8 @@ function FrameCard({
       title={locked ? "Réservé aux admins pour l'instant" : label}
       type="button"
     >
-      <AvatarFrame className="size-12" frameKey={frameKey} playing={hovered && !locked} preview>
-        <AvatarContent avatarUrl={avatar.avatarUrl} framing={avatar.framing} name={avatar.name} small />
+      <AvatarFrame animated={hovered && !locked} className="size-12" frameKey={frameKey} preview style={CARD_SCALE}>
+        <AvatarContent avatarUrl={avatar.avatarUrl} framing={avatar.framing} name={avatar.name} size={48} />
       </AvatarFrame>
       {locked ? (
         <Lock aria-hidden className="absolute right-1.5 top-1.5 size-3.5 text-muted-foreground" />

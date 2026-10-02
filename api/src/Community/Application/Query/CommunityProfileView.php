@@ -393,10 +393,10 @@ final readonly class CommunityProfileView
     /**
      * Story 30.42: off the profile page the avatar is still, with an admin's GIF to animate on hover.
      *
-     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}
+     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null}
      */
     private function cardAvatar(?CommunityProfile $profile, bool $isAdmin): array
     {
-        return $this->avatarUrls->forCard($profile?->getCustomAvatarKey(), $profile?->getCustomAvatarStillKey(), $isAdmin, $profile?->getAvatarUrl(), $profile?->getAvatarFraming() ?? ImageFraming::centred());
+        return $this->avatarUrls->forCard($profile?->getCustomAvatarKey(), $profile?->getCustomAvatarStillKey(), $isAdmin, $profile?->getAvatarUrl(), $profile?->getAvatarFraming() ?? ImageFraming::centred(), $profile?->getAvatarFrame());
     }
 }

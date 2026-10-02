@@ -26,6 +26,6 @@ describe("videoLayer", () => {
     const still = videoLayer(video("lava"), "layer", false);
 
     expect(still.type).toBe("img");
-    expect(still.props).toMatchObject({ src: "/avatar-frames/lava-poster.webp", alt: "" });
+    expect(still.props).toMatchObject({ src: "/avatar-frames/lava-still.webp", alt: "" });
   });
 });

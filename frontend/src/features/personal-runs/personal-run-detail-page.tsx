@@ -43,8 +43,7 @@ import { PlayerBadges } from "@/features/community/player-badges";
 import { RunTitle } from "./run-title";
 import { showsRunStatusLine, showsSettingsDelete } from "./run-overview-visibility";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
-import { AvatarImage } from "../community/avatar-image";
-import type { ImageFraming } from "@/features/community/image-framing";
+import { MemberAvatar } from "../community/member-avatar";
 import { TitledName } from "@/features/community/titled-name";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
@@ -103,28 +102,6 @@ function MyGamesCard({ run, mySlotCount }: { run: PersonalRun; mySlotCount: numb
 
 // ─── Participant list ─────────────────────────────────────────────────────────
 
-function ParticipantAvatar({ avatarUrl, animatedUrl = null, framing = null, name }: { avatarUrl: string | null; animatedUrl?: string | null; framing?: ImageFraming | null; name: string }) {
-  const [failed, setFailed] = useState(false);
-
-  if (avatarUrl !== null && !failed) {
-    return (
-      <AvatarImage
-        animatedSrc={animatedUrl}
-        className="size-8 shrink-0 rounded-full bg-surface object-cover"
-        framing={framing}
-        onError={() => setFailed(true)}
-        src={avatarUrl}
-      />
-    );
-  }
-
-  return (
-    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-xs font-semibold uppercase text-accent-text">
-      {name.slice(0, 2)}
-    </div>
-  );
-}
-
 function ParticipantList({ runId, participants }: { runId: string; participants: PersonalRunParticipant[] }) {
   if (participants.length === 0) {
     return (
@@ -139,7 +116,7 @@ function ParticipantList({ runId, participants }: { runId: string; participants:
 
         return (
           <li className="flex items-center gap-3" key={p.userId}>
-            <ParticipantAvatar animatedUrl={p.avatarAnimatedUrl} avatarUrl={p.avatarUrl} framing={p.avatarFraming} name={name} />
+            <MemberAvatar avatarAnimatedUrl={p.avatarAnimatedUrl} avatarUrl={p.avatarUrl} frame={p.avatarFrame} framing={p.avatarFraming} name={name} size={32} />
             <div className="min-w-0 flex-1">
               {p.slug !== null ? (
                 <Link

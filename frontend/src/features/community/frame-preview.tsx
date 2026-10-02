@@ -1,5 +1,5 @@
-import { ProfileAvatar } from "@/features/players/profile-avatar";
 import type { ImageFraming } from "./image-framing";
+import { MemberAvatar } from "./member-avatar";
 import { ProfileBanner } from "./profile-banner";
 
 export type FramePreviewBanner = {
@@ -36,7 +36,7 @@ export function FramePreview({
         <ProfileBanner className="size-full" framing={banner.framing} imageUrl={banner.imageUrl} overlay={banner.overlay} presetKey={banner.presetKey} />
       </div>
       <div className="relative">
-        <ProfileAvatar avatarUrl={avatarUrl} frame={frame} framing={framing} name={name} />
+        <MemberAvatar animate="always" avatarUrl={avatarUrl} frame={frame} framing={framing} name={name} size={112} sizeClassName="size-24 sm:size-28" />
       </div>
     </div>
   );

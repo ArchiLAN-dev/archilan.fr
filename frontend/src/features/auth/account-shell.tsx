@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -12,8 +11,7 @@ import { accountRoleLabel } from "./account-role";
 import { AccountNav } from "./account-nav";
 import { EmailVerificationBanner } from "./email-verification-banner";
 import type { Profile } from "./account-profile";
-import { AvatarImage } from "../community/avatar-image";
-import type { ImageFraming } from "@/features/community/image-framing";
+import { MemberAvatar } from "../community/member-avatar";
 
 /**
  * Shared chrome for every `/compte/*` section: fetches the profile once (header, role, email banner)
@@ -73,12 +71,22 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
         {loading ? (
           <div
             aria-hidden="true"
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent/20 font-heading text-lg font-bold text-accent-text"
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16.7%] bg-accent/20 font-heading text-lg font-bold text-accent-text"
           >
             …
           </div>
         ) : (
-          <HeaderAvatar animatedUrl={communityProfile?.avatarAnimatedUrl} avatarUrl={avatarUrl} framing={communityProfile?.avatarFraming} initials={getInitials(profile)} />
+          <MemberAvatar
+            avatarAnimatedUrl={communityProfile?.avatarAnimatedUrl}
+            avatarUrl={avatarUrl}
+            frame={communityProfile?.avatarFrame}
+            framing={communityProfile?.avatarFraming}
+            // The card-glow behind it blurs its backdrop (a stacking context, see-through): a video frame's screen
+            // blend would show a black box there, so it stays on its still (story 30.47).
+            hoverVideo={false}
+            name={profile?.displayName || profile?.email || "?"}
+            size={56}
+          />
         )}
         <div className="min-w-0 flex-1">
           {loading ? (
@@ -109,43 +117,4 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
-}
-
-// ── Helpers (moved from the former AccountTabs) ─────────────────────────────────
-
-function HeaderAvatar({ avatarUrl, animatedUrl = null, framing = null, initials }: { avatarUrl: string | null; animatedUrl?: string | null; framing?: ImageFraming | null; initials: string }) {
-  const [failed, setFailed] = useState(false);
-
-  if (avatarUrl !== null && !failed) {
-    return (
-      <AvatarImage
-        animatedSrc={animatedUrl}
-        className="h-14 w-14 shrink-0 rounded-full bg-surface object-cover"
-        framing={framing}
-        onError={() => setFailed(true)}
-        src={avatarUrl}
-      />
-    );
-  }
-
-  return (
-    <div
-      aria-hidden="true"
-      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent/20 font-heading text-lg font-bold text-accent-text"
-    >
-      {initials}
-    </div>
-  );
-}
-
-function getInitials(profile: Profile | null): string {
-  if (!profile) return "?";
-  if (profile.displayName) {
-    return profile.displayName
-      .split(" ")
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase() ?? "")
-      .join("");
-  }
-  return (profile.email[0] ?? "?").toUpperCase();
 }

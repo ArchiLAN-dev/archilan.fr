@@ -6,12 +6,12 @@ import { ImageFramingEditor } from "./image-framing-dialog";
 describe("ImageFramingEditor", () => {
   const noop = () => undefined;
 
-  test("a round frame for the photo, with the saved framing and its zoom", () => {
+  test("a rounded-square frame for the photo (story 30.47), with the saved framing and its zoom", () => {
     const html = renderToStaticMarkup(
       <ImageFramingEditor imageUrl="p.png" initial={{ x: 30, y: 60, zoom: 150 }} onCancel={noop} onConfirm={noop} shape="avatar" />,
     );
 
-    expect(html).toContain("rounded-full");
+    expect(html).toContain("rounded-[16.7%]");
     expect(html).toContain("object-position:30% 60%");
     expect(html).toContain('value="150"');
     expect(html).toContain("Recentrer");
