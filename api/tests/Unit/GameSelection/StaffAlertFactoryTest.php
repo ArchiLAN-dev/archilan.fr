@@ -174,6 +174,15 @@ final class StaffAlertFactoryTest extends TestCase
         self::assertSame('https://archilan.fr/admin/jeux/game-1', $alert->url);
     }
 
+    /** Story 38.14: an awaiting candidate put online by an admin after its passed test is validated, not forced. */
+    public function testAnApprovedPromotionSaysWhoValidatedIt(): void
+    {
+        $alert = $this->factory->promoted('Rogue Legacy', 'game-1', 'v1', 'v2', ApworldCandidateOrigin::Manual, null, null, 'Jean');
+
+        self::assertStringContainsString('Validée par Jean après un test de génération réussi', $alert->description);
+        self::assertStringNotContainsString('Forcée', $alert->description);
+    }
+
     private function incident(string $error): ApworldIncident
     {
         return ApworldIncident::open(

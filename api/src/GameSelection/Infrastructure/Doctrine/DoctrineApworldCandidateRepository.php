@@ -25,10 +25,10 @@ final readonly class DoctrineApworldCandidateRepository implements ApworldCandid
         return $this->entityManager->find(ApworldCandidate::class, $id);
     }
 
-    public function findTestingForGame(string $gameId): ?ApworldCandidate
+    public function findPendingForGame(string $gameId): ?ApworldCandidate
     {
         return $this->entityManager->getRepository(ApworldCandidate::class)->findOneBy(
-            ['gameId' => $gameId, 'status' => ApworldCandidateStatus::Testing],
+            ['gameId' => $gameId, 'status' => [ApworldCandidateStatus::Testing, ApworldCandidateStatus::Awaiting]],
             ['submittedAt' => 'DESC'],
         );
     }

@@ -8,6 +8,7 @@ import {useQuery, useQueryClient} from "@tanstack/react-query";
 
 import {
     fetchAdminGame,
+    approveApworldCandidate,
     forceApworldCandidate,
     isAdminGamePayload as isGamePayload,
     overrideApworldPreflight,
@@ -34,6 +35,7 @@ import {env} from "@/lib/env";
 import {DEFAULT_STALE_TIME} from "@/lib/query-client";
 import {APWORLD_INCIDENTS_QUERY_KEY, fetchApworldIncidents} from "./admin-apworld-health-api";
 import {ApworldCandidateStatus} from "./apworld-candidate-status";
+import {CandidateYamlTest} from "./candidate-yaml-test";
 import {ApworldPreflightImage} from "./apworld-preflight-image";
 import {ApworldPreflightWarning} from "./apworld-preflight-warning";
 import {overrideIsActive} from "./apworld-preflight-override";
@@ -759,6 +761,7 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
 
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [holdForApproval, setHoldForApproval] = useState(false);
     const [loadingAssets, setLoadingAssets] = useState(false);
     const [importingGithub, setImportingGithub] = useState(false);
     const [githubAssets, setGithubAssets] = useState<GithubAsset[] | null>(null);
@@ -798,7 +801,7 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
             const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/apworld-from-github`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({assetDownloadUrl: downloadUrl, assetName, assetTag: tag}),
+                body: JSON.stringify({assetDownloadUrl: downloadUrl, assetName, assetTag: tag, holdForApproval}),
             });
             const payload: unknown = await res.json();
             if (!res.ok) {
@@ -821,6 +824,8 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
         try {
             const formData = new FormData();
             formData.append("file", selectedFile);
+            // Story 38.14: a passed test waits for the admin instead of putting the version online.
+            if (holdForApproval) formData.append("holdForApproval", "1");
 
             const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/apworld`, {
                 body: formData,
@@ -927,6 +932,22 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
                         {uploading ? "Envoi en cours…" : "Uploader"}
                     </button>
                 </div>
+
+                {/* Story 38.14: test first, put online by hand. */}
+                <label className="flex items-start gap-2 text-sm text-foreground">
+                    <input
+                        checked={holdForApproval}
+                        className="mt-0.5 size-4 accent-accent"
+                        onChange={(e) => setHoldForApproval(e.target.checked)}
+                        type="checkbox"
+                    />
+                    <span>
+                        Garder en test, je validerai moi-même
+                        <span className="block text-xs text-muted-foreground">
+                            Même si le test de génération passe, la nouvelle version attend que tu la mettes en ligne. Tu pourras la tester avec un YAML avant.
+                        </span>
+                    </span>
+                </label>
 
                 {game.apworldSourceUrl ? (
                     <p className="truncate font-mono text-xs text-muted-foreground" title={game.apworldSourceUrl}>
@@ -1576,10 +1597,13 @@ function ApworldCandidateBlock({game, onUpdate}: { game: AdminGame; onUpdate: (g
             <ApworldCandidateStatus
                 busy={busy}
                 candidate={game.apworldCandidate ?? null}
+                onApprove={() => void run(approveApworldCandidate)}
                 onForce={() => void run(forceApworldCandidate)}
                 onRetry={() => void run(retryApworldCandidate)}
             />
             {error !== null && <p className="mt-2 text-sm text-danger" role="alert">{error}</p>}
+            {/* Story 38.14: try the candidate with a real YAML before it serves players. */}
+            {game.apworldCandidate ? <div className="mt-2"><CandidateYamlTest gameId={game.id}/></div> : null}
         </>
     );
 }

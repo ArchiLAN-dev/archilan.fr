@@ -36,7 +36,10 @@ final readonly class SubmitApworldCandidate
     ) {
     }
 
-    public function submit(string $gameId, string $fileContents, string $filename, ?string $versionTag, ApworldCandidateOrigin $origin, ?string $submittedBy): ApworldCandidateSubmission
+    /**
+     * @param bool $holdForApproval story 38.14: a passed test waits for the admin instead of putting the version online
+     */
+    public function submit(string $gameId, string $fileContents, string $filename, ?string $versionTag, ApworldCandidateOrigin $origin, ?string $submittedBy, bool $holdForApproval = false): ApworldCandidateSubmission
     {
         if (!$this->games->findById($gameId) instanceof Game) {
             return new ApworldCandidateSubmission(false, null);
@@ -80,7 +83,7 @@ final readonly class SubmitApworldCandidate
         }
 
         $now = $this->clock->now();
-        $this->candidates->findTestingForGame($gameId)?->supersede($now);
+        $this->candidates->findPendingForGame($gameId)?->supersede($now);
 
         $candidate = ApworldCandidate::submit(
             bin2hex(random_bytes(16)),
@@ -94,6 +97,7 @@ final readonly class SubmitApworldCandidate
             $origin,
             $submittedBy,
             $now,
+            $holdForApproval,
         );
         $this->candidates->save($candidate);
         $this->candidates->flush();

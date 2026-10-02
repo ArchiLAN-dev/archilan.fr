@@ -23,8 +23,20 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** @var array{apImage: string, apImageId: string|null}|null Canned image in use (story 38.8 tests); null = runner silent. */
     public static ?array $runtime = null;
 
+    /** @var array{playerYaml: string, apworldHash: ?string}|null The last startSlotPreflight() call (story 38.14 tests). */
+    public static ?array $lastSlotPreflight = null;
+
+    /** @var array{status: string, error: string}|null Canned getSlotPreflight() result; null = an unknown job (story 38.14 tests). */
+    public static ?array $slotPreflightResult = ['status' => 'passed', 'error' => ''];
+
+    /** When true, startSlotPreflight() reads as a runner that did not answer (story 38.14 tests). */
+    public static bool $slotPreflightUnavailable = false;
+
     public static function reset(): void
     {
+        self::$lastSlotPreflight = null;
+        self::$slotPreflightResult = ['status' => 'passed', 'error' => ''];
+        self::$slotPreflightUnavailable = false;
         self::$apworldUploadResult = null;
         self::$lastConfigureSlots = null;
         self::$nextSessionInfo = null;
@@ -125,17 +137,22 @@ final class NullRunnerGateway implements RunnerGatewayInterface
             : ['error' => 'runner_unavailable'];
     }
 
-    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): string
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string
     {
+        if (self::$slotPreflightUnavailable) {
+            return null;
+        }
+        self::$lastSlotPreflight = ['playerYaml' => $playerYaml, 'apworldHash' => $apworldHash];
+
         return 'null-preflight-job';
     }
 
     /**
-     * @return array{status: string, error: string}
+     * @return array{status: string, error: string}|null
      */
-    public function getSlotPreflight(string $jobId): array
+    public function getSlotPreflight(string $jobId): ?array
     {
-        return ['status' => 'passed', 'error' => ''];
+        return self::$slotPreflightResult;
     }
 
     public function configureSession(string $sessionId, array $slots): array

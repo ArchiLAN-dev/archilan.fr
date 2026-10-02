@@ -63,7 +63,7 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
         self::assertNull($game->getApworldDeployedVersion(), 'the deployed version moves on promotion, not on upload');
         self::assertNull($game->getApworldHash());
 
-        $candidate = $this->candidates->findTestingForGame($game->getId());
+        $candidate = $this->candidates->findPendingForGame($game->getId());
         self::assertSame('2.3.4', $candidate?->getVersionTag());
         self::assertSame('deadbeef', $candidate->getApworldHash());
 
@@ -99,7 +99,7 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
         self::assertTrue($result['found']);
         self::assertSame([], $result['errors']);
         self::assertNull($game->getApworldDeployedVersion());
-        self::assertNull($this->candidates->findTestingForGame($game->getId())?->getVersionTag());
+        self::assertNull($this->candidates->findPendingForGame($game->getId())?->getVersionTag());
     }
 
     private function makeLibrary(Game $game): AdminGameLibrary
