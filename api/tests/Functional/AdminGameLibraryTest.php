@@ -150,6 +150,36 @@ final class AdminGameLibraryTest extends FunctionalTestCase
         self::assertSame([], $response['data']);
     }
 
+    /** Story 11.6: the list says which games carry an internal note, with an excerpt for the hover. */
+    public function testTheListFlagsGamesWithAnInternalNote(): void
+    {
+        $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']));
+        $noted = $this->createGame('Rogue Legacy', 'rogue-legacy');
+        $blank = $this->createGame('Beat Saber', 'beat-saber');
+        $this->createGame('Celeste', 'celeste');
+        $long = str_repeat('a', 250);
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s/notes', $noted->getId()), ['adminNotes' => $long]);
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s/notes', $blank->getId()), ['adminNotes' => '   
+  ']);
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/games');
+
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $bySlug = [];
+        foreach ($data as $row) {
+            self::assertIsArray($row);
+            self::assertIsString($row['slug'] ?? null);
+            $bySlug[$row['slug']] = $row;
+        }
+        self::assertTrue($bySlug['rogue-legacy']['hasAdminNotes']);
+        self::assertSame(str_repeat('a', 200), $bySlug['rogue-legacy']['adminNotesExcerpt']);
+        self::assertFalse($bySlug['beat-saber']['hasAdminNotes'], 'blank notes are no note');
+        self::assertNull($bySlug['beat-saber']['adminNotesExcerpt']);
+        self::assertFalse($bySlug['celeste']['hasAdminNotes']);
+    }
+
     public function testAdminCreatesUpdatesListsAndDeletesGame(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);

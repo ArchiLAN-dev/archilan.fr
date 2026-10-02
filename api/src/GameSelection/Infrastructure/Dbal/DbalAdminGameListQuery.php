@@ -10,6 +10,9 @@ use Doctrine\DBAL\Query\QueryBuilder;
 
 final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterface
 {
+    /** Story 11.6: length of the note excerpt shown on hover in the admin list. */
+    private const int NOTES_EXCERPT_LENGTH = 200;
+
     public function __construct(private Connection $connection)
     {
     }
@@ -36,6 +39,7 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
                 'g.availability',
                 'g.disabled_at',
                 'g.disabled_message',
+                'g.admin_notes',
                 'g.archipelago_game_name',
                 'g.apworld_storage_key',
                 'g.apworld_hash',
@@ -101,6 +105,7 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
         $archipelagoGameName = is_string($row['archipelago_game_name'] ?? null) && '' !== $row['archipelago_game_name'] ? $row['archipelago_game_name'] : null;
         $apworldStorageKey = is_string($row['apworld_storage_key'] ?? null) && '' !== $row['apworld_storage_key'] ? $row['apworld_storage_key'] : null;
         $apworldHash = is_string($row['apworld_hash'] ?? null) && '' !== $row['apworld_hash'] ? $row['apworld_hash'] : null;
+        $adminNotes = is_string($row['admin_notes'] ?? null) && '' !== trim($row['admin_notes']) ? trim($row['admin_notes']) : null;
 
         return [
             'id' => is_string($row['id'] ?? null) ? $row['id'] : '',
@@ -113,6 +118,9 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
             'availability' => is_string($row['availability'] ?? null) ? $row['availability'] : '',
             'disabled' => is_string($row['disabled_at'] ?? null) && '' !== $row['disabled_at'],
             'disabledMessage' => is_string($row['disabled_message'] ?? null) && '' !== $row['disabled_message'] ? $row['disabled_message'] : null,
+            // Story 11.6: the list flags an internal note, with an excerpt for the hover. Blank notes are no note.
+            'hasAdminNotes' => null !== $adminNotes,
+            'adminNotesExcerpt' => null !== $adminNotes ? mb_substr($adminNotes, 0, self::NOTES_EXCERPT_LENGTH) : null,
             'archipelagoGameName' => $archipelagoGameName,
             'isYamlReady' => null !== $archipelagoGameName,
             'isApworldReady' => null !== $apworldStorageKey,
