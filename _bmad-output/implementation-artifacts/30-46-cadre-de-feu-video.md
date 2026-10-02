@@ -1,6 +1,6 @@
 # Story 30.46: Cadres d'avatar vidéo (Feu et six effets)
 
-**Status:** review
+**Status:** done
 **Epic:** 30 - Communauté
 **Date:** 2026-10-02
 
@@ -318,6 +318,8 @@ Claude Opus 5.5 (1M context)
   bannière du membre derrière l'avatar, sans z-index (testé).
 - Gates (branche seule, base de test isolée) : `composer gates` OK (2569 tests, 15327 assertions) ; `pnpm gates` OK
   (683 tests, build propre ; les 10 avertissements de lint préexistent, hors des fichiers de la story).
+
+- Mergée dans `develop` le 2026-10-02 (PR #675, commit de merge `ff8b1de4`), CI verte.
 
 ### File List
 
