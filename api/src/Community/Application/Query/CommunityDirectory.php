@@ -45,7 +45,7 @@ final readonly class CommunityDirectory
 
     /**
      * @return array{
-     *     rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool, liveTwitchLogin: string|null}>,
+     *     rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool, liveTwitchLogin: string|null}>,
      *     total: int, page: int, perPage: int
      * }
      */
@@ -209,12 +209,12 @@ final readonly class CommunityDirectory
     /**
      * Enrich an ordered list of user ids into directory rows (drops ids without a public card).
      *
-     * @param list<string>                                                                                                                                                                                                            $userIds
-     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null}>|null $cards
-     * @param array<string, array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, runsParticipated: int, goalCompletions: int, totalChecksDone: int, achievementsUnlocked: int}>|null                                     $levels
-     * @param array<string, string>                                                                                                                                                                                                   $liveLoginByUser
+     * @param list<string>                                                                                                                                                                                                                                      $userIds
+     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}>|null $cards
+     * @param array<string, array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, runsParticipated: int, goalCompletions: int, totalChecksDone: int, achievementsUnlocked: int}>|null                                                               $levels
+     * @param array<string, string>                                                                                                                                                                                                                             $liveLoginByUser
      *
-     * @return list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool, liveTwitchLogin: string|null}>
+     * @return list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool, liveTwitchLogin: string|null}>
      */
     private function enrich(array $userIds, ?array $cards = null, ?array $levels = null, array $liveLoginByUser = []): array
     {
@@ -238,6 +238,7 @@ final readonly class CommunityDirectory
                 'displayName' => $card['displayName'],
                 'avatarUrl' => $card['avatarUrl'],
                 'avatarAnimatedUrl' => $card['avatarAnimatedUrl'],
+                'avatarFrame' => $card['avatarFrame'],
                 'avatarFraming' => $card['avatarFraming'],
                 'nameStyle' => $card['nameStyle'],
                 'level' => null !== $level ? $level['level'] : 0,
@@ -256,9 +257,9 @@ final readonly class CommunityDirectory
     }
 
     /**
-     * @param list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool, liveTwitchLogin: string|null}> $rows
+     * @param list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool, liveTwitchLogin: string|null}> $rows
      *
-     * @return array{rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool, liveTwitchLogin: string|null}>, total: int, page: int, perPage: int}
+     * @return array{rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool, liveTwitchLogin: string|null}>, total: int, page: int, perPage: int}
      */
     private function page(array $rows, int $total, int $page, int $perPage): array
     {

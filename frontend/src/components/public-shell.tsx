@@ -212,7 +212,10 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
     <AuthProvider>
     <TwitchStatusProvider>
     <TwitchPlayerProvider>
-    <div className="relative z-0 flex min-h-screen flex-col text-foreground">
+    {/* bg-background repeats the body's colour inside this stacking context (z-0, which keeps the grid canvas
+        behind the content): a screen-blended video avatar frame (story 30.47) only blends with its own context, and
+        would otherwise show its black wherever no card is painted. */}
+    <div className="relative z-0 flex min-h-screen flex-col bg-background text-foreground">
       <GridBackground />
       <a className="skip-link" href="#main-content">
         Passer au contenu principal

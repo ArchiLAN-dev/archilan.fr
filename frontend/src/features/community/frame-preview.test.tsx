@@ -14,7 +14,7 @@ describe("FramePreview", () => {
     const html = renderToStaticMarkup(<FramePreview avatarUrl="https://m.test/me.png" banner={BANNER} frame="fire" framing={null} name="Jean" />);
 
     expect(html).toContain("https://m.test/me.png");
-    expect(html).toContain("/avatar-frames/fire-poster.webp");
+    expect(html).toContain("/avatar-frames/fire-still.webp");
     expect(html).toContain("https://m.test/banner.png");
   });
 

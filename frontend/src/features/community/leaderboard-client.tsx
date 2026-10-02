@@ -12,8 +12,7 @@ import {
   type LeaderboardAxis,
   type LeaderboardResponse,
 } from "./community-api";
-import { AvatarImage } from "./avatar-image";
-import type { ImageFraming } from "@/features/community/image-framing";
+import { MemberAvatar } from "./member-avatar";
 import { TitledName } from "@/features/community/titled-name";
 
 const TABS: { axis: LeaderboardAxis; label: string }[] = [
@@ -128,7 +127,14 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
                   {entry.rank}
                 </span>
 
-                <PlayerAvatar animatedUrl={entry.avatarAnimatedUrl} avatarUrl={entry.avatarUrl} displayName={entry.displayName} framing={entry.avatarFraming} slug={entry.slug} />
+                <MemberAvatar
+                  avatarAnimatedUrl={entry.avatarAnimatedUrl}
+                  avatarUrl={entry.avatarUrl}
+                  frame={entry.avatarFrame}
+                  framing={entry.avatarFraming}
+                  name={entry.displayName || entry.slug}
+                  size={36}
+                />
 
                 <Link
                   className="min-w-0 flex-1 truncate font-semibold text-foreground hover:text-accent transition-colors"
@@ -167,46 +173,6 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
           </button>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function PlayerAvatar({
-  avatarUrl,
-  animatedUrl = null,
-  framing = null,
-  displayName,
-  slug,
-}: {
-  avatarUrl: string | null;
-  animatedUrl?: string | null;
-  framing?: ImageFraming | null;
-  displayName: string;
-  slug: string;
-}) {
-  const [failed, setFailed] = useState(false);
-  const initial = (displayName || slug).charAt(0).toUpperCase();
-
-  // A snapshotted Discord/Steam URL can later 404 - fall back to the initial on load error, never a
-  // broken image (mirrors ProfileAvatar).
-  if (avatarUrl !== null && !failed) {
-    return (
-      <AvatarImage
-        animatedSrc={animatedUrl}
-        className="size-9 shrink-0 rounded-full bg-surface object-cover"
-        framing={framing}
-        onError={() => setFailed(true)}
-        src={avatarUrl}
-      />
-    );
-  }
-
-  return (
-    <div
-      aria-hidden="true"
-      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm font-bold text-accent-text"
-    >
-      {initial}
     </div>
   );
 }

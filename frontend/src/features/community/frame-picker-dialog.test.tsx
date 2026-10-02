@@ -50,6 +50,6 @@ describe("FramePicker", () => {
     const html = render(true, "glitch", "gold");
 
     expect(html).toMatch(/<button[^>]*aria-label="Glitch"[^>]*aria-pressed="true"|<button[^>]*aria-pressed="true"[^>]*aria-label="Glitch"/);
-    expect(html).toContain("/avatar-frames/glitch-poster.webp");
+    expect(html).toContain("/avatar-frames/glitch-still.webp");
   });
 });
