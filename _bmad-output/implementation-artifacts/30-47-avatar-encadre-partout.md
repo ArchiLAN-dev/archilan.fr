@@ -1,6 +1,6 @@
 # Story 30.47: La photo de profil et son cadre, partout
 
-**Status:** review
+**Status:** done
 **Epic:** 30 - Communauté
 **Date:** 2026-10-02
 
@@ -220,6 +220,8 @@ Claude Opus 5.5 (1M context)
   privées (même composant, couverts par les tests). Mobile non vérifié.
 - Gates : `composer gates` OK (2570 tests) ; `pnpm gates` OK (692 tests, build propre ; 10 avertissements de lint
   préexistants, hors story).
+
+- Mergée dans `develop` le 2026-10-02 (PR #683), CI verte.
 
 ### File List
 
