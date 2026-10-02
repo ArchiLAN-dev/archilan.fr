@@ -109,7 +109,10 @@ final class CommunityOverviewTest extends FunctionalTestCase
 
     private function makeRunningSession(string $eventId): Session
     {
-        $session = Session::create(bin2hex(random_bytes(16)), $eventId, $this->now);
+        // Started minutes ago, on the real clock: "En jeu" only counts a slot active in the last 30 minutes, and
+        // before its first check a slot's activity is the start of its session (story 30.45).
+        $startedAt = new \DateTimeImmutable('-5 minutes');
+        $session = Session::create(bin2hex(random_bytes(16)), $eventId, $startedAt);
         foreach ([
             Session::STATUS_VALIDATING,
             Session::STATUS_READY,
@@ -117,9 +120,9 @@ final class CommunityOverviewTest extends FunctionalTestCase
             Session::STATUS_GENERATED,
             Session::STATUS_LAUNCHING,
         ] as $step) {
-            $session->transition($step, $this->now);
+            $session->transition($step, $startedAt);
         }
-        $session->transition(Session::STATUS_RUNNING, $this->now, 'bridge.local', 38281, 'secret', 5000);
+        $session->transition(Session::STATUS_RUNNING, $startedAt, 'bridge.local', 38281, 'secret', 5000);
         $this->entityManager->persist($session);
         $this->entityManager->flush();
 

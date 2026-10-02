@@ -7,6 +7,8 @@ namespace App\Sessions\Application\Command;
 use App\Sessions\Application\Service\SlotBlockTracker;
 use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
 use App\Sessions\Domain\Repository\SessionPlayersSnapshotRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Service\SlotCheckActivity;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -16,6 +18,7 @@ use Psr\Log\LoggerInterface;
  * the bridge is gone (idle/stopped session, dead container).
  *
  * Story 40.1: the same push also follows the BK episodes of a private run's slots.
+ * Story 30.45: and dates the slots whose checks grew since the previous push, for the "En jeu" presence.
  */
 final readonly class RecordPlayersSnapshot
 {
@@ -23,6 +26,7 @@ final readonly class RecordPlayersSnapshot
         private SessionPlayersSnapshotRepositoryInterface $snapshots,
         private ClockInterface $clock,
         private SlotBlockTracker $blockTracker,
+        private SessionSlotRepositoryInterface $slots,
         private LoggerInterface $logger,
     ) {
     }
@@ -33,6 +37,7 @@ final readonly class RecordPlayersSnapshot
     public function record(string $sessionId, array $payload): void
     {
         $existing = $this->snapshots->findBySessionId($sessionId);
+        $previous = $existing?->getPayload();
         if (null !== $existing) {
             $existing->refresh($payload, $this->clock->now());
             $this->snapshots->save($existing);
@@ -40,7 +45,15 @@ final readonly class RecordPlayersSnapshot
             $this->snapshots->save(new SessionPlayersSnapshot($sessionId, $payload, $this->clock->now()));
         }
 
-        // The snapshot is saved first: a BK tracking failure is logged and never costs it.
+        // The snapshot is saved first: a dating or BK tracking failure is logged and never costs it.
+        try {
+            $this->datePlayedSlots($sessionId, $previous, $payload);
+        } catch (\Throwable $exception) {
+            $this->logger->error('Dating the slots last check failed.', [
+                'sessionId' => $sessionId,
+                'exception' => $exception,
+            ]);
+        }
         try {
             $this->blockTracker->track($sessionId, $payload);
         } catch (\Throwable $exception) {
@@ -49,5 +62,24 @@ final readonly class RecordPlayersSnapshot
                 'exception' => $exception,
             ]);
         }
+    }
+
+    /**
+     * Story 30.45: dates the slots whose checks grew since the previous push.
+     *
+     * @param array<array-key, mixed>|null $previous
+     * @param array<array-key, mixed>      $payload
+     */
+    private function datePlayedSlots(string $sessionId, ?array $previous, array $payload): void
+    {
+        $names = SlotCheckActivity::slotsWithNewChecks($previous, $payload);
+        if ([] === $names) {
+            return;
+        }
+        $now = $this->clock->now();
+        foreach ($names as $slotName) {
+            $this->slots->findBySessionAndSlotName($sessionId, $slotName)?->recordCheckActivity($now);
+        }
+        $this->slots->flush();
     }
 }
