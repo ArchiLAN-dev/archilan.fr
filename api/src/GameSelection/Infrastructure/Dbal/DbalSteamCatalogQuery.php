@@ -29,6 +29,8 @@ final readonly class DbalSteamCatalogQuery implements SteamCatalogQueryInterface
             ->innerJoin('game', 'game_catalog_sync', 'sync', 'sync.game_id = game.id')
             ->where('sync.steam_app_id IS NOT NULL')
             ->andWhere('game.availability IN (:available, :experimental)')
+            // Story 11.5: a disabled game is not "playable" for the Steam library count.
+            ->andWhere('game.disabled_at IS NULL')
             ->setParameter('available', Game::AVAILABILITY_AVAILABLE)
             ->setParameter('experimental', Game::AVAILABILITY_EXPERIMENTAL)
             ->orderBy('game.name', 'ASC')

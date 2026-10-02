@@ -110,6 +110,23 @@ final class GenerateWeeklyRunForTemplateTest extends TestCase
             ->generate('template-1');
     }
 
+    /** Story 11.5: a disabled game's weekly is not generated; the template stays for when it is enabled again. */
+    public function testGenerateThrowsGameDisabled(): void
+    {
+        $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
+        $runs->method('existsByTemplateAndWeek')->willReturn(false);
+        $runs->expects(self::never())->method('save');
+        $generator = $this->createMock(WeeklyRunGeneratorInterface::class);
+        $generator->expects(self::never())->method('generate');
+        $game = $this->makeGame();
+        $game->disable(null, new \DateTimeImmutable('2026-01-02T00:00:00Z'));
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('game_disabled');
+
+        $this->makeService($runs, $this->makeTemplate('template-1'), $game, $generator)->generate('template-1');
+    }
+
     private function makeTemplate(string $id, string $yaml = "name: ArchiLAN\ngame: Archipelago\n"): WeeklyTemplate
     {
         $now = new \DateTimeImmutable();

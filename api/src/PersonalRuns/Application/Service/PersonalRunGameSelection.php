@@ -106,7 +106,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'coverImageAlt' => $g->getCoverImageAlt(),
             'platforms' => $g->platformFamilies(),
             'steamAppId' => $g->getSteamAppId(),
-        ], $allGames);
+        ], $this->offerable($allGames, $existingSlots));
 
         $recentlyPlayed = $this->recentlyPlayedGames->recentlyPlayed($userId, $runId, 3);
 
@@ -726,5 +726,24 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'blockReason' => $blockReason,
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * Story 11.5: a disabled game is no longer offered - except to a participant who already holds it, so that
+     * slot keeps its config (flagged as disabled, it still cannot be added again).
+     *
+     * @param list<Game>                  $games
+     * @param list<array{gameId: string}> $slots
+     *
+     * @return list<Game>
+     */
+    private function offerable(array $games, array $slots): array
+    {
+        $held = array_column($slots, 'gameId');
+
+        return array_values(array_filter(
+            $games,
+            static fn (Game $game): bool => !$game->isDisabled() || \in_array($game->getId(), $held, true),
+        ));
     }
 }

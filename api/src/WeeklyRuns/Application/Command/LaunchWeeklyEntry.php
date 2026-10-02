@@ -69,6 +69,10 @@ final readonly class LaunchWeeklyEntry
         // The apworld hash (orchestrator content hash, stored on the game) lets the launch
         // configure the entry session so the orchestrator can stage worlds for reachability.
         $game = $this->games->findById($template->getGameId());
+        // Story 11.5: a weekly whose game was disabled since stays shown, but its entries no longer launch.
+        if ($game instanceof Game && $game->isDisabled()) {
+            throw new \DomainException('game_disabled');
+        }
         $apworldHash = $game instanceof Game ? $game->getApworldHash() : null;
         if (null === $apworldHash || '' === $apworldHash) {
             throw new \DomainException('run_not_generated');

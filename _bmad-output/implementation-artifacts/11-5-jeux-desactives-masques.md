@@ -1,6 +1,6 @@
 # Story 11.5: Masquer les jeux désactivés hors de l'admin
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 11 - Bibliothèque de jeux admin
 **Date:** 2026-10-02
 **Co-joueurs :** inchangés (décision de Jean, 2026-10-02 : seul le propriétaire de la partie les gère).
@@ -66,21 +66,52 @@ sitemap, favoris, couplage Steam, hebdos).
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1, 2, 3) - `DbalGameCatalogQuery` (liste, totaux, recherche), `DbalSteamCatalogQuery` ;
+- [x] **Task 1** (AC 1, 2, 3) - `DbalGameCatalogQuery` (liste, totaux, recherche), `DbalSteamCatalogQuery` ;
       sitemap côté front (suit le catalogue) ; tests.
-- [ ] **Task 2** (AC 4, 5, 8) - `RegistrationGameSelection`, `PersonalRunGameSelection` : `availableGames` sans les
+- [x] **Task 2** (AC 4, 5, 8) - `RegistrationGameSelection`, `PersonalRunGameSelection` : `availableGames` sans les
       jeux désactivés ; nom des slots résolu à part (par identifiant, sans filtre) ; front : libellés des slots
       sélectionnés depuis les slots, pas depuis `availableGames` ; tests (adapter
       `RegistrationGameSelectionTest::testPutRejectsNewlyAddedDisabledGame`).
-- [ ] **Task 3** (AC 6, 7) - Favoris : éditeur, `UpdateCommunityProfile::parseFavorites`,
+- [x] **Task 3** (AC 6, 7) - Favoris : éditeur, `UpdateCommunityProfile::parseFavorites`,
       `CommunityProfileView::resolveFavoriteGames` ; listes possédés / prévus ; tests.
-- [ ] **Task 4** (AC 9) - Page `/jeux/{slug}` : bandeau, message, `noindex` ; tests.
-- [ ] **Task 4 bis** (AC 10) - Hebdos : `GenerateWeeklyRunForTemplate` / `GenerateWeeklyRunsMessageHandler` et
+- [x] **Task 4** (AC 9) - Page `/jeux/{slug}` : bandeau, message, `noindex` ; tests.
+- [x] **Task 4 bis** (AC 10) - Hebdos : `GenerateWeeklyRunForTemplate` / `GenerateWeeklyRunsMessageHandler` et
       `LaunchWeeklyEntry` sautent un jeu désactivé ; tests.
-- [ ] **Task 5** (AC 12) - Gates et vérification visuelle (catalogue, sélecteur avec un slot sur un jeu désactivé,
+- [x] **Task 5** (AC 12) - Gates et vérification visuelle (catalogue, sélecteur avec un slot sur un jeu désactivé,
       page du jeu, profil avec un favori désactivé).
 
 ## Hors périmètre
 
 - Les modèles de YAML (`/api/v1/yaml-templates`) ne vérifient que `isApworldReady` ; un jeu désactivé n'y est
   atteignable qu'à travers un slot existant, ce qui reste voulu.
+
+## Dev Agent Record
+
+### TDD
+
+| Test | Rouge avant | Vert après |
+|------|-------------|------------|
+| `DisabledGameHiddenTest` : catalogue (liste, `?all=1`, recherche, totaux), page du jeu avec le message, couplage Steam, favori masqué mais conservé à l'enregistrement, ajout refusé en favori et en liste | 5 échecs | requêtes de catalogue et Steam, favoris, listes |
+| `RegistrationGameSelectionTest` (2 adaptés) : un jeu désactivé n'est plus proposé ; un slot existant garde son jeu, son nom et sa config | listé grisé (11.4) | filtrage des propositions |
+| `PersonalRunGameConfigTest` (2 enrichis) : idem pour une partie privée | listé grisé | filtrage des propositions |
+| `GenerateWeeklyRunForTemplateTest`, `GenerateWeeklyRunsMessageHandlerTest`, `LaunchWeeklyEntryTest` (+1 chacun) : hebdo d'un jeu désactivé ni générée ni lancée | écrits avec le code | hebdos |
+| `disabled-game-banner.test.tsx` : bandeau avec le message, repli sans message | écrit avec le composant | page du jeu |
+
+### Notes
+
+- **Sélecteurs** : un jeu désactivé n'est plus proposé, **sauf à qui l'a déjà dans un slot**. Il y reste marqué
+  désactivé (ajout toujours refusé, 11.4), ce qui garde au slot son nom et sa configuration éditable, sans toucher au
+  front. Les « jeux récemment joués » suivent la liste proposée.
+- **Favoris** : masqués à l'affichage (édition et profil public) ; comme l'éditeur renvoie la liste qu'il affiche,
+  l'API conserve les favoris désactivés absents de l'envoi (dans la limite de 6), qui reviennent à la réactivation.
+  Un jeu désactivé ne peut pas devenir favori.
+- **Listes possédés / prévus** : ajout refusé (422 `game_disabled`) ; les entrées existantes restent et ne
+  s'affichent plus (la liste suit le catalogue). Les boutons de liste sont masqués sur la page d'un jeu désactivé.
+- **Page du jeu** : 200 avec `disabledMessage`, bandeau, `robots: noindex, follow`. Le sitemap suit le catalogue.
+- **Hebdos** : génération planifiée sautée (log `weekly_runs.generate.game_disabled`), génération manuelle refusée
+  (422 `game_disabled`, message admin), lancement d'une entrée refusé (message joueur lisible).
+
+### Gates
+
+- `composer gates` : OK (2597 tests, 15560 assertions).
+- `pnpm gates` : typecheck, lint (0 erreur), 707 tests, build OK.

@@ -54,6 +54,11 @@ final readonly class GenerateWeeklyRunForTemplate
         $game = $this->games->findById($template->getGameId());
         $apworldStorageKey = $game instanceof Game ? $game->getApworldStorageKey() : null;
 
+        // Story 11.5: a disabled game's weekly is not generated; the template stays for when it is enabled again.
+        if ($game instanceof Game && $game->isDisabled()) {
+            throw new \DomainException('game_disabled');
+        }
+
         if ('' === $yamlConfig || null === $apworldStorageKey || '' === $apworldStorageKey) {
             throw new \DomainException('template_incomplete');
         }

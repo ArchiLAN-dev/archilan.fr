@@ -9,6 +9,7 @@ import Link from "next/link";
 
 import {
   fetchWeeklyEntryPatches,
+  launchErrorMessage,
   launchWeeklyEntry,
   optInToWeeklyRun,
   isGoalReachedEvent,
@@ -130,7 +131,7 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
       return;
     }
     if ("error" in result) {
-      showToast(`Erreur : ${result.error}`);
+      showToast(launchErrorMessage(result.error));
       return;
     }
     void queryClient.invalidateQueries({ queryKey: ["weekly-runs", "current"] });

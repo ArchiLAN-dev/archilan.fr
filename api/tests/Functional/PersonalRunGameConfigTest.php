@@ -211,6 +211,9 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
         $run = $this->createRunDirectly($user->getId(), 'My Run', Run::STATUS_DRAFT);
         $this->loginAs($user);
 
+        // Story 11.5: no longer offered either.
+        self::assertNotContains('celeste', $this->offeredSlugs($run->getId()));
+
         $this->client->jsonRequest('PUT', '/api/v1/runs/'.$run->getId().'/participants/me/games', [
             'gameIds' => [$game->getId()],
         ]);
@@ -246,6 +249,36 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
             'gameIds' => [$game->getId()],
         ]);
         self::assertResponseStatusCodeSame(200);
+
+        // Story 11.5: still offered to the participant who holds it, so the slot keeps its name and config.
+        self::assertSame(['celeste'], $this->offeredSlugs($run->getId()));
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $slots = $data['slots'] ?? null;
+        self::assertIsArray($slots);
+        self::assertIsArray($slots[0]);
+        self::assertSame('Celeste', $slots[0]['gameName']);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function offeredSlugs(string $runId): array
+    {
+        $this->client->jsonRequest('GET', '/api/v1/runs/'.$runId.'/participants/me/game-selection');
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $games = $data['availableGames'] ?? null;
+        self::assertIsArray($games);
+        $slugs = [];
+        foreach ($games as $game) {
+            self::assertIsArray($game);
+            self::assertIsString($game['slug'] ?? null);
+            $slugs[] = $game['slug'];
+        }
+
+        return $slugs;
     }
 
     public function testSaveSlotYamlIdleRunReturns422(): void

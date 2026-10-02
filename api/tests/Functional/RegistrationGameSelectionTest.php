@@ -192,7 +192,7 @@ final class RegistrationGameSelectionTest extends FunctionalTestCase
 
     public function testPutRejectsNewlyAddedDisabledGame(): void
     {
-        // Story 11.4: a disabled game stays listed (with its message) but cannot be newly added.
+        // Story 11.5 (replaces 11.4): a disabled game is no longer offered, and still cannot be added.
         $user = $this->createUser('user@example.org');
         $game = $this->createGame('Zelda OoT', 'zelda-oot');
         $game->disable('Apworld cassé, correctif en cours.', new \DateTimeImmutable('2026-07-26T10:00:00+00:00'));
@@ -205,11 +205,7 @@ final class RegistrationGameSelectionTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(200);
         $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
-        $availableGames = $data['availableGames'];
-        self::assertIsArray($availableGames);
-        self::assertIsArray($availableGames[0]);
-        self::assertTrue($availableGames[0]['disabled']);
-        self::assertSame('Apworld cassé, correctif en cours.', $availableGames[0]['disabledMessage']);
+        self::assertSame([], $data['availableGames']);
 
         $this->client->jsonRequest('PUT', sprintf('/api/v1/registrations/%s/game-selection', $registration->getId()), [
             'gameIds' => [$game->getId()],
@@ -250,6 +246,21 @@ final class RegistrationGameSelectionTest extends FunctionalTestCase
             'gameIds' => [$game->getId()],
         ]);
         self::assertResponseStatusCodeSame(200);
+
+        // Story 11.5: the slot keeps its game, its name and its config - the game stays listed for it alone,
+        // flagged, so the slot can still be read and edited.
+        $this->client->jsonRequest('GET', sprintf('/api/v1/registrations/%s/game-selection', $registration->getId()));
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        $slots = $data['slots'];
+        self::assertIsArray($slots);
+        self::assertIsArray($slots[0]);
+        self::assertSame('Zelda OoT', $slots[0]['gameName']);
+        $availableGames = $data['availableGames'];
+        self::assertIsArray($availableGames);
+        self::assertCount(1, $availableGames);
+        self::assertIsArray($availableGames[0]);
+        self::assertTrue($availableGames[0]['disabled']);
     }
 
     public function testPutRejectsWhenMaxExceeded(): void
