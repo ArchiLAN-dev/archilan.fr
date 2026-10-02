@@ -10,9 +10,9 @@ import { AVATAR_FRAMES, getAvatarFrame } from "./avatar-frames";
  * ever ship its still poster; the picker swatch keeps that still inside the swatch.
  */
 describe("AvatarFrame - video frame", () => {
-  test("the catalog offers the fire frame among the effects", () => {
+  test("the catalog offers the fire frame among the legendary ones", () => {
     const fire = getAvatarFrame("fire");
-    expect(fire).toMatchObject({ label: "Feu", category: "Effets", variant: "video" });
+    expect(fire).toMatchObject({ label: "Feu", category: "Légendaires", variant: "video" });
     expect(fire?.video).toEqual({
       webm: "/avatar-frames/fire.webm",
       mp4: "/avatar-frames/fire.mp4",
@@ -21,10 +21,11 @@ describe("AvatarFrame - video frame", () => {
     expect(AVATAR_FRAMES.filter((f) => f.variant === "video").every((f) => f.video !== undefined)).toBe(true);
   });
 
-  test("the catalog offers every video frame among the effects", () => {
+  test("the video frames get their own category, the CSS effects keep theirs", () => {
     const videoKeys = AVATAR_FRAMES.filter((f) => f.variant === "video").map((f) => f.key);
     expect(videoKeys).toEqual(["fire", "electric", "spectral_fire", "lava", "runes", "cosmic", "glitch"]);
-    expect(AVATAR_FRAMES.filter((f) => f.variant === "video").every((f) => f.category === "Effets")).toBe(true);
+    expect(AVATAR_FRAMES.filter((f) => f.variant === "video").every((f) => f.category === "Légendaires")).toBe(true);
+    expect(AVATAR_FRAMES.filter((f) => f.category === "Effets").map((f) => f.key)).toEqual(["holographic", "gold_shimmer", "spectral"]);
     // `spectral_fire` is a new frame next to the CSS `spectral` one, not a replacement.
     expect(getAvatarFrame("spectral")?.variant).toBe("spectral");
   });

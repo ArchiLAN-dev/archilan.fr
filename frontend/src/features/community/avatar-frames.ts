@@ -3,7 +3,7 @@
 // video overlay.
 // Rendering lives in <AvatarFrame>; this file holds only the (serialisable) configuration.
 
-export type AvatarFrameCategory = "Couleurs" | "Néon" | "Effets";
+export type AvatarFrameCategory = "Couleurs" | "Néon" | "Effets" | "Légendaires";
 export type AvatarFrameVariant = "solid" | "glow" | "spectral" | "holographic" | "goldshimmer" | "video";
 
 /**
@@ -30,7 +30,7 @@ export type AvatarFrameConfig = {
 /** A video frame whose assets are `/avatar-frames/<file>.webm|.mp4` and `<file>-poster.webp`. */
 function videoFrame(key: string, label: string, file: string): AvatarFrameConfig {
   const base = `/avatar-frames/${file}`;
-  return { key, label, category: "Effets", variant: "video", video: { webm: `${base}.webm`, mp4: `${base}.mp4`, poster: `${base}-poster.webp` } };
+  return { key, label, category: "Légendaires", variant: "video", video: { webm: `${base}.webm`, mp4: `${base}.mp4`, poster: `${base}-poster.webp` } };
 }
 
 export const AVATAR_FRAMES: readonly AvatarFrameConfig[] = [
@@ -51,7 +51,7 @@ export const AVATAR_FRAMES: readonly AvatarFrameConfig[] = [
   { key: "holographic", label: "Holographique", category: "Effets", variant: "holographic" },
   { key: "gold_shimmer", label: "Or scintillant", category: "Effets", variant: "goldshimmer" },
   { key: "spectral", label: "Spectre", category: "Effets", variant: "spectral" },
-  // Video frames (story 30.46): one shared geometry, so the overlay CSS fits them all.
+  // Légendaires: the video frames (story 30.46). One shared geometry, so the overlay CSS fits them all.
   videoFrame("fire", "Feu", "fire"),
   videoFrame("electric", "Électrique", "electric"),
   videoFrame("spectral_fire", "Flammes spectrales", "spectral-fire"),

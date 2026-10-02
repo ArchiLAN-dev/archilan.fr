@@ -72,6 +72,30 @@ pas coupées net.
     même géométrie : `electric` (Électrique), `spectral_fire` (Flammes spectrales, **nouveau** cadre à côté du
     `spectral` CSS, qui reste), `lava` (Magma), `runes` (Runes arcaniques), `cosmic` (Portail cosmique), `glitch`
     (Glitch). Le feu passe en version stylisée (v2).
+12. **Catégorie dédiée (Jean, 2026-10-02)** : les sept cadres vidéo forment leur propre catégorie
+    « Légendaires », affichée après « Effets » dans le sélecteur. « Effets » garde les trois effets CSS
+    (holographique, or scintillant, spectre).
+13. **Essayer avant d'enregistrer (Jean, 2026-10-02)** : cliquer un cadre le montre sur la vraie photo du membre,
+    à taille profil, avec la place pour les effets qui débordent ; rien n'est enregistré avant « Enregistrer ».
+    L'aperçu reste visible en faisant défiler les vignettes (desktop). Les sections « Photo de profil » et
+    « Cadre d'avatar » n'en font plus qu'une, « Photo de profil et cadre » : l'aperçu remplace l'ancien avatar
+    de la section photo, les boutons d'import et le sélecteur de cadre sont à côté. Pas de texte d'état ni de
+    bouton « revenir » sous l'aperçu (retirés à la demande de Jean : ils décalaient la mise en page).
+14. Passer d'un cadre vidéo à un autre change bien l'effet affiché (bug trouvé par Jean à l'essai).
+15. **Légendaires réservés aux admins (Jean, 2026-10-02), pour commencer** : l'API refuse un cadre légendaire à un
+    non-admin (422 `avatarFrame` « Cadre réservé aux admins. ») et l'éditeur reçoit `legendaryFramesAllowed`. Un
+    admin rétrogradé ne montre plus son cadre légendaire (la clé reste stockée et revient s'il redevient admin),
+    comme le GIF d'un admin (30.40). Dans le sélecteur, l'onglet et les vignettes portent un cadenas et ne se
+    choisissent pas.
+16. **Sélecteur en fenêtre dédiée (Jean, 2026-10-02, inspiré du sélecteur de décorations de Discord et des
+    casiers de jeux)** : la carte « Photo de profil et cadre » montre l'aperçu sur la bannière, le cadre actuel et
+    un bouton « Changer le cadre ». Il ouvre une fenêtre : à gauche, toutes les cartes de même taille et alignées,
+    regroupées sous de simples titres (Couleurs, Néon, Effets, Légendaires ; « Aucun » en tête), chacune sur la
+    photo du membre ; à droite, le grand aperçu sur sa bannière. Les Légendaires se distinguent par un contour
+    doré de rareté (pas par une taille) et jouent leur vidéo au survol ou au focus (jamais sous « réduire les
+    animations »). Un point discret marque le cadre enregistré. « Appliquer » met le cadre dans le brouillon,
+    « Annuler » ferme sans rien changer ; seul « Enregistrer » le valide. La barre d'onglets et les vignettes de
+    tailles différentes d'une version intermédiaire ont été abandonnées (alignement, rendu).
 
 ## Tasks / Subtasks
 
@@ -268,8 +292,32 @@ Claude Opus 5.5 (1M context)
 - Garde-fou ajouté : un test jest échoue si un cadre vidéo du catalogue n'a pas ses trois fichiers dans
   `public/` (un cadre ajouté sans ses assets afficherait une image cassée).
 
-- Gates (branche seule, worktree isolé) : `composer gates` OK (2565 tests, 15283 assertions) ; `pnpm gates` OK
-  (678 tests, build propre ; les 10 avertissements de lint préexistent, hors des fichiers de la story).
+- Catégorie « Légendaires » (AC 12) : `AvatarFrameCategory` étendu, `FRAME_CATEGORIES` du sélecteur aussi ; le
+  sélecteur rend les catégories de façon générique, rien d'autre à toucher.
+
+- Aperçu d'essai (AC 13) : `frame-preview.tsx` (`FramePreview`), testé dans `frame-preview.test.tsx`. Le cadre
+  cliqué restait déjà un brouillon ; le seul aperçu était dans « Photo de profil », hors de vue pendant le choix,
+  d'où la fusion des deux sections. Encadré de 48 px sur les côtés, 56 px en haut et 40 px en bas : assez pour
+  les débords mesurés (38 % de l'avatar au-dessus, 21 % sur les côtés).
+- Bug corrigé (AC 14) : un navigateur ne recharge pas un `<video>` dont seuls les `<source>` changent, donc en
+  passant du Feu à l'Électrique l'aperçu continuait de jouer le feu. Le `<video>` porte maintenant une clé liée
+  à son fichier : React le remplace. L'élément est construit par une fonction pure `videoLayer()`, testée
+  (`avatar-frame-video.test.tsx`, qui échoue sans la clé). Un test en jsdom n'était pas possible : le setup
+  jest global démarre MSW, qui exige `fetch`.
+
+- Gating (AC 15) : `AvatarFrame::LEGENDARY`, `allowedFor()`, `displayed()` (règles pures du domaine) ;
+  `UpdateCommunityProfile::update()` reçoit `$isAdmin` du contrôleur (rôle ROLE_ADMIN, stable, comme les autres
+  droits admin du contexte) ; `CommunityProfileView` applique `displayed()` au profil public et à l'éditeur.
+  Tests : `AvatarFrameTest` (règles), `CommunityProfileCustomizationTest` (non-admin refusé, admin accepté, admin
+  rétrogradé sans cadre).
+- Sélecteur (AC 16) : `frame-picker-dialog.tsx` (`FramePickerDialog`, contenu `FramePicker` testé dans
+  `frame-picker-dialog.test.tsx`). Le dialogue partagé gagne une taille `wide` (max-w-4xl) ; les écrans admin
+  gardent la taille par défaut. `AvatarContent` extrait de `ProfileAvatar` pour les cartes ;
+  `AvatarFrameSwatchLayer` ne joue la vidéo que pendant le survol ; un cadenas plutôt qu'un filtre CSS (opacité
+  ou grayscale créent un contexte d'empilement et le noir de l'effet apparaîtrait). `FramePreview` pose la
+  bannière du membre derrière l'avatar, sans z-index (testé).
+- Gates (branche seule, base de test isolée) : `composer gates` OK (2569 tests, 15327 assertions) ; `pnpm gates` OK
+  (683 tests, build propre ; les 10 avertissements de lint préexistent, hors des fichiers de la story).
 
 ### File List
 
@@ -286,5 +334,16 @@ Claude Opus 5.5 (1M context)
 - `frontend/src/features/community/avatar-frame.module.css` (modifié)
 - `frontend/src/features/community/avatar-frame.test.tsx` (nouveau)
 - `frontend/src/features/community/community-profile-customization-form.tsx` (modifié)
+- `frontend/src/features/community/frame-preview.tsx` (nouveau)
+- `frontend/src/features/community/frame-preview.test.tsx` (nouveau)
+- `frontend/src/features/community/frame-picker-dialog.tsx` (nouveau)
+- `frontend/src/features/community/frame-picker-dialog.test.tsx` (nouveau)
+- `frontend/src/components/ui/dialog.tsx` (modifié : taille `wide`)
+- `frontend/src/features/community/community-profile-api.ts` (modifié : `legendaryFramesAllowed`)
+- `frontend/src/features/players/profile-avatar.tsx` (modifié : `AvatarContent` extrait)
+- `api/src/Community/Application/Command/UpdateCommunityProfile.php` (modifié)
+- `api/src/Community/Application/Query/CommunityProfileView.php` (modifié)
+- `api/src/Community/Presentation/Controller/CommunityProfileController.php` (modifié)
+- `frontend/src/features/community/avatar-frame-video.test.tsx` (nouveau)
 - `frontend/src/features/players/player-profile-page.tsx` (modifié)
 - `frontend/src/features/players/player-profile-page.test.tsx` (modifié : classe sans `z-10`, et garde-fou contre son retour)

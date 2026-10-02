@@ -26,6 +26,25 @@ final class AvatarFrameTest extends TestCase
         self::assertFalse(AvatarFrame::isValid(''));
     }
 
+    public function testLegendaryFramesAreForAdminsOnly(): void
+    {
+        foreach (AvatarFrame::LEGENDARY as $key) {
+            self::assertTrue(AvatarFrame::isValid($key), $key);
+            self::assertTrue(AvatarFrame::allowedFor($key, true), $key);
+            self::assertFalse(AvatarFrame::allowedFor($key, false), $key);
+        }
+        self::assertTrue(AvatarFrame::allowedFor('gold', false));
+        self::assertTrue(AvatarFrame::allowedFor('spectral', false));
+    }
+
+    public function testAProfileShowsALegendaryFrameOnlyWhileItsOwnerIsAdmin(): void
+    {
+        self::assertSame('fire', AvatarFrame::displayed('fire', true));
+        self::assertNull(AvatarFrame::displayed('fire', false));
+        self::assertSame('gold', AvatarFrame::displayed('gold', false));
+        self::assertNull(AvatarFrame::displayed(null, true));
+    }
+
     public function testKeysAreUniqueAndFitTheColumn(): void
     {
         self::assertSame(array_values(array_unique(AvatarFrame::ALL)), AvatarFrame::ALL);

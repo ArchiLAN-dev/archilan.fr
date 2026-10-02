@@ -33,6 +33,8 @@ export type MyCommunityProfile = {
   hasCustomBanner: boolean;
   bannerUpload: { image: boolean; gif: boolean };
   avatarFrame: string | null;
+  // Story 30.46: the legendary (video) frames, admins only for a start.
+  legendaryFramesAllowed: boolean;
   // Resolved avatar URL (custom upload presigned, else external cache); null = render the default.
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
@@ -87,6 +89,7 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
   if (!hasNullableStringProp(v, "avatarUrl") || !hasBooleanProp(v, "hasCustomAvatar")) return false;
   if (!hasNullableStringProp(v, "bannerImageUrl") || !hasNullableStringProp(v, "bannerImageStillUrl")) return false;
   if (!hasBooleanProp(v, "hasCustomBanner") || !hasBooleanProp(v, "avatarGifAllowed")) return false;
+  if (!hasBooleanProp(v, "legendaryFramesAllowed")) return false;
   if (!hasBooleanProp(v, "titledName") || !("titledNameStyle" in v) || (v.titledNameStyle !== null && !isNameStyle(v.titledNameStyle))) {
     return false;
   }
