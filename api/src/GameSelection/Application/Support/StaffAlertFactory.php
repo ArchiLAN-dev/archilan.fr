@@ -75,10 +75,12 @@ final readonly class StaffAlertFactory
         ApworldCandidateOrigin $origin,
         ?string $forcedByName,
         ?string $releaseUrl,
+        ?string $approvedByName = null,
     ): StaffAlert {
         $lines = [
             match (true) {
                 null !== $forcedByName => sprintf('Forcée par %s malgré le test.', $forcedByName),
+                null !== $approvedByName => sprintf('Validée par %s après un test de génération réussi.', $approvedByName),
                 ApworldCandidateOrigin::Auto === $origin => 'Mise à jour automatique : la nouvelle version a passé son test de génération.',
                 default => 'Import manuel : la nouvelle version a passé son test de génération.',
             },

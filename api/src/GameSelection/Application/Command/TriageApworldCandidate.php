@@ -70,6 +70,41 @@ final readonly class TriageApworldCandidate
     }
 
     /**
+     * Story 38.14: the admin puts online a candidate held for their approval, whose test passed. Same effects as
+     * an automatic promotion; no override, the verdict passed. The staff announcement names who validated it.
+     */
+    public function approve(string $gameId, string $adminId): ApworldCandidateTriageOutcome
+    {
+        $candidate = $this->candidates->findLatestForGame($gameId);
+        if (null === $candidate) {
+            return ApworldCandidateTriageOutcome::NoCandidate;
+        }
+        if (ApworldCandidateStatus::Awaiting !== $candidate->getStatus()) {
+            return ApworldCandidateTriageOutcome::Forbidden;
+        }
+
+        $introspection = $this->promote->introspect($candidate);
+        if (null === $introspection) {
+            return ApworldCandidateTriageOutcome::RunnerUnavailable;
+        }
+
+        $candidate->approve($adminId);
+        $promotion = $this->promote->promote($candidate, null, $introspection);
+        if (null === $promotion) {
+            return ApworldCandidateTriageOutcome::NoCandidate;
+        }
+        $this->candidates->flush();
+
+        $this->messageBus->dispatch(new PostApworldPromotionToStaffChannelJob($candidate->getId(), $promotion->previousVersion));
+        foreach ($promotion->resolvedIncidentIds as $incidentId) {
+            $this->messageBus->dispatch(new PostApworldIncidentToStaffChannelJob($incidentId, StaffAlertEvent::Resolved));
+        }
+        $this->messageBus->dispatch(ApworldPromoted::of($promotion));
+
+        return ApworldCandidateTriageOutcome::Applied;
+    }
+
+    /**
      * Typically after a transient failure: the candidate goes back in test with a fresh deadline.
      */
     public function retry(string $gameId): ApworldCandidateTriageOutcome

@@ -653,9 +653,9 @@ final readonly class AdminGameLibrary
      *
      * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
      */
-    public function configureApworld(string $gameId, string $fileContents, string $filename, ?string $versionTag = null, ?string $adminId = null): array
+    public function configureApworld(string $gameId, string $fileContents, string $filename, ?string $versionTag = null, ?string $adminId = null, bool $holdForApproval = false): array
     {
-        $submission = $this->submitCandidate->submit($gameId, $fileContents, $filename, $versionTag, ApworldCandidateOrigin::Manual, $adminId);
+        $submission = $this->submitCandidate->submit($gameId, $fileContents, $filename, $versionTag, ApworldCandidateOrigin::Manual, $adminId, $holdForApproval);
         if (!$submission->gameFound) {
             return ['found' => false, 'errors' => []];
         }
@@ -707,7 +707,7 @@ final readonly class AdminGameLibrary
     /**
      * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
      */
-    public function importFromGithub(string $gameId, ?string $assetDownloadUrl = null, ?string $assetName = null, ?string $assetTag = null, ?string $adminId = null): array
+    public function importFromGithub(string $gameId, ?string $assetDownloadUrl = null, ?string $assetName = null, ?string $assetTag = null, ?string $adminId = null, bool $holdForApproval = false): array
     {
         $game = $this->gameRepository->findById($gameId);
         if (!$game instanceof Game) {
@@ -764,7 +764,7 @@ final readonly class AdminGameLibrary
 
         // The tag travels with the candidate and becomes the deployed version on promotion (story
         // 38.6): recording it now would claim a version the game does not serve yet.
-        $result = $this->configureApworld($gameId, $fileContents, $resolvedAssetName, $latestTag, $adminId);
+        $result = $this->configureApworld($gameId, $fileContents, $resolvedAssetName, $latestTag, $adminId, $holdForApproval);
 
         if ([] !== $result['errors']) {
             return $result;
@@ -946,15 +946,16 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * The new apworld version waiting for, or refused by, its test (story 38.6). A promoted or
-     * superseded candidate is history: the page shows the served apworld instead.
+     * The new apworld version waiting for, or refused by, its test (story 38.6), or tested and waiting for the
+     * admin's approval (story 38.14). A promoted or superseded candidate is history: the page shows the served
+     * apworld instead.
      *
-     * @return array{id: string, status: string, apworldHash: string, versionTag: ?string, origin: string, submittedAt: string, decidedAt: ?string, rejectionReason: ?string}|null
+     * @return array{id: string, status: string, apworldHash: string, versionTag: ?string, origin: string, heldForApproval: bool, submittedAt: string, decidedAt: ?string, rejectionReason: ?string}|null
      */
     private function candidatePayload(Game $game): ?array
     {
         $candidate = $this->candidates->findLatestForGame($game->getId());
-        if (null === $candidate || !\in_array($candidate->getStatus(), [ApworldCandidateStatus::Testing, ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], true)) {
+        if (null === $candidate || !\in_array($candidate->getStatus(), [ApworldCandidateStatus::Testing, ApworldCandidateStatus::Awaiting, ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], true)) {
             return null;
         }
 
@@ -964,6 +965,7 @@ final readonly class AdminGameLibrary
             'apworldHash' => $candidate->getApworldHash(),
             'versionTag' => $candidate->getVersionTag(),
             'origin' => $candidate->getOrigin()->value,
+            'heldForApproval' => $candidate->isHeldForApproval(),
             'submittedAt' => $candidate->getSubmittedAt()->format(\DateTimeInterface::ATOM),
             'decidedAt' => $candidate->getDecidedAt()?->format(\DateTimeInterface::ATOM),
             'rejectionReason' => null === $candidate->getRejectionReason() ? null : GenerationFailureParser::summarize($candidate->getRejectionReason()),

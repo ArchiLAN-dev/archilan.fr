@@ -261,10 +261,13 @@ export async function overrideApworldPreflight(gameId: string, overridden: boole
 export type ApworldCandidate = {
   id: string;
   // Story 38.6 review: "expired" = no verdict in time; the release is tried again, not rejected.
-  status: "testing" | "rejected" | "expired";
+  // Story 38.14: "awaiting" = test passed, held for the admin to put it online.
+  status: "testing" | "awaiting" | "rejected" | "expired";
   apworldHash: string;
   versionTag: string | null;
   origin: "manual" | "auto";
+  // Story 38.14: the admin validates this version themselves after its test.
+  heldForApproval?: boolean;
   submittedAt: string;
   decidedAt: string | null;
   rejectionReason: string | null;
@@ -273,8 +276,9 @@ export type ApworldCandidate = {
 export function isApworldCandidate(v: unknown): v is ApworldCandidate {
   if (typeof v !== "object" || v === null) return false;
   if (!hasStringProp(v, "id") || !hasStringProp(v, "apworldHash") || !hasStringProp(v, "submittedAt")) return false;
-  if (!("status" in v) || (v.status !== "testing" && v.status !== "rejected" && v.status !== "expired")) return false;
+  if (!("status" in v) || (v.status !== "testing" && v.status !== "awaiting" && v.status !== "rejected" && v.status !== "expired")) return false;
   if (!("origin" in v) || (v.origin !== "manual" && v.origin !== "auto")) return false;
+  if ("heldForApproval" in v && typeof v.heldForApproval !== "boolean") return false;
   return hasNullableStringProp(v, "versionTag") && hasNullableStringProp(v, "decidedAt") && hasNullableStringProp(v, "rejectionReason");
 }
 
@@ -282,13 +286,17 @@ export type ApworldCandidateActionResult = { ok: true } | { ok: false; message: 
 
 const CANDIDATE_ACTION_ERROR = "L'action n'a pas pu être appliquée. Réessaie dans un instant.";
 
-async function candidateAction(gameId: string, action: "promote" | "retry"): Promise<ApworldCandidateActionResult> {
+function apiErrorMessage(json: unknown, fallback: string): string {
+  const error: unknown = typeof json === "object" && json !== null && "error" in json ? json.error : null;
+  return typeof error === "object" && error !== null && hasStringProp(error, "message") ? error.message : fallback;
+}
+
+async function candidateAction(gameId: string, action: "promote" | "retry" | "approve"): Promise<ApworldCandidateActionResult> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${encodeURIComponent(gameId)}/apworld-candidate/${action}`, { method: "POST" });
     if (res.ok) return { ok: true };
     const json: unknown = await res.json().catch(() => null);
-    const error: unknown = typeof json === "object" && json !== null && "error" in json ? json.error : null;
-    return { ok: false, message: typeof error === "object" && error !== null && hasStringProp(error, "message") ? error.message : CANDIDATE_ACTION_ERROR };
+    return { ok: false, message: apiErrorMessage(json, CANDIDATE_ACTION_ERROR) };
   } catch {
     return { ok: false, message: CANDIDATE_ACTION_ERROR };
   }
@@ -302,6 +310,54 @@ export function forceApworldCandidate(gameId: string): Promise<ApworldCandidateA
 /** Run the test of a rejected candidate again, typically after a transient failure. */
 export function retryApworldCandidate(gameId: string): Promise<ApworldCandidateActionResult> {
   return candidateAction(gameId, "retry");
+}
+
+/** Story 38.14: put online a candidate held for approval, once its test passed. */
+export function approveApworldCandidate(gameId: string): Promise<ApworldCandidateActionResult> {
+  return candidateAction(gameId, "approve");
+}
+
+const YAML_TEST_ERROR = "Le test n'a pas pu être lancé. Réessaie dans un instant.";
+
+/** Story 38.14: generate a pasted YAML against the candidate version. Nothing goes online. */
+export async function startApworldCandidateYamlTest(gameId: string, yaml: string): Promise<{ ok: true; jobId: string } | { ok: false; message: string }> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${encodeURIComponent(gameId)}/apworld-candidate/test-yaml`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ yaml }),
+    });
+    const json: unknown = await res.json().catch(() => null);
+    if (res.ok) {
+      const data: unknown = typeof json === "object" && json !== null && "data" in json ? json.data : null;
+      if (typeof data === "object" && data !== null && hasStringProp(data, "jobId")) return { ok: true, jobId: data.jobId };
+      return { ok: false, message: YAML_TEST_ERROR };
+    }
+    return { ok: false, message: apiErrorMessage(json, YAML_TEST_ERROR) };
+  } catch {
+    return { ok: false, message: YAML_TEST_ERROR };
+  }
+}
+
+export type ApworldCandidateYamlTestResult =
+  | { kind: "result"; status: "pending" | "passed" | "failed"; error: string | null }
+  | { kind: "gone" }
+  | { kind: "error" };
+
+/** Story 38.14: where a YAML test stands. `gone` = unknown or expired (the orchestrator keeps them 30 minutes). */
+export async function getApworldCandidateYamlTest(gameId: string, jobId: string): Promise<ApworldCandidateYamlTestResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${encodeURIComponent(gameId)}/apworld-candidate/test-yaml/${encodeURIComponent(jobId)}`);
+    if (res.status === 404) return { kind: "gone" };
+    if (!res.ok) return { kind: "error" };
+    const json: unknown = await res.json();
+    const data: unknown = typeof json === "object" && json !== null && "data" in json ? json.data : null;
+    if (typeof data !== "object" || data === null || !hasStringProp(data, "status") || !hasNullableStringProp(data, "error")) return { kind: "error" };
+    if (data.status !== "pending" && data.status !== "passed" && data.status !== "failed") return { kind: "error" };
+    return { kind: "result", status: data.status, error: data.error };
+  } catch {
+    return { kind: "error" };
+  }
 }
 
 // Discriminated result: keeps the editor's four failure screens distinct. Never throws

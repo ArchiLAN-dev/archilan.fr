@@ -81,6 +81,12 @@ final readonly class DecideApworldCandidates
             $verdict = $verdicts[$candidate->getApworldHash()] ?? null;
             $status = $verdict['status'] ?? '';
 
+            // Story 38.14: the admin asked to validate this version themselves - a passed test waits for them.
+            if ('passed' === $status && $candidate->isHeldForApproval()) {
+                $candidate->awaitApproval($now);
+                continue;
+            }
+
             // An admin already allowed this apworld despite its failed test (story 9.38 AC4).
             if ('passed' === $status || ('failed' === $status && true === ($verdict['overridden'] ?? false))) {
                 try {

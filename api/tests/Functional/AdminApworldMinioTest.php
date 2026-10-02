@@ -70,6 +70,30 @@ final class AdminApworldMinioTest extends FunctionalTestCase
         self::assertNull($game->getApworldHash());
     }
 
+    /** Story 38.14: "Garder en test, je validerai moi-même" marks the candidate. */
+    public function testAnUploadCanBeHeldForTheAdminsApproval(): void
+    {
+        $sha256 = hash('sha256', 'held apworld content');
+        NullRunnerGateway::$apworldUploadResult = [
+            'storageKey' => $sha256.'.apworld',
+            'hash' => $sha256,
+            'archipelagoGameName' => 'Hollow Knight',
+            'defaultYaml' => "name: Hollow Knight\ngame: Hollow Knight\n",
+        ];
+        $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']));
+        $gameId = $this->createGameViaApi();
+        $tmpFile = $this->createTempApworld('held apworld content');
+
+        $this->client->request('PATCH', sprintf('/api/v1/admin/games/%s/apworld', $gameId), ['holdForApproval' => '1'], ['file' => new UploadedFile($tmpFile, 'hollow_knight.apworld', 'application/octet-stream', null, true)]);
+
+        self::assertResponseIsSuccessful();
+        unlink($tmpFile);
+        $candidate = $this->candidateFromResponse();
+        self::assertIsArray($candidate);
+        self::assertSame('testing', $candidate['status'] ?? null);
+        self::assertTrue($candidate['heldForApproval'] ?? null);
+    }
+
     public function testApworldUploadDeduplicatesIfAlreadyInMinio(): void
     {
         $sha256 = hash('sha256', 'same content');

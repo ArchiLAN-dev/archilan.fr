@@ -133,7 +133,58 @@ final class ApworldCandidateTest extends TestCase
         $candidate->retry(new \DateTimeImmutable('2026-09-25 04:20:00+00:00'));
     }
 
-    private function candidate(): ApworldCandidate
+    /** Story 38.14: a candidate held for approval waits after a passed test, then an admin puts it online. */
+    public function testAHeldCandidateWaitsForApprovalThenIsPutOnlineByAnAdmin(): void
+    {
+        $candidate = $this->candidate(hold: true);
+        self::assertTrue($candidate->isHeldForApproval());
+
+        $candidate->awaitApproval(new \DateTimeImmutable('2026-09-25 04:15:00+00:00'));
+        self::assertSame(ApworldCandidateStatus::Awaiting, $candidate->getStatus());
+        self::assertFalse($candidate->hasTestTimedOut(new \DateTimeImmutable('2026-09-26'), new \DateInterval('PT30M')), 'a tested candidate no longer expires');
+
+        $candidate->approve('admin-1');
+        $candidate->promote(new \DateTimeImmutable('2026-09-25 04:20:00+00:00'), null);
+        self::assertSame(ApworldCandidateStatus::Promoted, $candidate->getStatus());
+        self::assertSame('admin-1', $candidate->getApprovedBy());
+        self::assertNull($candidate->getForcedBy(), 'approving after a passed test is not forcing');
+    }
+
+    public function testACandidateIsNotHeldByDefault(): void
+    {
+        self::assertFalse($this->candidate()->isHeldForApproval());
+    }
+
+    public function testOnlyACandidateInTestCanAwaitApproval(): void
+    {
+        $candidate = $this->candidate(hold: true);
+        $candidate->reject('boom', new \DateTimeImmutable('2026-09-25 04:15:00+00:00'));
+
+        $this->expectException(ApworldCandidateTransitionException::class);
+
+        $candidate->awaitApproval(new \DateTimeImmutable('2026-09-25 04:16:00+00:00'));
+    }
+
+    public function testOnlyAnAwaitingCandidateCanBeApproved(): void
+    {
+        $candidate = $this->candidate(hold: true);
+
+        $this->expectException(ApworldCandidateTransitionException::class);
+
+        $candidate->approve('admin-1');
+    }
+
+    public function testANewerSubmissionSupersedesAnAwaitingCandidate(): void
+    {
+        $candidate = $this->candidate(hold: true);
+        $candidate->awaitApproval(new \DateTimeImmutable('2026-09-25 04:15:00+00:00'));
+
+        $candidate->supersede(new \DateTimeImmutable('2026-09-25 04:30:00+00:00'));
+
+        self::assertSame(ApworldCandidateStatus::Superseded, $candidate->getStatus());
+    }
+
+    private function candidate(bool $hold = false): ApworldCandidate
     {
         return ApworldCandidate::submit(
             'candidate-1',
@@ -147,6 +198,7 @@ final class ApworldCandidateTest extends TestCase
             ApworldCandidateOrigin::Auto,
             null,
             new \DateTimeImmutable(self::SUBMITTED_AT),
+            holdForApproval: $hold,
         );
     }
 }

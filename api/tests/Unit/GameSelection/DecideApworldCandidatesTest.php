@@ -203,7 +203,29 @@ final class DecideApworldCandidatesTest extends TestCase
         self::assertSame(0, $this->candidates->flushes);
     }
 
-    private function candidate(string $hash, ?string $tag): ApworldCandidate
+    /** Story 38.14: an admin asked to validate the version themselves - a passed test does not put it online. */
+    public function testAHeldCandidateThatPassesWaitsForTheAdmin(): void
+    {
+        $candidate = $this->candidate('hash-new', 'v2', hold: true);
+
+        $result = $this->decide(['hash-new' => $this->verdict('passed')]);
+
+        self::assertSame(ApworldCandidateStatus::Awaiting, $candidate->getStatus());
+        self::assertSame('hash-old', $this->game->getApworldHash(), 'the game keeps serving its version');
+        self::assertSame([], $result->promotions);
+        self::assertSame(1, $this->candidates->flushes);
+    }
+
+    public function testAHeldCandidateThatFailsIsRejectedAsUsual(): void
+    {
+        $candidate = $this->candidate('hash-new', 'v2', hold: true);
+
+        $this->decide(['hash-new' => $this->verdict('failed', 'Fill.FillError: boom')]);
+
+        self::assertSame(ApworldCandidateStatus::Rejected, $candidate->getStatus());
+    }
+
+    private function candidate(string $hash, ?string $tag, bool $hold = false): ApworldCandidate
     {
         $candidate = ApworldCandidate::submit(
             'candidate-'.$hash,
@@ -217,6 +239,7 @@ final class DecideApworldCandidatesTest extends TestCase
             ApworldCandidateOrigin::Auto,
             null,
             $this->clock->now(),
+            holdForApproval: $hold,
         );
         $this->candidates->save($candidate);
 

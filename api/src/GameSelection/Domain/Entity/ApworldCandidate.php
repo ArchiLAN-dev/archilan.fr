@@ -31,6 +31,14 @@ final class ApworldCandidate
     #[ORM\Column(name: 'forced_by', type: 'string', length: 32, nullable: true)]
     private ?string $forcedBy = null;
 
+    /** Story 38.14: the admin validates the version themselves - a passed test does not put it online. */
+    #[ORM\Column(name: 'hold_for_approval', type: 'boolean', options: ['default' => false])]
+    private bool $holdForApproval = false;
+
+    /** Story 38.14: the admin who put an awaiting candidate online after its passed test. */
+    #[ORM\Column(name: 'approved_by', type: 'string', length: 32, nullable: true)]
+    private ?string $approvedBy = null;
+
     #[ORM\Column(name: 'rejection_reason', type: 'text', nullable: true)]
     private ?string $rejectionReason = null;
 
@@ -75,22 +83,44 @@ final class ApworldCandidate
         ApworldCandidateOrigin $origin,
         ?string $submittedBy,
         \DateTimeImmutable $now,
+        bool $holdForApproval = false,
     ): self {
-        return new self($id, $gameId, $apworldHash, $storageKey, $minioKey, $defaultYaml, $archipelagoGameName, $versionTag, $origin, $submittedBy, $now, ApworldCandidateStatus::Testing);
+        $candidate = new self($id, $gameId, $apworldHash, $storageKey, $minioKey, $defaultYaml, $archipelagoGameName, $versionTag, $origin, $submittedBy, $now, ApworldCandidateStatus::Testing);
+        $candidate->holdForApproval = $holdForApproval;
+
+        return $candidate;
     }
 
     /**
-     * The candidate becomes the apworld the game serves. From the test (verdict passed) or, forced by
-     * an admin, from the test or from a rejection. Never from a superseded or promoted candidate.
+     * The candidate becomes the apworld the game serves. From the test (verdict passed), from the wait for an
+     * admin's approval (story 38.14) or, forced by an admin, from the test or from a rejection. Never from a
+     * superseded or promoted candidate.
      */
     public function promote(\DateTimeImmutable $now, ?string $forcedBy): void
     {
-        $this->assertStatus([ApworldCandidateStatus::Testing, ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], 'promoted');
+        $this->assertStatus([ApworldCandidateStatus::Testing, ApworldCandidateStatus::Awaiting, ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], 'promoted');
 
         $this->status = ApworldCandidateStatus::Promoted;
         $this->decidedAt = $now;
         $this->forcedBy = $forcedBy;
         $this->rejectionReason = null;
+    }
+
+    /** Story 38.14: the test of a held candidate passed - it waits for the admin instead of going online. */
+    public function awaitApproval(\DateTimeImmutable $now): void
+    {
+        $this->assertStatus([ApworldCandidateStatus::Testing], 'awaiting');
+
+        $this->status = ApworldCandidateStatus::Awaiting;
+        $this->decidedAt = $now;
+    }
+
+    /** Story 38.14: the admin validates an awaiting candidate; the promotion that follows puts it online. */
+    public function approve(string $adminId): void
+    {
+        $this->assertStatus([ApworldCandidateStatus::Awaiting], 'approved');
+
+        $this->approvedBy = $adminId;
     }
 
     public function reject(string $reason, \DateTimeImmutable $now): void
@@ -129,7 +159,7 @@ final class ApworldCandidate
 
     public function supersede(\DateTimeImmutable $now): void
     {
-        $this->assertStatus([ApworldCandidateStatus::Testing], 'superseded');
+        $this->assertStatus([ApworldCandidateStatus::Testing, ApworldCandidateStatus::Awaiting], 'superseded');
 
         $this->status = ApworldCandidateStatus::Superseded;
         $this->decidedAt = $now;
@@ -193,6 +223,16 @@ final class ApworldCandidate
     public function getOrigin(): ApworldCandidateOrigin
     {
         return $this->origin;
+    }
+
+    public function isHeldForApproval(): bool
+    {
+        return $this->holdForApproval;
+    }
+
+    public function getApprovedBy(): ?string
+    {
+        return $this->approvedBy;
     }
 
     public function getSubmittedBy(): ?string

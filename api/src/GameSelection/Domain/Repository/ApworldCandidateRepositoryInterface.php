@@ -13,9 +13,10 @@ interface ApworldCandidateRepositoryInterface
     public function findById(string $id): ?ApworldCandidate;
 
     /**
-     * The candidate in test for this game, if any. There is at most one: a new submission supersedes it.
+     * The pending candidate of this game, in test or awaiting the admin's approval (story 38.14), if any. There is
+     * at most one: a new submission supersedes it, and an automatic update leaves the game alone meanwhile.
      */
-    public function findTestingForGame(string $gameId): ?ApworldCandidate;
+    public function findPendingForGame(string $gameId): ?ApworldCandidate;
 
     /**
      * @return list<ApworldCandidate>
