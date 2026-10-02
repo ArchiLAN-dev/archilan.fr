@@ -5,6 +5,23 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.27.0] - 2026-10-02
+
+La photo de profil et son cadre, partout sur le site.
+
+### Modifié
+
+- **La photo de profil et son cadre, partout** (story 30.47). La photo d'un membre a désormais la même forme
+  partout, le carré arrondi de la page de profil, et porte son cadre d'avatar : annuaire, communauté, classements,
+  amis, commentaires, succès, parties privées, espace membre et menu du compte. Sans photo, les mêmes initiales sur
+  le même dégradé partout. Le cadre s'anime en permanence sur le profil et dans la barre de navigation, au survol
+  ailleurs ; jamais sous « réduire les animations ». La fenêtre de recadrage de la photo découpe aussi en carré
+  arrondi.
+
+### Notes de déploiement
+
+- Aucune migration. Services inchangés : `archipelago` `v0.16.5`, `orchestrateur` `v0.20.0`, `bridge` `v0.13.0`.
+
 ## [0.26.1] - 2026-10-02
 
 Correctif de sécurité : l'image `api-worker` de la v0.26.0 n'avait pas pu être publiée.
