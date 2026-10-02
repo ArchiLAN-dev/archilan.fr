@@ -3,6 +3,7 @@
 **Status:** ready-for-dev
 **Epic:** 11 - Bibliothèque de jeux admin
 **Date:** 2026-10-02
+**Co-joueurs :** inchangés (décision de Jean, 2026-10-02 : seul le propriétaire de la partie les gère).
 **Remplace une décision de :** 11.4 (« un jeu désactivé reste visible dans les sélecteurs mais ne peut plus être
 choisi »)
 
@@ -53,8 +54,9 @@ sitemap, favoris, couplage Steam, hebdos).
 9. **Page publique du jeu** `/jeux/{slug}` : reste accessible par lien direct (liens de l'historique, d'un profil,
    d'une partie), avec un bandeau « Ce jeu est temporairement désactivé » (et le message de l'admin s'il y en a un).
    Elle n'a plus de bouton de création de partie (déjà le cas) et n'est plus indexée (`noindex`).
-10. **Hebdos** : la story ne change ni la génération ni le lancement des hebdos (voir « Hors périmètre ») ; une
-    hebdo existante continue de s'afficher.
+10. **Hebdos (décision de Jean, 2026-10-02)** : une hebdo dont le jeu est désactivé **n'est plus générée ni
+    lancée** ; le modèle reste en place et reprend dès que le jeu est réactivé. Une hebdo déjà générée ou en cours
+    continue de s'afficher (historique). Un message de log l'indique pour l'admin.
 
 ### Admin
 
@@ -73,12 +75,12 @@ sitemap, favoris, couplage Steam, hebdos).
 - [ ] **Task 3** (AC 6, 7) - Favoris : éditeur, `UpdateCommunityProfile::parseFavorites`,
       `CommunityProfileView::resolveFavoriteGames` ; listes possédés / prévus ; tests.
 - [ ] **Task 4** (AC 9) - Page `/jeux/{slug}` : bandeau, message, `noindex` ; tests.
+- [ ] **Task 4 bis** (AC 10) - Hebdos : `GenerateWeeklyRunForTemplate` / `GenerateWeeklyRunsMessageHandler` et
+      `LaunchWeeklyEntry` sautent un jeu désactivé ; tests.
 - [ ] **Task 5** (AC 12) - Gates et vérification visuelle (catalogue, sélecteur avec un slot sur un jeu désactivé,
       page du jeu, profil avec un favori désactivé).
 
 ## Hors périmètre
 
-- **Génération des hebdos** : aujourd'hui, une hebdo d'un jeu désactivé est encore générée et lancée. Faut-il la
-  sauter ? C'est un changement de comportement, pas d'affichage : à trancher à part.
 - Les modèles de YAML (`/api/v1/yaml-templates`) ne vérifient que `isApworldReady` ; un jeu désactivé n'y est
   atteignable qu'à travers un slot existant, ce qui reste voulu.
