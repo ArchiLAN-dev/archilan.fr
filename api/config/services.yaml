@@ -82,9 +82,12 @@ services:
             - '../src/WeeklyRuns/Domain/'
             - '../src/SessionConfig/Domain/'
             - '../src/Community/Domain/'
+            - '../src/Wallet/Domain/'
 
     App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigProfileRepository'
     App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigOverrideRepository'
+
+    App\Wallet\Domain\Repository\PelleMovementRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrinePelleMovementRepository'
 
     App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyRunRepository'
     App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyTemplateRepository'

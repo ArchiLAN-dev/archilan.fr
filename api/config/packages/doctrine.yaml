@@ -92,6 +92,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Community/Domain/Entity'
                 prefix: 'App\Community\Domain\Entity'
                 alias: Community
+            Wallet:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Wallet/Domain/Entity'
+                prefix: 'App\Wallet\Domain\Entity'
+                alias: Wallet
 
 when@test:
     doctrine:
