@@ -10,7 +10,7 @@ FROM php:8.5-cli-alpine
 # Dockerfile inchangé pendant des mois continue de servir une couche apk figée. Quand une CVE
 # corrigée apparaît sans changement de code, forcer la reconstruction en purgeant le scope de
 # cache buildx (aucun run en vol) ou en touchant cette ligne.
-RUN apk upgrade --no-cache  # rebuild 2026-08-28 : CVE-2026-14456 (libcrypto3 3.5.7-r0 -> 3.5.8-r0)
+RUN apk upgrade --no-cache  # rebuild 2026-10-02 : CVE-2026-103111 (pcre2 10.48-r0 -> 10.49-r0)
 
 # Increase upload limits for large .apworld files
 RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
