@@ -23,31 +23,46 @@ export function ProfileAvatar({
   /** Story 30.43: the framing of an uploaded photo (the frame clips the zoom). */
   framing?: ImageFraming | null;
 }) {
-  const [failed, setFailed] = useState(false);
-
-  const content =
-    avatarUrl !== null && !failed ? (
-      // eslint-disable-next-line @next/next/no-img-element -- external Discord/Steam CDN URL, not a local asset
-      <img
-        alt={name}
-        className="h-full w-full bg-surface object-cover"
-        onError={() => setFailed(true)}
-        src={avatarUrl}
-        style={framingStyle(framing)}
-      />
-    ) : (
-      <div
-        aria-hidden
-        className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${defaultVariant(name)} font-heading text-3xl font-bold text-white`}
-      >
-        {initials(name)}
-      </div>
-    );
-
   return (
     <AvatarFrame className={SIZE} frameKey={frame}>
-      {content}
+      <AvatarContent avatarUrl={avatarUrl} framing={framing} name={name} />
     </AvatarFrame>
+  );
+}
+
+/**
+ * The photo itself, or the member's default initials avatar: shared by the profile avatar and the frame picker's
+ * swatches (story 30.46), so each swatch shows the member's own face. `small` shrinks the initials.
+ */
+export function AvatarContent({
+  avatarUrl,
+  name,
+  framing = null,
+  small = false,
+}: {
+  avatarUrl: string | null;
+  name: string;
+  framing?: ImageFraming | null;
+  small?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  return avatarUrl !== null && !failed ? (
+    // eslint-disable-next-line @next/next/no-img-element -- external Discord/Steam CDN URL, not a local asset
+    <img
+      alt={name}
+      className="h-full w-full bg-surface object-cover"
+      onError={() => setFailed(true)}
+      src={avatarUrl}
+      style={framingStyle(framing)}
+    />
+  ) : (
+    <div
+      aria-hidden
+      className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${defaultVariant(name)} font-heading ${small ? "text-xs" : "text-3xl"} font-bold text-white`}
+    >
+      {initials(name)}
+    </div>
   );
 }
 
