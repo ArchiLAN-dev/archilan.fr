@@ -20,13 +20,14 @@ import {
 export type FramingShape = "avatar" | "banner";
 
 const FRAME_CLASS: Record<FramingShape, string> = {
-  avatar: "mx-auto size-56 rounded-full",
+  // Story 30.47: the avatar is a rounded square everywhere (radius ~16.7% of its size).
+  avatar: "mx-auto size-56 rounded-[16.7%]",
   banner: "aspect-[4/1] w-full rounded-lg",
 };
 
 /**
- * Story 30.43: choose the part of an uploaded image the profile shows - drag the image in the final shape (round
- * photo, banner strip), zoom with the slider, or move it with the arrow keys. Nothing is cut: the framing is
+ * Story 30.43: choose the part of an uploaded image the profile shows - drag the image in the final shape (rounded
+ * square photo, banner strip), zoom with the slider, or move it with the arrow keys. Nothing is cut: the framing is
  * kept with the profile and applied at display, so a GIF keeps moving.
  */
 export function ImageFramingDialog({

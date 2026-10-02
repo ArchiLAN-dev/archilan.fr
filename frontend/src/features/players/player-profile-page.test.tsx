@@ -43,7 +43,12 @@ describe("PlayerProfilePage", () => {
     const html = render();
 
     expect(html).toMatch(/<article class="[^"]*\bgrid-cols-1\b[^"]*"/);
-    expect(html).toMatch(/<div class="relative z-10 grid grid-cols-1 [^"]*"/);
+    expect(html).toMatch(/<div class="relative grid grid-cols-1 [^"]*"/);
+  });
+
+  test("the identity card makes no stacking context, so a video frame's flames blend with the banner", () => {
+    // Story 30.46: a z-index on the positioned card would isolate it, and the flames' black would show as a box.
+    expect(render()).not.toMatch(/<div class="relative z-\d+ grid grid-cols-1 /);
   });
 
   test("a long name wraps instead of setting the card's width, and shrinks on a phone", () => {

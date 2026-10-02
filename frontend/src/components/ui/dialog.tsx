@@ -13,6 +13,8 @@ type DialogProps = {
   description?: ReactNode;
   /** `center` for a form or a confirmation, `side` for a panel to read next to the list it comes from. */
   variant?: "center" | "side";
+  /** A centred dialog's width: `wide` for a picker with a preview beside it. */
+  size?: "default" | "wide";
   children: ReactNode;
 };
 
@@ -21,7 +23,7 @@ type DialogProps = {
  * cross close it, the title is announced. Its content unmounts when it closes, so a form inside starts
  * blank each time it opens.
  */
-export function Dialog({ open, onOpenChange, title, description, variant = "center", children }: DialogProps) {
+export function Dialog({ open, onOpenChange, title, description, variant = "center", size = "default", children }: DialogProps) {
   return (
     <RadixDialog.Root onOpenChange={onOpenChange} open={open}>
       <RadixDialog.Portal>
@@ -33,7 +35,10 @@ export function Dialog({ open, onOpenChange, title, description, variant = "cent
             "fixed z-50 flex flex-col border-border bg-surface shadow-xl focus:outline-none",
             variant === "side"
               ? "inset-y-0 right-0 h-full w-full max-w-md border-l data-[state=open]:animate-in data-[state=open]:slide-in-from-right"
-              : "left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+              : cn(
+                  "left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+                  size === "wide" ? "max-w-4xl" : "max-w-lg",
+                ),
           )}
         >
           <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">

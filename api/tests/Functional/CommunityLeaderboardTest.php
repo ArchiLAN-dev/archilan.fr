@@ -322,6 +322,7 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
             $now,
             $now,
             avatarUrl: $aliceAvatar,
+            avatarFrame: 'neon_cyan',
         ));
 
         $regA = $this->createRegistration($event->getId(), $alice->getId());
@@ -355,12 +356,15 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertSame('alice', $aliceEntry['slug']);
         self::assertArrayHasKey('avatarUrl', $aliceEntry);
         self::assertSame($aliceAvatar, $aliceEntry['avatarUrl']);
+        // Story 30.47: the frame follows the avatar on the leaderboards too.
+        self::assertSame('neon_cyan', $aliceEntry['avatarFrame']);
 
         $bobEntry = $data[1];
         self::assertIsArray($bobEntry);
         self::assertSame('bob', $bobEntry['slug']);
         self::assertArrayHasKey('avatarUrl', $bobEntry);
         self::assertNull($bobEntry['avatarUrl']);
+        self::assertNull($bobEntry['avatarFrame']);
     }
 
     // ─── eventId filter ──────────────────────────────────────────────────────

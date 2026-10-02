@@ -8,7 +8,7 @@ import type {
   ProfilePresence,
   RunHistoryEntry,
 } from "./player-profile-api";
-import { ProfileAvatar } from "./profile-avatar";
+import { MemberAvatar } from "@/features/community/member-avatar";
 import { ProfileRelationshipActions } from "@/features/community/profile-relationship-actions";
 import { ProfileActivity } from "@/features/community/community-activity";
 import { ProfileAchievements } from "@/features/community/profile-achievements";
@@ -43,13 +43,23 @@ export function PlayerProfilePage({
           presetKey={profile.customization?.bannerPreset ?? "default"}
         />
 
-        {/* z-10 keeps the overlapping content above the positioned banner. */}
-        <div className="relative z-10 grid grid-cols-1 gap-5 px-5 pb-6 sm:px-8">
+        {/* relative paints the overlapping content above the positioned banner (later in the DOM). No z-index: it
+            would make a stacking context, and a video avatar frame's flames (story 30.46) could no longer blend
+            with the banner they overlap. */}
+        <div className="relative grid grid-cols-1 gap-5 px-5 pb-6 sm:px-8">
           {/* Identity: avatar + name straddle the banner (name centered on the avatar, not shifted). The
               badges sit just below the name and beside the avatar - pulled up so they aren't below the photo. */}
           <div>
             <div className="-mt-12 flex items-center gap-4 sm:-mt-14">
-              <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} framing={profile.avatarFraming} name={displayName} />
+              <MemberAvatar
+                animate="always"
+                avatarUrl={profile.avatarUrl}
+                frame={profile.customization?.avatarFrame ?? null}
+                framing={profile.avatarFraming}
+                name={displayName}
+                size={112}
+                sizeClassName="size-24 sm:size-28"
+              />
               <h1 className="min-w-0 font-heading text-2xl font-bold leading-tight text-foreground [overflow-wrap:anywhere] [text-shadow:0_2px_6px_rgba(0,0,0,0.7)] sm:text-3xl md:text-4xl">
                 <TitledName style={profile.nameStyle} variant="profile">
                   {displayName}

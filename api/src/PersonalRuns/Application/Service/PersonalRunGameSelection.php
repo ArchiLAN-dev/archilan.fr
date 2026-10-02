@@ -212,6 +212,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
                 ?? ($user instanceof User ? $user->getDisplayName() : null),
             'avatarUrl' => null !== $card ? $card['avatarUrl'] : null,
             'avatarAnimatedUrl' => null !== $card ? $card['avatarAnimatedUrl'] : null,
+            'avatarFrame' => null !== $card ? $card['avatarFrame'] : null,
             'avatarFraming' => null !== $card ? $card['avatarFraming'] : null,
             'nameStyle' => null !== $card ? $card['nameStyle'] : null,
             'isAdmin' => $user instanceof User && in_array('ROLE_ADMIN', $user->getRoles(), true),
