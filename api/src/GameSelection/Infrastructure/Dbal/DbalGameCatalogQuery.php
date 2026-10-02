@@ -67,6 +67,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.cover_image_credit AS cover_image_credit',
                 'game.availability AS availability',
                 'game.disabled_at AS disabled_at',
+                'game.disabled_message AS disabled_message',
                 'game.archipelago_game_name AS archipelago_game_name',
                 'game.option_types AS option_types',
                 'game.install_steps AS install_steps',
@@ -110,6 +111,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
      *   coverImageCredit: string,
      *   availability: string,
      *   disabled: bool,
+     *   disabledMessage: string|null,
      *   steamAppId: int|null,
      *   platforms: list<string>,
      *   supportedEventTypes: list<string>,
@@ -156,6 +158,8 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             'availability' => is_string($availability) ? $availability : '',
             // Story 17.23: the public page hides its "create a run" button on a game an admin cut off.
             'disabled' => is_string($row['disabled_at'] ?? null) && '' !== $row['disabled_at'],
+            // Story 11.5: the page of a disabled game says why, with the admin's message.
+            'disabledMessage' => is_string($row['disabled_message'] ?? null) && '' !== $row['disabled_message'] ? $row['disabled_message'] : null,
             'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
             'platforms' => PlatformCategory::resolve(
                 self::decodePlatformFamilies($row['platform_families'] ?? null),
@@ -334,6 +338,9 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
         $qb = $this->connection->createQueryBuilder()
             ->from('game', 'game')
             ->where('game.availability IN (:available, :experimental)')
+            // Story 11.5: a disabled game leaves every list where a player discovers a game; its page stays
+            // reachable by direct link (bySlug).
+            ->andWhere('game.disabled_at IS NULL')
             ->setParameter('available', Game::AVAILABILITY_AVAILABLE)
             ->setParameter('experimental', Game::AVAILABILITY_EXPERIMENTAL);
 

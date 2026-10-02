@@ -63,8 +63,12 @@ final readonly class GameListController
             return $this->unknownKind();
         }
 
-        if (GameListOutcome::GameNotFound === $this->lists->add($user->getId(), $gameId, $listKind)) {
+        $outcome = $this->lists->add($user->getId(), $gameId, $listKind);
+        if (GameListOutcome::GameNotFound === $outcome) {
             return $this->apiAccessGuard->errorResponse('game_not_found', 'Jeu introuvable.', 404);
+        }
+        if (GameListOutcome::GameDisabled === $outcome) {
+            return $this->apiAccessGuard->errorResponse('game_disabled', 'Ce jeu est temporairement désactivé.', 422);
         }
 
         return new JsonResponse(['data' => ['gameId' => $gameId, 'kind' => $listKind->value, 'inList' => true]]);

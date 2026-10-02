@@ -333,7 +333,8 @@ final readonly class CommunityProfileView
         $result = [];
         foreach ($gameIds as $id) {
             $game = $byId[$id] ?? null;
-            if ($game instanceof Game) {
+            // Story 11.5: a disabled favourite is hidden, but stays stored for when the game comes back.
+            if ($game instanceof Game && !$game->isDisabled()) {
                 $result[] = [
                     'id' => $game->getId(),
                     'name' => $game->getName(),

@@ -46,8 +46,12 @@ final readonly class UserGameLists
      */
     public function add(string $userId, string $gameId, GameListKind $kind): GameListOutcome
     {
-        if (!$this->games->findById($gameId) instanceof Game) {
+        $game = $this->games->findById($gameId);
+        if (!$game instanceof Game) {
             return GameListOutcome::GameNotFound;
+        }
+        if ($game->isDisabled()) {
+            return GameListOutcome::GameDisabled;
         }
 
         if (null === $this->entries->find($userId, $gameId, $kind)) {

@@ -130,6 +130,21 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
             ->__invoke(new GenerateWeeklyRunsMessage());
     }
 
+    /** Story 11.5: the scheduled generation skips a disabled game's template. */
+    public function testInvokeSkipsTemplateWhenGameDisabled(): void
+    {
+        $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
+        $runs->method('existsByTemplateAndWeek')->willReturn(false);
+        $runs->expects(self::never())->method('save');
+        $generator = $this->createMock(WeeklyRunGeneratorInterface::class);
+        $generator->expects(self::never())->method('generate');
+        $game = $this->makeGame();
+        $game->disable(null, new \DateTimeImmutable('2026-01-02T00:00:00Z'));
+
+        $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $game, $generator)
+            ->__invoke(new GenerateWeeklyRunsMessage());
+    }
+
     public function testInvokeDoesNotThrowWhenDispatchFails(): void
     {
         /** @var WeeklyRun|null $saved */

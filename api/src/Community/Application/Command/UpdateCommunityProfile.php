@@ -87,7 +87,8 @@ final readonly class UpdateCommunityProfile
         }
 
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);
-        $favoriteGameIds = $this->parseFavorites($input['favoriteGameIds'] ?? null, $errors);
+        $storedFavorites = $this->profiles->findByUserId($userId)?->getFavoriteGameIds() ?? [];
+        $favoriteGameIds = $this->parseFavorites($input['favoriteGameIds'] ?? null, $errors, $storedFavorites);
         $showcaseLayout = $this->parseShowcaseLayout($input['showcaseLayout'] ?? null);
 
         $errorsArray = $errors->toArray();
@@ -106,6 +107,7 @@ final readonly class UpdateCommunityProfile
         // the entity default, so a first save without the field lands on Audience::DEFAULT.
         $audience = $audienceInput ?? $profile->getAudience();
 
+        $favoriteGameIds = $this->keepHiddenFavorites($favoriteGameIds, $storedFavorites);
         $profile->customize($displayName, $bio, $tagline, $pronouns, $bannerPreset, $avatarFrame, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
         if (is_int($bannerOverlay)) {
             $profile->adjustBannerOverlay($bannerOverlay, $now);
@@ -220,9 +222,11 @@ final readonly class UpdateCommunityProfile
     }
 
     /**
+     * @param list<string> $storedFavorites the favourites the profile holds, which may stay even if disabled
+     *
      * @return list<string>
      */
-    private function parseFavorites(mixed $raw, ValidationErrors $errors): array
+    private function parseFavorites(mixed $raw, ValidationErrors $errors, array $storedFavorites = []): array
     {
         if (!is_array($raw)) {
             return [];
@@ -245,6 +249,10 @@ final readonly class UpdateCommunityProfile
             $found = [];
             foreach ($this->games->findByIds($ids) as $game) {
                 $found[$game->getId()] = true;
+                // Story 11.5: a disabled game cannot become a favourite (one already there may stay).
+                if ($game->isDisabled() && !\in_array($game->getId(), $storedFavorites, true)) {
+                    $errors->add('favoriteGameIds', sprintf('Jeu désactivé : %s', $game->getName()));
+                }
             }
             foreach ($ids as $id) {
                 if (!isset($found[$id])) {
@@ -254,5 +262,29 @@ final readonly class UpdateCommunityProfile
         }
 
         return $ids;
+    }
+
+    /**
+     * Story 11.5: a disabled favourite is hidden from the editor, which sends back what it shows - keep it, so it
+     * comes back when the game is enabled again. Within the favourites limit.
+     *
+     * @param list<string> $favoriteGameIds
+     * @param list<string> $storedFavorites
+     *
+     * @return list<string>
+     */
+    private function keepHiddenFavorites(array $favoriteGameIds, array $storedFavorites): array
+    {
+        $missing = array_values(array_diff($storedFavorites, $favoriteGameIds));
+        if ([] === $missing) {
+            return $favoriteGameIds;
+        }
+        foreach ($this->games->findByIds($missing) as $game) {
+            if ($game->isDisabled() && \count($favoriteGameIds) < self::MAX_FAVORITE_GAMES) {
+                $favoriteGameIds[] = $game->getId();
+            }
+        }
+
+        return $favoriteGameIds;
     }
 }
