@@ -44,6 +44,10 @@ final class SessionSlot
 
         #[ORM\Column(name: 'was_released', type: 'boolean', options: ['default' => false])]
         private bool $wasReleased = false,
+
+        /** Last time the bridge reported a new check on this slot (story 30.45); null until the first one. */
+        #[ORM\Column(name: 'last_check_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $lastCheckAt = null,
     ) {
     }
 
@@ -113,6 +117,20 @@ final class SessionSlot
     public function getGoalReachedAt(): ?\DateTimeImmutable
     {
         return $this->goalReachedAt;
+    }
+
+    /**
+     * Story 30.45: the bridge reported a new check on this slot. Archipelago knows the slot, not the person: the
+     * activity counts for everyone attached to it (owner and co-players).
+     */
+    public function recordCheckActivity(\DateTimeImmutable $at): void
+    {
+        $this->lastCheckAt = $at;
+    }
+
+    public function getLastCheckAt(): ?\DateTimeImmutable
+    {
+        return $this->lastCheckAt;
     }
 
     /** Live progress reported by the bridge. */

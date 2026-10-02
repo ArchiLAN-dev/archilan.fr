@@ -11,7 +11,8 @@ final class CommunityPresenceTest extends FunctionalTestCase
 {
     public function testProfileReportsPlayingPresenceForARunningSession(): void
     {
-        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        // A session started minutes ago: before its first check, its start is its activity (story 30.45).
+        $now = new \DateTimeImmutable('-5 minutes');
         $alice = $this->createUser('alice@example.org', slug: 'alice');
         $event = $this->createEvent('LAN', $now, $now->modify('+1 day'), 20);
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
