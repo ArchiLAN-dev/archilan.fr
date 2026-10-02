@@ -198,6 +198,12 @@ final class CommunityProfileCustomizationTest extends FunctionalTestCase
         self::assertIsArray($customization);
         self::assertSame('holographic', $customization['avatarFrame']);
 
+        // The video frame (story 30.46) is a key like any other.
+        $this->loginAs($user);
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['avatarFrame' => 'fire']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('fire', $this->data()['avatarFrame']);
+
         // An unknown frame is rejected.
         $this->loginAs($user);
         $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['avatarFrame' => 'bogus_frame']);

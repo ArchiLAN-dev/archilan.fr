@@ -43,8 +43,10 @@ export function PlayerProfilePage({
           presetKey={profile.customization?.bannerPreset ?? "default"}
         />
 
-        {/* z-10 keeps the overlapping content above the positioned banner. */}
-        <div className="relative z-10 grid grid-cols-1 gap-5 px-5 pb-6 sm:px-8">
+        {/* relative paints the overlapping content above the positioned banner (later in the DOM). No z-index: it
+            would make a stacking context, and a video avatar frame's flames (story 30.46) could no longer blend
+            with the banner they overlap. */}
+        <div className="relative grid grid-cols-1 gap-5 px-5 pb-6 sm:px-8">
           {/* Identity: avatar + name straddle the banner (name centered on the avatar, not shifted). The
               badges sit just below the name and beside the avatar - pulled up so they aren't below the photo. */}
           <div>

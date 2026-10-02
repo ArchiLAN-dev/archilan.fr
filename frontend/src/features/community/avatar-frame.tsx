@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { AvatarFrameVideoLayer } from "./avatar-frame-video";
 import { getAvatarFrame } from "./avatar-frames";
 import styles from "./avatar-frame.module.css";
 
@@ -23,17 +24,20 @@ const PARTICLES: { left: string; from: string; size: number; d: number; delay: n
 ];
 
 /**
- * Wraps avatar content in a decorative frame (solid colour, neon glow, or animated effect). With no frame
- * key it renders the plain bordered ring. Pass the size via `className` (e.g. "size-24 sm:size-28"). Motion
- * is disabled under prefers-reduced-motion (handled in CSS).
+ * Wraps avatar content in a decorative frame (solid colour, neon glow, animated effect, or video overlay). With
+ * no frame key it renders the plain bordered ring. Pass the size via `className` (e.g. "size-24 sm:size-28").
+ * Motion is disabled under prefers-reduced-motion (in CSS, and in the video layer for the video frames).
+ * `preview` is the picker swatch: a video frame then shows its still poster inside the swatch, never overflowing.
  */
 export function AvatarFrame({
   frameKey,
   className,
+  preview = false,
   children,
 }: {
   frameKey: string | null;
   className?: string;
+  preview?: boolean;
   children: ReactNode;
 }) {
   const frame = getAvatarFrame(frameKey);
@@ -41,6 +45,26 @@ export function AvatarFrame({
 
   if (!frame) {
     return <div className={`${PLAIN} ${size}`}>{children}</div>;
+  }
+
+  if (frame.variant === "video" && frame.video) {
+    if (preview) {
+      return (
+        <div className={`${styles.videoPreview} ${size}`}>
+          <div className={styles.videoPreviewInner}>{children}</div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- decorative still of a local asset */}
+          <img alt="" aria-hidden="true" className={styles.videoPreviewLayer} src={frame.video.poster} />
+        </div>
+      );
+    }
+
+    // No ring: the burning edge of the video is the frame. The overlay sits after the photo so it paints on top.
+    return (
+      <div className={`${styles.videoFrame} ${size}`}>
+        <div className={styles.videoInner}>{children}</div>
+        <AvatarFrameVideoLayer className={styles.videoLayer} video={frame.video} />
+      </div>
+    );
   }
 
   const style = frame.color ? ({ "--c1": frame.color } as CSSProperties) : undefined;

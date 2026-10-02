@@ -70,6 +70,60 @@
   animation: rise var(--d, 3.4s) ease-in infinite;
 }
 
+/* Video frame (story 30.46): real fire filmed on black, screen-blended over the avatar so the black disappears.
+   No isolation here, nor on any ancestor up to what the flames cover (the banner): blending only sees its own
+   stacking context, and the black would otherwise show as a dark box. */
+.videoFrame {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.videoInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: var(--color-surface, #111030);
+}
+
+/* The video's opening is 57.8% of its width, centred at (49.8%, 50.7%): sized and shifted onto the avatar. */
+.videoLayer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 173%;
+  max-width: none;
+  height: auto;
+  transform: translate(-49.8%, -50.7%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* Picker swatch: the whole still fits the swatch, the content shrinks into the opening. */
+.videoPreview {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.videoPreviewInner {
+  position: absolute;
+  left: 20.9%;
+  top: 21.9%;
+  width: 57.8%;
+  height: 57.6%;
+  border-radius: 0.3rem;
+  overflow: hidden;
+}
+
+.videoPreviewLayer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
 @keyframes pulse {
   0%,
   100% {

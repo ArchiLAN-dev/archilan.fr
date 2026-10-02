@@ -6,7 +6,7 @@ namespace App\Community\Domain\ValueObject;
 
 /**
  * Curated decorative avatar frames. Null means "no frame". The frontend maps each key to a ring treatment
- * (flat colour, neon glow, or an animated effect); the backend only validates the key.
+ * (flat colour, neon glow, an animated effect, or a looping video overlay); the backend only validates the key.
  */
 final readonly class AvatarFrame
 {
@@ -25,6 +25,13 @@ final readonly class AvatarFrame
         'holographic',
         'gold_shimmer',
         'spectral',
+        'fire',
+        'electric',
+        'spectral_fire',
+        'lava',
+        'runes',
+        'cosmic',
+        'glitch',
     ];
 
     public static function isValid(string $value): bool
