@@ -6,10 +6,10 @@ import { AlertCircle, ArrowDown, ArrowUp, Check, Crop, ImagePlus, Loader2, Plus,
 
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import { ProfileAvatar } from "@/features/players/profile-avatar";
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
-import { AVATAR_FRAME_KEYS, AVATAR_FRAMES, type AvatarFrameCategory } from "./avatar-frames";
-import { AvatarFrame } from "./avatar-frame";
+import { AVATAR_FRAME_KEYS, getAvatarFrame } from "./avatar-frames";
+import { FramePickerDialog } from "./frame-picker-dialog";
+import { FramePreview } from "./frame-preview";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
 import { imageAccept, imageFormatsHint, imageUploadError } from "./custom-image-rules";
@@ -36,7 +36,6 @@ import {
 
 const MAX_SOCIAL_LINKS = 5;
 const MAX_FAVORITES = 6;
-const FRAME_CATEGORIES: readonly AvatarFrameCategory[] = ["Couleurs", "Néon", "Effets"];
 
 const MAX_DISPLAY_NAME = 80;
 const MAX_TAGLINE = 120;
@@ -122,6 +121,11 @@ export function CommunityProfileCustomizationForm({
   // Story 30.41: how strongly the preset lies over the banner image; saved with the profile.
   const [bannerOverlay, setBannerOverlay] = useState<number>(DEFAULT_BANNER_OVERLAY);
   const [avatarFrame, setAvatarFrame] = useState<string | null>(null);
+  // Story 30.46: the saved frame (a dot marks it in the picker), whether the picker window is open, and whether the
+  // account may pick a legendary (video) frame - admins only for a start.
+  const [savedAvatarFrame, setSavedAvatarFrame] = useState<string | null>(null);
+  const [framePickerOpen, setFramePickerOpen] = useState(false);
+  const [legendaryAllowed, setLegendaryAllowed] = useState(false);
   // Story 30.43: the framing of the uploaded photo and banner image, saved with the profile; the dialog that sets it.
   const [avatarFraming, setAvatarFraming] = useState<ImageFraming>(CENTRED_FRAMING);
   const [bannerFraming, setBannerFraming] = useState<ImageFraming>(CENTRED_FRAMING);
@@ -195,6 +199,8 @@ export function CommunityProfileCustomizationForm({
     setTitledName(profile.titledName);
     setTitledNameStyle(profile.titledNameStyle);
     setAvatarFrame(frame);
+    setSavedAvatarFrame(frame);
+    setLegendaryAllowed(profile.legendaryFramesAllowed);
     // The editor previews the photo as it moves on the profile page (story 30.42).
     setAvatarUrl(profile.avatarAnimatedUrl ?? profile.avatarUrl);
     setHasCustomAvatar(profile.hasCustomAvatar);
@@ -412,7 +418,7 @@ export function CommunityProfileCustomizationForm({
         >
           <div className="grid gap-3">
             <ProfileBanner
-              className="h-24 w-full rounded-lg"
+              className="h-40 w-full rounded-lg sm:h-56"
               framing={bannerFraming}
               imageUrl={bannerImageUrl}
               overlay={bannerOverlay}
@@ -490,84 +496,92 @@ export function CommunityProfileCustomizationForm({
       ) : null}
 
       <Section
-        title="Photo de profil"
-        description={`Importe ta propre image (${imageFormatsHint("avatar", avatarGifAllowed)}) Sans image, un avatar par défaut est généré.`}
+        title="Photo de profil et cadre"
+        description={`Importe ta propre image (${imageFormatsHint("avatar", avatarGifAllowed)}) Sans image, un avatar par défaut est généré. Un cadre choisi ne s'enregistre qu'avec « Enregistrer ».`}
       >
-        <div className="flex flex-wrap items-center gap-4">
-          <ProfileAvatar
+        <div className="grid gap-6 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
+          <FramePreview
             avatarUrl={avatarUrl}
             frame={avatarFrame}
             framing={hasCustomAvatar ? avatarFraming : null}
+            banner={{ presetKey: bannerPreset, imageUrl: bannerImageUrl, framing: bannerFraming, overlay: bannerOverlay }}
             name={displayName.trim() || accountName || slug || "?"}
           />
-          <div className="grid gap-2">
-            <div className="flex flex-wrap gap-2">
+          <div className="grid gap-5">
+            <div className="grid gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
+                  disabled={avatar.kind === "saving"}
+                  onClick={() => avatarInputRef.current?.click()}
+                  type="button"
+                >
+                  {avatar.kind === "saving" ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <ImagePlus aria-hidden className="size-4" />}
+                  {hasCustomAvatar ? "Changer la photo" : "Importer une photo"}
+                </button>
+                {hasCustomAvatar ? (
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
+                    disabled={avatar.kind === "saving"}
+                    onClick={() => setFramingShape("avatar")}
+                    type="button"
+                  >
+                    <Crop aria-hidden className="size-4" /> Recadrer
+                  </button>
+                ) : null}
+                {hasCustomAvatar ? (
+                  <button
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-destructive disabled:opacity-50"
+                    disabled={avatar.kind === "saving"}
+                    onClick={() => void handleAvatarRemove()}
+                    type="button"
+                  >
+                    <Trash2 aria-hidden className="size-4" /> Retirer
+                  </button>
+                ) : null}
+              </div>
+              {avatar.kind === "error" ? (
+                <span className="flex items-center gap-1.5 text-xs text-destructive">
+                  <AlertCircle aria-hidden className="size-3.5" /> {avatar.message}
+                </span>
+              ) : null}
+              <input
+                accept={imageAccept(avatarGifAllowed)}
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleAvatarPick(file);
+                }}
+                ref={avatarInputRef}
+                type="file"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-muted-foreground">
+                Cadre : <span className="font-medium text-foreground">{getAvatarFrame(avatarFrame)?.label ?? "Aucun"}</span>
+              </span>
               <button
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
-                disabled={avatar.kind === "saving"}
-                onClick={() => avatarInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover"
+                onClick={() => setFramePickerOpen(true)}
                 type="button"
               >
-                {avatar.kind === "saving" ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <ImagePlus aria-hidden className="size-4" />}
-                {hasCustomAvatar ? "Changer la photo" : "Importer une photo"}
+                Changer le cadre
               </button>
-              {hasCustomAvatar ? (
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
-                  disabled={avatar.kind === "saving"}
-                  onClick={() => setFramingShape("avatar")}
-                  type="button"
-                >
-                  <Crop aria-hidden className="size-4" /> Recadrer
-                </button>
-              ) : null}
-              {hasCustomAvatar ? (
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-destructive disabled:opacity-50"
-                  disabled={avatar.kind === "saving"}
-                  onClick={() => void handleAvatarRemove()}
-                  type="button"
-                >
-                  <Trash2 aria-hidden className="size-4" /> Retirer
-                </button>
-              ) : null}
             </div>
-            {avatar.kind === "error" ? (
-              <span className="flex items-center gap-1.5 text-xs text-destructive">
-                <AlertCircle aria-hidden className="size-3.5" /> {avatar.message}
-              </span>
-            ) : null}
-            <input
-              accept={imageAccept(avatarGifAllowed)}
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleAvatarPick(file);
-              }}
-              ref={avatarInputRef}
-              type="file"
-            />
           </div>
         </div>
       </Section>
 
-      <Section title="Cadre d'avatar" description="Un cadre décoratif (animé) autour de ton avatar.">
-        <div className="grid gap-3">
-          {FRAME_CATEGORIES.map((category) => (
-            <div className="grid gap-1.5" key={category}>
-              <span className="text-xs font-medium text-muted-foreground">{category}</span>
-              <div className="flex flex-wrap gap-2.5">
-                {category === FRAME_CATEGORIES[0] ? (
-                  <FrameSwatch frameKey={null} label="Aucun" onPick={setAvatarFrame} selected={null === avatarFrame} />
-                ) : null}
-                {AVATAR_FRAMES.filter((f) => f.category === category).map((f) => (
-                  <FrameSwatch frameKey={f.key} key={f.key} label={f.label} onPick={setAvatarFrame} selected={avatarFrame === f.key} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
+      <FramePickerDialog
+        avatar={{ avatarUrl, name: displayName.trim() || accountName || slug || "?", framing: hasCustomAvatar ? avatarFraming : null }}
+        banner={{ presetKey: bannerPreset, imageUrl: bannerImageUrl, framing: bannerFraming, overlay: bannerOverlay }}
+        current={avatarFrame}
+        legendaryAllowed={legendaryAllowed}
+        onApply={setAvatarFrame}
+        onOpenChange={setFramePickerOpen}
+        open={framePickerOpen}
+        saved={savedAvatarFrame}
+      />
 
       <Section title="Identité" description="Ce qui te présente en haut de ton profil.">
         <Field
@@ -794,38 +808,6 @@ function CharCount({ value, max }: { value: string; max: number }) {
     <span className={`text-xs tabular-nums ${cls}`}>
       {n}/{max}
     </span>
-  );
-}
-
-function FrameSwatch({
-  frameKey,
-  label,
-  selected,
-  onPick,
-}: {
-  frameKey: string | null;
-  label: string;
-  selected: boolean;
-  onPick: (key: string | null) => void;
-}) {
-  return (
-    <button
-      aria-label={label}
-      aria-pressed={selected}
-      className={`grid w-16 justify-items-center gap-1 rounded-lg border p-1.5 transition-colors ${
-        selected ? "border-accent bg-accent/10" : "border-transparent hover:bg-surface-2"
-      }`}
-      onClick={() => onPick(frameKey)}
-      title={label}
-      type="button"
-    >
-      <AvatarFrame className="size-11" frameKey={frameKey}>
-        <span className="flex h-full w-full items-center justify-center bg-surface-2 text-xs text-muted-foreground">
-          {selected ? <Check aria-hidden className="size-4 text-accent-text" /> : "★"}
-        </span>
-      </AvatarFrame>
-      <span className="w-full truncate text-center text-[11px] text-muted-foreground">{label}</span>
-    </button>
   );
 }
 

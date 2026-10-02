@@ -38,6 +38,17 @@ final readonly class TraefikConfigBuilder
     private const string ROUTER_PREFIX_TLS = 'run-';
     private const string ROUTER_PREFIX_PLAIN = 'plain-';
 
+    /**
+     * Options TLS des ports de run (story 37.9, #525) : ALPN limité à `http/1.1`.
+     *
+     * Sans elles, Traefik applique ses options par défaut, qui annoncent `h2`. Firefox sait faire du WebSocket
+     * sur HTTP/2 (RFC 8441) et annonce `h2` : il l'obtient et parle HTTP/2, mais le routeur est TCP - Traefik
+     * relaie les octets déchiffrés au serveur Archipelago, qui ne comprend que HTTP/1.1, et la connexion échoue.
+     * Chrome n'annonce que `http/1.1` sur un WebSocket, d'où un bug invisible ailleurs. Déclarées dans la
+     * configuration des runs et référencées par leurs seuls routeurs : le reste du proxy garde HTTP/2.
+     */
+    private const string TLS_OPTIONS = 'ap-runs';
+
     public function __construct(
         private SessionRepositoryInterface $sessions,
         private string $publicHost,
@@ -97,6 +108,7 @@ final readonly class TraefikConfigBuilder
                 // déduire de la règle et servirait son certificat par défaut, que tout navigateur
                 // rejette sans interstitiel sur une connexion WebSocket.
                 'tls' => [
+                    'options' => self::TLS_OPTIONS,
                     'certResolver' => $this->certResolver,
                     'domains' => [
                         ['main' => $this->publicHost],
@@ -128,6 +140,12 @@ final readonly class TraefikConfigBuilder
                 // Objets vides et non tableaux vides : Traefik refuse la forme tableau.
                 'routers' => $routers ?: new \stdClass(),
                 'services' => $services ?: new \stdClass(),
+            ],
+            // Toujours déclarées, même sans run : une option référencée mais absente ferait ignorer le routeur.
+            'tls' => [
+                'options' => [
+                    self::TLS_OPTIONS => ['alpnProtocols' => ['http/1.1']],
+                ],
             ],
         ];
     }

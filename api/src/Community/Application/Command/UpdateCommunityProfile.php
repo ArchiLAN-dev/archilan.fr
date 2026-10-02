@@ -35,10 +35,11 @@ final readonly class UpdateCommunityProfile
 
     /**
      * @param array<string, mixed> $input
+     * @param bool                 $isAdmin story 30.46: the legendary avatar frames are for admins only
      *
      * @throws ValidationException when the customization payload is invalid
      */
-    public function update(string $userId, array $input): void
+    public function update(string $userId, array $input, bool $isAdmin): void
     {
         $errors = new ValidationErrors();
 
@@ -81,6 +82,8 @@ final readonly class UpdateCommunityProfile
         $avatarFrame = is_string($input['avatarFrame'] ?? null) && '' !== $input['avatarFrame'] ? $input['avatarFrame'] : null;
         if (null !== $avatarFrame && !AvatarFrame::isValid($avatarFrame)) {
             $errors->add('avatarFrame', 'Cadre invalide.');
+        } elseif (null !== $avatarFrame && !AvatarFrame::allowedFor($avatarFrame, $isAdmin)) {
+            $errors->add('avatarFrame', 'Cadre réservé aux admins.');
         }
 
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);

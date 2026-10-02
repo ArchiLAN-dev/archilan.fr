@@ -16,6 +16,7 @@ use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\Repository\KudosRepositoryInterface;
 use App\Community\Domain\Service\CustomImageRule;
 use App\Community\Domain\ValueObject\Audience;
+use App\Community\Domain\ValueObject\AvatarFrame;
 use App\Community\Domain\ValueObject\BannerOverlay;
 use App\Community\Domain\ValueObject\BannerPreset;
 use App\Community\Domain\ValueObject\ImageFraming;
@@ -124,7 +125,7 @@ final readonly class CommunityProfileView
                 ...$this->bannerImage($profile, $badges['admin'], $badges['member']),
                 'bannerOverlay' => $profile->getBannerOverlay(),
                 'bannerFraming' => $profile->getBannerFraming()->toArray(),
-                'avatarFrame' => $profile->getAvatarFrame(),
+                'avatarFrame' => AvatarFrame::displayed($profile->getAvatarFrame(), $badges['admin']),
                 'socialLinks' => $profile->getSocialLinks(),
                 'favoriteGames' => $this->resolveFavoriteGames($profile->getFavoriteGameIds()),
                 'showcaseLayout' => $this->validShowcase($profile->getShowcaseLayout()),
@@ -261,7 +262,7 @@ final readonly class CommunityProfileView
      *
      * Story 30.40: the images are those the owner's status allows, and the upload rights say what they may send.
      *
-     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, titledName: bool, titledNameStyle: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, legendaryFramesAllowed: bool, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, titledName: bool, titledNameStyle: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId, bool $isAdmin): array
     {
@@ -280,7 +281,9 @@ final readonly class CommunityProfileView
             'bannerFraming' => ($profile?->getBannerFraming() ?? ImageFraming::centred())->toArray(),
             'hasCustomBanner' => null !== $banner['bannerImageUrl'],
             'bannerUpload' => ['image' => $isAdmin || $isMember, 'gif' => $isAdmin],
-            'avatarFrame' => $profile?->getAvatarFrame(),
+            'avatarFrame' => AvatarFrame::displayed($profile?->getAvatarFrame(), $isAdmin),
+            // Story 30.46: the legendary (video) frames, admins only for a start.
+            'legendaryFramesAllowed' => $isAdmin,
             ...$this->cardAvatar($profile, $isAdmin),
             // The editor always holds a framing (a card's is null when centred).
             'avatarFraming' => ($profile?->getAvatarFraming() ?? ImageFraming::centred())->toArray(),

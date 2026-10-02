@@ -5,6 +5,47 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.26.0] - 2026-10-02
+
+Des cadres d'avatar légendaires en vidéo, un sélecteur de cadres repensé, un statut « En jeu » qui suit le jeu
+auquel on joue vraiment, et les parties privées qui gardent leur port.
+
+### Ajouté
+
+- **Cadres d'avatar légendaires** (story 30.46). Sept cadres animés en vidéo : Feu, Électrique, Flammes
+  spectrales, Magma, Runes arcaniques, Portail cosmique et Glitch. L'effet se pose sur la photo et déborde autour
+  (sur la bannière pour la page de profil) ; sous « réduire les animations », seule une image fixe s'affiche.
+  Réservés aux admins pour commencer : un compte qui n'est plus admin ne montre plus son cadre légendaire, qui
+  revient avec le statut.
+- **Port réservé par partie** (story 17.27, orchestrateur `v0.20.0`). Une partie mise en pause ou relancée après
+  un plantage garde son port (donc son adresse) jusqu'à 14 jours après la pause, au lieu d'en changer à chaque
+  reprise. Si le pool manque de ports, c'est la plus ancienne partie en pause qui rend le sien ; une partie en
+  cours ne perd jamais le sien. Réglable via `PORT_RESERVATION_TTL` (orchestrateur).
+
+### Modifié
+
+- **Choix du cadre d'avatar dans une fenêtre dédiée** (story 30.46). La carte « Photo de profil et cadre » montre
+  la photo sur sa propre bannière, comme sur le profil ; « Changer le cadre » ouvre une fenêtre avec toutes les
+  cartes alignées sur sa photo, regroupées par catégorie (Couleurs, Néon, Effets, Légendaires) et un grand aperçu.
+  « Appliquer » essaie le cadre, « Enregistrer » le valide.
+- **Statut « En jeu » basé sur le dernier check** (story 30.45) : quand on joue à plusieurs jeux en même temps,
+  le profil affiche celui qui vient de recevoir un check (d'abord ses propres slots, puis ceux où l'on est
+  co-joueur), et plus du tout un jeu sans activité depuis 30 minutes.
+
+### Corrigé
+
+- **Firefox se connecte aux parties** (story 37.9) : les ports de run n'annoncent plus HTTP/2, que le serveur
+  Archipelago ne comprend pas ; le reste du site garde HTTP/2.
+- **Aperçu de la bannière à la hauteur du profil** dans la personnalisation (story 30.43).
+
+### Notes de déploiement
+
+- **Migration** : `Version20261002100000` (date du dernier check de chaque slot).
+- **Configuration Traefik des runs** régénérée par l'API (option TLS `ap-runs`, story 37.9) : rien à faire
+  à la main, la nouvelle version de l'API la produit.
+- **Orchestrateur `v0.20.0`** requis pour le port réservé (story 17.27), déjà publié.
+- Services : `archipelago` `v0.16.5`, `orchestrateur` `v0.20.0`, `bridge` `v0.13.0`.
+
 ## [0.25.0] - 2026-10-01
 
 Des profils qui se personnalisent vraiment : image de bannière et photo à soi (GIF pour les admins), cadrées au

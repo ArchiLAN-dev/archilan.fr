@@ -1,9 +1,20 @@
 // Avatar frames shared by the profile editor (picker) and the public profile. A frame is a decorative ring
-// around the (rounded-square) avatar: a flat colour, a pulsing neon glow, or a clean animated effect.
+// around the (rounded-square) avatar: a flat colour, a pulsing neon glow, a clean animated effect, or a looping
+// video overlay.
 // Rendering lives in <AvatarFrame>; this file holds only the (serialisable) configuration.
 
-export type AvatarFrameCategory = "Couleurs" | "Néon" | "Effets";
-export type AvatarFrameVariant = "solid" | "glow" | "spectral" | "holographic" | "goldshimmer";
+export type AvatarFrameCategory = "Couleurs" | "Néon" | "Effets" | "Légendaires";
+export type AvatarFrameVariant = "solid" | "glow" | "spectral" | "holographic" | "goldshimmer" | "video";
+
+/**
+ * A video frame (story 30.46): real fire filmed on black, laid over the avatar with `mix-blend-mode: screen` so
+ * the black disappears. `poster` is its first frame, shown before mount and under reduced motion.
+ */
+export type AvatarFrameVideo = {
+  webm: string;
+  mp4: string;
+  poster: string;
+};
 
 export type AvatarFrameConfig = {
   key: string;
@@ -12,7 +23,15 @@ export type AvatarFrameConfig = {
   variant: AvatarFrameVariant;
   /** ring colour for the solid / glow variants */
   color?: string;
+  /** the overlay of the video variant */
+  video?: AvatarFrameVideo;
 };
+
+/** A video frame whose assets are `/avatar-frames/<file>.webm|.mp4` and `<file>-poster.webp`. */
+function videoFrame(key: string, label: string, file: string): AvatarFrameConfig {
+  const base = `/avatar-frames/${file}`;
+  return { key, label, category: "Légendaires", variant: "video", video: { webm: `${base}.webm`, mp4: `${base}.mp4`, poster: `${base}-poster.webp` } };
+}
 
 export const AVATAR_FRAMES: readonly AvatarFrameConfig[] = [
   // Couleurs simples
@@ -32,6 +51,14 @@ export const AVATAR_FRAMES: readonly AvatarFrameConfig[] = [
   { key: "holographic", label: "Holographique", category: "Effets", variant: "holographic" },
   { key: "gold_shimmer", label: "Or scintillant", category: "Effets", variant: "goldshimmer" },
   { key: "spectral", label: "Spectre", category: "Effets", variant: "spectral" },
+  // Légendaires: the video frames (story 30.46). One shared geometry, so the overlay CSS fits them all.
+  videoFrame("fire", "Feu", "fire"),
+  videoFrame("electric", "Électrique", "electric"),
+  videoFrame("spectral_fire", "Flammes spectrales", "spectral-fire"),
+  videoFrame("lava", "Magma", "lava"),
+  videoFrame("runes", "Runes arcaniques", "runes"),
+  videoFrame("cosmic", "Portail cosmique", "cosmic"),
+  videoFrame("glitch", "Glitch", "glitch"),
 ] as const;
 
 export const AVATAR_FRAME_KEYS: readonly string[] = AVATAR_FRAMES.map((f) => f.key);

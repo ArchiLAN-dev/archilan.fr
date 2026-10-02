@@ -51,7 +51,7 @@ final readonly class CommunityProfileController
 
         // Invalid input is thrown as a ValidationException (422, field map in details) and mapped to HTTP by
         // ApplicationFailureListener (epic 35).
-        $this->updateProfile->update($user->getId(), $this->jsonPayload($request));
+        $this->updateProfile->update($user->getId(), $this->jsonPayload($request), in_array('ROLE_ADMIN', $user->getRoles(), true));
 
         return new JsonResponse(['data' => [
             'slug' => $user->getSlug(),

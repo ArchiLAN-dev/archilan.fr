@@ -204,6 +204,45 @@ final class CommunityProfileCustomizationTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
+    public function testLegendaryFramesAreForAdminsOnly(): void
+    {
+        // Story 30.46: the video frames are reserved to admins for a start.
+        $member = $this->createUser('lena@example.org', slug: 'lena');
+        $this->loginAs($member);
+        $this->client->jsonRequest('GET', '/api/v1/community/profile');
+        self::assertFalse($this->data()['legendaryFramesAllowed']);
+
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['avatarFrame' => 'fire']);
+        self::assertResponseStatusCodeSame(422);
+
+        $admin = $this->createUser('ada@example.org', ['ROLE_USER', 'ROLE_ADMIN'], slug: 'ada');
+        $this->loginAs($admin);
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['avatarFrame' => 'fire', 'audience' => 'public']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('fire', $this->data()['avatarFrame']);
+        self::assertTrue($this->data()['legendaryFramesAllowed']);
+    }
+
+    public function testADemotedAdminNoLongerShowsTheirLegendaryFrame(): void
+    {
+        $admin = $this->createUser('ida@example.org', ['ROLE_USER', 'ROLE_ADMIN'], slug: 'ida');
+        $this->loginAs($admin);
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['avatarFrame' => 'cosmic', 'audience' => 'public']);
+        self::assertResponseIsSuccessful();
+
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE "user" SET roles = :roles WHERE id = :id',
+            ['roles' => '["ROLE_USER"]', 'id' => $admin->getId()],
+        );
+
+        $this->client->getCookieJar()->clear();
+        $this->client->jsonRequest('GET', '/api/v1/community/profiles/ida');
+        self::assertResponseIsSuccessful();
+        $customization = $this->data()['customization'] ?? null;
+        self::assertIsArray($customization);
+        self::assertNull($customization['avatarFrame']);
+    }
+
     public function testDisplayNameOverrideReplacesAccountNameButKeepsSlug(): void
     {
         $user = $this->createUser('gwen@example.org', slug: 'gwen', displayName: 'gwen');
