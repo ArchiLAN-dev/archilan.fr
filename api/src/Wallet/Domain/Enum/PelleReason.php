@@ -22,4 +22,6 @@ enum PelleReason: string
     case BountyRefund = 'bounty_refund';
     // Story 41.5: a tutorial contribution approved, paid at the admin's discretion.
     case ContributionReward = 'contribution_reward';
+    // Story 41.6: a quest of the week accomplished.
+    case QuestReward = 'quest_reward';
 }
