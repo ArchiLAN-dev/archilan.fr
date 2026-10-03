@@ -1,6 +1,6 @@
 # Story 42.1: Page de statistiques admin, Communauté et Pelles
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 42 - Statistiques admin
 **Date:** 2026-10-03
 
@@ -21,8 +21,8 @@ premières sections ; les parties (42.2) et les événements (42.3) suivront sur
 
 ### Page et période
 
-1. Nouvelle page **`/admin/statistiques`**, entrée « Statistiques » dans la navigation admin (groupe Communauté
-   ou en tête), réservée aux admins (403 sinon, comme les autres endpoints admin).
+1. Nouvelle page **`/admin/statistiques`**, entrée « Statistiques » en tête de la navigation admin, sous Dashboard
+   (décision de Jean, 2026-10-03), réservée aux admins (403 sinon, comme les autres endpoints admin).
 2. **Sélecteur de période** en haut de page : 4 semaines, 12 semaines (par défaut), 12 mois. Le choix est dans
    l'URL (`?periode=4s|12s|12m`) ; une valeur inconnue retombe sur 12 semaines.
 3. Découpage : par semaine (lundi 00:00 UTC) pour 4 et 12 semaines, par mois (1er du mois, UTC) pour 12 mois. La
@@ -37,8 +37,8 @@ premières sections ; les parties (42.2) et les événements (42.3) suivront sur
 6. Endpoint `GET /api/v1/admin/stats/community?period=` qui renvoie, par tranche et en total :
    - **comptes créés**, comptés à leur création (une suppression ultérieure ne réécrit pas le passé) ;
    - **adhésions démarrées** (date de début d'adhésion) ;
-   - **membres actifs** : comptes distincts dont un slot a fait au moins un check dans la tranche (un item envoyé
-     dans le fil de session, epic 32) ;
+   - **membres actifs** : comptes distincts dont un slot (à eux ou en co-joueur) a fait au moins un check dans la
+     tranche (un item envoyé ou un goal dans le fil de session, epic 32) ; définition validée par Jean le 2026-10-03 ;
    - **amitiés acceptées** et **succès débloqués**.
    Plus deux chiffres instantanés : comptes existants (non supprimés), adhérents à jour.
 7. Rendu : chiffres clés en tête (comptes créés, membres actifs, adhésions), puis un graphe en barres des comptes
@@ -48,8 +48,8 @@ premières sections ; les parties (42.2) et les événements (42.3) suivront sur
 
 8. La circulation de la 41.1 devient une section de la page, sur la période choisie (elle est aujourd'hui figée à
    12 semaines) : en circulation (instantané), créées et détruites (total, écart, graphe par tranche), table par
-   motif sur la période. L'endpoint `GET /api/v1/admin/pelles/circulation` prend `?period=` (12 semaines par
-   défaut, rétrocompatible) ou est remplacé par `/api/v1/admin/stats/pelles`.
+   motif sur la période. L'endpoint `GET /api/v1/admin/pelles/circulation` est remplacé par
+   `GET /api/v1/admin/stats/pelles?period=` (décision de Jean, 2026-10-03 : les sections suivent le même schéma).
 9. **`/admin/pelles` redirige** vers `/admin/statistiques#pelles` ; l'entrée « Pelles » quitte la navigation admin.
 
 ### Accueil admin
@@ -66,14 +66,14 @@ premières sections ; les parties (42.2) et les événements (42.3) suivront sur
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 2-4) - Socle : objet période (`StatsPeriod` : bornes, tranches, période précédente), testé
+- [x] **Task 1** (AC 2-4) - Socle : objet période (`StatsPeriod` : bornes, tranches, période précédente), testé
   unitairement (bascule d'année, semaine à cheval sur deux mois, tranche en cours).
-- [ ] **Task 2** (AC 6, 12) - Requête Communauté (interface Application, DBAL en Infrastructure), endpoint, tests
+- [x] **Task 2** (AC 6, 12) - Requête Communauté (interface Application, DBAL en Infrastructure), endpoint, tests
   fonctionnels (tranches vides à 0, admin seulement, période inconnue).
-- [ ] **Task 3** (AC 8) - Circulation des pelles paramétrée par période ; tests.
-- [ ] **Task 4** (AC 1, 5, 7, 9-11) - Front : page, sélecteur, chiffres clés avec écart, graphes, sections
+- [x] **Task 3** (AC 8) - Circulation des pelles paramétrée par période ; tests.
+- [x] **Task 4** (AC 1, 5, 7, 9-11) - Front : page, sélecteur, chiffres clés avec écart, graphes, sections
   indépendantes, redirection `/admin/pelles`, lien depuis l'accueil ; tests.
-- [ ] **Task 5** (AC 13) - Gates.
+- [x] **Task 5** (AC 13) - Gates.
 
 ## Notes techniques
 
@@ -91,3 +91,19 @@ premières sections ; les parties (42.2) et les événements (42.3) suivront sur
 - Pas de cache dans cette story : les volumes actuels tiennent en quelques millisecondes. À mesurer avant d'en
   ajouter un.
 - Démarre après le merge de la 41.1 (PR #695), puisqu'elle déplace sa section Pelles.
+
+## Dev Agent Record
+
+- **Socle** : `Shared\Application\Support\StatsPeriod` (codes `4s`/`12s`/`12m`, repli sur `12s`), tranches UTC,
+  période précédente, `series()` qui remplit les tranches vides ; 6 tests unitaires (bascule d'année, lundi minuit,
+  fuseau local, 12 mois).
+- **Communauté** : `CommunityStatsQueryInterface` / `DbalCommunityStatsQuery`, `GET /api/v1/admin/stats/community`.
+  Membres actifs : `session_feed_event` (types item-received et goal) relié au slot par `session_id` +
+  `slot_name = sender_name` (le même lien que `RecordSessionFeedEvent`), puis aux joueurs par
+  `DbalSlotPlayerSource` : les co-joueurs comptent. Le total de la période est un distinct, pas une somme. La
+  requête vit dans Community et lit les tables des autres contextes en SQL, comme le compteur de l'accueil admin.
+- **Pelles** : `PelleCirculationQueryInterface::circulation(StatsPeriod)`, route `/api/v1/admin/stats/pelles`
+  (l'ancienne route est retirée, seule `/admin/pelles` l'utilisait). En circulation reste un instantané.
+- **Front** : `features/stats` (API, `TrendChart` recharts avec tableau caché, `KeyFigure` avec écart),
+  `/admin/statistiques` (période dans `?periode=`, sections chargées séparément), `/admin/pelles` redirige,
+  entrée « Statistiques » sous Dashboard, lien depuis l'accueil admin.
