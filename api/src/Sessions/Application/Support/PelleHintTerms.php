@@ -26,7 +26,7 @@ final readonly class PelleHintTerms
     }
 
     /**
-     * @return array{session: Session, enabled: bool, itemPrice: int, locationPrice: int, eventId: string|null}|null
+     * @return array{session: Session, enabled: bool, itemPrice: int, locationPrice: int, bounties: bool, eventId: string|null}|null
      */
     public function of(string $sessionId): ?array
     {
@@ -45,6 +45,8 @@ final readonly class PelleHintTerms
             'enabled' => $server->pelleHints,
             'itemPrice' => $server->pelleItemHintPrice,
             'locationPrice' => $server->pelleLocationHintPrice,
+            // Story 41.4.
+            'bounties' => $server->pelleBounties,
             'eventId' => $run instanceof Run ? null : $session->getEventId(),
         ];
     }

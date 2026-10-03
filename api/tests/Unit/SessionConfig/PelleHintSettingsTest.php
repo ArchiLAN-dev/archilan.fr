@@ -22,6 +22,7 @@ final class PelleHintSettingsTest extends TestCase
             self::assertFalse($server->pelleHints, $type->value);
             self::assertSame(20, $server->pelleItemHintPrice);
             self::assertSame(10, $server->pelleLocationHintPrice);
+            self::assertFalse($server->pelleBounties, 'story 41.4');
         }
     }
 

@@ -11,6 +11,7 @@ use App\Community\Application\Message\SyncDiscordBansMessage;
 use App\GameSelection\Application\Message\SweepApworldCatalogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\Schedule;
+use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Wallet\Application\Message\ExpireEventPellesMessage;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -28,6 +29,17 @@ final class ScheduleTest extends TestCase
 
         self::assertNotNull($next);
         self::assertSame('2026-09-26 04:00', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
+    }
+
+    public function testBountiesOfEndedSessionsAreRefundedEveryHour(): void
+    {
+        // Story 41.4: an item the bridge missed never leaves pelles stuck in a bounty.
+        $recurring = $this->recurringMessageFor(RefundEndedSessionBountiesMessage::class);
+
+        $next = $recurring->getTrigger()->getNextRunDate(new \DateTimeImmutable('2026-10-03 12:00:00', new \DateTimeZone('Europe/Paris')));
+
+        self::assertNotNull($next);
+        self::assertSame('2026-10-03 12:55', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
     }
 
     public function testEventPellesExpireEveryHour(): void

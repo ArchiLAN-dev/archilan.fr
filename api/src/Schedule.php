@@ -19,6 +19,7 @@ use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
+use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\Wallet\Application\Message\ExpireEventPellesMessage;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
@@ -73,6 +74,10 @@ final readonly class Schedule implements ScheduleProviderInterface
             ->add(
                 // Les pelles d'un événement terminé : 10 % en or, le reste détruit (story 41.2).
                 RecurringMessage::cron('50 * * * *', new ExpireEventPellesMessage()),
+            )
+            ->add(
+                // Les primes encore ouvertes d'une partie terminée sont rendues à leur poseur (story 41.4).
+                RecurringMessage::cron('55 * * * *', new RefundEndedSessionBountiesMessage()),
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),

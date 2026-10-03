@@ -26,6 +26,8 @@ export type SessionServerConfig = {
   pelleHints: boolean;
   pelleItemHintPrice: number;
   pelleLocationHintPrice: number;
+  /** Story 41.4: bounties on items, paid in pelles. */
+  pelleBounties: boolean;
 };
 
 export type SessionGenerationConfig = {
@@ -170,6 +172,7 @@ function isServerConfig(v: unknown): v is SessionServerConfig {
   if (!("pelleHints" in v) || typeof v.pelleHints !== "boolean") return false;
   if (!("pelleItemHintPrice" in v) || typeof v.pelleItemHintPrice !== "number") return false;
   if (!("pelleLocationHintPrice" in v) || typeof v.pelleLocationHintPrice !== "number") return false;
+  if (!("pelleBounties" in v) || typeof v.pelleBounties !== "boolean") return false;
   if (!("joinPassword" in v)) return false;
   return v.joinPassword === null || typeof v.joinPassword === "string";
 }

@@ -356,6 +356,7 @@ services:
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
+    App\Sessions\Domain\Repository\ItemBountyRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineItemBountyRepository'
 
     App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotCoPlayerRepository'
 

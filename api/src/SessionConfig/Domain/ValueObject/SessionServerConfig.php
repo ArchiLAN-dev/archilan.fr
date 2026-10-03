@@ -35,6 +35,8 @@ final readonly class SessionServerConfig
         public bool $pelleHints = false,
         public int $pelleItemHintPrice = self::DEFAULT_PELLE_ITEM_HINT_PRICE,
         public int $pelleLocationHintPrice = self::DEFAULT_PELLE_LOCATION_HINT_PRICE,
+        // Story 41.4: bounties on items, paid in pelles. A site setting too.
+        public bool $pelleBounties = false,
     ) {
         if ($pelleItemHintPrice < 1 || $pelleItemHintPrice > self::MAX_PELLE_HINT_PRICE
             || $pelleLocationHintPrice < 1 || $pelleLocationHintPrice > self::MAX_PELLE_HINT_PRICE) {
