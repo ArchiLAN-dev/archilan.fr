@@ -44,7 +44,7 @@ import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/fea
 import { HINT_STATUS_NAMES, isHintsUpdate, isReachabilityData } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { ItemBountiesPanel } from "@/features/wallet/item-bounties";
-import { usePelleHintOffers } from "@/features/wallet/pelle-hints";
+import { sessionSlotUrl, usePelleHintOffers } from "@/features/wallet/pelle-hints";
 import type { PersonalRun } from "./types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -209,7 +209,7 @@ export function PersonalRunSlotDetailPage({
   const [hints, setHints] = useState<HintsData | null>(null);
   const [hintFree, setHintFree] = useState(false);
   // Story 41.3: hints bought with pelles, when the party sells them.
-  const pelleHints = usePelleHintOffers(sessionId, slotIndex);
+  const pelleHints = usePelleHintOffers(sessionId === null ? null : sessionSlotUrl(sessionId, slotIndex));
   const [itemSearch, setItemSearch] = useState("");
   const [itemSuggestOpen, setItemSuggestOpen] = useState(false);
   const [itemQty, setItemQty] = useState(1);
