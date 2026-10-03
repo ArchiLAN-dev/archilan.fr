@@ -92,6 +92,12 @@ propriétaire peut les activer), réglés par l'admin pour les hebdos et les eve
 - Front : option « N pelles » dans la confirmation du bouton d'indice (`HintConfirm`), branchée sur la fiche de slot
   d'une run privée ; réglages dans la page des profils et le formulaire de surcharge ; libellés des motifs.
 
+- **Le hint gratuit du bridge ne dit pas s'il a créé un hint** (`send_admin_command` n'attend rien) : l'adaptateur
+  lit la liste des hints du slot avant (un hint déjà ouvert ou un objet déjà trouvé n'est pas vendu) et après la
+  demande (jusqu'à 2 s, 8 lectures) ; sans hint ouvert, `HintNotGivenException` et remboursement, avec la raison
+  dans le message (`already_hinted`, `already_found`, `no_hint_created`). Testé par `BridgeHintEvidenceTest` ; à
+  confirmer sur une vraie partie que la liste des hints du bridge reflète bien un hint admin dans ce délai.
+
 ### Hors périmètre, à reprendre
 
 - **Hebdos** : leur fiche de slot passe par `/api/v1/weekly-runs/{runId}/entries/{entryId}/...` et leur config par

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Command;
 
+use App\Sessions\Application\Exception\HintNotGivenException;
 use App\Sessions\Application\Port\PelleHintGatewayInterface;
 use App\Sessions\Application\Support\PelleHintTerms;
 use App\Sessions\Domain\Entity\Session;
@@ -100,10 +101,23 @@ final readonly class BuyHintWithPelles
                 byAdmin: true,
             ));
 
-            throw new ConflictException('Le hint n\'a pas pu être donné ; tes pelles t\'ont été rendues.', 'hint_failed');
+            throw new ConflictException(self::failureMessage($e), $e instanceof HintNotGivenException ? $e->reason : 'hint_failed');
         }
 
         return new PelleHintPurchase($purse->value, $price, $debit->balanceAfter, false);
+    }
+
+    /** What the player reads when the hint was not given; the pelles are back either way. */
+    private static function failureMessage(\Throwable $e): string
+    {
+        $why = match ($e instanceof HintNotGivenException ? $e->reason : null) {
+            HintNotGivenException::ALREADY_HINTED => 'ce hint existe déjà',
+            HintNotGivenException::ALREADY_FOUND => "c'est déjà trouvé",
+            HintNotGivenException::NO_HINT_CREATED => "le serveur n'a créé aucun hint",
+            default => "le serveur de la partie n'a pas répondu",
+        };
+
+        return sprintf("Pas de hint : %s. Tes pelles t'ont été rendues.", $why);
     }
 
     /**

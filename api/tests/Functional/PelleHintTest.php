@@ -28,6 +28,7 @@ final class PelleHintTest extends FunctionalTestCase
         $this->admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
         $this->spy()->hints = [];
         $this->spy()->failNext = false;
+        $this->spy()->refuseNext = null;
     }
 
     public function testAPlayerBuysAnItemHintWithGoldPelles(): void
@@ -88,6 +89,23 @@ final class PelleHintTest extends FunctionalTestCase
         $refund = $this->lines(PelleReason::HintRefund);
         self::assertCount(1, $refund);
         self::assertSame(20, $refund[0]->getAmount());
+        self::assertSame(50, $this->balance(PelleKind::Gold, null));
+    }
+
+    public function testAHintThatAlreadyExistsIsRefundedWithTheReason(): void
+    {
+        $sessionId = $this->runSession(enabled: true);
+        $this->pelles(PelleKind::Gold, null, 50);
+        $this->spy()->refuseNext = \App\Sessions\Application\Exception\HintNotGivenException::ALREADY_HINTED;
+        $this->loginAs($this->admin);
+
+        $this->buy($sessionId, ['kind' => 'item', 'itemName' => 'Grappin', 'requestId' => 'r1']);
+
+        self::assertResponseStatusCodeSame(409);
+        $error = $this->decodedJsonResponse()['error'] ?? null;
+        self::assertIsArray($error);
+        self::assertSame('already_hinted', $error['code'] ?? null);
+        self::assertSame("Pas de hint : ce hint existe déjà. Tes pelles t'ont été rendues.", $error['message'] ?? null);
         self::assertSame(50, $this->balance(PelleKind::Gold, null));
     }
 
