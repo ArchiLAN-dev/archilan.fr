@@ -51,6 +51,27 @@ export type SessionStats = {
   topGames: TopGame[];
 };
 
+export type PeriodEvent = {
+  eventId: string;
+  title: string;
+  startsAt: string;
+  status: string;
+  capacity: number;
+  registrations: number;
+  fillRate: number;
+};
+
+export type EventStats = {
+  period: StatsPeriodInfo;
+  upcomingEvents: number;
+  registrations: Trend;
+  cancellations: Trend;
+  /** Cents. */
+  revenue: Trend;
+  revenueByType: { events: Trend; memberships: Trend; shop: Trend };
+  events: PeriodEvent[];
+};
+
 export type PelleStats = {
   period: StatsPeriodInfo;
   goldInCirculation: number;
@@ -146,6 +167,47 @@ export function isSessionStats(v: unknown): v is SessionStats {
   );
 }
 
+function isPeriodEvent(v: unknown): v is PeriodEvent {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "eventId") &&
+    hasStringProp(v, "title") &&
+    hasStringProp(v, "startsAt") &&
+    hasStringProp(v, "status") &&
+    hasNumberProp(v, "capacity") &&
+    hasNumberProp(v, "registrations") &&
+    hasNumberProp(v, "fillRate")
+  );
+}
+
+export function isEventStats(v: unknown): v is EventStats {
+  if (typeof v !== "object" || v === null || !("revenueByType" in v)) return false;
+  const byType = v.revenueByType;
+  return (
+    "period" in v &&
+    isPeriodInfo(v.period) &&
+    hasNumberProp(v, "upcomingEvents") &&
+    "registrations" in v &&
+    isTrend(v.registrations) &&
+    "cancellations" in v &&
+    isTrend(v.cancellations) &&
+    "revenue" in v &&
+    isTrend(v.revenue) &&
+    typeof byType === "object" &&
+    byType !== null &&
+    "events" in byType &&
+    isTrend(byType.events) &&
+    "memberships" in byType &&
+    isTrend(byType.memberships) &&
+    "shop" in byType &&
+    isTrend(byType.shop) &&
+    "events" in v &&
+    Array.isArray(v.events) &&
+    v.events.every(isPeriodEvent)
+  );
+}
+
 export function isPelleStats(v: unknown): v is PelleStats {
   return (
     typeof v === "object" &&
@@ -183,6 +245,10 @@ export function fetchCommunityStats(period: StatsPeriodCode): Promise<CommunityS
 
 export function fetchSessionStats(period: StatsPeriodCode): Promise<SessionStats | null> {
   return fetchSection("sessions", period, isSessionStats);
+}
+
+export function fetchEventStats(period: StatsPeriodCode): Promise<EventStats | null> {
+  return fetchSection("events", period, isEventStats);
 }
 
 export function fetchPelleStats(period: StatsPeriodCode): Promise<PelleStats | null> {

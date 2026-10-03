@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Gamepad2, Shovel, Users } from "lucide-react";
+import { Calendar, Gamepad2, Shovel, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -14,12 +14,15 @@ import {
   DEFAULT_STATS_PERIOD,
   STATS_PERIODS,
   fetchCommunityStats,
+  fetchEventStats,
   fetchSessionStats,
   fetchPelleStats,
   parseStatsPeriod,
   type CommunityStats,
+  type EventStats,
   type PelleStats,
   type SessionStats,
+  type StatsBucket,
   type StatsPeriodCode,
 } from "./stats-api";
 import { TrendChart } from "./trend-chart";
@@ -52,6 +55,7 @@ export function AdminStatsPage() {
 
       <CommunitySection period={period} />
       <SessionsSection period={period} />
+      <EventsSection period={period} />
       <PellesSection period={period} />
     </div>
   );
@@ -247,6 +251,111 @@ export function SessionsView({ stats }: { stats: SessionStats }) {
               ))}
             </tbody>
           </table>
+        )}
+      </ChartBlock>
+    </div>
+  );
+}
+
+const euroFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const dateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeZone: "Europe/Paris" });
+
+const EVENT_STATUS_LABELS: Record<string, string> = {
+  draft: "Brouillon",
+  published: "Publié",
+  "in-progress": "En cours",
+  completed: "Terminé",
+};
+
+/** Cents to whole euros, for a chart whose axis reads in euros. */
+function inEuros(buckets: StatsBucket[]): StatsBucket[] {
+  return buckets.map((bucket) => ({ ...bucket, value: Math.round(bucket.value / 100) }));
+}
+
+function EventsSection({ period }: { period: StatsPeriodCode }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-stats", "events", period],
+    queryFn: () => fetchEventStats(period),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+
+  return (
+    <Section icon={Calendar} id="evenements" title="Événements">
+      {data ? <EventsView stats={data} /> : <SectionState loading={isLoading} />}
+    </Section>
+  );
+}
+
+export function EventsView({ stats }: { stats: EventStats }) {
+  const { granularity } = stats.period;
+
+  return (
+    <div className="grid gap-5">
+      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KeyFigure label="Inscriptions" trend={stats.registrations} value={formatCount(stats.registrations.total)} />
+        <KeyFigure label="Annulations" trend={stats.cancellations} value={formatCount(stats.cancellations.total)} />
+        <KeyFigure label="Recettes HelloAsso" trend={stats.revenue} value={euroFormatter.format(stats.revenue.total / 100)} />
+        <KeyFigure label="Événements à venir" value={formatCount(stats.upcomingEvents)} />
+      </dl>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartBlock
+          definition="Inscriptions à leur date (annulées comprises), annulations à la date de leur dernière mise à jour."
+          title="Inscriptions et annulations"
+        >
+          <TrendChart
+            caption="Inscriptions et annulations"
+            granularity={granularity}
+            kind="bar"
+            series={[
+              { key: "registrations", label: "Inscriptions", color: SERIES_COLOR, buckets: stats.registrations.series },
+              { key: "cancellations", label: "Annulations", color: "var(--color-special)", buckets: stats.cancellations.series },
+            ]}
+          />
+        </ChartBlock>
+        <ChartBlock definition="Commandes HelloAsso encaissées, en euros arrondis, à leur date de paiement." title="Recettes par formulaire">
+          <TrendChart
+            caption="Recettes HelloAsso en euros"
+            granularity={granularity}
+            kind="bar"
+            series={[
+              { key: "events", label: "Événements", color: SERIES_COLOR, buckets: inEuros(stats.revenueByType.events.series) },
+              { key: "memberships", label: "Adhésions", color: "var(--color-accent-warm)", buckets: inEuros(stats.revenueByType.memberships.series) },
+              { key: "shop", label: "Boutique", color: "var(--color-special)", buckets: inEuros(stats.revenueByType.shop.series) },
+            ]}
+          />
+        </ChartBlock>
+      </div>
+      <ChartBlock definition="Les événements qui commencent dans la période ; inscriptions actives (hors annulations) rapportées à la jauge." title="Événements de la période">
+        {stats.events.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun événement sur la période.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs text-muted-foreground">
+                <tr>
+                  <th className="py-1 font-medium">Événement</th>
+                  <th className="py-1 font-medium">Date</th>
+                  <th className="py-1 font-medium">Statut</th>
+                  <th className="py-1 text-right font-medium">Inscrits</th>
+                  <th className="py-1 text-right font-medium">Remplissage</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {stats.events.map((event) => (
+                  <tr key={event.eventId}>
+                    <td className="py-2">{event.title}</td>
+                    <td className="py-2 whitespace-nowrap">{dateFormatter.format(new Date(event.startsAt))}</td>
+                    <td className="py-2">{EVENT_STATUS_LABELS[event.status] ?? event.status}</td>
+                    <td className="py-2 text-right tabular-nums">
+                      {formatCount(event.registrations)} / {formatCount(event.capacity)}
+                    </td>
+                    <td className="py-2 text-right tabular-nums">{event.fillRate} %</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </ChartBlock>
     </div>

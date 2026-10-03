@@ -22,17 +22,22 @@ final readonly class DbalStatsReader
     }
 
     /**
-     * Rows counted by bucket of their date (`COUNT(*)`), or distinct values counted by bucket (`COUNT(DISTINCT
-     * expr)`) when `$distinct` is given: then the total is distinct over the whole period, not a sum of buckets.
+     * Rows counted by bucket of their date (`COUNT(*)`), distinct values counted by bucket (`COUNT(DISTINCT
+     * expr)`) when `$distinct` is given - then the total is distinct over the whole period, not a sum of buckets -,
+     * or an amount summed by bucket (`SUM(expr)`) when `$sum` is given (story 42.3).
      *
      * @param array<string, mixed>                      $params
      * @param array<string, ArrayParameterType::STRING> $types
      *
      * @return array{series: list<array{start: string, value: int, current: bool}>, total: int, previous: int}
      */
-    public function trend(StatsPeriod $period, string $from, string $dateColumn, array $params = [], array $types = [], ?string $distinct = null): array
+    public function trend(StatsPeriod $period, string $from, string $dateColumn, array $params = [], array $types = [], ?string $distinct = null, ?string $sum = null): array
     {
-        $measure = null === $distinct ? 'COUNT(*)' : "COUNT(DISTINCT {$distinct})";
+        $measure = match (true) {
+            null !== $sum => "COALESCE(SUM({$sum}), 0)",
+            null !== $distinct => "COUNT(DISTINCT {$distinct})",
+            default => 'COUNT(*)',
+        };
         $start = $period->start->format(\DATE_ATOM);
         $end = $period->end->format(\DATE_ATOM);
 
