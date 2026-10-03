@@ -1,11 +1,6 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { AdminPellesDashboard } from "@/features/wallet/admin-pelles-dashboard";
-
-export const metadata: Metadata = {
-  title: "Pelles",
-};
-
+/** Story 42.1: the pelles circulation became a section of the statistics page. */
 export default function AdminPellesPage() {
-  return <AdminPellesDashboard />;
+  redirect("/admin/statistiques#pelles");
 }

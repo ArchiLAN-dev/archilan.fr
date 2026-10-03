@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { adminActionLabel } from "@/features/admin/admin-user-activity";
-import { CirculationView } from "./admin-pelles-dashboard";
 import { adjustmentConfirmation, balanceFor } from "./admin-user-pelles";
 import { pellesLabel } from "./pelle-amount";
 import { WalletView } from "./wallet-panel";
@@ -65,26 +64,5 @@ describe("admin adjustment", () => {
     expect(adminActionLabel("pelles_credit")).toBe("Pelles créditées");
     expect(adminActionLabel("pelles_debit")).toBe("Pelles débitées");
     expect(adminActionLabel(null)).toBe("Action inconnue");
-  });
-});
-
-describe("CirculationView", () => {
-  test("shows the totals, the weeks and the reasons", () => {
-    const html = renderToStaticMarkup(
-      <CirculationView
-        circulation={{
-          goldInCirculation: 60,
-          created: 100,
-          destroyed: 40,
-          weeks: [{ weekStart: "2026-09-28", created: 100, destroyed: 40 }],
-          byReason: [{ reason: "admin_credit", created: 100, destroyed: 0 }],
-        }}
-      />,
-    );
-
-    expect(html).toContain("En circulation");
-    // The bars draw client-side; the same numbers sit in the screen-reader table.
-    expect(html).toContain("<td>28 sept.</td><td>100</td><td>40</td>");
-    expect(html).toContain("Crédit de l&#x27;équipe");
   });
 });

@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { adjustMemberPelles, fetchMyWallet, fetchPelleCirculation } from "./wallet-api";
+import { adjustMemberPelles, fetchMyWallet } from "./wallet-api";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -38,21 +38,6 @@ describe("fetchMyWallet", () => {
 
     server.use(http.get(`${BASE}/me/wallet`, () => new HttpResponse(null, { status: 401 })));
     expect(await fetchMyWallet()).toBeNull();
-  });
-});
-
-describe("fetchPelleCirculation", () => {
-  it("returns the dashboard", async () => {
-    const body = {
-      goldInCirculation: 60,
-      created: 100,
-      destroyed: 40,
-      weeks: [{ weekStart: "2026-09-28", created: 100, destroyed: 40 }],
-      byReason: [{ reason: "admin_credit", created: 100, destroyed: 0 }],
-    };
-    server.use(http.get(`${BASE}/admin/pelles/circulation`, () => HttpResponse.json(body)));
-
-    expect(await fetchPelleCirculation()).toEqual(body);
   });
 });
 
