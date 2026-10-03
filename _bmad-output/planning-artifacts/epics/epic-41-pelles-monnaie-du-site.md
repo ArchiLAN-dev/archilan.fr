@@ -109,11 +109,15 @@ dépendent pas des barèmes ni des cosmétiques.
    réglés par l'admin pour les hebdos et les events. (bloque 41.3) **Tranché (Jean, 2026-10-03)** : la proposition.
 3. **Fin d'un event** : les pelles d'event disparaissent, ou une part (par exemple 10 %) devient des pelles en or
    en récompense ? (bloque 41.2) **Tranché (Jean, 2026-10-03)** : une part (10 %) passe en or, le reste est détruit.
-4. **Barème** des quêtes et des contributions, plafond hebdomadaire. (bloque 41.5 et 41.6)
+4. **Barème** des quêtes et des contributions, plafond hebdomadaire. (bloque 41.5 et 41.6) **Tranché (Jean,
+   2026-10-03)** : contributions = montant libre choisi par l'admin à chaque validation ; quêtes = 3 quêtes par
+   semaine (atteindre un goal 40, jouer avec quelqu'un de nouveau 30, faire une hebdo 30), plafond 100 par semaine.
 5. **Cosmétiques** : lesquels deviennent achetables, et ce qui reste gratuit pour les adhérents (les avantages
    actuels des adhérents et des admins, stories 30.40 à 30.46, ne doivent pas perdre leur valeur). (bloque 41.7)
+   **Tranché (Jean, 2026-10-03)** : des cadres et bannières achetables par tous, hors des avantages réservés aux
+   adhérents et admins, plus des objets saisonniers.
 6. **Démarrage** : bonus de lancement calculé sur l'historique de chacun, ou tout le monde part de zéro ?
-   (bloque la mise en production de 41.1)
+   (bloque la mise en production de 41.1) **Tranché (Jean, 2026-10-03)** : tout le monde part de zéro.
 7. **Primes** : la prime d'un slot joué à plusieurs va au propriétaire seul, ou se partage entre ses joueurs ?
    (bloque 41.4) **Tranché (Jean, 2026-10-03)** : au propriétaire seul.
 
