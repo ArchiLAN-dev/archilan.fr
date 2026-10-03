@@ -60,10 +60,12 @@ final readonly class AdminGameContributionController
         $payload = json_decode($request->getContent(), true);
         $payload = is_array($payload) ? $payload : [];
         $overrideSteps = is_array($payload['steps'] ?? null) ? $payload['steps'] : null;
+        // Story 41.5: gold pelles for the author, chosen by the admin; absent means none.
+        $pelles = $payload['pelles'] ?? 0;
 
         // Failures (missing, already moderated, invalid steps) are thrown as typed ApplicationFailures
         // and mapped to HTTP by ApplicationFailureListener (epic 35).
-        $this->moderate->approve($id, $admin->getId(), $overrideSteps);
+        $this->moderate->approve($id, $admin->getId(), $overrideSteps, is_int($pelles) ? $pelles : -1);
 
         return new JsonResponse(['meta' => ['message' => 'Contribution appliquée.']]);
     }

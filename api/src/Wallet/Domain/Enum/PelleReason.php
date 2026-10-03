@@ -20,4 +20,6 @@ enum PelleReason: string
     case BountyEscrow = 'bounty_escrow';
     case BountyReward = 'bounty_reward';
     case BountyRefund = 'bounty_refund';
+    // Story 41.5: a tutorial contribution approved, paid at the admin's discretion.
+    case ContributionReward = 'contribution_reward';
 }

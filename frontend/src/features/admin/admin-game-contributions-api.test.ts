@@ -99,6 +99,19 @@ describe("approve/reject", () => {
     expect(await approveContribution("c1")).toBe(true);
   });
 
+  it("approve sends the pelles chosen for the author (story 41.5)", async () => {
+    let body: unknown = null;
+    server.use(
+      http.post(`${BASE}/admin/game-contributions/c1/approve`, async ({ request }) => {
+        body = await request.json();
+        return new HttpResponse(null, { status: 200 });
+      }),
+    );
+
+    expect(await approveContribution("c1", 75)).toBe(true);
+    expect(body).toEqual({ pelles: 75 });
+  });
+
   it("reject returns false on conflict", async () => {
     server.use(http.post(`${BASE}/admin/game-contributions/c1/reject`, () => new HttpResponse(null, { status: 409 })));
     expect(await rejectContribution("c1", "raison")).toBe(false);

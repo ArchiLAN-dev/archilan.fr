@@ -68,5 +68,6 @@ describe("item bounties", () => {
     expect(pelleReasonLabel("bounty_escrow")).toBe("Prime posée");
     expect(pelleReasonLabel("bounty_reward")).toBe("Prime gagnée");
     expect(pelleReasonLabel("bounty_refund")).toBe("Prime rendue");
+    expect(pelleReasonLabel("contribution_reward")).toBe("Tutoriel validé");
   });
 });
