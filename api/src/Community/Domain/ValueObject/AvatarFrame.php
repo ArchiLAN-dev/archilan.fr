@@ -37,6 +37,17 @@ final readonly class AvatarFrame
     /** Story 30.46: the video frames, reserved to admins for a start. */
     public const array LEGENDARY = ['fire', 'electric', 'spectral_fire', 'lava', 'runes', 'cosmic', 'glitch'];
 
+    /** Story 41.10: the names of the built-in video frames, as the frontend catalog shows them. */
+    public const array LEGENDARY_LABELS = [
+        'fire' => 'Feu',
+        'electric' => 'Électrique',
+        'spectral_fire' => 'Flammes spectrales',
+        'lava' => 'Magma',
+        'runes' => 'Runes arcaniques',
+        'cosmic' => 'Portail cosmique',
+        'glitch' => 'Glitch',
+    ];
+
     /**
      * Story 41.7: the frames sold in the shop, usable only by who bought them. Empty until members draw some (no
      * AI-made visual): a new one goes in ALL and here, with its rendering in the frontend catalog.

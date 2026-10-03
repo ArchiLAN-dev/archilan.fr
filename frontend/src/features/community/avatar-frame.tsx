@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 import { AvatarFrameVideoLayer } from "./avatar-frame-video";
 import { getAvatarFrame } from "./avatar-frames";
+import { CatalogAvatarFrame } from "./catalog-avatar-frame";
 import styles from "./avatar-frame.module.css";
 
 // Glowing motes that drift up the frame and fade (the "spectral" frame). `from` is the start height.
@@ -49,6 +50,15 @@ export function AvatarFrame({
 }) {
   const frame = getAvatarFrame(frameKey);
   const size = className ?? "";
+
+  // Story 41.10: a key the code does not know is a frame of the admin catalog.
+  if (!frame && frameKey !== null) {
+    return (
+      <CatalogAvatarFrame animated={animated} className={className} frameKey={frameKey} preview={preview} style={style}>
+        {children}
+      </CatalogAvatarFrame>
+    );
+  }
 
   if (!frame) {
     return (

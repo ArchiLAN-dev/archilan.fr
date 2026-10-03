@@ -23,6 +23,7 @@ final readonly class AvatarUrlResolver
         private MinioStorageInterface $minioStorage,
         private string $minioMediaBucket,
         private int $minioPresignTtl,
+        private AvatarFrameCatalog $frames,
     ) {
     }
 
@@ -80,7 +81,7 @@ final readonly class AvatarUrlResolver
             'avatarAnimatedUrl' => null !== $animatedKey ? $this->resolve($animatedKey, null) : null,
             'avatarFraming' => self::framing($key, $framing),
             // Story 30.47: a legendary frame only while its owner is admin (story 30.46).
-            'avatarFrame' => AvatarFrame::displayed($avatarFrame, $isAdmin),
+            'avatarFrame' => $this->frames->displayed($avatarFrame, $isAdmin),
         ];
     }
 

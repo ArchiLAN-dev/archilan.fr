@@ -1,6 +1,6 @@
 # Story 41.10: Cadres vidéo gérés par l'admin
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-10-03
 
@@ -68,10 +68,10 @@ Les 14 cadres CSS (couleurs, néon, effets) restent dans le code : ce ne sont pa
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-3) - Entité, migration (dont les 7 Légendaires), règles d'accès, validation du profil.
-- [ ] **Task 2** (AC 4-6) - Téléversement et validation des fichiers, commandes admin, endpoints ; tests.
-- [ ] **Task 3** (AC 7-9) - Endpoint public, résolution côté client, sélecteur, page admin ; tests.
-- [ ] **Task 4** (AC 10) - Gates.
+- [x] **Task 1** (AC 1-3) - Entité, migration (dont les 7 Légendaires), règles d'accès, validation du profil.
+- [x] **Task 2** (AC 4-6) - Téléversement et validation des fichiers, commandes admin, endpoints ; tests.
+- [x] **Task 3** (AC 7-9) - Endpoint public, résolution côté client, sélecteur, page admin ; tests.
+- [x] **Task 4** (AC 10) - Gates.
 
 ## Notes techniques
 
@@ -80,3 +80,24 @@ Les 14 cadres CSS (couleurs, néon, effets) restent dans le code : ce ne sont pa
 - Stockage : le même bucket que les images de profil (stories 30.40-30.43), servi par URL publique.
 - Le contrôle des dimensions du WebP se fait sur l'image ; pour les vidéos, l'API ne vérifie que le type et le
   poids : c'est la recette qui garantit la géométrie.
+
+## Dev Agent Record
+
+### Écarts au plan (validés à l'implémentation)
+
+- **Légendaires : pas de recopie en base.** Les 7 cadres de la story 30.46 restent dans le code (fichiers dans
+  `public/avatar-frames/`). Une ligne `avatar_frame` n'est créée pour eux qu'au premier changement d'accès, de nom ou
+  d'ordre (surcharge sans fichiers, `builtIn: true`). Aucune migration de données, et un cadre du code jamais touché
+  garde sa règle d'origine (admins).
+- **Adhérents et boutique vérifiés au choix seulement.** Un cadre retiré disparaît des profils ; un cadre « adhérents »
+  porté par un membre dont l'adhésion expire, ou un cadre « boutique » porté puis retiré de la vente, reste affiché :
+  la vérification se fait quand le membre choisit son cadre, pas à chaque affichage (pas de lecture d'adhésion par carte).
+
+### Fichiers
+
+- API : `Community` (entité `AvatarFrameDefinition`, enum `AvatarFrameAccess`, `AvatarFrameCatalog`,
+  `AvatarFrameFileRule`, `ManageAvatarFrames`, `AvatarFrameCatalogQuery`, `AvatarFrameController`), migration
+  `Version20261003200000`, `ShopCatalog` (Wallet) qui lit les cadres boutique du catalogue ; `AvatarFrameCatalogTest`.
+- Front : `avatar-frame-catalog.ts`, `catalog-avatar-frame.tsx`, sélecteur (verrou par cadre), page `/admin/cadres`
+  (`admin-avatar-frames.tsx`) et entrée de menu ; tests.
+
