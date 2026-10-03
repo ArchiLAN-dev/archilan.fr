@@ -273,25 +273,33 @@ final class WalletTest extends FunctionalTestCase
         self::assertSame(40, $this->jsonBody()['gold']);
     }
 
-    public function testTheCirculationDashboardSumsCreationsAndDestructions(): void
+    public function testTheCirculationSumsCreationsAndDestructionsOverThePeriod(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
         $member = $this->createUser('member@example.org', ['ROLE_USER'], 'Member');
         $this->credit($member->getId(), 100);
         $this->recorder()->record(new RecordPelleMovementInput($member->getId(), -40, PelleKind::Gold, null, PelleReason::AdminDebit, 'Correction', $admin->getId(), null, true));
+        // A credit from six weeks ago: before a 4-week period, inside the period before it.
+        $this->credit($member->getId(), 7);
+        $this->entityManager->getConnection()->executeStatement(
+            "UPDATE pelle_movement SET created_at = created_at - INTERVAL '6 weeks' WHERE amount = 7",
+        );
         $this->loginAs($admin);
 
-        $this->client->request('GET', '/api/v1/admin/pelles/circulation');
+        $this->client->request('GET', '/api/v1/admin/stats/pelles?period=4s');
 
         self::assertResponseIsSuccessful();
         $body = $this->jsonBody();
-        self::assertSame(60, $body['goldInCirculation']);
-        self::assertSame(100, $body['created']);
-        self::assertSame(40, $body['destroyed']);
-        self::assertNotEmpty($body['weeks']);
+        self::assertSame(67, $body['goldInCirculation'], 'what exists now, whatever the period');
+        $created = $this->section($body, 'created');
+        self::assertSame(100, $created['total'] ?? null);
+        self::assertSame(7, $created['previous'] ?? null);
+        self::assertCount(4, $this->section($created, 'series'));
+        self::assertSame(40, $this->section($body, 'destroyed')['total'] ?? null);
         $byReason = $this->section($body, 'byReason');
         self::assertSame(['reason' => 'admin_credit', 'created' => 100, 'destroyed' => 0], $byReason[0] ?? null);
         self::assertSame(['reason' => 'admin_debit', 'created' => 0, 'destroyed' => 40], $byReason[1] ?? null);
+        self::assertSame('4s', $this->section($body, 'period')['code'] ?? null);
     }
 
     public function testTheCirculationDashboardIsAdminOnly(): void
@@ -299,7 +307,7 @@ final class WalletTest extends FunctionalTestCase
         $member = $this->createUser('member@example.org', ['ROLE_USER'], 'Member');
         $this->loginAs($member);
 
-        $this->client->request('GET', '/api/v1/admin/pelles/circulation');
+        $this->client->request('GET', '/api/v1/admin/stats/pelles');
 
         self::assertResponseStatusCodeSame(403);
     }

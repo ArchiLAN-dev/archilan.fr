@@ -4,61 +4,54 @@ declare(strict_types=1);
 
 namespace App\Wallet\Infrastructure\Query;
 
+use App\Shared\Application\Support\StatsPeriod;
 use App\Wallet\Application\Query\PelleCirculationQueryInterface;
 use App\Wallet\Domain\Enum\PelleKind;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalPelleCirculationQuery implements PelleCirculationQueryInterface
 {
+    private const string FLOWS = 'COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0) AS created,
+                    COALESCE(-SUM(amount) FILTER (WHERE amount < 0), 0) AS destroyed';
+
     public function __construct(private Connection $connection)
     {
     }
 
-    public function circulation(\DateTimeImmutable $now): array
+    public function circulation(StatsPeriod $period): array
     {
         $gold = ['kind' => PelleKind::Gold->value];
+        $start = $period->start->format(\DATE_ATOM);
+        $end = $period->end->format(\DATE_ATOM);
 
-        $totals = $this->connection->fetchAssociative(
-            'SELECT COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0) AS created,
-                    COALESCE(-SUM(amount) FILTER (WHERE amount < 0), 0) AS destroyed
-               FROM pelle_movement WHERE kind = :kind',
-            $gold,
-        );
-        $created = $this->int($totals['created'] ?? null);
-        $destroyed = $this->int($totals['destroyed'] ?? null);
+        $inCirculation = $this->connection->fetchOne('SELECT COALESCE(SUM(amount), 0) FROM pelle_movement WHERE kind = :kind', $gold);
 
-        // Monday 00:00 UTC of the oldest week shown; weeks without movement are filled with zeros so the
-        // chart keeps an even time axis.
-        $utcNow = $now->setTimezone(new \DateTimeZone('UTC'));
-        $currentWeek = $utcNow->modify('monday this week')->setTime(0, 0);
-        $firstWeek = $currentWeek->modify(sprintf('-%d weeks', self::WEEKS - 1));
-
-        $weekRows = $this->connection->fetchAllAssociative(
-            "SELECT to_char(date_trunc('week', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS week_start,
-                    COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0) AS created,
-                    COALESCE(-SUM(amount) FILTER (WHERE amount < 0), 0) AS destroyed
+        $bucketRows = $this->connection->fetchAllAssociative(
+            "SELECT to_char(date_trunc('{$period->granularity}', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS bucket, ".self::FLOWS.'
                FROM pelle_movement
-              WHERE kind = :kind AND created_at >= :since
-              GROUP BY 1",
-            $gold + ['since' => $firstWeek->format('Y-m-d H:i:sP')],
+              WHERE kind = :kind AND created_at >= :start AND created_at < :end
+              GROUP BY 1',
+            $gold + ['start' => $start, 'end' => $end],
         );
-        $byWeek = [];
-        foreach ($weekRows as $row) {
-            $byWeek[$this->string($row['week_start'])] = ['created' => $this->int($row['created']), 'destroyed' => $this->int($row['destroyed'])];
+        $created = [];
+        $destroyed = [];
+        foreach ($bucketRows as $row) {
+            $bucket = $this->string($row['bucket']);
+            $created[$bucket] = $this->int($row['created']);
+            $destroyed[$bucket] = $this->int($row['destroyed']);
         }
-        $weeks = [];
-        for ($week = $firstWeek; $week <= $currentWeek; $week = $week->modify('+1 week')) {
-            $key = $week->format('Y-m-d');
-            $weeks[] = ['weekStart' => $key, 'created' => $byWeek[$key]['created'] ?? 0, 'destroyed' => $byWeek[$key]['destroyed'] ?? 0];
-        }
+
+        $previous = $this->connection->fetchAssociative(
+            'SELECT '.self::FLOWS.' FROM pelle_movement WHERE kind = :kind AND created_at >= :previousStart AND created_at < :start',
+            $gold + ['previousStart' => $period->previousStart->format(\DATE_ATOM), 'start' => $start],
+        );
 
         $reasonRows = $this->connection->fetchAllAssociative(
-            'SELECT reason,
-                    COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0) AS created,
-                    COALESCE(-SUM(amount) FILTER (WHERE amount < 0), 0) AS destroyed
-               FROM pelle_movement WHERE kind = :kind
+            'SELECT reason, '.self::FLOWS.'
+               FROM pelle_movement
+              WHERE kind = :kind AND created_at >= :start AND created_at < :end
               GROUP BY reason ORDER BY reason',
-            $gold,
+            $gold + ['start' => $start, 'end' => $end],
         );
         $byReason = [];
         foreach ($reasonRows as $row) {
@@ -66,12 +59,23 @@ final readonly class DbalPelleCirculationQuery implements PelleCirculationQueryI
         }
 
         return [
-            'goldInCirculation' => $created - $destroyed,
-            'created' => $created,
-            'destroyed' => $destroyed,
-            'weeks' => $weeks,
+            'goldInCirculation' => $this->int($inCirculation),
+            'created' => $this->trend($period, $created, $this->int($previous['created'] ?? null)),
+            'destroyed' => $this->trend($period, $destroyed, $this->int($previous['destroyed'] ?? null)),
             'byReason' => $byReason,
         ];
+    }
+
+    /**
+     * @param array<string, int> $values
+     *
+     * @return array{series: list<array{start: string, value: int, current: bool}>, total: int, previous: int}
+     */
+    private function trend(StatsPeriod $period, array $values, int $previous): array
+    {
+        $series = $period->series($values);
+
+        return ['series' => $series, 'total' => array_sum(array_column($series, 'value')), 'previous' => $previous];
     }
 
     private function string(mixed $value): string
