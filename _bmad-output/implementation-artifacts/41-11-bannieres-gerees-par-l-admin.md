@@ -1,6 +1,6 @@
 # Story 41.11: Bannières gérées par l'admin, animées comprises
 
-**Status:** in-progress
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-10-03
 
@@ -72,10 +72,10 @@ pour les bannières, avec la capacité de téléverser des bannières **animées
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-3) - Entité, migration, catalogue et règles d'accès, validation du profil et affichage.
-- [ ] **Task 2** (AC 4-8) - Validation des fichiers, commandes admin, endpoints, boutique ; tests fonctionnels.
-- [ ] **Task 3** (AC 9-11) - Catalogue public, rendu `ProfileBanner`, grille de l'éditeur, page admin ; tests.
-- [ ] **Task 4** (AC 12) - Gates.
+- [x] **Task 1** (AC 1-3) - Entité, migration, catalogue et règles d'accès, validation du profil et affichage.
+- [x] **Task 2** (AC 4-8) - Validation des fichiers, commandes admin, endpoints, boutique ; tests fonctionnels.
+- [x] **Task 3** (AC 9-11) - Catalogue public, rendu `ProfileBanner`, grille de l'éditeur, page admin ; tests.
+- [x] **Task 4** (AC 12) - Gates.
 
 ## Notes techniques
 
@@ -85,3 +85,24 @@ pour les bannières, avec la capacité de téléverser des bannières **animées
 - Vidéo plutôt que GIF : à durée égale, un WebM pèse une fraction d'un GIF pleine largeur, et la recette (ffmpeg) est
   déjà celle des cadres. Le GIF reste réservé à l'image personnelle des admins (30.40).
 - Le recadrage (30.43) ne concerne que l'image personnelle ; la bannière du catalogue est en `object-cover` centré.
+
+## Dev Agent Record
+
+### Choix d'implémentation
+
+- L'accès réutilise l'enum `AvatarFrameAccess` de 41.10 (mêmes quatre valeurs, mêmes règles).
+- La bannière `default` reste ouverte à tous et ne se retire pas : c'est le repli d'un profil.
+- Rattrapage commun aux cadres (41.10) et aux bannières : un cosmétique déjà porté n'est pas revérifié quand
+  l'enregistrement du profil ne le change pas. Sans cela, un membre dont l'adhésion a expiré ne pouvait plus modifier
+  sa bio sans changer de cadre ou de bannière.
+- Les étiquettes de boutique des cosmétiques du catalogue (`cosmeticLabel`) affichent encore la clé : à reprendre si
+  besoin dans une story boutique.
+
+### Fichiers
+
+- API : `Community` (entité `ProfileBannerDefinition`, `ProfileBannerCatalog`, `ProfileBannerFileRule`,
+  `ManageProfileBanners`, `ProfileBannerCatalogQuery`, `ProfileBannerController`), `BannerPreset::LABELS`,
+  `UpdateCommunityProfile`, `CommunityProfileView`, `ShopCatalog` ; migration `Version20261003210000` ;
+  `ProfileBannerCatalogTest`.
+- Front : `profile-banner-catalog.ts`, `catalog-profile-banner.tsx`, `ProfileBanner` (couche média), grille de
+  l'éditeur, page `/admin/bannieres` (`admin-profile-banners.tsx`) et entrée de menu ; tests.

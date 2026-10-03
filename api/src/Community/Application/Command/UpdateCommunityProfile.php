@@ -6,6 +6,7 @@ namespace App\Community\Application\Command;
 
 use App\Community\Application\Port\CosmeticOwnershipInterface;
 use App\Community\Application\Support\AvatarFrameCatalog;
+use App\Community\Application\Support\ProfileBannerCatalog;
 use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\ValueObject\Audience;
@@ -35,6 +36,7 @@ final readonly class UpdateCommunityProfile
         private CosmeticOwnershipInterface $cosmetics,
         private AvatarFrameCatalog $frames,
         private ActiveMembershipQueryInterface $memberships,
+        private ProfileBannerCatalog $banners,
     ) {
     }
 
@@ -53,12 +55,22 @@ final readonly class UpdateCommunityProfile
         $tagline = $this->nullableString($input['tagline'] ?? null, 120, 'tagline', $errors);
         $pronouns = $this->nullableString($input['pronouns'] ?? null, 40, 'pronouns', $errors);
 
+        // Stories 41.10 and 41.11: the rights are checked when a cosmetic is picked. One already worn is kept as is
+        // on a save that does not change it (a lapsed membership must not block the rest of the profile).
+        $stored = $this->profiles->findByUserId($userId);
+        $isMember = fn (): bool => $this->memberships->hasActiveMembership($userId);
+
         $bannerPreset = is_string($input['bannerPreset'] ?? null) ? $input['bannerPreset'] : BannerPreset::DEFAULT;
-        if (!BannerPreset::isValid($bannerPreset)) {
+        if (!$this->banners->isValid($bannerPreset)) {
             $errors->add('bannerPreset', 'Bannière invalide.');
-        } elseif (!BannerPreset::allowedFor($bannerPreset, $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::BANNER))) {
-            // Story 41.7: a shop banner is for who bought it.
-            $errors->add('bannerPreset', 'Bannière à acheter en boutique.');
+        } elseif ($bannerPreset !== $stored?->getBannerPreset() && !$this->banners->allowedFor(
+            $bannerPreset,
+            $isAdmin,
+            $isMember(),
+            $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::BANNER),
+        )) {
+            // Stories 41.7 and 41.11: a banner may be for admins, members, or who bought it.
+            $errors->add('bannerPreset', $this->banners->refusal($bannerPreset));
         }
 
         // Story 30.41: an omitted intensity keeps what the profile holds.
@@ -90,10 +102,10 @@ final readonly class UpdateCommunityProfile
         $avatarFrame = is_string($input['avatarFrame'] ?? null) && '' !== $input['avatarFrame'] ? $input['avatarFrame'] : null;
         if (null !== $avatarFrame && !$this->frames->isValid($avatarFrame)) {
             $errors->add('avatarFrame', 'Cadre invalide.');
-        } elseif (null !== $avatarFrame && !$this->frames->allowedFor(
+        } elseif (null !== $avatarFrame && $avatarFrame !== $stored?->getAvatarFrame() && !$this->frames->allowedFor(
             $avatarFrame,
             $isAdmin,
-            $this->memberships->hasActiveMembership($userId),
+            $isMember(),
             $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::FRAME),
         )) {
             // Stories 41.7 and 41.10: a frame may be for admins, members, or who bought it.
@@ -101,7 +113,7 @@ final readonly class UpdateCommunityProfile
         }
 
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);
-        $storedFavorites = $this->profiles->findByUserId($userId)?->getFavoriteGameIds() ?? [];
+        $storedFavorites = $stored?->getFavoriteGameIds() ?? [];
         $favoriteGameIds = $this->parseFavorites($input['favoriteGameIds'] ?? null, $errors, $storedFavorites);
         $showcaseLayout = $this->parseShowcaseLayout($input['showcaseLayout'] ?? null);
 

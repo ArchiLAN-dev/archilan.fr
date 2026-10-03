@@ -8,6 +8,7 @@ use App\Community\Application\Port\CosmeticOwnershipInterface;
 use App\Community\Application\Support\AchievementImageUrlResolver;
 use App\Community\Application\Support\AvatarFrameCatalog;
 use App\Community\Application\Support\AvatarUrlResolver;
+use App\Community\Application\Support\ProfileBannerCatalog;
 use App\Community\Application\Support\ProfileVisibility;
 use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Entity\Kudos;
@@ -58,6 +59,7 @@ final readonly class CommunityProfileView
         private ClockInterface $clock,
         private CosmeticOwnershipInterface $cosmetics,
         private AvatarFrameCatalog $frames,
+        private ProfileBannerCatalog $banners,
     ) {
     }
 
@@ -125,7 +127,7 @@ final readonly class CommunityProfileView
                 'bio' => $profile->getBio(),
                 'tagline' => $profile->getTagline(),
                 'pronouns' => $profile->getPronouns(),
-                'bannerPreset' => $profile->getBannerPreset(),
+                'bannerPreset' => $this->banners->displayed($profile->getBannerPreset(), $badges['admin']),
                 ...$this->bannerImage($profile, $badges['admin'], $badges['member']),
                 'bannerOverlay' => $profile->getBannerOverlay(),
                 'bannerFraming' => $profile->getBannerFraming()->toArray(),
@@ -279,7 +281,7 @@ final readonly class CommunityProfileView
             'bio' => $profile?->getBio(),
             'tagline' => $profile?->getTagline(),
             'pronouns' => $profile?->getPronouns(),
-            'bannerPreset' => $profile?->getBannerPreset() ?? BannerPreset::DEFAULT,
+            'bannerPreset' => $this->banners->displayed($profile?->getBannerPreset() ?? BannerPreset::DEFAULT, $isAdmin),
             ...$banner,
             'bannerOverlay' => $profile?->getBannerOverlay() ?? BannerOverlay::DEFAULT,
             'bannerFraming' => ($profile?->getBannerFraming() ?? ImageFraming::centred())->toArray(),
