@@ -55,6 +55,7 @@ export const PELLE_REASON_LABELS: Record<string, string> = {
   bounty_reward: "Prime gagnée",
   bounty_refund: "Prime rendue",
   contribution_reward: "Tutoriel validé",
+  quest_reward: "Quête de la semaine",
 };
 
 export function pelleReasonLabel(reason: string): string {

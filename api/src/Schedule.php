@@ -21,6 +21,7 @@ use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
 use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
+use App\Wallet\Application\Message\AwardWeeklyQuestsMessage;
 use App\Wallet\Application\Message\ExpireEventPellesMessage;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
@@ -78,6 +79,10 @@ final readonly class Schedule implements ScheduleProviderInterface
             ->add(
                 // Les primes encore ouvertes d'une partie terminée sont rendues à leur poseur (story 41.4).
                 RecurringMessage::cron('55 * * * *', new RefundEndedSessionBountiesMessage()),
+            )
+            ->add(
+                // Les quêtes de la semaine accomplies sont payées dans l'heure (story 41.6).
+                RecurringMessage::cron('40 * * * *', new AwardWeeklyQuestsMessage()),
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),

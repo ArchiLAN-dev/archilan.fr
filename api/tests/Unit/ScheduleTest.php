@@ -12,6 +12,7 @@ use App\GameSelection\Application\Message\SweepApworldCatalogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\Schedule;
 use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
+use App\Wallet\Application\Message\AwardWeeklyQuestsMessage;
 use App\Wallet\Application\Message\ExpireEventPellesMessage;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -40,6 +41,17 @@ final class ScheduleTest extends TestCase
 
         self::assertNotNull($next);
         self::assertSame('2026-10-03 12:55', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
+    }
+
+    public function testQuestsArePaidEveryHour(): void
+    {
+        // Story 41.6: a quest accomplished is paid within the hour.
+        $recurring = $this->recurringMessageFor(AwardWeeklyQuestsMessage::class);
+
+        $next = $recurring->getTrigger()->getNextRunDate(new \DateTimeImmutable('2026-10-03 12:00:00', new \DateTimeZone('Europe/Paris')));
+
+        self::assertNotNull($next);
+        self::assertSame('2026-10-03 12:40', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
     }
 
     public function testEventPellesExpireEveryHour(): void

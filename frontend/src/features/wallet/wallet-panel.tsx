@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount } from "./pelle-amount";
 import { fetchMyWallet, pelleReasonLabel, type Wallet } from "./wallet-api";
+import { WeeklyQuestsPanel } from "./weekly-quests";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
 
@@ -31,7 +32,13 @@ export function WalletPanel() {
     return <p className="text-sm text-danger">Impossible de charger ton portefeuille pour le moment.</p>;
   }
 
-  return <WalletView onPage={setPage} wallet={data} />;
+  return (
+    <div className="grid gap-6">
+      <WalletView onPage={setPage} wallet={data} />
+      {/* Story 41.6. */}
+      <WeeklyQuestsPanel />
+    </div>
+  );
 }
 
 export function WalletView({ wallet, onPage }: { wallet: Wallet; onPage: (page: number) => void }) {
