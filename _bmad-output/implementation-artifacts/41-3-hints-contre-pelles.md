@@ -1,6 +1,6 @@
 # Story 41.3: Hints contre pelles
 
-**Status:** in-progress
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-10-03
 
@@ -53,7 +53,7 @@ propriétaire peut les activer), réglés par l'admin pour les hebdos et les eve
 
 ### Interface
 
-5. Là où un joueur demande déjà un hint (fiche de slot d'une run privée, d'une hebdo), à côté du prix en points :
+5. Là où un joueur demande déjà un hint sur une session (fiche de slot d'une run privée), à côté du prix en points :
    un bouton « {prix} pelles » quand la partie le permet, désactivé avec une explication si le solde ne suffit
    pas ; confirmation avant achat ; le solde affiché se met à jour.
 6. Réglages : les trois champs dans la page admin des profils de session et dans la surcharge d'une partie
@@ -66,11 +66,11 @@ propriétaire peut les activer), réglés par l'admin pour les hebdos et les eve
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1) - Champs de configuration (valeur, surcharge, profils par défaut) ; tests unitaires.
-- [ ] **Task 2** (AC 2-4) - Port `PelleHintGateway` (Application) et son adaptateur bridge (Infrastructure), commande
+- [x] **Task 1** (AC 1) - Champs de configuration (valeur, surcharge, profils par défaut) ; tests unitaires.
+- [x] **Task 2** (AC 2-4) - Port `PelleHintGateway` (Application) et son adaptateur bridge (Infrastructure), commande
   d'achat, endpoints ; tests fonctionnels (paiement event puis or, refus, remboursement, idempotence).
-- [ ] **Task 3** (AC 5-7) - Front : bouton d'achat, réglages, libellés ; tests.
-- [ ] **Task 4** (AC 8) - Gates.
+- [x] **Task 3** (AC 5-7) - Front : bouton d'achat, réglages, libellés ; tests.
+- [x] **Task 4** (AC 8) - Gates.
 
 ## Notes techniques
 
@@ -80,3 +80,21 @@ propriétaire peut les activer), réglés par l'admin pour les hebdos et les eve
   une nouvelle ligne, jamais une annulation.
 - Une session d'événement se reconnaît à son `event_id` qui désigne un événement (celui d'une run privée porte
   l'id de la run, story 41.2).
+
+## Dev Agent Record
+
+- Réglages : `pelleHints`, `pelleItemHintPrice`, `pelleLocationHintPrice` sur `SessionServerConfig` (hors
+  `toServerFlags`), la surcharge et le format canonique ; un profil stocké avant la story lit les défauts.
+- `PelleHintGatewayInterface` (port Sessions) et `BridgePelleHintGateway` (appel gratuit du client bridge
+  existant, `packages/` non modifié) ; `SpyPelleHintGateway` en test.
+- `PelleHintTerms` (profil privé + surcharge de la run, ou profil event + surcharge de la session),
+  `BuyHintWithPelles`, `PelleHintOfferQuery`, `PelleHintController` (`GET|POST /api/v1/sessions/{id}/slots/{n}/pelle-hints`).
+- Front : option « N pelles » dans la confirmation du bouton d'indice (`HintConfirm`), branchée sur la fiche de slot
+  d'une run privée ; réglages dans la page des profils et le formulaire de surcharge ; libellés des motifs.
+
+### Hors périmètre, à reprendre
+
+- **Hebdos** : leur fiche de slot passe par `/api/v1/weekly-runs/{runId}/entries/{entryId}/...` et leur config par
+  le profil « weekly » du modèle ; l'achat en pelles n'y est pas branché.
+- **Sessions d'événement** : l'API sait payer avec les pelles de l'événement, mais les joueurs n'ont pas de fiche
+  de slot avec des indices (seule la page admin en a une) ; le bouton viendra avec cette page.

@@ -40,7 +40,7 @@ type FieldDef =
   | { key: string; label: string; section: string; kind: "text"; fallback: string }
   | { key: string; label: string; section: string; kind: "plando"; fallback: string[] };
 
-const SECTION_ORDER = ["Échanges d'objets", "Indices & score", "Salle & partie", "Génération"] as const;
+const SECTION_ORDER = ["Échanges d'objets", "Indices & score", "Indices contre pelles", "Salle & partie", "Génération"] as const;
 
 // A run-specific join password proposed when the override is enabled (admins/owners can edit it).
 function randomPassword(): string {
@@ -65,6 +65,9 @@ const FIELDS: FieldDef[] = [
   { key: "remainingMode", label: "Voir les objets restants (!remaining)", section: "Échanges d'objets", kind: "select", options: REMAINING_MODES, labels: REM, fallback: "goal" },
   { key: "hintCost", label: "Coût d'un indice (%)", section: "Indices & score", kind: "int", min: 0, max: 100, fallback: 10 },
   { key: "locationCheckPoints", label: "Points gagnés par check", section: "Indices & score", kind: "int", min: 0, fallback: 1 },
+  { key: "pelleHints", label: "Vendre des indices contre des pelles", section: "Indices contre pelles", kind: "bool", fallback: false },
+  { key: "pelleItemHintPrice", label: "Prix d'un indice d'objet (pelles)", section: "Indices contre pelles", kind: "int", min: 1, max: 1000, fallback: 20 },
+  { key: "pelleLocationHintPrice", label: "Prix d'un indice de lieu (pelles)", section: "Indices contre pelles", kind: "int", min: 1, max: 1000, fallback: 10 },
   { key: "countdownMode", label: "Compte à rebours (!countdown)", section: "Salle & partie", kind: "select", options: COUNTDOWN_MODES, labels: CD, fallback: "auto" },
   { key: "disableItemCheat", label: "Interdire la triche d'objets (!getitem)", section: "Salle & partie", kind: "bool", fallback: true },
   { key: "compatibility", label: "Compatibilité", section: "Salle & partie", kind: "intselect", options: COMPATIBILITY_VALUES, labels: COMPAT, fallback: 2 },
@@ -334,6 +337,9 @@ function flattenProfile(c: SessionConfig): Record<string, OverrideValue> {
     autoShutdown: c.server.autoShutdown,
     compatibility: c.server.compatibility,
     joinPassword: c.server.joinPassword ?? "",
+    pelleHints: c.server.pelleHints,
+    pelleItemHintPrice: c.server.pelleItemHintPrice,
+    pelleLocationHintPrice: c.server.pelleLocationHintPrice,
     plandoOptions: c.generation.plandoOptions,
     race: c.generation.race,
     spoiler: c.generation.spoiler,

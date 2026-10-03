@@ -1,16 +1,27 @@
-import { Check, Lightbulb, Loader2, X } from "lucide-react";
+import { Check, Lightbulb, Loader2, Shovel, X } from "lucide-react";
 import { useState } from "react";
 
 import type { CheckEntry } from "./types";
+
+/**
+ * Story 41.3: the same hint, bought with pelles when the party sells it. `affordable` is false when the
+ * member's pelles do not cover the price; the option stays visible, disabled, so the price is known.
+ */
+export type PelleHintOption = { price: number; affordable: boolean; onBuy: () => Promise<void> };
+
+/** The offer of a whole list: one price, the buy keyed by what is hinted (an item name, a location id). */
+export type PelleHintOffer<T> = { price: number; affordable: boolean; onBuy: (target: T) => Promise<void> };
 
 export function HintButton({
   onHint,
   free = false,
   hintCost = 0,
+  pelle,
 }: {
   onHint: () => Promise<void>;
   free?: boolean;
   hintCost?: number;
+  pelle?: PelleHintOption;
 }) {
   const [status, setStatus] = useState<"idle" | "confirming" | "loading" | "ok" | "err">("idle");
 
@@ -19,9 +30,9 @@ export function HintButton({
     setStatus("confirming");
   }
 
-  function confirm() {
+  function confirm(pay: () => Promise<void> = onHint) {
     setStatus("loading");
-    onHint().then(
+    pay().then(
       () => { setStatus("ok"); setTimeout(() => { setStatus("idle"); }, 2000); },
       () => { setStatus("err"); setTimeout(() => { setStatus("idle"); }, 2000); },
     );
@@ -29,25 +40,14 @@ export function HintButton({
 
   if (status === "confirming") {
     return (
-      <div className="flex shrink-0 items-center gap-1">
-        <button
-          className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 hover:bg-amber-500/20"
-          onClick={confirm}
-          type="button"
-        >
-          <Lightbulb className="size-3" />
-          {free ? "Gratuit (admin)" : `${hintCost} pts`}
-          <span className="text-amber-300/70">· Confirmer</span>
-        </button>
-        <button
-          aria-label="Annuler"
-          className="inline-flex items-center rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground hover:border-danger/40 hover:text-danger"
-          onClick={() => { setStatus("idle"); }}
-          type="button"
-        >
-          <X className="size-3" />
-        </button>
-      </div>
+      <HintConfirm
+        free={free}
+        hintCost={hintCost}
+        onCancel={() => { setStatus("idle"); }}
+        onConfirm={(pay) => confirm(pay)}
+        onHint={onHint}
+        pelle={pelle}
+      />
     );
   }
 
@@ -94,6 +94,60 @@ export function StatPill({
   );
 }
 
+/**
+ * The choice shown once the player asks for a hint: pay in Archipelago points (or free, for an admin), or in
+ * pelles when the party sells hints for pelles (story 41.3).
+ */
+export function HintConfirm({
+  free,
+  hintCost,
+  pelle,
+  onHint,
+  onConfirm,
+  onCancel,
+}: {
+  free: boolean;
+  hintCost: number;
+  pelle?: PelleHintOption;
+  onHint: () => Promise<void>;
+  onConfirm: (pay: () => Promise<void>) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      <button
+        className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 hover:bg-amber-500/20"
+        onClick={() => onConfirm(onHint)}
+        type="button"
+      >
+        <Lightbulb className="size-3" />
+        {free ? "Gratuit (admin)" : `${hintCost} pts`}
+        <span className="text-amber-300/70">· Confirmer</span>
+      </button>
+      {pelle !== undefined && !free ? (
+        <button
+          className="inline-flex items-center gap-1 rounded border border-accent-text/40 bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-text hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!pelle.affordable}
+          onClick={() => onConfirm(pelle.onBuy)}
+          title={pelle.affordable ? undefined : "Tu n'as pas assez de pelles."}
+          type="button"
+        >
+          <Shovel className="size-3" />
+          {`${pelle.price} pelles`}
+        </button>
+      ) : null}
+      <button
+        aria-label="Annuler"
+        className="inline-flex items-center rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground hover:border-danger/40 hover:text-danger"
+        onClick={onCancel}
+        type="button"
+      >
+        <X className="size-3" />
+      </button>
+    </div>
+  );
+}
+
 export function CheckRow({
   check,
   currentSlot,
@@ -102,6 +156,7 @@ export function CheckRow({
   hintFree = false,
   hintCost = 0,
   hideSpoilers = false,
+  pelleHint,
 }: {
   check: CheckEntry;
   currentSlot: number;
@@ -110,6 +165,7 @@ export function CheckRow({
   hintFree?: boolean;
   hintCost?: number;
   hideSpoilers?: boolean;
+  pelleHint?: PelleHintOffer<number>;
 }) {
   const isOwnItem = check.item?.slot === currentSlot;
   return (
@@ -119,7 +175,12 @@ export function CheckRow({
           {check.name}
         </span>
         {onHintRequest ? (
-          <HintButton free={hintFree} hintCost={hintCost} onHint={() => onHintRequest(check.id)} />
+          <HintButton
+            free={hintFree}
+            hintCost={hintCost}
+            onHint={() => onHintRequest(check.id)}
+            pelle={pelleHint ? { price: pelleHint.price, affordable: pelleHint.affordable, onBuy: () => pelleHint.onBuy(check.id) } : undefined}
+          />
         ) : null}
       </div>
       {!hideSpoilers && check.item ? (
