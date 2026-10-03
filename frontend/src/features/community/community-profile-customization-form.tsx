@@ -12,6 +12,7 @@ import { FramePickerDialog } from "./frame-picker-dialog";
 import { FramePreview } from "./frame-preview";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
+import { bannerLockReason, fetchProfileBannerCatalog, PROFILE_BANNER_CATALOG_QUERY_KEY } from "./profile-banner-catalog";
 import { imageAccept, imageFormatsHint, imageUploadError } from "./custom-image-rules";
 import { ImageFramingDialog, type FramingShape } from "./image-framing-dialog";
 import { TitledName, type NameStyle } from "./titled-name";
@@ -179,6 +180,23 @@ export function CommunityProfileCustomizationForm({
   });
   const catalog: PublicGame[] = catalogData ?? [];
   const loading = loadingProfile || loadingCatalog;
+  // Story 41.11: the admin catalog of banners (new ones, and the access and order of every banner).
+  const { data: bannerCatalog = [] } = useQuery({
+    queryKey: PROFILE_BANNER_CATALOG_QUERY_KEY,
+    queryFn: fetchProfileBannerCatalog,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const bannerChoices = useMemo(() => {
+    // The catalog's order once loaded (retired presets left out); the presets alone before.
+    if (bannerCatalog.length === 0) return BANNER_PRESETS.map((preset) => ({ key: preset.key, label: preset.label, shop: true === preset.shop, media: null }));
+    return bannerCatalog.map((entry) => ({
+      key: entry.key,
+      label: entry.label,
+      shop: true === BANNER_PRESETS.find((preset) => preset.key === entry.key)?.shop,
+      media: entry.media,
+    }));
+  }, [bannerCatalog]);
 
   const values: FormValues = useMemo(
     () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, avatarFrame, audience, socialLinks, favorites, showcase }),
@@ -395,25 +413,32 @@ export function CommunityProfileCustomizationForm({
       ) : null}
       <Section title="Apparence" description="La bannière animée en tête de ton profil.">
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {BANNER_PRESETS.map((preset) => {
-            const selected = bannerPreset === preset.key;
-            // Story 41.7: a shop banner stays locked until bought.
-            const inShop = true === preset.shop && !ownedBanners.includes(preset.key);
+          {bannerChoices.map((choice) => {
+            const selected = bannerPreset === choice.key;
+            // Stories 41.7 and 41.11: each banner is locked by its own access (a shop one until bought). The one
+            // already shown stays selectable.
+            const reason = selected
+              ? null
+              : bannerLockReason(choice, bannerCatalog.find((entry) => entry.key === choice.key)?.access, {
+                  admin: legendaryAllowed,
+                  member: memberFramesAllowed,
+                  owned: ownedBanners,
+                });
             return (
               <button
                 aria-pressed={selected}
-                disabled={inShop}
-                title={inShop ? "En boutique" : undefined}
+                disabled={reason !== null}
+                title={reason ?? undefined}
                 className={`group overflow-hidden rounded-lg border text-left transition-colors ${
                   selected ? "border-accent ring-2 ring-accent/40" : "border-border hover:border-accent/60"
                 }`}
-                key={preset.key}
-                onClick={() => setBannerPreset(preset.key)}
+                key={choice.key}
+                onClick={() => setBannerPreset(choice.key)}
                 type="button"
               >
-                <ProfileBanner className="h-12 w-full" compact presetKey={preset.key} />
+                <ProfileBanner className="h-12 w-full" compact media={choice.media} presetKey={choice.key} />
                 <span className="flex items-center justify-between gap-1 px-2.5 py-1.5 text-xs font-medium text-foreground">
-                  {preset.label}
+                  {choice.label}
                   {selected ? <Check aria-hidden className="size-3.5 text-accent-text" /> : null}
                 </span>
               </button>

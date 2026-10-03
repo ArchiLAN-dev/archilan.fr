@@ -108,3 +108,10 @@
     animation: none;
   }
 }
+
+/* Story 41.11: an animated catalog banner keeps its still image for who asks for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .mediaVideo {
+    display: none;
+  }
+}

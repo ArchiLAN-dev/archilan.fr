@@ -5,6 +5,28 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.30.0] - 2026-10-03
+
+Les bannières de profil se gèrent depuis l'admin, fixes ou animées, comme les cadres vidéo.
+
+### Ajouté
+
+- **Bannières gérées par l'admin** (41.11) : page « Bannières » de l'admin pour ajouter une bannière fixe (image WebP
+  ou JPEG, 3 à 6 fois plus large que haute) ou animée (la même image plus une vidéo bouclée en WebM et en MP4),
+  choisir à qui elle est ouverte (tout le monde, adhérents, admins, boutique), la retirer ou la rétablir. Les
+  bannières existantes se règlent de la même façon ; la bannière par défaut reste ouverte à tous. Une bannière
+  « boutique » se met ensuite en vente dans la page Boutique. Une bannière animée montre son image seule à qui
+  limite les animations.
+
+### Corrigé
+
+- Un cadre ou une bannière déjà porté n'est plus revérifié quand on enregistre son profil sans le changer : un membre
+  dont l'adhésion a expiré n'était plus bloqué par un cadre réservé aux adhérents.
+
+### Migrations
+
+- `Version20261003210000` : table `profile_banner` (création, sans données).
+
 ## [0.29.0] - 2026-10-03
 
 Les pelles arrivent dans les hebdos et sur la fiche de slot des événements, et les cadres vidéo d'avatar se gèrent

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Wallet\Application\Support;
 
 use App\Community\Application\Support\AvatarFrameCatalog;
-use App\Community\Domain\ValueObject\BannerPreset;
+use App\Community\Application\Support\ProfileBannerCatalog;
 use App\Wallet\Domain\Entity\ShopItem;
 
 /**
@@ -14,17 +14,19 @@ use App\Wallet\Domain\Entity\ShopItem;
  */
 final readonly class ShopCatalog
 {
-    public function __construct(private AvatarFrameCatalog $frames)
-    {
+    public function __construct(
+        private AvatarFrameCatalog $frames,
+        private ProfileBannerCatalog $banners,
+    ) {
     }
 
     /**
-     * Story 41.10: the frames include those an admin uploaded for the shop.
+     * Stories 41.10 and 41.11: the frames and banners include those an admin uploaded for the shop.
      *
      * @return array{frame: list<string>, banner: list<string>}
      */
     public function sellable(): array
     {
-        return [ShopItem::TYPE_FRAME => $this->frames->sellableKeys(), ShopItem::TYPE_BANNER => BannerPreset::SHOP];
+        return [ShopItem::TYPE_FRAME => $this->frames->sellableKeys(), ShopItem::TYPE_BANNER => $this->banners->sellableKeys()];
     }
 }
