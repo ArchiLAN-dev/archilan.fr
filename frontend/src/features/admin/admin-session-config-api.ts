@@ -22,6 +22,10 @@ export type SessionServerConfig = {
   autoShutdown: number;
   compatibility: number;
   joinPassword: string | null;
+  /** Story 41.3: hints bought with pelles, a site setting not sent to the Archipelago server. */
+  pelleHints: boolean;
+  pelleItemHintPrice: number;
+  pelleLocationHintPrice: number;
 };
 
 export type SessionGenerationConfig = {
@@ -163,6 +167,9 @@ function isServerConfig(v: unknown): v is SessionServerConfig {
   if (!("locationCheckPoints" in v) || typeof v.locationCheckPoints !== "number") return false;
   if (!("autoShutdown" in v) || typeof v.autoShutdown !== "number") return false;
   if (!("compatibility" in v) || typeof v.compatibility !== "number") return false;
+  if (!("pelleHints" in v) || typeof v.pelleHints !== "boolean") return false;
+  if (!("pelleItemHintPrice" in v) || typeof v.pelleItemHintPrice !== "number") return false;
+  if (!("pelleLocationHintPrice" in v) || typeof v.pelleLocationHintPrice !== "number") return false;
   if (!("joinPassword" in v)) return false;
   return v.joinPassword === null || typeof v.joinPassword === "string";
 }

@@ -41,6 +41,8 @@ export const PELLE_REASON_LABELS: Record<string, string> = {
   event_distribution: "Distribution d'événement",
   event_conversion: "Conversion en or (fin d'événement)",
   event_expired: "Expiration (fin d'événement)",
+  hint_purchase: "Achat d'un indice",
+  hint_refund: "Remboursement d'un indice",
 };
 
 export function pelleReasonLabel(reason: string): string {

@@ -16,6 +16,10 @@ use App\SessionConfig\Domain\Enum\RemainingMode;
  */
 final readonly class SessionServerConfig
 {
+    public const int DEFAULT_PELLE_ITEM_HINT_PRICE = 20;
+    public const int DEFAULT_PELLE_LOCATION_HINT_PRICE = 10;
+    public const int MAX_PELLE_HINT_PRICE = 1000;
+
     public function __construct(
         public ReleaseCollectMode $releaseMode,
         public ReleaseCollectMode $collectMode,
@@ -27,7 +31,15 @@ final readonly class SessionServerConfig
         public int $autoShutdown,
         public Compatibility $compatibility,
         public ?string $joinPassword = null,
+        // Story 41.3: hints bought with pelles. A site setting, never sent to the Archipelago server.
+        public bool $pelleHints = false,
+        public int $pelleItemHintPrice = self::DEFAULT_PELLE_ITEM_HINT_PRICE,
+        public int $pelleLocationHintPrice = self::DEFAULT_PELLE_LOCATION_HINT_PRICE,
     ) {
+        if ($pelleItemHintPrice < 1 || $pelleItemHintPrice > self::MAX_PELLE_HINT_PRICE
+            || $pelleLocationHintPrice < 1 || $pelleLocationHintPrice > self::MAX_PELLE_HINT_PRICE) {
+            throw new \DomainException('invalid_pelle_hint_price');
+        }
         if ($hintCost < 0 || $hintCost > 100) {
             throw new \DomainException('invalid_hint_cost');
         }

@@ -3,7 +3,7 @@
 import { CheckCircle2, MapPin, PackageX, Search, X, XCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { CheckRow, HintButton } from "./check-row";
+import { CheckRow, HintButton, type PelleHintOffer } from "./check-row";
 import type { CheckEntry, ItemEntry, ItemLocation } from "./types";
 
 function ItemLocationsModal({
@@ -103,6 +103,7 @@ export function ItemListPanel({
   hintCost = 0,
   itemLocations,
   hideSpoilers = false,
+  pelleHint,
 }: {
   title: string;
   items: ItemEntry[];
@@ -113,6 +114,7 @@ export function ItemListPanel({
   hintCost?: number;
   itemLocations?: Record<number, ItemLocation[]>;
   hideSpoilers?: boolean;
+  pelleHint?: PelleHintOffer<string>;
 }) {
   const [filter, setFilter] = useState("");
   const [modalItem, setModalItem] = useState<{ id: number; name: string } | null>(null);
@@ -176,7 +178,12 @@ export function ItemListPanel({
                       </button>
                     ) : null}
                     {variant === "not-received" && onHintRequest ? (
-                      <HintButton free={hintFree} hintCost={hintCost} onHint={() => onHintRequest(item.name)} />
+                      <HintButton
+                        free={hintFree}
+                        hintCost={hintCost}
+                        onHint={() => onHintRequest(item.name)}
+                        pelle={pelleHint ? { price: pelleHint.price, affordable: pelleHint.affordable, onBuy: () => pelleHint.onBuy(item.name) } : undefined}
+                      />
                     ) : null}
                     <span className={`rounded border px-1.5 py-0.5 font-mono text-xs font-semibold ${
                       variant === "received"
@@ -206,6 +213,7 @@ export function CheckListPanel({
   hintFree = false,
   hintCost = 0,
   hideSpoilers = false,
+  pelleHint,
 }: {
   title: string;
   checks: CheckEntry[];
@@ -216,6 +224,7 @@ export function CheckListPanel({
   hintFree?: boolean;
   hintCost?: number;
   hideSpoilers?: boolean;
+  pelleHint?: PelleHintOffer<number>;
 }) {
   const [filter, setFilter] = useState("");
   const q = filter.trim().toLowerCase();
@@ -257,7 +266,7 @@ export function CheckListPanel({
       ) : (
         <ul className="max-h-96 divide-y divide-border overflow-y-auto">
           {filtered.map((check) => (
-            <CheckRow check={check} currentSlot={currentSlot} hideSpoilers={hideSpoilers} hintCost={hintCost} hintFree={hintFree} key={check.id} onHintRequest={onHintRequest} variant={variant} />
+            <CheckRow check={check} currentSlot={currentSlot} hideSpoilers={hideSpoilers} hintCost={hintCost} hintFree={hintFree} key={check.id} onHintRequest={onHintRequest} pelleHint={pelleHint} variant={variant} />
           ))}
         </ul>
       )}

@@ -13,4 +13,7 @@ enum PelleReason: string
     case EventDistribution = 'event_distribution';
     case EventConversion = 'event_conversion';
     case EventExpired = 'event_expired';
+    // Story 41.3: a hint bought with pelles, and its refund when the hint could not be given.
+    case HintPurchase = 'hint_purchase';
+    case HintRefund = 'hint_refund';
 }

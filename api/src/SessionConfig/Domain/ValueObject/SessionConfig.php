@@ -34,6 +34,10 @@ final readonly class SessionConfig
         // toServerFlags omits an empty join password; the canonical config form always
         // carries the key (nullable) so the admin form round-trips it.
         $server['joinPassword'] = $this->server->joinPassword;
+        // Site settings (story 41.3): part of the config, not of the server flags.
+        $server['pelleHints'] = $this->server->pelleHints;
+        $server['pelleItemHintPrice'] = $this->server->pelleItemHintPrice;
+        $server['pelleLocationHintPrice'] = $this->server->pelleLocationHintPrice;
 
         return [
             'server' => $server,
@@ -73,6 +77,10 @@ final readonly class SessionConfig
                 autoShutdown: self::reqInt($server, 'autoShutdown'),
                 compatibility: Compatibility::fromInt(self::reqInt($server, 'compatibility')),
                 joinPassword: self::optString($server, 'joinPassword'),
+                // Optional: a profile stored before story 41.3 carries none of them.
+                pelleHints: self::optBool($server, 'pelleHints') ?? false,
+                pelleItemHintPrice: self::optInt($server, 'pelleItemHintPrice') ?? SessionServerConfig::DEFAULT_PELLE_ITEM_HINT_PRICE,
+                pelleLocationHintPrice: self::optInt($server, 'pelleLocationHintPrice') ?? SessionServerConfig::DEFAULT_PELLE_LOCATION_HINT_PRICE,
             ),
             new SessionGenerationConfig(
                 $plando,
@@ -134,6 +142,32 @@ final readonly class SessionConfig
     {
         $value = $data[$key] ?? null;
         if (!is_bool($value)) {
+            throw new \DomainException('invalid_session_config');
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     */
+    private static function optBool(array $data, string $key): ?bool
+    {
+        $value = $data[$key] ?? null;
+        if (null !== $value && !is_bool($value)) {
+            throw new \DomainException('invalid_session_config');
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     */
+    private static function optInt(array $data, string $key): ?int
+    {
+        $value = $data[$key] ?? null;
+        if (null !== $value && !is_int($value)) {
             throw new \DomainException('invalid_session_config');
         }
 
@@ -220,6 +254,9 @@ final readonly class SessionConfig
                 autoShutdown: $this->server->autoShutdown,
                 compatibility: $o->compatibility ?? $this->server->compatibility,
                 joinPassword: $o->joinPassword ?? $this->server->joinPassword,
+                pelleHints: $o->pelleHints ?? $this->server->pelleHints,
+                pelleItemHintPrice: $o->pelleItemHintPrice ?? $this->server->pelleItemHintPrice,
+                pelleLocationHintPrice: $o->pelleLocationHintPrice ?? $this->server->pelleLocationHintPrice,
             ),
             new SessionGenerationConfig(
                 plandoOptions: $o->plandoOptions ?? $this->generation->plandoOptions,

@@ -198,6 +198,19 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
         </div>
       </Section>
 
+      <Section description="Indices achetés avec des pelles (monnaie du site), en plus des points d'indice Archipelago." title="Indices contre pelles">
+        <SwitchRow
+          checked={server.pelleHints}
+          description={sessionConfigHelp.pelleHints}
+          label="Vendre des indices contre des pelles"
+          onChange={(c) => patchServer({ pelleHints: c })}
+        />
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <NumberField hint={sessionConfigHelp.pelleItemHintPrice} label="Prix d'un indice d'objet (pelles)" max={1000} min={1} onChange={(n) => patchServer({ pelleItemHintPrice: n })} value={server.pelleItemHintPrice} />
+          <NumberField hint={sessionConfigHelp.pelleLocationHintPrice} label="Prix d'un indice de lieu (pelles)" max={1000} min={1} onChange={(n) => patchServer({ pelleLocationHintPrice: n })} value={server.pelleLocationHintPrice} />
+        </div>
+      </Section>
+
       <Section description="Comportement de la salle et règles de la partie." title="Salle & partie">
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField hint={sessionConfigHelp.countdownMode} label="Compte à rebours (!countdown)" labels={COUNTDOWN_LABELS} onChange={(v) => patchServer({ countdownMode: v })} options={COUNTDOWN_MODES} value={server.countdownMode} />
