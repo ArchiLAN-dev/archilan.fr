@@ -4,13 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, LayoutDashboard, LogOut, Shield, User } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, Shield, User, Wallet } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchMyCommunityProfile } from "@/features/community/community-profile-api";
 import { useAuth, type AuthUser } from "./auth-context";
 import { MemberAvatar } from "../community/member-avatar";
+import { PelleAmount } from "../wallet/pelle-amount";
+import { fetchMyWallet } from "../wallet/wallet-api";
 
 /**
  * Account dropdown for the desktop nav. Collapses everything that used to be a row of buttons
@@ -40,6 +42,15 @@ export function UserMenu({ user }: { user: AuthUser }) {
     retry: false,
   });
   const avatarUrl = profile?.avatarUrl ?? null;
+
+  // Story 41.1: the gold balance, under the same key as the wallet page's first page, so a credit seen
+  // there shows here too.
+  const { data: wallet } = useQuery({
+    queryKey: ["my-wallet", 1],
+    queryFn: () => fetchMyWallet(1),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -112,6 +123,17 @@ export function UserMenu({ user }: { user: AuthUser }) {
               <MenuLink href={`/joueurs/${user.slug}`} icon={User} label="Mon profil" onNavigate={() => setOpen(false)} />
             ) : null}
             <MenuLink href="/compte" icon={LayoutDashboard} label="Mon espace" onNavigate={() => setOpen(false)} />
+            <Link
+              className="flex items-center justify-between gap-2.5 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+              href="/compte/portefeuille"
+              onClick={() => setOpen(false)}
+            >
+              <span className="flex items-center gap-2.5">
+                <Wallet aria-hidden="true" className="size-4" />
+                Mon portefeuille
+              </span>
+              {wallet ? <PelleAmount amount={wallet.gold} className="font-semibold text-warning" /> : null}
+            </Link>
             {isAdmin ? (
               <MenuLink href="/admin" icon={Shield} label="Administration" onNavigate={() => setOpen(false)} />
             ) : null}

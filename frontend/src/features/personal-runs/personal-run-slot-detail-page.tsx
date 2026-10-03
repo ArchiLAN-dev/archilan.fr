@@ -43,6 +43,8 @@ import { SphereLine } from "@/features/reachability/sphere-line";
 import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { HINT_STATUS_NAMES, isHintsUpdate, isReachabilityData } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
+import { ItemBountiesPanel } from "@/features/wallet/item-bounties";
+import { usePelleHintOffers } from "@/features/wallet/pelle-hints";
 import type { PersonalRun } from "./types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -206,6 +208,8 @@ export function PersonalRunSlotDetailPage({
   const [toastQueue, setToastQueue] = useState<ToastItem[]>([]);
   const [hints, setHints] = useState<HintsData | null>(null);
   const [hintFree, setHintFree] = useState(false);
+  // Story 41.3: hints bought with pelles, when the party sells them.
+  const pelleHints = usePelleHintOffers(sessionId, slotIndex);
   const [itemSearch, setItemSearch] = useState("");
   const [itemSuggestOpen, setItemSuggestOpen] = useState(false);
   const [itemQty, setItemQty] = useState(1);
@@ -935,6 +939,7 @@ export function PersonalRunSlotDetailPage({
                     hintCost={hints?.hintCost ?? 0}
                     hintFree={isAdminUser ? hintFree : false}
                     onHintRequest={handleHintLocation}
+                    pelleHint={pelleHints.location}
                     title="Checks faisables maintenant"
                     variant="reachable"
                   />
@@ -946,6 +951,7 @@ export function PersonalRunSlotDetailPage({
                     hintCost={hints?.hintCost ?? 0}
                     hintFree={isAdminUser ? hintFree : false}
                     onHintRequest={handleHintLocation}
+                    pelleHint={pelleHints.location}
                     title="Checks non faisables"
                     variant="unreachable"
                   />
@@ -1202,6 +1208,16 @@ export function PersonalRunSlotDetailPage({
             {/* Items tab */}
             {activeTab === "items" ? (
               <div className="grid gap-6 lg:grid-cols-2">
+                {/* Story 41.4: bounties in pelles on the items still missing, when the party has them. */}
+                {sessionId ? (
+                  <div className="lg:col-span-2">
+                    <ItemBountiesPanel
+                      missingItems={(state.data.items_not_received ?? []).map((item) => item.name)}
+                      sessionId={sessionId}
+                      slotIndex={slotIndex}
+                    />
+                  </div>
+                ) : null}
                 <ItemListPanel
                   emptyMessage="Aucun item reçu."
                   hideSpoilers={hideSpoilers}
@@ -1218,6 +1234,7 @@ export function PersonalRunSlotDetailPage({
                   itemLocations={itemLocations}
                   items={state.data.items_not_received ?? []}
                   onHintRequest={handleHintItem}
+                  pelleHint={pelleHints.item}
                   title="Items non reçus"
                   variant="not-received"
                 />

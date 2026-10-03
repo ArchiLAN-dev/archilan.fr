@@ -71,7 +71,7 @@ final readonly class SubmitAvailableApworldUpdates
 
             $game = $this->games->findById($update->gameId);
             if (!$game instanceof Game
-                || null !== $this->candidates->findTestingForGame($update->gameId)
+                || null !== $this->candidates->findPendingForGame($update->gameId)
                 || $this->candidates->hasRejectedVersion($update->gameId, $update->latestTag)) {
                 ++$skipped;
                 continue;

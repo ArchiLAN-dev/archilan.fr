@@ -28,10 +28,10 @@ final class InMemoryApworldCandidateRepository implements ApworldCandidateReposi
         return $this->candidates[$id] ?? null;
     }
 
-    public function findTestingForGame(string $gameId): ?ApworldCandidate
+    public function findPendingForGame(string $gameId): ?ApworldCandidate
     {
         foreach ($this->candidates as $candidate) {
-            if ($candidate->getGameId() === $gameId && ApworldCandidateStatus::Testing === $candidate->getStatus()) {
+            if ($candidate->getGameId() === $gameId && \in_array($candidate->getStatus(), [ApworldCandidateStatus::Testing, ApworldCandidateStatus::Awaiting], true)) {
                 return $candidate;
             }
         }

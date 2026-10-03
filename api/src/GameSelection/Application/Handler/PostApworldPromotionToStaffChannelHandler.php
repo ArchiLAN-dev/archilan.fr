@@ -41,6 +41,8 @@ final readonly class PostApworldPromotionToStaffChannelHandler
 
         $forcedBy = $candidate->getForcedBy();
         $forcedByName = null === $forcedBy ? null : ($this->users->findById($forcedBy)?->getDisplayName() ?? 'Un admin');
+        $approvedBy = $candidate->getApprovedBy();
+        $approvedByName = null === $approvedBy ? null : ($this->users->findById($approvedBy)?->getDisplayName() ?? 'Un admin');
 
         // The game's release link is the latest known release: only worth giving when it is the one
         // that was just promoted.
@@ -57,6 +59,7 @@ final readonly class PostApworldPromotionToStaffChannelHandler
                 $candidate->getOrigin(),
                 $forcedByName,
                 $releaseUrl,
+                $approvedByName,
             ));
         } catch (StaffAlertDeliveryException $e) {
             $this->logger->warning('apworld_candidates.promotion_not_posted', [

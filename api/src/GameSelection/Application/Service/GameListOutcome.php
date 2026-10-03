@@ -10,4 +10,6 @@ enum GameListOutcome
     case Added;
     case Removed;
     case GameNotFound;
+    /** Story 11.5: a disabled game cannot be put on a list. */
+    case GameDisabled;
 }

@@ -29,7 +29,7 @@ function candidate(overrides: Partial<ApworldCandidate> = {}): ApworldCandidate 
 }
 
 function render(c: ApworldCandidate | null, busy = false): string {
-  return renderToStaticMarkup(<ApworldCandidateStatus busy={busy} candidate={c} onForce={noop} onRetry={noop} />);
+  return renderToStaticMarkup(<ApworldCandidateStatus busy={busy} candidate={c} onApprove={noop} onForce={noop} onRetry={noop} />);
 }
 
 /** Story 38.6: the game page says a new version is waiting for its test, or was refused by it. */
@@ -91,5 +91,20 @@ describe("ApworldCandidateStatus", () => {
     expect(html).toMatch(/data-confirm="" data-open="false" data-tone="danger">Mettre CrystalProject-v0.18.2 en service/);
     expect(html).toContain("|Forcer la mise en service");
     expect(html).not.toContain('role="dialog"');
+  });
+
+  test("story 38.14: a held candidate in test says the admin will put it online", () => {
+    const html = render(candidate({ heldForApproval: true }));
+
+    expect(html).toContain("Nouvelle version en test");
+    expect(html).toContain("tu la mettras en ligne toi-même");
+  });
+
+  test("story 38.14: a tested candidate awaiting approval offers to put it online, not to force it", () => {
+    const html = render(candidate({ status: "awaiting", heldForApproval: true, decidedAt: "2026-09-26T04:20:00+02:00" }));
+
+    expect(html).toContain("Testée, en attente de ta validation");
+    expect(html).toContain("Mettre en ligne");
+    expect(html).not.toContain("Forcer");
   });
 });

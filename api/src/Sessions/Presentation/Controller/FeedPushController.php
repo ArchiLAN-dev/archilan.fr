@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation\Controller;
 
 use App\Sessions\Application\Command\RecordSessionFeedEvent;
+use App\Sessions\Application\Command\SettleItemBounties;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -35,6 +36,7 @@ final readonly class FeedPushController
         private string $centralApiSecret,
         private RecordSessionFeedEvent $recordFeedEvent,
         private LoggerInterface $logger,
+        private SettleItemBounties $settleBounties,
     ) {
     }
 
@@ -60,6 +62,17 @@ final readonly class FeedPushController
             $this->recordFeedEvent->record($sessionId, $event);
         } catch (\Throwable $exception) {
             $this->logger->error('Persisting a session feed event failed.', [
+                'sessionId' => $sessionId,
+                'exception' => $exception,
+            ]);
+        }
+
+        // Story 41.4: an item that reached a slot may settle its bounty. After the feed line is kept, and
+        // best-effort too: an open bounty is refunded at the end of the session at worst.
+        try {
+            $this->settleBounties->onFeedEvent($sessionId, $event);
+        } catch (\Throwable $exception) {
+            $this->logger->error('Settling an item bounty failed.', [
                 'sessionId' => $sessionId,
                 'exception' => $exception,
             ]);

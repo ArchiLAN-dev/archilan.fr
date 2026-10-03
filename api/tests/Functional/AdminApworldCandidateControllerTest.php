@@ -107,6 +107,141 @@ final class AdminApworldCandidateControllerTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    /** Story 38.14: a candidate held for approval, tested, put online by an admin. */
+    public function testApprovingPutsTheAwaitingCandidateOnlineAsValidated(): void
+    {
+        $candidate = $this->candidate(hold: true);
+        $candidate->awaitApproval(new \DateTimeImmutable('2026-09-25 04:15:00+00:00'));
+        $this->entityManager->persist($candidate);
+        $this->entityManager->flush();
+        $this->loginAs($this->admin);
+
+        $this->client->request('POST', sprintf('/api/v1/admin/games/%s/apworld-candidate/approve', $this->game->getId()));
+
+        self::assertResponseStatusCodeSame(200);
+        $this->entityManager->clear();
+        self::assertSame('hash-new', $this->entityManager->find(Game::class, $this->game->getId())?->getApworldHash());
+        $promoted = $this->entityManager->find(ApworldCandidate::class, 'candidate-1');
+        self::assertSame(ApworldCandidateStatus::Promoted, $promoted?->getStatus());
+        self::assertSame($this->admin->getId(), $promoted->getApprovedBy());
+        self::assertNull($promoted->getForcedBy());
+        self::assertNull(NullRunnerGateway::$apworldPreflights['hash-new']['overridden'] ?? null, 'a passed test needs no override');
+
+        $transport = self::getContainer()->get('messenger.transport.async');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $sent = array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent());
+        self::assertContainsEquals(new PostApworldPromotionToStaffChannelJob('candidate-1', null), $sent);
+        self::assertContainsEquals(new ApworldPromoted($this->game->getId(), 'hash-old', 'hash-new', "old\n"), $sent);
+    }
+
+    public function testApprovingACandidateStillInTestReturns409(): void
+    {
+        $this->entityManager->persist($this->candidate(hold: true));
+        $this->entityManager->flush();
+        $this->loginAs($this->admin);
+
+        $this->client->request('POST', sprintf('/api/v1/admin/games/%s/apworld-candidate/approve', $this->game->getId()));
+
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    public function testTheGamePageShowsAnAwaitingCandidate(): void
+    {
+        $candidate = $this->candidate(hold: true);
+        $candidate->awaitApproval(new \DateTimeImmutable('2026-09-25 04:15:00+00:00'));
+        $this->entityManager->persist($candidate);
+        $this->entityManager->flush();
+        $this->loginAs($this->admin);
+
+        $this->client->request('GET', sprintf('/api/v1/admin/games/%s', $this->game->getId()));
+
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $payload = $data['apworldCandidate'] ?? null;
+        self::assertIsArray($payload);
+        self::assertSame('awaiting', $payload['status']);
+        self::assertTrue($payload['heldForApproval']);
+    }
+
+    /** Story 38.14: a pasted YAML is generated against the candidate version, nothing goes online. */
+    public function testAYamlTestRunsOnTheCandidateVersion(): void
+    {
+        $this->entityManager->persist($this->candidate());
+        $this->entityManager->flush();
+        $this->loginAs($this->admin);
+
+        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/games/%s/apworld-candidate/test-yaml', $this->game->getId()), ['yaml' => "name: Jean\ngame: Crystal Project\n"]);
+
+        self::assertResponseStatusCodeSame(202);
+        self::assertSame('null-preflight-job', $this->data()['jobId'] ?? null);
+        self::assertSame(['playerYaml' => "name: Jean\ngame: Crystal Project\n", 'apworldHash' => 'hash-new'], NullRunnerGateway::$lastSlotPreflight);
+        $this->entityManager->clear();
+        self::assertSame('hash-old', $this->entityManager->find(Game::class, $this->game->getId())?->getApworldHash());
+        self::assertSame(ApworldCandidateStatus::Testing, $this->entityManager->find(ApworldCandidate::class, 'candidate-1')?->getStatus());
+    }
+
+    public function testAYamlTestResultIsReadWithItsErrorSummarised(): void
+    {
+        NullRunnerGateway::$slotPreflightResult = ['status' => 'failed', 'error' => "Traceback (most recent call last):\nAttributeError: 'MultiWorld' object has no attribute 'architect'"];
+        $this->loginAs($this->admin);
+
+        $this->client->request('GET', sprintf('/api/v1/admin/games/%s/apworld-candidate/test-yaml/null-preflight-job', $this->game->getId()));
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('failed', $this->data()['status'] ?? null);
+        self::assertStringContainsString('architect', (string) json_encode($this->data()['error'] ?? null));
+    }
+
+    public function testAnUnknownYamlTestReturns404(): void
+    {
+        NullRunnerGateway::$slotPreflightResult = null;
+        $this->loginAs($this->admin);
+
+        $this->client->request('GET', sprintf('/api/v1/admin/games/%s/apworld-candidate/test-yaml/gone', $this->game->getId()));
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testAYamlTestNeedsAYamlACandidateAndARunner(): void
+    {
+        $this->loginAs($this->admin);
+        $uri = sprintf('/api/v1/admin/games/%s/apworld-candidate/test-yaml', $this->game->getId());
+
+        $this->client->jsonRequest('POST', $uri, ['yaml' => "name: Jean\n"]);
+        self::assertResponseStatusCodeSame(404, 'no candidate');
+
+        $this->entityManager->persist($this->candidate());
+        $this->entityManager->flush();
+        $this->client->jsonRequest('POST', $uri, ['yaml' => '   ']);
+        self::assertResponseStatusCodeSame(422);
+        $this->client->jsonRequest('POST', $uri, ['yaml' => str_repeat('a', 100 * 1024 + 1)]);
+        self::assertResponseStatusCodeSame(422);
+
+        NullRunnerGateway::$slotPreflightUnavailable = true;
+        $this->client->jsonRequest('POST', $uri, ['yaml' => "name: Jean\n"]);
+        self::assertResponseStatusCodeSame(503);
+    }
+
+    public function testYamlTestsAreForAdminsOnly(): void
+    {
+        $this->loginAs($this->createUser('player@example.org'));
+
+        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/games/%s/apworld-candidate/test-yaml', $this->game->getId()), ['yaml' => "name: x\n"]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    private function data(): array
+    {
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+
+        return $data;
+    }
+
     private function rejectedCandidate(): void
     {
         $candidate = $this->candidate();
@@ -115,8 +250,8 @@ final class AdminApworldCandidateControllerTest extends FunctionalTestCase
         $this->entityManager->flush();
     }
 
-    private function candidate(): ApworldCandidate
+    private function candidate(bool $hold = false): ApworldCandidate
     {
-        return ApworldCandidate::submit('candidate-1', $this->game->getId(), 'hash-new', 'hash-new.apworld', 'hash-new.apworld', "new\n", 'Crystal Project', null, ApworldCandidateOrigin::Manual, $this->admin->getId(), new \DateTimeImmutable('2026-09-25 04:10:00+00:00'));
+        return ApworldCandidate::submit('candidate-1', $this->game->getId(), 'hash-new', 'hash-new.apworld', 'hash-new.apworld', "new\n", 'Crystal Project', null, ApworldCandidateOrigin::Manual, $this->admin->getId(), new \DateTimeImmutable('2026-09-25 04:10:00+00:00'), holdForApproval: $hold);
     }
 }

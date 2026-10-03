@@ -17,6 +17,8 @@ final readonly class AdminGenerateWeeklyRunForTemplateController
         'template_not_found' => Response::HTTP_NOT_FOUND,
         'run_already_exists' => Response::HTTP_CONFLICT,
         'template_incomplete' => Response::HTTP_UNPROCESSABLE_ENTITY,
+        // Story 11.5.
+        'game_disabled' => Response::HTTP_UNPROCESSABLE_ENTITY,
     ];
 
     public function __construct(

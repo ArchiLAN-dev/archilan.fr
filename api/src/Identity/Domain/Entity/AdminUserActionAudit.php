@@ -21,6 +21,9 @@ final class AdminUserActionAudit
 {
     public const string ACTION_REVOKE_SESSIONS = 'revoke_sessions';
     public const string ACTION_VERIFY_EMAIL = 'verify_email';
+    // Story 41.1: an admin credited or debited the member's pelles; the amount and reason live in the ledger.
+    public const string ACTION_PELLES_CREDIT = 'pelles_credit';
+    public const string ACTION_PELLES_DEBIT = 'pelles_debit';
 
     // Réglages d'une partie privée appliqués par un administrateur qui n'en est pas propriétaire
     // (story 16.19). La cible est le propriétaire de la partie : c'est dans sa fiche qu'on ira

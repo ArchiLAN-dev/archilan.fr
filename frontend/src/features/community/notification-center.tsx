@@ -195,6 +195,15 @@ export function messageFor(item: NotificationItem): string {
         : "Un compte a atteint le seuil de modération";
     case "moderation_reply":
       return "La modération t'a répondu";
+    case "pelles_adjusted": {
+      // Story 41.1: an admin credited or debited the member's pelles; the reason is theirs to read.
+      const amount = hasNumberProp(item.data, "amount") ? item.data.amount : 0;
+      // Story 41.2: event pelles name their event.
+      const event = hasStringProp(item.data, "eventTitle") && item.data.eventTitle !== "" ? ` pour « ${item.data.eventTitle} »` : "";
+      const what = `${Math.abs(amount)} ${Math.abs(amount) > 1 ? "pelles" : "pelle"}${event}`;
+      const reason = hasStringProp(item.data, "reason") && item.data.reason !== "" ? ` : ${item.data.reason}` : "";
+      return amount < 0 ? `L'équipe t'a retiré ${what}${reason}` : `Tu as reçu ${what}${reason}`;
+    }
     case "moderation_warning":
       return hasStringProp(item.data, "reason") && item.data.reason !== ""
         ? `Avertissement de la modération : ${item.data.reason}`
@@ -260,6 +269,9 @@ export function messageFor(item: NotificationItem): string {
 export function hrefFor(item: NotificationItem): string {
   if (item.type === "account_flagged") {
     return "/admin/moderation/signalements";
+  }
+  if (item.type === "pelles_adjusted") {
+    return "/compte/portefeuille";
   }
   if (item.type === "apworld_incident_opened") {
     // The apworld health page (story 38.3): the incident, who holds it, and the actions.

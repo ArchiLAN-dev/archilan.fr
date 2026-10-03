@@ -82,9 +82,15 @@ services:
             - '../src/WeeklyRuns/Domain/'
             - '../src/SessionConfig/Domain/'
             - '../src/Community/Domain/'
+            - '../src/Wallet/Domain/'
 
     App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigProfileRepository'
     App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigOverrideRepository'
+
+    App\Wallet\Domain\Repository\PelleMovementRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrinePelleMovementRepository'
+    App\Wallet\Domain\Repository\ShopRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
+    # Story 41.7: Community reads what a member bought through its own port, implemented by the shop.
+    App\Community\Application\Port\CosmeticOwnershipInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
 
     App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyRunRepository'
     App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyTemplateRepository'
@@ -353,10 +359,13 @@ services:
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
+    App\Sessions\Domain\Repository\ItemBountyRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineItemBountyRepository'
 
     App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotCoPlayerRepository'
 
     App\Sessions\Application\Port\SeedArchiveGatewayInterface: '@App\Sessions\Infrastructure\Adapter\OrchestratorSeedArchiveGateway'
+    # Story 41.3: the bridge's free hint, once the player has paid in pelles.
+    App\Sessions\Application\Port\PelleHintGatewayInterface: '@App\Sessions\Infrastructure\Bridge\BridgePelleHintGateway'
 
     App\Sessions\Infrastructure\Adapter\OrchestratorSeedArchiveGateway:
         arguments:
@@ -491,6 +500,11 @@ when@test:
 
         App\Sessions\Application\Port\SeedArchiveGatewayInterface:
             class: App\Sessions\Infrastructure\Double\StubSeedArchiveGateway
+
+        App\Sessions\Infrastructure\Double\SpyPelleHintGateway:
+            public: true
+
+        App\Sessions\Application\Port\PelleHintGatewayInterface: '@App\Sessions\Infrastructure\Double\SpyPelleHintGateway'
 
         App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Double\NullMinioStorage'
 

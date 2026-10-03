@@ -19,6 +19,7 @@ import { AdminUserParticipation } from "./admin-user-participation";
 import { AdminUserModeration } from "./admin-user-moderation";
 import { AdminUserGaming } from "./admin-user-gaming";
 import { AdminUserActions } from "./admin-user-actions";
+import { AdminUserPelles } from "@/features/wallet/admin-user-pelles";
 import { SHEET_LIST_CLASS, SheetNav, SheetSection } from "./admin-sheet-section";
 
 const ROLE_LABELS: Record<AssignableRole, string> = {
@@ -164,6 +165,8 @@ export function AdminUserDetailPage({ userId }: Props) {
       <AdminUserParticipation userId={user.id} />
 
       <AdminUserGaming userId={user.id} />
+
+      <AdminUserPelles isSelf={isSelf} userId={user.id} />
 
       <AdminUserActivity userId={user.id} />
     </Shell>

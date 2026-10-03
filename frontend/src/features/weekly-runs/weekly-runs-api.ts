@@ -152,6 +152,12 @@ export async function withdrawFromWeeklyRun(
   }
 }
 
+/** Story 11.5: readable messages for the launch refusals a player can meet; the code otherwise. */
+export function launchErrorMessage(code: string): string {
+  if (code === "game_disabled") return "Ce jeu est temporairement désactivé : l'hebdo ne peut pas être lancée.";
+  return `Erreur : ${code}`;
+}
+
 export async function launchWeeklyEntry(
   weeklyRunId: string,
   entryId: string,

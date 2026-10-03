@@ -5,6 +5,62 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.28.0] - 2026-10-03
+
+Les Pelles, monnaie du site : un portefeuille, des pelles d'événement, des indices et des primes payés en pelles,
+des quêtes de la semaine et une boutique. Une vraie page de statistiques pour l'admin, et les jeux désactivés qui
+disparaissent des listes.
+
+### Ajouté
+
+- **Les Pelles, monnaie virtuelle d'ArchiLAN** (epic 41). Pas d'argent réel : elles se gagnent en jouant et en
+  aidant l'association, et se dépensent sur le site. Deux sortes : les pelles en or, permanentes, et les pelles
+  d'événement, valables pendant un événement. Tout le monde part de zéro.
+  - **Portefeuille** (41.1) : « Mon portefeuille » dans l'espace membre (soldes, historique paginé), solde en or
+    dans le menu du compte ; l'admin crédite ou débite un membre depuis sa fiche (motif obligatoire, tracé dans le
+    journal de la fiche, jamais sur son propre compte).
+  - **Pelles d'événement** (41.2) : page « Pelles » d'un événement pour en distribuer à tous les inscrits ou à une
+    sélection ; à la fin de l'événement, 10 % des pelles restantes passent en or, le reste disparaît.
+  - **Indices contre pelles** (41.3) : sur la fiche de slot d'une run privée, un indice d'objet ou de lieu
+    s'achète en pelles (celles de l'événement d'abord), remboursé s'il n'a pas pu être donné.
+  - **Primes sur les objets** (41.4) : un joueur offre des pelles à qui lui enverra un objet ; le propriétaire du
+    slot qui l'envoie reçoit 90 % de la prime. Rien n'est versé pour un objet envoyé à soi-même ou après un
+    release, un collect ou un goal ; la prime est alors rendue, comme à la fin de la partie.
+  - **Contributions validées** (41.5) : l'admin choisit les pelles de l'auteur en validant un tutoriel.
+  - **Quêtes de la semaine** (41.6) : atteindre un goal (40), jouer avec quelqu'un de nouveau (30), faire une hebdo
+    (30), 100 pelles par semaine au plus, comptées sur des parties réellement jouées.
+  - **Boutique** (41.7) : achat de cadres et de bannières en pelles en or, mise en vente par l'admin (prix, période
+    pour un objet saisonnier). Elle ouvre vide : ses articles seront dessinés par des membres.
+- **Page de statistiques admin** (epic 42) : `/admin/statistiques`, sur 4 semaines, 12 semaines ou 12 mois, chaque
+  chiffre comparé à la période précédente. Sections Communauté (comptes, membres actifs, adhésions, amitiés,
+  succès), Parties (runs, sessions d'événement, hebdos, goals, jeux les plus joués), Événements (inscriptions,
+  annulations, recettes HelloAsso, remplissage) et Pelles (circulation).
+- **Version candidate d'apworld à valider** (story 38.14) : une mise à jour d'apworld peut attendre l'accord d'un
+  admin avant de remplacer la version en ligne, et se tester avec un YAML avant.
+- **Repère « note interne »** dans la liste admin des jeux (story 11.6), avec le début de la note au survol.
+
+### Modifié
+
+- **Les jeux désactivés disparaissent des listes** (story 11.5) : catalogue, couplage Steam, sélecteurs
+  d'inscription et de partie privée, favoris. Ils restent dans l'historique des parties et sur leur page, accessible
+  par lien avec un bandeau. Les hebdos d'un jeu désactivé ne sont plus générées ni lancées.
+- **`/admin/pelles` redirige vers la section Pelles des statistiques.**
+
+### Sécurité
+
+- **Audit des dépendances du front** : l'avis `braces` GHSA-vfj7-8cjw-p6xm, publié sans correctif et présent
+  seulement dans l'outillage de lint (jamais livré), est ignoré par `pnpm audit` jusqu'à ce qu'un correctif sorte.
+
+### Notes de déploiement
+
+- **Migrations** : `Version20261002140000` (validation d'une version candidate), `Version20261003100000`
+  (registre des pelles), `Version20261003150000` (primes), `Version20261003170000` (boutique).
+- **Tâches planifiées** ajoutées au worker : fin des pelles d'événement (:50), remboursement des primes des parties
+  terminées (:55), paiement des quêtes (:40), toutes horaires.
+- **Réglages de partie** : indices contre pelles et primes sont désactivés par défaut sur les trois profils ; à
+  activer dans `/admin/sessions/config` (hebdos, événements, privées) ou par partie.
+- Services inchangés : `archipelago` `v0.16.5`, `orchestrateur` `v0.20.0`, `bridge` `v0.13.0`.
+
 ## [0.27.1] - 2026-10-02
 
 Correctif : les parties redeviennent joignables.

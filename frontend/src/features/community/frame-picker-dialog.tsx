@@ -30,6 +30,7 @@ export function FramePickerDialog({
   current,
   saved,
   legendaryAllowed,
+  ownedFrames = [],
   avatar,
   banner,
   onApply,
@@ -41,6 +42,8 @@ export function FramePickerDialog({
   /** The frame as last saved: a dot marks it. */
   saved: string | null;
   legendaryAllowed: boolean;
+  /** Story 41.7: the shop frames this member bought. */
+  ownedFrames?: readonly string[];
   avatar: Avatar;
   banner: FramePreviewBanner;
   onApply: (frame: string | null) => void;
@@ -53,6 +56,7 @@ export function FramePickerDialog({
         banner={banner}
         current={current}
         legendaryAllowed={legendaryAllowed}
+        ownedFrames={ownedFrames}
         onApply={(frame) => {
           onApply(frame);
           onOpenChange(false);
@@ -69,6 +73,7 @@ export function FramePicker({
   current,
   saved,
   legendaryAllowed,
+  ownedFrames = [],
   avatar,
   banner,
   onApply,
@@ -77,6 +82,8 @@ export function FramePicker({
   current: string | null;
   saved: string | null;
   legendaryAllowed: boolean;
+  /** Story 41.7: the shop frames this member bought. */
+  ownedFrames?: readonly string[];
   avatar: Avatar;
   banner: FramePreviewBanner;
   onApply: (frame: string | null) => void;
@@ -108,19 +115,24 @@ export function FramePicker({
                   {category === FRAME_CATEGORIES[0] ? (
                     <FrameCard avatar={avatar} frameKey={null} label="Aucun" onPick={setPick} saved={null === saved} selected={null === pick} />
                   ) : null}
-                  {AVATAR_FRAMES.filter((f) => f.category === category).map((f) => (
-                    <FrameCard
-                      avatar={avatar}
-                      frameKey={f.key}
-                      key={f.key}
-                      label={f.label}
-                      legendary={legendary}
-                      locked={locked}
-                      onPick={setPick}
-                      saved={saved === f.key}
-                      selected={pick === f.key}
-                    />
-                  ))}
+                  {AVATAR_FRAMES.filter((f) => f.category === category).map((f) => {
+                    // Story 41.7: a shop frame stays locked until bought.
+                    const inShop = true === f.shop && !ownedFrames.includes(f.key);
+                    return (
+                      <FrameCard
+                        avatar={avatar}
+                        frameKey={f.key}
+                        key={f.key}
+                        label={f.label}
+                        legendary={legendary}
+                        lockReason={inShop ? "En boutique" : "Réservé aux admins pour l'instant"}
+                        locked={locked || inShop}
+                        onPick={setPick}
+                        saved={saved === f.key}
+                        selected={pick === f.key}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             );
@@ -151,6 +163,7 @@ function FrameCard({
   saved,
   legendary = false,
   locked = false,
+  lockReason = "Réservé aux admins pour l'instant",
   onPick,
   avatar,
 }: {
@@ -160,6 +173,7 @@ function FrameCard({
   saved: boolean;
   legendary?: boolean;
   locked?: boolean;
+  lockReason?: string;
   onPick: (key: string | null) => void;
   avatar: Avatar;
 }) {
@@ -173,7 +187,7 @@ function FrameCard({
 
   return (
     <button
-      aria-label={locked ? `${label} (réservé aux admins)` : label}
+      aria-label={locked ? `${label} (${lockReason === "En boutique" ? "en boutique" : "réservé aux admins"})` : label}
       aria-pressed={selected}
       className={`relative grid justify-items-center gap-1.5 rounded-lg border p-2 transition-colors disabled:cursor-not-allowed ${border}`}
       disabled={locked}
@@ -182,7 +196,7 @@ function FrameCard({
       onFocus={() => setHovered(true)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title={locked ? "Réservé aux admins pour l'instant" : label}
+      title={locked ? lockReason : label}
       type="button"
     >
       <AvatarFrame animated={hovered && !locked} className="size-12" frameKey={frameKey} preview style={CARD_SCALE}>

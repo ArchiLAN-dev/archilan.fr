@@ -81,9 +81,14 @@ export async function fetchContributionQueue(
   }
 }
 
-export async function approveContribution(id: string): Promise<boolean> {
+/** Story 41.5: `pelles` are the gold pelles paid to the author, 0 for none. */
+export async function approveContribution(id: string, pelles = 0): Promise<boolean> {
   try {
-    const response = await apiFetch(`${env.apiBaseUrl}/admin/game-contributions/${id}/approve`, { method: "POST" });
+    const response = await apiFetch(`${env.apiBaseUrl}/admin/game-contributions/${id}/approve`, {
+      body: JSON.stringify({ pelles }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
     return response.ok;
   } catch {
     return false;

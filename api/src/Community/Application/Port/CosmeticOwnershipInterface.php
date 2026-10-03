@@ -1,0 +1,22 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Community\Application\Port;
+
+/**
+ * The shop cosmetics a member bought (story 41.7). The shop lives in Wallet, which implements this port: Community
+ * never depends on Wallet.
+ */
+interface CosmeticOwnershipInterface
+{
+    public const string FRAME = 'frame';
+    public const string BANNER = 'banner';
+
+    /**
+     * @param self::FRAME|self::BANNER $type
+     *
+     * @return list<string> the cosmetic keys of that type the member owns
+     */
+    public function ownedKeys(string $userId, string $type): array;
+}
