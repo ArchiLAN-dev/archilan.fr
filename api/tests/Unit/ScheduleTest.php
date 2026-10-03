@@ -11,6 +11,7 @@ use App\Community\Application\Message\SyncDiscordBansMessage;
 use App\GameSelection\Application\Message\SweepApworldCatalogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\Schedule;
+use App\Wallet\Application\Message\ExpireEventPellesMessage;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Scheduler\Generator\MessageContext;
@@ -27,6 +28,17 @@ final class ScheduleTest extends TestCase
 
         self::assertNotNull($next);
         self::assertSame('2026-09-26 04:00', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
+    }
+
+    public function testEventPellesExpireEveryHour(): void
+    {
+        // Story 41.2: the pelles of an event that is over become gold (a tenth) or are destroyed within the hour.
+        $recurring = $this->recurringMessageFor(ExpireEventPellesMessage::class);
+
+        $next = $recurring->getTrigger()->getNextRunDate(new \DateTimeImmutable('2026-10-03 12:00:00', new \DateTimeZone('Europe/Paris')));
+
+        self::assertNotNull($next);
+        self::assertSame('2026-10-03 12:50', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
     }
 
     public function testTheCatalogueSweepRunsEveryNightAtFiveParisTime(): void

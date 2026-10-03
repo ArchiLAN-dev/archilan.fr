@@ -103,18 +103,19 @@ dépendent pas des barèmes ni des cosmétiques.
 ## Décisions à prendre
 
 1. **Prix d'un hint** : fixe sur tout le site, ou réglé par partie ? Le même pour un hint d'objet et de lieu ?
-   (bloque 41.3)
+   (bloque 41.3) **Tranché (Jean, 2026-10-03)** : un prix par défaut sur le site, réglable par partie ; un prix pour
+   un hint d'objet, un autre pour un hint de lieu.
 2. **Hints contre pelles par défaut** : autorisés ou non ? Proposition : désactivés dans les parties privées,
-   réglés par l'admin pour les hebdos et les events. (bloque 41.3)
+   réglés par l'admin pour les hebdos et les events. (bloque 41.3) **Tranché (Jean, 2026-10-03)** : la proposition.
 3. **Fin d'un event** : les pelles d'event disparaissent, ou une part (par exemple 10 %) devient des pelles en or
-   en récompense ? (bloque 41.2)
+   en récompense ? (bloque 41.2) **Tranché (Jean, 2026-10-03)** : une part (10 %) passe en or, le reste est détruit.
 4. **Barème** des quêtes et des contributions, plafond hebdomadaire. (bloque 41.5 et 41.6)
 5. **Cosmétiques** : lesquels deviennent achetables, et ce qui reste gratuit pour les adhérents (les avantages
    actuels des adhérents et des admins, stories 30.40 à 30.46, ne doivent pas perdre leur valeur). (bloque 41.7)
 6. **Démarrage** : bonus de lancement calculé sur l'historique de chacun, ou tout le monde part de zéro ?
    (bloque la mise en production de 41.1)
 7. **Primes** : la prime d'un slot joué à plusieurs va au propriétaire seul, ou se partage entre ses joueurs ?
-   (bloque 41.4)
+   (bloque 41.4) **Tranché (Jean, 2026-10-03)** : au propriétaire seul.
 
 ## Idées en réserve
 

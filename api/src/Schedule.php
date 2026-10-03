@@ -20,6 +20,7 @@ use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
+use App\Wallet\Application\Message\ExpireEventPellesMessage;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
@@ -68,6 +69,10 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Backstop: catch any achievement unlock the real-time post-archive path missed
                 // (story 30.26). Runs hourly (at :45) so a missed unlock is reconciled within the hour.
                 RecurringMessage::cron('45 * * * *', new RecomputeAllAchievementsMessage()),
+            )
+            ->add(
+                // Les pelles d'un événement terminé : 10 % en or, le reste détruit (story 41.2).
+                RecurringMessage::cron('50 * * * *', new ExpireEventPellesMessage()),
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),
