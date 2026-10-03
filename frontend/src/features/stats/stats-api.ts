@@ -36,6 +36,21 @@ export type CommunityStats = {
   achievementsUnlocked: Trend;
 };
 
+export type TopGame = { gameId: string; name: string; players: number; checks: number };
+
+export type SessionStats = {
+  period: StatsPeriodInfo;
+  runningSessions: number;
+  activeRuns: number;
+  runsCreated: Trend;
+  runsLaunched: Trend;
+  eventSessionsLaunched: Trend;
+  weeklyLaunched: Trend;
+  weeklyCompleted: Trend;
+  goalsReached: Trend;
+  topGames: TopGame[];
+};
+
 export type PelleStats = {
   period: StatsPeriodInfo;
   goldInCirculation: number;
@@ -94,6 +109,43 @@ export function isCommunityStats(v: unknown): v is CommunityStats {
   );
 }
 
+function isTopGame(v: unknown): v is TopGame {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "gameId") &&
+    hasStringProp(v, "name") &&
+    hasNumberProp(v, "players") &&
+    hasNumberProp(v, "checks")
+  );
+}
+
+export function isSessionStats(v: unknown): v is SessionStats {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    "period" in v &&
+    isPeriodInfo(v.period) &&
+    hasNumberProp(v, "runningSessions") &&
+    hasNumberProp(v, "activeRuns") &&
+    "runsCreated" in v &&
+    isTrend(v.runsCreated) &&
+    "runsLaunched" in v &&
+    isTrend(v.runsLaunched) &&
+    "eventSessionsLaunched" in v &&
+    isTrend(v.eventSessionsLaunched) &&
+    "weeklyLaunched" in v &&
+    isTrend(v.weeklyLaunched) &&
+    "weeklyCompleted" in v &&
+    isTrend(v.weeklyCompleted) &&
+    "goalsReached" in v &&
+    isTrend(v.goalsReached) &&
+    "topGames" in v &&
+    Array.isArray(v.topGames) &&
+    v.topGames.every(isTopGame)
+  );
+}
+
 export function isPelleStats(v: unknown): v is PelleStats {
   return (
     typeof v === "object" &&
@@ -127,6 +179,10 @@ async function fetchSection<T>(section: string, period: StatsPeriodCode, guard: 
 
 export function fetchCommunityStats(period: StatsPeriodCode): Promise<CommunityStats | null> {
   return fetchSection("community", period, isCommunityStats);
+}
+
+export function fetchSessionStats(period: StatsPeriodCode): Promise<SessionStats | null> {
+  return fetchSection("sessions", period, isSessionStats);
 }
 
 export function fetchPelleStats(period: StatsPeriodCode): Promise<PelleStats | null> {

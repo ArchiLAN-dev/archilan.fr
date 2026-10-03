@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Shovel, Users } from "lucide-react";
+import { Gamepad2, Shovel, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -14,10 +14,12 @@ import {
   DEFAULT_STATS_PERIOD,
   STATS_PERIODS,
   fetchCommunityStats,
+  fetchSessionStats,
   fetchPelleStats,
   parseStatsPeriod,
   type CommunityStats,
   type PelleStats,
+  type SessionStats,
   type StatsPeriodCode,
 } from "./stats-api";
 import { TrendChart } from "./trend-chart";
@@ -49,6 +51,7 @@ export function AdminStatsPage() {
       </header>
 
       <CommunitySection period={period} />
+      <SessionsSection period={period} />
       <PellesSection period={period} />
     </div>
   );
@@ -157,6 +160,95 @@ export function CommunityView({ stats }: { stats: CommunityStats }) {
           />
         </ChartBlock>
       </div>
+    </div>
+  );
+}
+
+function SessionsSection({ period }: { period: StatsPeriodCode }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-stats", "sessions", period],
+    queryFn: () => fetchSessionStats(period),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+
+  return (
+    <Section icon={Gamepad2} id="parties" title="Parties">
+      {data ? <SessionsView stats={data} /> : <SectionState loading={isLoading} />}
+    </Section>
+  );
+}
+
+export function SessionsView({ stats }: { stats: SessionStats }) {
+  const { granularity } = stats.period;
+
+  return (
+    <div className="grid gap-5">
+      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KeyFigure label="Runs lancées" trend={stats.runsLaunched} value={formatCount(stats.runsLaunched.total)} />
+        <KeyFigure label="Runs créées" trend={stats.runsCreated} value={formatCount(stats.runsCreated.total)} />
+        <KeyFigure label="Hebdos lancées" trend={stats.weeklyLaunched} value={formatCount(stats.weeklyLaunched.total)} />
+        <KeyFigure label="Sessions d'événement" trend={stats.eventSessionsLaunched} value={formatCount(stats.eventSessionsLaunched.total)} />
+        <KeyFigure label="Goals atteints" trend={stats.goalsReached} value={formatCount(stats.goalsReached.total)} />
+        <KeyFigure label="Hebdos terminées" trend={stats.weeklyCompleted} value={formatCount(stats.weeklyCompleted.total)} />
+        <KeyFigure label="Sessions en cours" value={formatCount(stats.runningSessions)} />
+        <KeyFigure label="Runs actives" value={formatCount(stats.activeRuns)} />
+      </dl>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartBlock
+          definition="Runs privées lancées (une relance compte pour la même run), sessions d'événement démarrées, tentatives d'hebdo lancées."
+          title="Lancements"
+        >
+          <TrendChart
+            caption="Lancements de parties"
+            granularity={granularity}
+            kind="bar"
+            series={[
+              { key: "runs", label: "Runs privées", color: SERIES_COLOR, buckets: stats.runsLaunched.series },
+              { key: "events", label: "Sessions d'événement", color: "var(--color-special)", buckets: stats.eventSessionsLaunched.series },
+              { key: "weekly", label: "Hebdos", color: "var(--color-accent-warm)", buckets: stats.weeklyLaunched.series },
+            ]}
+          />
+        </ChartBlock>
+        <ChartBlock definition="Slots de session qui ont atteint leur goal, et tentatives d'hebdo terminées." title="Goals atteints">
+          <TrendChart
+            caption="Goals atteints"
+            granularity={granularity}
+            kind="line"
+            series={[
+              { key: "goals", label: "Sessions", color: SERIES_COLOR, buckets: stats.goalsReached.series },
+              { key: "weekly", label: "Hebdos", color: "var(--color-accent-warm)", buckets: stats.weeklyCompleted.series },
+            ]}
+          />
+        </ChartBlock>
+      </div>
+      <ChartBlock
+        definition="Les 10 jeux qui comptent le plus de joueurs distincts ayant fait un check sur la période (co-joueurs compris). Les hebdos n'y figurent pas."
+        title="Jeux les plus joués"
+      >
+        {stats.topGames.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun check sur la période.</p>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-muted-foreground">
+              <tr>
+                <th className="py-1 font-medium">Jeu</th>
+                <th className="py-1 text-right font-medium">Joueurs</th>
+                <th className="py-1 text-right font-medium">Checks</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {stats.topGames.map((game) => (
+                <tr key={game.gameId}>
+                  <td className="py-2">{game.name}</td>
+                  <td className="py-2 text-right tabular-nums">{formatCount(game.players)}</td>
+                  <td className="py-2 text-right tabular-nums">{formatCount(game.checks)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </ChartBlock>
     </div>
   );
 }

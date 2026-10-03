@@ -3,9 +3,18 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { CommunityView, PellesView, PeriodPicker } from "./admin-stats-page";
+import { CommunityView, PellesView, PeriodPicker, SessionsView } from "./admin-stats-page";
 import { deltaText } from "./key-figure";
-import { fetchCommunityStats, fetchPelleStats, parseStatsPeriod, type CommunityStats, type PelleStats, type Trend } from "./stats-api";
+import {
+  fetchCommunityStats,
+  fetchPelleStats,
+  fetchSessionStats,
+  parseStatsPeriod,
+  type CommunityStats,
+  type PelleStats,
+  type SessionStats,
+  type Trend,
+} from "./stats-api";
 import { TrendChart, bucketLabel } from "./trend-chart";
 
 const BASE = TEST_API_BASE_URL;
@@ -30,6 +39,19 @@ const community: CommunityStats = {
   activePlayers: { ...trend([2, 0, 0, 2], 2), total: 2 },
   friendshipsAccepted: trend([0, 0, 1, 0], 2),
   achievementsUnlocked: trend([0, 0, 0, 1], 1),
+};
+
+const sessions: SessionStats = {
+  period,
+  runningSessions: 1,
+  activeRuns: 1,
+  runsCreated: trend([1, 0, 0, 0], 1),
+  runsLaunched: { ...trend([1, 0, 0, 1], 1), total: 1 },
+  eventSessionsLaunched: trend([0, 1, 0, 0], 0),
+  weeklyLaunched: trend([0, 0, 1, 0], 0),
+  weeklyCompleted: trend([0, 0, 1, 0], 0),
+  goalsReached: trend([0, 0, 0, 1], 0),
+  topGames: [{ gameId: "g1", name: "Celeste", players: 2, checks: 1 }],
 };
 
 const pelles: PelleStats = {
@@ -81,6 +103,19 @@ describe("sections", () => {
     expect(html).toContain("Mesuré depuis juillet 2026");
   });
 
+  test("Parties shows the launches, the goals and the most played games", () => {
+    const html = renderToStaticMarkup(<SessionsView stats={sessions} />);
+
+    expect(html).toContain("Runs lancées");
+    expect(html).toContain("Sessions en cours");
+    expect(html).toContain("une relance compte pour la même run");
+    expect(html).toContain('<td class="py-2">Celeste</td>');
+  });
+
+  test("Parties says when nothing was played", () => {
+    expect(renderToStaticMarkup(<SessionsView stats={{ ...sessions, topGames: [] }} />)).toContain("Aucun check sur la période.");
+  });
+
   test("Pelles shows the circulation, the flows and the reasons", () => {
     const html = renderToStaticMarkup(<PellesView stats={pelles} />);
 
@@ -116,6 +151,14 @@ describe("stats API", () => {
 
     expect(await fetchCommunityStats("4s")).toEqual(community);
     expect(asked).toBe("4s");
+  });
+
+  test("fetches the Parties section", async () => {
+    server.use(http.get(`${BASE}/admin/stats/sessions`, () => HttpResponse.json(sessions)));
+    expect(await fetchSessionStats("4s")).toEqual(sessions);
+
+    server.use(http.get(`${BASE}/admin/stats/sessions`, () => HttpResponse.json({ ...sessions, topGames: [{ name: "x" }] })));
+    expect(await fetchSessionStats("4s")).toBeNull();
   });
 
   test("a section in error or with an unexpected body is null", async () => {
