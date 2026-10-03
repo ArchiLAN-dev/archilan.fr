@@ -198,7 +198,9 @@ export function messageFor(item: NotificationItem): string {
     case "pelles_adjusted": {
       // Story 41.1: an admin credited or debited the member's pelles; the reason is theirs to read.
       const amount = hasNumberProp(item.data, "amount") ? item.data.amount : 0;
-      const what = `${Math.abs(amount)} ${Math.abs(amount) > 1 ? "pelles" : "pelle"}`;
+      // Story 41.2: event pelles name their event.
+      const event = hasStringProp(item.data, "eventTitle") && item.data.eventTitle !== "" ? ` pour « ${item.data.eventTitle} »` : "";
+      const what = `${Math.abs(amount)} ${Math.abs(amount) > 1 ? "pelles" : "pelle"}${event}`;
       const reason = hasStringProp(item.data, "reason") && item.data.reason !== "" ? ` : ${item.data.reason}` : "";
       return amount < 0 ? `L'équipe t'a retiré ${what}${reason}` : `Tu as reçu ${what}${reason}`;
     }

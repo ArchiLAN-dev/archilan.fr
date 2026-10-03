@@ -9,4 +9,8 @@ enum PelleReason: string
 {
     case AdminCredit = 'admin_credit';
     case AdminDebit = 'admin_debit';
+    // Story 41.2: event pelles handed out during an event, then converted and destroyed at its end.
+    case EventDistribution = 'event_distribution';
+    case EventConversion = 'event_conversion';
+    case EventExpired = 'event_expired';
 }

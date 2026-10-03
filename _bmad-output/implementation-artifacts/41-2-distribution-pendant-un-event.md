@@ -1,6 +1,6 @@
 # Story 41.2: Distribution de pelles pendant un event
 
-**Status:** in-progress
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-10-03
 
@@ -60,11 +60,11 @@ devient des pelles en or, le reste est détruit.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 3-6) - Commande de distribution, requête des inscrits, endpoint ; tests fonctionnels.
-- [ ] **Task 2** (AC 7, 8) - Commande d'expiration, message planifié et son handler ; tests.
-- [ ] **Task 3** (AC 1) - Requête et endpoint de la page Pelles d'un événement ; tests.
-- [ ] **Task 4** (AC 1, 2, 9) - Front : page, formulaire, lien, libellés ; tests.
-- [ ] **Task 5** (AC 10) - Gates.
+- [x] **Task 1** (AC 3-6) - Commande de distribution, requête des inscrits, endpoint ; tests fonctionnels.
+- [x] **Task 2** (AC 7, 8) - Commande d'expiration, message planifié et son handler ; tests.
+- [x] **Task 3** (AC 1) - Requête et endpoint de la page Pelles d'un événement ; tests.
+- [x] **Task 4** (AC 1, 2, 9) - Front : page, formulaire, lien, libellés ; tests.
+- [x] **Task 5** (AC 10) - Gates.
 
 ## Notes techniques
 
@@ -76,3 +76,13 @@ devient des pelles en or, le reste est détruit.
   l'équipe le demande.
 - Pas d'audit `AdminUserActionAudit` par destinataire : chaque mouvement porte déjà son auteur, et une
   distribution à 40 inscrits noierait le journal de chaque fiche.
+
+## Dev Agent Record
+
+- `DistributeEventPelles` (clé `event-distribution:{requestId}:{userId}`), `ExpireEventPelles` (conversion puis
+  destruction, clés `event-conversion:` et `event-expired:{eventId}:{userId}`), `ExpireEventPellesMessage` planifié à
+  :50 chaque heure, `EventPellesQueryInterface` / `DbalEventPellesQuery`.
+- Endpoints : `GET|POST /api/v1/admin/events/{eventId}/pelles`.
+- Motifs `event_distribution`, `event_conversion`, `event_expired` ; la notification `pelles_adjusted` porte
+  `eventTitle` pour une distribution.
+- Front : `/admin/evenements/{id}/pelles`, lien « Pelles » dans la liste des événements, libellés des motifs.

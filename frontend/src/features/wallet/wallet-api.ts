@@ -46,6 +46,9 @@ export type AdjustPellesResult =
 export const PELLE_REASON_LABELS: Record<string, string> = {
   admin_credit: "Crédit de l'équipe",
   admin_debit: "Débit de l'équipe",
+  event_distribution: "Distribution d'événement",
+  event_conversion: "Conversion en or (fin d'événement)",
+  event_expired: "Expiration (fin d'événement)",
 };
 
 export function pelleReasonLabel(reason: string): string {
