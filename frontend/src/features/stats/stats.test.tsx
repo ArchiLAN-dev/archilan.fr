@@ -3,14 +3,16 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { CommunityView, PellesView, PeriodPicker, SessionsView } from "./admin-stats-page";
+import { CommunityView, EventsView, PellesView, PeriodPicker, SessionsView } from "./admin-stats-page";
 import { deltaText } from "./key-figure";
 import {
   fetchCommunityStats,
+  fetchEventStats,
   fetchPelleStats,
   fetchSessionStats,
   parseStatsPeriod,
   type CommunityStats,
+  type EventStats,
   type PelleStats,
   type SessionStats,
   type Trend,
@@ -52,6 +54,16 @@ const sessions: SessionStats = {
   weeklyCompleted: trend([0, 0, 1, 0], 0),
   goalsReached: trend([0, 0, 0, 1], 0),
   topGames: [{ gameId: "g1", name: "Celeste", players: 2, checks: 1 }],
+};
+
+const events: EventStats = {
+  period,
+  upcomingEvents: 1,
+  registrations: trend([1, 1, 0, 1], 1),
+  cancellations: trend([0, 1, 0, 0], 0),
+  revenue: trend([1500, 0, 0, 1500], 700),
+  revenueByType: { events: trend([1500, 0, 0, 0], 700), memberships: trend([0, 0, 0, 1000], 0), shop: trend([0, 0, 0, 500], 0) },
+  events: [{ eventId: "e1", title: "ArchiLAN #3", startsAt: "2026-09-20T10:00:00+00:00", status: "published", capacity: 10, registrations: 2, fillRate: 20 }],
 };
 
 const pelles: PelleStats = {
@@ -116,6 +128,21 @@ describe("sections", () => {
     expect(renderToStaticMarkup(<SessionsView stats={{ ...sessions, topGames: [] }} />)).toContain("Aucun check sur la période.");
   });
 
+  test("Events shows registrations, revenue in euros and the filling of each event", () => {
+    const html = renderToStaticMarkup(<EventsView stats={events} />);
+
+    expect(html).toContain("Recettes HelloAsso");
+    expect(html).toContain("30\u00a0€");
+    expect(html).toContain("ArchiLAN #3");
+    expect(html).toContain("2 / 10");
+    expect(html).toContain("20 %");
+    expect(html).toContain("Publié");
+  });
+
+  test("Events says when no event falls in the period", () => {
+    expect(renderToStaticMarkup(<EventsView stats={{ ...events, events: [] }} />)).toContain("Aucun événement sur la période.");
+  });
+
   test("Pelles shows the circulation, the flows and the reasons", () => {
     const html = renderToStaticMarkup(<PellesView stats={pelles} />);
 
@@ -159,6 +186,14 @@ describe("stats API", () => {
 
     server.use(http.get(`${BASE}/admin/stats/sessions`, () => HttpResponse.json({ ...sessions, topGames: [{ name: "x" }] })));
     expect(await fetchSessionStats("4s")).toBeNull();
+  });
+
+  test("fetches the Events section", async () => {
+    server.use(http.get(`${BASE}/admin/stats/events`, () => HttpResponse.json(events)));
+    expect(await fetchEventStats("4s")).toEqual(events);
+
+    server.use(http.get(`${BASE}/admin/stats/events`, () => HttpResponse.json({ ...events, revenueByType: {} })));
+    expect(await fetchEventStats("4s")).toBeNull();
   });
 
   test("a section in error or with an unexpected body is null", async () => {
