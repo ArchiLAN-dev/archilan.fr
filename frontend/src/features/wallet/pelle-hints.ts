@@ -32,9 +32,14 @@ export function isPelleHintTerms(v: unknown): v is PelleHintTerms {
   );
 }
 
-export async function fetchPelleHintTerms(sessionId: string, slotIndex: string): Promise<PelleHintTerms | null> {
+/** The API base of a slot page: `.../sessions/{id}/slots/{n}`, or `.../weekly-runs/{run}/entries/{entry}/slots/{n}` (story 41.8). */
+export function sessionSlotUrl(sessionId: string, slotIndex: string): string {
+  return `${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}`;
+}
+
+export async function fetchPelleHintTerms(slotUrl: string): Promise<PelleHintTerms | null> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/pelle-hints`);
+    const res = await apiFetch(`${slotUrl}/pelle-hints`);
     if (!res.ok) return null;
     const payload: unknown = await res.json();
     return isPelleHintTerms(payload) ? payload : null;
@@ -44,8 +49,8 @@ export async function fetchPelleHintTerms(sessionId: string, slotIndex: string):
 }
 
 /** Throws when the purchase fails, so the hint button shows the failure; a failed hint is refunded server side. */
-export async function buyPelleHint(sessionId: string, slotIndex: string, target: PelleHintTarget, requestId: string): Promise<void> {
-  const res = await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/pelle-hints`, {
+export async function buyPelleHint(slotUrl: string, target: PelleHintTarget, requestId: string): Promise<void> {
+  const res = await apiFetch(`${slotUrl}/pelle-hints`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...target, requestId }),
@@ -59,30 +64,31 @@ export function canAfford(terms: PelleHintTerms, price: number): boolean {
 }
 
 /**
- * The pelles option of the hint buttons of a slot page: undefined when the session does not sell hints for
- * pelles. Each purchase carries its own request id, minted when the player confirms.
+ * The pelles option of the hint buttons of a slot page: undefined when the session (or weekly) does not sell hints
+ * for pelles. `slotUrl` is the slot's API base, null while unknown. Each purchase carries its own request id, minted
+ * when the player confirms.
  */
-export function usePelleHintOffers(sessionId: string | null, slotIndex: string): {
+export function usePelleHintOffers(slotUrl: string | null): {
   item?: PelleHintOffer<string>;
   location?: PelleHintOffer<number>;
 } {
   const queryClient = useQueryClient();
   const { data } = useQuery({
-    queryKey: ["pelle-hint-terms", sessionId, slotIndex],
-    queryFn: () => (sessionId === null ? Promise.resolve(null) : fetchPelleHintTerms(sessionId, slotIndex)),
-    enabled: sessionId !== null,
+    queryKey: ["pelle-hint-terms", slotUrl],
+    queryFn: () => (slotUrl === null ? Promise.resolve(null) : fetchPelleHintTerms(slotUrl)),
+    enabled: slotUrl !== null,
     staleTime: DEFAULT_STALE_TIME,
     retry: false,
   });
 
-  if (sessionId === null || !data?.enabled) return {};
+  if (slotUrl === null || !data?.enabled) return {};
 
   async function buy(target: PelleHintTarget): Promise<void> {
-    if (sessionId === null) return;
+    if (slotUrl === null) return;
     try {
-      await buyPelleHint(sessionId, slotIndex, target, crypto.randomUUID());
+      await buyPelleHint(slotUrl, target, crypto.randomUUID());
     } finally {
-      await queryClient.invalidateQueries({ queryKey: ["pelle-hint-terms", sessionId, slotIndex] });
+      await queryClient.invalidateQueries({ queryKey: ["pelle-hint-terms", slotUrl] });
       await queryClient.invalidateQueries({ queryKey: ["my-wallet"] });
     }
   }

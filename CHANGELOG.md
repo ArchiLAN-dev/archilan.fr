@@ -5,6 +5,28 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.29.0] - 2026-10-03
+
+Les pelles arrivent dans les hebdos et sur la fiche de slot des événements, et les cadres vidéo d'avatar se gèrent
+depuis l'admin.
+
+### Ajouté
+
+- **Indices contre pelles dans les hebdos** (41.8) : la fiche de slot d'une hebdo propose l'achat d'un indice en
+  pelles en or quand l'hebdo le permet (réglage du profil hebdo, surchargeable par modèle), pendant une tentative en
+  cours.
+- **Fiche de slot des joueurs d'événement** (41.9) : la fiche des runs privées sert aussi aux joueurs d'un
+  événement (checks, objets, indices en points et en pelles, celles de l'événement d'abord, primes). Leurs cartes de
+  progression sur la page de session ouvrent leur fiche.
+- **Cadres vidéo gérés par l'admin** (41.10) : page « Cadres » de l'admin pour ajouter un cadre vidéo à partir de
+  ses quatre fichiers préparés (WebM, MP4, aperçu et image fixe WebP 512 x 512), choisir à qui il est ouvert (tout
+  le monde, adhérents, admins, boutique), le renommer, l'ordonner, le retirer ou le rétablir. Les Légendaires
+  existants s'ouvrent de la même façon. Un cadre « boutique » se met ensuite en vente dans la page Boutique.
+
+### Migrations
+
+- `Version20261003200000` : table `avatar_frame` (création, sans données).
+
 ## [0.28.0] - 2026-10-03
 
 Les Pelles, monnaie du site : un portefeuille, des pelles d'événement, des indices et des primes payés en pelles,

@@ -20,6 +20,7 @@ final readonly class ManageShop
     public function __construct(
         private ShopRepositoryInterface $shop,
         private ClockInterface $clock,
+        private ShopCatalog $catalog,
     ) {
     }
 
@@ -28,7 +29,7 @@ final readonly class ManageShop
      */
     public function list(string $type, string $cosmeticKey, int $price, ?\DateTimeImmutable $from, ?\DateTimeImmutable $until): ListedShopItem
     {
-        if (!\in_array($cosmeticKey, ShopCatalog::sellable()[$type] ?? [], true)) {
+        if (!\in_array($cosmeticKey, $this->catalog->sellable()[$type] ?? [], true)) {
             throw new ValidationException("Ce cosmétique n'est pas vendu en boutique.", ['cosmeticKey' => ['Cosmétique hors boutique.']], 'not_sellable');
         }
         try {

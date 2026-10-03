@@ -6,6 +6,7 @@ namespace App\Community\Application\Query;
 
 use App\Community\Application\Port\CosmeticOwnershipInterface;
 use App\Community\Application\Support\AchievementImageUrlResolver;
+use App\Community\Application\Support\AvatarFrameCatalog;
 use App\Community\Application\Support\AvatarUrlResolver;
 use App\Community\Application\Support\ProfileVisibility;
 use App\Community\Domain\Entity\CommunityProfile;
@@ -56,6 +57,7 @@ final readonly class CommunityProfileView
         private AchievementImageUrlResolver $achievementImages,
         private ClockInterface $clock,
         private CosmeticOwnershipInterface $cosmetics,
+        private AvatarFrameCatalog $frames,
     ) {
     }
 
@@ -127,7 +129,7 @@ final readonly class CommunityProfileView
                 ...$this->bannerImage($profile, $badges['admin'], $badges['member']),
                 'bannerOverlay' => $profile->getBannerOverlay(),
                 'bannerFraming' => $profile->getBannerFraming()->toArray(),
-                'avatarFrame' => AvatarFrame::displayed($profile->getAvatarFrame(), $badges['admin']),
+                'avatarFrame' => $this->frames->displayed($profile->getAvatarFrame(), $badges['admin']),
                 'socialLinks' => $profile->getSocialLinks(),
                 'favoriteGames' => $this->resolveFavoriteGames($profile->getFavoriteGameIds()),
                 'showcaseLayout' => $this->validShowcase($profile->getShowcaseLayout()),
@@ -264,7 +266,7 @@ final readonly class CommunityProfileView
      *
      * Story 30.40: the images are those the owner's status allows, and the upload rights say what they may send.
      *
-     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, legendaryFramesAllowed: bool, ownedFrames: list<string>, ownedBanners: list<string>, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, titledName: bool, titledNameStyle: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, legendaryFramesAllowed: bool, memberFramesAllowed: bool, ownedFrames: list<string>, ownedBanners: list<string>, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, titledName: bool, titledNameStyle: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId, bool $isAdmin): array
     {
@@ -283,9 +285,11 @@ final readonly class CommunityProfileView
             'bannerFraming' => ($profile?->getBannerFraming() ?? ImageFraming::centred())->toArray(),
             'hasCustomBanner' => null !== $banner['bannerImageUrl'],
             'bannerUpload' => ['image' => $isAdmin || $isMember, 'gif' => $isAdmin],
-            'avatarFrame' => AvatarFrame::displayed($profile?->getAvatarFrame(), $isAdmin),
+            'avatarFrame' => $this->frames->displayed($profile?->getAvatarFrame(), $isAdmin),
             // Story 30.46: the legendary (video) frames, admins only for a start.
             'legendaryFramesAllowed' => $isAdmin,
+            // Story 41.10: the frames reserved to members.
+            'memberFramesAllowed' => $isAdmin || $isMember,
             // Story 41.7: the shop cosmetics this member bought.
             'ownedFrames' => $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::FRAME),
             'ownedBanners' => $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::BANNER),

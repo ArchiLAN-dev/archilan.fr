@@ -59,6 +59,24 @@ final readonly class BuyHintWithPelles
         if (!$terms['enabled']) {
             throw new ForbiddenException('Cette partie ne vend pas de hints contre des pelles.', 'pelle_hints_disabled');
         }
+
+        return $this->sell($userId, $sessionId, $slotIndex, $kind, $itemName, $locationId, $requestId, $terms['itemPrice'], $terms['locationPrice'], $terms['eventId']);
+    }
+
+    /**
+     * The sale itself, once the caller checked its own conditions (a running session that sells hints, or a weekly
+     * attempt, story 41.8): debit, free hint from the bridge of `$bridgeSessionId`, refund if it was not given.
+     * `$eventId` names the event whose pelles pay first, null for gold only.
+     *
+     * @param 'item'|'location' $kind
+     *
+     * @throws ConflictException   when the hint failed (pelles refunded)
+     * @throws ForbiddenException  when the member is banned
+     * @throws ValidationException when the request is malformed or the member cannot pay
+     */
+    public function sell(string $userId, string $bridgeSessionId, int $slotIndex, string $kind, ?string $itemName, ?int $locationId, string $requestId, int $itemPrice, int $locationPrice, ?string $eventId): PelleHintPurchase
+    {
+        $sessionId = $bridgeSessionId;
         if ('' === $requestId || \strlen($requestId) > self::MAX_REQUEST_ID_LENGTH) {
             throw new ValidationException('Identifiant de requête manquant.', [], 'invalid_request_id');
         }
@@ -68,19 +86,19 @@ final readonly class BuyHintWithPelles
             if ('' === $itemName) {
                 throw new ValidationException('Quel objet ?', ['itemName' => ['Objet requis.']], 'validation_error');
             }
-            $price = $terms['itemPrice'];
+            $price = $itemPrice;
             $label = sprintf('Hint : %s', $itemName);
             $give = fn () => $this->gateway->hintItem($sessionId, $slotIndex, $itemName);
         } else {
             if (null === $locationId || $locationId < 0) {
                 throw new ValidationException('Quel lieu ?', ['locationId' => ['Lieu requis.']], 'validation_error');
             }
-            $price = $terms['locationPrice'];
+            $price = $locationPrice;
             $label = sprintf('Hint de lieu : #%d', $locationId);
             $give = fn () => $this->gateway->hintLocation($sessionId, $slotIndex, $locationId);
         }
 
-        [$purse, $eventId] = $this->purse($userId, $terms['eventId'], $price);
+        [$purse, $eventId] = $this->purse($userId, $eventId, $price);
 
         $debit = $this->record->record(new RecordPelleMovementInput(
             $userId, -$price, $purse, $eventId, PelleReason::HintPurchase, $label, null,

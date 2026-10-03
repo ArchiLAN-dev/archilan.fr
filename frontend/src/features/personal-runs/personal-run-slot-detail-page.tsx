@@ -44,8 +44,9 @@ import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/fea
 import { HINT_STATUS_NAMES, isHintsUpdate, isReachabilityData } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { ItemBountiesPanel } from "@/features/wallet/item-bounties";
-import { usePelleHintOffers } from "@/features/wallet/pelle-hints";
+import { sessionSlotUrl, usePelleHintOffers } from "@/features/wallet/pelle-hints";
 import type { PersonalRun } from "./types";
+import { fetchSessionConnection } from "@/features/events/events-api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -59,16 +60,37 @@ type PageState =
   | { kind: "imported" }
   | { kind: "error"; message: string };
 
-// ─── Inline slot switcher (navigates to /runs/[runId]/progression/[slot]) ────
+// ─── Inline slot switcher ────────────────────────────────────────────────────
+
+/**
+ * Where the slot page reads its session from (story 41.9): a personal run, or an event registration - the event
+ * player sees the same page, limited to the slots they play.
+ */
+export type SlotSource =
+  | { kind: "run"; runId: string }
+  | { kind: "event"; eventSlug: string; registrationId: string };
+
+export function slotPageHref(source: SlotSource, slotIndex: string): string {
+  return source.kind === "run"
+    ? `/runs/${source.runId}/progression/${slotIndex}`
+    : `/evenements/${source.eventSlug}/inscription/${source.registrationId}/session/slots/${slotIndex}`;
+}
+
+export function sourceHomeHref(source: SlotSource): string {
+  return source.kind === "run" ? `/runs/${source.runId}` : `/evenements/${source.eventSlug}/inscription/${source.registrationId}/session`;
+}
 
 function RunSlotSwitcher({
-  runId,
+  source,
   sessionId,
   currentSlot,
+  onlySlotNames,
 }: {
-  runId: string;
+  source: SlotSource;
   sessionId: string;
   currentSlot: string;
+  /** When set, only these slots are offered (an event player's own). */
+  onlySlotNames?: readonly string[];
 }) {
   const router = useRouter();
   const [slots, setSlots] = useState<{ index: string; name: string }[]>([]);
@@ -79,19 +101,19 @@ function RunSlotSwitcher({
       .then((r) => r.json())
       .then((json: { data?: { slots?: Record<string, { slot_name: string }> } }) => {
         const entries = Object.entries(json.data?.slots ?? {})
-          .filter(([, s]) => s.slot_name !== "Bridge")
+          .filter(([, s]) => s.slot_name !== "Bridge" && (onlySlotNames === undefined || onlySlotNames.includes(s.slot_name)))
           .map(([index, s]) => ({ index, name: s.slot_name }))
           .sort((a, b) => Number(a.index) - Number(b.index));
         setSlots(entries);
       })
       .catch(() => undefined);
-  }, [sessionId]);
+  }, [sessionId, onlySlotNames]);
 
   const filtered = filter.trim()
     ? slots.filter((s) => s.name.toLowerCase().includes(filter.trim().toLowerCase()))
     : slots;
 
-  if (slots.length === 0) return null;
+  if (slots.length < 2) return null;
 
   return (
     <div className="flex shrink-0 flex-col gap-1.5">
@@ -110,7 +132,7 @@ function RunSlotSwitcher({
           id="run-slot-switcher"
           onChange={(e) => {
             if (e.target.value && e.target.value !== currentSlot) {
-              router.push(`/runs/${runId}/progression/${e.target.value}`);
+              router.push(slotPageHref(source, e.target.value));
             }
           }}
           value={currentSlot}
@@ -137,19 +159,48 @@ export function PersonalRunSlotDetailPage({
   params: Promise<{ runId: string; slotIndex: string }>;
 }) {
   const { runId, slotIndex } = use(params);
+  return <SlotDetailPage slotIndex={slotIndex} source={{ kind: "run", runId }} />;
+}
+
+/** Story 41.9: an event player's own slot, the same page as a personal run's. */
+export function EventSlotDetailPage({
+  params,
+}: {
+  params: Promise<{ eventSlug: string; registrationId: string; slotIndex: string }>;
+}) {
+  const { eventSlug, registrationId, slotIndex } = use(params);
+  return <SlotDetailPage slotIndex={slotIndex} source={{ kind: "event", eventSlug, registrationId }} />;
+}
+
+function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: string }) {
+  const sourceKey = source.kind === "run" ? source.runId : source.registrationId;
   const { user } = useAuth();
   const isAdminUser = user?.roles.includes("ROLE_ADMIN") ?? false;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Fetch session ID from the personal run
+  // The session behind the page: the personal run's, or the event registration's (story 41.9).
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [ownSlotNames, setOwnSlotNames] = useState<string[] | undefined>(undefined);
   const [sessionFetchError, setSessionFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch(`${env.apiBaseUrl}/runs/${runId}`)
+    if (source.kind === "event") {
+      fetchSessionConnection(source.registrationId)
+        .then((result) => {
+          if (result.kind !== "success" || result.data.session === null) {
+            setSessionFetchError("Session non disponible pour cette inscription.");
+            return;
+          }
+          setOwnSlotNames(result.data.slots.map((slot) => slot.slotName));
+          setSessionId(result.data.session.id);
+        })
+        .catch(() => { setSessionFetchError("Impossible de charger la session."); });
+      return;
+    }
+    apiFetch(`${env.apiBaseUrl}/runs/${source.runId}`)
       .then((r) => {
         if (!r.ok) throw new Error(`${r.status}`);
         return r.json();
@@ -163,7 +214,9 @@ export function PersonalRunSlotDetailPage({
         setSessionId(json.data.sessionId);
       })
       .catch(() => { setSessionFetchError("Impossible de charger la partie."); });
-  }, [runId]);
+    // The source is identified by its key; the object itself is rebuilt on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source.kind, sourceKey]);
 
   // ─── Tabs ──────────────────────────────────────────────────────────────────
 
@@ -209,7 +262,7 @@ export function PersonalRunSlotDetailPage({
   const [hints, setHints] = useState<HintsData | null>(null);
   const [hintFree, setHintFree] = useState(false);
   // Story 41.3: hints bought with pelles, when the party sells them.
-  const pelleHints = usePelleHintOffers(sessionId, slotIndex);
+  const pelleHints = usePelleHintOffers(sessionId === null ? null : sessionSlotUrl(sessionId, slotIndex));
   const [itemSearch, setItemSearch] = useState("");
   const [itemSuggestOpen, setItemSuggestOpen] = useState(false);
   const [itemQty, setItemQty] = useState(1);
@@ -673,10 +726,10 @@ export function PersonalRunSlotDetailPage({
         <div className="mt-8">
           <Link
             className="inline-flex items-center gap-2 rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-            href={`/runs/${runId}`}
+            href={sourceHomeHref(source)}
           >
             <ArrowLeft aria-hidden className="size-4" />
-            Retour à la partie
+            {source.kind === "run" ? "Retour à la partie" : "Retour à la session"}
           </Link>
         </div>
       </div>
@@ -692,7 +745,7 @@ export function PersonalRunSlotDetailPage({
     );
   }
 
-  const backHref = `/runs/${runId}`;
+  const backHref = sourceHomeHref(source);
 
   return (
     <>
@@ -743,12 +796,12 @@ export function PersonalRunSlotDetailPage({
                 <p className="mt-1 font-mono text-sm text-muted-foreground">{state.data.game}</p>
               ) : null}
             </div>
-            <RunSlotSwitcher currentSlot={slotIndex} runId={runId} sessionId={sessionId} />
+            <RunSlotSwitcher currentSlot={slotIndex} onlySlotNames={ownSlotNames} sessionId={sessionId} source={source} />
           </div>
           <nav className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
             <Link className="inline-flex items-center gap-1 hover:text-foreground" href={backHref}>
               <ArrowLeft aria-hidden="true" className="size-3.5" />
-              Retour à la partie
+              {source.kind === "run" ? "Retour à la partie" : "Retour à la session"}
             </Link>
             {canToggleSpoilers && (
               <button

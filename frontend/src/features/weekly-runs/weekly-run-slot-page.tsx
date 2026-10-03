@@ -24,6 +24,7 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { isPlayersState } from "@/features/overlay/overlay-api";
 import { CheckListPanel, ItemListPanel } from "@/features/reachability/check-panels";
+import { usePelleHintOffers } from "@/features/wallet/pelle-hints";
 import { countItems, receivedItemsPercent } from "@/features/reachability/item-progress";
 import { FanfarePicker } from "@/features/reachability/fanfare-picker";
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
@@ -123,6 +124,8 @@ export function WeeklyRunSlotPage({
     staleTime: DEFAULT_STALE_TIME,
   });
   const slotIndex = selectedSlot ?? slots[0]?.index ?? null;
+  // Story 41.8: hints bought with gold pelles, when the weekly sells them.
+  const pelleHints = usePelleHintOffers(entryBaseUrl !== null && slotIndex !== null ? `${entryBaseUrl}/slots/${slotIndex}` : null);
 
   const [state, setState] = useState<PageState>({ kind: "idle" });
   const [refreshing, setRefreshing] = useState(false);
@@ -851,6 +854,7 @@ export function WeeklyRunSlotPage({
                     hintCost={hints?.hintCost ?? 0}
                     hintFree={false}
                     onHintRequest={handleHintLocation}
+                    pelleHint={pelleHints.location}
                     title="Checks faisables maintenant"
                     variant="reachable"
                   />
@@ -862,6 +866,7 @@ export function WeeklyRunSlotPage({
                     hintCost={hints?.hintCost ?? 0}
                     hintFree={false}
                     onHintRequest={handleHintLocation}
+                    pelleHint={pelleHints.location}
                     title="Checks non faisables"
                     variant="unreachable"
                   />
@@ -888,6 +893,7 @@ export function WeeklyRunSlotPage({
                   itemLocations={{}}
                   items={state.data.items_not_received ?? []}
                   onHintRequest={handleHintItem}
+                  pelleHint={pelleHints.item}
                   title="Items non reçus"
                   variant="not-received"
                 />

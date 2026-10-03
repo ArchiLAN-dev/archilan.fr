@@ -35,6 +35,8 @@ export type MyCommunityProfile = {
   avatarFrame: string | null;
   // Story 30.46: the legendary (video) frames, admins only for a start.
   legendaryFramesAllowed: boolean;
+  /** Story 41.10: the frames reserved to members (absent from an older API). */
+  memberFramesAllowed?: boolean;
   /** Story 41.7: the shop cosmetics this member bought (absent from an older API). */
   ownedFrames?: string[];
   ownedBanners?: string[];
