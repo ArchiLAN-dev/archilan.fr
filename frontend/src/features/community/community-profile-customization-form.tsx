@@ -128,6 +128,7 @@ export function CommunityProfileCustomizationForm({
   const [legendaryAllowed, setLegendaryAllowed] = useState(false);
   // Story 41.7: the shop frames and banners this member bought.
   const [ownedFrames, setOwnedFrames] = useState<string[]>([]);
+  const [memberFramesAllowed, setMemberFramesAllowed] = useState(false);
   const [ownedBanners, setOwnedBanners] = useState<string[]>([]);
   // Story 30.43: the framing of the uploaded photo and banner image, saved with the profile; the dialog that sets it.
   const [avatarFraming, setAvatarFraming] = useState<ImageFraming>(CENTRED_FRAMING);
@@ -205,6 +206,7 @@ export function CommunityProfileCustomizationForm({
     setSavedAvatarFrame(frame);
     setLegendaryAllowed(profile.legendaryFramesAllowed);
     setOwnedFrames(profile.ownedFrames ?? []);
+    setMemberFramesAllowed(profile.memberFramesAllowed ?? false);
     setOwnedBanners(profile.ownedBanners ?? []);
     // The editor previews the photo as it moves on the profile page (story 30.42).
     setAvatarUrl(profile.avatarAnimatedUrl ?? profile.avatarUrl);
@@ -586,6 +588,7 @@ export function CommunityProfileCustomizationForm({
         banner={{ presetKey: bannerPreset, imageUrl: bannerImageUrl, framing: bannerFraming, overlay: bannerOverlay }}
         current={avatarFrame}
         legendaryAllowed={legendaryAllowed}
+        memberAllowed={memberFramesAllowed}
         ownedFrames={ownedFrames}
         onApply={setAvatarFrame}
         onOpenChange={setFramePickerOpen}

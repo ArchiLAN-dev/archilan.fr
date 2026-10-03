@@ -36,7 +36,7 @@ describe("FramePicker", () => {
     const locked = buttons(html).filter((b) => isDisabled(b) && b.includes("aria-pressed"));
     expect(locked).toHaveLength(AVATAR_FRAMES.filter((f) => f.category === "Légendaires").length);
     expect(html).toContain("Feu (réservé aux admins)");
-    expect(html).toContain("réservés aux admins pour l&#x27;instant");
+    expect(html).toContain('title="Réservé aux admins pour l&#x27;instant"');
   });
 
   test("an admin can pick them", () => {
@@ -53,3 +53,44 @@ describe("FramePicker", () => {
     expect(html).toContain("/avatar-frames/glitch-still.webp");
   });
 });
+
+/** Story 41.10: the admin catalog adds frames and sets the access of every video frame. */
+describe("FramePicker with the admin catalog", () => {
+  const video = { webm: "https://m.test/c.webm", mp4: "https://m.test/c.mp4", poster: "https://m.test/c.webp", still: "https://m.test/s.webp" };
+
+  test("an uploaded frame joins the Légendaires, locked by its access", () => {
+    const html = renderToStaticMarkup(
+      <FramePicker
+        avatar={AVATAR}
+        banner={BANNER}
+        catalog={[{ key: "comet", label: "Comète", access: "members", builtIn: false, video }]}
+        current="gold"
+        legendaryAllowed={false}
+        onApply={noop}
+        onCancel={noop}
+        saved="gold"
+      />,
+    );
+
+    expect(html).toContain("Comète (réservé aux adhérents)");
+  });
+
+  test("a built-in frame opened to everyone is no longer locked", () => {
+    const html = renderToStaticMarkup(
+      <FramePicker
+        avatar={AVATAR}
+        banner={BANNER}
+        catalog={[{ key: "fire", label: "Feu", access: "free", builtIn: true, video: null }]}
+        current="gold"
+        legendaryAllowed={false}
+        onApply={noop}
+        onCancel={noop}
+        saved="gold"
+      />,
+    );
+
+    expect(html).not.toContain("Feu (réservé aux admins)");
+    expect(html).toContain("Électrique (réservé aux admins)");
+  });
+});
+

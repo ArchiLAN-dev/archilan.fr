@@ -17,6 +17,7 @@ final readonly class ShopQuery
     public function __construct(
         private ShopRepositoryInterface $shop,
         private ClockInterface $clock,
+        private ShopCatalog $catalog,
     ) {
     }
 
@@ -69,6 +70,6 @@ final readonly class ShopQuery
             },
         ], $this->shop->allItems());
 
-        return ['items' => $items, 'sellable' => ShopCatalog::sellable()];
+        return ['items' => $items, 'sellable' => $this->catalog->sellable()];
     }
 }

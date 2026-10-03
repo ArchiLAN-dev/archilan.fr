@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Community\Application\Command;
 
 use App\Community\Application\Port\CosmeticOwnershipInterface;
+use App\Community\Application\Support\AvatarFrameCatalog;
 use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\ValueObject\Audience;
-use App\Community\Domain\ValueObject\AvatarFrame;
 use App\Community\Domain\ValueObject\BannerOverlay;
 use App\Community\Domain\ValueObject\BannerPreset;
 use App\Community\Domain\ValueObject\ImageFraming;
 use App\Community\Domain\ValueObject\ShowcaseWidget;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 
@@ -32,6 +33,8 @@ final readonly class UpdateCommunityProfile
         private GameRepositoryInterface $games,
         private ClockInterface $clock,
         private CosmeticOwnershipInterface $cosmetics,
+        private AvatarFrameCatalog $frames,
+        private ActiveMembershipQueryInterface $memberships,
     ) {
     }
 
@@ -85,11 +88,16 @@ final readonly class UpdateCommunityProfile
         }
 
         $avatarFrame = is_string($input['avatarFrame'] ?? null) && '' !== $input['avatarFrame'] ? $input['avatarFrame'] : null;
-        if (null !== $avatarFrame && !AvatarFrame::isValid($avatarFrame)) {
+        if (null !== $avatarFrame && !$this->frames->isValid($avatarFrame)) {
             $errors->add('avatarFrame', 'Cadre invalide.');
-        } elseif (null !== $avatarFrame && !AvatarFrame::allowedFor($avatarFrame, $isAdmin, $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::FRAME))) {
-            // Story 41.7: a shop frame is for who bought it, a legendary one for admins.
-            $errors->add('avatarFrame', AvatarFrame::isLegendary($avatarFrame) ? 'Cadre réservé aux admins.' : 'Cadre à acheter en boutique.');
+        } elseif (null !== $avatarFrame && !$this->frames->allowedFor(
+            $avatarFrame,
+            $isAdmin,
+            $this->memberships->hasActiveMembership($userId),
+            $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::FRAME),
+        )) {
+            // Stories 41.7 and 41.10: a frame may be for admins, members, or who bought it.
+            $errors->add('avatarFrame', $this->frames->refusal($avatarFrame));
         }
 
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);
