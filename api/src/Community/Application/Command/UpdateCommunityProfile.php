@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Command;
 
+use App\Community\Application\Port\CosmeticOwnershipInterface;
 use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\ValueObject\Audience;
@@ -30,6 +31,7 @@ final readonly class UpdateCommunityProfile
         private CommunityProfileRepositoryInterface $profiles,
         private GameRepositoryInterface $games,
         private ClockInterface $clock,
+        private CosmeticOwnershipInterface $cosmetics,
     ) {
     }
 
@@ -51,6 +53,9 @@ final readonly class UpdateCommunityProfile
         $bannerPreset = is_string($input['bannerPreset'] ?? null) ? $input['bannerPreset'] : BannerPreset::DEFAULT;
         if (!BannerPreset::isValid($bannerPreset)) {
             $errors->add('bannerPreset', 'Bannière invalide.');
+        } elseif (!BannerPreset::allowedFor($bannerPreset, $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::BANNER))) {
+            // Story 41.7: a shop banner is for who bought it.
+            $errors->add('bannerPreset', 'Bannière à acheter en boutique.');
         }
 
         // Story 30.41: an omitted intensity keeps what the profile holds.
@@ -82,8 +87,9 @@ final readonly class UpdateCommunityProfile
         $avatarFrame = is_string($input['avatarFrame'] ?? null) && '' !== $input['avatarFrame'] ? $input['avatarFrame'] : null;
         if (null !== $avatarFrame && !AvatarFrame::isValid($avatarFrame)) {
             $errors->add('avatarFrame', 'Cadre invalide.');
-        } elseif (null !== $avatarFrame && !AvatarFrame::allowedFor($avatarFrame, $isAdmin)) {
-            $errors->add('avatarFrame', 'Cadre réservé aux admins.');
+        } elseif (null !== $avatarFrame && !AvatarFrame::allowedFor($avatarFrame, $isAdmin, $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::FRAME))) {
+            // Story 41.7: a shop frame is for who bought it, a legendary one for admins.
+            $errors->add('avatarFrame', AvatarFrame::isLegendary($avatarFrame) ? 'Cadre réservé aux admins.' : 'Cadre à acheter en boutique.');
         }
 
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);
