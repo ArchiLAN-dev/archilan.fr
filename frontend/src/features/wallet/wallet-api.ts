@@ -22,14 +22,6 @@ export type Wallet = {
   history: { items: PelleMovement[]; page: number; perPage: number; total: number };
 };
 
-export type PelleCirculation = {
-  goldInCirculation: number;
-  created: number;
-  destroyed: number;
-  weeks: { weekStart: string; created: number; destroyed: number }[];
-  byReason: { reason: string; created: number; destroyed: number }[];
-};
-
 export type AdjustPellesInput = {
   direction: "credit" | "debit";
   amount: number;
@@ -101,23 +93,6 @@ export function isWallet(v: unknown): v is Wallet {
   );
 }
 
-function isFlow(v: unknown): v is { created: number; destroyed: number } {
-  return typeof v === "object" && v !== null && hasNumberProp(v, "created") && hasNumberProp(v, "destroyed");
-}
-
-export function isCirculation(v: unknown): v is PelleCirculation {
-  return (
-    isFlow(v) &&
-    hasNumberProp(v, "goldInCirculation") &&
-    "weeks" in v &&
-    Array.isArray(v.weeks) &&
-    v.weeks.every((w) => isFlow(w) && hasStringProp(w, "weekStart")) &&
-    "byReason" in v &&
-    Array.isArray(v.byReason) &&
-    v.byReason.every((r) => isFlow(r) && hasStringProp(r, "reason"))
-  );
-}
-
 async function fetchWallet(url: string): Promise<Wallet | null> {
   try {
     const res = await apiFetch(url);
@@ -137,17 +112,6 @@ export function fetchMyWallet(page = 1): Promise<Wallet | null> {
 /** A member's wallet, read by an admin before crediting or debiting it. */
 export function fetchMemberWallet(userId: string): Promise<Wallet | null> {
   return fetchWallet(`${env.apiBaseUrl}/admin/users/${userId}/pelles`);
-}
-
-export async function fetchPelleCirculation(): Promise<PelleCirculation | null> {
-  try {
-    const res = await apiFetch(`${env.apiBaseUrl}/admin/pelles/circulation`);
-    if (!res.ok) return null;
-    const payload: unknown = await res.json();
-    return isCirculation(payload) ? payload : null;
-  } catch {
-    return null;
-  }
 }
 
 /** The server owns the rules (bounds, balance, self-adjustment); this relays its message. */
