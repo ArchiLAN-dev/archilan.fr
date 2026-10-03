@@ -27,6 +27,8 @@ export type AvatarFrameConfig = {
   color?: string;
   /** the overlay of the video variant */
   video?: AvatarFrameVideo;
+  /** Story 41.7: sold in the shop, usable only once bought (none yet: drawn by members). */
+  shop?: boolean;
 };
 
 /** A video frame whose assets are `/avatar-frames/<file>.webm|.mp4`, `<file>-poster.webp` and `<file>-still.webp`. */

@@ -126,6 +126,9 @@ export function CommunityProfileCustomizationForm({
   const [savedAvatarFrame, setSavedAvatarFrame] = useState<string | null>(null);
   const [framePickerOpen, setFramePickerOpen] = useState(false);
   const [legendaryAllowed, setLegendaryAllowed] = useState(false);
+  // Story 41.7: the shop frames and banners this member bought.
+  const [ownedFrames, setOwnedFrames] = useState<string[]>([]);
+  const [ownedBanners, setOwnedBanners] = useState<string[]>([]);
   // Story 30.43: the framing of the uploaded photo and banner image, saved with the profile; the dialog that sets it.
   const [avatarFraming, setAvatarFraming] = useState<ImageFraming>(CENTRED_FRAMING);
   const [bannerFraming, setBannerFraming] = useState<ImageFraming>(CENTRED_FRAMING);
@@ -201,6 +204,8 @@ export function CommunityProfileCustomizationForm({
     setAvatarFrame(frame);
     setSavedAvatarFrame(frame);
     setLegendaryAllowed(profile.legendaryFramesAllowed);
+    setOwnedFrames(profile.ownedFrames ?? []);
+    setOwnedBanners(profile.ownedBanners ?? []);
     // The editor previews the photo as it moves on the profile page (story 30.42).
     setAvatarUrl(profile.avatarAnimatedUrl ?? profile.avatarUrl);
     setHasCustomAvatar(profile.hasCustomAvatar);
@@ -390,9 +395,13 @@ export function CommunityProfileCustomizationForm({
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {BANNER_PRESETS.map((preset) => {
             const selected = bannerPreset === preset.key;
+            // Story 41.7: a shop banner stays locked until bought.
+            const inShop = true === preset.shop && !ownedBanners.includes(preset.key);
             return (
               <button
                 aria-pressed={selected}
+                disabled={inShop}
+                title={inShop ? "En boutique" : undefined}
                 className={`group overflow-hidden rounded-lg border text-left transition-colors ${
                   selected ? "border-accent ring-2 ring-accent/40" : "border-border hover:border-accent/60"
                 }`}
@@ -577,6 +586,7 @@ export function CommunityProfileCustomizationForm({
         banner={{ presetKey: bannerPreset, imageUrl: bannerImageUrl, framing: bannerFraming, overlay: bannerOverlay }}
         current={avatarFrame}
         legendaryAllowed={legendaryAllowed}
+        ownedFrames={ownedFrames}
         onApply={setAvatarFrame}
         onOpenChange={setFramePickerOpen}
         open={framePickerOpen}

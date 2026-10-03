@@ -35,6 +35,9 @@ export type MyCommunityProfile = {
   avatarFrame: string | null;
   // Story 30.46: the legendary (video) frames, admins only for a start.
   legendaryFramesAllowed: boolean;
+  /** Story 41.7: the shop cosmetics this member bought (absent from an older API). */
+  ownedFrames?: string[];
+  ownedBanners?: string[];
   // Resolved avatar URL (custom upload presigned, else external cache); null = render the default.
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
@@ -90,6 +93,9 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
   if (!hasNullableStringProp(v, "bannerImageUrl") || !hasNullableStringProp(v, "bannerImageStillUrl")) return false;
   if (!hasBooleanProp(v, "hasCustomBanner") || !hasBooleanProp(v, "avatarGifAllowed")) return false;
   if (!hasBooleanProp(v, "legendaryFramesAllowed")) return false;
+  // Story 41.7: optional, but a list of keys when present.
+  if ("ownedFrames" in v && !isKeyList(v.ownedFrames)) return false;
+  if ("ownedBanners" in v && !isKeyList(v.ownedBanners)) return false;
   if (!hasBooleanProp(v, "titledName") || !("titledNameStyle" in v) || (v.titledNameStyle !== null && !isNameStyle(v.titledNameStyle))) {
     return false;
   }
@@ -231,3 +237,7 @@ export const SHOWCASE_WIDGET_LABELS: Record<string, string> = {
   best_runs: "Meilleures runs",
   most_played: "Les plus joués",
 };
+
+function isKeyList(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((k: unknown) => typeof k === "string");
+}
