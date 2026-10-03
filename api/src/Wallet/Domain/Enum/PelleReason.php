@@ -16,4 +16,8 @@ enum PelleReason: string
     // Story 41.3: a hint bought with pelles, and its refund when the hint could not be given.
     case HintPurchase = 'hint_purchase';
     case HintRefund = 'hint_refund';
+    // Story 41.4: a bounty's pelles held, paid to the sender of the item, or given back.
+    case BountyEscrow = 'bounty_escrow';
+    case BountyReward = 'bounty_reward';
+    case BountyRefund = 'bounty_refund';
 }

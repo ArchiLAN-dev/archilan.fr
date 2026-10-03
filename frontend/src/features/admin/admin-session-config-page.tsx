@@ -209,6 +209,14 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
           <NumberField hint={sessionConfigHelp.pelleItemHintPrice} label="Prix d'un indice d'objet (pelles)" max={1000} min={1} onChange={(n) => patchServer({ pelleItemHintPrice: n })} value={server.pelleItemHintPrice} />
           <NumberField hint={sessionConfigHelp.pelleLocationHintPrice} label="Prix d'un indice de lieu (pelles)" max={1000} min={1} onChange={(n) => patchServer({ pelleLocationHintPrice: n })} value={server.pelleLocationHintPrice} />
         </div>
+        <div className="mt-4">
+          <SwitchRow
+            checked={server.pelleBounties}
+            description={sessionConfigHelp.pelleBounties}
+            label="Primes en pelles sur les objets"
+            onChange={(c) => patchServer({ pelleBounties: c })}
+          />
+        </div>
       </Section>
 
       <Section description="Comportement de la salle et règles de la partie." title="Salle & partie">

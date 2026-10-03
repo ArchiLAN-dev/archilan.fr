@@ -14,6 +14,8 @@ export const sessionConfigHelp: Record<string, string> = {
     "Commande !remaining : permet à un joueur de demander la liste des objets qu'il doit encore recevoir.",
   pelleHints:
     "Permet aux joueurs d'acheter un indice avec leurs pelles (pelles de l'événement d'abord, puis pelles en or). Sans effet sur les points d'indice Archipelago.",
+  pelleBounties:
+    "Permet aux joueurs d'offrir des pelles en or à qui leur enverra un objet précis ; 10 % de la prime sont détruits au versement.",
   pelleItemHintPrice: "Prix en pelles d'un indice sur un objet (où se trouve tel objet).",
   pelleLocationHintPrice: "Prix en pelles d'un indice sur un lieu (ce que cache tel check).",
   hintCost:

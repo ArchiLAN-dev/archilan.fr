@@ -38,6 +38,7 @@ final readonly class SessionConfig
         $server['pelleHints'] = $this->server->pelleHints;
         $server['pelleItemHintPrice'] = $this->server->pelleItemHintPrice;
         $server['pelleLocationHintPrice'] = $this->server->pelleLocationHintPrice;
+        $server['pelleBounties'] = $this->server->pelleBounties;
 
         return [
             'server' => $server,
@@ -81,6 +82,7 @@ final readonly class SessionConfig
                 pelleHints: self::optBool($server, 'pelleHints') ?? false,
                 pelleItemHintPrice: self::optInt($server, 'pelleItemHintPrice') ?? SessionServerConfig::DEFAULT_PELLE_ITEM_HINT_PRICE,
                 pelleLocationHintPrice: self::optInt($server, 'pelleLocationHintPrice') ?? SessionServerConfig::DEFAULT_PELLE_LOCATION_HINT_PRICE,
+                pelleBounties: self::optBool($server, 'pelleBounties') ?? false,
             ),
             new SessionGenerationConfig(
                 $plando,
@@ -257,6 +259,7 @@ final readonly class SessionConfig
                 pelleHints: $o->pelleHints ?? $this->server->pelleHints,
                 pelleItemHintPrice: $o->pelleItemHintPrice ?? $this->server->pelleItemHintPrice,
                 pelleLocationHintPrice: $o->pelleLocationHintPrice ?? $this->server->pelleLocationHintPrice,
+                pelleBounties: $o->pelleBounties ?? $this->server->pelleBounties,
             ),
             new SessionGenerationConfig(
                 plandoOptions: $o->plandoOptions ?? $this->generation->plandoOptions,

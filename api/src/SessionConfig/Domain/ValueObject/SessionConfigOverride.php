@@ -37,6 +37,7 @@ final readonly class SessionConfigOverride
         public ?bool $pelleHints = null,
         public ?int $pelleItemHintPrice = null,
         public ?int $pelleLocationHintPrice = null,
+        public ?bool $pelleBounties = null,
     ) {
     }
 
@@ -63,6 +64,7 @@ final readonly class SessionConfigOverride
             pelleHints: $c->server->pelleHints,
             pelleItemHintPrice: $c->server->pelleItemHintPrice,
             pelleLocationHintPrice: $c->server->pelleLocationHintPrice,
+            pelleBounties: $c->server->pelleBounties,
         );
     }
 
@@ -122,6 +124,9 @@ final readonly class SessionConfigOverride
         if (null !== $this->pelleLocationHintPrice) {
             $out['pelleLocationHintPrice'] = $this->pelleLocationHintPrice;
         }
+        if (null !== $this->pelleBounties) {
+            $out['pelleBounties'] = $this->pelleBounties;
+        }
 
         return $out;
     }
@@ -162,6 +167,7 @@ final readonly class SessionConfigOverride
             pelleHints: isset($data['pelleHints']) && is_bool($data['pelleHints']) ? $data['pelleHints'] : null,
             pelleItemHintPrice: isset($data['pelleItemHintPrice']) && is_int($data['pelleItemHintPrice']) ? $data['pelleItemHintPrice'] : null,
             pelleLocationHintPrice: isset($data['pelleLocationHintPrice']) && is_int($data['pelleLocationHintPrice']) ? $data['pelleLocationHintPrice'] : null,
+            pelleBounties: isset($data['pelleBounties']) && is_bool($data['pelleBounties']) ? $data['pelleBounties'] : null,
         );
     }
 
@@ -182,6 +188,7 @@ final readonly class SessionConfigOverride
             && null === $this->spoiler
             && null === $this->pelleHints
             && null === $this->pelleItemHintPrice
-            && null === $this->pelleLocationHintPrice;
+            && null === $this->pelleLocationHintPrice
+            && null === $this->pelleBounties;
     }
 }

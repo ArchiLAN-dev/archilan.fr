@@ -43,6 +43,7 @@ import { SphereLine } from "@/features/reachability/sphere-line";
 import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { HINT_STATUS_NAMES, isHintsUpdate, isReachabilityData } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
+import { ItemBountiesPanel } from "@/features/wallet/item-bounties";
 import { usePelleHintOffers } from "@/features/wallet/pelle-hints";
 import type { PersonalRun } from "./types";
 
@@ -1207,6 +1208,16 @@ export function PersonalRunSlotDetailPage({
             {/* Items tab */}
             {activeTab === "items" ? (
               <div className="grid gap-6 lg:grid-cols-2">
+                {/* Story 41.4: bounties in pelles on the items still missing, when the party has them. */}
+                {sessionId ? (
+                  <div className="lg:col-span-2">
+                    <ItemBountiesPanel
+                      missingItems={(state.data.items_not_received ?? []).map((item) => item.name)}
+                      sessionId={sessionId}
+                      slotIndex={slotIndex}
+                    />
+                  </div>
+                ) : null}
                 <ItemListPanel
                   emptyMessage="Aucun item reçu."
                   hideSpoilers={hideSpoilers}

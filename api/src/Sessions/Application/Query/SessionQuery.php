@@ -152,7 +152,7 @@ final readonly class SessionQuery
      * The generated slot name Archipelago gave to $slotIndex, read from the last players state the
      * bridge pushed (payload shape: {"slots": {"<archipelago slot>": {"slot_name": "..."}}}).
      */
-    private function archipelagoSlotName(string $sessionId, int $slotIndex): ?string
+    public function archipelagoSlotName(string $sessionId, int $slotIndex): ?string
     {
         $snapshot = $this->snapshots->findBySessionId($sessionId);
         if (!$snapshot instanceof SessionPlayersSnapshot) {

@@ -43,6 +43,9 @@ export const PELLE_REASON_LABELS: Record<string, string> = {
   event_expired: "Expiration (fin d'événement)",
   hint_purchase: "Achat d'un indice",
   hint_refund: "Remboursement d'un indice",
+  bounty_escrow: "Prime posée",
+  bounty_reward: "Prime gagnée",
+  bounty_refund: "Prime rendue",
 };
 
 export function pelleReasonLabel(reason: string): string {
