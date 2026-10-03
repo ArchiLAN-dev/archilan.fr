@@ -75,10 +75,13 @@ export function PlayerProgressGrid({
   runId,
   eventId,
   personalRunId,
+  slotHref,
 }: {
   runId: string;
   eventId?: string;
   personalRunId?: string;
+  /** Story 41.9: a link per slot, chosen by the caller (an event player links only their own slots). */
+  slotHref?: (slotIndex: string, slotName: string) => string | undefined;
 }) {
   const [state, setState] = useState<GridState>({ kind: "loading" });
   const [showReconnect, setShowReconnect] = useState(false);
@@ -260,7 +263,9 @@ export function PlayerProgressGrid({
             <SlotCard
               key={slotIndex}
               href={
-                eventId
+                slotHref
+                  ? slotHref(slotIndex, slot.slot_name)
+                  : eventId
                   ? `/admin/evenements/${eventId}/session/${runId}/slots/${slotIndex}`
                   : personalRunId
                     ? `/runs/${personalRunId}/progression/${slotIndex}`
