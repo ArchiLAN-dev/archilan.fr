@@ -109,7 +109,7 @@ export function ContributionsModerationPanel({ params, onParams }: { params: URL
               <ContributionCard
                 busy={busyId === item.id}
                 item={item}
-                onApprove={() => run(item.id, () => approveContribution(item.id))}
+                onApprove={(pelles) => run(item.id, () => approveContribution(item.id, pelles))}
                 onReject={(reason) => run(item.id, () => rejectContribution(item.id, reason))}
               />
             </li>
@@ -128,12 +128,16 @@ function ContributionCard({
 }: {
   item: ContributionItem;
   busy: boolean;
-  onApprove: () => Promise<void>;
+  onApprove: (pelles: number) => Promise<void>;
   onReject: (reason: string) => Promise<void>;
 }) {
   // Story 39.11: approving replaces the whole tutorial, so it is confirmed; rejecting asks its reason in a window.
   const [confirming, setConfirming] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  // Story 41.5: gold pelles for the author, chosen at each approval; empty means none.
+  const [pelles, setPelles] = useState("");
+  const parsedPelles = Number.parseInt(pelles, 10);
+  const reward = Number.isInteger(parsedPelles) && parsedPelles > 0 ? Math.min(parsedPelles, 1000) : 0;
 
   return (
     <article className="grid gap-4 rounded-lg border border-border bg-surface p-5">
@@ -189,9 +193,21 @@ function ContributionCard({
           <>
             La version proposée <strong className="text-foreground">remplace l&apos;intégralité</strong> du tutoriel de{" "}
             {item.target}.
+            <label className="mt-3 grid gap-1 text-sm">
+              <span className="font-medium text-foreground">Pelles en or pour l&apos;auteur (0 à 1 000, vide = aucune)</span>
+              <input
+                className="min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                inputMode="numeric"
+                max={1000}
+                min={0}
+                onChange={(e) => setPelles(e.target.value)}
+                type="number"
+                value={pelles}
+              />
+            </label>
           </>
         }
-        onConfirm={() => void onApprove().then(() => setConfirming(false))}
+        onConfirm={() => void onApprove(reward).then(() => setConfirming(false))}
         onOpenChange={setConfirming}
         open={confirming}
         pending={busy}

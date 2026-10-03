@@ -1,6 +1,6 @@
 # Story 41.5: Contributions validées
 
-**Status:** in-progress
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-10-03
 
@@ -30,11 +30,18 @@ Les contributions de tutoriels (epic 31, story 31.7) sont validées par un admin
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-4) - Montant dans la commande de modération et l'endpoint ; tests fonctionnels.
-- [ ] **Task 2** (AC 5) - Front ; tests.
-- [ ] **Task 3** (AC 6) - Gates.
+- [x] **Task 1** (AC 1-4) - Montant dans la commande de modération et l'endpoint ; tests fonctionnels.
+- [x] **Task 2** (AC 5) - Front ; tests.
+- [x] **Task 3** (AC 6) - Gates.
 
 ## Notes techniques
 
 - GameSelection dépend de Wallet (`RecordPelleMovement`), jamais l'inverse.
 - Le crédit passe avec `byAdmin` : c'est une décision d'admin, comme un crédit depuis la fiche membre.
+
+## Dev Agent Record
+
+- `ModerateGameTutorialContribution::approve()` prend `$pelles` (0 à 1 000) ; le crédit `contribution_reward` et la
+  sauvegarde de la contribution passent dans la même transaction (fermeture de `RecordPelleMovement`).
+- `POST /api/v1/admin/game-contributions/{id}/approve` accepte `pelles` ; absent = 0.
+- Front : champ « Pelles en or pour l'auteur » dans la fenêtre « Approuver ».
