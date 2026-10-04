@@ -165,7 +165,7 @@ export function CommunityHub({
           </a>
           <Link
             className="card-glow rounded-lg border border-border p-6 transition-colors hover:border-accent"
-            href="/adhesion"
+            href="/boutique?onglet=asso#adhesion"
           >
             <Trophy aria-hidden className="mb-4 size-7 text-accent-text" />
             <h3 className="font-heading text-lg font-semibold text-foreground">Adhérer à l&apos;association</h3>

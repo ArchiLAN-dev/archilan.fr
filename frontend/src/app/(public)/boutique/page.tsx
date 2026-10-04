@@ -1,22 +1,24 @@
 import { buildPageMetadata } from "@/lib/seo";
 import Link from "next/link";
-import { RefreshCw } from "lucide-react";
+import { getDonationCheckoutUrl } from "@/features/payments/donation-api";
+import { getMembershipCheckoutUrl } from "@/features/payments/membership-api";
 import { getShopCheckoutUrl } from "@/features/payments/shop-api";
-import { ShopCheckout } from "@/features/payments/shop-checkout";
+import { SupportArchilan } from "@/features/payments/support-archilan";
 import { CosmeticShop } from "@/features/wallet/shop-page";
 
 export const metadata = buildPageMetadata({
   title: "Boutique",
   description:
-    "La boutique ArchiLAN : cadres et bannières de profil à gagner en pelles, et articles officiels (sweats, stickers) via HelloAsso.",
+    "La boutique ArchiLAN : cadres et bannières de profil à gagner en pelles, et de quoi soutenir l'association - adhésion, don, articles officiels via HelloAsso.",
   path: "/boutique",
 });
 
 const ASSO_TAB = "asso";
 
 /**
- * « Boutique » (story 41.12): one shop, two tabs - the cosmetics sold for pelles (story 41.7) and the association's
- * HelloAsso shop. The tab lives in the address so each can be linked.
+ * « Boutique » (story 41.12): one shop, two tabs - the cosmetics sold for pelles (story 41.7) and, story 41.13,
+ * « Soutenir ArchiLAN »: membership, donation and official items through HelloAsso. The tab lives in the address so
+ * each can be linked.
  */
 export default async function BoutiquePage({ searchParams }: { searchParams: Promise<{ onglet?: string }> }) {
   const { onglet } = await searchParams;
@@ -27,16 +29,16 @@ export default async function BoutiquePage({ searchParams }: { searchParams: Pro
       <header>
         <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">Boutique</p>
         <h1 className="font-heading text-4xl font-bold leading-tight text-foreground md:text-5xl">
-          {asso ? "Articles ArchiLAN" : "Cosmétiques"}
+          {asso ? "Soutenir ArchiLAN" : "Cosmétiques"}
         </h1>
       </header>
 
       <nav aria-label="Rayons de la boutique" className="flex gap-2 border-b border-border">
         <ShopTab active={!asso} href="/boutique" label="Cosmétiques" />
-        <ShopTab active={asso} href={`/boutique?onglet=${ASSO_TAB}`} label="Articles ArchiLAN" />
+        <ShopTab active={asso} href={`/boutique?onglet=${ASSO_TAB}`} label="Soutenir ArchiLAN" />
       </nav>
 
-      {asso ? <AssoShop /> : <CosmeticShop />}
+      {asso ? <SupportTab /> : <CosmeticShop />}
     </div>
   );
 }
@@ -55,36 +57,7 @@ function ShopTab({ href, label, active }: { href: string; label: string; active:
   );
 }
 
-async function AssoShop() {
-  const checkoutEmbedUrl = await getShopCheckoutUrl();
-
-  return (
-    <div className="grid gap-6">
-      <p className="text-lg leading-8 text-muted-foreground">
-        Sweats, stickers et autres produits officiels ArchiLAN. Les commandes sont gerees via HelloAsso et n&apos;incluent pas
-        l&apos;inscription aux evenements.
-      </p>
-      {checkoutEmbedUrl ? (
-        <ShopCheckout checkoutEmbedUrl={checkoutEmbedUrl} />
-      ) : (
-        <div className="flex items-start gap-4 card-glow rounded-lg border border-border p-6">
-          <RefreshCw aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-          <div>
-            <p className="font-semibold text-foreground">Boutique temporairement indisponible</p>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              La boutique n&apos;est pas accessible pour le moment. Reessaie dans quelques instants ou contacte-nous via Discord si le
-              probleme persiste.
-            </p>
-            <Link
-              className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded border border-border bg-background px-3 text-sm font-semibold text-foreground hover:border-accent"
-              href={`/boutique?onglet=${ASSO_TAB}`}
-            >
-              <RefreshCw aria-hidden="true" className="size-4" />
-              Reessayer
-            </Link>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+async function SupportTab() {
+  const [membership, donation, shop] = await Promise.all([getMembershipCheckoutUrl(), getDonationCheckoutUrl(), getShopCheckoutUrl()]);
+  return <SupportArchilan forms={{ membership, donation, shop }} />;
 }

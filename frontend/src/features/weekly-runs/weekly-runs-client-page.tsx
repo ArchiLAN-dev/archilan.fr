@@ -147,7 +147,7 @@ export function MembershipNotice({ loggedIn }: { loggedIn: boolean }) {
       </div>
       <Link
         className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-        href="/adhesion"
+        href="/boutique?onglet=asso#adhesion"
       >
         Adhérer
       </Link>

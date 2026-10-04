@@ -37,7 +37,7 @@ const STATIC_ROUTES = [
   "/communaute",
   "/joueurs",
   "/boutique",
-  "/adhesion",
+  "/boutique?onglet=asso",
   "/aide/archipelago",
   "/cgu",
   "/cgv",

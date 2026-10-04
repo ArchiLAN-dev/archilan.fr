@@ -110,6 +110,7 @@ final readonly class HelloAssoHttpClient implements HelloAssoClientInterface
             HelloAssoConfig::FORM_TYPE_EVENT => 'Event',
             HelloAssoConfig::FORM_TYPE_MEMBERSHIP => 'Membership',
             HelloAssoConfig::FORM_TYPE_SHOP => 'PaymentForm',
+            HelloAssoConfig::FORM_TYPE_DONATION => 'Donation',
             default => $formType,
         };
     }
