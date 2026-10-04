@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Shovel } from "lucide-react";
 
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchAdminEvents } from "@/features/admin/admin-events-api";
 import { SheetSection } from "@/features/admin/admin-sheet-section";
@@ -18,11 +19,22 @@ export function balanceFor(wallet: Wallet, kind: "gold" | "event", eventId: stri
   return wallet.events.find((event) => event.eventId === eventId)?.balance ?? 0;
 }
 
-/** The confirmation an admin reads before moving pelles (story 41.1 AC7): the balance before and after. */
-export function adjustmentConfirmation(direction: "credit" | "debit", amount: number, before: number): string {
+/**
+ * The confirmation an admin reads before moving pelles (story 41.1 AC7, in a modal since story 39.14): the balance
+ * before and after, and the reason the member will see.
+ */
+export function adjustmentConfirmation(
+  direction: "credit" | "debit",
+  amount: number,
+  before: number,
+  reason: string,
+): { title: string; description: string } {
   const after = direction === "credit" ? before + amount : before - amount;
   const verb = direction === "credit" ? "Créditer" : "Débiter";
-  return `${verb} ${pellesLabel(amount)} ? Solde : ${pellesLabel(before)} → ${pellesLabel(after)}.`;
+  return {
+    title: `${verb} ${pellesLabel(amount)} ?`,
+    description: `Solde : ${pellesLabel(before)} → ${pellesLabel(after)}. Motif : « ${reason} ».`,
+  };
 }
 
 /**
@@ -39,6 +51,7 @@ export function AdminUserPelles({ userId, isSelf }: { userId: string; isSelf: bo
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [confirming, setConfirming] = useState<{ title: string; description: string } | null>(null);
 
   const { data: wallet } = useQuery({
     queryKey: ["admin-member-wallet", userId],
@@ -58,11 +71,14 @@ export function AdminUserPelles({ userId, isSelf }: { userId: string; isSelf: bo
   const amountValid = Number.isInteger(parsedAmount) && parsedAmount >= 1 && parsedAmount <= MAX_AMOUNT;
   const canSubmit = !isSelf && !pending && amountValid && reason.trim() !== "" && (kind === "gold" || eventId !== "");
 
-  async function submit(): Promise<void> {
+  function submit(): void {
     if (!canSubmit || !wallet) return;
     const target = kind === "event" ? eventId : null;
-    if (!window.confirm(adjustmentConfirmation(direction, parsedAmount, balanceFor(wallet, kind, target)))) return;
+    setConfirming(adjustmentConfirmation(direction, parsedAmount, balanceFor(wallet, kind, target), reason.trim()));
+  }
 
+  async function apply(): Promise<void> {
+    const target = kind === "event" ? eventId : null;
     setPending(true);
     setMessage(null);
     const result = await adjustMemberPelles(userId, { direction, amount: parsedAmount, kind, eventId: target, reason });
@@ -76,6 +92,7 @@ export function AdminUserPelles({ userId, isSelf }: { userId: string; isSelf: bo
       setMessage({ tone: "error", text: result.message });
     }
     setPending(false);
+    setConfirming(null);
   }
 
   const fieldClass = "min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground";
@@ -103,7 +120,7 @@ export function AdminUserPelles({ userId, isSelf }: { userId: string; isSelf: bo
             className="grid gap-3 sm:grid-cols-2"
             onSubmit={(event) => {
               event.preventDefault();
-              void submit();
+              submit();
             }}
           >
             <label className="grid gap-1 text-sm">
@@ -158,6 +175,19 @@ export function AdminUserPelles({ userId, isSelf }: { userId: string; isSelf: bo
           <p className={`text-sm ${message.tone === "ok" ? "text-success" : "text-danger"}`}>{message.text}</p>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        confirmLabel={direction === "credit" ? "Créditer" : "Débiter"}
+        description={confirming?.description ?? ""}
+        onConfirm={() => void apply()}
+        onOpenChange={(open) => {
+          if (!open && !pending) setConfirming(null);
+        }}
+        open={confirming !== null}
+        pending={pending}
+        title={confirming?.title ?? ""}
+        tone={direction === "debit" ? "danger" : "default"}
+      />
     </SheetSection>
   );
 }

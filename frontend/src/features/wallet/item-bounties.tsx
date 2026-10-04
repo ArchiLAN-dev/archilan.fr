@@ -4,11 +4,12 @@ import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Shovel, X } from "lucide-react";
 
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
-import { PelleAmount } from "./pelle-amount";
+import { PelleAmount, pellesLabel } from "./pelle-amount";
 
 /** Story 41.4: an open bounty of the session, as a player sees it. */
 export type ItemBounty = { id: string; slotName: string; itemName: string; amount: number; reward: number; mine: boolean };
@@ -131,6 +132,7 @@ export function ItemBountiesView({
   const [amount, setAmount] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [confirming, setConfirming] = useState<{ kind: "post" } | { kind: "withdraw"; bountyId: string; itemName: string } | null>(null);
   // One id per bounty, kept across a retry so a double submit holds the pelles once.
   const requestIdRef = useRef<string | null>(null);
 
@@ -138,7 +140,6 @@ export function ItemBountiesView({
   const canPost = !pending && itemName !== "" && Number.isInteger(parsedAmount) && parsedAmount >= BOUNTY_MIN && parsedAmount <= BOUNTY_MAX;
 
   async function post(): Promise<void> {
-    if (!canPost || !window.confirm(`Offrir ${parsedAmount} pelles à qui t'enverra ${itemName} ? (10 % sont prélevés au versement)`)) return;
     requestIdRef.current ??= crypto.randomUUID();
     setPending(true);
     setMessage(null);
@@ -155,9 +156,17 @@ export function ItemBountiesView({
   }
 
   async function withdraw(bountyId: string): Promise<void> {
-    if (!window.confirm("Retirer cette prime ? Tes pelles te sont rendues en entier.")) return;
+    setPending(true);
+    setMessage(null);
     const error = await onWithdraw(bountyId);
     setMessage(error === null ? { tone: "ok", text: "Prime retirée." } : { tone: "error", text: error });
+    setPending(false);
+  }
+
+  async function confirm(): Promise<void> {
+    if (confirming?.kind === "post") await post();
+    if (confirming?.kind === "withdraw") await withdraw(confirming.bountyId);
+    setConfirming(null);
   }
 
   const fieldClass = "min-h-8 rounded border border-border bg-surface-2 px-2 text-xs text-foreground";
@@ -184,7 +193,7 @@ export function ItemBountiesView({
                   <button
                     aria-label={`Retirer la prime sur ${bounty.itemName}`}
                     className="inline-flex items-center rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground hover:border-danger/40 hover:text-danger"
-                    onClick={() => void withdraw(bounty.id)}
+                    onClick={() => setConfirming({ kind: "withdraw", bountyId: bounty.id, itemName: bounty.itemName })}
                     type="button"
                   >
                     <X aria-hidden className="size-3" />
@@ -200,7 +209,7 @@ export function ItemBountiesView({
           className="flex flex-wrap items-end gap-2"
           onSubmit={(event) => {
             event.preventDefault();
-            void post();
+            if (canPost) setConfirming({ kind: "post" });
           }}
         >
           <label className="grid gap-1 text-xs">
@@ -231,6 +240,22 @@ export function ItemBountiesView({
         </form>
       ) : null}
       {message !== null ? <p className={`text-xs ${message.tone === "ok" ? "text-success" : "text-danger"}`}>{message.text}</p> : null}
+
+      <ConfirmDialog
+        confirmLabel={confirming?.kind === "withdraw" ? "Retirer" : "Poser la prime"}
+        description={
+          confirming?.kind === "withdraw"
+            ? "Tes pelles te sont rendues en entier."
+            : `Tu offres ${pellesLabel(parsedAmount)} à qui t'enverra ${itemName}. Elles sont mises de côté dès maintenant ; 10 % sont prélevés au versement.`
+        }
+        onConfirm={() => void confirm()}
+        onOpenChange={(open) => {
+          if (!open && !pending) setConfirming(null);
+        }}
+        open={confirming !== null}
+        pending={pending}
+        title={confirming?.kind === "withdraw" ? `Retirer la prime sur ${confirming.itemName} ?` : "Poser une prime ?"}
+      />
     </section>
   );
 }

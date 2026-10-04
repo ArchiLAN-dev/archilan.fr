@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Gamepad2, Loader2, Square } from "lucide-react";
 import { useState } from "react";
 
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 
 import { SHEET_LIST_CLASS, SheetEmpty, SheetSection } from "./admin-sheet-section";
@@ -189,11 +190,10 @@ function StopRunButton({
   onStopped: () => Promise<void>;
 }) {
   const [pending, setPending] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function stop(): Promise<void> {
-    if (!window.confirm("Arrêter la partie en cours de cette run ? Elle sera terminée et archivée.")) return;
-
     setPending(true);
     setError(null);
     const message = await stopAdminUserRun(userId, runId);
@@ -203,6 +203,7 @@ function StopRunButton({
       setError(message);
     }
     setPending(false);
+    setConfirming(false);
   }
 
   return (
@@ -210,13 +211,25 @@ function StopRunButton({
       <button
         className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded border border-border px-2 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:opacity-40"
         disabled={pending}
-        onClick={() => void stop()}
+        onClick={() => setConfirming(true)}
         type="button"
       >
         {pending ? <Loader2 aria-hidden className="size-3.5 animate-spin" /> : <Square aria-hidden className="size-3.5" />}
         Arrêter la partie
       </button>
       {error !== null ? <p className="mt-1 text-xs text-danger">{error}</p> : null}
+      <ConfirmDialog
+        confirmLabel="Arrêter la partie"
+        description="La partie en cours de cette run sera terminée et archivée."
+        onConfirm={() => void stop()}
+        onOpenChange={(open) => {
+          if (!open && !pending) setConfirming(false);
+        }}
+        open={confirming}
+        pending={pending}
+        title="Arrêter la partie ?"
+        tone="danger"
+      />
     </>
   );
 }

@@ -51,9 +51,15 @@ describe("admin adjustment", () => {
     expect(balanceFor(wallet, "event", "other")).toBe(0);
   });
 
-  test("the confirmation shows the balance before and after", () => {
-    expect(adjustmentConfirmation("credit", 50, 120)).toBe("Créditer 50 pelles ? Solde : 120 pelles → 170 pelles.");
-    expect(adjustmentConfirmation("debit", 1, 1)).toBe("Débiter 1 pelle ? Solde : 1 pelle → 0 pelle.");
+  test("the confirmation shows the balance before and after, and the reason", () => {
+    expect(adjustmentConfirmation("credit", 50, 120, "Lot du quiz")).toEqual({
+      title: "Créditer 50 pelles ?",
+      description: "Solde : 120 pelles → 170 pelles. Motif : « Lot du quiz ».",
+    });
+    expect(adjustmentConfirmation("debit", 1, 1, "Erreur")).toEqual({
+      title: "Débiter 1 pelle ?",
+      description: "Solde : 1 pelle → 0 pelle. Motif : « Erreur ».",
+    });
   });
 
   test("pelles count wording", () => {
