@@ -13,6 +13,7 @@ import { TwitchPersistentPlayer } from "@/features/streaming/twitch-mini-player"
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { UserMenu } from "@/features/auth/user-menu";
 import { NotificationCenter } from "@/features/community/notification-center";
+import { ShopBalance } from "@/features/wallet/shop-balance";
 import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -45,11 +46,14 @@ function NavLink({
   label,
   alsoMatch,
   onNavigate,
+  suffix,
 }: {
   href: string;
   label: string;
   alsoMatch?: readonly string[];
   onNavigate?: () => void;
+  /** Story 41.12: shown after the label (the pelle balance beside « Boutique »). */
+  suffix?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const external = href.startsWith("http://") || href.startsWith("https://");
@@ -79,6 +83,7 @@ function NavLink({
   return (
     <Link className={className} href={href} onClick={onNavigate}>
       {label}
+      {suffix}
     </Link>
   );
 }
@@ -248,6 +253,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             <NavLink href="/runs-hebdo" label="Runs hebdos" />
             <NavLink href="/jeux" label="Jeux" />
             <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" />
+            <NavLink href="/boutique" label="Boutique" suffix={<ShopBalance />} />
             <LiveTwitchBadge />
           </div>
 
@@ -286,6 +292,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
               <NavLink href="/runs-hebdo" label="Runs hebdos" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" onNavigate={() => setMenuState({ open: false, pathname })} />
+              <NavLink href="/boutique" label="Boutique" onNavigate={() => setMenuState({ open: false, pathname })} suffix={<ShopBalance />} />
               <LiveTwitchBadge onNavigate={() => setMenuState({ open: false, pathname })} />
             </div>
             <div className="mt-auto grid gap-3 border-t border-border pt-6">

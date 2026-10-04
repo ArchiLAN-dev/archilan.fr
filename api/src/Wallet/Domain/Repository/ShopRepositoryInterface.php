@@ -26,4 +26,14 @@ interface ShopRepositoryInterface
     public function saveItem(ShopItem $item): void;
 
     public function saveOwned(OwnedCosmetic $owned): void;
+
+    /** Story 41.12: deletes the item for good; the cosmetics bought and the ledger stay. */
+    public function deleteItem(ShopItem $item): void;
+
+    /**
+     * Story 41.12: the purchases of each item, read from the ledger (purchase key `shop:{userId}:{itemId}`).
+     *
+     * @return array<string, array{count: int, pelles: int}> by item id
+     */
+    public function sales(): array;
 }

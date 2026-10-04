@@ -38,7 +38,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/compte/adhesion", label: "Adhésion" },
       { href: "/compte/portefeuille", label: "Portefeuille" },
-      { href: "/compte/boutique", label: "Boutique" },
+      { href: "/boutique", label: "Boutique" },
       { href: "/compte/notifications", label: "Notifications" },
       { href: "/compte/confidentialite", label: "Confidentialité" },
       { href: "/compte/securite", label: "Connexions & sécurité", danger: true },

@@ -1,6 +1,6 @@
 # Story 41.12: Une boutique qui donne envie
 
-**Status:** in-progress
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-10-04
 
@@ -64,13 +64,33 @@ du membre, suppression réelle d'un article.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 7, 10, 11) - API : boutique publique, modifier, pause, reprise, suppression réelle, ventes.
-- [ ] **Task 2** (AC 1-7) - Page `/boutique` en onglets, cartes avec aperçu, essayage, achat, lien d'en-tête.
-- [ ] **Task 3** (AC 8-10) - Page admin.
-- [ ] **Task 4** (AC 11) - Tests et gates.
+- [x] **Task 1** (AC 7, 10, 11) - API : boutique publique, modifier, pause, reprise, suppression réelle, ventes.
+- [x] **Task 2** (AC 1-7) - Page `/boutique` en onglets, cartes avec aperçu, essayage, achat, lien d'en-tête.
+- [x] **Task 3** (AC 8-10) - Page admin.
+- [x] **Task 4** (AC 11) - Tests et gates.
 
 ## Notes techniques
 
 - La vente se lit dans le registre : clé unique `shop:{userId}:{itemId}` des mouvements `ShopPurchase` (41.7).
 - `DELETE /api/v1/admin/shop/items/{id}` supprime vraiment ; la pause passe par `POST .../pause` et `.../resume`.
 - Les noms des cosmétiques viennent des catalogues du code et des catalogues publics de l'API (41.10, 41.11).
+
+## Dev Agent Record
+
+### Choix d'implémentation
+
+- La pause garde la colonne `retired_at` de 41.7 (aucune migration) ; l'état admin `retired` devient `paused`.
+- `GET /api/v1/shop` est ouvert aux visiteurs (`owned` à faux) et renvoie `listedAt` pour le badge « Nouveau ».
+- Les ventes se lisent dans le registre (`shop_purchase`, clé `shop:{userId}:{itemId}`) : elles survivent à la
+  suppression de l'article dans l'historique des membres, mais l'article supprimé disparaît des chiffres admin.
+- Essayer une bannière la montre seule, sans l'image perso du membre (qui la recouvrirait).
+- L'éditeur de profil (sélecteur de cadres, grille des bannières) affiche un lien « Voir la boutique ».
+
+### Fichiers
+
+- API : `ShopItem` (edit, pause, resume), `ManageShop` (edit, pause, resume, delete), `ShopQuery` (visiteurs,
+  `listedAt`, ventes), `ShopRepositoryInterface` / `DoctrineShopRepository` (`deleteItem`, `sales`), `ShopController`
+  (PATCH, pause, resume, DELETE réel, GET public) ; `ShopTest`.
+- Front : `/boutique` en onglets, `/compte/boutique` redirigé, `shop-page.tsx` (vitrine, essayage, achat),
+  `shop-cosmetics.tsx` (noms réels, aperçus), `shop-balance.tsx` (solde dans l'en-tête), `admin-shop-page.tsx`,
+  `public-shell.tsx`, `account-nav.tsx`, `wallet-panel.tsx`, éditeur de profil ; tests.

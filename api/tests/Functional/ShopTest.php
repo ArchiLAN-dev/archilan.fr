@@ -90,7 +90,7 @@ final class ShopTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(409);
     }
 
-    public function testTheAdminListsOnlyShopCosmeticsAndRetiresItems(): void
+    public function testTheAdminListsOnlyShopCosmeticsAndPausesItems(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
         $itemId = $this->item('frame', 'comet', 10);
@@ -100,22 +100,77 @@ final class ShopTest extends FunctionalTestCase
         $this->client->jsonRequest('POST', '/api/v1/admin/shop/items', ['type' => 'frame', 'cosmeticKey' => 'gold', 'price' => 50]);
         self::assertResponseStatusCodeSame(422);
 
-        $this->client->request('DELETE', sprintf('/api/v1/admin/shop/items/%s', $itemId));
+        $this->client->request('POST', sprintf('/api/v1/admin/shop/items/%s/pause', $itemId));
         self::assertResponseStatusCodeSame(204);
+        self::assertSame('paused', $this->adminItem($itemId)['status'] ?? null);
+        $this->loginAs($this->member);
+        $this->client->request('GET', '/api/v1/shop');
+        self::assertSame([], $this->decodedJsonResponse()['items'] ?? null);
 
-        $this->client->request('GET', '/api/v1/admin/shop/items');
-        $body = $this->decodedJsonResponse();
-        self::assertSame(['frame' => [], 'banner' => []], $body['sellable'] ?? null);
-        $items = $body['items'] ?? null;
-        self::assertIsArray($items);
-        $first = $items[0] ?? null;
-        self::assertIsArray($first);
-        self::assertSame('retired', $first['status'] ?? null);
+        $this->loginAs($admin);
+        $this->client->request('POST', sprintf('/api/v1/admin/shop/items/%s/resume', $itemId));
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('on_sale', $this->adminItem($itemId)['status'] ?? null);
 
-        $this->client->request('GET', '/api/v1/admin/shop/items');
         $this->loginAs($this->member);
         $this->client->request('GET', '/api/v1/admin/shop/items');
         self::assertResponseStatusCodeSame(403);
+        $this->client->request('DELETE', sprintf('/api/v1/admin/shop/items/%s', $itemId));
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testVisitorsSeeTheShopWindow(): void
+    {
+        $this->item('frame', 'comet', 10);
+
+        $this->client->request('GET', '/api/v1/shop');
+
+        self::assertResponseIsSuccessful();
+        $items = $this->decodedJsonResponse()['items'] ?? null;
+        self::assertIsArray($items);
+        $first = $items[0] ?? null;
+        self::assertIsArray($first);
+        self::assertFalse($first['owned'] ?? null);
+        self::assertSame('2026-10-01T10:00:00+00:00', $first['listedAt'] ?? null);
+    }
+
+    public function testTheAdminChangesThePriceAndWindow(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $itemId = $this->item('frame', 'comet', 10);
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/shop/items/%s', $itemId), ['price' => 25, 'availableFrom' => null, 'availableUntil' => '2099-01-01T00:00:00+00:00']);
+        self::assertResponseStatusCodeSame(204);
+        $item = $this->adminItem($itemId);
+        self::assertSame(25, $item['price'] ?? null);
+        self::assertSame('2099-01-01T00:00:00+00:00', $item['availableUntil'] ?? null);
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/shop/items/%s', $itemId), ['price' => 0]);
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testDeletingAnItemKeepsWhatWasBought(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $itemId = $this->item('banner', 'starfield', 30);
+        $this->gold($this->member, 100);
+        $this->loginAs($this->member);
+        $this->client->request('POST', sprintf('/api/v1/shop/items/%s/buy', $itemId));
+
+        $this->loginAs($admin);
+        $item = $this->adminItem($itemId);
+        self::assertSame(1, $item['sales'] ?? null);
+        self::assertSame(30, $item['pelles'] ?? null);
+
+        $this->client->request('DELETE', sprintf('/api/v1/admin/shop/items/%s', $itemId));
+        self::assertResponseStatusCodeSame(204);
+        $this->entityManager->clear();
+        self::assertNull($this->entityManager->find(ShopItem::class, $itemId), 'deleted for good');
+        self::assertCount(1, $this->entityManager->getRepository(OwnedCosmetic::class)->findAll());
+        self::assertSame(70, $this->balance());
+        $this->client->request('DELETE', sprintf('/api/v1/admin/shop/items/%s', $itemId));
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testTheProfileEditorListsTheCosmeticsBought(): void
@@ -142,6 +197,22 @@ final class ShopTest extends FunctionalTestCase
         $this->entityManager->flush();
 
         return $item->getId();
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    private function adminItem(string $itemId): array
+    {
+        $this->client->request('GET', '/api/v1/admin/shop/items');
+        $items = $this->decodedJsonResponse()['items'] ?? null;
+        self::assertIsArray($items);
+        foreach ($items as $item) {
+            if (is_array($item) && $itemId === ($item['id'] ?? null)) {
+                return $item;
+            }
+        }
+        self::fail('item not listed');
     }
 
     private function gold(User $member, int $amount): void

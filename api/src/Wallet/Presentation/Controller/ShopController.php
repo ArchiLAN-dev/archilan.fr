@@ -28,15 +28,11 @@ final readonly class ShopController
     ) {
     }
 
+    /** Story 41.12: open to visitors, who see the shop window. */
     #[Route('/api/v1/shop', name: 'api_wallet_shop', methods: ['GET'])]
     public function catalog(Request $request): JsonResponse
     {
-        $user = $this->requireAuthenticatedUser($request);
-        if ($user instanceof JsonResponse) {
-            return $user;
-        }
-
-        return new JsonResponse(['items' => $this->query->catalog($user->getId())]);
+        return new JsonResponse(['items' => $this->query->catalog($this->apiAccessGuard->optionalUser($request)?->getId())]);
     }
 
     #[Route('/api/v1/shop/items/{itemId}/buy', name: 'api_wallet_shop_buy', methods: ['POST'])]
@@ -88,15 +84,66 @@ final readonly class ShopController
         return new JsonResponse(['id' => $listed->id], 201);
     }
 
-    #[Route('/api/v1/admin/shop/items/{itemId}', name: 'api_wallet_admin_shop_retire', methods: ['DELETE'])]
-    public function retire(Request $request, string $itemId): JsonResponse
+    #[Route('/api/v1/admin/shop/items/{itemId}', name: 'api_wallet_admin_shop_edit', methods: ['PATCH'])]
+    public function edit(Request $request, string $itemId): JsonResponse
     {
         $admin = $this->requireAuthenticatedAdmin($request);
         if ($admin instanceof JsonResponse) {
             return $admin;
         }
 
-        $this->manage->retire($itemId);
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload)) {
+            return $this->apiAccessGuard->errorResponse('invalid_json', 'Corps de requête invalide.', 400);
+        }
+        $price = $payload['price'] ?? null;
+
+        $this->manage->edit(
+            $itemId,
+            is_int($price) ? $price : 0,
+            $this->date($payload['availableFrom'] ?? null),
+            $this->date($payload['availableUntil'] ?? null),
+        );
+
+        return new JsonResponse(null, 204);
+    }
+
+    #[Route('/api/v1/admin/shop/items/{itemId}/pause', name: 'api_wallet_admin_shop_pause', methods: ['POST'])]
+    public function pause(Request $request, string $itemId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $this->manage->pause($itemId);
+
+        return new JsonResponse(null, 204);
+    }
+
+    #[Route('/api/v1/admin/shop/items/{itemId}/resume', name: 'api_wallet_admin_shop_resume', methods: ['POST'])]
+    public function resume(Request $request, string $itemId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $this->manage->resume($itemId);
+
+        return new JsonResponse(null, 204);
+    }
+
+    /** Story 41.12: deletes the item for good; its buyers keep the cosmetic. */
+    #[Route('/api/v1/admin/shop/items/{itemId}', name: 'api_wallet_admin_shop_delete', methods: ['DELETE'])]
+    public function delete(Request $request, string $itemId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $this->manage->delete($itemId);
 
         return new JsonResponse(null, 204);
     }

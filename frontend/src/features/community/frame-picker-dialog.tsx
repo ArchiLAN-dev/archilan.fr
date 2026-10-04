@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Lock } from "lucide-react";
 
@@ -167,6 +168,13 @@ export function FramePicker({
               </section>
             );
           })}
+          {/* Story 41.12: the way to the frames on sale. */}
+          <p className="text-xs text-muted-foreground">
+            D&apos;autres cadres se gagnent avec tes pelles.{" "}
+            <Link className="font-semibold text-accent-text underline-offset-2 hover:underline" href="/boutique">
+              Voir la boutique
+            </Link>
+          </p>
         </div>
       </DialogBody>
       <DialogFooter>
