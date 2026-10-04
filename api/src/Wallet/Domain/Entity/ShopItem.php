@@ -8,7 +8,9 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * A cosmetic on sale in the shop (story 41.7): a frame or a banner of the shop catalog, its price in gold pelles,
- * and for a seasonal item the window it is sold in. Retiring it stops the sale; what was bought stays owned.
+ * and for a seasonal item the window it is sold in. Story 41.12: its price and window can change, a pause stops the
+ * sale until it resumes, and an item can be deleted for good - what was bought stays owned (ownership is per
+ * cosmetic, not per item).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'shop_item')]
@@ -47,14 +49,18 @@ final class ShopItem
         if (!in_array($type, self::TYPES, true)) {
             throw new \DomainException('shop_item_type_invalid');
         }
-        if ($price < self::MIN_PRICE || $price > self::MAX_PRICE) {
-            throw new \DomainException('shop_item_price_invalid');
-        }
-        if (null !== $from && null !== $until && $until <= $from) {
-            throw new \DomainException('shop_item_window_invalid');
-        }
+        self::assertTerms($price, $from, $until);
 
         return new self(bin2hex(random_bytes(16)), $type, $cosmeticKey, $price, $from, $until, $now);
+    }
+
+    /** Story 41.12: a new price and sale window (null bounds: no start, no end). */
+    public function edit(int $price, ?\DateTimeImmutable $from, ?\DateTimeImmutable $until): void
+    {
+        self::assertTerms($price, $from, $until);
+        $this->price = $price;
+        $this->availableFrom = $from;
+        $this->availableUntil = $until;
     }
 
     public function isOnSale(\DateTimeImmutable $now): bool
@@ -64,9 +70,20 @@ final class ShopItem
             && (null === $this->availableUntil || $now < $this->availableUntil);
     }
 
-    public function retire(\DateTimeImmutable $now): void
+    /** Stops the sale until it resumes (the column keeps its story 41.7 name). */
+    public function pause(\DateTimeImmutable $now): void
     {
         $this->retiredAt ??= $now;
+    }
+
+    public function resume(): void
+    {
+        $this->retiredAt = null;
+    }
+
+    public function isPaused(): bool
+    {
+        return null !== $this->retiredAt;
     }
 
     public function getId(): string
@@ -99,8 +116,18 @@ final class ShopItem
         return $this->availableUntil;
     }
 
-    public function getRetiredAt(): ?\DateTimeImmutable
+    public function getCreatedAt(): \DateTimeImmutable
     {
-        return $this->retiredAt;
+        return $this->createdAt;
+    }
+
+    private static function assertTerms(int $price, ?\DateTimeImmutable $from, ?\DateTimeImmutable $until): void
+    {
+        if ($price < self::MIN_PRICE || $price > self::MAX_PRICE) {
+            throw new \DomainException('shop_item_price_invalid');
+        }
+        if (null !== $from && null !== $until && $until <= $from) {
+            throw new \DomainException('shop_item_window_invalid');
+        }
     }
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+import { buttonVariants } from "@/components/ui/button";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount } from "./pelle-amount";
 import { fetchMyWallet, pelleReasonLabel, type Wallet } from "./wallet-api";
@@ -63,9 +65,15 @@ export function WalletView({ wallet, onPage }: { wallet: Wallet; onPage: (page: 
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Les pelles d&apos;or se gardent. Les pelles d&apos;un événement ne servent que pendant cet événement.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            Les pelles d&apos;or se gardent. Les pelles d&apos;un événement ne servent que pendant cet événement.
+          </p>
+          {/* Story 41.12: the way to the shop. */}
+          <Link className={buttonVariants({ variant: "primary" })} href="/boutique">
+            Dépenser mes pelles
+          </Link>
+        </div>
       </section>
 
       <section aria-labelledby="wallet-history" className="grid gap-3">

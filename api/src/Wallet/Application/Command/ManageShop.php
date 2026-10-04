@@ -12,8 +12,9 @@ use App\Wallet\Domain\Repository\ShopRepositoryInterface;
 use Psr\Clock\ClockInterface;
 
 /**
- * The admin side of the shop (story 41.7): put a shop cosmetic on sale, for good or for a season, and retire it.
- * Only the cosmetics the code catalog marks as sold in the shop can be listed - the free ones stay free.
+ * The admin side of the shop (story 41.7): put a shop cosmetic on sale, for good or for a season. Story 41.12:
+ * change its price or window, pause and resume the sale, delete the item for good. Only the cosmetics the catalogs
+ * mark as sold in the shop can be listed - the free ones stay free.
  */
 final readonly class ManageShop
 {
@@ -43,15 +44,57 @@ final readonly class ManageShop
     }
 
     /**
+     * @throws NotFoundException   when the item does not exist
+     * @throws ValidationException when the price or window is invalid
+     */
+    public function edit(string $itemId, int $price, ?\DateTimeImmutable $from, ?\DateTimeImmutable $until): void
+    {
+        $item = $this->item($itemId);
+        try {
+            $item->edit($price, $from, $until);
+        } catch (\DomainException $e) {
+            throw new ValidationException(sprintf('Prix de %d à %d pelles, fin après le début.', ShopItem::MIN_PRICE, ShopItem::MAX_PRICE), [], $e->getMessage());
+        }
+        $this->shop->saveItem($item);
+    }
+
+    /**
      * @throws NotFoundException when the item does not exist
      */
-    public function retire(string $itemId): void
+    public function pause(string $itemId): void
+    {
+        $item = $this->item($itemId);
+        $item->pause($this->clock->now());
+        $this->shop->saveItem($item);
+    }
+
+    /**
+     * @throws NotFoundException when the item does not exist
+     */
+    public function resume(string $itemId): void
+    {
+        $item = $this->item($itemId);
+        $item->resume();
+        $this->shop->saveItem($item);
+    }
+
+    /**
+     * Deletes the item for good. Its buyers keep the cosmetic and their ledger lines.
+     *
+     * @throws NotFoundException when the item does not exist
+     */
+    public function delete(string $itemId): void
+    {
+        $this->shop->deleteItem($this->item($itemId));
+    }
+
+    private function item(string $itemId): ShopItem
     {
         $item = $this->shop->findItem($itemId);
         if (!$item instanceof ShopItem) {
             throw new NotFoundException('Article introuvable.', 'shop_item_not_found');
         }
-        $item->retire($this->clock->now());
-        $this->shop->saveItem($item);
+
+        return $item;
     }
 }
