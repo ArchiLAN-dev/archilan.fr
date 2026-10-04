@@ -27,7 +27,7 @@ final readonly class AdminCommunityStatsController
     ) {
     }
 
-    #[Route('/api/v1/admin/stats/community', name: 'api_community_admin_stats', methods: ['GET'])]
+    #[Route('/api/v1/admin/statistiques/communaute', name: 'api_community_admin_stats', methods: ['GET'])]
     public function __invoke(Request $request): JsonResponse
     {
         $admin = $this->requireAuthenticatedAdmin($request);

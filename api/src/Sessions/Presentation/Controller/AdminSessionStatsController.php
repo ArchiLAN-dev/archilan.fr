@@ -27,7 +27,7 @@ final readonly class AdminSessionStatsController
     ) {
     }
 
-    #[Route('/api/v1/admin/stats/sessions', name: 'api_sessions_admin_stats', methods: ['GET'])]
+    #[Route('/api/v1/admin/statistiques/parties', name: 'api_sessions_admin_stats', methods: ['GET'])]
     public function __invoke(Request $request): JsonResponse
     {
         $admin = $this->requireAuthenticatedAdmin($request);

@@ -76,7 +76,7 @@ final readonly class AdminWalletController
     }
 
     /** The Pelles section of the admin statistics page (story 42.1, formerly /admin/pelles/circulation). */
-    #[Route('/api/v1/admin/stats/pelles', name: 'api_wallet_admin_stats', methods: ['GET'])]
+    #[Route('/api/v1/admin/statistiques/pelles', name: 'api_wallet_admin_stats', methods: ['GET'])]
     public function circulation(Request $request): JsonResponse
     {
         $admin = $this->requireAuthenticatedAdmin($request);

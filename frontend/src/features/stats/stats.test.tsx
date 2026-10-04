@@ -170,7 +170,7 @@ describe("stats API", () => {
   test("fetches a section for the period", async () => {
     let asked: string | null = null;
     server.use(
-      http.get(`${BASE}/admin/stats/community`, ({ request }) => {
+      http.get(`${BASE}/admin/statistiques/communaute`, ({ request }) => {
         asked = new URL(request.url).searchParams.get("period");
         return HttpResponse.json(community);
       }),
@@ -181,29 +181,29 @@ describe("stats API", () => {
   });
 
   test("fetches the Parties section", async () => {
-    server.use(http.get(`${BASE}/admin/stats/sessions`, () => HttpResponse.json(sessions)));
+    server.use(http.get(`${BASE}/admin/statistiques/parties`, () => HttpResponse.json(sessions)));
     expect(await fetchSessionStats("4s")).toEqual(sessions);
 
-    server.use(http.get(`${BASE}/admin/stats/sessions`, () => HttpResponse.json({ ...sessions, topGames: [{ name: "x" }] })));
+    server.use(http.get(`${BASE}/admin/statistiques/parties`, () => HttpResponse.json({ ...sessions, topGames: [{ name: "x" }] })));
     expect(await fetchSessionStats("4s")).toBeNull();
   });
 
   test("fetches the Events section", async () => {
-    server.use(http.get(`${BASE}/admin/stats/events`, () => HttpResponse.json(events)));
+    server.use(http.get(`${BASE}/admin/statistiques/evenements`, () => HttpResponse.json(events)));
     expect(await fetchEventStats("4s")).toEqual(events);
 
-    server.use(http.get(`${BASE}/admin/stats/events`, () => HttpResponse.json({ ...events, revenueByType: {} })));
+    server.use(http.get(`${BASE}/admin/statistiques/evenements`, () => HttpResponse.json({ ...events, revenueByType: {} })));
     expect(await fetchEventStats("4s")).toBeNull();
   });
 
   test("a section in error or with an unexpected body is null", async () => {
-    server.use(http.get(`${BASE}/admin/stats/pelles`, () => new HttpResponse(null, { status: 500 })));
+    server.use(http.get(`${BASE}/admin/statistiques/pelles`, () => new HttpResponse(null, { status: 500 })));
     expect(await fetchPelleStats("12s")).toBeNull();
 
-    server.use(http.get(`${BASE}/admin/stats/pelles`, () => HttpResponse.json({ goldInCirculation: 1 })));
+    server.use(http.get(`${BASE}/admin/statistiques/pelles`, () => HttpResponse.json({ goldInCirculation: 1 })));
     expect(await fetchPelleStats("12s")).toBeNull();
 
-    server.use(http.get(`${BASE}/admin/stats/pelles`, () => HttpResponse.json(pelles)));
+    server.use(http.get(`${BASE}/admin/statistiques/pelles`, () => HttpResponse.json(pelles)));
     expect(await fetchPelleStats("12s")).toEqual(pelles);
   });
 });
