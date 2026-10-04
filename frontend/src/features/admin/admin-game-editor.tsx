@@ -29,6 +29,7 @@ import {IgdbGameSearch, type IgdbResult} from "@/features/admin/igdb-game-search
 import {parseDefaultYaml, type FreeformDictOption} from "@/lib/archipelago-yaml";
 import {InstallStepsEditor, serializeStepsForSave, type InstallStep} from "@/features/games/install-steps-editor";
 import {MarkdownEditor} from "@/components/markdown/markdown-editor";
+import {ConfirmDialog} from "@/components/ui/confirm-dialog";
 import {GAME_DESCRIPTION_MAX} from "@/lib/content-limits";
 import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
@@ -1167,6 +1168,7 @@ function DefaultYamlEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: Ad
     const [draft, setDraft] = useState(game.defaultYaml ?? "");
     const [saving, setSaving] = useState(false);
     const [regenerating, setRegenerating] = useState(false);
+    const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
     const [message, setMessage] = useState<{ kind: "ok" | "warn" | "error"; text: string } | null>(null);
 
     const stored = game.defaultYaml ?? "";
@@ -1192,13 +1194,11 @@ function DefaultYamlEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: Ad
     }
 
     async function handleRegenerate(): Promise<void> {
-        if (!window.confirm("Régénérer le template depuis l'apworld ? Les modifications manuelles seront perdues.")) {
-            return;
-        }
         setRegenerating(true);
         setMessage(null);
         applyResult(await regenerateDefaultYaml(game.id), "Template régénéré depuis l'apworld.");
         setRegenerating(false);
+        setConfirmingRegenerate(false);
     }
 
     return (
@@ -1234,7 +1234,7 @@ function DefaultYamlEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: Ad
                     className="inline-flex min-h-9 items-center rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={saving || regenerating}
                     type="button"
-                    onClick={() => void handleRegenerate()}
+                    onClick={() => setConfirmingRegenerate(true)}
                 >
                     {regenerating ? "Régénération…" : "Réinitialiser depuis l'apworld"}
                 </button>
@@ -1257,6 +1257,19 @@ function DefaultYamlEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: Ad
                     {message.text}
                 </p>
             ) : null}
+
+            <ConfirmDialog
+                confirmLabel="Régénérer"
+                description="Le template est recalculé depuis l'apworld : les modifications manuelles enregistrées seront perdues."
+                onConfirm={() => void handleRegenerate()}
+                onOpenChange={(open) => {
+                    if (!open && !regenerating) setConfirmingRegenerate(false);
+                }}
+                open={confirmingRegenerate}
+                pending={regenerating}
+                title="Réinitialiser le template depuis l'apworld ?"
+                tone="danger"
+            />
         </div>
     );
 }

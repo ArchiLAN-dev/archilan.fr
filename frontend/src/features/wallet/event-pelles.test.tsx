@@ -56,8 +56,11 @@ describe("event pelles page", () => {
   });
 
   test("the confirmation and the outcome in words", () => {
-    expect(distributionConfirmation(15, 3)).toBe("Distribuer 15 pelles à 3 membres (45 pelles au total) ?");
-    expect(distributionConfirmation(1, 1)).toBe("Distribuer 1 pelle à 1 membre (1 pelle au total) ?");
+    expect(distributionConfirmation(15, 3, "Happening du samedi")).toEqual({
+      title: "Distribuer des pelles ?",
+      description: "15 pelles à 3 membres, soit 45 pelles au total. Libellé : « Happening du samedi ».",
+    });
+    expect(distributionConfirmation(1, 1, "Quiz").description).toBe("1 pelle à 1 membre, soit 1 pelle au total. Libellé : « Quiz ».");
     expect(distributionSummary({ credited: 2, skipped: 1, alreadyCredited: 0 })).toBe("2 membres crédités, 1 sauté (compte banni ou supprimé).");
   });
 

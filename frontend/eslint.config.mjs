@@ -28,6 +28,20 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    // Story 39.14: confirmations open in ConfirmDialog, never in the browser's native popup.
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        { object: "window", property: "confirm", message: "Use ConfirmDialog (components/ui/confirm-dialog) instead (story 39.14)." },
+      ],
+      "no-restricted-globals": [
+        "error",
+        { name: "confirm", message: "Use ConfirmDialog (components/ui/confirm-dialog) instead (story 39.14)." },
+      ],
+    },
+  },
+  {
     // AC2 (20.7): constants.ts must have no imports - it is loaded before process.env is set.
     files: ["src/tests/constants.ts"],
     rules: {
