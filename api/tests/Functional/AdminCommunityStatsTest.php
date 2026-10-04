@@ -73,12 +73,12 @@ final class AdminCommunityStatsTest extends FunctionalTestCase
     {
         $member = $this->createUser('member@example.org', ['ROLE_USER'], 'Member');
         $this->loginAs($member);
-        $this->client->request('GET', '/api/v1/admin/stats/community');
+        $this->client->request('GET', '/api/v1/admin/statistiques/communaute');
         self::assertResponseStatusCodeSame(403);
 
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
         $this->loginAs($admin);
-        $this->client->request('GET', '/api/v1/admin/stats/community?period=2ans');
+        $this->client->request('GET', '/api/v1/admin/statistiques/communaute?period=2ans');
         self::assertResponseIsSuccessful();
         $body = $this->decodedJsonResponse();
         $period = $body['period'] ?? null;
