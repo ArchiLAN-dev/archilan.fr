@@ -1,5 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
-import { CreditCard, Gamepad2, History, IdCard, Shield, type LucideIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, CreditCard, Gamepad2, History, IdCard, Shield, type LucideIcon } from "lucide-react";
 
 /**
  * The panels of the admin user sheet (story 36.7), in page order. Each panel component uses the id listed
@@ -11,8 +11,8 @@ export const SHEET_SECTIONS = [
   { id: "moderation", label: "Modération" },
   { id: "adhesion", label: "Adhésion" },
   { id: "inscriptions", label: "Inscriptions" },
-  { id: "jeu", label: "Jeu" },
   { id: "pelles", label: "Pelles" },
+  { id: "jeu", label: "Jeu" },
   { id: "journal", label: "Journal d'activité" },
 ] as const;
 
@@ -60,7 +60,7 @@ export const SHEET_TABS = [
   { id: "compte", label: "Compte", icon: IdCard, sections: ["identite", "acces"] },
   { id: "moderation", label: "Modération", icon: Shield, sections: ["moderation"] },
   { id: "association", label: "Association", icon: CreditCard, sections: ["adhesion", "inscriptions"] },
-  { id: "jeu", label: "Jeu et pelles", icon: Gamepad2, sections: ["jeu", "pelles"] },
+  { id: "jeu", label: "Jeu et pelles", icon: Gamepad2, sections: ["pelles", "jeu"] },
   { id: "journal", label: "Journal", icon: History, sections: ["journal"] },
 ] as const satisfies readonly { id: string; label: string; icon: LucideIcon; sections: readonly SheetSectionId[] }[];
 
@@ -133,6 +133,39 @@ export function SheetTabPanel({ tab, children }: { tab: SheetTabId; children: Re
 /** The panel's content when a list is empty: a dashed frame, lighter than a filled card. */
 export function SheetEmpty({ children }: { children: ReactNode }) {
   return <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">{children}</p>;
+}
+
+/** Rows per page of a sheet list (story 36.9). */
+export const SHEET_PAGE_SIZE = 5;
+
+/** One page of a list, the page clamped to the last one so a list that shrinks never shows an empty page. */
+export function sheetPage<T>(items: T[], page: number): { rows: T[]; page: number; pages: number } {
+  const pages = Math.max(1, Math.ceil(items.length / SHEET_PAGE_SIZE));
+  const current = Math.min(Math.max(1, page), pages);
+  return { rows: items.slice((current - 1) * SHEET_PAGE_SIZE, current * SHEET_PAGE_SIZE), page: current, pages };
+}
+
+/** Previous / next under a sheet list, hidden when it fits on one page. */
+export function SheetPager({ page, pages, onPage, label }: { page: number; pages: number; onPage: (page: number) => void; label: string }) {
+  if (pages <= 1) return null;
+  const buttonClass =
+    "inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-40";
+
+  return (
+    <nav aria-label={label} className="flex items-center justify-between gap-3 text-sm">
+      <button className={buttonClass} disabled={page <= 1} onClick={() => onPage(page - 1)} type="button">
+        <ChevronLeft aria-hidden className="size-4" />
+        Précédent
+      </button>
+      <span className="text-muted-foreground">
+        Page {page} sur {pages}
+      </span>
+      <button className={buttonClass} disabled={page >= pages} onClick={() => onPage(page + 1)} type="button">
+        Suivant
+        <ChevronRight aria-hidden className="size-4" />
+      </button>
+    </nav>
+  );
 }
 
 /** Class of a list that holds its rows in one card, separated by a line. */

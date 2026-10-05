@@ -114,6 +114,45 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
     }
 
     /**
+     * The games a member picked in each of their runs, in slot order, keyed by run id (story 36.9): the admin
+     * sheet shows them on a draft or a paused run, which has no finished party to tell them. Two queries
+     * whatever the number of runs - the member's participations, then their games.
+     *
+     * @return array<string, list<string>>
+     */
+    public function gamesByRunForMember(string $userId): array
+    {
+        $participations = $this->participants->findByUserId($userId);
+
+        $gameIds = [];
+        foreach ($participations as $participation) {
+            foreach ($participation->getGameSlots() as $slot) {
+                $gameIds[] = $slot['gameId'];
+            }
+        }
+        $names = [];
+        foreach ([] === $gameIds ? [] : $this->games->findByIds(array_values(array_unique($gameIds))) as $game) {
+            $names[$game->getId()] = $game->getName();
+        }
+
+        $byRun = [];
+        foreach ($participations as $participation) {
+            $slots = $participation->getGameSlots();
+            usort($slots, static fn (array $a, array $b): int => $a['slotOrder'] <=> $b['slotOrder']);
+            $games = [];
+            foreach ($slots as $slot) {
+                $name = $names[$slot['gameId']] ?? $slot['gameId'];
+                if (!in_array($name, $games, true)) {
+                    $games[] = $name;
+                }
+            }
+            $byRun[$participation->getRunId()] = $games;
+        }
+
+        return $byRun;
+    }
+
+    /**
      * Read-only projection of another participant's identity + slots + applied YAML. Authorized for the
      * run owner or any participant of the run (collaborative visibility); never editable.
      *

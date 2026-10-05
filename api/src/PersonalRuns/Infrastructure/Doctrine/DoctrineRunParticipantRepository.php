@@ -28,6 +28,12 @@ final readonly class DoctrineRunParticipantRepository implements RunParticipantR
         return $this->entityManager->find(RunParticipant::class, ['runId' => $runId, 'userId' => $userId]);
     }
 
+    public function findByUserId(string $userId): array
+    {
+        /* @var list<RunParticipant> */
+        return $this->entityManager->getRepository(RunParticipant::class)->findBy(['userId' => $userId]);
+    }
+
     public function countByRunId(string $runId): int
     {
         return count($this->findByRunId($runId));

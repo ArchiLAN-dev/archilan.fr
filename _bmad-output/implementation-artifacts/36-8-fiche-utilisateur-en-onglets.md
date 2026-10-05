@@ -21,7 +21,7 @@ chargée. Décision : cinq onglets, l'onglet actif dans l'adresse.
 | Compte | Identité, Accès et rôles |
 | Modération | Modération |
 | Association | Adhésion, Inscriptions |
-| Jeu et pelles | Jeu, Pelles |
+| Jeu et pelles | Pelles, Jeu |
 | Journal | Journal d'activité |
 
 ## Critères d'acceptation
@@ -53,3 +53,4 @@ chargée. Décision : cinq onglets, l'onglet actif dans l'adresse.
 - La première section d'un onglet perd son filet du haut (`first:border-t-0`), la barre d'onglets en tient lieu.
 - Vérification dans le navigateur sur une page temporaire (vraie barre, vrai hook, panneaux factices) : clic,
   adresse remplacée, rechargement, ancien lien `#pelles` -> `?onglet=jeu#pelles`, flèches. Non commitée.
+- Retour de Jean (2026-10-05) après livraison : dans « Jeu et pelles », Pelles passe avant Jeu.
