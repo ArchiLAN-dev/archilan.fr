@@ -384,8 +384,8 @@ export async function replyToMember(userId: string, body: string): Promise<strin
   }
 }
 
-/** The gaming panel's read (story 36.4). */
-export type AdminUserRun = { id: string; title: string; status: string; sessionId: string | null };
+/** The gaming panel's read (story 36.4). `games`: what the member picked in the run, in slot order (story 36.9). */
+export type AdminUserRun = { id: string; title: string; status: string; sessionId: string | null; games: string[] };
 
 export type AdminUserHistoryEntry = {
   sessionId: string | null;
@@ -408,7 +408,10 @@ function isRun(v: unknown): v is AdminUserRun {
     hasStringProp(v, "id") &&
     hasStringProp(v, "title") &&
     hasStringProp(v, "status") &&
-    hasNullableStringProp(v, "sessionId")
+    hasNullableStringProp(v, "sessionId") &&
+    "games" in v &&
+    Array.isArray(v.games) &&
+    v.games.every((game: unknown) => typeof game === "string")
   );
 }
 

@@ -176,8 +176,8 @@ export function AdminUserDetailPage({ userId }: Props) {
 
         {activeTab === "jeu" ? (
           <>
-            <AdminUserGaming userId={user.id} />
             <AdminUserPelles isSelf={isSelf} memberName={user.displayName ?? user.email} userId={user.id} />
+            <AdminUserGaming userId={user.id} />
           </>
         ) : null}
 

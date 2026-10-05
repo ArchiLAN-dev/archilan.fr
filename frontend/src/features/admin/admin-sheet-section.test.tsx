@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { Shield } from "lucide-react";
 
-import { SHEET_SECTIONS, SHEET_TABS, SheetSection, SheetTabPanel, SheetTabs, resolveSheetTab } from "./admin-sheet-section";
+import { SHEET_SECTIONS, SHEET_TABS, SheetPager, SheetSection, SheetTabPanel, SheetTabs, resolveSheetTab, sheetPage } from "./admin-sheet-section";
 
 /**
  * Story 36.7. The admin user sheet reads as distinct panels: each one is a section separated from the
@@ -21,6 +21,28 @@ describe("SheetSection", () => {
     expect(html).toContain("Sanctions et échanges.");
     expect(html).toMatch(/<section[^>]*class="[^"]*border-t[^"]*"/);
     expect(html).toContain("<p>contenu</p>");
+  });
+});
+
+/** Story 36.9: the sheet's long lists page by five. */
+describe("sheetPage", () => {
+  const items = Array.from({ length: 12 }, (_, i) => i);
+
+  test("slices a page and counts the pages", () => {
+    expect(sheetPage(items, 1)).toEqual({ rows: [0, 1, 2, 3, 4], page: 1, pages: 3 });
+    expect(sheetPage(items, 3)).toEqual({ rows: [10, 11], page: 3, pages: 3 });
+  });
+
+  test("clamps a page past the end, so a list that shrinks never shows an empty page", () => {
+    expect(sheetPage(items, 9).page).toBe(3);
+    expect(sheetPage([], 2)).toEqual({ rows: [], page: 1, pages: 1 });
+  });
+
+  test("the pager disables the way out at both ends", () => {
+    const first = renderToStaticMarkup(<SheetPager label="Pages" onPage={() => {}} page={1} pages={3} />);
+    expect(first).toMatch(/<button[^>]*disabled=""[^>]*>.*Précédent/);
+    expect(first).toContain("Page 1 sur 3");
+    expect(renderToStaticMarkup(<SheetPager label="Pages" onPage={() => {}} page={1} pages={1} />)).toBe("");
   });
 });
 
