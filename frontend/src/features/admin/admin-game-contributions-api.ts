@@ -24,6 +24,8 @@ export type ContributionFilters = {
   target: ContributionTarget;
   sort: ContributionSort;
   search: string;
+  /** Story 11.7: only this game's contributions (its editor's « Tutoriel » tab). */
+  gameId?: string;
 };
 
 export const DEFAULT_CONTRIBUTION_FILTERS: ContributionFilters = {
@@ -55,6 +57,7 @@ export function buildContributionsQuery(filters: ContributionFilters): string {
   if (filters.target !== "any") params.set("target", filters.target);
   const q = filters.search.trim();
   if (q !== "") params.set("q", q);
+  if (filters.gameId !== undefined) params.set("game", filters.gameId);
   return params.toString();
 }
 
