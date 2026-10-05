@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Gamepad2, Loader2, Square } from "lucide-react";
+import { Archive, ArchiveRestore, Gamepad2, Loader2, Square } from "lucide-react";
 import { useState } from "react";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -11,6 +11,7 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { SHEET_LIST_CLASS, SheetEmpty, SheetPager, SheetSection, sheetPage } from "./admin-sheet-section";
 import {
   fetchAdminUserGaming,
+  setAdminUserRunArchived,
   stopAdminUserRun,
   type AdminUserGaming as Gaming,
   type AdminUserHistoryEntry,
@@ -92,14 +93,23 @@ export type GameRow = {
   run: SheetRun | null;
 };
 
-export type GameFilter = "all" | "live" | "draft" | "done";
+export type GameFilter = "all" | "live" | "draft" | "done" | "archived";
 
 export const GAME_FILTERS: { id: GameFilter; label: string }[] = [
   { id: "all", label: "Tout" },
   { id: "live", label: "En cours" },
   { id: "draft", label: "Brouillons" },
   { id: "done", label: "Terminées" },
+  { id: "archived", label: "Archivées" },
 ];
+
+/** Statuses a run can be archived from (story 16.21): no party holding - or about to hold - a server. */
+const ARCHIVABLE_STATUSES = ["draft", "completed", "cancelled"];
+
+/** A run the member archived can come back; one they did not, only once its party is over. */
+export function canArchiveRow(row: GameRow): boolean {
+  return row.run !== null && (row.run.archived === true || ARCHIVABLE_STATUSES.includes(row.run.status));
+}
 
 /** Runs and history in one list: live first, then drafts, then the finished most recent first. */
 export function buildGameRows(owned: AdminUserRun[], joined: AdminUserRun[], history: AdminUserHistoryEntry[]): GameRow[] {
@@ -134,15 +144,22 @@ export function buildGameRows(owned: AdminUserRun[], joined: AdminUserRun[], his
     .map(({ row }) => row);
 }
 
+/** An archived run (story 16.21) leaves the other filters, « Tout » included. */
 export function gameFilterOf(row: GameRow): Exclude<GameFilter, "all"> {
+  if (row.run?.archived === true) return "archived";
   return row.status.rank === 0 ? "live" : row.status.rank === 1 ? "draft" : "done";
+}
+
+function inFilter(row: GameRow, filter: GameFilter): boolean {
+  const of = gameFilterOf(row);
+  return filter === "all" ? of !== "archived" : of === filter;
 }
 
 /**
  * The member's game side on the admin sheet (story 36.4): progression, linked accounts, personal runs
  * and finished-game history. Personal runs are the part that had no admin surface at all (issue #387).
  */
-export function AdminUserGaming({ userId }: { userId: string }) {
+export function AdminUserGaming({ userId, isSelf = false }: { userId: string; isSelf?: boolean }) {
   const queryClient = useQueryClient();
   const { data, isPending } = useQuery({
     queryKey: ["admin-user-gaming", userId],
@@ -183,6 +200,7 @@ export function AdminUserGaming({ userId }: { userId: string }) {
               await queryClient.invalidateQueries({ queryKey: ["admin-user-gaming", userId] });
             }}
             rows={buildGameRows(data.ownedRuns, data.joinedRuns, data.history)}
+            readOnly={isSelf}
             userId={userId}
           />
         )}
@@ -250,10 +268,11 @@ function Accounts({ gaming }: { gaming: Gaming }) {
  * « Runs et parties » (story 36.9): the member's personal runs and finished parties in one list, filtered by
  * state and a few per page. Live ones come first, so the default view opens on what still runs.
  */
-export function GameList({ rows, userId, onStopped }: { rows: GameRow[]; userId: string; onStopped: () => Promise<void> }) {
+/** `readOnly`: an admin on their own sheet - the API refuses them their own account, so no action shows. */
+export function GameList({ rows, userId, onStopped, readOnly = false }: { rows: GameRow[]; userId: string; onStopped: () => Promise<void>; readOnly?: boolean }) {
   const [filter, setFilter] = useState<GameFilter>("all");
   const [page, setPage] = useState(1);
-  const filtered = filter === "all" ? rows : rows.filter((row) => gameFilterOf(row) === filter);
+  const filtered = rows.filter((row) => inFilter(row, filter));
   const current = sheetPage(filtered, page);
 
   function choose(next: GameFilter): void {
@@ -265,7 +284,7 @@ export function GameList({ rows, userId, onStopped }: { rows: GameRow[]; userId:
     <div className="grid gap-3">
       <div aria-label="Filtrer les runs et parties" className="flex flex-wrap gap-2" role="group">
         {GAME_FILTERS.map(({ id, label }) => {
-          const count = id === "all" ? rows.length : rows.filter((row) => gameFilterOf(row) === id).length;
+          const count = rows.filter((row) => inFilter(row, id)).length;
           return (
             <button
               aria-pressed={filter === id}
@@ -288,7 +307,7 @@ export function GameList({ rows, userId, onStopped }: { rows: GameRow[]; userId:
       ) : (
         <ul className={SHEET_LIST_CLASS} role="list">
           {current.rows.map((row) => (
-            <GameRowItem key={row.key} onStopped={onStopped} row={row} userId={userId} />
+            <GameRowItem key={row.key} onStopped={onStopped} readOnly={readOnly} row={row} userId={userId} />
           ))}
         </ul>
       )}
@@ -297,7 +316,7 @@ export function GameList({ rows, userId, onStopped }: { rows: GameRow[]; userId:
   );
 }
 
-function GameRowItem({ row, userId, onStopped }: { row: GameRow; userId: string; onStopped: () => Promise<void> }) {
+function GameRowItem({ row, userId, onStopped, readOnly }: { row: GameRow; userId: string; onStopped: () => Promise<void>; readOnly: boolean }) {
   // A party without a run is not linked, for the same reason as the audit timeline: a finished session only has
   // a recap when one was built, and a dead link is worse than a plain label.
   return (
@@ -317,7 +336,8 @@ function GameRowItem({ row, userId, onStopped }: { row: GameRow; userId: string;
           </time>
         ) : null}
         <StatusPill status={row.status} />
-        {row.run !== null && canStopRun(row.run) ? <StopRunButton onStopped={onStopped} runId={row.run.id} runTitle={row.title} userId={userId} /> : null}
+        {!readOnly && row.run !== null && canStopRun(row.run) ? <StopRunButton onStopped={onStopped} runId={row.run.id} runTitle={row.title} userId={userId} /> : null}
+        {!readOnly && row.run !== null && canArchiveRow(row) ? <ArchiveRunButton archived={row.run.archived === true} onChanged={onStopped} runId={row.run.id} userId={userId} /> : null}
       </div>
       {row.games.length > 0 ? (
         <ul aria-label="Jeux" className="flex flex-wrap gap-1.5" role="list">
@@ -418,4 +438,43 @@ function formatDate(iso: string): string {
   if (Number.isNaN(date.getTime())) return "-";
 
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(date);
+}
+
+/** Story 16.21: put the run away in the member's own list, or bring it back. Reversible, so no confirmation. */
+function ArchiveRunButton({ userId, runId, archived, onChanged }: { userId: string; runId: string; archived: boolean; onChanged: () => Promise<void> }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function toggle(): Promise<void> {
+    setPending(true);
+    setError(null);
+    const message = await setAdminUserRunArchived(userId, runId, !archived);
+    if (message === null) {
+      await onChanged();
+    } else {
+      setError(message);
+    }
+    setPending(false);
+  }
+
+  return (
+    <>
+      <button
+        className="inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded border border-border px-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground disabled:opacity-40"
+        disabled={pending}
+        onClick={() => void toggle()}
+        type="button"
+      >
+        {pending ? (
+          <Loader2 aria-hidden className="size-3.5 animate-spin" />
+        ) : archived ? (
+          <ArchiveRestore aria-hidden className="size-3.5" />
+        ) : (
+          <Archive aria-hidden className="size-3.5" />
+        )}
+        {archived ? "Désarchiver" : "Archiver"}
+      </button>
+      {error !== null ? <p className="basis-full text-xs text-danger">{error}</p> : null}
+    </>
+  );
 }

@@ -66,7 +66,7 @@ final readonly class AdminUserGamingQuery
      * @param list<array<string, mixed>>  $runs
      * @param array<string, list<string>> $games the games the member picked, by run (story 36.9)
      *
-     * @return list<array{id: string, title: string, status: string, sessionId: string|null, games: list<string>}>
+     * @return list<array{id: string, title: string, status: string, sessionId: string|null, games: list<string>, archived: bool}>
      */
     private function projectRuns(array $runs, array $games): array
     {
@@ -84,6 +84,8 @@ final readonly class AdminUserGamingQuery
                 // nothing to act on.
                 'sessionId' => is_string($run['sessionId'] ?? null) ? $run['sessionId'] : null,
                 'games' => $games[$id] ?? [],
+                // Story 16.21: archived in the MEMBER's own list - listMine is read as them.
+                'archived' => true === ($run['archived'] ?? null),
             ];
         }
 

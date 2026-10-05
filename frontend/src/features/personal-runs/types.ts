@@ -160,7 +160,12 @@ export type PersonalRun = {
   adminPassword: string | null;
   createdAt: string;
   updatedAt: string;
+  // Story 16.21: the caller put the run away in their own list. Only on /runs/mine.
+  archived?: boolean;
 };
+
+/** Statuses a member can archive (story 16.21): no party holding - or about to hold - a server. */
+export const ARCHIVABLE_STATUSES: PersonalRunStatus[] = ["draft", "completed", "cancelled"];
 
 export type AvailableGame = {
   id: string;

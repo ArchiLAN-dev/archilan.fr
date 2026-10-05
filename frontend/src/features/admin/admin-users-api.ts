@@ -385,7 +385,15 @@ export async function replyToMember(userId: string, body: string): Promise<strin
 }
 
 /** The gaming panel's read (story 36.4). `games`: what the member picked in the run, in slot order (story 36.9). */
-export type AdminUserRun = { id: string; title: string; status: string; sessionId: string | null; games: string[] };
+export type AdminUserRun = {
+  id: string;
+  title: string;
+  status: string;
+  sessionId: string | null;
+  games: string[];
+  /** Story 16.21: the member put it away in their own list. Falsy on an older API payload. */
+  archived?: boolean;
+};
 
 export type AdminUserHistoryEntry = {
   sessionId: string | null;
@@ -493,6 +501,25 @@ export async function applyAdminUserAction(
 
 export async function stopAdminUserRun(userId: string, runId: string): Promise<string | null> {
   return postAdminAction(`${env.apiBaseUrl}/admin/users/${userId}/runs/${runId}/stop`);
+}
+
+/**
+ * Story 16.21: put one of the member's runs away in THEIR list, or bring it back. Null on success, otherwise the
+ * message to show - the server's own for the run rules (foreign run, live party).
+ */
+export async function setAdminUserRunArchived(userId: string, runId: string, archived: boolean): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/users/${userId}/runs/${runId}/archive`, { method: archived ? "POST" : "DELETE" });
+    if (res.ok) return null;
+    const payload: unknown = await res.json().catch(() => null);
+    if (typeof payload === "object" && payload !== null && "error" in payload) {
+      const error = payload.error;
+      if (typeof error === "object" && error !== null && hasStringProp(error, "message")) return error.message;
+    }
+    return archived ? "L'archivage a échoué." : "Le désarchivage a échoué.";
+  } catch {
+    return "Impossible de contacter l'API.";
+  }
 }
 
 async function postAdminAction(url: string): Promise<string | null> {

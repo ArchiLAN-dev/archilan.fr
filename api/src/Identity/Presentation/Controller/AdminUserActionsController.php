@@ -58,6 +58,29 @@ final readonly class AdminUserActionsController
         return $this->respond($this->actions->stopRun($admin->getId(), $userId, $runId));
     }
 
+    /** Story 16.21: put a run away in the member's own list. */
+    #[Route('/api/v1/admin/users/{userId}/runs/{runId}/archive', name: 'api_identity_admin_user_archive_run', methods: ['POST'])]
+    public function archiveRun(Request $request, string $userId, string $runId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return $this->respond($this->actions->setRunArchived($admin->getId(), $userId, $runId, true));
+    }
+
+    #[Route('/api/v1/admin/users/{userId}/runs/{runId}/archive', name: 'api_identity_admin_user_unarchive_run', methods: ['DELETE'])]
+    public function unarchiveRun(Request $request, string $userId, string $runId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return $this->respond($this->actions->setRunArchived($admin->getId(), $userId, $runId, false));
+    }
+
     private function respond(string $result): JsonResponse
     {
         return match ($result) {
