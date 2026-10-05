@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Pin, Plus, Shuffle, Trash2 } from "lucide-react";
 
@@ -39,13 +40,30 @@ export function weekLabel(week: Pick<AdminQuestWeek, "startsAt" | "endsAt">): st
 
 type Change = { title: string; description: string; label: string; run: () => Promise<string | null> };
 
+type QuestsView = "weeks" | "types";
+
+const PAGES: Record<QuestsView, { title: string; intro: string; other: { href: string; label: string } }> = {
+  weeks: {
+    title: "Semaines de quêtes",
+    intro:
+      "Chaque lundi, les quêtes de la semaine sont tirées au hasard parmi les types « dans le tirage ». Une quête épinglée à une semaine y prend une place, le tirage complète le reste.",
+    other: { href: "/admin/quetes/types", label: "Types de quêtes" },
+  },
+  types: {
+    title: "Types de quêtes",
+    intro: "Les quêtes que les semaines peuvent servir : leurs objectifs, leur récompense, et si elles sortent au tirage ou seulement épinglées.",
+    other: { href: "/admin/quetes/semaines", label: "Semaines de quêtes" },
+  },
+};
+
 /**
- * `/admin/quetes` (story 41.15): the weekly quests the admins write, how many a week, and the current and coming
- * weeks - drawn at random among the quests in the draw, or pinned by hand.
+ * The weekly quests, admin side (story 41.15), on two pages: `/admin/quetes/semaines` plans the current and coming
+ * weeks, `/admin/quetes/types` writes the quests they serve.
  */
-export function AdminQuestsPage() {
+export function AdminQuestsPage({ view }: { view: QuestsView }) {
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: fetchAdminQuests, staleTime: DEFAULT_STALE_TIME, retry: false });
+  const page = PAGES[view];
 
   async function after(error: string | null): Promise<string | null> {
     await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -55,24 +73,29 @@ export function AdminQuestsPage() {
 
   return (
     <section className="grid gap-6 p-6 md:p-8">
-      <header>
-        <h1 className="font-heading text-2xl font-bold text-foreground">Quêtes hebdo</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Chaque lundi, les quêtes de la semaine sont tirées au hasard parmi celles « dans le tirage ». Une quête épinglée à une semaine y prend une
-          place, le tirage complète le reste.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-3xl">
+          <h1 className="font-heading text-2xl font-bold text-foreground">{page.title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{page.intro}</p>
+        </div>
+        <Link className={buttonVariants({ variant: "secondary" })} href={page.other.href}>
+          {page.other.label}
+        </Link>
       </header>
       {isLoading ? <p className="text-sm text-muted-foreground">Chargement…</p> : null}
       {!isLoading && !data ? <p className="text-sm text-danger">Impossible de charger les quêtes.</p> : null}
-      {data ? <AdminQuestsView data={data} onChange={after} /> : null}
+      {data ? view === "weeks" ? <AdminQuestWeeksView data={data} onChange={after} /> : <AdminQuestTypesView data={data} onChange={after} /> : null}
     </section>
   );
 }
 
-export function AdminQuestsView({ data, onChange }: { data: AdminQuests; onChange: (error: string | null) => Promise<string | null> }) {
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-  const [editing, setEditing] = useState<AdminQuest | "new" | null>(null);
-  const [change, setChange] = useState<Change | null>(null);
+type ViewProps = { data: AdminQuests; onChange: (error: string | null) => Promise<string | null> };
+
+type StatusMessage = { tone: "ok" | "error"; text: string };
+
+/** A change, its pending state and the line that reports it. */
+function useQuestChange(onChange: ViewProps["onChange"]) {
+  const [message, setMessage] = useState<StatusMessage | null>(null);
   const [pending, setPending] = useState(false);
 
   async function apply(run: () => Promise<string | null>, ok: string): Promise<boolean> {
@@ -82,6 +105,22 @@ export function AdminQuestsView({ data, onChange }: { data: AdminQuests; onChang
     setMessage(error === null ? { tone: "ok", text: ok } : { tone: "error", text: error });
     return error === null;
   }
+
+  return { message, pending, apply };
+}
+
+function StatusLine({ message }: { message: StatusMessage | null }) {
+  return message ? (
+    <p className={`rounded-lg border px-3 py-2 text-sm ${message.tone === "ok" ? "border-success/40 text-success" : "border-danger/40 text-danger"}`} role="status">
+      {message.text}
+    </p>
+  ) : null;
+}
+
+/** `/admin/quetes/semaines`: the number of quests a week, and the current and 8 coming weeks. */
+export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
+  const { message, pending, apply } = useQuestChange(onChange);
+  const [change, setChange] = useState<Change | null>(null);
 
   // A change on the week the members are living is confirmed first; a coming week changes right away.
   function changeWeek(week: AdminQuestWeek, next: Change): void {
@@ -93,99 +132,24 @@ export function AdminQuestsView({ data, onChange }: { data: AdminQuests; onChang
   const inDraw = active.filter((quest) => quest.inDraw).length;
 
   return (
-    <div className="grid gap-8">
-      {message ? (
-        <p className={`rounded-lg border px-3 py-2 text-sm ${message.tone === "ok" ? "border-success/40 text-success" : "border-danger/40 text-danger"}`} role="status">
-          {message.text}
+    <div className="grid gap-4">
+      <StatusLine message={message} />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {inDraw} type{inDraw > 1 ? "s" : ""} de quête dans le tirage.{" "}
+          {active.length === 0 ? (
+            <Link className="text-accent-text hover:underline" href="/admin/quetes/types">
+              Créer une quête
+            </Link>
+          ) : null}
         </p>
-      ) : null}
-
-      <section aria-labelledby="quest-weeks" className="grid gap-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="font-heading text-lg font-semibold text-foreground" id="quest-weeks">
-              Semaines
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {inDraw} quête{inDraw > 1 ? "s" : ""} dans le tirage.
-            </p>
-          </div>
-          <PerWeekForm count={data.questsPerWeek} onSave={(count) => apply(() => setQuestsPerWeek(count), "Nombre de quêtes enregistré.")} />
-        </div>
-        <ol className="grid gap-3 lg:grid-cols-2" role="list">
-          {data.weeks.map((week) => (
-            <WeekCard
-              key={week.key}
-              metrics={data.metrics}
-              onChange={(next) => changeWeek(week, next)}
-              perWeek={data.questsPerWeek}
-              quests={active}
-              week={week}
-            />
-          ))}
-        </ol>
-      </section>
-
-      <section aria-labelledby="quest-catalog" className="grid gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-heading text-lg font-semibold text-foreground" id="quest-catalog">
-            Quêtes
-          </h2>
-          <button className={buttonVariants({ variant: "primary" })} onClick={() => setEditing("new")} type="button">
-            <Plus aria-hidden className="size-4" />
-            Nouvelle quête
-          </button>
-        </div>
-        {data.quests.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Aucune quête pour l&apos;instant.</p>
-        ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface" role="list">
-            {data.quests.map((quest) => (
-              <li className="flex flex-wrap items-center gap-3 px-4 py-3" key={quest.id}>
-                <div className="grid min-w-0 flex-1 gap-0.5">
-                  <p className={`flex flex-wrap items-center gap-2 font-semibold ${quest.retired ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                    {quest.title}
-                    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium no-underline ${quest.inDraw ? "border-accent/40 text-accent-text" : "border-border text-muted-foreground"}`}>
-                      {quest.inDraw ? "Dans le tirage" : "Hors tirage"}
-                    </span>
-                    {quest.retired ? <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">Retirée</span> : null}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, data.metrics)}</p>
-                </div>
-                <PelleAmount amount={quest.reward} className="text-xs font-semibold text-warning" signed />
-                <div className="flex gap-1">
-                  <button className={buttonVariants({ variant: "ghost" })} onClick={() => setEditing(quest)} type="button">
-                    Modifier
-                  </button>
-                  <button
-                    className={buttonVariants({ variant: "ghost" })}
-                    disabled={pending}
-                    onClick={() => void apply(() => setQuestRetired(quest.id, !quest.retired), quest.retired ? "Quête rétablie." : "Quête retirée.")}
-                    type="button"
-                  >
-                    {quest.retired ? "Rétablir" : "Retirer"}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {editing !== null ? (
-        <QuestDialog
-          metrics={data.metrics}
-          onClose={() => setEditing(null)}
-          onSave={async (terms) => {
-            const done = await apply(
-              () => (editing === "new" ? writeQuest(terms) : editQuest(editing.id, terms)),
-              editing === "new" ? "Quête créée." : "Quête modifiée.",
-            );
-            if (done) setEditing(null);
-          }}
-          quest={editing === "new" ? null : editing}
-        />
-      ) : null}
+        <PerWeekForm count={data.questsPerWeek} onSave={(count) => apply(() => setQuestsPerWeek(count), "Nombre de quêtes enregistré.")} />
+      </div>
+      <ol className="grid gap-3 lg:grid-cols-2" role="list">
+        {data.weeks.map((week) => (
+          <WeekCard key={week.key} metrics={data.metrics} onChange={(next) => changeWeek(week, next)} perWeek={data.questsPerWeek} quests={active} week={week} />
+        ))}
+      </ol>
 
       <ConfirmDialog
         confirmLabel={change?.label ?? "Confirmer"}
@@ -202,6 +166,74 @@ export function AdminQuestsView({ data, onChange }: { data: AdminQuests; onChang
         pending={pending}
         title={change?.title ?? ""}
       />
+    </div>
+  );
+}
+
+/** `/admin/quetes/types`: every quest, written, edited, retired or restored. */
+export function AdminQuestTypesView({ data, onChange }: ViewProps) {
+  const { message, pending, apply } = useQuestChange(onChange);
+  const [editing, setEditing] = useState<AdminQuest | "new" | null>(null);
+
+  return (
+    <div className="grid gap-3">
+      <StatusLine message={message} />
+      <div className="flex justify-end">
+        <button className={buttonVariants({ variant: "primary" })} onClick={() => setEditing("new")} type="button">
+          <Plus aria-hidden className="size-4" />
+          Nouvelle quête
+        </button>
+      </div>
+      {data.quests.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Aucune quête pour l&apos;instant.</p>
+      ) : (
+        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface" role="list">
+          {data.quests.map((quest) => (
+            <li className="flex flex-wrap items-center gap-3 px-4 py-3" key={quest.id}>
+              <div className="grid min-w-0 flex-1 gap-0.5">
+                <p className={`flex flex-wrap items-center gap-2 font-semibold ${quest.retired ? "text-muted-foreground" : "text-foreground"}`}>
+                  {quest.title}
+                  <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${quest.inDraw ? "border-accent/40 text-accent-text" : "border-border text-muted-foreground"}`}>
+                    {quest.inDraw ? "Dans le tirage" : "Hors tirage"}
+                  </span>
+                  {quest.retired ? <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">Retirée</span> : null}
+                </p>
+                {quest.description !== "" ? <p className="text-xs text-muted-foreground">{quest.description}</p> : null}
+                <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, data.metrics)}</p>
+              </div>
+              <PelleAmount amount={quest.reward} className="text-xs font-semibold text-warning" signed />
+              <div className="flex gap-1">
+                <button className={buttonVariants({ variant: "ghost" })} onClick={() => setEditing(quest)} type="button">
+                  Modifier
+                </button>
+                <button
+                  className={buttonVariants({ variant: "ghost" })}
+                  disabled={pending}
+                  onClick={() => void apply(() => setQuestRetired(quest.id, !quest.retired), quest.retired ? "Quête rétablie." : "Quête retirée.")}
+                  type="button"
+                >
+                  {quest.retired ? "Rétablir" : "Retirer"}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {editing !== null ? (
+        <QuestDialog
+          metrics={data.metrics}
+          onClose={() => setEditing(null)}
+          onSave={async (terms) => {
+            const done = await apply(
+              () => (editing === "new" ? writeQuest(terms) : editQuest(editing.id, terms)),
+              editing === "new" ? "Quête créée." : "Quête modifiée.",
+            );
+            if (done) setEditing(null);
+          }}
+          quest={editing === "new" ? null : editing}
+        />
+      ) : null}
     </div>
   );
 }

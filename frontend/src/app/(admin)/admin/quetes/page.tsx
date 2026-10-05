@@ -1,11 +1,6 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { AdminQuestsPage } from "@/features/wallet/admin-quests-page";
-
-export const metadata: Metadata = {
-  title: "Quêtes hebdo",
-};
-
+/** Story 41.15: the weekly quests have two pages, the weeks first. */
 export default function AdminQuetesPage() {
-  return <AdminQuestsPage />;
+  redirect("/admin/quetes/semaines");
 }

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Bot, Calendar, ChartColumn, CreditCard, Flag, Frame, Gamepad2, HeartPulse, LayoutDashboard, Library, LogOut, Menu, Newspaper, NotebookPen, PanelTop, SlidersHorizontal, Store, Target, Timer, Trophy, Users, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Bot, Calendar, CalendarDays, ChartColumn, CreditCard, Flag, Frame, Gamepad2, HeartPulse, LayoutDashboard, Library, LogOut, Menu, Newspaper, NotebookPen, PanelTop, SlidersHorizontal, Store, Target, Timer, Trophy, Users, X } from "lucide-react";
 import { APWORLD_INCIDENT_SUMMARY_QUERY_KEY, fetchApworldIncidentSummary } from "@/features/admin/admin-apworld-health-api";
 import { DEFAULT_CONTRIBUTION_FILTERS, fetchContributionQueue } from "@/features/admin/admin-game-contributions-api";
 import { DEFAULT_REPORT_FILTERS, fetchModerationQueue } from "@/features/admin/admin-moderation-api";
@@ -37,9 +37,16 @@ const navGroups = [
       { href: "/admin/adhesions", icon: CreditCard, label: "Adhésions", shortLabel: "Adhés.", exact: false },
       { href: "/admin/achievements", icon: Trophy, label: "Succès", shortLabel: "Succès", exact: false },
       { href: "/admin/boutique", icon: Store, label: "Boutique", shortLabel: "Boutique", exact: false },
-      { href: "/admin/quetes", icon: Target, label: "Quêtes hebdo", shortLabel: "Quêtes", exact: false },
       { href: "/admin/cadres", icon: Frame, label: "Cadres", shortLabel: "Cadres", exact: false },
       { href: "/admin/bannieres", icon: PanelTop, label: "Bannières", shortLabel: "Bannières", exact: false },
+    ],
+  },
+  {
+    // Story 41.15: the weeks are planned on one page, the quests they serve written on another.
+    label: "Quêtes hebdo",
+    items: [
+      { href: "/admin/quetes/semaines", icon: CalendarDays, label: "Semaines", shortLabel: "Semaines", exact: false },
+      { href: "/admin/quetes/types", icon: Target, label: "Types de quêtes", shortLabel: "Types", exact: false },
     ],
   },
   {

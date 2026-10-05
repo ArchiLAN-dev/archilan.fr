@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { fetchAdminQuests, objectivesSummary, pinQuest, type AdminQuests } from "./admin-quests-api";
-import { WeekCard, questTermsError, weekLabel } from "./admin-quests-page";
+import { AdminQuestTypesView, AdminQuestWeeksView, WeekCard, questTermsError, weekLabel } from "./admin-quests-page";
 
 const metrics = [
   { key: "goals", label: "Goals atteints", unit: "goals" },
@@ -61,6 +61,22 @@ describe("admin weekly quests", () => {
     expect(current).toContain("En cours");
     expect(current).toContain('aria-label="Tirée au hasard"');
     expect(current).not.toContain("Tirage le lundi");
+  });
+
+  test("the weeks and the quest types live on two pages", () => {
+    const onChange = async (error: string | null) => error;
+    const weeks = renderToStaticMarkup(<AdminQuestWeeksView data={data} onChange={onChange} />);
+    const types = renderToStaticMarkup(<AdminQuestTypesView data={data} onChange={onChange} />);
+
+    expect(weeks).toContain("Quêtes par semaine");
+    expect(weeks).toContain("2026-W42");
+    expect(weeks).toContain("1 type de quête dans le tirage.");
+    expect(weeks).not.toContain("Nouvelle quête");
+
+    expect(types).toContain("Nouvelle quête");
+    expect(types).toContain("50 checks et 2 parties");
+    expect(types).toContain("Hors tirage");
+    expect(types).not.toContain("Quêtes par semaine");
   });
 
   test("a quest the API would refuse is said before sending", () => {
