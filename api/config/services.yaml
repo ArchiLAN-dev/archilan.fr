@@ -451,6 +451,7 @@ services:
 
     App\Payments\Domain\Repository\HelloAssoOrderRepositoryInterface: '@App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoOrderRepository'
     App\Payments\Domain\Repository\HelloAssoSyncLogRepositoryInterface: '@App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoSyncLogRepository'
+    App\Payments\Domain\Repository\ShopAnnouncementRepositoryInterface: '@App\Payments\Infrastructure\Doctrine\DoctrineShopAnnouncementRepository'
     App\Payments\Application\Port\HelloAssoClientInterface: '@App\Payments\Infrastructure\Http\HelloAssoHttpClient'
 
     App\Registrations\Domain\Repository\RegistrationRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationRepository'

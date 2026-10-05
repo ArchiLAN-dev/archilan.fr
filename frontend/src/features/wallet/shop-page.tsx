@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Sparkles } from "lucide-react";
+import { Eye, Percent, Sparkles } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -14,7 +14,7 @@ import { fetchMyCommunityProfile } from "@/features/community/community-profile-
 import { FramePreview, type FramePreviewBanner } from "@/features/community/frame-preview";
 import { CENTRED_FRAMING, type ImageFraming } from "@/features/community/image-framing";
 import { PelleAmount, pellesLabel } from "./pelle-amount";
-import { buyShopItem, fetchShop, isNewItem, type CosmeticType, type ShopItem } from "./shop-api";
+import { buyShopItem, fetchShop, isNewItem, timeLeftLabel, type CosmeticType, type ShopItem } from "./shop-api";
 import { COSMETIC_TYPE_LABELS, ShopCosmeticPreview, useCosmeticLabel } from "./shop-cosmetics";
 import { fetchMyWallet } from "./wallet-api";
 
@@ -69,8 +69,8 @@ export function CosmeticShop() {
     <ShopView
       gold={signedIn ? (wallet?.gold ?? null) : null}
       items={items}
-      onBuy={async (itemId) => {
-        const error = await buyShopItem(itemId);
+      onBuy={async (itemId, expectedPrice) => {
+        const error = await buyShopItem(itemId, expectedPrice);
         await queryClient.invalidateQueries({ queryKey: ["shop"] });
         await queryClient.invalidateQueries({ queryKey: ["my-wallet"] });
         await queryClient.invalidateQueries({ queryKey: ["community-my-profile"] });
@@ -93,7 +93,8 @@ export function ShopView({
   gold: number | null;
   /** Null for a visitor. */
   shopper: ShopShopper | null;
-  onBuy: (itemId: string) => Promise<string | null>;
+  /** Story 41.14: with the price shown, which the server checks before charging. */
+  onBuy: (itemId: string, expectedPrice: number) => Promise<string | null>;
   now?: Date;
 }) {
   const label = useCosmeticLabel();
@@ -101,11 +102,15 @@ export function ShopView({
   const [buying, setBuying] = useState<ShopItem | null>(null);
   const [pending, setPending] = useState(false);
   const [trying, setTrying] = useState<ShopItem | null>(null);
+  // Story 41.14: the « En promo » filter, shown only while something is on promotion.
+  const [promoOnly, setPromoOnly] = useState(false);
+  const promoCount = items.filter((item) => item.promotion != null).length;
+  const shown = promoOnly && promoCount > 0 ? items.filter((item) => item.promotion != null) : items;
 
   async function confirmBuy(): Promise<void> {
     if (buying === null) return;
     setPending(true);
-    const error = await onBuy(buying.id);
+    const error = await onBuy(buying.id, buying.price);
     setMessage(error === null ? { tone: "ok", text: `« ${label(buying.type, buying.cosmeticKey)} » est à toi.`, wear: true } : { tone: "error", text: error });
     setPending(false);
     setBuying(null);
@@ -150,13 +155,20 @@ export function ShopView({
         </p>
       ) : null}
 
+      {promoCount > 0 ? (
+        <div aria-label="Filtrer la boutique" className="flex flex-wrap gap-2" role="group">
+          <FilterChip active={!promoOnly} label="Tout" onClick={() => setPromoOnly(false)} />
+          <FilterChip active={promoOnly} count={promoCount} icon label="En promo" onClick={() => setPromoOnly(true)} />
+        </div>
+      ) : null}
+
       {items.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
           La boutique est vide pour l&apos;instant : les premiers objets arrivent avec les dessins des membres.
         </p>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => {
+          {shown.map((item) => {
             const name = label(item.type, item.cosmeticKey);
             const missing = gold !== null && gold < item.price ? item.price - gold : 0;
             return (
@@ -175,6 +187,9 @@ export function ShopView({
                   {item.owned ? (
                     <span className="absolute left-3 top-3 rounded-full bg-success px-2 py-0.5 text-xs font-semibold text-white">Possédé</span>
                   ) : null}
+                  {item.promotion != null && !item.owned ? (
+                    <span className="absolute right-3 top-3 rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-white">-{item.promotion.percent} %</span>
+                  ) : null}
                 </div>
                 <div className="grid gap-3 p-4">
                   <div className="min-w-0">
@@ -183,6 +198,15 @@ export function ShopView({
                       {COSMETIC_TYPE_LABELS[item.type]}
                       {item.availableUntil !== null ? ` · jusqu'au ${untilFormatter.format(new Date(item.availableUntil))}` : ""}
                     </p>
+                    {item.promotion != null && !item.owned ? (
+                      <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs">
+                        <span className="text-muted-foreground line-through">
+                          <PelleAmount amount={item.regularPrice ?? item.price} />
+                        </span>
+                        <PelleAmount amount={item.promotion.price} className="font-semibold text-warning" />
+                        <span className="font-medium text-danger">· {timeLeftLabel(item.promotion.endsAt, now.getTime())}</span>
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <button className={buttonVariants({ variant: "ghost" })} onClick={() => setTrying(item)} type="button">
@@ -226,7 +250,7 @@ export function ShopView({
         confirmLabel="Acheter"
         description={
           buying !== null && gold !== null
-            ? `${pellesLabel(buying.price)} en or. Il te restera ${pellesLabel(gold - buying.price)}. Un achat est définitif.`
+            ? `${pellesLabel(buying.price)} en or${buying.promotion != null ? ` au lieu de ${pellesLabel(buying.regularPrice ?? buying.price)} (-${buying.promotion.percent} %)` : ""}. Il te restera ${pellesLabel(gold - buying.price)}. Un achat est définitif.`
             : ""
         }
         onConfirm={() => void confirmBuy()}
@@ -238,6 +262,23 @@ export function ShopView({
         title={buying !== null ? `Acheter « ${label(buying.type, buying.cosmeticKey)} » ?` : ""}
       />
     </div>
+  );
+}
+
+function FilterChip({ label, active, onClick, count, icon = false }: { label: string; active: boolean; onClick: () => void; count?: number; icon?: boolean }) {
+  return (
+    <button
+      aria-pressed={active}
+      className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
+        active ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted-foreground hover:border-accent hover:text-foreground"
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      {icon ? <Percent aria-hidden className="size-3.5 text-danger" /> : null}
+      {label}
+      {count !== undefined ? <span className="tabular-nums text-xs text-muted-foreground">{count}</span> : null}
+    </button>
   );
 }
 

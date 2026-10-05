@@ -51,10 +51,41 @@ final readonly class ManageShop
     {
         $item = $this->item($itemId);
         try {
-            $item->edit($price, $from, $until);
+            $item->edit($price, $from, $until, $this->clock->now());
         } catch (\DomainException $e) {
-            throw new ValidationException(sprintf('Prix de %d à %d pelles, fin après le début.', ShopItem::MIN_PRICE, ShopItem::MAX_PRICE), [], $e->getMessage());
+            $message = 'shop_item_price_below_promotion' === $e->getMessage()
+                ? 'Le prix normal doit rester au-dessus du prix promo. Retire ou ajuste la promotion d\'abord.'
+                : sprintf('Prix de %d à %d pelles, fin après le début.', ShopItem::MIN_PRICE, ShopItem::MAX_PRICE);
+            throw new ValidationException($message, [], $e->getMessage());
         }
+        $this->shop->saveItem($item);
+    }
+
+    /**
+     * Story 41.14: a temporary promotion on the item, replacing any previous one.
+     *
+     * @throws NotFoundException   when the item does not exist
+     * @throws ValidationException when the price is not under the regular one, or the end is not after the start
+     */
+    public function promote(string $itemId, int $promoPrice, ?\DateTimeImmutable $startsAt, ?\DateTimeImmutable $endsAt): void
+    {
+        $item = $this->item($itemId);
+        if (null === $endsAt) {
+            throw new ValidationException('Une promotion a une date de fin.', [], 'shop_item_promotion_end_required');
+        }
+        try {
+            $item->promote($promoPrice, $startsAt, $endsAt, $this->clock->now());
+        } catch (\DomainException $e) {
+            throw new ValidationException('Prix promo d\'au moins 1 pelle et sous le prix normal, fin à venir et après le début.', [], $e->getMessage());
+        }
+        $this->shop->saveItem($item);
+    }
+
+    /** @throws NotFoundException when the item does not exist */
+    public function endPromotion(string $itemId): void
+    {
+        $item = $this->item($itemId);
+        $item->endPromotion();
         $this->shop->saveItem($item);
     }
 
