@@ -43,6 +43,23 @@ final readonly class AdminGameContributionController
         ]);
     }
 
+    /** Story 39.16: one contribution, for its own moderation page. */
+    #[Route('/api/v1/admin/game-contributions/{id}', name: 'api_admin_game_contributions_show', methods: ['GET'])]
+    public function show(Request $request, string $id): JsonResponse
+    {
+        $admin = $this->apiAccessGuard->requireAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $contribution = $this->query->find($id);
+        if (null === $contribution) {
+            return $this->apiAccessGuard->errorResponse('contribution_not_found', 'Contribution introuvable.', 404);
+        }
+
+        return new JsonResponse(['data' => $contribution]);
+    }
+
     private function queryString(Request $request, string $key): ?string
     {
         $value = $request->query->get($key);

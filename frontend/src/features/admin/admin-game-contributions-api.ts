@@ -11,6 +11,10 @@ export type ContributionItem = {
   message: string | null;
   target: string;
   gameSlug: string | null;
+  /** Story 39.16: the game to link to (null when unlisted), and the decision once taken. Absent on an older API. */
+  gameId?: string | null;
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
   proposedSteps: GameStep[];
   currentSteps: GameStep[];
 };
@@ -59,6 +63,50 @@ export function buildContributionsQuery(filters: ContributionFilters): string {
   if (q !== "") params.set("q", q);
   if (filters.gameId !== undefined) params.set("game", filters.gameId);
   return params.toString();
+}
+
+/** Story 39.16: one contribution, for its own moderation page. */
+export type ContributionResult = { kind: "ready"; item: ContributionItem } | { kind: "not_found" } | { kind: "error" };
+
+export async function fetchContribution(id: string): Promise<ContributionResult> {
+  try {
+    const response = await apiFetch(`${env.apiBaseUrl}/admin/game-contributions/${id}`);
+    if (response.status === 404) return { kind: "not_found" };
+    if (!response.ok) return { kind: "error" };
+    const payload: unknown = await response.json();
+    return typeof payload === "object" && payload !== null && "data" in payload && isContributionItem(payload.data)
+      ? { kind: "ready", item: payload.data }
+      : { kind: "error" };
+  } catch {
+    return { kind: "error" };
+  }
+}
+
+export type StepChange = "same" | "modified" | "added" | "removed";
+export type StepComparison = { position: number; change: StepChange; current: GameStep | null; proposed: GameStep | null };
+
+function sameStep(a: GameStep, b: GameStep): boolean {
+  return a.type === b.type && a.title === b.title && a.description === b.description && (a.videoUrl ?? null) === (b.videoUrl ?? null);
+}
+
+/**
+ * Story 39.16: the current tutorial against the proposed one, position by position - an approval replaces the whole
+ * tutorial, so what each position becomes is what the moderator checks.
+ */
+export function compareSteps(current: GameStep[], proposed: GameStep[]): StepComparison[] {
+  return Array.from({ length: Math.max(current.length, proposed.length) }, (_, index) => {
+    const before = current[index] ?? null;
+    const after = proposed[index] ?? null;
+    const change: StepChange = before === null ? "added" : after === null ? "removed" : sameStep(before, after) ? "same" : "modified";
+    return { position: index + 1, change, current: before, proposed: after };
+  });
+}
+
+/** How many steps changed, by kind - the summary at the top of the comparison. */
+export function summarizeChanges(rows: StepComparison[]): Record<StepChange, number> {
+  const counts: Record<StepChange, number> = { same: 0, modified: 0, added: 0, removed: 0 };
+  for (const row of rows) counts[row.change] += 1;
+  return counts;
 }
 
 export async function fetchContributionQueue(
