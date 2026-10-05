@@ -27,9 +27,9 @@ const QUERY_KEY = ["admin-quests"] as const;
 
 type QuestsView = "weeks" | "types";
 
-const INTROS: Record<QuestsView, string> = {
-  weeks:
-    "Chaque lundi, les quêtes de la semaine sont tirées au hasard parmi les types « dans le tirage ». Une quête épinglée à une semaine y prend une place, le tirage complète le reste.",
+// The weeks tab explains the draw in its own panel.
+const INTROS: Record<QuestsView, string | null> = {
+  weeks: null,
   types: "Les quêtes que les semaines peuvent servir : leurs objectifs, leur récompense, et si elles sortent au tirage ou seulement épinglées.",
 };
 
@@ -49,7 +49,7 @@ export function AdminQuestsPage({ view }: { view: QuestsView }) {
 
   return (
     <div className="grid gap-4">
-      <p className="max-w-3xl text-sm text-muted-foreground">{INTROS[view]}</p>
+      {INTROS[view] ? <p className="max-w-3xl text-sm text-muted-foreground">{INTROS[view]}</p> : null}
       {isLoading ? <p className="text-sm text-muted-foreground">Chargement…</p> : null}
       {!isLoading && !data ? <p className="text-sm text-danger">Impossible de charger les quêtes.</p> : null}
       {data ? view === "weeks" ? <AdminQuestWeeksView data={data} onChange={after} /> : <AdminQuestTypesView data={data} onChange={after} /> : null}

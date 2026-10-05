@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CalendarClock, Pin, Plus, Repeat2, Shuffle, X } from "lucide-react";
+import { ArrowRight, CalendarClock, Minus, Pin, Plus, Repeat2, Shuffle, X } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { QUEST_LIMITS, objectivesSummary, pinQuest, setQuestsPerWeek, unpinQuest, type AdminQuest, type AdminQuestWeek, type QuestMetricOption, type ServedQuest } from "./admin-quests-api";
-import { StatusLine, fieldClass, useQuestChange, weekLabel, type ViewProps } from "./admin-quests-shared";
+import { StatusLine, useQuestChange, weekLabel, type ViewProps } from "./admin-quests-shared";
 import { PelleAmount } from "./pelle-amount";
 
 /** What the admin is choosing a quest for: to add to a week, or to put in place of one already there. */
@@ -40,20 +40,13 @@ export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
     <div className="grid gap-6">
       <StatusLine message={message} />
 
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3">
-        <p className="text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">{inDraw}</span> type{inDraw > 1 ? "s" : ""} de quête dans le tirage
-          {inDraw < data.questsPerWeek ? (
-            <span className="text-warning"> : moins que le nombre par semaine, certaines semaines en auront moins.</span>
-          ) : (
-            "."
-          )}{" "}
-          <Link className="text-accent-text hover:underline" href="/admin/quetes/types">
-            Gérer les types
-          </Link>
-        </p>
-        <PerWeekForm count={data.questsPerWeek} onSave={(count) => apply(() => setQuestsPerWeek(count), "Nombre de quêtes enregistré.")} />
-      </div>
+      <DrawPanel
+        inDraw={inDraw}
+        nextDraw={coming[0]?.startsAt ?? null}
+        onSave={(count) => apply(() => setQuestsPerWeek(count), "Nombre de quêtes enregistré.")}
+        pending={pending}
+        perWeek={data.questsPerWeek}
+      />
 
       {current ? (
         <CurrentWeek
@@ -344,34 +337,103 @@ export function PickQuestDialog({
   );
 }
 
-function PerWeekForm({ count, onSave }: { count: number; onSave: (count: number) => Promise<boolean> }) {
-  const [value, setValue] = useState(String(count));
-  const parsed = Number.parseInt(value, 10);
-  const valid = Number.isInteger(parsed) && parsed >= QUEST_LIMITS.minPerWeek && parsed <= QUEST_LIMITS.maxPerWeek;
+const drawDay = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" });
+
+/**
+ * How the weeks fill (story 41.15), as three figures: the quests a week (changed in place), the types the draw picks
+ * from, and when the next draw happens - with the rule in one line, and a warning when the draw falls short.
+ */
+export function DrawPanel({
+  perWeek,
+  inDraw,
+  nextDraw,
+  pending,
+  onSave,
+}: {
+  perWeek: number;
+  inDraw: number;
+  nextDraw: string | null;
+  pending: boolean;
+  onSave: (count: number) => Promise<boolean>;
+}) {
+  const [count, setCount] = useState(perWeek);
+  const changed = count !== perWeek;
+  // Against the number being edited, so the warning shows before saving.
+  const short = inDraw < count;
 
   return (
-    <form
-      className="flex items-end gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void onSave(parsed);
-      }}
-    >
-      <label className="grid gap-1 text-sm">
-        <span className="font-medium text-foreground">Quêtes par semaine</span>
-        <input
-          className={`${fieldClass} w-24`}
-          inputMode="numeric"
-          max={QUEST_LIMITS.maxPerWeek}
-          min={QUEST_LIMITS.minPerWeek}
-          onChange={(event) => setValue(event.target.value)}
-          type="number"
-          value={value}
-        />
-      </label>
-      <button className={buttonVariants({ variant: "secondary" })} disabled={!valid || parsed === count} type="submit">
-        Enregistrer
-      </button>
-    </form>
+    <section aria-label="Tirage des quêtes" className="grid gap-4 rounded-xl border border-border bg-surface p-5">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid content-start gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" id="quests-per-week">
+            Quêtes par semaine
+          </p>
+          <div className="flex items-center gap-2">
+            <div aria-labelledby="quests-per-week" className="inline-flex items-center rounded-lg border border-border bg-background" role="group">
+              <button
+                aria-label="Une quête de moins"
+                className="grid size-9 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-40"
+                disabled={count <= QUEST_LIMITS.minPerWeek}
+                onClick={() => setCount(count - 1)}
+                type="button"
+              >
+                <Minus aria-hidden className="size-4" />
+              </button>
+              <output aria-live="polite" className="w-8 text-center font-heading text-2xl font-bold tabular-nums text-foreground">
+                {count}
+              </output>
+              <button
+                aria-label="Une quête de plus"
+                className="grid size-9 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-40"
+                disabled={count >= QUEST_LIMITS.maxPerWeek}
+                onClick={() => setCount(count + 1)}
+                type="button"
+              >
+                <Plus aria-hidden className="size-4" />
+              </button>
+            </div>
+            {changed ? (
+              <>
+                <button className={buttonVariants({ variant: "primary" })} disabled={pending} onClick={() => void onSave(count)} type="button">
+                  Enregistrer
+                </button>
+                <button className={buttonVariants({ variant: "ghost" })} onClick={() => setCount(perWeek)} type="button">
+                  Annuler
+                </button>
+              </>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground">Vaut pour les semaines pas encore tirées.</p>
+        </div>
+
+        <div className="grid content-start gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Types dans le tirage</p>
+          <p className={`font-heading text-2xl font-bold tabular-nums ${short ? "text-warning" : "text-foreground"}`}>{inDraw}</p>
+          <Link className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline" href="/admin/quetes/types">
+            Gérer les types
+            <ArrowRight aria-hidden className="size-3" />
+          </Link>
+        </div>
+
+        <div className="grid content-start gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prochain tirage</p>
+          <p className="font-heading text-lg font-semibold text-foreground first-letter:uppercase">{nextDraw ? drawDay.format(new Date(nextDraw)) : "-"}</p>
+          <p className="text-xs text-muted-foreground">à minuit, heure de Paris</p>
+        </div>
+      </div>
+
+      <p className="flex items-start gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+        <Shuffle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+        <span>
+          Chaque lundi, la semaine prend ses quêtes épinglées puis tire le reste au hasard parmi les types « dans le tirage ».
+          {short ? (
+            <span className="text-warning">
+              {" "}
+              Il y a moins de types dans le tirage que de quêtes par semaine : les semaines sans épinglée en auront {inDraw}.
+            </span>
+          ) : null}
+        </span>
+      </p>
+    </section>
   );
 }

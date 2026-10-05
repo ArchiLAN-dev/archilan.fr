@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { fetchAdminQuests, objectivesSummary, pinQuest, type AdminQuests } from "./admin-quests-api";
-import { ComingWeekRow, CurrentWeek, AdminQuestWeeksView } from "./admin-quest-weeks";
+import { AdminQuestWeeksView, ComingWeekRow, CurrentWeek, DrawPanel } from "./admin-quest-weeks";
 import { AdminQuestTypesView, questTermsError } from "./admin-quests-page";
 import { weekLabel } from "./admin-quests-shared";
 import { AdminQuestsTabs } from "./admin-quests-tabs";
@@ -78,6 +78,20 @@ describe("admin weekly quests", () => {
     expect(html).toContain("1 quête");
   });
 
+  test("the draw panel gives the quests a week, the types in the draw and the next draw", () => {
+    const save = async () => true;
+    const html = renderToStaticMarkup(<DrawPanel inDraw={3} nextDraw="2026-10-11T22:00:00+00:00" onSave={save} pending={false} perWeek={3} />);
+
+    expect(html).toContain("Quêtes par semaine");
+    expect(html).toContain("lundi 12 octobre");
+    expect(html).toContain('href="/admin/quetes/types"');
+    expect(html).not.toContain("moins de types dans le tirage");
+    expect(html).not.toContain("Enregistrer");
+
+    const short = renderToStaticMarkup(<DrawPanel inDraw={1} nextDraw={null} onSave={save} pending={false} perWeek={3} />);
+    expect(short).toContain("les semaines sans épinglée en auront 1");
+  });
+
   test("the weeks and the quest types live on two pages", () => {
     const onChange = async (error: string | null) => error;
     const weeks = renderToStaticMarkup(<AdminQuestWeeksView data={data} onChange={onChange} />);
@@ -85,7 +99,7 @@ describe("admin weekly quests", () => {
 
     expect(weeks).toContain("Quêtes par semaine");
     expect(weeks).toContain("À venir");
-    expect(weeks).toContain("moins que le nombre par semaine");
+    expect(weeks).toContain("moins de types dans le tirage que de quêtes par semaine");
     expect(weeks).not.toContain("Nouvelle quête");
 
     expect(types).toContain("Nouvelle quête");
