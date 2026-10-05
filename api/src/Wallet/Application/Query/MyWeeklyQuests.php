@@ -42,7 +42,7 @@ final readonly class MyWeeklyQuests
                 $objectives[] = [
                     'metric' => $objective->metric->value,
                     'label' => $objective->metric->label(),
-                    'unit' => $objective->metric->unit(),
+                    'unit' => $objective->metric->unitFor($objective->target),
                     'target' => $objective->target,
                     'current' => $mine[$objective->metric->value] ?? 0,
                 ];

@@ -4,13 +4,15 @@ import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { fetchAdminQuests, objectivesSummary, pinQuest, type AdminQuests } from "./admin-quests-api";
-import { AdminQuestTypesView, AdminQuestWeeksView, WeekCard, questTermsError, weekLabel } from "./admin-quests-page";
+import { ComingWeekRow, CurrentWeek, AdminQuestWeeksView } from "./admin-quest-weeks";
+import { AdminQuestTypesView, questTermsError } from "./admin-quests-page";
+import { weekLabel } from "./admin-quests-shared";
 import { AdminQuestsTabs } from "./admin-quests-tabs";
 
 const metrics = [
-  { key: "goals", label: "Goals atteints", unit: "goals" },
-  { key: "checks", label: "Checks faits", unit: "checks" },
-  { key: "sessions", label: "Parties jouées", unit: "parties" },
+  { key: "goals", label: "Goals atteints", unit: "goals", unitOne: "goal" },
+  { key: "checks", label: "Checks faits", unit: "checks", unitOne: "check" },
+  { key: "sessions", label: "Parties jouées", unit: "parties", unitOne: "partie" },
 ];
 
 const data: AdminQuests = {
@@ -48,20 +50,32 @@ describe("admin weekly quests", () => {
   test("says a week by its days and a quest by its objectives", () => {
     expect(weekLabel(data.weeks[0])).toBe("5 oct. - 11 oct.");
     expect(objectivesSummary(data.quests[0].objectives, metrics)).toBe("50 checks et 2 parties");
+    expect(objectivesSummary([{ metric: "goals", target: 1 }], metrics)).toBe("1 goal");
   });
 
-  test("a coming week tells how many quests its draw will add", () => {
-    const html = renderToStaticMarkup(<WeekCard metrics={metrics} onChange={noop} perWeek={3} quests={data.quests} week={data.weeks[1]} />);
+  test("a coming week is one line: its pinned quests and the places left to the draw", () => {
+    const html = renderToStaticMarkup(<ComingWeekRow onPin={noop} onUnpin={noop} pending={false} perWeek={3} week={data.weeks[1]} />);
 
+    expect(html).toContain("12 oct. - 18 oct.");
     expect(html).toContain("Spéciale LAN");
-    expect(html).toContain('aria-label="Épinglée"');
-    expect(html).toContain("Tirage le lundi : 2 quêtes au hasard.");
-    expect(html).toContain("Marathon");
+    expect(html).toContain('aria-label="Désépingler « Spéciale LAN »"');
+    expect(html).toContain("+ 2 au tirage");
 
-    const current = renderToStaticMarkup(<WeekCard metrics={metrics} onChange={noop} perWeek={3} quests={data.quests} week={data.weeks[0]} />);
-    expect(current).toContain("En cours");
-    expect(current).toContain('aria-label="Tirée au hasard"');
-    expect(current).not.toContain("Tirage le lundi");
+    const drawn = renderToStaticMarkup(<ComingWeekRow onPin={noop} onUnpin={noop} pending={false} perWeek={3} week={{ ...data.weeks[1], drawn: true }} />);
+    expect(drawn).not.toContain("au tirage");
+  });
+
+  test("the current week shows each quest in full, with its origin and what it pays", () => {
+    const html = renderToStaticMarkup(
+      <CurrentWeek byId={new Map(data.quests.map((quest) => [quest.id, quest]))} metrics={metrics} onAdd={noop} onRemove={noop} onReplace={noop} pending={false} week={data.weeks[0]} />,
+    );
+
+    expect(html).toContain("Cette semaine");
+    expect(html).toContain("Marathon");
+    expect(html).toContain("50 checks et 2 parties");
+    expect(html).toContain("Tirée");
+    expect(html).toContain("Remplacer");
+    expect(html).toContain("1 quête");
   });
 
   test("the weeks and the quest types live on two pages", () => {
@@ -70,8 +84,8 @@ describe("admin weekly quests", () => {
     const types = renderToStaticMarkup(<AdminQuestTypesView data={data} onChange={onChange} />);
 
     expect(weeks).toContain("Quêtes par semaine");
-    expect(weeks).toContain("2026-W42");
-    expect(weeks).toContain("1 type de quête dans le tirage.");
+    expect(weeks).toContain("À venir");
+    expect(weeks).toContain("moins que le nombre par semaine");
     expect(weeks).not.toContain("Nouvelle quête");
 
     expect(types).toContain("Nouvelle quête");

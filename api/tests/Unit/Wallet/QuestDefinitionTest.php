@@ -26,6 +26,8 @@ final class QuestDefinitionTest extends TestCase
         self::assertFalse($quest->isAccomplishedWith(['checks' => 80]));
         self::assertTrue($quest->isAccomplishedWith(['goals' => 3, 'checks' => 50]));
         self::assertSame([QuestMetric::Goals, QuestMetric::Checks], QuestDefinition::metricsOf([$quest, $quest]));
+        self::assertSame('nouveau partenaire', QuestMetric::NewPartners->unitFor(1));
+        self::assertSame('nouveaux partenaires', QuestMetric::NewPartners->unitFor(2));
     }
 
     public function testAQuestRefusesWhatItCannotPay(): void

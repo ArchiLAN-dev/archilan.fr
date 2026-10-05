@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, Pin, Plus, Shuffle, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
@@ -14,31 +12,18 @@ import {
   editQuest,
   fetchAdminQuests,
   objectivesSummary,
-  pinQuest,
   setQuestRetired,
-  setQuestsPerWeek,
-  unpinQuest,
   writeQuest,
   type AdminQuest,
-  type AdminQuestWeek,
-  type AdminQuests,
   type QuestMetricOption,
   type QuestObjectiveTerms,
   type QuestTerms,
 } from "./admin-quests-api";
+import { AdminQuestWeeksView } from "./admin-quest-weeks";
+import { StatusLine, fieldClass, useQuestChange, type ViewProps } from "./admin-quests-shared";
 import { PelleAmount } from "./pelle-amount";
 
 const QUERY_KEY = ["admin-quests"] as const;
-const fieldClass = "min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground";
-const weekFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "Europe/Paris" });
-
-/** The week's first day, « 5 oct. » (its end is the next Monday, so the Sunday before it closes the range). */
-export function weekLabel(week: Pick<AdminQuestWeek, "startsAt" | "endsAt">): string {
-  const lastDay = new Date(new Date(week.endsAt).getTime() - 1);
-  return `${weekFormatter.format(new Date(week.startsAt))} - ${weekFormatter.format(lastDay)}`;
-}
-
-type Change = { title: string; description: string; label: string; run: () => Promise<string | null> };
 
 type QuestsView = "weeks" | "types";
 
@@ -68,87 +53,6 @@ export function AdminQuestsPage({ view }: { view: QuestsView }) {
       {isLoading ? <p className="text-sm text-muted-foreground">Chargement…</p> : null}
       {!isLoading && !data ? <p className="text-sm text-danger">Impossible de charger les quêtes.</p> : null}
       {data ? view === "weeks" ? <AdminQuestWeeksView data={data} onChange={after} /> : <AdminQuestTypesView data={data} onChange={after} /> : null}
-    </div>
-  );
-}
-
-type ViewProps = { data: AdminQuests; onChange: (error: string | null) => Promise<string | null> };
-
-type StatusMessage = { tone: "ok" | "error"; text: string };
-
-/** A change, its pending state and the line that reports it. */
-function useQuestChange(onChange: ViewProps["onChange"]) {
-  const [message, setMessage] = useState<StatusMessage | null>(null);
-  const [pending, setPending] = useState(false);
-
-  async function apply(run: () => Promise<string | null>, ok: string): Promise<boolean> {
-    setPending(true);
-    const error = await onChange(await run());
-    setPending(false);
-    setMessage(error === null ? { tone: "ok", text: ok } : { tone: "error", text: error });
-    return error === null;
-  }
-
-  return { message, pending, apply };
-}
-
-function StatusLine({ message }: { message: StatusMessage | null }) {
-  return message ? (
-    <p className={`rounded-lg border px-3 py-2 text-sm ${message.tone === "ok" ? "border-success/40 text-success" : "border-danger/40 text-danger"}`} role="status">
-      {message.text}
-    </p>
-  ) : null;
-}
-
-/** `/admin/quetes/semaines`: the number of quests a week, and the current and 8 coming weeks. */
-export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
-  const { message, pending, apply } = useQuestChange(onChange);
-  const [change, setChange] = useState<Change | null>(null);
-
-  // A change on the week the members are living is confirmed first; a coming week changes right away.
-  function changeWeek(week: AdminQuestWeek, next: Change): void {
-    if (week.current) setChange(next);
-    else void apply(next.run, next.label);
-  }
-
-  const active = data.quests.filter((quest) => !quest.retired);
-  const inDraw = active.filter((quest) => quest.inDraw).length;
-
-  return (
-    <div className="grid gap-4">
-      <StatusLine message={message} />
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {inDraw} type{inDraw > 1 ? "s" : ""} de quête dans le tirage.{" "}
-          {active.length === 0 ? (
-            <Link className="text-accent-text hover:underline" href="/admin/quetes/types">
-              Créer une quête
-            </Link>
-          ) : null}
-        </p>
-        <PerWeekForm count={data.questsPerWeek} onSave={(count) => apply(() => setQuestsPerWeek(count), "Nombre de quêtes enregistré.")} />
-      </div>
-      <ol className="grid gap-3 lg:grid-cols-2" role="list">
-        {data.weeks.map((week) => (
-          <WeekCard key={week.key} metrics={data.metrics} onChange={(next) => changeWeek(week, next)} perWeek={data.questsPerWeek} quests={active} week={week} />
-        ))}
-      </ol>
-
-      <ConfirmDialog
-        confirmLabel={change?.label ?? "Confirmer"}
-        description={change?.description ?? ""}
-        icon={CalendarClock}
-        onConfirm={() => {
-          if (change === null) return;
-          void apply(change.run, change.label).then(() => setChange(null));
-        }}
-        onOpenChange={(open) => {
-          if (!open) setChange(null);
-        }}
-        open={change !== null}
-        pending={pending}
-        title={change?.title ?? ""}
-      />
     </div>
   );
 }
@@ -218,167 +122,6 @@ export function AdminQuestTypesView({ data, onChange }: ViewProps) {
         />
       ) : null}
     </div>
-  );
-}
-
-function PerWeekForm({ count, onSave }: { count: number; onSave: (count: number) => Promise<boolean> }) {
-  const [value, setValue] = useState(String(count));
-  const parsed = Number.parseInt(value, 10);
-  const valid = Number.isInteger(parsed) && parsed >= QUEST_LIMITS.minPerWeek && parsed <= QUEST_LIMITS.maxPerWeek;
-
-  return (
-    <form
-      className="flex items-end gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void onSave(parsed);
-      }}
-    >
-      <label className="grid gap-1 text-sm">
-        <span className="font-medium text-foreground">Quêtes par semaine</span>
-        <input
-          className={`${fieldClass} w-24`}
-          inputMode="numeric"
-          max={QUEST_LIMITS.maxPerWeek}
-          min={QUEST_LIMITS.minPerWeek}
-          onChange={(event) => setValue(event.target.value)}
-          type="number"
-          value={value}
-        />
-      </label>
-      <button className={buttonVariants({ variant: "secondary" })} disabled={!valid || parsed === count} type="submit">
-        Enregistrer
-      </button>
-    </form>
-  );
-}
-
-/** One week: its quests (pinned or drawn), what the draw will add, and the admin's hand on it. */
-export function WeekCard({
-  week,
-  quests,
-  metrics,
-  perWeek,
-  onChange,
-}: {
-  week: AdminQuestWeek;
-  quests: AdminQuest[];
-  metrics: QuestMetricOption[];
-  perWeek: number;
-  onChange: (change: Change) => void;
-}) {
-  const [adding, setAdding] = useState("");
-  const served = new Set(week.quests.map((quest) => quest.questId));
-  const addable = quests.filter((quest) => !served.has(quest.id));
-  const toDraw = Math.max(0, perWeek - week.quests.length);
-  const where = week.current ? "la semaine en cours" : `la semaine du ${weekLabel(week)}`;
-
-  return (
-    <li className={`grid content-start gap-3 rounded-lg border p-4 ${week.current ? "border-accent/50 bg-accent/5" : "border-border bg-surface"}`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-semibold text-foreground">
-          {weekLabel(week)}
-          {week.current ? <span className="ml-2 rounded-full border border-accent/40 px-2 py-0.5 text-xs font-medium text-accent-text">En cours</span> : null}
-        </h3>
-        <span className="text-xs text-muted-foreground tabular-nums">{week.key}</span>
-      </div>
-
-      {week.quests.length === 0 ? <p className="text-sm text-muted-foreground">Aucune quête épinglée.</p> : null}
-      <ul className="grid gap-2" role="list">
-        {week.quests.map((served) => {
-          const replacements = addable.filter((quest) => quest.id !== served.questId);
-          return (
-            <li className="flex flex-wrap items-center gap-2 text-sm" key={served.questId}>
-              {served.origin === "pinned" ? (
-                <Pin aria-label="Épinglée" className="size-3.5 shrink-0 text-accent-text" />
-              ) : (
-                <Shuffle aria-label="Tirée au hasard" className="size-3.5 shrink-0 text-muted-foreground" />
-              )}
-              <span className="min-w-0 flex-1 truncate text-foreground">{served.title}</span>
-              <PelleAmount amount={served.reward} className="text-xs font-semibold text-warning" signed />
-              {replacements.length > 0 ? (
-                <select
-                  aria-label={`Remplacer « ${served.title} »`}
-                  className={`${fieldClass} min-h-8 max-w-40 text-xs`}
-                  onChange={(event) => {
-                    const replacement = replacements.find((quest) => quest.id === event.target.value);
-                    event.target.value = "";
-                    if (!replacement) return;
-                    onChange({
-                      title: "Remplacer une quête de la semaine en cours ?",
-                      description: `« ${replacement.title} » remplace « ${served.title} » pour ${where}. Les membres le voient tout de suite ; ce qui a déjà été payé reste acquis.`,
-                      label: "Quête remplacée.",
-                      run: () => pinQuest(week.key, replacement.id, served.questId),
-                    });
-                  }}
-                  value=""
-                >
-                  <option value="">Remplacer…</option>
-                  {replacements.map((quest) => (
-                    <option key={quest.id} value={quest.id}>
-                      {quest.title}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-              <button
-                aria-label={`Retirer « ${served.title} » de la semaine`}
-                className={buttonVariants({ variant: "ghost" })}
-                onClick={() =>
-                  onChange({
-                    title: "Retirer une quête de la semaine en cours ?",
-                    description: `« ${served.title} » quitte ${where} : elle ne paiera plus personne cette semaine. Ce qui a déjà été payé reste acquis.`,
-                    label: "Quête retirée de la semaine.",
-                    run: () => unpinQuest(week.key, served.questId),
-                  })
-                }
-                type="button"
-              >
-                <Trash2 aria-hidden className="size-4" />
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-
-      {!week.drawn ? (
-        <p className="text-xs text-muted-foreground">
-          {toDraw > 0 ? `Tirage le lundi : ${toDraw} quête${toDraw > 1 ? "s" : ""} au hasard.` : "Semaine complète : pas de tirage."}
-        </p>
-      ) : null}
-
-      {addable.length > 0 ? (
-        <form
-          className="flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const quest = addable.find((candidate) => candidate.id === adding);
-            if (!quest) return;
-            setAdding("");
-            onChange({
-              title: "Ajouter une quête à la semaine en cours ?",
-              description: `« ${quest.title} » (${objectivesSummary(quest.objectives, metrics)}) s'ajoute à ${where}, en plus des quêtes déjà là.`,
-              label: "Quête épinglée.",
-              run: () => pinQuest(week.key, quest.id),
-            });
-          }}
-        >
-          <select aria-label={`Épingler une quête à ${where}`} className={`${fieldClass} min-w-0 flex-1 text-xs`} onChange={(event) => setAdding(event.target.value)} value={adding}>
-            <option value="">Épingler une quête…</option>
-            {addable.map((quest) => (
-              <option key={quest.id} value={quest.id}>
-                {quest.title}
-                {quest.inDraw ? "" : " (hors tirage)"}
-              </option>
-            ))}
-          </select>
-          <button className={buttonVariants({ variant: "secondary" })} disabled={adding === ""} type="submit">
-            <Pin aria-hidden className="size-4" />
-            Épingler
-          </button>
-        </form>
-      ) : null}
-    </li>
   );
 }
 

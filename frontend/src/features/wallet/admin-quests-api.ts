@@ -3,7 +3,7 @@ import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 /** Story 41.15: an objective type of the catalog (code defined, like the facts of the achievements). */
-export type QuestMetricOption = { key: string; label: string; unit: string };
+export type QuestMetricOption = { key: string; label: string; unit: string; unitOne: string };
 
 export type QuestObjectiveTerms = { metric: string; target: number };
 
@@ -39,7 +39,7 @@ function isObjectiveTerms(v: unknown): v is QuestObjectiveTerms {
 }
 
 function isMetric(v: unknown): v is QuestMetricOption {
-  return isObject(v) && hasStringProp(v, "key") && hasStringProp(v, "label") && hasStringProp(v, "unit");
+  return isObject(v) && hasStringProp(v, "key") && hasStringProp(v, "label") && hasStringProp(v, "unit") && hasStringProp(v, "unitOne");
 }
 
 function isQuest(v: unknown): v is AdminQuest {
@@ -159,9 +159,13 @@ export function unpinQuest(weekKey: string, questId: string): Promise<string | n
   );
 }
 
-/** « 50 checks et 2 parties » - a quest's objectives in one line. */
+/** « 50 checks et 1 partie » - a quest's objectives in one line, singular for one. */
 export function objectivesSummary(objectives: QuestObjectiveTerms[], metrics: QuestMetricOption[]): string {
   return objectives
-    .map((objective) => `${objective.target} ${metrics.find((metric) => metric.key === objective.metric)?.unit ?? objective.metric}`)
+    .map((objective) => {
+      const metric = metrics.find((candidate) => candidate.key === objective.metric);
+      const unit = metric ? (objective.target === 1 ? metric.unitOne : metric.unit) : objective.metric;
+      return `${objective.target} ${unit}`;
+    })
     .join(" et ");
 }

@@ -30,7 +30,7 @@ final readonly class QuestAdminQuery
     /**
      * @return array{
      *   questsPerWeek: int,
-     *   metrics: list<array{key: string, label: string, unit: string}>,
+     *   metrics: list<array{key: string, label: string, unit: string, unitOne: string}>,
      *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int}>, inDraw: bool, retired: bool, createdAt: string}>,
      *   weeks: list<array{key: string, startsAt: string, endsAt: string, current: bool, drawn: bool, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool}>}>
      * }
@@ -80,7 +80,7 @@ final readonly class QuestAdminQuery
         return [
             'questsPerWeek' => $this->quests->questsPerWeek(),
             'metrics' => array_map(
-                static fn (QuestMetric $metric): array => ['key' => $metric->value, 'label' => $metric->label(), 'unit' => $metric->unit()],
+                static fn (QuestMetric $metric): array => ['key' => $metric->value, 'label' => $metric->label(), 'unit' => $metric->unit(), 'unitOne' => $metric->unitOne()],
                 QuestMetric::cases(),
             ),
             'quests' => array_map(static fn (QuestDefinition $quest): array => [

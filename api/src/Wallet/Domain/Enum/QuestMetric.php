@@ -41,4 +41,23 @@ enum QuestMetric: string
             self::DistinctGames => 'jeux',
         };
     }
+
+    /** The unit for one, « 1 goal », « 1 nouveau partenaire ». */
+    public function unitOne(): string
+    {
+        return match ($this) {
+            self::Goals => 'goal',
+            self::Checks => 'check',
+            self::Weeklies => 'hebdo',
+            self::NewPartners => 'nouveau partenaire',
+            self::Sessions => 'partie',
+            self::DistinctGames => 'jeu',
+        };
+    }
+
+    /** The unit that goes with a target: singular for 1, plural above. */
+    public function unitFor(int $target): string
+    {
+        return 1 === $target ? $this->unitOne() : $this->unit();
+    }
 }
