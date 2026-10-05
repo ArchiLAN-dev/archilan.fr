@@ -41,6 +41,13 @@ final class ShopItem
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'retired_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $retiredAt = null,
+        // Story 41.14: a temporary promotion - a lower price between an optional start and a mandatory end.
+        #[ORM\Column(name: 'promo_price', type: 'integer', nullable: true)]
+        private ?int $promoPrice = null,
+        #[ORM\Column(name: 'promo_starts_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $promoStartsAt = null,
+        #[ORM\Column(name: 'promo_ends_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $promoEndsAt = null,
     ) {
     }
 
@@ -55,12 +62,71 @@ final class ShopItem
     }
 
     /** Story 41.12: a new price and sale window (null bounds: no start, no end). */
-    public function edit(int $price, ?\DateTimeImmutable $from, ?\DateTimeImmutable $until): void
+    public function edit(int $price, ?\DateTimeImmutable $from, ?\DateTimeImmutable $until, \DateTimeImmutable $now): void
     {
         self::assertTerms($price, $from, $until);
+        // Story 41.14: the regular price stays above a promotion still to come or running, or that promotion would
+        // raise the price. An ended one no longer applies and blocks nothing.
+        if (null !== $this->promoPrice && null !== $this->promoEndsAt && $now < $this->promoEndsAt && $this->promoPrice >= $price) {
+            throw new \DomainException('shop_item_price_below_promotion');
+        }
         $this->price = $price;
         $this->availableFrom = $from;
         $this->availableUntil = $until;
+    }
+
+    /**
+     * Story 41.14: puts the item on promotion - a price strictly under the regular one, until a mandatory end (a
+     * promotion is temporary), from an optional start (none: right away). Replaces any previous promotion.
+     */
+    public function promote(int $promoPrice, ?\DateTimeImmutable $startsAt, \DateTimeImmutable $endsAt, \DateTimeImmutable $now): void
+    {
+        if ($promoPrice < self::MIN_PRICE || $promoPrice >= $this->price) {
+            throw new \DomainException('shop_item_promotion_price_invalid');
+        }
+        // A promotion over before it is saved would never apply.
+        if ($endsAt <= $now || (null !== $startsAt && $endsAt <= $startsAt)) {
+            throw new \DomainException('shop_item_promotion_window_invalid');
+        }
+        $this->promoPrice = $promoPrice;
+        $this->promoStartsAt = $startsAt;
+        $this->promoEndsAt = $endsAt;
+    }
+
+    public function endPromotion(): void
+    {
+        $this->promoPrice = null;
+        $this->promoStartsAt = null;
+        $this->promoEndsAt = null;
+    }
+
+    public function isOnPromotion(\DateTimeImmutable $now): bool
+    {
+        return null !== $this->promoPrice
+            && null !== $this->promoEndsAt
+            && (null === $this->promoStartsAt || $this->promoStartsAt <= $now)
+            && $now < $this->promoEndsAt;
+    }
+
+    /** What a purchase costs at that instant: the promotion while it runs, the regular price otherwise. */
+    public function priceAt(\DateTimeImmutable $now): int
+    {
+        return $this->isOnPromotion($now) && null !== $this->promoPrice ? $this->promoPrice : $this->price;
+    }
+
+    public function getPromoPrice(): ?int
+    {
+        return $this->promoPrice;
+    }
+
+    public function getPromoStartsAt(): ?\DateTimeImmutable
+    {
+        return $this->promoStartsAt;
+    }
+
+    public function getPromoEndsAt(): ?\DateTimeImmutable
+    {
+        return $this->promoEndsAt;
     }
 
     public function isOnSale(\DateTimeImmutable $now): bool

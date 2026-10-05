@@ -43,7 +43,10 @@ final readonly class ShopController
             return $user;
         }
 
-        $this->buy->buy($user->getId(), $itemId);
+        // Story 41.14: the price the member saw, checked against the one in force (absent body: no check).
+        $payload = json_decode($request->getContent(), true);
+        $expected = is_array($payload) && is_int($payload['expectedPrice'] ?? null) ? $payload['expectedPrice'] : null;
+        $this->buy->buy($user->getId(), $itemId, $expected);
 
         return new JsonResponse(null, 204);
     }
@@ -144,6 +147,44 @@ final readonly class ShopController
         }
 
         $this->manage->delete($itemId);
+
+        return new JsonResponse(null, 204);
+    }
+
+    /** Story 41.14: a temporary promotion on the item (price, optional start, mandatory end). */
+    #[Route('/api/v1/admin/shop/items/{itemId}/promotion', name: 'api_wallet_admin_shop_promote', methods: ['PUT'])]
+    public function promote(Request $request, string $itemId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload)) {
+            return $this->apiAccessGuard->errorResponse('invalid_json', 'Corps de requête invalide.', 400);
+        }
+        $price = $payload['price'] ?? null;
+
+        $this->manage->promote(
+            $itemId,
+            is_int($price) ? $price : 0,
+            $this->date($payload['startsAt'] ?? null),
+            $this->date($payload['endsAt'] ?? null),
+        );
+
+        return new JsonResponse(null, 204);
+    }
+
+    #[Route('/api/v1/admin/shop/items/{itemId}/promotion', name: 'api_wallet_admin_shop_end_promotion', methods: ['DELETE'])]
+    public function endPromotion(Request $request, string $itemId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $this->manage->endPromotion($itemId);
 
         return new JsonResponse(null, 204);
     }

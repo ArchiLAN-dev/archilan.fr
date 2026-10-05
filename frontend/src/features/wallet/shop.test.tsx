@@ -16,6 +16,7 @@ import {
   isNewItem,
   listShopItem,
   setShopItemPaused,
+  timeLeftLabel,
   type AdminShop,
   type ShopItem,
 } from "./shop-api";
@@ -43,7 +44,7 @@ const shopper: ShopShopper = {
 };
 const comet: ShopItem = { id: "i1", type: "frame", cosmeticKey: "comet", price: 80, availableUntil: "2026-12-31T23:30:00+00:00", listedAt: "2026-10-01T10:00:00+00:00", owned: false };
 const sunset: ShopItem = { id: "i2", type: "banner", cosmeticKey: "sunset", price: 50, availableUntil: null, listedAt: "2026-06-01T10:00:00+00:00", owned: true };
-const handlers = { onList: noop, onEdit: noop, onPause: noop, onDelete: noop };
+const handlers = { onList: noop, onEdit: noop, onPause: noop, onDelete: noop, onPromote: noop, onEndPromotion: noop };
 
 /** Stories 41.7 and 41.12: the cosmetics shop. */
 describe("shop", () => {
@@ -148,7 +149,7 @@ describe("shop", () => {
     );
 
     expect(await fetchShop()).toEqual([comet]);
-    expect(await buyShopItem("i1")).toBeNull();
+    expect(await buyShopItem("i1", 80)).toBeNull();
     expect(await fetchAdminShop()).toEqual({ items: [], sellable: { frame: [], banner: [] } });
     expect(await listShopItem({ type: "frame", cosmeticKey: "comet", price: 80, availableFrom: null, availableUntil: null })).toBeNull();
     expect(await editShopItem("i1", { price: 25, availableFrom: null, availableUntil: null })).toBeNull();
@@ -162,6 +163,57 @@ describe("shop", () => {
         HttpResponse.json({ error: { code: "already_owned", message: "Tu possèdes déjà cet article.", details: [] } }, { status: 409 }),
       ),
     );
-    expect(await buyShopItem("i1")).toBe("Tu possèdes déjà cet article.");
+    expect(await buyShopItem("i1", 80)).toBe("Tu possèdes déjà cet article.");
+  });
+});
+
+/** Story 41.14: temporary promotions. */
+describe("shop promotions", () => {
+  const onPromo: ShopItem = { ...comet, price: 60, regularPrice: 80, promotion: { price: 60, endsAt: "2026-10-06T12:00:00+00:00", percent: 25 } };
+
+  test("a card on promotion shows the regular price struck, the promotional one, the discount and the time left", () => {
+    const html = render(<ShopView gold={100} items={[onPromo, sunset]} now={NOW} onBuy={noop} shopper={shopper} />);
+
+    expect(html).toContain("-25 %");
+    expect(html).toMatch(/line-through[^>]*>.*80/);
+    expect(html).toContain("Plus que 2 j");
+    expect(html).toContain("Acheter · ");
+    expect(html).toContain("En promo");
+  });
+
+  test("without any promotion, no « En promo » filter", () => {
+    expect(render(<ShopView gold={100} items={[comet, sunset]} now={NOW} onBuy={noop} shopper={shopper} />)).not.toContain("En promo");
+  });
+
+  test("the time left reads in days, then hours, then minutes", () => {
+    const now = NOW.getTime();
+    expect(timeLeftLabel("2026-10-06T12:00:00+00:00", now)).toBe("Plus que 2 j");
+    expect(timeLeftLabel("2026-10-04T17:30:00+00:00", now)).toBe("Plus que 5 h");
+    expect(timeLeftLabel("2026-10-04T12:20:00+00:00", now)).toBe("Plus que 20 min");
+    expect(timeLeftLabel("2026-10-04T11:00:00+00:00", now)).toBe("Terminée");
+  });
+
+  test("the admin sees each item's promotion and can manage it", () => {
+    const shop: AdminShop = {
+      items: [
+        {
+          id: "i1",
+          type: "frame",
+          cosmeticKey: "comet",
+          price: 80,
+          availableFrom: null,
+          availableUntil: null,
+          status: "on_sale",
+          sales: 0,
+          pelles: 0,
+          promotion: { price: 60, startsAt: null, endsAt: "2026-10-06T12:00:00+00:00", status: "running" },
+        },
+      ],
+      sellable: { frame: ["comet"], banner: [] },
+    };
+    const html = render(<AdminShopView shop={shop} {...handlers} />);
+
+    expect(html).toContain("Promotion");
+    expect(html).toContain("en cours jusqu&#x27;au");
   });
 });

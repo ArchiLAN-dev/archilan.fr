@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pause, Pencil, Play, Trash2 } from "lucide-react";
+import { Megaphone, Pause, Pencil, Percent, Play, Trash2 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -12,14 +12,21 @@ import { PelleAmount } from "./pelle-amount";
 import {
   deleteShopItem,
   editShopItem,
+  endShopItemPromotion,
   fetchAdminShop,
+  fetchShopAnnouncement,
+  postShopAnnouncement,
+  setShopItemPromotion,
+  takeDownShopAnnouncement,
   listShopItem,
   setShopItemPaused,
   type AdminShop,
   type AdminShopItem,
   type AdminShopStatus,
   type CosmeticType,
+  type AdminPromotionStatus,
   type NewShopItem,
+  type PromotionTerms,
   type ShopItemTerms,
 } from "./shop-api";
 import { COSMETIC_TYPE_LABELS, ShopCosmeticPreview, useCosmeticLabel } from "./shop-cosmetics";
@@ -55,6 +62,15 @@ type Handlers = {
   onEdit: (itemId: string, terms: ShopItemTerms) => Promise<string | null>;
   onPause: (itemId: string, paused: boolean) => Promise<string | null>;
   onDelete: (itemId: string) => Promise<string | null>;
+  /** Story 41.14: a temporary promotion, set or taken down. */
+  onPromote: (itemId: string, terms: PromotionTerms) => Promise<string | null>;
+  onEndPromotion: (itemId: string) => Promise<string | null>;
+};
+
+const PROMOTION_STATUS: Record<AdminPromotionStatus, { label: string; tone: string }> = {
+  running: { label: "en cours", tone: "text-danger" },
+  upcoming: { label: "à venir", tone: "text-accent-text" },
+  ended: { label: "terminée", tone: "text-muted-foreground" },
 };
 
 /**
@@ -83,11 +99,14 @@ export function AdminShopPage() {
         <AdminShopView
           onDelete={async (itemId) => after(await deleteShopItem(itemId))}
           onEdit={async (itemId, terms) => after(await editShopItem(itemId, terms))}
+          onEndPromotion={async (itemId) => after(await endShopItemPromotion(itemId))}
+          onPromote={async (itemId, terms) => after(await setShopItemPromotion(itemId, terms))}
           onList={async (item) => after(await listShopItem(item))}
           onPause={async (itemId, paused) => after(await setShopItemPaused(itemId, paused))}
           shop={data}
         />
       ) : null}
+      <AnnouncementPanel />
     </section>
   );
 }
@@ -97,6 +116,7 @@ export function AdminShopView({ shop, ...handlers }: { shop: AdminShop } & Handl
   const [filter, setFilter] = useState<AdminShopStatus | "all">("all");
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [editing, setEditing] = useState<AdminShopItem | null>(null);
+  const [promoting, setPromoting] = useState<AdminShopItem | null>(null);
   const [deleting, setDeleting] = useState<AdminShopItem | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -169,6 +189,18 @@ export function AdminShopView({ shop, ...handlers }: { shop: AdminShop } & Handl
                     {item.availableFrom !== null ? `Dès le ${dateFormatter.format(new Date(item.availableFrom))}` : "Dès sa mise en vente"}
                     {item.availableUntil !== null ? ` · jusqu'au ${dateFormatter.format(new Date(item.availableUntil))}` : " · sans fin"}
                   </p>
+                  {item.promotion != null ? (
+                    <p className="flex flex-wrap items-center gap-x-1.5 text-xs">
+                      <Percent aria-hidden className="size-3.5 text-danger" />
+                      <span className="text-muted-foreground line-through">
+                        <PelleAmount amount={item.price} />
+                      </span>
+                      <PelleAmount amount={item.promotion.price} className="font-semibold text-foreground" />
+                      <span className={PROMOTION_STATUS[item.promotion.status].tone}>
+                        · {PROMOTION_STATUS[item.promotion.status].label} jusqu&apos;au {dateFormatter.format(new Date(item.promotion.endsAt))}
+                      </span>
+                    </p>
+                  ) : null}
                   <p className="text-xs text-muted-foreground">
                     {item.sales === 0 ? "Aucune vente" : `${item.sales} ${item.sales > 1 ? "ventes" : "vente"} · `}
                     {item.sales > 0 ? <PelleAmount amount={item.pelles} /> : null}
@@ -177,6 +209,10 @@ export function AdminShopView({ shop, ...handlers }: { shop: AdminShop } & Handl
                     <button className={buttonVariants({ variant: "ghost" })} onClick={() => setEditing(item)} type="button">
                       <Pencil aria-hidden className="size-4" />
                       Modifier
+                    </button>
+                    <button className={buttonVariants({ variant: "ghost" })} onClick={() => setPromoting(item)} type="button">
+                      <Percent aria-hidden className="size-4" />
+                      Promotion
                     </button>
                     <button
                       className={buttonVariants({ variant: "ghost" })}
@@ -210,6 +246,24 @@ export function AdminShopView({ shop, ...handlers }: { shop: AdminShop } & Handl
             const error = await handlers.onEdit(editing.id, terms);
             report(error, "Article modifié.");
             if (error === null) setEditing(null);
+          }}
+        />
+      ) : null}
+
+      {promoting !== null ? (
+        <PromotionDialog
+          item={promoting}
+          label={label(promoting.type, promoting.cosmeticKey)}
+          onClose={() => setPromoting(null)}
+          onEnd={async () => {
+            const error = await handlers.onEndPromotion(promoting.id);
+            report(error, "Promotion retirée.");
+            if (error === null) setPromoting(null);
+          }}
+          onSave={async (terms) => {
+            const error = await handlers.onPromote(promoting.id, terms);
+            report(error, "Promotion enregistrée.");
+            if (error === null) setPromoting(null);
           }}
         />
       ) : null}
@@ -396,5 +450,168 @@ function EditDialog({ item, label, onClose, onSave }: { item: AdminShopItem; lab
         </DialogFooter>
       </form>
     </Dialog>
+  );
+}
+
+/** Story 41.14: a temporary promotion on one item - a price under the regular one, until a mandatory end. */
+function PromotionDialog({
+  item,
+  label,
+  onClose,
+  onSave,
+  onEnd,
+}: {
+  item: AdminShopItem;
+  label: string;
+  onClose: () => void;
+  onSave: (terms: PromotionTerms) => Promise<void>;
+  onEnd: () => Promise<void>;
+}) {
+  const [price, setPrice] = useState(item.promotion != null ? String(item.promotion.price) : "");
+  const [from, setFrom] = useState(localOrEmpty(item.promotion?.startsAt ?? null));
+  const [until, setUntil] = useState(localOrEmpty(item.promotion?.endsAt ?? null));
+  const [pending, setPending] = useState(false);
+  const parsedPrice = Number.parseInt(price, 10);
+  const valid = Number.isInteger(parsedPrice) && parsedPrice >= 1 && parsedPrice < item.price && until !== "";
+  const percent = valid ? Math.round(((item.price - parsedPrice) * 100) / item.price) : null;
+
+  async function run(action: () => Promise<void>): Promise<void> {
+    setPending(true);
+    await action();
+    setPending(false);
+  }
+
+  return (
+    <Dialog
+      description={`Prix normal : ${item.price} pelles. Le prix promo s'applique entre les deux dates, puis le prix normal revient tout seul.`}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      open
+      title={`Promotion sur « ${label} »`}
+    >
+      <form
+        className="flex min-h-0 flex-1 flex-col"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void run(() => onSave({ price: parsedPrice, startsAt: isoOrNull(from), endsAt: isoOrNull(until) }));
+        }}
+      >
+        <DialogBody className="grid gap-3">
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-foreground">Prix promo (pelles)</span>
+            <input className={fieldClass} inputMode="numeric" max={item.price - 1} min={1} onChange={(e) => setPrice(e.target.value)} type="number" value={price} />
+            {percent !== null ? <span className="text-xs text-danger">Soit -{percent} %</span> : null}
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-foreground">Début (facultatif : tout de suite)</span>
+            <input className={fieldClass} onChange={(e) => setFrom(e.target.value)} type="datetime-local" value={from} />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-foreground">Fin</span>
+            <input className={fieldClass} onChange={(e) => setUntil(e.target.value)} required type="datetime-local" value={until} />
+          </label>
+        </DialogBody>
+        <DialogFooter>
+          {item.promotion != null ? (
+            <button className={`${buttonVariants({ variant: "ghost" })} mr-auto hover:text-danger`} disabled={pending} onClick={() => void run(onEnd)} type="button">
+              Retirer la promotion
+            </button>
+          ) : null}
+          <button className={buttonVariants({ variant: "ghost" })} onClick={onClose} type="button">
+            Annuler
+          </button>
+          <button className={buttonVariants({ variant: "primary" })} disabled={!valid || pending} type="submit">
+            Enregistrer
+          </button>
+        </DialogFooter>
+      </form>
+    </Dialog>
+  );
+}
+
+/**
+ * Story 41.14: the banner of the HelloAsso items (« Soutenir ArchiLAN » tab). Their prices live in HelloAsso: the
+ * discount is set there, this only says it to the members, until when.
+ */
+function AnnouncementPanel() {
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-shop-announcement"],
+    queryFn: () => fetchShopAnnouncement("admin/shop"),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+
+  if (isLoading) return null;
+
+  return (
+    <AnnouncementForm
+      current={data ?? null}
+      key={data?.endsAt ?? "none"}
+      onChanged={async () => {
+        await queryClient.invalidateQueries({ queryKey: ["admin-shop-announcement"] });
+        await queryClient.invalidateQueries({ queryKey: ["shop-announcement"] });
+      }}
+    />
+  );
+}
+
+function AnnouncementForm({ current, onChanged }: { current: { message: string; endsAt: string } | null; onChanged: () => Promise<void> }) {
+  const [message, setMessage] = useState(current?.message ?? "");
+  const [until, setUntil] = useState(localOrEmpty(current?.endsAt ?? null));
+  const [pending, setPending] = useState(false);
+  const [result, setResult] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const endsAt = isoOrNull(until);
+  const valid = message.trim() !== "" && message.length <= 200 && endsAt !== null;
+
+  async function run(action: () => Promise<string | null>, ok: string): Promise<void> {
+    setPending(true);
+    const error = await action();
+    setResult(error === null ? { tone: "ok", text: ok } : { tone: "error", text: error });
+    if (error === null) await onChanged();
+    setPending(false);
+  }
+
+  return (
+    <form
+      className="grid gap-3 rounded-xl border border-border p-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (endsAt !== null) void run(() => postShopAnnouncement({ message: message.trim(), endsAt }), "Bandeau enregistré.");
+      }}
+    >
+      <div className="grid gap-1">
+        <h2 className="flex items-center gap-2 font-heading text-lg font-semibold text-foreground">
+          <Megaphone aria-hidden className="size-5 text-danger" />
+          Bandeau des articles HelloAsso
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Les prix des sweats et stickers se règlent dans HelloAsso. Pendant une promotion là-bas, annonce-la ici : le bandeau
+          s&apos;affiche en tête des Articles ArchiLAN jusqu&apos;à sa date de fin.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-[1fr_14rem]">
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium text-foreground">Message ({message.length}/200)</span>
+          <input className={fieldClass} maxLength={200} onChange={(e) => setMessage(e.target.value)} placeholder="Sweats à -20 % pour la LAN !" type="text" value={message} />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium text-foreground">Fin</span>
+          <input className={fieldClass} onChange={(e) => setUntil(e.target.value)} type="datetime-local" value={until} />
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className={buttonVariants({ variant: "primary" })} disabled={!valid || pending} type="submit">
+          {current !== null ? "Mettre à jour" : "Publier le bandeau"}
+        </button>
+        {current !== null ? (
+          <button className={`${buttonVariants({ variant: "ghost" })} hover:text-danger`} disabled={pending} onClick={() => void run(takeDownShopAnnouncement, "Bandeau retiré.")} type="button">
+            Retirer
+          </button>
+        ) : null}
+        {result !== null ? <p className={`text-sm ${result.tone === "ok" ? "text-success" : "text-danger"}`}>{result.text}</p> : null}
+      </div>
+    </form>
   );
 }

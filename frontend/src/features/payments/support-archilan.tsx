@@ -4,6 +4,7 @@ import { AlertCircle, HeartHandshake, ShoppingBag, UserPlus } from "lucide-react
 
 import { DonationCheckout } from "./donation-checkout";
 import { MembershipCheckout } from "./membership-checkout";
+import { ShopAnnouncementBanner } from "./shop-announcement-banner";
 import { ShopCheckout } from "./shop-checkout";
 
 export type SupportForms = { membership: string | null; donation: string | null; shop: string | null };
@@ -49,6 +50,7 @@ export function SupportArchilan({ forms }: { forms: SupportForms }) {
       </SupportSection>
 
       <SupportSection id="articles" title="Articles ArchiLAN">
+        <ShopAnnouncementBanner />
         <p className="text-muted-foreground">
           Sweats, stickers et autres produits officiels. Les commandes passent par HelloAsso et n&apos;incluent pas
           l&apos;inscription aux événements.
