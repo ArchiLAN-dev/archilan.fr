@@ -13,6 +13,7 @@ import { PersonalRunYamlViewerDialog } from "./personal-run-yaml-viewer-dialog";
 import { SlotCoPlayers, type CoPlayerCandidate } from "./slot-co-players";
 import { MemberAvatar } from "../community/member-avatar";
 import { TitledName } from "@/features/community/titled-name";
+import { useRouter } from "next/navigation";
 
 const availabilityConfig: Record<string, { label: string; className: string }> = {
   available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
@@ -61,6 +62,7 @@ export function PersonalRunParticipantDetailPage({
 }: {
   params: Promise<{ runId: string; participantId: string }>;
 }) {
+  const router = useRouter();
   const { runId, participantId } = use(params);
   const [openSlot, setOpenSlot] = useState<ParticipantGameSlot | null>(null);
 
@@ -94,9 +96,9 @@ export function PersonalRunParticipantDetailPage({
   // 401: full-page login redirect, exactly as the old effect did.
   useEffect(() => {
     if (resultKind === "unauthorized") {
-      window.location.href = `/connexion?returnTo=/runs/${runId}/participants/${participantId}`;
+      router.replace(`/connexion?returnTo=/runs/${runId}/participants/${participantId}`);
     }
-  }, [resultKind, runId, participantId]);
+  }, [resultKind, runId, participantId, router]);
 
   const backLink = (
     <Link

@@ -22,6 +22,7 @@ import {
 import { EventFeed } from "./event-feed";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
+import { useRouter } from "next/navigation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ export function SessionConnectionGate({
 }: {
   params: Promise<{ eventSlug: string; registrationId: string }>;
 }) {
+  const router = useRouter();
   const { eventSlug, registrationId } = use(params);
   const queryClient = useQueryClient();
 
@@ -53,9 +55,9 @@ export function SessionConnectionGate({
 
   useEffect(() => {
     if (authQuery.data === "unauthenticated") {
-      window.location.href = `/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/session`;
+      router.replace(`/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/session`);
     }
-  }, [authQuery.data, eventSlug, registrationId]);
+  }, [authQuery.data, eventSlug, registrationId, router]);
 
   const connectionQuery = useQuery({
     queryKey: ["session-connection", registrationId],
