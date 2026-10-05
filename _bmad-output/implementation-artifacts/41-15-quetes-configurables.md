@@ -48,9 +48,9 @@ de Jean (2026-10-05) :
 3. **Semaine** : ses quêtes sont figées dans la base au premier besoin (lecture ou paiement) : d'abord les
    épinglées, puis un tirage au hasard sans doublon parmi les quêtes actives dans le tirage, jusqu'au nombre réglé.
    Le tirage d'une semaine a lieu une fois ; s'il n'y a pas assez de quêtes, la semaine en a moins.
-4. **Deux pages admin** (retour de Jean, 2026-10-05), groupe « Quêtes hebdo » du menu ; `/admin/quetes` mène aux
-   semaines. **`/admin/quetes/types`** : les quêtes ; **`/admin/quetes/semaines`** : le nombre par semaine et le
-   planning :
+4. **Une page admin « Quêtes hebdo »** (une entrée du menu ; retours de Jean, 2026-10-05) à deux onglets, chacun
+   sa propre adresse : **`/admin/quetes/semaines`** (le nombre par semaine et le planning) et
+   **`/admin/quetes/types`** (les quêtes) ; `/admin/quetes` mène aux semaines :
    - liste des quêtes (titre, objectifs, récompense, tirage, retirée), création, modification, retrait et
      rétablissement ; formulaire des objectifs avec le catalogue ;
    - réglage du nombre de quêtes par semaine (1 à 10) ;
@@ -91,7 +91,7 @@ de Jean (2026-10-05) :
 - [x] **Task 3** (AC 1, 5, 7) - Compteurs hebdo en DBAL, paiement, `GET /api/v1/me/quests` avec progression ; tests.
 - [x] **Task 4** (AC 4) - API admin (quêtes, réglage, semaines, épinglage) ; tests fonctionnels.
 - [x] **Task 5** (AC 4, 7) - Front : page `/admin/quetes`, lien du menu admin, barres du portefeuille ; tests.
-- [x] **Task 6** (AC 8) - Gates verts (vérification dans l'app non faite : serveurs de dev arrêtés).
+- [x] **Task 6** (AC 8) - Gates verts, vérification dans l'app (les deux onglets, le formulaire).
 
 ## Dev Agent Record
 
@@ -123,5 +123,6 @@ de Jean (2026-10-05) :
 - `api/tests/` : `Functional/WeeklyQuestsTest.php`, `Functional/AdminQuestTest.php`, `Unit/Wallet/QuestWeekTest.php`,
   `Unit/Wallet/QuestDefinitionTest.php`
 - `frontend/src/features/wallet/` : `weekly-quests.tsx` (+ test), `admin-quests-api.ts`, `admin-quests-page.tsx` (+ test)
-- `frontend/src/app/(admin)/admin/quetes/` : `page.tsx` (redirection), `semaines/page.tsx`, `types/page.tsx` ;
+- `frontend/src/app/(admin)/admin/quetes/` : `layout.tsx` (titre et onglets), `page.tsx` (redirection), `semaines/page.tsx`,
+  `types/page.tsx` ; `frontend/src/features/wallet/admin-quests-tabs.tsx` ;
   `frontend/src/components/admin-shell.tsx`

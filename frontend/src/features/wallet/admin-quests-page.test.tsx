@@ -5,6 +5,7 @@ import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { fetchAdminQuests, objectivesSummary, pinQuest, type AdminQuests } from "./admin-quests-api";
 import { AdminQuestTypesView, AdminQuestWeeksView, WeekCard, questTermsError, weekLabel } from "./admin-quests-page";
+import { AdminQuestsTabs } from "./admin-quests-tabs";
 
 const metrics = [
   { key: "goals", label: "Goals atteints", unit: "goals" },
@@ -77,6 +78,14 @@ describe("admin weekly quests", () => {
     expect(types).toContain("50 checks et 2 parties");
     expect(types).toContain("Hors tirage");
     expect(types).not.toContain("Quêtes par semaine");
+  });
+
+  test("one page, two tabs: the one shown is marked current", () => {
+    const html = renderToStaticMarkup(<AdminQuestsTabs pathname="/admin/quetes/types" />);
+
+    expect(html).toContain('href="/admin/quetes/semaines"');
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/quetes\/types"|href="\/admin\/quetes\/types"[^>]*aria-current="page"/);
   });
 
   test("a quest the API would refuse is said before sending", () => {

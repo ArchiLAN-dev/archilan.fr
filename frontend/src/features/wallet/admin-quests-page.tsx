@@ -42,28 +42,19 @@ type Change = { title: string; description: string; label: string; run: () => Pr
 
 type QuestsView = "weeks" | "types";
 
-const PAGES: Record<QuestsView, { title: string; intro: string; other: { href: string; label: string } }> = {
-  weeks: {
-    title: "Semaines de quêtes",
-    intro:
-      "Chaque lundi, les quêtes de la semaine sont tirées au hasard parmi les types « dans le tirage ». Une quête épinglée à une semaine y prend une place, le tirage complète le reste.",
-    other: { href: "/admin/quetes/types", label: "Types de quêtes" },
-  },
-  types: {
-    title: "Types de quêtes",
-    intro: "Les quêtes que les semaines peuvent servir : leurs objectifs, leur récompense, et si elles sortent au tirage ou seulement épinglées.",
-    other: { href: "/admin/quetes/semaines", label: "Semaines de quêtes" },
-  },
+const INTROS: Record<QuestsView, string> = {
+  weeks:
+    "Chaque lundi, les quêtes de la semaine sont tirées au hasard parmi les types « dans le tirage ». Une quête épinglée à une semaine y prend une place, le tirage complète le reste.",
+  types: "Les quêtes que les semaines peuvent servir : leurs objectifs, leur récompense, et si elles sortent au tirage ou seulement épinglées.",
 };
 
 /**
- * The weekly quests, admin side (story 41.15), on two pages: `/admin/quetes/semaines` plans the current and coming
- * weeks, `/admin/quetes/types` writes the quests they serve.
+ * One tab of the weekly quests' page (story 41.15), under the shared header and tabs of its layout:
+ * `/admin/quetes/semaines` plans the current and coming weeks, `/admin/quetes/types` writes the quests they serve.
  */
 export function AdminQuestsPage({ view }: { view: QuestsView }) {
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: fetchAdminQuests, staleTime: DEFAULT_STALE_TIME, retry: false });
-  const page = PAGES[view];
 
   async function after(error: string | null): Promise<string | null> {
     await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -72,20 +63,12 @@ export function AdminQuestsPage({ view }: { view: QuestsView }) {
   }
 
   return (
-    <section className="grid gap-6 p-6 md:p-8">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="max-w-3xl">
-          <h1 className="font-heading text-2xl font-bold text-foreground">{page.title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{page.intro}</p>
-        </div>
-        <Link className={buttonVariants({ variant: "secondary" })} href={page.other.href}>
-          {page.other.label}
-        </Link>
-      </header>
+    <div className="grid gap-4">
+      <p className="max-w-3xl text-sm text-muted-foreground">{INTROS[view]}</p>
       {isLoading ? <p className="text-sm text-muted-foreground">Chargement…</p> : null}
       {!isLoading && !data ? <p className="text-sm text-danger">Impossible de charger les quêtes.</p> : null}
       {data ? view === "weeks" ? <AdminQuestWeeksView data={data} onChange={after} /> : <AdminQuestTypesView data={data} onChange={after} /> : null}
-    </section>
+    </div>
   );
 }
 
