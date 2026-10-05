@@ -227,6 +227,7 @@ function StopRunButton({
         }}
         open={confirming}
         pending={pending}
+        icon={Square}
         title="Arrêter la partie ?"
         tone="danger"
       />

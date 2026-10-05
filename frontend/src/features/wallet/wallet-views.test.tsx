@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { adminActionLabel } from "@/features/admin/admin-user-activity";
-import { adjustmentConfirmation, balanceFor } from "./admin-user-pelles";
+import { AdjustmentSummary, adjustmentPreview, balanceFor } from "./admin-user-pelles";
 import { pellesLabel } from "./pelle-amount";
 import { WalletView } from "./wallet-panel";
 import type { Wallet } from "./wallet-api";
@@ -51,15 +51,31 @@ describe("admin adjustment", () => {
     expect(balanceFor(wallet, "event", "other")).toBe(0);
   });
 
-  test("the confirmation shows the balance before and after, and the reason", () => {
-    expect(adjustmentConfirmation("credit", 50, 120, "Lot du quiz")).toEqual({
-      title: "Créditer 50 pelles ?",
-      description: "Solde : 120 pelles → 170 pelles. Motif : « Lot du quiz ».",
+  test("the confirmation computes the movement and the balance after", () => {
+    expect(adjustmentPreview("credit", 50, 120, "Pelles d'or", "Lot du quiz")).toEqual({
+      direction: "credit",
+      movement: 50,
+      before: 120,
+      after: 170,
+      kindLabel: "Pelles d'or",
+      reason: "Lot du quiz",
     });
-    expect(adjustmentConfirmation("debit", 1, 1, "Erreur")).toEqual({
-      title: "Débiter 1 pelle ?",
-      description: "Solde : 1 pelle → 0 pelle. Motif : « Erreur ».",
-    });
+    expect(adjustmentPreview("debit", 1, 1, "Pelles d'or", "Erreur")).toMatchObject({ movement: -1, after: 0 });
+  });
+
+  test("the confirmation summary shows the movement, both balances and the reason (story 39.15)", () => {
+    const html = renderToStaticMarkup(<AdjustmentSummary preview={adjustmentPreview("credit", 1500, 0, "Pelles d'or", "Lot du quiz")} />);
+
+    expect(html).toContain(`+${new Intl.NumberFormat("fr-FR").format(1500)}`);
+    expect(html).toContain("text-success");
+    expect(html).toContain("Solde actuel");
+    expect(html).toContain("Nouveau solde");
+    expect(html).toContain("Pelles d&#x27;or");
+    expect(html).toContain("Lot du quiz");
+
+    const debit = renderToStaticMarkup(<AdjustmentSummary preview={adjustmentPreview("debit", 20, 50, "Pelles d'or", "Erreur")} />);
+    expect(debit).toContain("-20");
+    expect(debit).toContain("text-danger");
   });
 
   test("pelles count wording", () => {
