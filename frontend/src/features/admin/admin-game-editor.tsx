@@ -1267,6 +1267,7 @@ function DefaultYamlEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: Ad
                 }}
                 open={confirmingRegenerate}
                 pending={regenerating}
+                icon={RefreshCw}
                 title="Réinitialiser le template depuis l'apworld ?"
                 tone="danger"
             />

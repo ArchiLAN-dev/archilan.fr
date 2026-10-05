@@ -2,9 +2,9 @@
 
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Shovel, X } from "lucide-react";
+import { Loader2, Shovel, Undo2, X } from "lucide-react";
 
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ConfirmDialog, ConfirmFigure } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -242,12 +242,13 @@ export function ItemBountiesView({
       {message !== null ? <p className={`text-xs ${message.tone === "ok" ? "text-success" : "text-danger"}`}>{message.text}</p> : null}
 
       <ConfirmDialog
-        confirmLabel={confirming?.kind === "withdraw" ? "Retirer" : "Poser la prime"}
+        confirmLabel={confirming?.kind === "withdraw" ? "Retirer la prime" : `Offrir ${pellesLabel(parsedAmount || 0)}`}
         description={
           confirming?.kind === "withdraw"
             ? "Tes pelles te sont rendues en entier."
-            : `Tu offres ${pellesLabel(parsedAmount)} à qui t'enverra ${itemName}. Elles sont mises de côté dès maintenant ; 10 % sont prélevés au versement.`
+            : "Tes pelles sont mises de côté dès maintenant et versées au joueur qui t'enverra l'objet."
         }
+        icon={confirming?.kind === "withdraw" ? Undo2 : Shovel}
         onConfirm={() => void confirm()}
         onOpenChange={(open) => {
           if (!open && !pending) setConfirming(null);
@@ -255,7 +256,26 @@ export function ItemBountiesView({
         open={confirming !== null}
         pending={pending}
         title={confirming?.kind === "withdraw" ? `Retirer la prime sur ${confirming.itemName} ?` : "Poser une prime ?"}
-      />
+      >
+        {confirming?.kind === "post" ? <BountySummary amount={parsedAmount} itemName={itemName} /> : undefined}
+      </ConfirmDialog>
     </section>
+  );
+}
+
+/** What a bounty holds (story 39.15): the item asked for, the pelles set aside, the fee taken on payout. */
+export function BountySummary({ itemName, amount }: { itemName: string; amount: number }) {
+  return (
+    <div className="grid gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <ConfirmFigure label="Objet">
+          <span className="break-words text-base">{itemName}</span>
+        </ConfirmFigure>
+        <ConfirmFigure label="Mis de côté">
+          <PelleAmount amount={amount} className="text-warning" />
+        </ConfirmFigure>
+      </div>
+      <p className="border-t border-border pt-3 text-xs text-muted-foreground">10 % sont prélevés au versement.</p>
+    </div>
   );
 }

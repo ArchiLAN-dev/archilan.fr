@@ -2039,6 +2039,7 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
         }}
         open={confirmingRemove}
         pending={loadingAction === "rm"}
+        icon={XCircle}
         title="Supprimer le container ?"
         tone="danger"
       />

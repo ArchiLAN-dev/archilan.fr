@@ -14,17 +14,19 @@ type Props = {
 };
 
 /** What the admin reads before each action (in a modal since story 39.14). */
-const CONFIRMATIONS: Record<AdminUserActionKind, { title: string; description: string; confirmLabel: string; tone: "default" | "danger" }> = {
+const CONFIRMATIONS: Record<AdminUserActionKind, { title: string; description: string; confirmLabel: string; tone: "default" | "danger"; icon: typeof KeyRound }> = {
   "revoke-sessions": {
     title: "Révoquer toutes les sessions de ce membre ?",
     description: "Il sera déconnecté de tous ses appareils et devra se reconnecter partout.",
     confirmLabel: "Révoquer",
+    icon: KeyRound,
     tone: "danger",
   },
   "verify-email": {
     title: "Valider l'email de ce membre ?",
     description: "Son adresse sera marquée comme vérifiée à sa place, sans qu'il clique sur le lien reçu.",
     confirmLabel: "Valider l'email",
+    icon: MailCheck,
     tone: "default",
   },
 };
@@ -86,6 +88,7 @@ export function AdminUserActions({ userId, isSelf, emailVerified }: Props) {
       <ConfirmDialog
         confirmLabel={confirmation?.confirmLabel ?? ""}
         description={confirmation?.description ?? ""}
+        icon={confirmation?.icon}
         onConfirm={() => {
           if (confirming !== null) void run(confirming);
         }}

@@ -166,7 +166,7 @@ export function AdminUserDetailPage({ userId }: Props) {
 
       <AdminUserGaming userId={user.id} />
 
-      <AdminUserPelles isSelf={isSelf} userId={user.id} />
+      <AdminUserPelles isSelf={isSelf} memberName={user.displayName ?? user.email} userId={user.id} />
 
       <AdminUserActivity userId={user.id} />
     </Shell>

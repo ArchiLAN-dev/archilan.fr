@@ -5,7 +5,7 @@ import { use, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, Shovel } from "lucide-react";
 
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ConfirmDialog, ConfirmFigure } from "@/components/ui/confirm-dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount, pellesLabel } from "./pelle-amount";
 import { distributeEventPelles, fetchEventPelles, type EventPelles } from "./event-pelles-api";
@@ -13,12 +13,32 @@ import { distributeEventPelles, fetchEventPelles, type EventPelles } from "./eve
 const MAX_AMOUNT = 1000;
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
 
-/** What the admin confirms before handing pelles out (story 41.2 AC2, in a modal since story 39.14). */
-export function distributionConfirmation(amount: number, members: number, label: string): { title: string; description: string } {
-  return {
-    title: "Distribuer des pelles ?",
-    description: `${pellesLabel(amount)} à ${members} ${members > 1 ? "membres" : "membre"}, soit ${pellesLabel(amount * members)} au total. Libellé : « ${label} ».`,
-  };
+/** What the admin confirms before handing pelles out (story 41.2 AC2, summarised in the modal since story 39.15). */
+export type DistributionPreview = { amount: number; members: number; total: number; label: string };
+
+export function distributionPreview(amount: number, members: number, label: string): DistributionPreview {
+  return { amount, members, total: amount * members, label };
+}
+
+/** The figures of a distribution: per member, how many, in all - and the label the members will read. */
+export function DistributionSummary({ preview }: { preview: DistributionPreview }) {
+  return (
+    <div className="grid gap-4">
+      <div className="grid grid-cols-3 gap-3">
+        <ConfirmFigure label="Par membre">
+          <PelleAmount amount={preview.amount} />
+        </ConfirmFigure>
+        <ConfirmFigure label={preview.members > 1 ? "Membres" : "Membre"}>{preview.members}</ConfirmFigure>
+        <ConfirmFigure label="Total">
+          <PelleAmount amount={preview.total} className="text-success" />
+        </ConfirmFigure>
+      </div>
+      <div className="grid gap-1 border-t border-border pt-3">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Libellé, visible par les membres</span>
+        <p className="text-sm text-foreground">{preview.label}</p>
+      </div>
+    </div>
+  );
 }
 
 /** The outcome in words: who got pelles, and who did not. */
@@ -65,7 +85,7 @@ export function EventPellesView({ data }: { data: EventPelles }) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-  const [confirming, setConfirming] = useState<{ title: string; description: string } | null>(null);
+  const [confirming, setConfirming] = useState<DistributionPreview | null>(null);
   // One id per distribution, kept across a retry so a double submit credits nobody twice.
   const requestIdRef = useRef<string | null>(null);
 
@@ -86,7 +106,7 @@ export function EventPellesView({ data }: { data: EventPelles }) {
 
   function submit(): void {
     if (!canSubmit) return;
-    setConfirming(distributionConfirmation(parsedAmount, recipients, label.trim()));
+    setConfirming(distributionPreview(parsedAmount, recipients, label.trim()));
   }
 
   async function distribute(): Promise<void> {
@@ -207,16 +227,19 @@ export function EventPellesView({ data }: { data: EventPelles }) {
       </section>
 
       <ConfirmDialog
-        confirmLabel="Distribuer"
-        description={confirming?.description ?? ""}
+        confirmLabel={`Distribuer ${pellesLabel(confirming?.total ?? 0)}`}
+        description={`Chaque membre reçoit ses pelles de ${data.eventTitle} tout de suite, avec ce libellé dans son historique.`}
+        icon={Shovel}
         onConfirm={() => void distribute()}
         onOpenChange={(open) => {
           if (!open && !pending) setConfirming(null);
         }}
         open={confirming !== null}
         pending={pending}
-        title={confirming?.title ?? ""}
-      />
+        title="Distribuer des pelles ?"
+      >
+        {confirming !== null ? <DistributionSummary preview={confirming} /> : null}
+      </ConfirmDialog>
     </div>
   );
 }

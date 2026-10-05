@@ -219,6 +219,7 @@ export function AdminGameLibraryDashboard() {
         }}
         open={deleting !== null}
         pending={deletePending}
+        icon={Trash2}
         title={`Supprimer « ${deleting?.name ?? ""} » ?`}
         tone="danger"
       />

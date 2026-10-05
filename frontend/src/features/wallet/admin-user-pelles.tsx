@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Shovel } from "lucide-react";
+import { ArrowRight, Loader2, Shovel } from "lucide-react";
 
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ConfirmDialog, ConfirmFigure } from "@/components/ui/confirm-dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchAdminEvents } from "@/features/admin/admin-events-api";
 import { SheetSection } from "@/features/admin/admin-sheet-section";
@@ -19,22 +19,18 @@ export function balanceFor(wallet: Wallet, kind: "gold" | "event", eventId: stri
   return wallet.events.find((event) => event.eventId === eventId)?.balance ?? 0;
 }
 
-/**
- * The confirmation an admin reads before moving pelles (story 41.1 AC7, in a modal since story 39.14): the balance
- * before and after, and the reason the member will see.
- */
-export function adjustmentConfirmation(
+/** What an admin confirms before moving pelles (story 41.1 AC7, summarised in the modal since story 39.15). */
+export type AdjustmentPreview = { direction: "credit" | "debit"; movement: number; before: number; after: number; kindLabel: string; reason: string };
+
+export function adjustmentPreview(
   direction: "credit" | "debit",
   amount: number,
   before: number,
+  kindLabel: string,
   reason: string,
-): { title: string; description: string } {
-  const after = direction === "credit" ? before + amount : before - amount;
-  const verb = direction === "credit" ? "Créditer" : "Débiter";
-  return {
-    title: `${verb} ${pellesLabel(amount)} ?`,
-    description: `Solde : ${pellesLabel(before)} → ${pellesLabel(after)}. Motif : « ${reason} ».`,
-  };
+): AdjustmentPreview {
+  const movement = direction === "credit" ? amount : -amount;
+  return { direction, movement, before, after: before + movement, kindLabel, reason };
 }
 
 /**
@@ -42,7 +38,7 @@ export function adjustmentConfirmation(
  * action. The server owns the rules (bounds, balance never below zero, never on one's own wallet); the form
  * only shows the balance before and after so the admin confirms with the numbers in front of them.
  */
-export function AdminUserPelles({ userId, isSelf }: { userId: string; isSelf: boolean }) {
+export function AdminUserPelles({ userId, isSelf, memberName }: { userId: string; isSelf: boolean; memberName: string }) {
   const queryClient = useQueryClient();
   const [direction, setDirection] = useState<"credit" | "debit">("credit");
   const [amount, setAmount] = useState("");
@@ -51,7 +47,7 @@ export function AdminUserPelles({ userId, isSelf }: { userId: string; isSelf: bo
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-  const [confirming, setConfirming] = useState<{ title: string; description: string } | null>(null);
+  const [confirming, setConfirming] = useState<AdjustmentPreview | null>(null);
 
   const { data: wallet } = useQuery({
     queryKey: ["admin-member-wallet", userId],
@@ -74,7 +70,9 @@ export function AdminUserPelles({ userId, isSelf }: { userId: string; isSelf: bo
   function submit(): void {
     if (!canSubmit || !wallet) return;
     const target = kind === "event" ? eventId : null;
-    setConfirming(adjustmentConfirmation(direction, parsedAmount, balanceFor(wallet, kind, target), reason.trim()));
+    const eventTitle = events?.kind === "ready" ? events.events.find((event) => event.id === target)?.title : undefined;
+    const kindLabel = kind === "gold" ? "Pelles d'or" : `Pelles de ${eventTitle ?? "l'événement"}`;
+    setConfirming(adjustmentPreview(direction, parsedAmount, balanceFor(wallet, kind, target), kindLabel, reason.trim()));
   }
 
   async function apply(): Promise<void> {
@@ -177,17 +175,49 @@ export function AdminUserPelles({ userId, isSelf }: { userId: string; isSelf: bo
       </div>
 
       <ConfirmDialog
-        confirmLabel={direction === "credit" ? "Créditer" : "Débiter"}
-        description={confirming?.description ?? ""}
+        confirmLabel={`${direction === "credit" ? "Créditer" : "Débiter"} ${pellesLabel(Math.abs(confirming?.movement ?? 0))}`}
+        description="Le mouvement apparaît dans l'historique du membre, avec ce motif."
+        icon={Shovel}
         onConfirm={() => void apply()}
         onOpenChange={(open) => {
           if (!open && !pending) setConfirming(null);
         }}
         open={confirming !== null}
         pending={pending}
-        title={confirming?.title ?? ""}
+        title={`${direction === "credit" ? "Créditer" : "Débiter"} les pelles de ${memberName} ?`}
         tone={direction === "debit" ? "danger" : "default"}
-      />
+      >
+        {confirming !== null ? <AdjustmentSummary preview={confirming} /> : null}
+      </ConfirmDialog>
     </SheetSection>
+  );
+}
+
+/** The figures of a credit or debit: the movement, the balance before and after, the reason (story 39.15). */
+export function AdjustmentSummary({ preview }: { preview: AdjustmentPreview }) {
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <PelleAmount
+          amount={preview.movement}
+          className={`font-heading text-3xl font-bold ${preview.direction === "credit" ? "text-success" : "text-danger"}`}
+          signed
+        />
+        <span className="text-sm text-muted-foreground">{preview.kindLabel}</span>
+      </div>
+      <div className="flex items-end gap-4">
+        <ConfirmFigure label="Solde actuel">
+          <PelleAmount amount={preview.before} />
+        </ConfirmFigure>
+        <ArrowRight aria-label="devient" className="mb-1.5 size-4 shrink-0 text-muted-foreground" />
+        <ConfirmFigure label="Nouveau solde">
+          <PelleAmount amount={preview.after} />
+        </ConfirmFigure>
+      </div>
+      <div className="grid gap-1 border-t border-border pt-3">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Motif, visible par le membre</span>
+        <p className="text-sm text-foreground">{preview.reason}</p>
+      </div>
+    </div>
   );
 }
