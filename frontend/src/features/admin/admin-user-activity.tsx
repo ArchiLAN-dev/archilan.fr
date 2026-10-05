@@ -225,6 +225,8 @@ const ADMIN_ACTION_LABELS: Record<string, string> = {
   run_seed_import: "Seed importée sur une partie",
   run_slot_assign: "Slot de partie attribué",
   run_delete: "Partie supprimée",
+  run_archive: "Partie archivée pour le membre",
+  run_unarchive: "Partie désarchivée pour le membre",
   pelles_credit: "Pelles créditées",
   pelles_debit: "Pelles débitées",
 };

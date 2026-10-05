@@ -16,6 +16,7 @@ use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
@@ -24,7 +25,7 @@ use Symfony\Component\Clock\MockClock;
 
 final class PersonalRunDraftsListMineTest extends TestCase
 {
-    private function drafts(RunRepositoryInterface $runs): PersonalRunDrafts
+    private function drafts(RunRepositoryInterface $runs, ?RunArchiveRepositoryInterface $archives = null): PersonalRunDrafts
     {
         return new PersonalRunDrafts(
             $runs,
@@ -42,7 +43,28 @@ final class PersonalRunDraftsListMineTest extends TestCase
             new MockClock(),
             'https://archilan.test',
             new AdminRunActionTrace(self::createStub(AdminUserActionAuditRepositoryInterface::class), new MockClock()),
+            $archives ?? self::createStub(RunArchiveRepositoryInterface::class),
         );
+    }
+
+    public function testListMineMarksTheRunsTheCallerArchived(): void
+    {
+        $now = new \DateTimeImmutable('2026-10-05T10:00:00+00:00');
+        $kept = Run::create('user-1', 'Gardée', $now);
+        $archived = Run::create('user-1', 'Rangée', $now);
+        $joinedArchived = Run::create('owner-2', 'Rejointe rangée', $now);
+
+        $runs = self::createStub(RunRepositoryInterface::class);
+        $runs->method('findByOwnerId')->willReturn([$kept, $archived]);
+        $runs->method('findJoinedByUserId')->willReturn([$joinedArchived]);
+        $archives = self::createStub(RunArchiveRepositoryInterface::class);
+        $archives->method('archivedRunIds')->willReturn([$archived->getId(), $joinedArchived->getId()]);
+
+        $result = $this->drafts($runs, $archives)->listMine('user-1');
+
+        self::assertFalse($result['owned'][0]['archived']);
+        self::assertTrue($result['owned'][1]['archived']);
+        self::assertTrue($result['joined'][0]['archived']);
     }
 
     public function testListMineSplitsOwnedAndJoined(): void

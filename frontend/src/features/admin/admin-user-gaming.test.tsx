@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { GameList, buildGameRows, canStopRun, gameFilterOf, groupHistory, orderRuns, runStatus } from "./admin-user-gaming";
+import { GameList, buildGameRows, canArchiveRow, canStopRun, gameFilterOf, groupHistory, orderRuns, runStatus } from "./admin-user-gaming";
 import type { AdminUserHistoryEntry, AdminUserRun } from "./admin-users-api";
 
 const run = (id: string, status: string, sessionId: string | null = null, games: string[] = []): AdminUserRun => ({ id, title: `Run ${id}`, status, sessionId, games });
@@ -98,5 +98,28 @@ describe("runs et parties", () => {
 
     expect(html).toContain("Seule");
     expect(html).not.toContain("Page 1");
+  });
+
+  test("an archived run leaves every other filter for « Archivées », and comes back from there (story 16.21)", () => {
+    const rows = buildGameRows([{ ...run("a", "completed", "s1"), archived: true }, run("b", "draft"), run("c", "idle", "s2")], [], []);
+
+    expect(rows.map(gameFilterOf)).toEqual(["live", "draft", "archived"]);
+    expect(canArchiveRow(rows[0])).toBe(false);
+    expect(canArchiveRow(rows[1])).toBe(true);
+    expect(canArchiveRow(rows[2])).toBe(true);
+
+    const html = renderToStaticMarkup(<GameList onStopped={async () => {}} rows={rows} userId="u1" />);
+    expect(html).toMatch(/aria-pressed="true"[^>]*>Tout<span[^>]*>2</);
+    expect(html).toMatch(/>Archivées<span[^>]*>1</);
+    expect(html).not.toContain("Run a");
+    expect(html.match(/>Archiver</g)).toHaveLength(1);
+  });
+
+  test("on their own sheet, an admin sees the runs but no action - the API refuses them their own account", () => {
+    const html = renderToStaticMarkup(<GameList onStopped={async () => {}} readOnly rows={buildGameRows([run("a", "idle", "s1"), run("b", "draft")], [], [])} userId="u1" />);
+
+    expect(html).toContain("Run a");
+    expect(html).not.toContain(">Arrêter<");
+    expect(html).not.toContain(">Archiver<");
   });
 });

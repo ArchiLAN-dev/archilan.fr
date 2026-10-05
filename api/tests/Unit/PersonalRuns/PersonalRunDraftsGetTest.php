@@ -16,6 +16,7 @@ use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
@@ -114,6 +115,7 @@ final class PersonalRunDraftsGetTest extends TestCase
             new MockClock(),
             'https://archilan.test',
             new AdminRunActionTrace(self::createStub(AdminUserActionAuditRepositoryInterface::class), new MockClock()),
+            self::createStub(RunArchiveRepositoryInterface::class),
         );
     }
 }

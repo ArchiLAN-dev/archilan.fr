@@ -15,8 +15,8 @@ final readonly class AdminUserGaming
     /**
      * @param array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, runsParticipated: int, goalCompletions: int, totalChecksDone: int, achievementsUnlocked: int} $progress
      * @param array{discordId: string|null, discordUsername: string|null, steamProfile: string|null}                                                                          $accounts
-     * @param list<array{id: string, title: string, status: string, sessionId: string|null, games: list<string>}>                                                             $ownedRuns
-     * @param list<array{id: string, title: string, status: string, sessionId: string|null, games: list<string>}>                                                             $joinedRuns
+     * @param list<array{id: string, title: string, status: string, sessionId: string|null, games: list<string>, archived: bool}>                                             $ownedRuns
+     * @param list<array{id: string, title: string, status: string, sessionId: string|null, games: list<string>, archived: bool}>                                             $joinedRuns
      * @param list<array{sessionId: string|null, context: string|null, game: string|null, finishedAt: string|null}>                                                           $history
      */
     public function __construct(

@@ -9,6 +9,7 @@ use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\AdminUserActionAuditRepositoryInterface;
 use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Application\Command\PersonalRunArchive;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
 use App\Sessions\Application\Command\ForceEndSessionCommand;
 use Psr\Clock\ClockInterface;
@@ -33,6 +34,7 @@ final readonly class AdminUserActions
         private RefreshTokenRepositoryInterface $refreshTokens,
         private AdminUserActionAuditRepositoryInterface $audits,
         private PersonalRunDrafts $runs,
+        private PersonalRunArchive $runArchive,
         private ForceEndSessionCommand $forceEnd,
         private ClockInterface $clock,
         private LoggerInterface $logger,
@@ -119,6 +121,30 @@ final readonly class AdminUserActions
 
             return 'not_running';
         }
+
+        return 'ok';
+    }
+
+    /**
+     * Puts one of the member's runs away in THEIR list, or brings it back (story 16.21), through the same
+     * {@see PersonalRunArchive} rules the member has: a run they take part in, no live party. Those rules
+     * fail as typed exceptions the epic-35 listener maps; only the account guard answers here.
+     *
+     * @return 'ok'|'not_found'|'forbidden'
+     */
+    public function setRunArchived(string $adminId, string $targetUserId, string $runId, bool $archived): string
+    {
+        $target = $this->loadActionable($adminId, $targetUserId);
+        if (is_string($target)) {
+            return $target;
+        }
+
+        if ($archived) {
+            $this->runArchive->archive($runId, $target->getId());
+        } else {
+            $this->runArchive->unarchive($runId, $target->getId());
+        }
+        $this->trace($target->getId(), $adminId, $archived ? AdminUserActionAudit::ACTION_RUN_ARCHIVE : AdminUserActionAudit::ACTION_RUN_UNARCHIVE);
 
         return 'ok';
     }

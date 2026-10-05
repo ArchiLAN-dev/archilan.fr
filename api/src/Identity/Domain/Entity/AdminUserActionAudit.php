@@ -33,6 +33,10 @@ final class AdminUserActionAudit
     public const string ACTION_RUN_SEED_IMPORT = 'run_seed_import';
     public const string ACTION_RUN_SLOT_ASSIGN = 'run_slot_assign';
     public const string ACTION_RUN_DELETE = 'run_delete';
+    // Story 16.21: an admin put a run away in the member's own list, or brought it back. The target is the
+    // member whose list changed, not the run's owner - an archive is personal.
+    public const string ACTION_RUN_ARCHIVE = 'run_archive';
+    public const string ACTION_RUN_UNARCHIVE = 'run_unarchive';
 
     public function __construct(
         #[ORM\Id]
