@@ -10,12 +10,16 @@ use App\Sessions\Domain\Entity\SessionFeedEvent;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Wallet\Application\Command\AwardWeeklyQuests;
 use App\Wallet\Domain\Entity\PelleMovement;
+use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Enum\PelleReason;
+use App\Wallet\Domain\Enum\QuestMetric;
+use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 
 /**
- * Story 41.6: the quests of the week, read from what was actually played.
+ * Story 41.6: the quests of the week, read from what was actually played. Story 41.15: the quests are written by
+ * the admins, drawn for the week, and each objective shows where the member stands.
  */
 final class WeeklyQuestsTest extends FunctionalTestCase
 {
@@ -25,6 +29,11 @@ final class WeeklyQuestsTest extends FunctionalTestCase
 
     public function testEachQuestPaysTheMembersWhoReallyPlayed(): void
     {
+        // The three quests of story 41.6, now written as quests (the default week has three).
+        $this->quest('reach_a_goal', 'Atteindre un goal', 40, [new QuestObjective(QuestMetric::Goals, 1)]);
+        $this->quest('play_with_someone_new', 'Jouer avec quelqu\'un de nouveau', 30, [new QuestObjective(QuestMetric::NewPartners, 1)]);
+        $this->quest('play_a_weekly', 'Faire une hebdo', 30, [new QuestObjective(QuestMetric::Weeklies, 1)]);
+
         $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
         $bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob');
         $carol = $this->createUser('carol@example.org', ['ROLE_USER'], 'Carol');
@@ -49,8 +58,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $this->weeklyEntry($eve, checks: 0, goal: false);
         $this->entityManager->flush();
 
-        $award = self::getContainer()->get(AwardWeeklyQuests::class);
-        self::assertInstanceOf(AwardWeeklyQuests::class, $award);
+        $award = $this->award();
         $week = QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK));
 
         self::assertSame(5, $award->awardWeek($week));
@@ -61,22 +69,76 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertSame(0, $this->paid($carol), 'Alice is not new to her');
         self::assertSame(70, $this->paid($dave), 'a weekly (30) and its goal (40)');
         self::assertSame(0, $this->paid($eve), 'a weekly without a check counts for nothing');
+
+        $movement = $this->entityManager->getRepository(PelleMovement::class)->findOneBy(['userId' => $bob->getId()]);
+        self::assertSame(sprintf('quest:%s:play_with_someone_new:%s', $week->key, $bob->getId()), $movement?->getUniqueKey());
     }
 
-    public function testTheWalletPageShowsTheQuestsOfTheWeek(): void
+    public function testAQuestWithSeveralObjectivesPaysOnlyWhenAllAreReached(): void
     {
+        $this->quest('marathon', 'Marathon', 60, [new QuestObjective(QuestMetric::Checks, 2), new QuestObjective(QuestMetric::Sessions, 2)]);
+
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob');
+        // Alice: two checks in two sessions. Bob: three checks, one session only.
+        $this->session('s-1', [['Alice', $alice], ['Bob', $bob]]);
+        $this->session('s-2', [['Alice2', $alice]]);
+        $this->check('s-1', 'Alice', self::IN_THE_WEEK);
+        $this->check('s-2', 'Alice2', self::IN_THE_WEEK);
+        foreach ([1, 2, 3] as $ignored) {
+            $this->check('s-1', 'Bob', self::IN_THE_WEEK);
+        }
+        $this->entityManager->flush();
+
+        self::assertSame(1, $this->award()->awardWeek(QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK))));
+        self::assertSame(60, $this->paid($alice));
+        self::assertSame(0, $this->paid($bob), 'enough checks, but one session');
+    }
+
+    public function testTheWalletPageShowsWhereTheMemberStandsOnEachObjective(): void
+    {
+        $this->quest('marathon', 'Marathon', 60, [new QuestObjective(QuestMetric::Checks, 5), new QuestObjective(QuestMetric::Sessions, 2)]);
         $member = $this->createUser('member@example.org', ['ROLE_USER'], 'Member');
+        $now = new \DateTimeImmutable()->format(\DATE_ATOM);
+        $this->session('s-now', [['Member', $member]]);
+        foreach ([1, 2, 3] as $ignored) {
+            $this->check('s-now', 'Member', $now);
+        }
+        $this->entityManager->flush();
         $this->loginAs($member);
 
         $this->client->request('GET', '/api/v1/me/quests');
 
         self::assertResponseIsSuccessful();
         $body = $this->decodedJsonResponse();
+        self::assertIsString($body['renewsAt'] ?? null);
         $quests = $body['quests'] ?? null;
         self::assertIsArray($quests);
-        self::assertCount(3, $quests);
-        self::assertSame(['key' => 'reach_a_goal', 'label' => 'Atteindre un goal', 'reward' => 40, 'done' => false, 'paid' => false], $quests[0]);
-        self::assertIsString($body['renewsAt'] ?? null);
+        self::assertCount(1, $quests);
+        self::assertIsArray($quests[0]);
+        self::assertSame('marathon', $quests[0]['key'] ?? null);
+        self::assertSame('Marathon', $quests[0]['label'] ?? null);
+        self::assertFalse($quests[0]['done'] ?? null);
+        self::assertSame([
+            ['metric' => 'checks', 'label' => 'Checks faits', 'unit' => 'checks', 'target' => 5, 'current' => 3],
+            ['metric' => 'sessions', 'label' => 'Parties jouées', 'unit' => 'parties', 'target' => 2, 'current' => 1],
+        ], $quests[0]['objectives'] ?? null);
+    }
+
+    /**
+     * @param list<QuestObjective> $objectives
+     */
+    private function quest(string $id, string $title, int $reward, array $objectives): void
+    {
+        $this->entityManager->persist(QuestDefinition::write($title, '', $reward, $objectives, true, new \DateTimeImmutable(self::LAST_MONTH), $id));
+    }
+
+    private function award(): AwardWeeklyQuests
+    {
+        $award = self::getContainer()->get(AwardWeeklyQuests::class);
+        self::assertInstanceOf(AwardWeeklyQuests::class, $award);
+
+        return $award;
     }
 
     /**

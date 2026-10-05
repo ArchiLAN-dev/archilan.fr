@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Wallet;
 
-use App\Wallet\Domain\Enum\WeeklyQuest;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Story 41.6: the week of the quests is Paris's, and the three quests make 100 pelles at most.
+ * Story 41.6: the week of the quests is Paris's. Story 41.15: a week is found back from its key.
  */
 final class QuestWeekTest extends TestCase
 {
@@ -24,8 +23,18 @@ final class QuestWeekTest extends TestCase
         self::assertSame('2026-W40', $week->previous()->key);
     }
 
-    public function testTheQuestsOfAWeekMakeAHundredPelles(): void
+    public function testAWeekIsFoundBackFromItsKey(): void
     {
-        self::assertSame(100, array_sum(array_map(static fn (WeeklyQuest $q): int => $q->reward(), WeeklyQuest::cases())));
+        $week = QuestWeek::fromKey('2026-W41');
+
+        self::assertNotNull($week);
+        self::assertSame('2026-10-04T22:00:00+00:00', $week->start->setTimezone(new \DateTimeZone('UTC'))->format(\DATE_ATOM));
+        self::assertSame('2026-W42', $week->next()->key);
+        $last = QuestWeek::fromKey('2026-W53');
+        self::assertNotNull($last, '2026 has 53 weeks');
+        self::assertSame('2027-W01', $last->next()->key);
+        self::assertNull(QuestWeek::fromKey('2025-W53'), '2025 has 52');
+        self::assertNull(QuestWeek::fromKey('2026-41'));
+        self::assertNull(QuestWeek::fromKey('2026-W54'));
     }
 }

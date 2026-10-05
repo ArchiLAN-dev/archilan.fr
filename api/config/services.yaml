@@ -89,6 +89,9 @@ services:
 
     App\Wallet\Domain\Repository\PelleMovementRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrinePelleMovementRepository'
     App\Wallet\Domain\Repository\ShopRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
+    App\Wallet\Domain\Repository\QuestRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineQuestRepository'
+    # Story 41.15: the Monday draw of the quests (the default engine is the secure one).
+    Random\Randomizer: ~
     # Story 41.7: Community reads what a member bought through its own port, implemented by the shop.
     App\Community\Application\Port\CosmeticOwnershipInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
 
