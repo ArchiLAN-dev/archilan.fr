@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\GameSelection\Domain\Entity\Game;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 
@@ -51,6 +52,43 @@ final class AdminUserGamingTest extends FunctionalTestCase
         self::assertCount(1, $data['joinedRuns']);
         self::assertIsArray($data['joinedRuns'][0]);
         self::assertSame('La run d\'un autre', $data['joinedRuns'][0]['title']);
+    }
+
+    public function testEachRunCarriesTheGamesTheMemberPickedInSlotOrder(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $target = $this->createUser('target@example.org', ['ROLE_USER'], 'Target');
+        $other = $this->createUser('other@example.org', ['ROLE_USER'], 'Other');
+
+        $paint = Game::create('Paint', 'paint', 'Peindre.', null, 'alt', 'credit', Game::AVAILABILITY_AVAILABLE, $this->now);
+        $mansion = Game::create('Luigi\'s Mansion', 'luigis-mansion', 'Aspirer.', null, 'alt', 'credit', Game::AVAILABILITY_AVAILABLE, $this->now);
+        $minecraft = Game::create('Minecraft', 'minecraft', 'Miner.', null, 'alt', 'credit', Game::AVAILABILITY_AVAILABLE, $this->now);
+        $draft = Run::create($target->getId(), 'Brouillon', $this->now);
+        foreach ([$paint, $mansion, $minecraft, $draft] as $entity) {
+            $this->entityManager->persist($entity);
+        }
+
+        // Two slots of the same game read once; another participant's games stay theirs.
+        $mine = RunParticipant::create($draft->getId(), $target->getId(), $this->now);
+        $mine->replaceSlots([
+            ['slotId' => 's1', 'gameId' => $mansion->getId()],
+            ['slotId' => 's2', 'gameId' => $paint->getId()],
+            ['slotId' => 's3', 'gameId' => $mansion->getId()],
+        ]);
+        $theirs = RunParticipant::create($draft->getId(), $other->getId(), $this->now);
+        $theirs->replaceSlots([['slotId' => 's4', 'gameId' => $minecraft->getId()]]);
+        $this->entityManager->persist($mine);
+        $this->entityManager->persist($theirs);
+        $this->entityManager->flush();
+
+        $this->loginAs($admin);
+        $this->client->jsonRequest('GET', $this->url($target->getId()));
+
+        self::assertResponseIsSuccessful();
+        $data = $this->data();
+        self::assertIsArray($data['ownedRuns']);
+        self::assertIsArray($data['ownedRuns'][0]);
+        self::assertSame(['Luigi\'s Mansion', 'Paint'], $data['ownedRuns'][0]['games']);
     }
 
     public function testReportsProgressionAndLinkedAccounts(): void

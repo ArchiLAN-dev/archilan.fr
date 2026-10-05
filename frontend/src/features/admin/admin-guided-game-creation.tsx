@@ -4,7 +4,7 @@ import { ArrowLeft, ExternalLink, Info, Loader2, Search } from "lucide-react";
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {MarkdownEditor} from "@/components/markdown/markdown-editor";
 import {GAME_DESCRIPTION_MAX} from "@/lib/content-limits";
@@ -12,6 +12,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { searchIgdbGames } from "./admin-igdb-api";
+import { useRouter } from "next/navigation";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,8 @@ function extractId(payload: unknown): string | null {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function AdminGuidedGameCreation({ preset }: { preset: CataloguePreset }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [fields, setFields] = useState<Fields>(() => ({
     name: preset.name,
     slug: slugify(preset.name),
@@ -211,7 +214,9 @@ export function AdminGuidedGameCreation({ preset }: { preset: CataloguePreset })
       }
 
       const id = extractId(payload);
-      window.location.href = id ? `/admin/jeux/${id}` : "/admin/jeux";
+      // The full reload this replaces refetched the library; the router keeps the cache, so it is invalidated here.
+      await queryClient.invalidateQueries({ queryKey: ["admin-games"] });
+      router.push(id ? `/admin/jeux/${id}` : "/admin/jeux");
     } catch {
       setErrors({ name: "Impossible de contacter le serveur." });
     } finally {

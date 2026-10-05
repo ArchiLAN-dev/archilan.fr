@@ -34,7 +34,7 @@ final readonly class BuyShopItem
      * @throws ForbiddenException  when the member is banned
      * @throws ValidationException when the member cannot pay
      */
-    public function buy(string $userId, string $itemId): void
+    public function buy(string $userId, string $itemId, ?int $expectedPrice = null): void
     {
         $now = $this->clock->now();
         $item = $this->shop->findItem($itemId);
@@ -44,14 +44,21 @@ final readonly class BuyShopItem
         if (!$item->isOnSale($now)) {
             throw new ConflictException("Cet article n'est pas en vente.", 'not_on_sale');
         }
+        // Story 41.14: the member agreed to the price the page showed. A promotion ending in between, or a stale
+        // page, must not charge them more without a word - a purchase is final.
+        if (null !== $expectedPrice && $expectedPrice !== $item->priceAt($now)) {
+            throw new ConflictException(sprintf('Le prix a changé : il est maintenant de %d pelles.', $item->priceAt($now)), 'price_changed');
+        }
         if ($this->shop->owns($userId, $item->getType(), $item->getCosmeticKey())) {
             throw new ConflictException('Tu possèdes déjà cet article.', 'already_owned');
         }
 
+        // Story 41.14: the price in force at this very instant, promotion included - never the one the page showed.
+        $onPromotion = $item->isOnPromotion($now);
         $this->record->record(
             new RecordPelleMovementInput(
-                $userId, -$item->getPrice(), PelleKind::Gold, null, PelleReason::ShopPurchase,
-                sprintf('Boutique : %s %s', ShopItem::TYPE_FRAME === $item->getType() ? 'cadre' : 'bannière', $item->getCosmeticKey()), null,
+                $userId, -$item->priceAt($now), PelleKind::Gold, null, PelleReason::ShopPurchase,
+                sprintf('Boutique : %s %s%s', ShopItem::TYPE_FRAME === $item->getType() ? 'cadre' : 'bannière', $item->getCosmeticKey(), $onPromotion ? ' (en promotion)' : ''), null,
                 sprintf('shop:%s:%s', $userId, $item->getId()),
             ),
             fn () => $this->shop->saveOwned(OwnedCosmetic::acquire($userId, $item->getType(), $item->getCosmeticKey(), $now)),

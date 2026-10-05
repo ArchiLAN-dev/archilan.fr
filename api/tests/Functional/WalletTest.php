@@ -286,7 +286,7 @@ final class WalletTest extends FunctionalTestCase
         );
         $this->loginAs($admin);
 
-        $this->client->request('GET', '/api/v1/admin/stats/pelles?period=4s');
+        $this->client->request('GET', '/api/v1/admin/statistiques/pelles?period=4s');
 
         self::assertResponseIsSuccessful();
         $body = $this->jsonBody();
@@ -307,7 +307,7 @@ final class WalletTest extends FunctionalTestCase
         $member = $this->createUser('member@example.org', ['ROLE_USER'], 'Member');
         $this->loginAs($member);
 
-        $this->client->request('GET', '/api/v1/admin/stats/pelles');
+        $this->client->request('GET', '/api/v1/admin/statistiques/pelles');
 
         self::assertResponseStatusCodeSame(403);
     }

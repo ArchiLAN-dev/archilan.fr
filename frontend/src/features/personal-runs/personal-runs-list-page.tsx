@@ -3,13 +3,13 @@
 import { useEffect, useId, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Gamepad2, Loader2, Plus } from "lucide-react";
+import { Archive, Gamepad2, Loader2, Plus } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
-import { fetchMyRuns } from "./personal-runs-api";
+import { fetchMyRuns, setRunArchivedForMe } from "./personal-runs-api";
 import { PersonalRunCard } from "./personal-run-card";
 import type { PersonalRun, PersonalRunStatus } from "./types";
 
@@ -47,6 +47,9 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
   const [creating, setCreating] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
   const [restartingId, setRestartingId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const formId = useId();
 
   // fetchMyRuns never throws (failures are encoded as null), so the query never errors and - like
@@ -79,6 +82,19 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
     } finally {
       setRestartingId(null);
     }
+  }
+
+  /** Story 16.21: put the run away in my list, or bring it back. */
+  async function handleArchive(run: PersonalRun, archived: boolean) {
+    setArchivingId(run.id);
+    setArchiveError(null);
+    const error = await setRunArchivedForMe(run.id, archived);
+    if (error === null) {
+      await queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
+    } else {
+      setArchiveError(error);
+    }
+    setArchivingId(null);
   }
 
   async function handleCreate(e: FormEvent) {
@@ -147,7 +163,16 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
     );
   }
 
-  const { owned, joined } = mine;
+  // Story 16.21: an archived run leaves its section for « Archivées », owned or joined alike.
+  const archivedRuns = [...mine.owned, ...mine.joined].filter((run) => run.archived === true);
+  const owned = mine.owned.filter((run) => run.archived !== true);
+  const joined = mine.joined.filter((run) => run.archived !== true);
+  const archiveProps = (run: PersonalRun) => ({
+    archiving: archivingId === run.id,
+    onArchive: (target: PersonalRun, archived: boolean) => {
+      void handleArchive(target, archived);
+    },
+  });
 
   // Group owned runs by status
   const grouped: Partial<Record<PersonalRunStatus, PersonalRun[]>> = {};
@@ -253,7 +278,13 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
         </section>
       )}
 
-      {owned.length === 0 && joined.length === 0 ? (
+      {archiveError !== null ? (
+        <p className="rounded border border-[color:var(--color-danger)]/40 px-4 py-2 text-sm text-[color:var(--color-danger)]" role="alert">
+          {archiveError}
+        </p>
+      ) : null}
+
+      {owned.length === 0 && joined.length === 0 && archivedRuns.length === 0 ? (
         <div className="rounded-lg border border-border bg-surface p-10 text-center">
           <Gamepad2 aria-hidden className="mx-auto mb-4 size-10 text-muted-foreground/50" />
           <p className="font-heading font-semibold text-foreground">
@@ -285,6 +316,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
                     restarting={restartingId === run.id}
                     run={run}
                     onRestart={status === "idle" ? (target) => { void handleRestart(target); } : undefined}
+                    {...archiveProps(run)}
                   />
                 ))}
               </div>
@@ -304,7 +336,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
               {showCancelled && (
                 <div className="grid gap-3 opacity-60">
                   {cancelledRuns.map((run) => (
-                    <PersonalRunCard key={run.id} run={run} />
+                    <PersonalRunCard key={run.id} run={run} {...archiveProps(run)} />
                   ))}
                 </div>
               )}
@@ -318,9 +350,31 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
               </h2>
               <div className="grid gap-3">
                 {joined.map((run) => (
-                  <PersonalRunCard key={run.id} run={run} />
+                  <PersonalRunCard key={run.id} run={run} {...archiveProps(run)} />
                 ))}
               </div>
+            </section>
+          )}
+
+          {archivedRuns.length > 0 && (
+            <section>
+              <button
+                aria-expanded={showArchived}
+                className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                onClick={() => setShowArchived((v) => !v)}
+                type="button"
+              >
+                <Archive aria-hidden className="size-4" />
+                <span>Archivées ({archivedRuns.length})</span>
+                <span>{showArchived ? "▲" : "▼"}</span>
+              </button>
+              {showArchived && (
+                <div className="grid gap-3 opacity-70">
+                  {archivedRuns.map((run) => (
+                    <PersonalRunCard key={run.id} run={run} {...archiveProps(run)} />
+                  ))}
+                </div>
+              )}
             </section>
           )}
         </div>

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Gamepad2, Loader2, RotateCcw } from "lucide-react";
-import type { PersonalRun } from "./types";
+import { Archive, ArchiveRestore, Gamepad2, Loader2, RotateCcw } from "lucide-react";
+import { ARCHIVABLE_STATUSES, type PersonalRun } from "./types";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 
 function formatDate(iso: string) {
@@ -23,13 +23,20 @@ export function PersonalRunCard({
   run,
   restarting = false,
   onRestart,
+  archiving = false,
+  onArchive,
 }: {
   run: PersonalRun;
   restarting?: boolean;
   onRestart?: (run: PersonalRun) => void;
+  archiving?: boolean;
+  /** Story 16.21: put the run away in the member's own list (`true`), or bring it back (`false`). */
+  onArchive?: (run: PersonalRun, archived: boolean) => void;
 }) {
   const gameCount = run.gameSelectionConfig?.length ?? 0;
   const canRestart = run.status === "idle" && run.sessionId !== null && !run.pausedWithoutSave;
+  const archived = run.archived === true;
+  const canArchive = archived || ARCHIVABLE_STATUSES.includes(run.status);
 
   return (
     <div className="rounded-lg border border-border bg-surface px-5 py-4 transition-colors hover:border-border/60">
@@ -71,6 +78,23 @@ export function PersonalRunCard({
                 <RotateCcw aria-hidden className="size-4" />
               )}
               Reprendre
+            </button>
+          ) : null}
+          {onArchive && canArchive ? (
+            <button
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded border border-border px-3 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={archiving}
+              onClick={() => onArchive(run, !archived)}
+              type="button"
+            >
+              {archiving ? (
+                <Loader2 aria-hidden className="size-4 animate-spin" />
+              ) : archived ? (
+                <ArchiveRestore aria-hidden className="size-4" />
+              ) : (
+                <Archive aria-hidden className="size-4" />
+              )}
+              {archived ? "Désarchiver" : "Archiver"}
             </button>
           ) : null}
           <Link className="text-sm text-muted-foreground hover:text-foreground" href={`/runs/${run.id}`}>

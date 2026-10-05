@@ -8,6 +8,7 @@ use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
+use App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Command\ForceEndSessionCommand;
@@ -26,6 +27,7 @@ final readonly class PersonalRunLifecycle
     public function __construct(
         private RunRepositoryInterface $runs,
         private RunParticipantRepositoryInterface $participants,
+        private RunArchiveRepositoryInterface $archives,
         private MessageBusInterface $messageBus,
         private ForceEndSessionCommand $forceEndSession,
         private ClockInterface $clock,
@@ -106,6 +108,9 @@ final readonly class PersonalRunLifecycle
 
         $run->start($this->clock->now());
         $this->runs->flush();
+        // Story 16.21 : une partie qu'on relance redevient d'actualité - elle sort des archives de chacun, sans
+        // quoi elle tournerait dans un « Archivées » replié, sans que ses participants la voient.
+        $this->archives->deleteByRunId($run->getId());
 
         if ($isParticipant) {
             // Sans cette trace, un propriétaire retrouve son serveur rallumé sans savoir par qui.

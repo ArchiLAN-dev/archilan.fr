@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ArrowDown, ArrowUp, Check, Crop, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
@@ -445,6 +446,13 @@ export function CommunityProfileCustomizationForm({
             );
           })}
         </div>
+        {/* Story 41.12: the way to the banners on sale. */}
+        <p className="text-xs text-muted-foreground">
+          D&apos;autres bannières se gagnent avec tes pelles.{" "}
+          <Link className="font-semibold text-accent-text underline-offset-2 hover:underline" href="/boutique">
+            Voir la boutique
+          </Link>
+        </p>
       </Section>
 
       {bannerUpload.image ? (

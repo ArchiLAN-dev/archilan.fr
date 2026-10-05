@@ -228,9 +228,10 @@ export function isPelleStats(v: unknown): v is PelleStats {
   );
 }
 
+// Story 42.4: French section names under `statistiques` - ad blockers drop paths such as `/stats/events`.
 async function fetchSection<T>(section: string, period: StatsPeriodCode, guard: (v: unknown) => v is T): Promise<T | null> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/admin/stats/${section}?period=${period}`);
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/statistiques/${section}?period=${period}`);
     if (!res.ok) return null;
     const payload: unknown = await res.json();
     return guard(payload) ? payload : null;
@@ -240,15 +241,15 @@ async function fetchSection<T>(section: string, period: StatsPeriodCode, guard: 
 }
 
 export function fetchCommunityStats(period: StatsPeriodCode): Promise<CommunityStats | null> {
-  return fetchSection("community", period, isCommunityStats);
+  return fetchSection("communaute", period, isCommunityStats);
 }
 
 export function fetchSessionStats(period: StatsPeriodCode): Promise<SessionStats | null> {
-  return fetchSection("sessions", period, isSessionStats);
+  return fetchSection("parties", period, isSessionStats);
 }
 
 export function fetchEventStats(period: StatsPeriodCode): Promise<EventStats | null> {
-  return fetchSection("events", period, isEventStats);
+  return fetchSection("evenements", period, isEventStats);
 }
 
 export function fetchPelleStats(period: StatsPeriodCode): Promise<PelleStats | null> {

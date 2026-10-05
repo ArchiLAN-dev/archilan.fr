@@ -1,12 +1,12 @@
 {
   "name": "frontend",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "gates": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"

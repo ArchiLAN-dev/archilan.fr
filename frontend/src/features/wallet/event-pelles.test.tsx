@@ -5,7 +5,7 @@ import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { messageFor } from "@/features/community/notification-center";
-import { EventPellesView, distributionConfirmation, distributionSummary } from "./admin-event-pelles-page";
+import { DistributionSummary, EventPellesView, distributionPreview, distributionSummary } from "./admin-event-pelles-page";
 import { distributeEventPelles, fetchEventPelles, type EventPelles } from "./event-pelles-api";
 import { pelleReasonLabel } from "./wallet-api";
 
@@ -56,8 +56,13 @@ describe("event pelles page", () => {
   });
 
   test("the confirmation and the outcome in words", () => {
-    expect(distributionConfirmation(15, 3)).toBe("Distribuer 15 pelles à 3 membres (45 pelles au total) ?");
-    expect(distributionConfirmation(1, 1)).toBe("Distribuer 1 pelle à 1 membre (1 pelle au total) ?");
+    expect(distributionPreview(15, 3, "Happening du samedi")).toEqual({ amount: 15, members: 3, total: 45, label: "Happening du samedi" });
+    const summary = renderToStaticMarkup(<DistributionSummary preview={distributionPreview(15, 3, "Happening du samedi")} />);
+    expect(summary).toContain("Par membre");
+    expect(summary).toContain("Membres");
+    expect(summary).toContain("45");
+    expect(summary).toContain("Happening du samedi");
+    expect(renderToStaticMarkup(<DistributionSummary preview={distributionPreview(1, 1, "Quiz")} />)).toContain(">Membre<");
     expect(distributionSummary({ credited: 2, skipped: 1, alreadyCredited: 0 })).toBe("2 membres crédités, 1 sauté (compte banni ou supprimé).");
   });
 

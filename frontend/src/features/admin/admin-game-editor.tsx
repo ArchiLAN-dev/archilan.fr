@@ -1,6 +1,6 @@
 "use client";
 
-import {ArrowLeft, Info, RefreshCw, ShieldAlert} from "lucide-react";
+import {ArrowLeft, Info, MessageSquarePlus, RefreshCw, ShieldAlert, StickyNote, type LucideIcon} from "lucide-react";
 import Link from "next/link";
 import type {FormEvent} from "react";
 import {useMemo, useRef, useState} from "react";
@@ -29,11 +29,14 @@ import {IgdbGameSearch, type IgdbResult} from "@/features/admin/igdb-game-search
 import {parseDefaultYaml, type FreeformDictOption} from "@/lib/archipelago-yaml";
 import {InstallStepsEditor, serializeStepsForSave, type InstallStep} from "@/features/games/install-steps-editor";
 import {MarkdownEditor} from "@/components/markdown/markdown-editor";
+import {ConfirmDialog} from "@/components/ui/confirm-dialog";
 import {GAME_DESCRIPTION_MAX} from "@/lib/content-limits";
 import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
 import {DEFAULT_STALE_TIME} from "@/lib/query-client";
 import {APWORLD_INCIDENTS_QUERY_KEY, fetchApworldIncidents} from "./admin-apworld-health-api";
+import {DEFAULT_CONTRIBUTION_FILTERS, fetchContributionQueue, type ContributionItem} from "./admin-game-contributions-api";
+import {contributionFiltersToParams} from "./moderation-filters";
 import {ApworldCandidateStatus} from "./apworld-candidate-status";
 import {CandidateYamlTest} from "./candidate-yaml-test";
 import {ApworldPreflightImage} from "./apworld-preflight-image";
@@ -59,6 +62,126 @@ const EDITOR_TABS = [
 ] as const;
 
 type EditorTab = (typeof EDITOR_TABS)[number]["id"];
+
+/** Story 11.7: whether the game carries an internal note worth reading - blank space is not a note. */
+export function hasAdminNote(notes: string | null): boolean {
+    return (notes ?? "").trim() !== "";
+}
+
+/**
+ * What makes a tab stand out (story 11.7): its icon, what it says to a screen reader, and a count when there are
+ * several things waiting (else a dot).
+ */
+export type TabFlag = {icon: LucideIcon; hint: string; count?: number};
+
+/**
+ * Story 11.7: the apworld needs the admin when an incident is open, a new version waits for their go-ahead, or the
+ * test generation failed without a waiver.
+ */
+export function apworldNeedsAttention(game: Pick<AdminGame, "apworldCandidate" | "apworldPreflight">, activeIncidents: number): boolean {
+    return activeIncidents > 0
+        || game.apworldCandidate?.status === "awaiting"
+        || (game.apworldPreflight?.status === "failed" && !game.apworldPreflight.overridden);
+}
+
+/** Story 11.7: the flag of each tab, null when it has nothing waiting. */
+export function editorTabFlags(
+    game: Pick<AdminGame, "adminNotes" | "apworldCandidate" | "apworldPreflight">,
+    activeIncidents: number,
+    pendingContributions: number,
+): Record<EditorTab, TabFlag | null> {
+    return {
+        general: null,
+        catalogue: null,
+        apworld: apworldNeedsAttention(game, activeIncidents) ? {icon: ShieldAlert, hint: "à vérifier"} : null,
+        tutoriel: pendingContributions > 0
+            ? {
+                icon: MessageSquarePlus,
+                hint: pendingContributions > 1 ? `${pendingContributions} propositions en attente` : "une proposition en attente",
+                count: pendingContributions,
+            }
+            : null,
+        notes: hasAdminNote(game.adminNotes) ? {icon: StickyNote, hint: "une note interne existe"} : null,
+    };
+}
+
+/**
+ * One tab of the editor. Story 11.7: a flagged tab - a note to read, an apworld to check, a tutorial proposal to
+ * review - stands out even when it is not open (warm colour, its icon, a dot or a count), so the admin does not
+ * edit the game without seeing it.
+ */
+export function EditorTabButton({id, label, active, flag, onSelect}: {
+    id: string;
+    label: string;
+    active: boolean;
+    flag: TabFlag | null;
+    onSelect: () => void;
+}) {
+    const tone = active
+        ? flag !== null ? "border-accent-warm text-foreground" : "border-accent text-foreground"
+        : flag !== null ? "border-accent-warm/40 bg-accent-warm/10 text-accent-warm hover:text-foreground" : "border-transparent text-muted-foreground hover:text-foreground";
+    const Icon = flag?.icon;
+
+    return (
+        <button
+            aria-controls={`panel-${id}`}
+            aria-label={flag !== null ? `${label} - ${flag.hint}` : undefined}
+            aria-selected={active}
+            className={`-mb-px inline-flex min-h-10 items-center gap-1.5 rounded-t border-b-2 px-4 text-sm font-semibold transition-colors ${tone}`}
+            id={`tab-${id}`}
+            onClick={onSelect}
+            role="tab"
+            type="button"
+        >
+            {Icon !== undefined ? <Icon aria-hidden className="size-4"/> : null}
+            {label}
+            {flag !== null && flag.count !== undefined && flag.count > 1 ? (
+                <span aria-hidden className="rounded-full bg-accent-warm px-1.5 text-xs font-bold text-white">{flag.count}</span>
+            ) : flag !== null ? (
+                <span aria-hidden className="size-2 rounded-full bg-accent-warm"/>
+            ) : null}
+        </button>
+    );
+}
+
+const proposalDate = new Intl.DateTimeFormat("fr-FR", {dateStyle: "medium", timeZone: "Europe/Paris"});
+
+/**
+ * Story 11.7: the tutorial proposals members made for this game, waiting for review - each one a full tutorial
+ * that would replace the current one. They are reviewed in the moderation queue, which opens on this game.
+ */
+export function PendingTutorialProposals({gameName, proposals}: { gameName: string; proposals: ContributionItem[] }) {
+    if (proposals.length === 0) return null;
+    const review = `/admin/moderation/contributions?${contributionFiltersToParams({...DEFAULT_CONTRIBUTION_FILTERS, search: gameName}).toString()}`;
+
+    return (
+        <section className="mb-6 grid gap-3 rounded-lg border border-accent-warm/40 bg-accent-warm/10 p-4" aria-labelledby="pending-proposals-title">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground" id="pending-proposals-title">
+                    <MessageSquarePlus aria-hidden className="size-5 text-accent-warm"/>
+                    {proposals.length > 1 ? `${proposals.length} propositions de tutoriel en attente` : "Une proposition de tutoriel en attente"}
+                </h2>
+                <Link className="inline-flex min-h-9 items-center rounded bg-accent px-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover" href={review}>
+                    Examiner dans la modération
+                </Link>
+            </div>
+            <p className="text-sm text-muted-foreground">
+                Une proposition approuvée remplace le tutoriel ci-dessous : à examiner avant de le retoucher ici.
+            </p>
+            <ul className="grid gap-2" role="list">
+                {proposals.map((proposal) => (
+                    <li className="rounded border border-border bg-surface px-3 py-2 text-sm" key={proposal.id}>
+                        <p className="text-foreground">
+                            <span className="font-semibold">{proposal.authorName}</span>
+                            <span className="text-muted-foreground"> · {proposalDate.format(new Date(proposal.createdAt))} · {proposal.proposedSteps.length} étape{proposal.proposedSteps.length > 1 ? "s" : ""}</span>
+                        </p>
+                        {proposal.message !== null ? <p className="mt-1 text-muted-foreground">« {proposal.message} »</p> : null}
+                    </li>
+                ))}
+            </ul>
+        </section>
+    );
+}
 
 export function AdminGameEditor({gameId}: { gameId: string }) {
     const queryClient = useQueryClient();
@@ -89,6 +212,14 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
     const {data: activeIncidents} = useQuery({
         queryKey: [...APWORLD_INCIDENTS_QUERY_KEY, "game", gameId],
         queryFn: () => fetchApworldIncidents("active", gameId),
+        staleTime: DEFAULT_STALE_TIME,
+    });
+
+    // Story 11.7: the tutorial proposals waiting for this game. Shares the moderation queue's prefix, so approving
+    // or rejecting one there refreshes the tab here.
+    const {data: contributions} = useQuery({
+        queryKey: ["admin-game-contributions", "game", gameId],
+        queryFn: () => fetchContributionQueue({...DEFAULT_CONTRIBUTION_FILTERS, gameId}),
         staleTime: DEFAULT_STALE_TIME,
     });
 
@@ -125,6 +256,8 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
     }
 
     const {game} = loadState;
+    const pendingContributions = contributions?.items ?? [];
+    const tabFlags = editorTabFlags(game, activeIncidents?.length ?? 0, pendingContributions.length);
 
     return (
         <div className="mx-auto max-w-content px-4 py-10">
@@ -151,22 +284,14 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
                 role="tablist"
             >
                 {EDITOR_TABS.map((tab) => (
-                    <button
-                        aria-controls={`panel-${tab.id}`}
-                        aria-selected={activeTab === tab.id}
-                        className={`-mb-px min-h-10 border-b-2 px-4 text-sm font-semibold transition-colors ${
-                            activeTab === tab.id
-                                ? "border-accent text-foreground"
-                                : "border-transparent text-muted-foreground hover:text-foreground"
-                        }`}
-                        id={`tab-${tab.id}`}
+                    <EditorTabButton
+                        active={activeTab === tab.id}
+                        flag={tabFlags[tab.id]}
+                        id={tab.id}
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        role="tab"
-                        type="button"
-                    >
-                        {tab.label}
-                    </button>
+                        label={tab.label}
+                        onSelect={() => setActiveTab(tab.id)}
+                    />
                 ))}
             </div>
 
@@ -181,6 +306,7 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
                 <ApworldSection game={game} onUpdate={refreshGame}/>
             </div>
             <div aria-labelledby="tab-tutoriel" hidden={activeTab !== "tutoriel"} id="panel-tutoriel" role="tabpanel">
+                <PendingTutorialProposals gameName={game.name} proposals={pendingContributions}/>
                 <InstallTutorialSection game={game} onUpdate={refreshGame}/>
             </div>
             <div aria-labelledby="tab-notes" hidden={activeTab !== "notes"} id="panel-notes" role="tabpanel">
@@ -1167,6 +1293,7 @@ function DefaultYamlEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: Ad
     const [draft, setDraft] = useState(game.defaultYaml ?? "");
     const [saving, setSaving] = useState(false);
     const [regenerating, setRegenerating] = useState(false);
+    const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
     const [message, setMessage] = useState<{ kind: "ok" | "warn" | "error"; text: string } | null>(null);
 
     const stored = game.defaultYaml ?? "";
@@ -1192,13 +1319,11 @@ function DefaultYamlEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: Ad
     }
 
     async function handleRegenerate(): Promise<void> {
-        if (!window.confirm("Régénérer le template depuis l'apworld ? Les modifications manuelles seront perdues.")) {
-            return;
-        }
         setRegenerating(true);
         setMessage(null);
         applyResult(await regenerateDefaultYaml(game.id), "Template régénéré depuis l'apworld.");
         setRegenerating(false);
+        setConfirmingRegenerate(false);
     }
 
     return (
@@ -1234,7 +1359,7 @@ function DefaultYamlEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: Ad
                     className="inline-flex min-h-9 items-center rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={saving || regenerating}
                     type="button"
-                    onClick={() => void handleRegenerate()}
+                    onClick={() => setConfirmingRegenerate(true)}
                 >
                     {regenerating ? "Régénération…" : "Réinitialiser depuis l'apworld"}
                 </button>
@@ -1257,6 +1382,20 @@ function DefaultYamlEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: Ad
                     {message.text}
                 </p>
             ) : null}
+
+            <ConfirmDialog
+                confirmLabel="Régénérer"
+                description="Le template est recalculé depuis l'apworld : les modifications manuelles enregistrées seront perdues."
+                onConfirm={() => void handleRegenerate()}
+                onOpenChange={(open) => {
+                    if (!open && !regenerating) setConfirmingRegenerate(false);
+                }}
+                open={confirmingRegenerate}
+                pending={regenerating}
+                icon={RefreshCw}
+                title="Réinitialiser le template depuis l'apworld ?"
+                tone="danger"
+            />
         </div>
     );
 }

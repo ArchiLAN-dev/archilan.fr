@@ -11,6 +11,8 @@ final readonly class HelloAssoConfig
     public const string FORM_TYPE_EVENT = 'evenements';
     public const string FORM_TYPE_MEMBERSHIP = 'adhesions';
     public const string FORM_TYPE_SHOP = 'boutiques';
+    /** Story 41.13: HelloAsso's path for donation forms. */
+    public const string FORM_TYPE_DONATION = 'formulaires';
 
     public function __construct(
         #[Autowire('%env(HELLOASSO_CLIENT_ID)%')]
@@ -83,6 +85,7 @@ final readonly class HelloAssoConfig
             'Membership' => self::FORM_TYPE_MEMBERSHIP,
             'Event' => self::FORM_TYPE_EVENT,
             'PaymentForm' => self::FORM_TYPE_SHOP,
+            'Donation' => self::FORM_TYPE_DONATION,
             default => mb_strtolower($apiFormType),
         };
     }

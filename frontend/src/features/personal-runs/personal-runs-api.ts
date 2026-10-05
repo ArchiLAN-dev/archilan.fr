@@ -150,6 +150,27 @@ export async function setRunRecapVisibility(runId: string, isPublic: boolean): P
   }
 }
 
+/**
+ * Put the run away in the caller's own list, or bring it back (story 16.21). Null on success, otherwise the
+ * server's message to show.
+ */
+export async function setRunArchivedForMe(runId: string, archived: boolean): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/personal-archive`, { method: archived ? "POST" : "DELETE" });
+    if (res.ok) return null;
+    const payload: unknown = await res.json().catch(() => null);
+    return errorMessageOf(payload) ?? (archived ? "Impossible d'archiver la partie." : "Impossible de désarchiver la partie.");
+  } catch {
+    return "Impossible de joindre le serveur.";
+  }
+}
+
+function errorMessageOf(payload: unknown): string | null {
+  if (typeof payload !== "object" || payload === null || !("error" in payload)) return null;
+  const error = payload.error;
+  return typeof error === "object" && error !== null && hasStringProp(error, "message") ? error.message : null;
+}
+
 // ─── My game selection (/runs/{runId}/participants/me/game-selection) ────────
 
 // Story 9.42: solo test-generation verdict of the slot's current yaml. Advisory only -

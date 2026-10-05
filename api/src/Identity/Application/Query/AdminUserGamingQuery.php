@@ -8,6 +8,7 @@ use App\Community\Application\Query\CommunityLevelQuery;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
+use App\PersonalRuns\Application\Service\PersonalRunGameSelection;
 
 /**
  * The gaming panel of the admin user sheet (story 36.4): progression, linked accounts, personal runs and
@@ -24,6 +25,7 @@ final readonly class AdminUserGamingQuery
     public function __construct(
         private UserRepositoryInterface $users,
         private PersonalRunDrafts $runs,
+        private PersonalRunGameSelection $runGames,
         private PlayerHistoryQueryInterface $history,
         private CommunityLevelQuery $levels,
     ) {
@@ -40,6 +42,7 @@ final readonly class AdminUserGamingQuery
         }
 
         $mine = $this->runs->listMine($userId);
+        $games = $this->runGames->gamesByRunForMember($userId);
 
         return new AdminUserGaming(
             $this->levels->levelFor($userId),
@@ -50,8 +53,8 @@ final readonly class AdminUserGamingQuery
                 // Twitch is deliberately absent: it is a social link on the community profile, not an
                 // account linked at the Identity level, and it is already public on /joueurs/{slug}.
             ],
-            $this->projectRuns($mine['owned']),
-            $this->projectRuns($mine['joined']),
+            $this->projectRuns($mine['owned'], $games),
+            $this->projectRuns($mine['joined'], $games),
             $this->projectHistory($this->history->fetchForUser($userId)),
         );
     }
@@ -60,11 +63,12 @@ final readonly class AdminUserGamingQuery
      * `listMine()` returns the rich payload the member's own space needs. An admin sheet wants a
      * one-line summary, plus the id - which story 36.6 will act on.
      *
-     * @param list<array<string, mixed>> $runs
+     * @param list<array<string, mixed>>  $runs
+     * @param array<string, list<string>> $games the games the member picked, by run (story 36.9)
      *
-     * @return list<array{id: string, title: string, status: string, sessionId: string|null}>
+     * @return list<array{id: string, title: string, status: string, sessionId: string|null, games: list<string>, archived: bool}>
      */
-    private function projectRuns(array $runs): array
+    private function projectRuns(array $runs, array $games): array
     {
         $out = [];
         foreach ($runs as $run) {
@@ -79,6 +83,9 @@ final readonly class AdminUserGamingQuery
                 // Story 36.6 stops a run through its live session; without the id the button would have
                 // nothing to act on.
                 'sessionId' => is_string($run['sessionId'] ?? null) ? $run['sessionId'] : null,
+                'games' => $games[$id] ?? [],
+                // Story 16.21: archived in the MEMBER's own list - listMine is read as them.
+                'archived' => true === ($run['archived'] ?? null),
             ];
         }
 

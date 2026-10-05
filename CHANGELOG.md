@@ -5,6 +5,46 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.31.0] - 2026-10-05
+
+Une boutique qui donne envie, avec ses promotions, un onglet « Soutenir ArchiLAN », des modales de confirmation
+partout, et une admin plus lisible : fiche utilisateur en onglets, contributions en liste et page de détail.
+
+### Ajouté
+
+- **Une boutique qui donne envie** (41.12) : la boutique se trouve depuis le menu, on essaie un cosmétique sur son
+  propre profil avant de payer, et on voit ce qu'on peut se permettre. Côté admin, les articles se gèrent en voyant
+  ce qui se vend : modifier, mettre en pause ou supprimer.
+- **Promotions temporaires** (41.14) : un prix promo par article avec une date de début et de fin, affiché en prix
+  barré avec badge et compte à rebours, un filtre « En promo », et un bandeau d'annonce de la boutique.
+- **Onglet « Soutenir ArchiLAN »** (41.13) : adhésion, don et articles au même endroit ; `/adhesion` redirige vers
+  lui.
+- **Archiver une partie** (16.21) : chacun range ses parties terminées dans sa propre liste, et peut les en
+  ressortir. L'ancien bouton « Archiver » devient « Annuler la partie ».
+- **Fiche utilisateur admin en onglets** (36.8), l'onglet actif est gardé dans l'adresse ; **onglet Jeu et pelles
+  lisible** (36.9) : runs et parties dans une seule liste filtrée et paginée, avec leurs jeux.
+- **Modales de confirmation partout** (39.14, 39.15) : plus aucun popup du navigateur, des modales avec icône et
+  récapitulatif chiffré.
+- **Contributions tutoriels en liste et page de détail** (39.16) : une ligne par contribution, et une page par
+  contribution avec la comparaison étape par étape et les décisions.
+- **Éditeur de jeu** (11.7) : les onglets Notes, APWorld et Tutoriel sont mis en avant quand quelque chose y attend
+  l'admin.
+
+### Corrigé
+
+- Les statistiques admin se chargent aussi derrière un bloqueur de pub (42.4).
+- Corrections front transverses (33.27) : une requête en échec est refaite, navigations par le routeur, modales de
+  la run.
+
+### Déploiement
+
+- Nouvelle variable `HELLOASSO_DONATION_FORM_SLUG` (vide par défaut : pas de bouton de don).
+
+### Migrations
+
+- `Version20261005120000` : table `personal_run_archive` (création, sans données).
+- `Version20261005140000` : colonnes de promotion sur `shop_item`, table `shop_announcement` (sans données).
+
 ## [0.30.0] - 2026-10-03
 
 Les bannières de profil se gèrent depuis l'admin, fixes ou animées, comme les cadres vidéo.

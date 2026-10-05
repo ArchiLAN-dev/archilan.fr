@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { ShopPage } from "@/features/wallet/shop-page";
-
-export const metadata: Metadata = { title: "Boutique" };
-
+/** Story 41.12: the shop moved to /boutique, its cosmetics tab first. */
 export default function BoutiquePage() {
-  return <ShopPage />;
+  redirect("/boutique");
 }

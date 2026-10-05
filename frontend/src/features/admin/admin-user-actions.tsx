@@ -4,12 +4,31 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Loader2, MailCheck } from "lucide-react";
 
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { applyAdminUserAction, type AdminUserActionKind } from "./admin-users-api";
 
 type Props = {
   userId: string;
   isSelf: boolean;
   emailVerified: boolean;
+};
+
+/** What the admin reads before each action (in a modal since story 39.14). */
+const CONFIRMATIONS: Record<AdminUserActionKind, { title: string; description: string; confirmLabel: string; tone: "default" | "danger"; icon: typeof KeyRound }> = {
+  "revoke-sessions": {
+    title: "Révoquer toutes les sessions de ce membre ?",
+    description: "Il sera déconnecté de tous ses appareils et devra se reconnecter partout.",
+    confirmLabel: "Révoquer",
+    icon: KeyRound,
+    tone: "danger",
+  },
+  "verify-email": {
+    title: "Valider l'email de ce membre ?",
+    description: "Son adresse sera marquée comme vérifiée à sa place, sans qu'il clique sur le lien reçu.",
+    confirmLabel: "Valider l'email",
+    icon: MailCheck,
+    tone: "default",
+  },
 };
 
 /**
@@ -19,11 +38,10 @@ type Props = {
 export function AdminUserActions({ userId, isSelf, emailVerified }: Props) {
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<AdminUserActionKind | null>(null);
+  const [confirming, setConfirming] = useState<AdminUserActionKind | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
-  async function run(action: AdminUserActionKind, confirmation: string): Promise<void> {
-    if (!window.confirm(confirmation)) return;
-
+  async function run(action: AdminUserActionKind): Promise<void> {
     setPending(action);
     setMessage(null);
     const error = await applyAdminUserAction(userId, action);
@@ -37,7 +55,10 @@ export function AdminUserActions({ userId, isSelf, emailVerified }: Props) {
       setMessage({ tone: "error", text: error });
     }
     setPending(null);
+    setConfirming(null);
   }
+
+  const confirmation = confirming !== null ? CONFIRMATIONS[confirming] : null;
 
   return (
     <div className="grid gap-3">
@@ -47,12 +68,7 @@ export function AdminUserActions({ userId, isSelf, emailVerified }: Props) {
           disabledReason="Tu ne peux pas révoquer tes propres sessions."
           icon={KeyRound}
           label="Révoquer les sessions"
-          onClick={() =>
-            void run(
-              "revoke-sessions",
-              "Révoquer toutes les sessions actives de ce membre ? Il devra se reconnecter partout.",
-            )
-          }
+          onClick={() => setConfirming("revoke-sessions")}
           pending={pending === "revoke-sessions"}
         />
         <ActionButton
@@ -60,9 +76,7 @@ export function AdminUserActions({ userId, isSelf, emailVerified }: Props) {
           disabledReason={isSelf ? "Action indisponible sur ton propre compte." : "Cet email est déjà vérifié."}
           icon={MailCheck}
           label="Valider l'email"
-          onClick={() =>
-            void run("verify-email", "Marquer l'email de ce membre comme vérifié, à sa place ?")
-          }
+          onClick={() => setConfirming("verify-email")}
           pending={pending === "verify-email"}
         />
       </div>
@@ -70,6 +84,22 @@ export function AdminUserActions({ userId, isSelf, emailVerified }: Props) {
       {message !== null ? (
         <p className={`text-sm ${message.tone === "ok" ? "text-success" : "text-danger"}`}>{message.text}</p>
       ) : null}
+
+      <ConfirmDialog
+        confirmLabel={confirmation?.confirmLabel ?? ""}
+        description={confirmation?.description ?? ""}
+        icon={confirmation?.icon}
+        onConfirm={() => {
+          if (confirming !== null) void run(confirming);
+        }}
+        onOpenChange={(open) => {
+          if (!open && pending === null) setConfirming(null);
+        }}
+        open={confirming !== null}
+        pending={pending !== null}
+        title={confirmation?.title ?? ""}
+        tone={confirmation?.tone ?? "default"}
+      />
     </div>
   );
 }

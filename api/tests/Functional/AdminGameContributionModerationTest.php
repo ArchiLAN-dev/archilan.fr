@@ -207,6 +207,47 @@ final class AdminGameContributionModerationTest extends FunctionalTestCase
         // ...and the message.
         $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=all&q=super');
         self::assertSame([$listedPending->getId()], $this->ids());
+
+        // Story 11.7: one game's contributions, for its editor - another game's stay out.
+        $other = $this->createGame('Celeste', 'celeste');
+        $otherPending = GameTutorialContribution::submitForGame(bin2hex(random_bytes(16)), $bob->getId(), $other->getId(), self::PROPOSED, null, $base->modify('+6 minutes'));
+        $this->entityManager->persist($otherPending);
+        $this->entityManager->flush();
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?game='.$game->getId());
+        self::assertSame([$listedPending->getId()], $this->ids());
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?game='.$other->getId());
+        self::assertSame([$otherPending->getId()], $this->ids());
+    }
+
+    public function testOneContributionReadsOnItsOwnWithItsGameAndDecision(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $id = $this->persistPendingForGame();
+
+        $this->loginAs($admin);
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions/'.$id);
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertSame($id, $data['id']);
+        self::assertSame('Hollow Knight', $data['target']);
+        self::assertIsString($data['gameId']);
+        self::assertNull($data['reviewedAt']);
+
+        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/game-contributions/%s/reject', $id), ['reason' => 'Doublon']);
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions/'.$id);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertSame('rejected', $data['status']);
+        self::assertSame('Doublon', $data['rejectionReason']);
+        self::assertIsString($data['reviewedAt']);
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions/'.str_repeat('0', 32));
+        self::assertResponseStatusCodeSame(404);
+
+        $this->loginAs($this->createUser('member@example.org', ['ROLE_USER']));
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions/'.$id);
+        self::assertResponseStatusCodeSame(403);
     }
 
     /**

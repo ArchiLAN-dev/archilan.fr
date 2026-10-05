@@ -6,7 +6,9 @@ namespace App\Wallet\Infrastructure\Doctrine;
 
 use App\Community\Application\Port\CosmeticOwnershipInterface;
 use App\Wallet\Domain\Entity\OwnedCosmetic;
+use App\Wallet\Domain\Entity\PelleMovement;
 use App\Wallet\Domain\Entity\ShopItem;
+use App\Wallet\Domain\Enum\PelleReason;
 use App\Wallet\Domain\Repository\ShopRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -57,5 +59,35 @@ final readonly class DoctrineShopRepository implements ShopRepositoryInterface, 
     {
         $this->entityManager->persist($owned);
         $this->entityManager->flush();
+    }
+
+    public function deleteItem(ShopItem $item): void
+    {
+        $this->entityManager->remove($item);
+        $this->entityManager->flush();
+    }
+
+    public function sales(): array
+    {
+        /** @var list<array{uniqueKey: string|null, amount: int}> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('m.uniqueKey', 'm.amount')
+            ->from(PelleMovement::class, 'm')
+            ->where('m.reason = :reason')
+            ->setParameter('reason', PelleReason::ShopPurchase)
+            ->getQuery()
+            ->getArrayResult();
+
+        $sales = [];
+        foreach ($rows as $row) {
+            $parts = explode(':', (string) $row['uniqueKey']);
+            if (3 !== \count($parts) || 'shop' !== $parts[0]) {
+                continue;
+            }
+            $sale = $sales[$parts[2]] ?? ['count' => 0, 'pelles' => 0];
+            $sales[$parts[2]] = ['count' => $sale['count'] + 1, 'pelles' => $sale['pelles'] - $row['amount']];
+        }
+
+        return $sales;
     }
 }

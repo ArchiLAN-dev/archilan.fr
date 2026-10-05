@@ -6,6 +6,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Archive,
+  ArchiveRestore,
   ArrowLeft,
   Check,
   Eye,
@@ -21,11 +23,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
-import { fetchPersonalRun, setRunRecapVisibility, type PersonalRunResult } from "./personal-runs-api";
+import { fetchPersonalRun, setRunArchivedForMe, setRunRecapVisibility, type PersonalRunResult } from "./personal-runs-api";
 import { IdleBanner } from "./idle-banner";
 import { ImportedSeedPanel } from "./imported-seed-panel";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
@@ -42,7 +45,7 @@ import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import { PlayerBadges } from "@/features/community/player-badges";
 import { RunTitle } from "./run-title";
 import { showsRunStatusLine, showsSettingsDelete } from "./run-overview-visibility";
-import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
+import { ARCHIVABLE_STATUSES, type PersonalRun, type PersonalRunParticipant, type ValidationSlotError } from "./types";
 import { MemberAvatar } from "../community/member-avatar";
 import { TitledName } from "@/features/community/titled-name";
 
@@ -216,7 +219,7 @@ function ValidationErrorBanner({
 
 // ─── Inactivity badge ─────────────────────────────────────────────────────────
 
-// ─── Stop confirmation dialog ─────────────────────────────────────────────────
+// ─── Confirmation dialogs (story 33.27: on ConfirmDialog, like the rest of the site) ──────
 
 function StopDialog({
   onConfirm,
@@ -227,41 +230,21 @@ function StopDialog({
   onCancel: () => void;
   stopping: boolean;
 }) {
+  // Mounted only while asked for: closing it (Échap, the way out) is the caller's cancel, never mid-request.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl">
-        <div className="mb-4 flex items-start gap-3">
-          <AlertTriangle
-            aria-hidden
-            className="mt-0.5 size-5 shrink-0 text-[color:var(--color-accent-warm)]"
-          />
-          <div>
-            <h2 className="font-heading font-semibold text-foreground">Arrêter la partie ?</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Le serveur Archipelago sera arrêté. Tu pourras reprendre la partie plus tard.
-            </p>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3">
-          <button
-            className="rounded border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            onClick={onCancel}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="inline-flex items-center gap-2 rounded bg-[color:var(--color-danger)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            disabled={stopping}
-            onClick={onConfirm}
-            type="button"
-          >
-            {stopping && <Loader2 aria-hidden className="size-4 animate-spin" />}
-            Arrêter
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      confirmLabel="Arrêter"
+      description="Le serveur Archipelago sera arrêté. Tu pourras reprendre la partie plus tard."
+      icon={Square}
+      title="Arrêter la partie ?"
+      tone="danger"
+      onConfirm={onConfirm}
+      onOpenChange={(open) => {
+        if (!open && !stopping) onCancel();
+      }}
+      open
+      pending={stopping}
+    />
   );
 }
 
@@ -274,44 +257,22 @@ function FinishDialog({
   onCancel: () => void;
   finishing: boolean;
 }) {
+  // Mounted only while asked for: closing it (Échap, the way out) is the caller's cancel, never mid-request.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl">
-        <div className="mb-4 flex items-start gap-3">
-          <Flag aria-hidden className="mt-0.5 size-5 shrink-0 text-[color:var(--color-accent)]" />
-          <div>
-            <h2 className="font-heading font-semibold text-foreground">Terminer la partie ?</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              La partie sera clôturée définitivement et archivée (tu pourras consulter ses résultats). La
-              progression réelle est enregistrée à ce moment : une partie n&apos;est comptée dans tes stats
-              que si tu as atteint ton objectif.
-            </p>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3">
-          <button
-            className="rounded border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            onClick={onCancel}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="inline-flex items-center gap-2 rounded bg-[color:var(--color-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--color-accent-hover)] disabled:opacity-50"
-            disabled={finishing}
-            onClick={onConfirm}
-            type="button"
-          >
-            {finishing && <Loader2 aria-hidden className="size-4 animate-spin" />}
-            Terminer
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      confirmLabel="Terminer"
+      description="La partie sera clôturée définitivement et archivée (tu pourras consulter ses résultats). La progression réelle est enregistrée à ce moment : une partie n'est comptée dans tes stats que si tu as atteint ton objectif."
+      icon={Flag}
+      title="Terminer la partie ?"
+      onConfirm={onConfirm}
+      onOpenChange={(open) => {
+        if (!open && !finishing) onCancel();
+      }}
+      open
+      pending={finishing}
+    />
   );
 }
-
-// ─── Archive / delete confirmation dialogs ────────────────────────────────────
 
 function ArchiveDialog({
   onConfirm,
@@ -322,38 +283,22 @@ function ArchiveDialog({
   onCancel: () => void;
   archiving: boolean;
 }) {
+  // Mounted only while asked for: closing it (Échap, the way out) is the caller's cancel, never mid-request.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl">
-        <div className="mb-4 flex items-start gap-3">
-          <Trash2 aria-hidden className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-          <div>
-            <h2 className="font-heading font-semibold text-foreground">Archiver la partie ?</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              La partie sera archivée et n&apos;apparaîtra plus dans tes parties actives. Tu pourras la supprimer définitivement depuis l&apos;archive.
-            </p>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3">
-          <button
-            className="rounded border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            onClick={onCancel}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="inline-flex items-center gap-2 rounded border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface disabled:opacity-50"
-            disabled={archiving}
-            onClick={onConfirm}
-            type="button"
-          >
-            {archiving && <Loader2 aria-hidden className="size-4 animate-spin" />}
-            Archiver
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      cancelLabel="Garder la partie"
+      confirmLabel="Annuler la partie"
+      description="La partie sera annulée pour tous ses participants et rangée dans « Annulées ». Tu pourras la rétablir, ou la supprimer définitivement."
+      icon={X}
+      title="Annuler la partie ?"
+      tone="danger"
+      onConfirm={onConfirm}
+      onOpenChange={(open) => {
+        if (!open && !archiving) onCancel();
+      }}
+      open
+      pending={archiving}
+    />
   );
 }
 
@@ -366,38 +311,21 @@ function DeleteDialog({
   onCancel: () => void;
   deleting: boolean;
 }) {
+  // Mounted only while asked for: closing it (Échap, the way out) is the caller's cancel, never mid-request.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl">
-        <div className="mb-4 flex items-start gap-3">
-          <Trash2 aria-hidden className="mt-0.5 size-5 shrink-0 text-[color:var(--color-danger)]" />
-          <div>
-            <h2 className="font-heading font-semibold text-foreground">Supprimer définitivement ?</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Cette action est irréversible. La partie et toutes ses données seront supprimées de la base de données.
-            </p>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3">
-          <button
-            className="rounded border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            onClick={onCancel}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="inline-flex items-center gap-2 rounded bg-[color:var(--color-danger)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            disabled={deleting}
-            onClick={onConfirm}
-            type="button"
-          >
-            {deleting && <Loader2 aria-hidden className="size-4 animate-spin" />}
-            Supprimer
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      confirmLabel="Supprimer"
+      description="Cette action est irréversible. La partie et toutes ses données seront supprimées de la base de données."
+      icon={Trash2}
+      title="Supprimer définitivement ?"
+      tone="danger"
+      onConfirm={onConfirm}
+      onOpenChange={(open) => {
+        if (!open && !deleting) onCancel();
+      }}
+      open
+      pending={deleting}
+    />
   );
 }
 
@@ -425,6 +353,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [unarchiving, setUnarchiving] = useState(false);
+  const [archivingForMe, setArchivingForMe] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -549,7 +478,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
       const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/unarchive`, { method: "POST" });
       if (!res.ok) {
         const payload = (await res.json()) as { error?: { message?: string } };
-        setActionError(payload.error?.message ?? "Impossible de désarchiver la partie.");
+        setActionError(payload.error?.message ?? "Impossible de rétablir la partie.");
         return;
       }
       await refreshRun();
@@ -567,7 +496,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
       setShowArchiveDialog(false);
       if (!res.ok) {
         const payload = (await res.json()) as { error?: { message?: string } };
-        setActionError(payload.error?.message ?? "Impossible d'archiver la partie.");
+        setActionError(payload.error?.message ?? "Impossible d'annuler la partie.");
         return;
       }
       void queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
@@ -577,6 +506,19 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
     } finally {
       setArchiving(false);
     }
+  }
+
+  /** Story 16.21: put the run away in my list, or bring it back. Unlike handleArchive, nothing changes for the others. */
+  async function handleArchiveForMe(archived: boolean) {
+    setArchivingForMe(true);
+    const error = await setRunArchivedForMe(runId, archived);
+    if (error === null) {
+      void queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
+      await refreshRun();
+    } else {
+      setActionError(error);
+    }
+    setArchivingForMe(false);
   }
 
   async function handleDelete() {
@@ -988,7 +930,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     type="button"
                   >
                     <Trash2 aria-hidden className="size-4" />
-                    Archiver
+                    Annuler la partie
                   </button>
                   <button
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/5 px-4 py-2 text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/15"
@@ -1032,7 +974,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     type="button"
                   >
                     <Trash2 aria-hidden className="size-4" />
-                    Archiver
+                    Annuler la partie
                   </button>
                   <button
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/5 px-4 py-2 text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/15"
@@ -1143,7 +1085,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             {run.status === "cancelled" && (
               <div className="grid gap-3">
                 <div className="rounded-lg border border-border bg-surface p-4 text-center">
-                  <p className="text-sm text-muted-foreground">Cette partie est archivée.</p>
+                  <p className="text-sm text-muted-foreground">Cette partie est annulée.</p>
                 </div>
                 <button
                   className="inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
@@ -1152,7 +1094,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                   type="button"
                 >
                   {unarchiving ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <RotateCcw aria-hidden className="size-4" />}
-                  Désarchiver
+                  Rétablir
                 </button>
                 <button
                   className="inline-flex w-full items-center justify-center gap-2 rounded border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/5 px-4 py-2 text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/15"
@@ -1191,6 +1133,34 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               {run.importedSeed === true && " · seed importée"}
               {myParticipant === null && " · tu ne participes pas à cette partie"}
             </p>
+          </section>
+        )}
+
+        {/* Story 16.21 : ranger la partie dans SA liste, pour le propriétaire comme pour un participant. */}
+        {activeTab === "overview"
+          && (run.isOwner || myParticipant !== null)
+          && (run.archived === true || ARCHIVABLE_STATUSES.includes(run.status)) && (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
+            <p className="text-sm text-muted-foreground">
+              {run.archived === true
+                ? "Cette partie est rangée dans tes archives : elle n'apparaît plus dans « Mes parties »."
+                : "Tu n'en as plus l'usage ? Range-la dans tes archives. Rien ne change pour les autres participants."}
+            </p>
+            <button
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:opacity-50"
+              disabled={archivingForMe}
+              onClick={() => void handleArchiveForMe(run.archived !== true)}
+              type="button"
+            >
+              {archivingForMe ? (
+                <Loader2 aria-hidden className="size-4 animate-spin" />
+              ) : run.archived === true ? (
+                <ArchiveRestore aria-hidden className="size-4" />
+              ) : (
+                <Archive aria-hidden className="size-4" />
+              )}
+              {run.archived === true ? "Désarchiver" : "Archiver"}
+            </button>
           </section>
         )}
 
