@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Gamepad2, Pencil, Plus, ShieldAlert, StickyNote, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Gamepad2, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useRef, useState } from "react";
@@ -320,7 +320,6 @@ function GameTable({
                                 Désactivé
                               </span>
                             ) : null}
-                            <AdminNoteMarker game={game} />
                           </p>
                           <p className="font-mono text-xs text-muted-foreground">{game.slug}</p>
                         </div>
@@ -403,7 +402,6 @@ function GameTable({
                           Désactivé
                         </span>
                       ) : null}
-                      <AdminNoteMarker game={game} />
                     </p>
                     <p className="truncate font-mono text-xs text-muted-foreground">{game.slug}</p>
                   </div>
@@ -572,20 +570,4 @@ function availabilityLabel(availability: AdminGame["availability"]) {
     experimental: "Expérimental",
     unavailable: "Indisponible",
   }[availability];
-}
-
-/** Story 11.6: the game carries an internal note - the hover shows its beginning. */
-export function AdminNoteMarker({ game }: { game: Pick<AdminGame, "hasAdminNotes" | "adminNotesExcerpt"> }) {
-  if (game.hasAdminNotes !== true) return null;
-  const excerpt = game.adminNotesExcerpt ?? "";
-  return (
-    <span
-      aria-label="Note interne"
-      className="inline-flex shrink-0 items-center text-accent-warm"
-      role="img"
-      title={excerpt === "" ? "Note interne" : `Note interne : ${excerpt}`}
-    >
-      <StickyNote aria-hidden="true" className="size-4" />
-    </span>
-  );
 }

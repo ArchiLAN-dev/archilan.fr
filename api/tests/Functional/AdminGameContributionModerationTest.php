@@ -207,6 +207,16 @@ final class AdminGameContributionModerationTest extends FunctionalTestCase
         // ...and the message.
         $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=all&q=super');
         self::assertSame([$listedPending->getId()], $this->ids());
+
+        // Story 11.7: one game's contributions, for its editor - another game's stay out.
+        $other = $this->createGame('Celeste', 'celeste');
+        $otherPending = GameTutorialContribution::submitForGame(bin2hex(random_bytes(16)), $bob->getId(), $other->getId(), self::PROPOSED, null, $base->modify('+6 minutes'));
+        $this->entityManager->persist($otherPending);
+        $this->entityManager->flush();
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?game='.$game->getId());
+        self::assertSame([$listedPending->getId()], $this->ids());
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?game='.$other->getId());
+        self::assertSame([$otherPending->getId()], $this->ids());
     }
 
     /**

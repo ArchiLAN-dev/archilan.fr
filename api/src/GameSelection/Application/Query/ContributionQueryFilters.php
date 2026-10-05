@@ -26,10 +26,12 @@ final readonly class ContributionQueryFilters
         public string $target,
         public string $sort,
         public string $search,
+        /** Story 11.7: only the contributions to this game (its editor's « Tutoriel » tab); null: every game. */
+        public ?string $gameId = null,
     ) {
     }
 
-    public static function fromRaw(?string $status, ?string $target, ?string $sort, ?string $search): self
+    public static function fromRaw(?string $status, ?string $target, ?string $sort, ?string $search, ?string $gameId = null): self
     {
         $statuses = [
             GameTutorialContribution::STATUS_PENDING,
@@ -43,6 +45,7 @@ final readonly class ContributionQueryFilters
             in_array($target, [self::TARGET_LISTED, self::TARGET_UNLISTED], true) ? $target : self::TARGET_ANY,
             self::SORT_OLDEST === $sort ? self::SORT_OLDEST : self::SORT_RECENT,
             trim($search ?? ''),
+            null === $gameId || '' === trim($gameId) ? null : trim($gameId),
         );
     }
 }

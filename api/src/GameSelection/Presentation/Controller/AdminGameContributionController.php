@@ -34,6 +34,7 @@ final readonly class AdminGameContributionController
             $this->queryString($request, 'target'),
             $this->queryString($request, 'sort'),
             $this->queryString($request, 'q'),
+            $this->queryString($request, 'game'),
         );
 
         return new JsonResponse([

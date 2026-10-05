@@ -10,9 +10,6 @@ export type AdminGame = {
   availability: "available" | "unavailable" | "experimental";
   disabled: boolean;
   disabledMessage: string | null;
-  // Story 11.6: the game carries an internal note (excerpt for the hover).
-  hasAdminNotes?: boolean;
-  adminNotesExcerpt?: string | null;
   isYamlReady: boolean;
   usageCount: number;
 };

@@ -54,6 +54,11 @@ final readonly class DbalAdminGameContributionsQuery implements AdminGameContrib
             default => $qb,
         };
 
+        if (null !== $filters->gameId) {
+            $qb->andWhere($qb->expr()->eq('c.game_id', ':gameId'))
+                ->setParameter('gameId', $filters->gameId);
+        }
+
         if ('' !== $filters->search) {
             $escaped = addcslashes($filters->search, '%_\\');
             $qb->andWhere('(g.name ILIKE :q OR c.proposed_game_name ILIKE :q OR COALESCE(cp.display_name, u.display_name) ILIKE :q OR c.message ILIKE :q)')
