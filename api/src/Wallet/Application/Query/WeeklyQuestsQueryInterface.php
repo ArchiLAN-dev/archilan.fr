@@ -4,27 +4,35 @@ declare(strict_types=1);
 
 namespace App\Wallet\Application\Query;
 
+use App\Wallet\Domain\Enum\QuestMetric;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 
 interface WeeklyQuestsQueryInterface
 {
     /**
-     * Who accomplished each quest of the week (story 41.6), keyed by quest (WeeklyQuest value):
+     * What each member did over the week, per metric (story 41.15), from what was actually played:
      *
-     * - reach_a_goal: a slot the member plays (owner or co-player) reached its goal, or one of their weekly
-     *   attempts did;
-     * - play_with_someone_new: the member made a check in a session where another member, with whom they had never
-     *   both made a check in a same session before the week, made one too;
-     * - play_a_weekly: the member launched a weekly attempt and made at least a check in it (or reached its goal).
+     * - goals: goals reached by a slot the member plays (owner or co-player), in a session or a weekly attempt;
+     * - checks: checks of the session feed made by a slot the member plays;
+     * - weeklies: weekly attempts launched with at least a check or the goal;
+     * - newPartners: other members who made a check in a same session as the member this week, and with whom the
+     *   member had never both made a check in a same session before the week (story 41.6);
+     * - sessions: sessions where the member made a check;
+     * - distinctGames: games the member made a check in.
      *
-     * @return array<string, list<string>>
+     * A member with nothing for a metric is absent from it.
+     *
+     * @param list<QuestMetric> $metrics
+     * @param string|null       $userId  one member only, or everyone
+     *
+     * @return array<string, array<string, int>> metric => member id => count
      */
-    public function completers(QuestWeek $week): array;
+    public function counts(QuestWeek $week, array $metrics, ?string $userId = null): array;
 
     /**
-     * The quests already paid to the member for the week (their ledger keys), by quest value.
+     * The quests already paid to the member for the week (their ledger keys `quest:{week}:{quest}:{member}`).
      *
-     * @return list<string>
+     * @return list<string> quest ids
      */
     public function rewardedQuests(string $userId, QuestWeek $week): array;
 }

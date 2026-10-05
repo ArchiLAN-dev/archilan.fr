@@ -27,6 +27,24 @@ final readonly class QuestWeek
         return new self($start->format('o-\WW'), $start, $start->modify('+1 week'));
     }
 
+    /** Story 41.15: the week a ledger or admin key names (`2026-W41`); null when the key is not one. */
+    public static function fromKey(string $key): ?self
+    {
+        if (1 !== preg_match('/^(\d{4})-W(\d{2})$/', $key, $parts)) {
+            return null;
+        }
+        // The base instant is irrelevant: setISODate replaces the date, setTime the time.
+        $monday = new \DateTimeImmutable('@0')->setTimezone(new \DateTimeZone(self::ZONE))->setISODate((int) $parts[1], (int) $parts[2])->setTime(0, 0);
+        $week = self::containing($monday);
+
+        return $week->key === $key ? $week : null;
+    }
+
+    public function next(): self
+    {
+        return self::containing($this->end->modify('+1 day'));
+    }
+
     public function previous(): self
     {
         return self::containing($this->start->modify('-1 day'));
