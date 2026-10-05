@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ArrowLeft, Lock, XCircle } from "lucide-react";
 
 import { YamlOptionEditor } from "@/features/events/yaml-option-editor";
+import { useRouter } from "next/navigation";
 import {
   fetchAuthProbe,
   fetchSlotYamlData,
@@ -26,6 +27,7 @@ export function SlotYamlGate({
 }: {
   params: Promise<{ eventSlug: string; registrationId: string; slotId: string }>;
 }) {
+  const router = useRouter();
   const { eventSlug, registrationId, slotId } = use(params);
 
   // Fresh session probe on every gate entry (staleTime 0), like the pre-TanStack effect.
@@ -38,9 +40,9 @@ export function SlotYamlGate({
 
   useEffect(() => {
     if (authQuery.data === "unauthenticated") {
-      window.location.href = `/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/slots/${slotId}`;
+      router.replace(`/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/slots/${slotId}`);
     }
-  }, [authQuery.data, eventSlug, registrationId, slotId]);
+  }, [authQuery.data, eventSlug, registrationId, slotId, router]);
 
   const slotQuery = useQuery({
     queryKey: ["slot-yaml", registrationId, slotId],

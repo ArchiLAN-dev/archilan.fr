@@ -13,6 +13,8 @@ type ConfirmDialogProps = {
   title: ReactNode;
   description: ReactNode;
   confirmLabel: string;
+  /** The way out, « Annuler » by default - renamed where it would read as the action itself (story 33.27). */
+  cancelLabel?: string;
   /** `danger` for what cannot be undone, or hurts someone. */
   tone?: "default" | "danger";
   /** What the action is, at a glance (story 39.15): shown in a badge tinted by the tone. */
@@ -33,6 +35,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  cancelLabel = "Annuler",
   tone = "default",
   icon: Icon,
   children,
@@ -65,7 +68,7 @@ export function ConfirmDialog({
           </div>
           <div className="flex flex-wrap justify-end gap-2 border-t border-border bg-background/40 px-5 py-3 sm:px-6">
             <AlertDialog.Cancel className={buttonVariants({ variant: "ghost" })} disabled={pending}>
-              Annuler
+              {cancelLabel}
             </AlertDialog.Cancel>
             <button
               className={buttonVariants({ variant: tone === "danger" ? "danger" : "primary" })}

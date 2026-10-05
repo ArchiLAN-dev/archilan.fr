@@ -10,6 +10,8 @@ import {MarkdownEditor} from "@/components/markdown/markdown-editor";
 import {GAME_DESCRIPTION_MAX} from "@/lib/content-limits";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 type GameAvailability = "available" | "unavailable" | "experimental";
 
@@ -46,6 +48,8 @@ function slugify(name: string): string {
 }
 
 export function AdminNewGamePage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [fields, setFields] = useState<Fields>({
@@ -103,7 +107,9 @@ export function AdminNewGamePage() {
       }
 
       const id = extractId(payload);
-      window.location.href = id ? `/admin/jeux/${id}` : "/admin/jeux";
+      // The full reload this replaces refetched the library; the router keeps the cache, so it is invalidated here.
+      await queryClient.invalidateQueries({ queryKey: ["admin-games"] });
+      router.push(id ? `/admin/jeux/${id}` : "/admin/jeux");
     } catch {
       setErrors({ name: "Impossible de contacter le serveur." });
     } finally {

@@ -23,6 +23,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { REALTIME_STALE_TIME } from "@/lib/query-client";
@@ -218,7 +219,7 @@ function ValidationErrorBanner({
 
 // ─── Inactivity badge ─────────────────────────────────────────────────────────
 
-// ─── Stop confirmation dialog ─────────────────────────────────────────────────
+// ─── Confirmation dialogs (story 33.27: on ConfirmDialog, like the rest of the site) ──────
 
 function StopDialog({
   onConfirm,
@@ -229,41 +230,21 @@ function StopDialog({
   onCancel: () => void;
   stopping: boolean;
 }) {
+  // Mounted only while asked for: closing it (Échap, the way out) is the caller's cancel, never mid-request.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl">
-        <div className="mb-4 flex items-start gap-3">
-          <AlertTriangle
-            aria-hidden
-            className="mt-0.5 size-5 shrink-0 text-[color:var(--color-accent-warm)]"
-          />
-          <div>
-            <h2 className="font-heading font-semibold text-foreground">Arrêter la partie ?</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Le serveur Archipelago sera arrêté. Tu pourras reprendre la partie plus tard.
-            </p>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3">
-          <button
-            className="rounded border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            onClick={onCancel}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="inline-flex items-center gap-2 rounded bg-[color:var(--color-danger)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            disabled={stopping}
-            onClick={onConfirm}
-            type="button"
-          >
-            {stopping && <Loader2 aria-hidden className="size-4 animate-spin" />}
-            Arrêter
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      confirmLabel="Arrêter"
+      description="Le serveur Archipelago sera arrêté. Tu pourras reprendre la partie plus tard."
+      icon={Square}
+      title="Arrêter la partie ?"
+      tone="danger"
+      onConfirm={onConfirm}
+      onOpenChange={(open) => {
+        if (!open && !stopping) onCancel();
+      }}
+      open
+      pending={stopping}
+    />
   );
 }
 
@@ -276,44 +257,22 @@ function FinishDialog({
   onCancel: () => void;
   finishing: boolean;
 }) {
+  // Mounted only while asked for: closing it (Échap, the way out) is the caller's cancel, never mid-request.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl">
-        <div className="mb-4 flex items-start gap-3">
-          <Flag aria-hidden className="mt-0.5 size-5 shrink-0 text-[color:var(--color-accent)]" />
-          <div>
-            <h2 className="font-heading font-semibold text-foreground">Terminer la partie ?</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              La partie sera clôturée définitivement et archivée (tu pourras consulter ses résultats). La
-              progression réelle est enregistrée à ce moment : une partie n&apos;est comptée dans tes stats
-              que si tu as atteint ton objectif.
-            </p>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3">
-          <button
-            className="rounded border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            onClick={onCancel}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="inline-flex items-center gap-2 rounded bg-[color:var(--color-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--color-accent-hover)] disabled:opacity-50"
-            disabled={finishing}
-            onClick={onConfirm}
-            type="button"
-          >
-            {finishing && <Loader2 aria-hidden className="size-4 animate-spin" />}
-            Terminer
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      confirmLabel="Terminer"
+      description="La partie sera clôturée définitivement et archivée (tu pourras consulter ses résultats). La progression réelle est enregistrée à ce moment : une partie n'est comptée dans tes stats que si tu as atteint ton objectif."
+      icon={Flag}
+      title="Terminer la partie ?"
+      onConfirm={onConfirm}
+      onOpenChange={(open) => {
+        if (!open && !finishing) onCancel();
+      }}
+      open
+      pending={finishing}
+    />
   );
 }
-
-// ─── Archive / delete confirmation dialogs ────────────────────────────────────
 
 function ArchiveDialog({
   onConfirm,
@@ -324,38 +283,22 @@ function ArchiveDialog({
   onCancel: () => void;
   archiving: boolean;
 }) {
+  // Mounted only while asked for: closing it (Échap, the way out) is the caller's cancel, never mid-request.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl">
-        <div className="mb-4 flex items-start gap-3">
-          <Trash2 aria-hidden className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-          <div>
-            <h2 className="font-heading font-semibold text-foreground">Annuler la partie ?</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              La partie sera annulée pour tous ses participants et rangée dans « Annulées ». Tu pourras la rétablir, ou la supprimer définitivement.
-            </p>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3">
-          <button
-            className="rounded border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            onClick={onCancel}
-            type="button"
-          >
-            Garder la partie
-          </button>
-          <button
-            className="inline-flex items-center gap-2 rounded border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface disabled:opacity-50"
-            disabled={archiving}
-            onClick={onConfirm}
-            type="button"
-          >
-            {archiving && <Loader2 aria-hidden className="size-4 animate-spin" />}
-            Annuler la partie
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      cancelLabel="Garder la partie"
+      confirmLabel="Annuler la partie"
+      description="La partie sera annulée pour tous ses participants et rangée dans « Annulées ». Tu pourras la rétablir, ou la supprimer définitivement."
+      icon={X}
+      title="Annuler la partie ?"
+      tone="danger"
+      onConfirm={onConfirm}
+      onOpenChange={(open) => {
+        if (!open && !archiving) onCancel();
+      }}
+      open
+      pending={archiving}
+    />
   );
 }
 
@@ -368,38 +311,21 @@ function DeleteDialog({
   onCancel: () => void;
   deleting: boolean;
 }) {
+  // Mounted only while asked for: closing it (Échap, the way out) is the caller's cancel, never mid-request.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl">
-        <div className="mb-4 flex items-start gap-3">
-          <Trash2 aria-hidden className="mt-0.5 size-5 shrink-0 text-[color:var(--color-danger)]" />
-          <div>
-            <h2 className="font-heading font-semibold text-foreground">Supprimer définitivement ?</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Cette action est irréversible. La partie et toutes ses données seront supprimées de la base de données.
-            </p>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3">
-          <button
-            className="rounded border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            onClick={onCancel}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="inline-flex items-center gap-2 rounded bg-[color:var(--color-danger)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-            disabled={deleting}
-            onClick={onConfirm}
-            type="button"
-          >
-            {deleting && <Loader2 aria-hidden className="size-4 animate-spin" />}
-            Supprimer
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      confirmLabel="Supprimer"
+      description="Cette action est irréversible. La partie et toutes ses données seront supprimées de la base de données."
+      icon={Trash2}
+      title="Supprimer définitivement ?"
+      tone="danger"
+      onConfirm={onConfirm}
+      onOpenChange={(open) => {
+        if (!open && !deleting) onCancel();
+      }}
+      open
+      pending={deleting}
+    />
   );
 }
 
