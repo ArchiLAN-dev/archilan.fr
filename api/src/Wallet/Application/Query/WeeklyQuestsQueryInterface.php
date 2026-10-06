@@ -35,4 +35,14 @@ interface WeeklyQuestsQueryInterface
      * @return list<string> quest ids
      */
     public function rewardedQuests(string $userId, QuestWeek $week): array;
+
+    /** Story 41.16: whether the member's chest of the week is paid (key `quest-chest:{week}:{member}`). */
+    public function chestPaid(string $userId, QuestWeek $week): bool;
+
+    /**
+     * Story 41.16: what the quests and chests paid, by week, read from the ledger keys.
+     *
+     * @return array<string, array{quests: array<string, array{members: int, pelles: int}>, chests: int, chestPelles: int}> by week key
+     */
+    public function payments(): array;
 }

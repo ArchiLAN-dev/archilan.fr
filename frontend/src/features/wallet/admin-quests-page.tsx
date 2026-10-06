@@ -17,6 +17,7 @@ import {
   type AdminQuest,
   type QuestMetricOption,
   type QuestObjectiveTerms,
+  type QuestStats,
   type QuestTerms,
 } from "./admin-quests-api";
 import { AdminQuestWeeksView } from "./admin-quest-weeks";
@@ -87,6 +88,7 @@ export function AdminQuestTypesView({ data, onChange }: ViewProps) {
                 </p>
                 {quest.description !== "" ? <p className="text-xs text-muted-foreground">{quest.description}</p> : null}
                 <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, data.metrics)}</p>
+                <p className="text-xs text-muted-foreground">{questStatsLine(quest.stats)}</p>
               </div>
               <PelleAmount amount={quest.reward} className="text-xs font-semibold text-warning" signed />
               <div className="flex gap-1">
@@ -278,4 +280,18 @@ export function questTermsError(terms: QuestTerms): string | null {
     return `Une cible de ${QUEST_LIMITS.minTarget} à ${QUEST_LIMITS.maxTarget}.`;
   }
   return null;
+}
+
+/**
+ * Story 41.16: how a quest did, in one line - « Servie 3 semaines · 12 membres l'ont réussie la dernière fois ·
+ * 480 pelles versées ». A quest never served says so.
+ */
+export function questStatsLine(stats: QuestStats): string {
+  if (stats.weeksServed === 0) return "Jamais servie pour l'instant.";
+  const served = `Servie ${stats.weeksServed} semaine${stats.weeksServed > 1 ? "s" : ""}`;
+  const last =
+    stats.lastWeek === null
+      ? "première semaine en cours"
+      : `${stats.lastMembers} membre${stats.lastMembers > 1 ? "s" : ""} l'${stats.lastMembers > 1 ? "ont" : "a"} réussie la dernière fois`;
+  return `${served} · ${last} · ${stats.pelles} pelle${stats.pelles > 1 ? "s" : ""} versée${stats.pelles > 1 ? "s" : ""}`;
 }

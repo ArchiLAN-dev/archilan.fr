@@ -6,25 +6,27 @@ namespace App\Wallet\Application\Query;
 
 use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Domain\Entity\QuestDefinition;
+use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use Psr\Clock\ClockInterface;
 
 /**
  * The quests of the week as the wallet page shows them (story 41.6): what each pays, whether it is done, whether it
  * is already paid (the hourly run pays it within the hour), and when the quests renew. Story 41.15: the quests the
- * week serves, each objective with where the member stands.
+ * week serves, each objective with where the member stands. Story 41.16: the chest for doing them all.
  */
 final readonly class MyWeeklyQuests
 {
     public function __construct(
         private WeeklyQuestsQueryInterface $quests,
         private QuestWeekPlanner $planner,
+        private QuestRepositoryInterface $settings,
         private ClockInterface $clock,
     ) {
     }
 
     /**
-     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int}>}>}
+     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int}>}>, chest: array{reward: int, done: int, total: int, paid: bool}|null}
      */
     public function of(string $userId): array
     {
@@ -58,6 +60,14 @@ final readonly class MyWeeklyQuests
             ];
         }
 
-        return ['week' => $week->key, 'renewsAt' => $week->end->format(\DATE_ATOM), 'quests' => $quests];
+        $chestReward = $this->settings->chestReward();
+        $chest = 0 === $chestReward || [] === $quests ? null : [
+            'reward' => $chestReward,
+            'done' => \count(array_filter($quests, static fn (array $quest): bool => $quest['done'])),
+            'total' => \count($quests),
+            'paid' => $this->quests->chestPaid($userId, $week),
+        ];
+
+        return ['week' => $week->key, 'renewsAt' => $week->end->format(\DATE_ATOM), 'quests' => $quests, 'chest' => $chest];
     }
 }

@@ -61,6 +61,44 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         return $quests;
     }
 
+    public function chestPaid(string $userId, QuestWeek $week): bool
+    {
+        return false !== $this->connection->fetchOne(
+            'SELECT 1 FROM pelle_movement WHERE user_id = :userId AND reason = :reason AND unique_key = :key',
+            ['userId' => $userId, 'reason' => PelleReason::QuestReward->value, 'key' => sprintf('quest-chest:%s:%s', $week->key, $userId)],
+        );
+    }
+
+    public function payments(): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT unique_key, amount FROM pelle_movement WHERE reason = :reason AND unique_key IS NOT NULL',
+            ['reason' => PelleReason::QuestReward->value],
+        );
+
+        $weeks = [];
+        foreach ($rows as $row) {
+            $key = $row['unique_key'] ?? null;
+            $amount = filter_var($row['amount'] ?? null, \FILTER_VALIDATE_INT);
+            if (!is_string($key) || false === $amount) {
+                continue;
+            }
+            // quest:{week}:{quest}:{member} or quest-chest:{week}:{member}
+            $parts = explode(':', $key);
+            $week = $parts[1] ?? '';
+            $weeks[$week] ??= ['quests' => [], 'chests' => 0, 'chestPelles' => 0];
+            if ('quest' === $parts[0] && 4 === \count($parts)) {
+                $quest = $weeks[$week]['quests'][$parts[2]] ?? ['members' => 0, 'pelles' => 0];
+                $weeks[$week]['quests'][$parts[2]] = ['members' => $quest['members'] + 1, 'pelles' => $quest['pelles'] + $amount];
+            } elseif ('quest-chest' === $parts[0] && 3 === \count($parts)) {
+                ++$weeks[$week]['chests'];
+                $weeks[$week]['chestPelles'] += $amount;
+            }
+        }
+
+        return $weeks;
+    }
+
     /** @return list<array<string, mixed>> */
     private function goals(QuestWeek $week): array
     {

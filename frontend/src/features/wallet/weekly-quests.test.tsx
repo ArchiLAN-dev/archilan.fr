@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { WeeklyQuestsView, fetchMyQuests, type WeeklyQuests } from "./weekly-quests";
+import { ChestRow, WeeklyQuestsView, fetchMyQuests, type WeeklyQuests } from "./weekly-quests";
 import { pelleReasonLabel } from "./wallet-api";
 
 const quests: WeeklyQuests = {
@@ -22,6 +22,7 @@ const quests: WeeklyQuests = {
       objectives: [{ metric: "checks", label: "Checks faits", unit: "checks", target: 50, current: 12 }, { metric: "sessions", label: "Parties jouées", unit: "parties", target: 2, current: 3 }],
     },
   ],
+  chest: { reward: 50, done: 2, total: 3, paid: false },
 };
 
 /** Story 41.6: the quests of the week. */
@@ -46,6 +47,16 @@ describe("weekly quests", () => {
     expect(html).toContain("2 / 2 parties");
     expect(html.match(/role="progressbar"/g)).toHaveLength(4);
     expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, quests: [] }} />)).toContain("Pas de quête cette semaine.");
+  });
+
+  test("the chest tells how many quests are left, then that it is open (story 41.16)", () => {
+    const html = renderToStaticMarkup(<ChestRow chest={{ reward: 50, done: 2, total: 3, paid: false }} />);
+    expect(html).toContain("Coffre de la semaine");
+    expect(html).toContain("(2 / 3)");
+    expect(html).toContain("+50");
+
+    expect(renderToStaticMarkup(<ChestRow chest={{ reward: 50, done: 3, total: 3, paid: true }} />)).toContain("Ouvert");
+    expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, chest: null }} />)).not.toContain("Coffre");
   });
 
   test("reads the quests, and the reason has a label", async () => {

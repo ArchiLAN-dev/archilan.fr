@@ -101,13 +101,26 @@ final readonly class ManageQuests
         $this->quests->saveQuest($quest);
     }
 
-    /** @throws ValidationException when the count is out of bounds */
-    public function changeQuestsPerWeek(int $count): void
+    /**
+     * The settings of the weeks: the number of quests, and (story 41.16) the chest for doing them all. A null leaves
+     * that setting as it is; both are checked before either changes.
+     *
+     * @throws ValidationException when a value is out of bounds
+     */
+    public function changeSettings(?int $questsPerWeek, ?int $chestReward): void
     {
-        if ($count < self::MIN_PER_WEEK || $count > self::MAX_PER_WEEK) {
-            throw new ValidationException(sprintf('De %d à %d quêtes par semaine.', self::MIN_PER_WEEK, self::MAX_PER_WEEK), ['count' => ['Nombre invalide.']], 'quests_per_week_invalid');
+        if (null !== $questsPerWeek && ($questsPerWeek < self::MIN_PER_WEEK || $questsPerWeek > self::MAX_PER_WEEK)) {
+            throw new ValidationException(sprintf('De %d à %d quêtes par semaine.', self::MIN_PER_WEEK, self::MAX_PER_WEEK), ['questsPerWeek' => ['Nombre invalide.']], 'quests_per_week_invalid');
         }
-        $this->quests->changeQuestsPerWeek($count);
+        if (null !== $chestReward && ($chestReward < 0 || $chestReward > QuestDefinition::MAX_REWARD)) {
+            throw new ValidationException(sprintf('Un coffre de 0 à %d pelles (0 : pas de coffre).', QuestDefinition::MAX_REWARD), ['chestReward' => ['Montant invalide.']], 'quest_chest_reward_invalid');
+        }
+        if (null !== $questsPerWeek) {
+            $this->quests->changeQuestsPerWeek($questsPerWeek);
+        }
+        if (null !== $chestReward) {
+            $this->quests->changeChestReward($chestReward);
+        }
     }
 
     /**

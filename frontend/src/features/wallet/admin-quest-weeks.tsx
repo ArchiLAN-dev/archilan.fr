@@ -2,12 +2,23 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarClock, Minus, Pin, Plus, Repeat2, Shuffle, X } from "lucide-react";
+import { ArrowRight, CalendarClock, Gift, Minus, Pin, Plus, Repeat2, Shuffle, Users, X } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
-import { QUEST_LIMITS, objectivesSummary, pinQuest, setQuestsPerWeek, unpinQuest, type AdminQuest, type AdminQuestWeek, type QuestMetricOption, type ServedQuest } from "./admin-quests-api";
+import {
+  QUEST_LIMITS,
+  objectivesSummary,
+  pinQuest,
+  setQuestSettings,
+  unpinQuest,
+  type AdminQuest,
+  type AdminQuestWeek,
+  type PastQuestWeek,
+  type QuestMetricOption,
+  type ServedQuest,
+} from "./admin-quests-api";
 import { StatusLine, useQuestChange, weekLabel, type ViewProps } from "./admin-quests-shared";
 import { PelleAmount } from "./pelle-amount";
 
@@ -41,9 +52,10 @@ export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
       <StatusLine message={message} />
 
       <DrawPanel
+        chestReward={data.chestReward}
         inDraw={inDraw}
         nextDraw={coming[0]?.startsAt ?? null}
-        onSave={(count) => apply(() => setQuestsPerWeek(count), "Nombre de quêtes enregistré.")}
+        onSave={(settings) => apply(() => setQuestSettings(settings), "Réglage enregistré.")}
         pending={pending}
         perWeek={data.questsPerWeek}
       />
@@ -51,6 +63,7 @@ export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
       {current ? (
         <CurrentWeek
           byId={byId}
+          chestReward={data.chestReward}
           metrics={data.metrics}
           onAdd={() => setPicking({ week: current, replaces: null })}
           onRemove={(quest) => remove(current, quest)}
@@ -77,6 +90,8 @@ export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
           ))}
         </ol>
       </section>
+
+      {data.pastWeeks.length > 0 ? <PastWeeks weeks={data.pastWeeks} /> : null}
 
       {picking !== null ? (
         <PickQuestDialog
@@ -138,6 +153,7 @@ export function OriginBadge({ origin }: { origin: ServedQuest["origin"] }) {
 export function CurrentWeek({
   week,
   byId,
+  chestReward,
   metrics,
   pending,
   onAdd,
@@ -146,13 +162,16 @@ export function CurrentWeek({
 }: {
   week: AdminQuestWeek;
   byId: Map<string, AdminQuest>;
+  chestReward: number;
   metrics: QuestMetricOption[];
   pending: boolean;
   onAdd: () => void;
   onReplace: (quest: ServedQuest) => void;
   onRemove: (quest: ServedQuest) => void;
 }) {
-  const total = week.quests.reduce((sum, quest) => sum + quest.reward, 0);
+  // Story 41.16: the most a member can earn this week, chest included.
+  const chest = week.quests.length > 0 ? chestReward : 0;
+  const total = week.quests.reduce((sum, quest) => sum + quest.reward, 0) + chest;
 
   return (
     <section aria-labelledby="current-week" className="grid gap-3 rounded-xl border border-accent/40 bg-accent/5 p-5">
@@ -163,7 +182,7 @@ export function CurrentWeek({
             <span className="text-sm font-normal text-muted-foreground">{weekLabel(week)}</span>
           </h2>
           <p className="text-xs text-muted-foreground">
-            {week.quests.length} quête{week.quests.length > 1 ? "s" : ""} · jusqu&apos;à <PelleAmount amount={total} className="font-semibold text-warning" /> par membre
+            {week.quests.length} quête{week.quests.length > 1 ? "s" : ""} · jusqu&apos;à <PelleAmount amount={total} className="font-semibold text-warning" /> par membre{chest > 0 ? ", coffre compris" : ""}
           </p>
         </div>
         <button className={buttonVariants({ variant: "secondary" })} disabled={pending} onClick={onAdd} type="button">
@@ -340,71 +359,44 @@ export function PickQuestDialog({
 const drawDay = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" });
 
 /**
- * How the weeks fill (story 41.15), as three figures: the quests a week (changed in place), the types the draw picks
- * from, and when the next draw happens - with the rule in one line, and a warning when the draw falls short.
+ * How the weeks fill (story 41.15), as figures: the quests a week (changed in place), the types the draw picks from,
+ * when the next draw happens, and (story 41.16) the chest for doing every quest - with the rule in one line, and a
+ * warning when the draw falls short.
  */
 export function DrawPanel({
   perWeek,
+  chestReward,
   inDraw,
   nextDraw,
   pending,
   onSave,
 }: {
   perWeek: number;
+  chestReward: number;
   inDraw: number;
   nextDraw: string | null;
   pending: boolean;
-  onSave: (count: number) => Promise<boolean>;
+  onSave: (settings: { questsPerWeek?: number; chestReward?: number }) => Promise<boolean>;
 }) {
   const [count, setCount] = useState(perWeek);
-  const changed = count !== perWeek;
   // Against the number being edited, so the warning shows before saving.
   const short = inDraw < count;
 
   return (
     <section aria-label="Tirage des quêtes" className="grid gap-4 rounded-xl border border-border bg-surface p-5">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="grid content-start gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" id="quests-per-week">
-            Quêtes par semaine
-          </p>
-          <div className="flex items-center gap-2">
-            <div aria-labelledby="quests-per-week" className="inline-flex items-center rounded-lg border border-border bg-background" role="group">
-              <button
-                aria-label="Une quête de moins"
-                className="grid size-9 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-40"
-                disabled={count <= QUEST_LIMITS.minPerWeek}
-                onClick={() => setCount(count - 1)}
-                type="button"
-              >
-                <Minus aria-hidden className="size-4" />
-              </button>
-              <output aria-live="polite" className="w-8 text-center font-heading text-2xl font-bold tabular-nums text-foreground">
-                {count}
-              </output>
-              <button
-                aria-label="Une quête de plus"
-                className="grid size-9 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-40"
-                disabled={count >= QUEST_LIMITS.maxPerWeek}
-                onClick={() => setCount(count + 1)}
-                type="button"
-              >
-                <Plus aria-hidden className="size-4" />
-              </button>
-            </div>
-            {changed ? (
-              <>
-                <button className={buttonVariants({ variant: "primary" })} disabled={pending} onClick={() => void onSave(count)} type="button">
-                  Enregistrer
-                </button>
-                <button className={buttonVariants({ variant: "ghost" })} onClick={() => setCount(perWeek)} type="button">
-                  Annuler
-                </button>
-              </>
-            ) : null}
-          </div>
-          <p className="text-xs text-muted-foreground">Vaut pour les semaines pas encore tirées.</p>
-        </div>
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <SettingStepper
+          hint="Vaut pour les semaines pas encore tirées."
+          label="Quêtes par semaine"
+          max={QUEST_LIMITS.maxPerWeek}
+          min={QUEST_LIMITS.minPerWeek}
+          onChange={setCount}
+          onSave={(value) => onSave({ questsPerWeek: value })}
+          pending={pending}
+          saved={perWeek}
+          step={1}
+          value={count}
+        />
 
         <div className="grid content-start gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Types dans le tirage</p>
@@ -420,6 +412,8 @@ export function DrawPanel({
           <p className="font-heading text-lg font-semibold text-foreground first-letter:uppercase">{nextDraw ? drawDay.format(new Date(nextDraw)) : "-"}</p>
           <p className="text-xs text-muted-foreground">à minuit, heure de Paris</p>
         </div>
+
+        <ChestSetting onSave={(value) => onSave({ chestReward: value })} pending={pending} saved={chestReward} />
       </div>
 
       <p className="flex items-start gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
@@ -434,6 +428,143 @@ export function DrawPanel({
           ) : null}
         </span>
       </p>
+    </section>
+  );
+}
+
+function ChestSetting({ saved, pending, onSave }: { saved: number; pending: boolean; onSave: (value: number) => Promise<boolean> }) {
+  const [value, setValue] = useState(saved);
+
+  return (
+    <SettingStepper
+      hint={value === 0 ? "Pas de coffre : rien en plus pour toutes les quêtes." : "En plus, pour qui fait toutes les quêtes de la semaine."}
+      icon={Gift}
+      label="Coffre de la semaine"
+      max={QUEST_LIMITS.maxChest}
+      min={0}
+      onChange={setValue}
+      onSave={onSave}
+      pending={pending}
+      saved={saved}
+      step={10}
+      unit="pelles"
+      value={value}
+    />
+  );
+}
+
+/** A number set in place with - and +: « Enregistrer » and « Annuler » only once it differs from the saved one. */
+export function SettingStepper({
+  label,
+  hint,
+  value,
+  saved,
+  min,
+  max,
+  step,
+  unit,
+  icon: Icon,
+  pending,
+  onChange,
+  onSave,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  saved: number;
+  min: number;
+  max: number;
+  step: number;
+  unit?: string;
+  icon?: typeof Gift;
+  pending: boolean;
+  onChange: (value: number) => void;
+  onSave: (value: number) => Promise<boolean>;
+}) {
+  const id = `setting-${label.replace(/\W+/g, "-").toLowerCase()}`;
+
+  return (
+    <div className="grid content-start gap-2">
+      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground" id={id}>
+        {Icon ? <Icon aria-hidden className="size-3.5" /> : null}
+        {label}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div aria-labelledby={id} className="inline-flex items-center rounded-lg border border-border bg-background" role="group">
+          <button
+            aria-label={`${label} : moins`}
+            className="grid size-9 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-40"
+            disabled={value <= min}
+            onClick={() => onChange(Math.max(min, value - step))}
+            type="button"
+          >
+            <Minus aria-hidden className="size-4" />
+          </button>
+          <output aria-live="polite" className="min-w-8 px-1 text-center font-heading text-2xl font-bold tabular-nums text-foreground">
+            {value}
+          </output>
+          <button
+            aria-label={`${label} : plus`}
+            className="grid size-9 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-40"
+            disabled={value >= max}
+            onClick={() => onChange(Math.min(max, value + step))}
+            type="button"
+          >
+            <Plus aria-hidden className="size-4" />
+          </button>
+        </div>
+        {unit ? <span className="text-xs text-muted-foreground">{unit}</span> : null}
+        {value !== saved ? (
+          <>
+            <button className={buttonVariants({ variant: "primary" })} disabled={pending} onClick={() => void onSave(value)} type="button">
+              Enregistrer
+            </button>
+            <button className={buttonVariants({ variant: "ghost" })} onClick={() => onChange(saved)} type="button">
+              Annuler
+            </button>
+          </>
+        ) : null}
+      </div>
+      <p className="text-xs text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+/**
+ * Story 41.16: the 4 weeks just past - each quest with the members who did it, the chests opened and the pelles
+ * paid. What tells whether a quest is too hard, too easy, or pays too much.
+ */
+export function PastWeeks({ weeks }: { weeks: PastQuestWeek[] }) {
+  return (
+    <section aria-labelledby="past-weeks" className="grid gap-2">
+      <h2 className="font-heading text-lg font-semibold text-foreground" id="past-weeks">
+        Semaines passées
+      </h2>
+      <ol className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface" role="list">
+        {weeks.map((week) => (
+          <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3" key={week.key}>
+            <span className="w-32 shrink-0 text-sm font-medium text-foreground">{weekLabel(week)}</span>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              {week.quests.length === 0 ? <span className="text-xs text-muted-foreground">Aucune quête</span> : null}
+              {week.quests.map((quest) => (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground" key={quest.questId}>
+                  {quest.title}
+                  <span className={`inline-flex items-center gap-0.5 font-semibold tabular-nums ${quest.members > 0 ? "text-success" : "text-muted-foreground"}`}>
+                    <Users aria-hidden className="size-3" />
+                    {quest.members}
+                    <span className="sr-only"> membre{quest.members > 1 ? "s" : ""}</span>
+                  </span>
+                </span>
+              ))}
+            </div>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Gift aria-hidden className="size-3.5" />
+              {week.chests} coffre{week.chests > 1 ? "s" : ""}
+            </span>
+            <PelleAmount amount={week.pelles} className="w-20 text-right text-xs font-semibold text-warning" />
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
