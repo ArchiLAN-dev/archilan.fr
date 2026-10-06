@@ -66,4 +66,7 @@ interface QuestRepositoryInterface
     public function markAnnounced(string $weekKey): void;
 
     public function changeQuestsPerWeek(int $count): void;
+
+    /** Story 41.25: the welcome quests are for the accounts created from this instant; null for every account. */
+    public function welcomeQuestsSince(): ?\DateTimeImmutable;
 }
