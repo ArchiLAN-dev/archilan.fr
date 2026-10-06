@@ -90,6 +90,12 @@ services:
     App\Wallet\Domain\Repository\PelleMovementRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrinePelleMovementRepository'
     App\Wallet\Domain\Repository\ShopRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
     App\Wallet\Domain\Repository\QuestRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineQuestRepository'
+    # Story 41.24: the week's quests on Discord, through an incoming webhook (empty = nowhere).
+    App\Wallet\Application\Port\QuestAnnouncementChannelInterface:
+        factory: ['App\Wallet\Infrastructure\Adapter\QuestAnnouncementChannelFactory', 'create']
+        arguments:
+            $httpClient: '@http_client'
+            $discordQuestsWebhookUrl: '%env(default:default_empty_string:DISCORD_QUESTS_WEBHOOK_URL)%'
     # Story 41.15: the Monday draw of the quests (the default engine is the secure one).
     Random\Randomizer: ~
     # Story 41.7: Community reads what a member bought through its own port, implemented by the shop.

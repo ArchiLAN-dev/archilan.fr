@@ -8,6 +8,7 @@ use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Entity\Notification;
 use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
+use App\Wallet\Application\Message\AnnounceQuestsOnDiscordJob;
 use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
 use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Domain\Entity\QuestDefinition;
@@ -16,6 +17,7 @@ use App\Wallet\Domain\Enum\PelleReason;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Pays the quests of the week (story 41.6). Each quest pays a member once a week (its ledger key names the week,
@@ -32,6 +34,7 @@ final readonly class AwardWeeklyQuests
         private RecordPelleMovement $record,
         private Notifier $notifier,
         private ClockInterface $clock,
+        private MessageBusInterface $messageBus,
     ) {
     }
 
@@ -73,6 +76,8 @@ final readonly class AwardWeeklyQuests
         foreach ($members as $userId) {
             $this->notifier->notify($userId, Notification::TYPE_QUESTS_RENEWED, $payload);
         }
+        // Story 41.24: and on Discord, from the worker - never in this hourly run.
+        $this->messageBus->dispatch(new AnnounceQuestsOnDiscordJob($week->key));
 
         return \count($members);
     }
