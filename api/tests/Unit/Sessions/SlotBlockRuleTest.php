@@ -58,13 +58,14 @@ final class SlotBlockRuleTest extends TestCase
         self::assertSame(SlotBlockDecision::Ignore, SlotBlockRule::decide(null, SlotBlockState::Settled, $now));
     }
 
-    public function testAnOpenEpisodeSurvivesABlockOrAnUnknownState(): void
+    public function testAnOpenEpisodeSurvivesABlockButNotTheBridgeRestarting(): void
     {
         $episode = $this->episode('2026-09-29T10:00:00+00:00');
         $later = new \DateTimeImmutable('2026-09-29T10:10:00+00:00');
 
         self::assertSame(SlotBlockDecision::Keep, SlotBlockRule::decide($episode, SlotBlockState::Blocked, $later));
-        self::assertSame(SlotBlockDecision::Keep, SlotBlockRule::decide($episode, SlotBlockState::Unknown, $later));
+        // Story 40.3: an unknown state is the bridge starting again, from the last save.
+        self::assertSame(SlotBlockDecision::CloseSilently, SlotBlockRule::decide($episode, SlotBlockState::Unknown, $later));
     }
 
     public function testLeavingARealBlockNotifies(): void
