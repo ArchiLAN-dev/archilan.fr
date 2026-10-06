@@ -91,14 +91,14 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
     {
         $checks = DbalSlotCheckSource::from();
         $player = DbalSlotCheckSource::player();
+        $weekly = self::weeklyChecks();
 
         return $this->ids($this->connection->fetchFirstColumn(
-            "SELECT DISTINCT {$player} {$checks} AND f.occurred_at >= :since AND f.occurred_at < :until
+            "SELECT DISTINCT {$player} {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd
              UNION
-             SELECT DISTINCT user_id FROM weekly_entries
-              WHERE launched_at >= :since AND launched_at < :until
-                AND (COALESCE(checks_total, 0) > 0 OR goal_reached_at IS NOT NULL)",
-            DbalSlotCheckSource::params() + ['since' => $since->format(\DATE_ATOM), 'until' => $until->format(\DATE_ATOM)],
+             SELECT DISTINCT wc.uid FROM ({$weekly}) wc
+              WHERE wc.n > 0 OR (wc.goal_reached_at >= :weekStart AND wc.goal_reached_at < :weekEnd)",
+            DbalSlotCheckSource::params() + $this->period($since, $until),
             DbalSlotCheckSource::types(),
         ));
     }
@@ -205,16 +205,16 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
     {
         $checks = DbalSlotCheckSource::from();
         $player = DbalSlotCheckSource::player();
+        // Story 41.19: a weekly attempt's checks of the week, read in its session feed.
         $weeklies = null === $scope ? 'UNION ALL
-                 SELECT user_id AS uid, SUM(COALESCE(checks_total, 0)) AS n FROM weekly_entries
-                  WHERE launched_at >= :weekStart AND launched_at < :weekEnd GROUP BY user_id' : '';
+                 SELECT wc.uid, SUM(wc.n) AS n FROM ('.self::weeklyChecks().') wc GROUP BY wc.uid' : '';
 
         return $this->connection->fetchAllAssociative(
             "SELECT uid, SUM(n) AS n FROM (
                  SELECT {$player} AS uid, COUNT(*) AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ".($scope['sql'] ?? '')." GROUP BY {$player}
                  {$weeklies}
              ) made GROUP BY uid",
-            DbalSlotCheckSource::params() + $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
+            DbalSlotCheckSource::params() + $this->bounds($week) + ['attemptsFrom' => $this->attemptsFrom($week->start)] + (null === $scope ? [] : ['scopeId' => $scope['id']]),
             DbalSlotCheckSource::types(),
         );
     }
@@ -222,13 +222,49 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
     /** @return list<array<string, mixed>> */
     private function weeklies(QuestWeek $week): array
     {
+        $weekly = self::weeklyChecks();
+
         return $this->connection->fetchAllAssociative(
-            'SELECT user_id AS uid, COUNT(*) AS n FROM weekly_entries
-              WHERE launched_at >= :weekStart AND launched_at < :weekEnd
-                AND (COALESCE(checks_total, 0) > 0 OR goal_reached_at IS NOT NULL)
-              GROUP BY user_id',
-            $this->bounds($week),
+            "SELECT wc.uid, COUNT(*) AS n FROM ({$weekly}) wc
+              WHERE wc.launched_at >= :weekStart AND wc.launched_at < :weekEnd
+                AND (wc.n > 0 OR wc.goal_reached_at IS NOT NULL)
+              GROUP BY wc.uid",
+            DbalSlotCheckSource::params() + $this->bounds($week) + ['attemptsFrom' => $this->attemptsFrom($week->start)],
+            DbalSlotCheckSource::types(),
         );
+    }
+
+    /**
+     * Story 41.19: each weekly attempt with its checks between :weekStart and :weekEnd, for its player. A weekly
+     * session writes its feed like any session, but has no session slot to tie a check to a member: the attempt
+     * does (`external_session_id`, `user_id`). An attempt with no feed on record falls back to its
+     * `checks_total` (only known once its goal is reached), counted in the week it was launched. Attempts launched
+     * up to two weeks before still count the checks they make in the period.
+     */
+    private static function weeklyChecks(): string
+    {
+        return 'SELECT we.id AS entry, we.user_id AS uid, we.launched_at, we.goal_reached_at,
+                       CASE
+                           WHEN EXISTS (SELECT 1 FROM session_feed_event fe WHERE fe.session_id = we.external_session_id)
+                           THEN (SELECT COUNT(*) FROM session_feed_event wf
+                                  WHERE wf.session_id = we.external_session_id AND wf.type IN (:checkTypes)
+                                    AND wf.occurred_at >= :weekStart AND wf.occurred_at < :weekEnd)
+                           WHEN we.launched_at >= :weekStart AND we.launched_at < :weekEnd THEN COALESCE(we.checks_total, 0)
+                           ELSE 0
+                       END AS n
+                  FROM weekly_entries we
+                 WHERE we.launched_at IS NOT NULL AND we.launched_at >= :attemptsFrom AND we.launched_at < :weekEnd';
+    }
+
+    private function attemptsFrom(\DateTimeImmutable $start): string
+    {
+        return $start->modify('-14 days')->format(\DATE_ATOM);
+    }
+
+    /** @return array{weekStart: string, weekEnd: string, attemptsFrom: string} */
+    private function period(\DateTimeImmutable $since, \DateTimeImmutable $until): array
+    {
+        return ['weekStart' => $since->format(\DATE_ATOM), 'weekEnd' => $until->format(\DATE_ATOM), 'attemptsFrom' => $this->attemptsFrom($since)];
     }
 
     /** @return list<array<string, mixed>> */
