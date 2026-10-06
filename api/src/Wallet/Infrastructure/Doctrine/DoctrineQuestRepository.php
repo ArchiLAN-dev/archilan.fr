@@ -125,6 +125,14 @@ final readonly class DoctrineQuestRepository implements QuestRepositoryInterface
         $this->changeSetting(WalletSetting::QUESTS_ANNOUNCED_WEEK, $weekKey);
     }
 
+    public function welcomeQuestsSince(): ?\DateTimeImmutable
+    {
+        $value = $this->entityManager->find(WalletSetting::class, WalletSetting::WELCOME_QUESTS_SINCE)?->getValue();
+        $since = null === $value ? false : \DateTimeImmutable::createFromFormat(\DATE_ATOM, $value);
+
+        return false === $since ? null : $since;
+    }
+
     private function intSetting(string $key, int $default): int
     {
         $setting = $this->entityManager->find(WalletSetting::class, $key);

@@ -18,6 +18,8 @@ final class WalletSetting
     public const string QUEST_CHEST_REWARD = 'quest_chest_reward';
     // Story 41.17: the last week whose quests were announced to the members.
     public const string QUESTS_ANNOUNCED_WEEK = 'quests_announced_week';
+    // Story 41.25: the accounts created from this instant (ATOM) have the welcome quests.
+    public const string WELCOME_QUESTS_SINCE = 'welcome_quests_since';
 
     public function __construct(
         #[ORM\Id]

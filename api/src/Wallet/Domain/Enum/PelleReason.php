@@ -26,4 +26,6 @@ enum PelleReason: string
     case QuestReward = 'quest_reward';
     // Story 41.7: a cosmetic bought in the shop.
     case ShopPurchase = 'shop_purchase';
+    // Story 41.25: a first step of a newcomer.
+    case WelcomeReward = 'welcome_reward';
 }
