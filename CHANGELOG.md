@@ -41,7 +41,8 @@ pseudo) ; et le site s'installe comme une application, ce qui ouvre les notifica
 - Plus de faux « Tu n'es plus bloqué » au redémarrage d'un serveur de partie (40.3).
 - Une semaine atteinte sans quête tirable n'est plus figée vide (41.15).
 - Une tentative hebdo ne recevait son total de checks qu'à son goal (41.19).
-- Dépendances : `source-map-js` >= 1.2.2, `sharp` >= 0.35.5.
+- Dépendances : `source-map-js` >= 1.2.2, `sharp` >= 0.35.5, `@modelcontextprotocol/sdk` >= 1.31.0
+  (GHSA-6qxp-vccf-f47h, via `shadcn`).
 
 ### Déploiement
 
