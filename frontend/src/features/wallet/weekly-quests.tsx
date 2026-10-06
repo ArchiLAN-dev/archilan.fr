@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, ChevronRight, Circle, Gift } from "lucide-react";
+import { CheckCircle2, Circle, Gift } from "lucide-react";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -111,7 +111,15 @@ const renewFormatter = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: 
 export function WeeklyQuestsPanel() {
   const { data } = useQuery({ queryKey: ["my-quests"], queryFn: fetchMyQuests, staleTime: DEFAULT_STALE_TIME, retry: false });
 
-  return data ? <WeeklyQuestsView quests={data} /> : null;
+  if (!data) return null;
+
+  // Story 41.21: the quests in progress, then their history in a block of its own.
+  return (
+    <>
+      <WeeklyQuestsView quests={data} />
+      {data.history.some((week) => week.served > 0) ? <QuestHistory weeks={data.history} /> : null}
+    </>
+  );
 }
 
 /**
@@ -157,7 +165,6 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
         </ul>
       )}
       {quests.chest ? <ChestRow chest={quests.chest} /> : null}
-      {quests.history.some((week) => week.served > 0) ? <QuestHistory weeks={quests.history} /> : null}
     </section>
   );
 }
@@ -219,33 +226,39 @@ export function ChestRow({ chest }: { chest: QuestChest }) {
 const historyDay = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "Europe/Paris" });
 
 /**
- * Story 41.17: the member's weeks before this one, folded under the quests - each with the quests done out of those
- * served, the chest, and what they earned.
+ * Story 41.17: the member's weeks before this one - each with the quests done out of those served, the chest, and
+ * what they earned. Story 41.21: its own block under the quests in progress, open.
  */
 export function QuestHistory({ weeks }: { weeks: QuestWeekHistory[] }) {
+  const earned = weeks.reduce((sum, week) => sum + week.pelles, 0);
+
   return (
-    <details className="group border-t border-border pt-3">
-      <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
-        <ChevronRight aria-hidden className="size-3.5 transition-transform group-open:rotate-90" />
-        Semaines précédentes
-      </summary>
-      <ul className="mt-2 grid gap-1.5" role="list">
+    <section aria-labelledby="quest-history" className="grid gap-3 rounded-xl border border-border p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-heading text-xl font-semibold text-foreground" id="quest-history">
+          Historique des quêtes
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          {weeks.length} dernières semaines · <PelleAmount amount={earned} className="font-semibold text-warning" />
+        </p>
+      </div>
+      <ul className="divide-y divide-border" role="list">
         {weeks.map((week) => (
-          <li className="flex items-center gap-3 text-xs" key={week.week}>
-            <span className="w-28 shrink-0 whitespace-nowrap text-muted-foreground">Sem. du {historyDay.format(new Date(week.startsAt))}</span>
+          <li className="flex items-center gap-3 py-2 text-sm" key={week.week}>
+            <span className="w-32 shrink-0 whitespace-nowrap text-muted-foreground">Sem. du {historyDay.format(new Date(week.startsAt))}</span>
             <span className={`tabular-nums ${week.served > 0 && week.done >= week.served ? "text-success" : "text-foreground"}`}>
               {week.served === 0 ? "Pas de quête" : `${week.done} / ${week.served} quête${week.served > 1 ? "s" : ""}`}
             </span>
             {week.chest ? (
-              <span className="inline-flex items-center gap-1 text-warning">
-                <Gift aria-hidden className="size-3" />
-                coffre
+              <span className="inline-flex items-center gap-1 text-xs text-warning">
+                <Gift aria-hidden className="size-3.5" />
+                coffre ouvert
               </span>
             ) : null}
             <PelleAmount amount={week.pelles} className="ml-auto font-semibold text-warning" signed />
           </li>
         ))}
       </ul>
-    </details>
+    </section>
   );
 }
