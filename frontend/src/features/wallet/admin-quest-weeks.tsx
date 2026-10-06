@@ -17,6 +17,7 @@ import {
   type AdminQuestWeek,
   type PastQuestWeek,
   type QuestMetricOption,
+  type QuestScopes,
   type ServedQuest,
 } from "./admin-quests-api";
 import { StatusLine, useQuestChange, weekLabel, type ViewProps } from "./admin-quests-shared";
@@ -63,6 +64,7 @@ export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
       {current ? (
         <CurrentWeek
           byId={byId}
+          scopes={data.scopes}
           chestReward={data.chestReward}
           metrics={data.metrics}
           onAdd={() => setPicking({ week: current, replaces: null })}
@@ -96,6 +98,7 @@ export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
       {picking !== null ? (
         <PickQuestDialog
           metrics={data.metrics}
+          scopes={data.scopes}
           onClose={() => setPicking(null)}
           onPick={async (quest) => {
             const done = await apply(
@@ -154,6 +157,7 @@ export function CurrentWeek({
   week,
   byId,
   chestReward,
+  scopes,
   metrics,
   pending,
   onAdd,
@@ -163,6 +167,7 @@ export function CurrentWeek({
   week: AdminQuestWeek;
   byId: Map<string, AdminQuest>;
   chestReward: number;
+  scopes: QuestScopes;
   metrics: QuestMetricOption[];
   pending: boolean;
   onAdd: () => void;
@@ -205,7 +210,7 @@ export function CurrentWeek({
                     <OriginBadge origin={served.origin} />
                     {served.retired ? <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">Type retiré</span> : null}
                   </p>
-                  {quest ? <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, metrics)}</p> : null}
+                  {quest ? <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, metrics, scopes)}</p> : null}
                 </div>
                 <PelleAmount amount={served.reward} className="text-sm font-semibold text-warning" signed />
                 <div className="flex gap-1">
@@ -283,6 +288,7 @@ export function PickQuestDialog({
   picking,
   quests,
   metrics,
+  scopes,
   pending,
   onPick,
   onClose,
@@ -290,6 +296,7 @@ export function PickQuestDialog({
   picking: Picking;
   quests: AdminQuest[];
   metrics: QuestMetricOption[];
+  scopes: QuestScopes;
   pending: boolean;
   onPick: (quest: AdminQuest) => Promise<void>;
   onClose: () => void;
@@ -332,7 +339,7 @@ export function PickQuestDialog({
                       {candidate.title}
                       {candidate.inDraw ? null : <span className="rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">Hors tirage</span>}
                     </span>
-                    <span className="text-xs text-muted-foreground">{objectivesSummary(candidate.objectives, metrics)}</span>
+                    <span className="text-xs text-muted-foreground">{objectivesSummary(candidate.objectives, metrics, scopes)}</span>
                   </span>
                   <PelleAmount amount={candidate.reward} className="text-xs font-semibold text-warning" signed />
                 </label>

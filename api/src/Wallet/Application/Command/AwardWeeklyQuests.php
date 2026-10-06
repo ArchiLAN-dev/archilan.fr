@@ -83,7 +83,7 @@ final readonly class AwardWeeklyQuests
         if ([] === $served) {
             return 0;
         }
-        $counts = $this->quests->counts($week, QuestDefinition::metricsOf($served));
+        $counts = $this->quests->counts($week, QuestDefinition::objectivesOf($served));
 
         $paid = 0;
         $doneAll = null;
@@ -128,7 +128,7 @@ final readonly class AwardWeeklyQuests
     /**
      * The members who reached every objective: those far enough on the first one, kept if they are on the others.
      *
-     * @param array<string, array<string, int>> $counts metric => member => count
+     * @param array<string, array<string, int>> $counts objective key => member => count
      *
      * @return list<string>
      */
@@ -140,7 +140,7 @@ final readonly class AwardWeeklyQuests
         }
         $first = $objectives[0];
         $candidates = array_keys(array_filter(
-            $counts[$first->metric->value] ?? [],
+            $counts[$first->key()] ?? [],
             $first->isReachedBy(...),
         ));
 

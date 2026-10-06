@@ -10,7 +10,7 @@ import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards"
 import { PelleAmount } from "./pelle-amount";
 
 /** Story 41.15: one objective of a quest, and where the member stands on it this week. */
-export type QuestObjectiveProgress = { metric: string; label: string; unit: string; target: number; current: number };
+export type QuestObjectiveProgress = { metric: string; label: string; unit: string; target: number; current: number; scope?: string | null };
 
 /** Story 41.6: one quest of the week. Story 41.15: written by the admins, with 1 to 5 objectives. */
 export type WeeklyQuest = {
@@ -57,7 +57,8 @@ function isObjective(v: unknown): v is QuestObjectiveProgress {
     hasStringProp(v, "label") &&
     hasStringProp(v, "unit") &&
     hasNumberProp(v, "target") &&
-    hasNumberProp(v, "current")
+    hasNumberProp(v, "current") &&
+    (!("scope" in v) || v.scope === null || typeof v.scope === "string")
   );
 }
 
@@ -170,13 +171,17 @@ export function ObjectiveBar({ objective, done }: { objective: QuestObjectivePro
   return (
     <li className="grid gap-1">
       <div className="flex items-baseline justify-between gap-2 text-xs">
-        <span className="text-muted-foreground">{objective.label}</span>
+        <span className="text-muted-foreground">
+          {objective.label}
+          {/* Story 41.18: the game or event the objective counts in. */}
+          {objective.scope ? <span className="text-foreground"> · {objective.scope}</span> : null}
+        </span>
         <span className={`tabular-nums ${reached ? "text-success" : "text-muted-foreground"}`}>
           {shown} / {objective.target} {objective.unit}
         </span>
       </div>
       <div
-        aria-label={objective.label}
+        aria-label={objective.scope ? `${objective.label} · ${objective.scope}` : objective.label}
         aria-valuemax={objective.target}
         aria-valuemin={0}
         aria-valuenow={shown}

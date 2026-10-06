@@ -37,8 +37,9 @@ final readonly class QuestAdminQuery
      * @return array{
      *   questsPerWeek: int,
      *   chestReward: int,
-     *   metrics: list<array{key: string, label: string, unit: string, unitOne: string}>,
-     *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int}>, inDraw: bool, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}}>,
+     *   metrics: list<array{key: string, label: string, unit: string, unitOne: string, scopable: bool}>,
+     *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>},
+     *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}}>,
      *   weeks: list<array{key: string, startsAt: string, endsAt: string, current: bool, drawn: bool, quests: list<ServedQuest>}>,
      *   pastWeeks: list<array{key: string, startsAt: string, endsAt: string, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool, members: int, pelles: int}>, chests: int, pelles: int}>
      * }
@@ -106,7 +107,14 @@ final readonly class QuestAdminQuery
             'questsPerWeek' => $this->quests->questsPerWeek(),
             'chestReward' => $this->quests->chestReward(),
             'metrics' => array_map(
-                static fn (QuestMetric $metric): array => ['key' => $metric->value, 'label' => $metric->label(), 'unit' => $metric->unit(), 'unitOne' => $metric->unitOne()],
+                static fn (QuestMetric $metric): array => [
+                    'key' => $metric->value,
+                    'label' => $metric->label(),
+                    'unit' => $metric->unit(),
+                    'unitOne' => $metric->unitOne(),
+                    // Story 41.18: whether an objective of this type may aim at a game or an event.
+                    'scopable' => \in_array($metric, QuestObjective::SCOPABLE, true),
+                ],
                 QuestMetric::cases(),
             ),
             'quests' => array_map(fn (QuestDefinition $quest): array => [
@@ -116,12 +124,14 @@ final readonly class QuestAdminQuery
                 'reward' => $quest->getReward(),
                 'objectives' => array_map(static fn (QuestObjective $objective): array => $objective->toArray(), $quest->getObjectives()),
                 'inDraw' => $quest->isInDraw(),
+                'drawWeight' => $quest->getDrawWeight(),
                 'retired' => $quest->isRetired(),
                 'createdAt' => $quest->getCreatedAt()->format(\DATE_ATOM),
                 'stats' => $this->stats($servedWeeks[$quest->getId()] ?? [], $quest->getId(), $current, $payments),
             ], $all),
             'weeks' => $calendar,
             'pastWeeks' => $history,
+            'scopes' => $this->ledger->scopeOptions(),
         ];
     }
 

@@ -7,6 +7,7 @@ namespace App\Wallet\Application\Query;
 use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
+use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use Psr\Clock\ClockInterface;
 
@@ -28,13 +29,14 @@ final readonly class MyWeeklyQuests
     }
 
     /**
-     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int}>}>, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>}
+     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int, scope: string|null}>}>, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>}
      */
     public function of(string $userId): array
     {
         $week = QuestWeek::containing($this->clock->now());
         $served = $this->planner->served($week);
-        $counts = [] === $served ? [] : $this->quests->counts($week, QuestDefinition::metricsOf($served), $userId);
+        $counts = [] === $served ? [] : $this->quests->counts($week, QuestDefinition::objectivesOf($served), $userId);
+        $scopes = $this->scopeNames($served);
         $mine = array_map(static fn (array $byMember): int => $byMember[$userId] ?? 0, $counts);
         $paid = $this->quests->rewardedQuests($userId, $week);
 
@@ -48,7 +50,9 @@ final readonly class MyWeeklyQuests
                     'label' => $objective->metric->label(),
                     'unit' => $objective->metric->unitFor($objective->target),
                     'target' => $objective->target,
-                    'current' => $mine[$objective->metric->value] ?? 0,
+                    'current' => $mine[$objective->key()] ?? 0,
+                    // Story 41.18: the game or event the objective aims at, by name.
+                    'scope' => $scopes[$objective->key()] ?? null,
                 ];
             }
             $quests[] = [
@@ -71,6 +75,33 @@ final readonly class MyWeeklyQuests
         ];
 
         return ['week' => $week->key, 'renewsAt' => $week->end->format(\DATE_ATOM), 'quests' => $quests, 'chest' => $chest, 'history' => $this->history($userId, $week)];
+    }
+
+    /**
+     * Story 41.18: the name of the game or event each aimed objective of these quests counts.
+     *
+     * @param list<QuestDefinition> $quests
+     *
+     * @return array<string, string> objective key => name
+     */
+    private function scopeNames(array $quests): array
+    {
+        $aimed = array_filter(QuestDefinition::objectivesOf($quests), static fn (QuestObjective $objective): bool => null !== $objective->scope);
+        if ([] === $aimed) {
+            return [];
+        }
+        $options = $this->quests->scopeOptions();
+        $names = [
+            QuestObjective::SCOPE_GAME => array_column($options['games'], 'name', 'id'),
+            QuestObjective::SCOPE_EVENT => array_column($options['events'], 'title', 'id'),
+        ];
+
+        $scopes = [];
+        foreach ($aimed as $objective) {
+            $scopes[$objective->key()] = $names[(string) $objective->scope][(string) $objective->scopeId] ?? 'cible retirée';
+        }
+
+        return $scopes;
     }
 
     /**

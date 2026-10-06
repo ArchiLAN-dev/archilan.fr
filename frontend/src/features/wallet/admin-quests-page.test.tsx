@@ -10,9 +10,9 @@ import { weekLabel } from "./admin-quests-shared";
 import { AdminQuestsTabs } from "./admin-quests-tabs";
 
 const metrics = [
-  { key: "goals", label: "Goals atteints", unit: "goals", unitOne: "goal" },
-  { key: "checks", label: "Checks faits", unit: "checks", unitOne: "check" },
-  { key: "sessions", label: "Parties jouées", unit: "parties", unitOne: "partie" },
+  { key: "goals", label: "Goals atteints", unit: "goals", unitOne: "goal", scopable: true },
+  { key: "checks", label: "Checks faits", unit: "checks", unitOne: "check", scopable: true },
+  { key: "sessions", label: "Parties jouées", unit: "parties", unitOne: "partie", scopable: true },
 ];
 
 const data: AdminQuests = {
@@ -20,13 +20,14 @@ const data: AdminQuests = {
   chestReward: 50,
   metrics,
   quests: [
-    { id: "q1", title: "Marathon", description: "", reward: 60, objectives: [{ metric: "checks", target: 50 }, { metric: "sessions", target: 2 }], inDraw: true, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 3, lastWeek: "2026-W40", lastMembers: 12, pelles: 480 } },
-    { id: "q2", title: "Spéciale LAN", description: "", reward: 100, objectives: [{ metric: "goals", target: 1 }], inDraw: false, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 0, lastWeek: null, lastMembers: 0, pelles: 0 } },
+    { id: "q1", title: "Marathon", description: "", reward: 60, objectives: [{ metric: "checks", target: 50 }, { metric: "sessions", target: 2 }], inDraw: true, drawWeight: 3, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 3, lastWeek: "2026-W40", lastMembers: 12, pelles: 480 } },
+    { id: "q2", title: "Spéciale LAN", description: "", reward: 100, objectives: [{ metric: "goals", target: 1 }], inDraw: false, drawWeight: 1, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 0, lastWeek: null, lastMembers: 0, pelles: 0 } },
   ],
   weeks: [
     { key: "2026-W41", startsAt: "2026-10-04T22:00:00+00:00", endsAt: "2026-10-11T22:00:00+00:00", current: true, drawn: true, quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false }] },
     { key: "2026-W42", startsAt: "2026-10-11T22:00:00+00:00", endsAt: "2026-10-18T22:00:00+00:00", current: false, drawn: false, quests: [{ questId: "q2", title: "Spéciale LAN", reward: 100, origin: "pinned", retired: false }] },
   ],
+  scopes: { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan3", title: "LAN #3" }] },
   pastWeeks: [
     {
       key: "2026-W40",
@@ -78,7 +79,7 @@ describe("admin weekly quests", () => {
 
   test("the current week shows each quest in full, with its origin and what it pays", () => {
     const html = renderToStaticMarkup(
-      <CurrentWeek byId={new Map(data.quests.map((quest) => [quest.id, quest]))} chestReward={50} metrics={metrics} onAdd={noop} onRemove={noop} onReplace={noop} pending={false} week={data.weeks[0]} />,
+      <CurrentWeek byId={new Map(data.quests.map((quest) => [quest.id, quest]))} chestReward={50} metrics={metrics} scopes={data.scopes} onAdd={noop} onRemove={noop} onReplace={noop} pending={false} week={data.weeks[0]} />,
     );
 
     expect(html).toContain("Cette semaine");
@@ -148,13 +149,25 @@ describe("admin weekly quests", () => {
     expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/quetes\/types"|href="\/admin\/quetes\/types"[^>]*aria-current="page"/);
   });
 
+  test("an aimed objective names its game or event, and a weight above 1 shows (story 41.18)", () => {
+    expect(objectivesSummary([{ metric: "goals", target: 1, scope: "game", scopeId: "hk" }, { metric: "checks", target: 20, scope: "event", scopeId: "lan3" }], metrics, data.scopes)).toBe(
+      "1 goal sur Hollow Knight et 20 checks à LAN #3",
+    );
+    expect(objectivesSummary([{ metric: "goals", target: 1, scope: "game", scopeId: "gone" }], metrics, data.scopes)).toBe("1 goal sur un jeu retiré");
+
+    const types = renderToStaticMarkup(<AdminQuestTypesView data={data} onChange={async (error: string | null) => error} />);
+    expect(types).toContain("×3");
+  });
+
   test("a quest the API would refuse is said before sending", () => {
-    const terms = { title: "Marathon", description: "", reward: 60, objectives: [{ metric: "checks", target: 50 }], inDraw: true };
+    const terms = { title: "Marathon", description: "", reward: 60, objectives: [{ metric: "checks", target: 50 }], inDraw: true, drawWeight: 1 };
 
     expect(questTermsError(terms)).toBeNull();
     expect(questTermsError({ ...terms, title: "" })).toContain("titre");
     expect(questTermsError({ ...terms, reward: 1001 })).toContain("récompense");
     expect(questTermsError({ ...terms, objectives: [] })).toBe("Au moins un objectif.");
     expect(questTermsError({ ...terms, objectives: [{ metric: "checks", target: 0 }] })).toContain("cible");
+    expect(questTermsError({ ...terms, objectives: [{ metric: "goals", target: 1 }, { metric: "goals", target: 1, scope: "game", scopeId: "hk" }] })).toBeNull();
+    expect(questTermsError({ ...terms, objectives: [{ metric: "goals", target: 1 }, { metric: "goals", target: 2 }] })).toContain("identiques");
   });
 });

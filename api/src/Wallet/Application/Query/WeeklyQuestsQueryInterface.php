@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Wallet\Application\Query;
 
-use App\Wallet\Domain\Enum\QuestMetric;
+use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 
 interface WeeklyQuestsQueryInterface
@@ -20,14 +20,22 @@ interface WeeklyQuestsQueryInterface
      * - sessions: sessions where the member made a check;
      * - distinctGames: games the member made a check in.
      *
-     * A member with nothing for a metric is absent from it.
+     * A member with nothing for a metric is absent from it. Story 41.18: an objective aimed at a game or an event
+     * counts only the sessions of that game or event (weekly attempts left out), under its own key.
      *
-     * @param list<QuestMetric> $metrics
-     * @param string|null       $userId  one member only, or everyone
+     * @param list<QuestObjective> $objectives
+     * @param string|null          $userId     one member only, or everyone
      *
-     * @return array<string, array<string, int>> metric => member id => count
+     * @return array<string, array<string, int>> objective key => member id => count
      */
-    public function counts(QuestWeek $week, array $metrics, ?string $userId = null): array;
+    public function counts(QuestWeek $week, array $objectives, ?string $userId = null): array;
+
+    /**
+     * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft.
+     *
+     * @return array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>}
+     */
+    public function scopeOptions(): array;
 
     /**
      * The quests already paid to the member for the week (their ledger keys `quest:{week}:{quest}:{member}`).

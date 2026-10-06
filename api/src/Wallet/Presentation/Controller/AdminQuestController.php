@@ -163,7 +163,7 @@ final readonly class AdminQuestController
     /**
      * @param array<mixed> $payload
      *
-     * @return array{0: string, 1: string, 2: int, 3: array<mixed>, 4: bool}
+     * @return array{0: string, 1: string, 2: int, 3: array<mixed>, 4: bool, 5: int}
      */
     private function terms(array $payload): array
     {
@@ -173,6 +173,8 @@ final readonly class AdminQuestController
             is_int($payload['reward'] ?? null) ? $payload['reward'] : 0,
             is_array($payload['objectives'] ?? null) ? $payload['objectives'] : [],
             true === ($payload['inDraw'] ?? false),
+            // Story 41.18: absent, the weight is 1; given but not a number, it is refused.
+            $this->optionalInt($payload, 'drawWeight') ?? 1,
         ];
     }
 }

@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { ChestRow, QuestHistory, WeeklyQuestsView, fetchMyQuests, type WeeklyQuests } from "./weekly-quests";
+import { ChestRow, ObjectiveBar, QuestHistory, WeeklyQuestsView, fetchMyQuests, type WeeklyQuests } from "./weekly-quests";
 import { pelleReasonLabel } from "./wallet-api";
 
 const quests: WeeklyQuests = {
@@ -75,6 +75,15 @@ describe("weekly quests", () => {
     expect(renderToStaticMarkup(<WeeklyQuestsView quests={quests} />)).toContain("Semaines précédentes");
     const empty = quests.history.map((week) => ({ ...week, served: 0 }));
     expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, history: empty }} />)).not.toContain("Semaines précédentes");
+  });
+
+  test("an objective aimed at a game says which (story 41.18)", () => {
+    const html = renderToStaticMarkup(
+      <ObjectiveBar done={false} objective={{ metric: "goals", label: "Goals atteints", unit: "goal", target: 1, current: 0, scope: "Hollow Knight" }} />,
+    );
+    expect(html).toContain("Goals atteints");
+    expect(html).toContain(" · Hollow Knight");
+    expect(html).toContain("0 / 1 goal");
   });
 
   test("reads the quests, and the reason has a label", async () => {
