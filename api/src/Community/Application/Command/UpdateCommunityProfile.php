@@ -9,6 +9,7 @@ use App\Community\Application\Support\AvatarFrameCatalog;
 use App\Community\Application\Support\ProfileBannerCatalog;
 use App\Community\Application\Support\ProfileTitleCatalog;
 use App\Community\Domain\Entity\CommunityProfile;
+use App\Community\Domain\Enum\NameColor;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\ValueObject\Audience;
 use App\Community\Domain\ValueObject\BannerOverlay;
@@ -131,6 +132,18 @@ final readonly class UpdateCommunityProfile
             $errors->add('title', $this->titles->refusal($title));
         }
 
+        // Story 41.23: like the title - omitted keeps it, empty or null takes it off, a new one must be bought.
+        $colorGiven = \array_key_exists('nameColor', $input);
+        $nameColor = $colorGiven && is_string($input['nameColor']) && '' !== $input['nameColor'] ? $input['nameColor'] : null;
+        if ($colorGiven && null !== $input['nameColor'] && !is_string($input['nameColor'])) {
+            $errors->add('nameColor', 'Couleur invalide.');
+        } elseif (null !== $nameColor && null === NameColor::tryFrom($nameColor)) {
+            $errors->add('nameColor', 'Couleur invalide.');
+        } elseif (null !== $nameColor && $nameColor !== $stored?->getNameColor()
+            && !\in_array($nameColor, $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::COLOR), true)) {
+            $errors->add('nameColor', 'Couleur à acheter en boutique.');
+        }
+
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);
         $storedFavorites = $stored?->getFavoriteGameIds() ?? [];
         $favoriteGameIds = $this->parseFavorites($input['favoriteGameIds'] ?? null, $errors, $storedFavorites);
@@ -168,6 +181,9 @@ final readonly class UpdateCommunityProfile
         }
         if ($titleGiven) {
             $profile->wearTitle($title, $now);
+        }
+        if ($colorGiven) {
+            $profile->wearNameColor($nameColor, $now);
         }
         $this->profiles->flush();
     }

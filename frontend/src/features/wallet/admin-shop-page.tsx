@@ -91,7 +91,7 @@ export function AdminShopPage() {
     <section className="grid gap-6 p-6 md:p-8">
       <header>
         <h1 className="font-heading text-2xl font-bold text-foreground">Boutique</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Cadres, bannières et titres vendus contre des pelles en or, dans l&apos;onglet Cosmétiques de /boutique.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Cadres, bannières, titres et couleurs de pseudo vendus contre des pelles en or, dans l&apos;onglet Cosmétiques de /boutique.</p>
       </header>
       {isLoading ? <p className="text-sm text-muted-foreground">Chargement…</p> : null}
       {!isLoading && !data ? <p className="text-sm text-danger">Impossible de charger la boutique.</p> : null}
@@ -347,7 +347,7 @@ function ListForm({
           <select
             className={fieldClass}
             onChange={(e) => {
-              setType(e.target.value === "banner" ? "banner" : e.target.value === "title" ? "title" : "frame");
+              setType(e.target.value === "banner" ? "banner" : e.target.value === "title" ? "title" : e.target.value === "color" ? "color" : "frame");
               setCosmeticKey("");
             }}
             value={type}
@@ -355,6 +355,7 @@ function ListForm({
             <option value="frame">Cadre</option>
             <option value="banner">Bannière</option>
             <option value="title">Titre</option>
+            <option value="color">Couleur de pseudo</option>
           </select>
         </label>
         <label className="grid gap-1 text-sm">

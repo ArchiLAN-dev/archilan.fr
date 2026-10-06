@@ -7,6 +7,7 @@ namespace App\Wallet\Application\Support;
 use App\Community\Application\Support\AvatarFrameCatalog;
 use App\Community\Application\Support\ProfileBannerCatalog;
 use App\Community\Application\Support\ProfileTitleCatalog;
+use App\Community\Domain\Enum\NameColor;
 use App\Wallet\Domain\Entity\ShopItem;
 
 /**
@@ -26,7 +27,9 @@ final readonly class ShopCatalog
      * Stories 41.10 and 41.11: the frames and banners include those an admin uploaded for the shop. Story 41.22: and
      * the titles an admin wrote for it.
      *
-     * @return array{frame: list<string>, banner: list<string>, title: list<string>}
+     * Story 41.23: and every colour of the name palette.
+     *
+     * @return array{frame: list<string>, banner: list<string>, title: list<string>, color: list<string>}
      */
     public function sellable(): array
     {
@@ -34,6 +37,7 @@ final readonly class ShopCatalog
             ShopItem::TYPE_FRAME => $this->frames->sellableKeys(),
             ShopItem::TYPE_BANNER => $this->banners->sellableKeys(),
             ShopItem::TYPE_TITLE => $this->titles->sellableKeys(),
+            ShopItem::TYPE_COLOR => NameColor::keys(),
         ];
     }
 }
