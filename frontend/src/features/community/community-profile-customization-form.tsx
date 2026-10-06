@@ -14,6 +14,8 @@ import { FramePreview } from "./frame-preview";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
 import { bannerLockReason, fetchProfileBannerCatalog, PROFILE_BANNER_CATALOG_QUERY_KEY } from "./profile-banner-catalog";
+import { ProfileTitleBadge } from "./profile-title-badge";
+import { fetchProfileTitleCatalog, PROFILE_TITLE_CATALOG_QUERY_KEY, titleLockReason, type ProfileTitle } from "./profile-title-catalog";
 import { imageAccept, imageFormatsHint, imageUploadError } from "./custom-image-rules";
 import { ImageFramingDialog, type FramingShape } from "./image-framing-dialog";
 import { TitledName, type NameStyle } from "./titled-name";
@@ -73,6 +75,7 @@ type FormValues = {
   avatarFraming: ImageFraming;
   bannerFraming: ImageFraming;
   titledName: boolean;
+  title: string | null;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -94,6 +97,7 @@ function serialize(v: FormValues): string {
     avatarFraming: v.avatarFraming,
     bannerFraming: v.bannerFraming,
     titledName: v.titledName,
+    title: v.title,
     avatarFrame: v.avatarFrame,
     audience: v.audience,
     socialLinks: v.socialLinks
@@ -139,6 +143,10 @@ export function CommunityProfileCustomizationForm({
   // Story 30.44: the titled name - the owner's switch, and the style their status gives (null = none).
   const [titledName, setTitledName] = useState(true);
   const [titledNameStyle, setTitledNameStyle] = useState<NameStyle | null>(null);
+  // Story 41.22: the title worn under the name, and the shop titles bought.
+  const [profileTitle, setProfileTitle] = useState<string | null>(null);
+  const [ownedTitles, setOwnedTitles] = useState<string[]>([]);
+  const { data: titleCatalog = [] } = useQuery({ queryKey: PROFILE_TITLE_CATALOG_QUERY_KEY, queryFn: fetchProfileTitleCatalog, staleTime: 5 * 60 * 1000, retry: false });
   // Avatar upload is applied immediately (not through the save bar), so it lives outside `values`.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasCustomAvatar, setHasCustomAvatar] = useState(false);
@@ -200,8 +208,8 @@ export function CommunityProfileCustomizationForm({
   }, [bannerCatalog]);
 
   const values: FormValues = useMemo(
-    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, avatarFrame, audience, socialLinks, favorites, showcase }),
-    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, avatarFrame, audience, socialLinks, favorites, showcase],
+    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, title: profileTitle, avatarFrame, audience, socialLinks, favorites, showcase }),
+    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, profileTitle, avatarFrame, audience, socialLinks, favorites, showcase],
   );
   const serialized = useMemo(() => serialize(values), [values]);
   const isDirty = baseline !== "" && serialized !== baseline;
@@ -221,6 +229,8 @@ export function CommunityProfileCustomizationForm({
     setBannerFraming(profile.bannerFraming);
     setTitledName(profile.titledName);
     setTitledNameStyle(profile.titledNameStyle);
+    setProfileTitle(profile.title ?? null);
+    setOwnedTitles(profile.ownedTitles ?? []);
     setAvatarFrame(frame);
     setSavedAvatarFrame(frame);
     setLegendaryAllowed(profile.legendaryFramesAllowed);
@@ -248,6 +258,7 @@ export function CommunityProfileCustomizationForm({
         avatarFraming: profile.avatarFraming,
         bannerFraming: profile.bannerFraming,
         titledName: profile.titledName,
+        title: profile.title ?? null,
         avatarFrame: frame,
         audience: profile.audience,
         socialLinks: profile.socialLinks,
@@ -293,6 +304,7 @@ export function CommunityProfileCustomizationForm({
       avatarFraming,
       bannerFraming,
       titledName,
+      title: profileTitle,
       avatarFrame,
       audience,
       socialLinks: socialLinks.filter((l) => l.url.trim() !== "").map((l) => ({ label: l.label, url: l.url })),
@@ -670,6 +682,12 @@ export function CommunityProfileCustomizationForm({
             </span>
           </div>
         ) : null}
+        <ProfileTitleField
+          catalog={titleCatalog}
+          onChange={setProfileTitle}
+          rights={{ admin: legendaryAllowed, member: memberFramesAllowed, owned: ownedTitles }}
+          value={profileTitle}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Accroche" counter={<CharCount value={tagline} max={MAX_TAGLINE} />}>
             <input
@@ -1095,4 +1113,61 @@ function updateLink(
   patch: Partial<EditableSocialLink>,
 ): void {
   setSocialLinks((prev) => prev.map((link, i) => (i === index ? { ...link, ...patch } : link)));
+}
+
+/**
+ * Story 41.22: the title worn under the name - any the member may wear, the others shown locked with why (bought in
+ * the shop, members or admins only). A title the admins retired stays shown until another is picked.
+ */
+export function ProfileTitleField({
+  catalog,
+  value,
+  rights,
+  onChange,
+}: {
+  catalog: ProfileTitle[];
+  value: string | null;
+  rights: { admin: boolean; member: boolean; owned: readonly string[] };
+  onChange: (key: string | null) => void;
+}) {
+  const current = catalog.find((title) => title.key === value) ?? null;
+  const locked = catalog.filter((title) => titleLockReason(title.access, title.key, rights) !== null);
+
+  return (
+    <div className="grid gap-2 rounded-lg border border-border bg-surface-2/40 p-3">
+      <label className="grid gap-1 text-sm">
+        <span className="font-medium text-foreground">Titre de profil</span>
+        <select className="min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground" onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)} value={value ?? ""}>
+          <option value="">Aucun</option>
+          {value !== null && current === null ? <option value={value}>Titre retiré</option> : null}
+          {catalog.map((title) => {
+            const reason = titleLockReason(title.access, title.key, rights);
+            return (
+              <option disabled={reason !== null && title.key !== value} key={title.key} value={title.key}>
+                {reason !== null && title.key !== value ? `${title.label} - ${reason}` : title.label}
+              </option>
+            );
+          })}
+        </select>
+      </label>
+      {current ? (
+        <span>
+          <ProfileTitleBadge label={current.label} />
+        </span>
+      ) : null}
+      <span className="text-xs text-muted-foreground">
+        Affiché sous ton pseudo sur ton profil.
+        {locked.some((title) => title.access === "shop") ? (
+          <>
+            {" "}
+            D&apos;autres titres s&apos;achètent en{" "}
+            <Link className="text-accent-text hover:underline" href="/boutique">
+              boutique
+            </Link>
+            .
+          </>
+        ) : null}
+      </span>
+    </div>
+  );
 }

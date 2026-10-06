@@ -40,6 +40,9 @@ export type MyCommunityProfile = {
   /** Story 41.7: the shop cosmetics this member bought (absent from an older API). */
   ownedFrames?: string[];
   ownedBanners?: string[];
+  /** Story 41.22: the title worn (its key), and the shop titles bought (absent from an older API). */
+  title?: string | null;
+  ownedTitles?: string[];
   // Resolved avatar URL (custom upload presigned, else external cache); null = render the default.
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
@@ -69,6 +72,8 @@ export type UpdateCommunityProfileInput = {
   avatarFraming: ImageFraming;
   bannerFraming: ImageFraming;
   titledName: boolean;
+  /** Story 41.22: the title worn, null for none. */
+  title: string | null;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -98,6 +103,8 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
   // Story 41.7: optional, but a list of keys when present.
   if ("ownedFrames" in v && !isKeyList(v.ownedFrames)) return false;
   if ("ownedBanners" in v && !isKeyList(v.ownedBanners)) return false;
+  if ("ownedTitles" in v && !isKeyList(v.ownedTitles)) return false;
+  if ("title" in v && v.title !== null && typeof v.title !== "string") return false;
   if (!hasBooleanProp(v, "titledName") || !("titledNameStyle" in v) || (v.titledNameStyle !== null && !isNameStyle(v.titledNameStyle))) {
     return false;
   }

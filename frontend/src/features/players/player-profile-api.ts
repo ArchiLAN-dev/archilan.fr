@@ -96,6 +96,8 @@ export type PlayerProfile = {
   avatarFraming?: ImageFraming | null;
   // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
+  // Story 41.22: the title worn under the name, by its label (null = none).
+  title?: string | null;
   audience: string;
   badges: ProfileBadges;
   level: ProfileLevel;
@@ -276,6 +278,7 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       avatarUrl: data.avatarUrl ?? null,
       avatarFraming: isImageFraming(data.avatarFraming) ? data.avatarFraming : null,
       nameStyle: isNameStyle(data.nameStyle) ? data.nameStyle : null,
+      title: "title" in data && typeof data.title === "string" && data.title !== "" ? data.title : null,
       audience: typeof data.audience === "string" ? data.audience : "members",
       badges: parseBadges("badges" in data ? data.badges : null),
       level: isProfileLevel(data.level) ? data.level : DEFAULT_LEVEL,

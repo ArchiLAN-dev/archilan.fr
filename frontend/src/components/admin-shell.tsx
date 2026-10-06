@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Bot, Calendar, ChartColumn, CreditCard, Flag, Frame, Gamepad2, HeartPulse, LayoutDashboard, Library, LogOut, Menu, Newspaper, NotebookPen, PanelTop, SlidersHorizontal, Store, Target, Timer, Trophy, Users, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Bot, Calendar, ChartColumn, CreditCard, Flag, Frame, Gamepad2, HeartPulse, LayoutDashboard, Library, LogOut, Menu, Newspaper, NotebookPen, PanelTop, SlidersHorizontal, Store, Tag, Target, Timer, Trophy, Users, X } from "lucide-react";
 import { APWORLD_INCIDENT_SUMMARY_QUERY_KEY, fetchApworldIncidentSummary } from "@/features/admin/admin-apworld-health-api";
 import { DEFAULT_CONTRIBUTION_FILTERS, fetchContributionQueue } from "@/features/admin/admin-game-contributions-api";
 import { DEFAULT_REPORT_FILTERS, fetchModerationQueue } from "@/features/admin/admin-moderation-api";
@@ -41,6 +41,8 @@ const navGroups = [
       { href: "/admin/quetes", icon: Target, label: "Quêtes hebdo", shortLabel: "Quêtes", exact: false },
       { href: "/admin/cadres", icon: Frame, label: "Cadres", shortLabel: "Cadres", exact: false },
       { href: "/admin/bannieres", icon: PanelTop, label: "Bannières", shortLabel: "Bannières", exact: false },
+      // Story 41.22: profile titles, a text cosmetic.
+      { href: "/admin/titres", icon: Tag, label: "Titres", shortLabel: "Titres", exact: false },
     ],
   },
   {

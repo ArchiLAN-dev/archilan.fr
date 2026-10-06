@@ -18,7 +18,9 @@ final class ShopItem
 {
     public const string TYPE_FRAME = 'frame';
     public const string TYPE_BANNER = 'banner';
-    public const array TYPES = [self::TYPE_FRAME, self::TYPE_BANNER];
+    // Story 41.22: a profile title, a text the admins write - no drawing needed.
+    public const string TYPE_TITLE = 'title';
+    public const array TYPES = [self::TYPE_FRAME, self::TYPE_BANNER, self::TYPE_TITLE];
 
     public const int MIN_PRICE = 1;
     public const int MAX_PRICE = 10000;

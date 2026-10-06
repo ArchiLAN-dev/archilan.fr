@@ -7,6 +7,7 @@ namespace App\Community\Application\Command;
 use App\Community\Application\Port\CosmeticOwnershipInterface;
 use App\Community\Application\Support\AvatarFrameCatalog;
 use App\Community\Application\Support\ProfileBannerCatalog;
+use App\Community\Application\Support\ProfileTitleCatalog;
 use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\ValueObject\Audience;
@@ -37,6 +38,7 @@ final readonly class UpdateCommunityProfile
         private AvatarFrameCatalog $frames,
         private ActiveMembershipQueryInterface $memberships,
         private ProfileBannerCatalog $banners,
+        private ProfileTitleCatalog $titles,
     ) {
     }
 
@@ -112,6 +114,23 @@ final readonly class UpdateCommunityProfile
             $errors->add('avatarFrame', $this->frames->refusal($avatarFrame));
         }
 
+        // Story 41.22: an omitted title keeps the one worn; empty or null takes it off. Checked like the frames: one
+        // already worn is not checked again.
+        $titleGiven = \array_key_exists('title', $input);
+        $title = $titleGiven && is_string($input['title']) && '' !== $input['title'] ? $input['title'] : null;
+        if ($titleGiven && null !== $input['title'] && !is_string($input['title'])) {
+            $errors->add('title', 'Titre invalide.');
+        } elseif (null !== $title && !$this->titles->isValid($title)) {
+            $errors->add('title', 'Titre invalide.');
+        } elseif (null !== $title && $title !== $stored?->getTitleKey() && !$this->titles->allowedFor(
+            $title,
+            $isAdmin,
+            $isMember(),
+            $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::TITLE),
+        )) {
+            $errors->add('title', $this->titles->refusal($title));
+        }
+
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);
         $storedFavorites = $stored?->getFavoriteGameIds() ?? [];
         $favoriteGameIds = $this->parseFavorites($input['favoriteGameIds'] ?? null, $errors, $storedFavorites);
@@ -146,6 +165,9 @@ final readonly class UpdateCommunityProfile
         }
         if (is_bool($titledName)) {
             $profile->toggleTitledName($titledName, $now);
+        }
+        if ($titleGiven) {
+            $profile->wearTitle($title, $now);
         }
         $this->profiles->flush();
     }

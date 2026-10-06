@@ -317,6 +317,7 @@ services:
     App\Community\Domain\Repository\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineCommunityProfileRepository'
     App\Community\Domain\Repository\AvatarFrameDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAvatarFrameDefinitionRepository'
     App\Community\Domain\Repository\ProfileBannerDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineProfileBannerDefinitionRepository'
+    App\Community\Domain\Repository\ProfileTitleDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineProfileTitleDefinitionRepository'
     App\Community\Application\Query\CommunityProfileQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityProfileQuery'
     App\Community\Application\Query\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityUserContactsQuery'
     App\Community\Application\Query\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityUserIdsQuery'
