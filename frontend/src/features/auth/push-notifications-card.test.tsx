@@ -31,10 +31,11 @@ describe("PushNotificationsCardView", () => {
     expect(html).not.toContain("<button");
   });
 
-  test("iPhone: says pushes are not available there yet, with no button", () => {
+  test("iPhone: explains how to install the site to get pushes, with no button (story 40.4)", () => {
     const html = render("ios-install");
 
-    expect(html).toContain("Sur iPhone et iPad, les notifications push ne sont pas encore disponibles");
+    expect(html).toContain("Sur l&#x27;écran d&#x27;accueil");
+    expect(html).toContain("reviens ici pour les activer");
     expect(html).not.toContain("<button");
   });
 
