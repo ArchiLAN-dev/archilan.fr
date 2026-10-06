@@ -102,6 +102,9 @@ final class CommunityProfile
         /** Whether the name shows its title when the status gives one (story 30.44); on by default. */
         #[ORM\Column(name: 'titled_name', type: 'boolean', options: ['default' => true])]
         private bool $titledName = true,
+        /** The profile title worn under the name, from the admins' catalog (story 41.22); null for none. */
+        #[ORM\Column(name: 'title_key', type: 'string', length: 32, nullable: true)]
+        private ?string $titleKey = null,
     ) {
     }
 
@@ -242,6 +245,18 @@ final class CommunityProfile
     public function hasTitledName(): bool
     {
         return $this->titledName;
+    }
+
+    /** Story 41.22: the title worn under the name, checked by the caller against the catalog and the rights. */
+    public function wearTitle(?string $titleKey, \DateTimeImmutable $now): void
+    {
+        $this->titleKey = $titleKey;
+        $this->updatedAt = $now;
+    }
+
+    public function getTitleKey(): ?string
+    {
+        return $this->titleKey;
     }
 
     /** The member-uploaded avatar object key, or null when none is set. */

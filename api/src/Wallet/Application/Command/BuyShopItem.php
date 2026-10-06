@@ -58,7 +58,11 @@ final readonly class BuyShopItem
         $this->record->record(
             new RecordPelleMovementInput(
                 $userId, -$item->priceAt($now), PelleKind::Gold, null, PelleReason::ShopPurchase,
-                sprintf('Boutique : %s %s%s', ShopItem::TYPE_FRAME === $item->getType() ? 'cadre' : 'bannière', $item->getCosmeticKey(), $onPromotion ? ' (en promotion)' : ''), null,
+                sprintf('Boutique : %s %s%s', match ($item->getType()) {
+                    ShopItem::TYPE_FRAME => 'cadre',
+                    ShopItem::TYPE_TITLE => 'titre',
+                    default => 'bannière',
+                }, $item->getCosmeticKey(), $onPromotion ? ' (en promotion)' : ''), null,
                 sprintf('shop:%s:%s', $userId, $item->getId()),
             ),
             fn () => $this->shop->saveOwned(OwnedCosmetic::acquire($userId, $item->getType(), $item->getCosmeticKey(), $now)),

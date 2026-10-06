@@ -4,7 +4,8 @@ import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } f
 import { AVATAR_FRAMES } from "@/features/community/avatar-frames";
 import { BANNER_PRESETS } from "@/features/community/banner-presets";
 
-export type CosmeticType = "frame" | "banner";
+/** Story 41.22: a profile title too - a text, no drawing. */
+export type CosmeticType = "frame" | "banner" | "title";
 
 /** Story 41.7: a cosmetic on sale, as a member (or, story 41.12, a visitor) sees it. */
 export type ShopItem = {
@@ -52,7 +53,7 @@ export type AdminShopItem = {
   promotion?: AdminShopPromotion | null;
 };
 
-export type AdminShop = { items: AdminShopItem[]; sellable: { frame: string[]; banner: string[] } };
+export type AdminShop = { items: AdminShopItem[]; sellable: { frame: string[]; banner: string[]; title: string[] } };
 
 export type NewShopItem = { type: CosmeticType; cosmeticKey: string; price: number; availableFrom: string | null; availableUntil: string | null };
 
@@ -64,7 +65,7 @@ const STATUSES: readonly AdminShopStatus[] = ["on_sale", "upcoming", "ended", "p
 export const NEW_ITEM_DAYS = 14;
 
 function isType(v: unknown): v is CosmeticType {
-  return v === "frame" || v === "banner";
+  return v === "frame" || v === "banner" || v === "title";
 }
 
 function isPromotion(v: unknown): v is ShopPromotion {
@@ -134,7 +135,7 @@ export function isAdminShop(v: unknown): v is AdminShop {
   if (typeof v !== "object" || v === null || !("items" in v) || !Array.isArray(v.items) || !v.items.every(isAdminShopItem)) return false;
   if (!("sellable" in v) || typeof v.sellable !== "object" || v.sellable === null) return false;
   const sellable = v.sellable;
-  return "frame" in sellable && isKeyList(sellable.frame) && "banner" in sellable && isKeyList(sellable.banner);
+  return "frame" in sellable && isKeyList(sellable.frame) && "banner" in sellable && isKeyList(sellable.banner) && "title" in sellable && isKeyList(sellable.title);
 }
 
 /**
@@ -142,7 +143,7 @@ export function isAdminShop(v: unknown): v is AdminShop {
  * cosmetic), then the code catalogs, then its key.
  */
 export function cosmeticLabel(type: CosmeticType, key: string, catalogs: readonly { key: string; label: string }[] = []): string {
-  const code: readonly { key: string; label: string }[] = type === "frame" ? AVATAR_FRAMES : BANNER_PRESETS;
+  const code: readonly { key: string; label: string }[] = type === "frame" ? AVATAR_FRAMES : type === "banner" ? BANNER_PRESETS : [];
   return catalogs.find((c) => c.key === key)?.label ?? code.find((c) => c.key === key)?.label ?? key;
 }
 
