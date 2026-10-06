@@ -55,7 +55,10 @@ final class SlotBlockRule
         }
 
         return match ($state) {
-            SlotBlockState::Blocked, SlotBlockState::Unknown => SlotBlockDecision::Keep,
+            SlotBlockState::Blocked => SlotBlockDecision::Keep,
+            // Story 40.3: the bridge only reports an unknown state when it starts, rebuilt from the last save -
+            // what was before no longer holds, and the first recompute must not pass for leaving a block.
+            SlotBlockState::Unknown => SlotBlockDecision::CloseSilently,
             SlotBlockState::Settled => SlotBlockDecision::CloseSilently,
             SlotBlockState::Unblocked => $episode->lastedAtLeast(self::MIN_BLOCKED_SECONDS, $now)
                 ? SlotBlockDecision::CloseAndNotify

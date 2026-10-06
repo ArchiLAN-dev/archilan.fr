@@ -8,8 +8,10 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Message\NotifySlotUnblockedJob;
 use App\Sessions\Application\Service\SlotBlockTracker;
+use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Entity\SlotBlockEpisode;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Sessions\Domain\Repository\SlotBlockEpisodeRepositoryInterface;
 use PHPUnit\Framework\TestCase;
@@ -71,16 +73,37 @@ final class SlotBlockTrackerTest extends TestCase
         self::assertSame([], $this->bus->messages);
     }
 
-    public function testAnUnknownStateKeepsTheEpisodeOpen(): void
+    public function testTheBridgeRestartingClosesTheEpisodeWithoutNotification(): void
     {
+        // Story 40.3: blocked, then the server stops and comes back from its last save - the bridge starts with
+        // an unknown state, then finds checks reachable again: that is no way out of a block.
         $tracker = $this->tracker($this->privateRun());
 
         $tracker->track('session-1', $this->payload(reachableNow: 0));
-        $this->clock->sleep(300);
+        $this->clock->sleep(3600);
         $tracker->track('session-1', $this->payload(reachableNow: null));
-        self::assertCount(1, $this->episodes->all);
+        self::assertSame([], $this->episodes->all);
 
-        $tracker->track('session-1', $this->payload(reachableNow: 1));
+        $tracker->track('session-1', $this->payload(reachableNow: 3));
+        self::assertSame([], $this->bus->messages);
+    }
+
+    public function testABlockBegunBeforeTheLastStopNeverNotifies(): void
+    {
+        // Story 40.3: even without the bridge's unknown state, a block older than the server's last stop is
+        // closed silently; a block begun after it still notifies.
+        $session = $this->stoppedSessionAt($this->clock->now()->modify('+10 minutes'));
+        $tracker = $this->tracker($this->privateRun(), session: $session);
+
+        $tracker->track('session-1', $this->payload(reachableNow: 0));
+        $this->clock->sleep(3600);
+        $tracker->track('session-1', $this->payload(reachableNow: 2));
+        self::assertSame([], $this->episodes->all);
+        self::assertSame([], $this->bus->messages);
+
+        $tracker->track('session-1', $this->payload(reachableNow: 0));
+        $this->clock->sleep(300);
+        $tracker->track('session-1', $this->payload(reachableNow: 2));
         self::assertCount(1, $this->bus->messages);
     }
 
@@ -145,7 +168,7 @@ final class SlotBlockTrackerTest extends TestCase
     /**
      * @param list<SessionSlot> $slots
      */
-    private function tracker(?Run $run, array $slots = []): SlotBlockTracker
+    private function tracker(?Run $run, array $slots = [], ?Session $session = null): SlotBlockTracker
     {
         $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findBySessionId')->willReturn($run);
@@ -153,7 +176,23 @@ final class SlotBlockTrackerTest extends TestCase
         $slotRepository = self::createStub(SessionSlotRepositoryInterface::class);
         $slotRepository->method('findBySessionId')->willReturn($slots);
 
-        return new SlotBlockTracker($runs, $slotRepository, $this->episodes, $this->bus, $this->clock);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
+        $sessions->method('findById')->willReturn($session);
+
+        return new SlotBlockTracker($runs, $slotRepository, $sessions, $this->episodes, $this->bus, $this->clock);
+    }
+
+    /** A session that ran, then stopped at that instant. */
+    private function stoppedSessionAt(\DateTimeImmutable $at): Session
+    {
+        $session = Session::create('session-1', 'run-1', $at->modify('-1 day'));
+        foreach ([Session::STATUS_VALIDATING, Session::STATUS_READY, Session::STATUS_GENERATING, Session::STATUS_GENERATED, Session::STATUS_LAUNCHING] as $status) {
+            $session->transition($status, $at->modify('-1 hour'));
+        }
+        $session->transition(Session::STATUS_RUNNING, $at->modify('-1 hour'), 'ap.example', 38281);
+        $session->transition(Session::STATUS_STOPPED, $at);
+
+        return $session;
     }
 
     /**

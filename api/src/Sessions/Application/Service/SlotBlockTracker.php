@@ -8,6 +8,7 @@ use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Message\NotifySlotUnblockedJob;
 use App\Sessions\Domain\Entity\SlotBlockEpisode;
 use App\Sessions\Domain\Enum\SlotBlockDecision;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Sessions\Domain\Repository\SlotBlockEpisodeRepositoryInterface;
 use App\Sessions\Domain\Service\SlotBlockRule;
@@ -21,12 +22,16 @@ use Symfony\Component\Messenger\MessageBusInterface;
  *
  * Private runs only, and not an imported seed (no reachability is computed for one). Event and
  * weekly sessions have no run and are left alone.
+ *
+ * Story 40.3: a block never outlives a server restart - the bridge's start (unknown state) closes it
+ * silently, and so does an episode begun before the session's last stop.
  */
 final readonly class SlotBlockTracker
 {
     public function __construct(
         private RunRepositoryInterface $runs,
         private SessionSlotRepositoryInterface $slots,
+        private SessionRepositoryInterface $sessions,
         private SlotBlockEpisodeRepositoryInterface $episodes,
         private MessageBusInterface $messageBus,
         private ClockInterface $clock,
@@ -54,6 +59,9 @@ final readonly class SlotBlockTracker
             $open[$episode->getSlotIndex()] = $episode;
         }
         $released = $this->releasedSlotNames($sessionId);
+        // Story 40.3: nothing happens in a game while its server is down - a block begun before the last stop
+        // says nothing reliable once the server is back (it restarted from its last save).
+        $stoppedAt = $this->sessions->findById($sessionId)?->getStoppedAt();
 
         $unblocked = [];
         foreach ($slots as $slotIndex => $slot) {
@@ -65,6 +73,9 @@ final readonly class SlotBlockTracker
             $key = (string) $slotIndex;
             $episode = $open[$key] ?? null;
             $decision = SlotBlockRule::decide($episode, SlotBlockRule::stateOf($slot, in_array($slotName, $released, true)), $now);
+            if (SlotBlockDecision::CloseAndNotify === $decision && null !== $episode && null !== $stoppedAt && $episode->getBlockedSince() < $stoppedAt) {
+                $decision = SlotBlockDecision::CloseSilently;
+            }
 
             if (SlotBlockDecision::Open === $decision) {
                 $this->episodes->add(SlotBlockEpisode::open($sessionId, $key, $slotName, $now));
