@@ -13,6 +13,7 @@ use App\Wallet\Domain\Entity\PelleMovement;
 use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Enum\PelleReason;
 use App\Wallet\Domain\Enum\QuestMetric;
+use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
@@ -90,9 +91,46 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         }
         $this->entityManager->flush();
 
-        self::assertSame(1, $this->award()->awardWeek(QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK))));
-        self::assertSame(60, $this->paid($alice));
+        // The quest, and the chest: it was the week's only quest (story 41.16).
+        self::assertSame(2, $this->award()->awardWeek(QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK))));
+        self::assertSame(60 + 50, $this->paid($alice));
         self::assertSame(0, $this->paid($bob), 'enough checks, but one session');
+    }
+
+    public function testTheChestPaysOnceThoseWhoDidEveryQuestOfTheWeek(): void
+    {
+        $this->quest('goal', 'Un goal', 40, [new QuestObjective(QuestMetric::Goals, 1)]);
+        $this->quest('checks', 'Deux checks', 20, [new QuestObjective(QuestMetric::Checks, 2)]);
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob');
+        // Alice reaches her goal and makes two checks; Bob only makes the checks.
+        $this->session('s-1', [['Alice', $alice], ['Bob', $bob]], goalOf: 'Alice');
+        foreach (['Alice', 'Alice', 'Bob', 'Bob'] as $slot) {
+            $this->check('s-1', $slot, self::IN_THE_WEEK);
+        }
+        $this->entityManager->flush();
+        $week = QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK));
+
+        self::assertSame(4, $this->award()->awardWeek($week), 'Alice: two quests and the chest; Bob: one quest');
+        self::assertSame(0, $this->award()->awardWeek($week), 'once a week');
+        self::assertSame(40 + 20 + 50, $this->paid($alice));
+        self::assertSame(20, $this->paid($bob), 'no chest without every quest');
+        $chest = $this->entityManager->getRepository(PelleMovement::class)->findOneBy(['uniqueKey' => sprintf('quest-chest:%s:%s', $week->key, $alice->getId())]);
+        self::assertSame('Coffre de la semaine', $chest?->getLabel());
+    }
+
+    public function testNoChestWhenItIsSetToZero(): void
+    {
+        $this->quest('goal', 'Un goal', 40, [new QuestObjective(QuestMetric::Goals, 1)]);
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $this->session('s-1', [['Alice', $alice]], goalOf: 'Alice');
+        $this->entityManager->flush();
+        $settings = self::getContainer()->get(QuestRepositoryInterface::class);
+        self::assertInstanceOf(QuestRepositoryInterface::class, $settings);
+        $settings->changeChestReward(0);
+
+        self::assertSame(1, $this->award()->awardWeek(QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK))));
+        self::assertSame(40, $this->paid($alice));
     }
 
     public function testTheWalletPageShowsWhereTheMemberStandsOnEachObjective(): void
@@ -123,6 +161,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
             ['metric' => 'checks', 'label' => 'Checks faits', 'unit' => 'checks', 'target' => 5, 'current' => 3],
             ['metric' => 'sessions', 'label' => 'Parties jouées', 'unit' => 'parties', 'target' => 2, 'current' => 1],
         ], $quests[0]['objectives'] ?? null);
+        self::assertSame(['reward' => 50, 'done' => 0, 'total' => 1, 'paid' => false], $body['chest'] ?? null);
     }
 
     /**

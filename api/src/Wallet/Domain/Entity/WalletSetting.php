@@ -14,6 +14,8 @@ use Doctrine\ORM\Mapping as ORM;
 final class WalletSetting
 {
     public const string QUESTS_PER_WEEK = 'quests_per_week';
+    // Story 41.16: the weekly chest, for accomplishing every quest of the week.
+    public const string QUEST_CHEST_REWARD = 'quest_chest_reward';
 
     public function __construct(
         #[ORM\Id]

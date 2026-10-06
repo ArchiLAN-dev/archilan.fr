@@ -14,6 +14,7 @@ use App\Wallet\Domain\Entity\QuestWeekEntry;
 interface QuestRepositoryInterface
 {
     public const int DEFAULT_QUESTS_PER_WEEK = 3;
+    public const int DEFAULT_CHEST_REWARD = 50;
 
     public function findQuest(string $id): ?QuestDefinition;
 
@@ -45,7 +46,19 @@ interface QuestRepositoryInterface
      */
     public function drawnWeeks(array $weekKeys): array;
 
+    /**
+     * Story 41.16: the weeks each quest was served in (coming pinned weeks included).
+     *
+     * @return array<string, list<string>> quest id => week keys, oldest first
+     */
+    public function weeksServedByQuest(): array;
+
     public function questsPerWeek(): int;
+
+    /** Story 41.16: the extra pelles for accomplishing every quest of a week (0: no chest). */
+    public function chestReward(): int;
+
+    public function changeChestReward(int $reward): void;
 
     public function changeQuestsPerWeek(int $count): void;
 }

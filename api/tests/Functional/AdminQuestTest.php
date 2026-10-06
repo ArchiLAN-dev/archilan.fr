@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Wallet\Application\Command\AwardWeeklyQuests;
+use App\Wallet\Domain\Entity\PelleMovement;
+use App\Wallet\Domain\Enum\PelleKind;
+use App\Wallet\Domain\Enum\PelleReason;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 
 /**
@@ -106,6 +112,67 @@ final class AdminQuestTest extends FunctionalTestCase
         $this->client->request('DELETE', sprintf('/api/v1/admin/quest-weeks/%s/quests/%s', $current, $imposed));
         self::assertResponseStatusCodeSame(204);
         self::assertSame([], $this->weeks($this->overview())[0]['quests'] ?? null);
+    }
+
+    public function testTheAdminSetsTheChestAndSeesWhatEachQuestPaid(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $this->loginAs($admin);
+        $id = $this->write(['title' => 'Un goal', 'reward' => 40, 'inDraw' => true, 'objectives' => [['metric' => 'goals', 'target' => 1]]]);
+        self::assertSame(50, $this->overview()['chestReward'] ?? null, 'a chest by default');
+
+        $this->client->request('PUT', '/api/v1/admin/quests-settings', [], [], ['CONTENT_TYPE' => 'application/json'], '{"chestReward": 1001}');
+        self::assertResponseStatusCodeSame(422);
+        $this->client->request('PUT', '/api/v1/admin/quests-settings', [], [], ['CONTENT_TYPE' => 'application/json'], '{"chestReward": 80}');
+        self::assertResponseStatusCodeSame(204);
+
+        // Last week served the quest, and the admin's own slot reached its goal then.
+        $lastWeek = QuestWeek::containing(new \DateTimeImmutable())->previous();
+        $this->entityManager->persist(Session::create('s-1', 'event-1', $lastWeek->start));
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), 's-1', $admin->getId(), 'game-1', 'Admin', 1, 'slot-1');
+        $slot->recordGoal($lastWeek->start->modify('+1 day'));
+        $this->entityManager->persist($slot);
+        $this->entityManager->flush();
+        $award = self::getContainer()->get(AwardWeeklyQuests::class);
+        self::assertInstanceOf(AwardWeeklyQuests::class, $award);
+        self::assertSame(2, $award->awardWeek($lastWeek), 'the quest and the chest');
+
+        $overview = $this->overview();
+        self::assertSame(80, $overview['chestReward'] ?? null);
+        $quests = $overview['quests'] ?? null;
+        self::assertIsArray($quests);
+        self::assertIsArray($quests[0] ?? null);
+        self::assertSame(['weeksServed' => 2, 'lastWeek' => $lastWeek->key, 'lastMembers' => 1, 'pelles' => 40], $quests[0]['stats'] ?? null, 'last week and this one');
+
+        $past = $overview['pastWeeks'] ?? null;
+        self::assertIsArray($past);
+        self::assertCount(4, $past);
+        self::assertIsArray($past[0]);
+        self::assertSame($lastWeek->key, $past[0]['key'] ?? null);
+        self::assertSame([['questId' => $id, 'title' => 'Un goal', 'reward' => 40, 'origin' => 'drawn', 'retired' => false, 'members' => 1, 'pelles' => 40]], $past[0]['quests'] ?? null);
+        self::assertSame(1, $past[0]['chests'] ?? null);
+        self::assertSame(120, $past[0]['pelles'] ?? null);
+    }
+
+    public function testAWeekPaidBeforeTheQuestsWereRecordedComesBackFromTheLedger(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $this->loginAs($admin);
+        $id = $this->write(['title' => 'Un goal', 'reward' => 40, 'inDraw' => false, 'objectives' => [['metric' => 'goals', 'target' => 1]]]);
+        // Three weeks ago, before story 41.15: a payment, and no served entry.
+        $old = QuestWeek::containing(new \DateTimeImmutable())->previous()->previous()->previous();
+        $this->entityManager->persist(PelleMovement::record(
+            $admin->getId(), 40, PelleKind::Gold, null, PelleReason::QuestReward, 'Quête : Un goal', null,
+            sprintf('quest:%s:%s:%s', $old->key, $id, $admin->getId()), new \DateTimeImmutable(),
+        ));
+        $this->entityManager->flush();
+
+        $past = $this->overview()['pastWeeks'] ?? null;
+        self::assertIsArray($past);
+        self::assertIsArray($past[2] ?? null);
+        self::assertSame($old->key, $past[2]['key'] ?? null);
+        self::assertSame([['questId' => $id, 'title' => 'Un goal', 'reward' => 40, 'origin' => 'drawn', 'retired' => false, 'members' => 1, 'pelles' => 40]], $past[2]['quests'] ?? null);
+        self::assertSame(40, $past[2]['pelles'] ?? null);
     }
 
     public function testOnlyAnAdminManagesTheQuests(): void

@@ -85,21 +85,51 @@ final readonly class DoctrineQuestRepository implements QuestRepositoryInterface
         );
     }
 
+    public function weeksServedByQuest(): array
+    {
+        $weeks = [];
+        foreach ($this->entityManager->getRepository(QuestWeekEntry::class)->findBy([], ['weekKey' => 'ASC']) as $entry) {
+            $weeks[$entry->getQuestId()][] = $entry->getWeekKey();
+        }
+
+        return $weeks;
+    }
+
     public function questsPerWeek(): int
     {
-        $setting = $this->entityManager->find(WalletSetting::class, WalletSetting::QUESTS_PER_WEEK);
-        $count = null === $setting ? false : filter_var($setting->getValue(), \FILTER_VALIDATE_INT);
-
-        return false === $count ? self::DEFAULT_QUESTS_PER_WEEK : $count;
+        return $this->intSetting(WalletSetting::QUESTS_PER_WEEK, self::DEFAULT_QUESTS_PER_WEEK);
     }
 
     public function changeQuestsPerWeek(int $count): void
     {
-        $setting = $this->entityManager->find(WalletSetting::class, WalletSetting::QUESTS_PER_WEEK);
+        $this->changeSetting(WalletSetting::QUESTS_PER_WEEK, $count);
+    }
+
+    public function chestReward(): int
+    {
+        return $this->intSetting(WalletSetting::QUEST_CHEST_REWARD, self::DEFAULT_CHEST_REWARD);
+    }
+
+    public function changeChestReward(int $reward): void
+    {
+        $this->changeSetting(WalletSetting::QUEST_CHEST_REWARD, $reward);
+    }
+
+    private function intSetting(string $key, int $default): int
+    {
+        $setting = $this->entityManager->find(WalletSetting::class, $key);
+        $value = null === $setting ? false : filter_var($setting->getValue(), \FILTER_VALIDATE_INT);
+
+        return false === $value ? $default : $value;
+    }
+
+    private function changeSetting(string $key, int $value): void
+    {
+        $setting = $this->entityManager->find(WalletSetting::class, $key);
         if (null === $setting) {
-            $this->entityManager->persist(new WalletSetting(WalletSetting::QUESTS_PER_WEEK, (string) $count));
+            $this->entityManager->persist(new WalletSetting($key, (string) $value));
         } else {
-            $setting->change((string) $count);
+            $setting->change((string) $value);
         }
         $this->entityManager->flush();
     }

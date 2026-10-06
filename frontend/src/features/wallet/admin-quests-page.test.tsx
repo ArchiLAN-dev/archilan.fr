@@ -4,8 +4,8 @@ import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { fetchAdminQuests, objectivesSummary, pinQuest, type AdminQuests } from "./admin-quests-api";
-import { AdminQuestWeeksView, ComingWeekRow, CurrentWeek, DrawPanel } from "./admin-quest-weeks";
-import { AdminQuestTypesView, questTermsError } from "./admin-quests-page";
+import { AdminQuestWeeksView, ComingWeekRow, CurrentWeek, DrawPanel, PastWeeks } from "./admin-quest-weeks";
+import { AdminQuestTypesView, questStatsLine, questTermsError } from "./admin-quests-page";
 import { weekLabel } from "./admin-quests-shared";
 import { AdminQuestsTabs } from "./admin-quests-tabs";
 
@@ -17,14 +17,25 @@ const metrics = [
 
 const data: AdminQuests = {
   questsPerWeek: 3,
+  chestReward: 50,
   metrics,
   quests: [
-    { id: "q1", title: "Marathon", description: "", reward: 60, objectives: [{ metric: "checks", target: 50 }, { metric: "sessions", target: 2 }], inDraw: true, retired: false, createdAt: "2026-10-05T10:00:00+00:00" },
-    { id: "q2", title: "Spéciale LAN", description: "", reward: 100, objectives: [{ metric: "goals", target: 1 }], inDraw: false, retired: false, createdAt: "2026-10-05T10:00:00+00:00" },
+    { id: "q1", title: "Marathon", description: "", reward: 60, objectives: [{ metric: "checks", target: 50 }, { metric: "sessions", target: 2 }], inDraw: true, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 3, lastWeek: "2026-W40", lastMembers: 12, pelles: 480 } },
+    { id: "q2", title: "Spéciale LAN", description: "", reward: 100, objectives: [{ metric: "goals", target: 1 }], inDraw: false, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 0, lastWeek: null, lastMembers: 0, pelles: 0 } },
   ],
   weeks: [
     { key: "2026-W41", startsAt: "2026-10-04T22:00:00+00:00", endsAt: "2026-10-11T22:00:00+00:00", current: true, drawn: true, quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false }] },
     { key: "2026-W42", startsAt: "2026-10-11T22:00:00+00:00", endsAt: "2026-10-18T22:00:00+00:00", current: false, drawn: false, quests: [{ questId: "q2", title: "Spéciale LAN", reward: 100, origin: "pinned", retired: false }] },
+  ],
+  pastWeeks: [
+    {
+      key: "2026-W40",
+      startsAt: "2026-09-27T22:00:00+00:00",
+      endsAt: "2026-10-04T22:00:00+00:00",
+      quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false, members: 12, pelles: 720 }],
+      chests: 4,
+      pelles: 920,
+    },
   ],
 };
 
@@ -67,7 +78,7 @@ describe("admin weekly quests", () => {
 
   test("the current week shows each quest in full, with its origin and what it pays", () => {
     const html = renderToStaticMarkup(
-      <CurrentWeek byId={new Map(data.quests.map((quest) => [quest.id, quest]))} metrics={metrics} onAdd={noop} onRemove={noop} onReplace={noop} pending={false} week={data.weeks[0]} />,
+      <CurrentWeek byId={new Map(data.quests.map((quest) => [quest.id, quest]))} chestReward={50} metrics={metrics} onAdd={noop} onRemove={noop} onReplace={noop} pending={false} week={data.weeks[0]} />,
     );
 
     expect(html).toContain("Cette semaine");
@@ -76,11 +87,13 @@ describe("admin weekly quests", () => {
     expect(html).toContain("Tirée");
     expect(html).toContain("Remplacer");
     expect(html).toContain("1 quête");
+    expect(html).toContain("110");
+    expect(html).toContain("coffre compris");
   });
 
   test("the draw panel gives the quests a week, the types in the draw and the next draw", () => {
     const save = async () => true;
-    const html = renderToStaticMarkup(<DrawPanel inDraw={3} nextDraw="2026-10-11T22:00:00+00:00" onSave={save} pending={false} perWeek={3} />);
+    const html = renderToStaticMarkup(<DrawPanel chestReward={50} inDraw={3} nextDraw="2026-10-11T22:00:00+00:00" onSave={save} pending={false} perWeek={3} />);
 
     expect(html).toContain("Quêtes par semaine");
     expect(html).toContain("lundi 12 octobre");
@@ -88,8 +101,27 @@ describe("admin weekly quests", () => {
     expect(html).not.toContain("moins de types dans le tirage");
     expect(html).not.toContain("Enregistrer");
 
-    const short = renderToStaticMarkup(<DrawPanel inDraw={1} nextDraw={null} onSave={save} pending={false} perWeek={3} />);
+    const short = renderToStaticMarkup(<DrawPanel chestReward={50} inDraw={1} nextDraw={null} onSave={save} pending={false} perWeek={3} />);
     expect(short).toContain("les semaines sans épinglée en auront 1");
+  });
+
+  test("past weeks show who did each quest, the chests and the pelles; each quest says how it did (story 41.16)", () => {
+    const html = renderToStaticMarkup(<PastWeeks weeks={data.pastWeeks} />);
+    expect(html).toContain("Semaines passées");
+    expect(html).toContain("28 sept. - 4 oct.");
+    expect(html).toContain("12<span class=\"sr-only\"> membres</span>");
+    expect(html).toContain("4 coffres");
+    expect(html).toContain("920");
+
+    expect(questStatsLine(data.quests[0].stats)).toBe("Servie 3 semaines · 12 membres l'ont réussie la dernière fois · 480 pelles versées");
+    expect(questStatsLine(data.quests[1].stats)).toBe("Jamais servie pour l'instant.");
+    expect(questStatsLine({ weeksServed: 1, lastWeek: null, lastMembers: 0, pelles: 0 })).toContain("première semaine en cours");
+  });
+
+  test("the chest is set in the draw panel", () => {
+    const html = renderToStaticMarkup(<DrawPanel chestReward={0} inDraw={3} nextDraw={null} onSave={async () => true} pending={false} perWeek={3} />);
+    expect(html).toContain("Coffre de la semaine");
+    expect(html).toContain("Pas de coffre");
   });
 
   test("the weeks and the quest types live on two pages", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, Circle, Gift } from "lucide-react";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -23,7 +23,14 @@ export type WeeklyQuest = {
   objectives: QuestObjectiveProgress[];
 };
 
-export type WeeklyQuests = { week: string; renewsAt: string; quests: WeeklyQuest[] };
+/** Story 41.16: the chest for doing every quest of the week; null when there is none. */
+export type QuestChest = { reward: number; done: number; total: number; paid: boolean };
+
+export type WeeklyQuests = { week: string; renewsAt: string; quests: WeeklyQuest[]; chest: QuestChest | null };
+
+function isChest(v: unknown): v is QuestChest {
+  return typeof v === "object" && v !== null && hasNumberProp(v, "reward") && hasNumberProp(v, "done") && hasNumberProp(v, "total") && hasBooleanProp(v, "paid");
+}
 
 function isObjective(v: unknown): v is QuestObjectiveProgress {
   return (
@@ -54,7 +61,17 @@ function isQuest(v: unknown): v is WeeklyQuest {
 }
 
 export function isWeeklyQuests(v: unknown): v is WeeklyQuests {
-  return typeof v === "object" && v !== null && hasStringProp(v, "week") && hasStringProp(v, "renewsAt") && "quests" in v && Array.isArray(v.quests) && v.quests.every(isQuest);
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "week") &&
+    hasStringProp(v, "renewsAt") &&
+    "quests" in v &&
+    Array.isArray(v.quests) &&
+    v.quests.every(isQuest) &&
+    "chest" in v &&
+    (v.chest === null || isChest(v.chest))
+  );
 }
 
 export async function fetchMyQuests(): Promise<WeeklyQuests | null> {
@@ -118,6 +135,7 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
           ))}
         </ul>
       )}
+      {quests.chest ? <ChestRow chest={quests.chest} /> : null}
     </section>
   );
 }
@@ -147,5 +165,27 @@ export function ObjectiveBar({ objective, done }: { objective: QuestObjectivePro
         <div className={`h-full rounded-full transition-[width] ${reached ? "bg-success" : "bg-accent"}`} style={{ width: `${percent}%` }} />
       </div>
     </li>
+  );
+}
+
+/** Story 41.16: every quest of the week done opens the chest - its reward, and how many quests are left. */
+export function ChestRow({ chest }: { chest: QuestChest }) {
+  const open = chest.done >= chest.total;
+
+  return (
+    <div className={`flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm ${open ? "border-warning/50 bg-warning/10" : "border-dashed border-border"}`}>
+      <Gift aria-hidden className={`size-4 shrink-0 ${open ? "text-warning" : "text-muted-foreground"}`} />
+      <span className="min-w-0 flex-1">
+        <span className="font-medium text-foreground">Coffre de la semaine</span>
+        <span className="block text-xs text-muted-foreground">
+          {open
+            ? chest.paid
+              ? "Ouvert : toutes les quêtes sont faites."
+              : "Toutes les quêtes sont faites : crédité dans l'heure."
+            : `Fais toutes les quêtes pour l'ouvrir (${chest.done} / ${chest.total}).`}
+        </span>
+      </span>
+      <PelleAmount amount={chest.reward} className="shrink-0 text-xs font-semibold text-warning" signed />
+    </div>
   );
 }

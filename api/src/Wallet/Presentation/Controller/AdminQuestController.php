@@ -102,12 +102,22 @@ final readonly class AdminQuestController
         if ($admin instanceof JsonResponse) {
             return $admin;
         }
-        $payload = $this->payload($request);
-        $count = $payload['questsPerWeek'] ?? null;
+        $payload = $this->payload($request) ?? [];
 
-        $this->manage->changeQuestsPerWeek(is_int($count) ? $count : 0);
+        // Story 41.16: either setting may come alone; one given but not a number is refused as out of bounds.
+        $this->manage->changeSettings($this->optionalInt($payload, 'questsPerWeek'), $this->optionalInt($payload, 'chestReward'));
 
         return new JsonResponse(null, 204);
+    }
+
+    /** @param array<mixed> $payload */
+    private function optionalInt(array $payload, string $key): ?int
+    {
+        if (!\array_key_exists($key, $payload) || null === $payload[$key]) {
+            return null;
+        }
+
+        return is_int($payload[$key]) ? $payload[$key] : -1;
     }
 
     #[Route('/api/v1/admin/quest-weeks/{weekKey}/quests', name: 'api_wallet_admin_quest_weeks_pin', methods: ['POST'])]
