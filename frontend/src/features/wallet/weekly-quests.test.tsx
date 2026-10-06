@@ -63,18 +63,17 @@ describe("weekly quests", () => {
     expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, chest: null }} />)).not.toContain("Coffre");
   });
 
-  test("the weeks before are folded under the quests (story 41.17)", () => {
+  test("the history is its own block, apart from the quests in progress (stories 41.17, 41.21)", () => {
     const html = renderToStaticMarkup(<QuestHistory weeks={quests.history} />);
-    expect(html).toContain("Semaines précédentes");
+    expect(html).toContain("Historique des quêtes");
+    expect(html).toContain("coffre ouvert");
     expect(html).toContain("Sem. du 21 sept.");
     expect(html).toContain("3 / 3 quêtes");
     expect(html).toContain("coffre");
     expect(html).toContain("+150");
     expect(html).toContain("Pas de quête");
 
-    expect(renderToStaticMarkup(<WeeklyQuestsView quests={quests} />)).toContain("Semaines précédentes");
-    const empty = quests.history.map((week) => ({ ...week, served: 0 }));
-    expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, history: empty }} />)).not.toContain("Semaines précédentes");
+    expect(renderToStaticMarkup(<WeeklyQuestsView quests={quests} />)).not.toContain("Historique des quêtes");
   });
 
   test("an objective aimed at a game says which (story 41.18)", () => {
