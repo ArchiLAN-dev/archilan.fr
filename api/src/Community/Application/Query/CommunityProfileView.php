@@ -9,9 +9,11 @@ use App\Community\Application\Support\AchievementImageUrlResolver;
 use App\Community\Application\Support\AvatarFrameCatalog;
 use App\Community\Application\Support\AvatarUrlResolver;
 use App\Community\Application\Support\ProfileBannerCatalog;
+use App\Community\Application\Support\ProfileTitleCatalog;
 use App\Community\Application\Support\ProfileVisibility;
 use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Entity\Kudos;
+use App\Community\Domain\Enum\NameColor;
 use App\Community\Domain\Enum\NameStyle;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
@@ -60,6 +62,7 @@ final readonly class CommunityProfileView
         private CosmeticOwnershipInterface $cosmetics,
         private AvatarFrameCatalog $frames,
         private ProfileBannerCatalog $banners,
+        private ProfileTitleCatalog $titles,
     ) {
     }
 
@@ -71,6 +74,7 @@ final readonly class CommunityProfileView
      *     avatarUrl: string|null,
      *     avatarFraming: array{x: int, y: int, zoom: int}|null,
      *     nameStyle: string|null,
+     *     title: string|null,
      *     audience: string,
      *     badges: array{member: bool, admin: bool},
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
@@ -146,7 +150,10 @@ final readonly class CommunityProfileView
             'avatarUrl' => $this->avatarUrl($profile, $model['isAdmin']),
             'avatarFraming' => null !== $profile ? AvatarUrlResolver::framing($profile->getCustomAvatarKey(), $profile->getAvatarFraming()) : null,
             // Story 30.44: legendary admin, epic member, unless the owner turned it off.
-            'nameStyle' => NameStyle::for($badges['admin'], $badges['member'], $profile?->hasTitledName() ?? true)?->value,
+            // Story 41.23: or the colour bought, where no rarity colour applies.
+            'nameStyle' => NameColor::nameStyle($badges['admin'], $badges['member'], $profile?->hasTitledName() ?? true, $profile?->getNameColor()),
+            // Story 41.22: the title worn under the name, by its label (none when retired).
+            'title' => $this->titles->displayed($profile?->getTitleKey(), $badges['admin']),
             'audience' => $audience,
             'badges' => $badges,
             'stats' => $model['stats'],
@@ -268,7 +275,7 @@ final readonly class CommunityProfileView
      *
      * Story 30.40: the images are those the owner's status allows, and the upload rights say what they may send.
      *
-     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, legendaryFramesAllowed: bool, memberFramesAllowed: bool, ownedFrames: list<string>, ownedBanners: list<string>, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, titledName: bool, titledNameStyle: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, legendaryFramesAllowed: bool, memberFramesAllowed: bool, ownedFrames: list<string>, ownedBanners: list<string>, title: string|null, ownedTitles: list<string>, nameColor: string|null, ownedColors: list<string>, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, titledName: bool, titledNameStyle: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId, bool $isAdmin): array
     {
@@ -295,6 +302,12 @@ final readonly class CommunityProfileView
             // Story 41.7: the shop cosmetics this member bought.
             'ownedFrames' => $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::FRAME),
             'ownedBanners' => $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::BANNER),
+            // Story 41.22: the title worn (its key, kept while it is retired so the form shows it), and those bought.
+            'title' => $profile?->getTitleKey(),
+            'ownedTitles' => $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::TITLE),
+            // Story 41.23: the colour worn by the name, and those bought.
+            'nameColor' => $profile?->getNameColor(),
+            'ownedColors' => $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::COLOR),
             ...$this->cardAvatar($profile, $isAdmin),
             // The editor always holds a framing (a card's is null when centred).
             'avatarFraming' => ($profile?->getAvatarFraming() ?? ImageFraming::centred())->toArray(),

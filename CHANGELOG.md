@@ -5,6 +5,61 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.32.0] - 2026-10-06
+
+Des quêtes de la semaine écrites par l'équipe, avec un coffre, une annonce le lundi (aussi sur Discord) et des
+succès ; des premiers pas récompensés pour les nouveaux ; de nouvelles dépenses de pelles (titres et couleurs de
+pseudo) ; et le site s'installe comme une application, ce qui ouvre les notifications sur iPhone.
+
+### Ajouté
+
+- **Quêtes de la semaine configurables** (41.15) : l'équipe écrit ses types de quêtes (1 à 5 objectifs chacun),
+  tirés au hasard chaque semaine ou placés à la main sur une semaine précise. Page admin « Quêtes hebdo » en deux
+  onglets, Semaines et Types de quêtes ; barres de progression dans le portefeuille.
+- **Coffre de la semaine et statistiques** (41.16) : un bonus pour qui fait toutes les quêtes, et ce que les quêtes
+  ont payé, semaine par semaine.
+- **Annonce du lundi, historique et série** (41.17) : une notification aux joueurs récents quand les quêtes sortent,
+  les 4 semaines précédentes dans le portefeuille.
+- **Tirage plus malin et objectifs ciblés** (41.18) : poids par quête, pas les mêmes quêtes deux semaines de suite,
+  objectifs visant un jeu ou un événement.
+- **Paiement toutes les 5 minutes** (41.19) au lieu de chaque heure, et les checks des hebdos comptés au fil de la
+  partie.
+- **Six succès de quêtes** (41.20).
+- **Quêtes en cours et historique séparés** dans le portefeuille (41.21).
+- **Titres de profil achetables** (41.22) : l'équipe écrit les titres (page `/admin/titres`), la boutique en vend,
+  le membre en porte un sur son profil.
+- **Couleur de pseudo achetable** (41.23) : 8 couleurs en boutique ; la couleur de rareté d'un adhérent ou d'un
+  admin passe avant, sauf « Pseudo à titre » décoché.
+- **Quêtes annoncées sur Discord** (41.24) : l'annonce du lundi est aussi postée dans un salon, par webhook.
+- **Quêtes d'accueil** (41.25) : cinq premiers pas payés une fois (lier Discord, premier check, première hebdo,
+  jouer avec un autre membre, premier goal), pour les comptes créés à partir de cette version.
+- **Site installable** (40.4) : manifeste et icônes ; une fois ajouté à l'écran d'accueil, un iPhone reçoit les
+  notifications push.
+
+### Corrigé
+
+- Plus de faux « Tu n'es plus bloqué » au redémarrage d'un serveur de partie (40.3).
+- Une semaine atteinte sans quête tirable n'est plus figée vide (41.15).
+- Une tentative hebdo ne recevait son total de checks qu'à son goal (41.19).
+- Dépendances : `source-map-js` >= 1.2.2, `sharp` >= 0.35.5, `@modelcontextprotocol/sdk` >= 1.31.0
+  (GHSA-6qxp-vccf-f47h, via `shadcn`).
+
+### Déploiement
+
+- Nouvelle variable `DISCORD_QUESTS_WEBHOOK_URL` (vide par défaut : rien n'est posté sur Discord).
+- La tâche des quêtes du worker passe d'une fois par heure à toutes les 5 minutes (aucune action).
+
+### Migrations
+
+- `Version20261005200000` : tables `quest_definition`, `quest_week_entry`, `quest_week_draw`, `wallet_setting` ;
+  reprend les trois quêtes de 41.6.
+- `Version20261006100000` : colonne `quest_definition.draw_weight`.
+- `Version20261006120000` : les six succès de quêtes.
+- `Version20261006140000` : table `profile_title`, colonne `community_profile.title_key`.
+- `Version20261006160000` : colonne `community_profile.name_color`.
+- `Version20261006180000` : réglage `welcome_quests_since` (date du déploiement : pas d'arriéré pour les anciens
+  comptes).
+
 ## [0.31.0] - 2026-10-05
 
 Une boutique qui donne envie, avec ses promotions, un onglet « Soutenir ArchiLAN », des modales de confirmation

@@ -166,11 +166,12 @@ function StateBody({ state, busy, onEnable, onDisable }: Omit<ViewProps, "feedba
     case "unsupported":
       return <p className="text-sm text-muted-foreground">Ce navigateur ne prend pas en charge les notifications push.</p>;
     case "ios-install":
-      // iOS only delivers pushes to a site installed as an app (web manifest), which ArchiLAN is not yet.
+      // iOS only delivers pushes to a site installed as an app; ArchiLAN installs since story 40.4.
       return (
         <p className="text-sm text-muted-foreground">
-          Sur iPhone et iPad, les notifications push ne sont pas encore disponibles : iOS les réserve aux sites
-          installés comme une application. Tu les recevras sur ordinateur ou sur Android.
+          Sur iPhone et iPad, iOS réserve les notifications aux sites installés comme une application : dans Safari,
+          touche le bouton Partager puis « Sur l&apos;écran d&apos;accueil », ouvre ArchiLAN depuis l&apos;icône
+          ajoutée, et reviens ici pour les activer.
         </p>
       );
     case "blocked":

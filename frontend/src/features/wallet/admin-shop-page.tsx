@@ -91,7 +91,7 @@ export function AdminShopPage() {
     <section className="grid gap-6 p-6 md:p-8">
       <header>
         <h1 className="font-heading text-2xl font-bold text-foreground">Boutique</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Cadres et bannières vendus contre des pelles en or, dans l&apos;onglet Cosmétiques de /boutique.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Cadres, bannières, titres et couleurs de pseudo vendus contre des pelles en or, dans l&apos;onglet Cosmétiques de /boutique.</p>
       </header>
       {isLoading ? <p className="text-sm text-muted-foreground">Chargement…</p> : null}
       {!isLoading && !data ? <p className="text-sm text-danger">Impossible de charger la boutique.</p> : null}
@@ -174,7 +174,7 @@ export function AdminShopView({ shop, ...handlers }: { shop: AdminShop } & Handl
             {shown.map((item) => (
               <li className="grid overflow-hidden rounded-xl border border-border bg-surface" key={item.id}>
                 <div className="relative">
-                  <ShopCosmeticPreview className="h-28" cosmeticKey={item.cosmeticKey} type={item.type} />
+                  <ShopCosmeticPreview className="h-28" cosmeticKey={item.cosmeticKey} label={label(item.type, item.cosmeticKey)} type={item.type} />
                   <span className={`absolute left-3 top-3 rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_TONES[item.status]}`}>{STATUS_LABELS[item.status]}</span>
                 </div>
                 <div className="grid gap-2 p-4 text-sm">
@@ -318,11 +318,11 @@ function ListForm({
   const parsedPrice = Number.parseInt(price, 10);
   const canList = cosmeticKey !== "" && Number.isInteger(parsedPrice) && parsedPrice >= 1 && parsedPrice <= 10000;
 
-  if (sellable.frame.length === 0 && sellable.banner.length === 0) {
+  if (sellable.frame.length === 0 && sellable.banner.length === 0 && sellable.title.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-        Aucun cosmétique à vendre pour l&apos;instant. Ajoute un cadre ou une bannière avec l&apos;accès « Boutique » dans les pages
-        Cadres ou Bannières : il pourra ensuite être mis en vente ici.
+        Aucun cosmétique à vendre pour l&apos;instant. Ajoute un cadre, une bannière ou un titre avec l&apos;accès « Boutique » dans
+        les pages Cadres, Bannières ou Titres : il pourra ensuite être mis en vente ici.
       </p>
     );
   }
@@ -347,13 +347,15 @@ function ListForm({
           <select
             className={fieldClass}
             onChange={(e) => {
-              setType(e.target.value === "banner" ? "banner" : "frame");
+              setType(e.target.value === "banner" ? "banner" : e.target.value === "title" ? "title" : e.target.value === "color" ? "color" : "frame");
               setCosmeticKey("");
             }}
             value={type}
           >
             <option value="frame">Cadre</option>
             <option value="banner">Bannière</option>
+            <option value="title">Titre</option>
+            <option value="color">Couleur de pseudo</option>
           </select>
         </label>
         <label className="grid gap-1 text-sm">
@@ -390,7 +392,7 @@ function ListForm({
         <p className="text-xs font-medium text-muted-foreground">Aperçu</p>
         <div className="overflow-hidden rounded-xl border border-border">
           {cosmeticKey !== "" ? (
-            <ShopCosmeticPreview className="h-32" cosmeticKey={cosmeticKey} type={type} />
+            <ShopCosmeticPreview className="h-32" cosmeticKey={cosmeticKey} label={label(type, cosmeticKey)} type={type} />
           ) : (
             <p className="grid h-32 place-items-center text-xs text-muted-foreground">Choisis un cosmétique</p>
           )}

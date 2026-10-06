@@ -10,6 +10,7 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount } from "./pelle-amount";
 import { fetchMyWallet, pelleReasonLabel, type Wallet } from "./wallet-api";
 import { WeeklyQuestsPanel } from "./weekly-quests";
+import { WelcomeQuestsPanel } from "./welcome-quests";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
 
@@ -37,7 +38,8 @@ export function WalletPanel() {
   return (
     <div className="grid gap-6">
       <WalletView onPage={setPage} wallet={data} />
-      {/* Story 41.6. */}
+      {/* Story 41.25: the first steps of a newcomer, then story 41.6. */}
+      <WelcomeQuestsPanel />
       <WeeklyQuestsPanel />
     </div>
   );

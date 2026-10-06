@@ -6,6 +6,10 @@ import { AVATAR_FRAME_CATALOG_QUERY_KEY, fetchAvatarFrameCatalog } from "@/featu
 import { MemberAvatar } from "@/features/community/member-avatar";
 import { ProfileBanner } from "@/features/community/profile-banner";
 import { fetchProfileBannerCatalog, PROFILE_BANNER_CATALOG_QUERY_KEY } from "@/features/community/profile-banner-catalog";
+import { ProfileTitleBadge } from "@/features/community/profile-title-badge";
+import type { NameColorStyle } from "@/features/community/name-colors";
+import { TitledName } from "@/features/community/titled-name";
+import { fetchProfileTitleCatalog, PROFILE_TITLE_CATALOG_QUERY_KEY } from "@/features/community/profile-title-catalog";
 import type { ImageFraming } from "@/features/community/image-framing";
 import { cosmeticLabel, type CosmeticType } from "./shop-api";
 
@@ -18,10 +22,11 @@ const CATALOG_STALE_TIME = 5 * 60 * 1000;
 export function useCosmeticLabel(): (type: CosmeticType, key: string) => string {
   const { data: frames = [] } = useQuery({ queryKey: AVATAR_FRAME_CATALOG_QUERY_KEY, queryFn: fetchAvatarFrameCatalog, staleTime: CATALOG_STALE_TIME, retry: false });
   const { data: banners = [] } = useQuery({ queryKey: PROFILE_BANNER_CATALOG_QUERY_KEY, queryFn: fetchProfileBannerCatalog, staleTime: CATALOG_STALE_TIME, retry: false });
-  return (type, key) => cosmeticLabel(type, key, type === "frame" ? frames : banners);
+  const { data: titles = [] } = useQuery({ queryKey: PROFILE_TITLE_CATALOG_QUERY_KEY, queryFn: fetchProfileTitleCatalog, staleTime: CATALOG_STALE_TIME, retry: false });
+  return (type, key) => cosmeticLabel(type, key, type === "frame" ? frames : type === "banner" ? banners : titles);
 }
 
-export const COSMETIC_TYPE_LABELS: Record<CosmeticType, string> = { frame: "Cadre d'avatar", banner: "Bannière" };
+export const COSMETIC_TYPE_LABELS: Record<CosmeticType, string> = { frame: "Cadre d'avatar", banner: "Bannière", title: "Titre de profil", color: "Couleur de pseudo" };
 
 /**
  * What an item looks like: a frame on the member's own avatar (or a neutral one), animated; a banner as on a
@@ -34,14 +39,41 @@ export function ShopCosmeticPreview({
   framing = null,
   name = "?",
   className = "h-36",
+  label = null,
 }: {
   type: CosmeticType;
   cosmeticKey: string;
+  /** Story 41.22: a title shows its text under the member's name. */
+  label?: string | null;
   avatarUrl?: string | null;
   framing?: ImageFraming | null;
   name?: string;
   className?: string;
 }) {
+  if (type === "color") {
+    // Story 41.23: the member's own name in the colour.
+    return (
+      <div className={`flex flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_center,var(--color-surface),var(--color-background))] ${className}`}>
+        <MemberAvatar avatarUrl={avatarUrl} framing={framing} name={name} size={64} sizeClassName="size-14" />
+        <span className="font-heading text-lg font-bold">
+          <TitledName style={`color-${cosmeticKey}` as NameColorStyle} variant="card">
+            {name}
+          </TitledName>
+        </span>
+      </div>
+    );
+  }
+
+  if (type === "title") {
+    return (
+      <div className={`flex flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_center,var(--color-surface),var(--color-background))] ${className}`}>
+        <MemberAvatar avatarUrl={avatarUrl} framing={framing} name={name} size={64} sizeClassName="size-14" />
+        <span className="text-sm font-semibold text-foreground">{name}</span>
+        <ProfileTitleBadge label={label ?? cosmeticKey} />
+      </div>
+    );
+  }
+
   if (type === "banner") {
     return (
       <div className={`overflow-hidden ${className}`}>

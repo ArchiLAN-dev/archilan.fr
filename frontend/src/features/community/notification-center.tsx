@@ -204,6 +204,14 @@ export function messageFor(item: NotificationItem): string {
       const reason = hasStringProp(item.data, "reason") && item.data.reason !== "" ? ` : ${item.data.reason}` : "";
       return amount < 0 ? `L'équipe t'a retiré ${what}${reason}` : `Tu as reçu ${what}${reason}`;
     }
+    case "quests_renewed": {
+      // Story 41.17: the quests of the new week are out.
+      const count = hasNumberProp(item.data, "count") ? item.data.count : 0;
+      const max = hasNumberProp(item.data, "maxPelles") ? item.data.maxPelles : 0;
+      const quests = count > 0 ? ` : ${count} ${count > 1 ? "quêtes" : "quête"}` : "";
+      const pelles = max > 0 ? `, jusqu'à ${max} pelles` : "";
+      return `Nouvelles quêtes de la semaine${quests}${pelles}`;
+    }
     case "moderation_warning":
       return hasStringProp(item.data, "reason") && item.data.reason !== ""
         ? `Avertissement de la modération : ${item.data.reason}`
@@ -270,7 +278,7 @@ export function hrefFor(item: NotificationItem): string {
   if (item.type === "account_flagged") {
     return "/admin/moderation/signalements";
   }
-  if (item.type === "pelles_adjusted") {
+  if (item.type === "pelles_adjusted" || item.type === "quests_renewed") {
     return "/compte/portefeuille";
   }
   if (item.type === "apworld_incident_opened") {

@@ -7,6 +7,7 @@ namespace App\Wallet\Presentation\Controller;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use App\Wallet\Application\Query\MyWeeklyQuests;
+use App\Wallet\Application\Query\MyWelcomeQuests;
 use App\Wallet\Application\Query\WalletQueryInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,6 +24,7 @@ final readonly class WalletController
         private ApiAccessGuard $apiAccessGuard,
         private WalletQueryInterface $wallets,
         private MyWeeklyQuests $quests,
+        private MyWelcomeQuests $welcome,
     ) {
     }
 
@@ -36,6 +38,18 @@ final readonly class WalletController
         }
 
         return new JsonResponse($this->quests->of($user->getId()));
+    }
+
+    /** Story 41.25: the first steps of a newcomer, null when there are none to show. */
+    #[Route('/api/v1/me/welcome-quests', name: 'api_wallet_me_welcome_quests', methods: ['GET'])]
+    public function welcomeQuests(Request $request): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        return new JsonResponse(['welcome' => $this->welcome->of($user->getId())]);
     }
 
     #[Route('/api/v1/me/wallet', name: 'api_wallet_me', methods: ['GET'])]
