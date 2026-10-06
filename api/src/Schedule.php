@@ -81,8 +81,9 @@ final readonly class Schedule implements ScheduleProviderInterface
                 RecurringMessage::cron('55 * * * *', new RefundEndedSessionBountiesMessage()),
             )
             ->add(
-                // Les quêtes de la semaine accomplies sont payées dans l'heure (story 41.6).
-                RecurringMessage::cron('40 * * * *', new AwardWeeklyQuestsMessage()),
+                // Les quêtes de la semaine accomplies sont payées dans l'heure (story 41.6), puis en quelques minutes
+                // (story 41.19) : le paiement, le coffre et l'annonce du lundi passent toutes les 5 minutes.
+                RecurringMessage::cron('*/5 * * * *', new AwardWeeklyQuestsMessage()),
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),

@@ -37,7 +37,7 @@ describe("weekly quests", () => {
     expect(html).toContain("Quêtes de la semaine");
     expect(html).toContain("Nouvelles quêtes le lundi 5 octobre");
     expect(html).toContain("+40");
-    expect(html).toContain("créditée dans l&#x27;heure");
+    expect(html).toContain("créditée dans quelques minutes");
     expect(html.match(/créditée dans/g)).toHaveLength(1);
     expect(html).toContain("à faire");
   });

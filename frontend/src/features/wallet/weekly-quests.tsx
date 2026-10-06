@@ -142,7 +142,7 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
                   )}
                   <span className={`font-medium ${quest.done ? "text-foreground" : "text-muted-foreground"}`}>{quest.label}</span>
                   <span className="sr-only">{quest.done ? "faite" : "à faire"}</span>
-                  {quest.done && !quest.paid ? <span className="text-xs text-muted-foreground">(créditée dans l&apos;heure)</span> : null}
+                  {quest.done && !quest.paid ? <span className="text-xs text-muted-foreground">(créditée dans quelques minutes)</span> : null}
                 </span>
                 <PelleAmount amount={quest.reward} className="shrink-0 text-xs font-semibold text-warning" signed />
               </div>
@@ -207,7 +207,7 @@ export function ChestRow({ chest }: { chest: QuestChest }) {
           {open
             ? chest.paid
               ? "Ouvert : toutes les quêtes sont faites."
-              : "Toutes les quêtes sont faites : crédité dans l'heure."
+              : "Toutes les quêtes sont faites : crédité dans quelques minutes."
             : `Fais toutes les quêtes pour l'ouvrir (${chest.done} / ${chest.total}).`}
         </span>
       </span>

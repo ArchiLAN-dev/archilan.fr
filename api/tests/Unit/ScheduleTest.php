@@ -43,15 +43,15 @@ final class ScheduleTest extends TestCase
         self::assertSame('2026-10-03 12:55', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
     }
 
-    public function testQuestsArePaidEveryHour(): void
+    public function testQuestsArePaidEveryFiveMinutes(): void
     {
-        // Story 41.6: a quest accomplished is paid within the hour.
+        // Story 41.6, then 41.19: a quest accomplished is paid within minutes.
         $recurring = $this->recurringMessageFor(AwardWeeklyQuestsMessage::class);
 
         $next = $recurring->getTrigger()->getNextRunDate(new \DateTimeImmutable('2026-10-03 12:00:00', new \DateTimeZone('Europe/Paris')));
 
         self::assertNotNull($next);
-        self::assertSame('2026-10-03 12:40', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
+        self::assertSame('2026-10-03 12:05', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
     }
 
     public function testEventPellesExpireEveryHour(): void

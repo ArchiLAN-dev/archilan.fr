@@ -157,6 +157,35 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertSame(30, $this->paid($bob), 'his goal was elsewhere; two checks at the LAN');
     }
 
+    public function testAWeeklyAttemptCountsTheChecksOfItsFeedWithoutItsGoal(): void
+    {
+        // Story 41.19: before, a weekly only had checks once its goal was reached.
+        $this->quest('weekly', 'Faire une hebdo', 30, [new QuestObjective(QuestMetric::Weeklies, 1)]);
+        $this->quest('checks', 'Trois checks', 20, [new QuestObjective(QuestMetric::Checks, 3)]);
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob');
+        $week = QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK));
+        // Alice launched her attempt this week and made 3 checks, no goal yet.
+        $this->weeklyEntry($alice, checks: 0, goal: false, sessionId: 'weekly-alice');
+        foreach ([1, 2, 3] as $ignored) {
+            $this->check('weekly-alice', 'Alice', self::IN_THE_WEEK);
+        }
+        // Bob launched his the week before: his 3 checks of this week count for the checks quest, not as a weekly
+        // of this week; his checks of the week before do not count.
+        $this->weeklyEntry($bob, checks: 0, goal: false, sessionId: 'weekly-bob', launchedAt: $week->start->modify('-2 days'));
+        $this->check('weekly-bob', 'Bob', $week->start->modify('-1 day')->format(\DATE_ATOM));
+        foreach ([1, 2, 3] as $ignored) {
+            $this->check('weekly-bob', 'Bob', self::IN_THE_WEEK);
+        }
+        $this->settings()->changeChestReward(0);
+        $this->entityManager->flush();
+
+        self::assertSame(3, $this->award()->awardWeek($week));
+        self::assertSame(30 + 20, $this->paid($alice));
+        self::assertSame(20, $this->paid($bob));
+        self::assertSame(2, $this->award()->announce($week->next()), 'a weekly with a check makes an active member for the next week');
+    }
+
     public function testTheNewWeekIsAnnouncedOnceToTheMembersWhoPlayedLately(): void
     {
         $week = QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK));
@@ -299,9 +328,9 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         ));
     }
 
-    private function weeklyEntry(User $user, int $checks, bool $goal): void
+    private function weeklyEntry(User $user, int $checks, bool $goal, ?string $sessionId = null, ?\DateTimeImmutable $launchedAt = null): void
     {
-        $at = new \DateTimeImmutable(self::IN_THE_WEEK);
+        $at = $launchedAt ?? new \DateTimeImmutable(self::IN_THE_WEEK);
         $this->entityManager->persist(new WeeklyEntry(
             bin2hex(random_bytes(16)),
             'weekly-1',
@@ -309,9 +338,11 @@ final class WeeklyQuestsTest extends FunctionalTestCase
             1,
             $at,
             $at,
+            externalSessionId: $sessionId,
             launchedAt: $at,
             goalReachedAt: $goal ? $at->modify('+1 hour') : null,
-            checksTotal: $checks,
+            // As in production, the total is only known once the goal is reached (story 41.19).
+            checksTotal: $goal ? $checks : null,
         ));
     }
 
