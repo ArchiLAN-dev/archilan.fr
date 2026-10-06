@@ -11,6 +11,10 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionFeedEvent;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Wallet\Application\Command\AwardWeeklyQuests;
+use App\Wallet\Application\Handler\AnnounceQuestsOnDiscordJobHandler;
+use App\Wallet\Application\Message\AnnounceQuestsOnDiscordJob;
+use App\Wallet\Application\Port\QuestAnnouncementChannelInterface;
+use App\Wallet\Application\Support\QuestAnnouncement;
 use App\Wallet\Domain\Entity\PelleMovement;
 use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Enum\PelleKind;
@@ -20,6 +24,7 @@ use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
  * Story 41.6: the quests of the week, read from what was actually played. Story 41.15: the quests are written by
@@ -186,6 +191,33 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertSame(2, $this->award()->announce($week->next()), 'a weekly with a check makes an active member for the next week');
     }
 
+    public function testTheDiscordJobTellsTheWeeksQuestsInWords(): void
+    {
+        // Story 41.24: the job reads the week as it is served and hands the channel the quests in words.
+        $this->quest('marathon', 'Marathon', 60, [new QuestObjective(QuestMetric::Checks, 50), new QuestObjective(QuestMetric::Sessions, 1)]);
+        $this->entityManager->flush();
+        $week = QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK));
+        $spy = new class implements QuestAnnouncementChannelInterface {
+            /** @var list<QuestAnnouncement> */
+            public array $posted = [];
+
+            public function post(QuestAnnouncement $announcement): void
+            {
+                $this->posted[] = $announcement;
+            }
+        };
+        self::getContainer()->set(QuestAnnouncementChannelInterface::class, $spy);
+        $handler = self::getContainer()->get(AnnounceQuestsOnDiscordJobHandler::class);
+        self::assertInstanceOf(AnnounceQuestsOnDiscordJobHandler::class, $handler);
+
+        $handler(new AnnounceQuestsOnDiscordJob($week->key));
+
+        self::assertCount(1, $spy->posted);
+        self::assertSame([['title' => 'Marathon', 'objectives' => '50 checks et 1 partie', 'reward' => 60]], $spy->posted[0]->quests);
+        self::assertSame(60 + 50, $spy->posted[0]->maxPelles());
+        self::assertStringEndsWith('/compte/portefeuille', $spy->posted[0]->url);
+    }
+
     public function testTheNewWeekIsAnnouncedOnceToTheMembersWhoPlayedLately(): void
     {
         $week = QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK));
@@ -203,6 +235,12 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $this->entityManager->flush();
         self::assertSame(1, $this->award()->announce($week));
         self::assertSame(0, $this->award()->announce($week), 'once a week');
+
+        // Story 41.24: the week goes to Discord too, once, from the worker.
+        $transport = self::getContainer()->get('messenger.transport.async');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $jobs = array_values(array_filter(array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent()), static fn (object $message): bool => $message instanceof AnnounceQuestsOnDiscordJob));
+        self::assertEquals([new AnnounceQuestsOnDiscordJob($week->key)], $jobs);
 
         $this->entityManager->clear();
         $notices = $this->entityManager->getRepository(Notification::class)->findBy(['type' => Notification::TYPE_QUESTS_RENEWED]);

@@ -58,6 +58,8 @@ framework:
             # where they would hold back the other periodic tasks (see 38.5 below).
             'App\Community\Application\Message\PollModerationDirectMessagesMessage': async
             'App\Community\Application\Message\SyncDiscordBansMessage': async
+            # Story 41.24: the week's quests told on Discord, out of the hourly quest run.
+            'App\Wallet\Application\Message\AnnounceQuestsOnDiscordJob': async
             'App\Community\Application\Message\ExtendDiscordTimeoutsMessage': async
             # Story 38.5 review: the nightly GitHub pass runs on the async worker, not in the scheduler,
             # so the two-minute stuck-run reconciliation is never held up behind it.
