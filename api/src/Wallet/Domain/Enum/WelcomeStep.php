@@ -10,6 +10,9 @@ namespace App\Wallet\Domain\Enum;
  */
 enum WelcomeStep: string
 {
+    /** Story 41.25 review: the Discord step is keyed by the Discord account, which pays once. */
+    public const string DISCORD_KEY_PREFIX = 'welcome:discord:discord-';
+
     case Discord = 'discord';
     case FirstCheck = 'check';
     case FirstWeekly = 'weekly';
@@ -48,9 +51,20 @@ enum WelcomeStep: string
         };
     }
 
-    /** The ledger key of the step paid to a member: once for life. */
-    public function rewardKey(string $userId): string
+    /**
+     * The ledger key of the step paid to a member: once for life. The Discord step names the Discord account
+     * instead, so relinking it to another site account pays nothing.
+     */
+    public function rewardKey(string $userId, ?string $discordId): string
     {
+        if (self::Discord === $this) {
+            if (null === $discordId || '' === $discordId) {
+                throw new \LogicException('The Discord step is keyed by a Discord account.');
+            }
+
+            return self::DISCORD_KEY_PREFIX.$discordId;
+        }
+
         return sprintf('welcome:%s:%s', $this->value, $userId);
     }
 }

@@ -51,3 +51,13 @@ par Claude et annoncées à Jean :
 - Front : `welcome-quests.tsx` (bloc « Premiers pas » au-dessus des quêtes de la semaine, lien vers où faire chaque
   étape), libellé du motif dans l'historique.
 - `composer gates` (2 791) et `pnpm gates` (850) verts.
+
+### Suivi de review (2026-10-06)
+
+- **Coût du passage** : `candidates()` liste d'abord les comptes qui peuvent encore gagner (créés depuis la mise en
+  service, ni bannis ni effacés, pas tout payés) ; aucune étape ne tourne s'il n'y en a pas, et chaque étape filtre
+  ces comptes à l'intérieur de ses lectures (par lots de 500), au lieu de relire tout l'historique puis de filtrer.
+- **Discord** : l'étape est payée sous la clé du compte Discord (`welcome:discord:discord-{id}`) et une seule fois par
+  compte du site : relier le même Discord à un autre compte, ou un autre Discord au même compte, ne rapporte rien.
+- **Bannis et effacés** : écartés dès la liste des comptes, plus retentés toutes les 5 minutes.
+- Tests : Discord relié ailleurs, compte banni ou effacé.

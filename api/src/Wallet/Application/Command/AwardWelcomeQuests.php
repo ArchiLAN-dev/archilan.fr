@@ -21,6 +21,8 @@ use App\Wallet\Domain\Repository\QuestRepositoryInterface;
  */
 final readonly class AwardWelcomeQuests
 {
+    private const int CHUNK = 500;
+
     public function __construct(
         private WelcomeQuestsQueryInterface $welcome,
         private QuestRepositoryInterface $settings,
@@ -32,11 +34,15 @@ final readonly class AwardWelcomeQuests
     /** @return int the steps paid */
     public function award(): int
     {
-        $since = $this->settings->welcomeQuestsSince();
+        // Story 41.25 review: the members who may still earn first, so the steps never scan the whole history -
+        // and nothing at all while there are none.
+        $candidates = $this->welcome->candidates($this->settings->welcomeQuestsSince());
         $paid = 0;
-        foreach (WelcomeStep::cases() as $step) {
-            foreach ($this->welcome->unpaid($step, $since) as $userId) {
-                $paid += $this->pay($userId, $step);
+        foreach (array_chunk($candidates, self::CHUNK) as $chunk) {
+            foreach (WelcomeStep::cases() as $step) {
+                foreach ($this->welcome->unpaid($step, $chunk) as $member) {
+                    $paid += $this->pay($member['userId'], $step, $member['discordId']);
+                }
             }
         }
 
@@ -44,12 +50,12 @@ final readonly class AwardWelcomeQuests
     }
 
     /** @return int 1 when paid now, 0 when already paid or the member cannot earn */
-    private function pay(string $userId, WelcomeStep $step): int
+    private function pay(string $userId, WelcomeStep $step, ?string $discordId): int
     {
         try {
             $recorded = $this->record->record(new RecordPelleMovementInput(
                 $userId, $step->reward(), PelleKind::Gold, null, PelleReason::WelcomeReward,
-                sprintf('Premiers pas : %s', $step->label()), null, $step->rewardKey($userId),
+                sprintf('Premiers pas : %s', $step->label()), null, $step->rewardKey($userId, $discordId),
             ));
         } catch (ForbiddenException|NotFoundException) {
             return 0;

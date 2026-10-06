@@ -18,11 +18,22 @@ use App\Wallet\Domain\Enum\WelcomeStep;
 interface WelcomeQuestsQueryInterface
 {
     /**
-     * The members created from the instant (every member when null) who did the step and were not paid for it.
+     * The members who may still earn a step: created from the instant (every member when null), neither banned nor
+     * erased, not paid for every step yet.
      *
      * @return list<string>
      */
-    public function unpaid(WelcomeStep $step, ?\DateTimeImmutable $since): array;
+    public function candidates(?\DateTimeImmutable $since): array;
+
+    /**
+     * Those of the members who did the step and were not paid for it, with their Discord id (the Discord step pays
+     * a Discord account once, whichever site account it is linked to).
+     *
+     * @param list<string> $userIds
+     *
+     * @return list<array{userId: string, discordId: string|null}>
+     */
+    public function unpaid(WelcomeStep $step, array $userIds): array;
 
     /** @return list<WelcomeStep> the steps the member did */
     public function doneBy(string $userId): array;

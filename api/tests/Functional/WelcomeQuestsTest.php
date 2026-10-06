@@ -9,6 +9,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionFeedEvent;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Wallet\Application\Command\AwardWelcomeQuests;
+use App\Wallet\Application\Query\WelcomeQuestsQueryInterface;
 use App\Wallet\Domain\Entity\PelleMovement;
 use App\Wallet\Domain\Entity\WalletSetting;
 use App\Wallet\Domain\Enum\PelleKind;
@@ -44,6 +45,47 @@ final class WelcomeQuestsTest extends FunctionalTestCase
         self::assertSame(10 + 15, $this->paid($bob), 'check, partner');
         self::assertSame(10 + 15, $this->paid($carol), 'check, weekly');
         self::assertSame(0, $this->award()->award(), 'never twice');
+    }
+
+    public function testADiscordAccountPaysOnceWhicheverAccountItIsLinkedTo(): void
+    {
+        $this->since('2026-04-30T10:00:00+00:00');
+        $first = $this->createUser('first@example.org', slug: 'first');
+        $first->linkDiscord('444', 'same', new \DateTimeImmutable());
+        $this->entityManager->flush();
+        self::assertSame(1, $this->award()->award());
+
+        // Unlinked, then linked to a second account: the Discord account was already paid.
+        $first->unlinkDiscord(new \DateTimeImmutable());
+        $second = $this->createUser('second@example.org', slug: 'second');
+        $this->entityManager->flush();
+        $second->linkDiscord('444', 'same', new \DateTimeImmutable());
+        $this->entityManager->flush();
+        self::assertSame(0, $this->award()->award());
+        self::assertSame(0, $this->paid($second));
+
+        // A first account linking another Discord account is not paid twice either.
+        $first->linkDiscord('555', 'other', new \DateTimeImmutable());
+        $this->entityManager->flush();
+        self::assertSame(0, $this->award()->award());
+        self::assertSame(10, $this->paid($first));
+    }
+
+    public function testABannedOrErasedAccountIsNotEvenLookedAt(): void
+    {
+        $this->since('2026-04-30T10:00:00+00:00');
+        $banned = $this->createUser('banned@example.org', slug: 'banned');
+        $banned->linkDiscord('666', 'banned', new \DateTimeImmutable());
+        $banned->ban('Triche', new \DateTimeImmutable());
+        $erased = $this->createUser('erased@example.org', slug: 'erased');
+        $erased->linkDiscord('777', 'erased', new \DateTimeImmutable());
+        $erased->anonymizeForDeletion(new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        $query = self::getContainer()->get(WelcomeQuestsQueryInterface::class);
+        self::assertInstanceOf(WelcomeQuestsQueryInterface::class, $query);
+        self::assertSame([], $query->candidates(new \DateTimeImmutable('2026-04-30T10:00:00+00:00')));
+        self::assertSame(0, $this->award()->award());
     }
 
     public function testAnAccountCreatedBeforeTheWelcomeQuestsHasNone(): void
