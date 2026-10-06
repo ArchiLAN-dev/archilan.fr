@@ -122,7 +122,7 @@ export function ShopView({
         <div className="grid gap-1">
           <p className="flex items-center gap-2 font-heading text-lg font-semibold text-foreground">
             <Sparkles aria-hidden className="size-5 text-warning" />
-            Cadres et bannières dessinés par des membres, titres de profil
+            Cadres et bannières dessinés par des membres, titres et couleurs de pseudo
           </p>
           <p className="text-sm text-muted-foreground">À gagner en jouant, à dépenser ici : ce que tu achètes est à toi pour de bon.</p>
         </div>
@@ -300,9 +300,9 @@ function TryOnDialog({ item, label, shopper, onClose }: { item: ShopItem; label:
       title={`Essayer « ${label} »`}
     >
       <DialogBody>
-        {item.type === "title" ? (
+        {item.type === "title" || item.type === "color" ? (
           // Story 41.22: a title is a text under the name, tried on the member's own avatar.
-          <ShopCosmeticPreview avatarUrl={shopper.avatarUrl} className="h-48 rounded-lg" cosmeticKey={item.cosmeticKey} framing={shopper.framing} label={label} name={shopper.name} type="title" />
+          <ShopCosmeticPreview avatarUrl={shopper.avatarUrl} className="h-48 rounded-lg" cosmeticKey={item.cosmeticKey} framing={shopper.framing} label={label} name={shopper.name} type={item.type} />
         ) : (
           <FramePreview avatarUrl={shopper.avatarUrl} banner={banner} frame={frame} framing={shopper.framing} name={shopper.name} />
         )}

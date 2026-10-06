@@ -117,7 +117,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $userRows = $userQb
             // Display the community pseudo (override) falling back to the account name;
             // avatar_url + custom_avatar_key feed the presigned-avatar resolution below.
-            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.avatar_frame', 'cp.titled_name')
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.avatar_frame', 'cp.titled_name', 'cp.name_color')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($userQb->expr()->in('u.id', $placeholders))
@@ -275,7 +275,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $userRows = $userQb
             // Display the community pseudo (override) falling back to the account name;
             // avatar_url + custom_avatar_key feed the presigned-avatar resolution below.
-            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.avatar_frame', 'cp.titled_name')
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.avatar_frame', 'cp.titled_name', 'cp.name_color')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($userQb->expr()->in('u.id', $placeholders))

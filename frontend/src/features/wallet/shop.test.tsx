@@ -82,7 +82,7 @@ describe("shop", () => {
   });
 
   test("the admin page explains how to get something to sell", () => {
-    const shop: AdminShop = { items: [], sellable: { frame: [], banner: [], title: [] } };
+    const shop: AdminShop = { items: [], sellable: { frame: [], banner: [], title: [], color: [] } };
     const html = render(<AdminShopView shop={shop} {...handlers} />);
 
     expect(html).toContain("Aucun cosmétique à vendre pour l&#x27;instant");
@@ -95,7 +95,7 @@ describe("shop", () => {
         { id: "i1", type: "frame", cosmeticKey: "comet", price: 80, availableFrom: null, availableUntil: null, status: "paused", sales: 2, pelles: 160 },
         { id: "i2", type: "banner", cosmeticKey: "sunset", price: 40, availableFrom: null, availableUntil: null, status: "on_sale", sales: 1, pelles: 40 },
       ],
-      sellable: { frame: ["comet"], banner: [], title: [] },
+      sellable: { frame: ["comet"], banner: [], title: [], color: [] },
     };
     const html = render(<AdminShopView shop={shop} {...handlers} />);
 
@@ -128,7 +128,7 @@ describe("shop", () => {
     server.use(
       http.get(`${BASE}/shop`, () => HttpResponse.json({ items: [comet] })),
       http.post(`${BASE}/shop/items/i1/buy`, () => new HttpResponse(null, { status: 204 })),
-      http.get(`${BASE}/admin/shop/items`, () => HttpResponse.json({ items: [], sellable: { frame: [], banner: [], title: [] } })),
+      http.get(`${BASE}/admin/shop/items`, () => HttpResponse.json({ items: [], sellable: { frame: [], banner: [], title: [], color: [] } })),
       http.post(`${BASE}/admin/shop/items`, () => HttpResponse.json({ id: "i2" }, { status: 201 })),
       http.patch(`${BASE}/admin/shop/items/i1`, async ({ request }) => {
         calls.push(`edit ${JSON.stringify(await request.json())}`);
@@ -150,7 +150,7 @@ describe("shop", () => {
 
     expect(await fetchShop()).toEqual([comet]);
     expect(await buyShopItem("i1", 80)).toBeNull();
-    expect(await fetchAdminShop()).toEqual({ items: [], sellable: { frame: [], banner: [], title: [] } });
+    expect(await fetchAdminShop()).toEqual({ items: [], sellable: { frame: [], banner: [], title: [], color: [] } });
     expect(await listShopItem({ type: "frame", cosmeticKey: "comet", price: 80, availableFrom: null, availableUntil: null })).toBeNull();
     expect(await editShopItem("i1", { price: 25, availableFrom: null, availableUntil: null })).toBeNull();
     expect(await setShopItemPaused("i1", true)).toBeNull();
@@ -209,7 +209,7 @@ describe("shop promotions", () => {
           promotion: { price: 60, startsAt: null, endsAt: "2026-10-06T12:00:00+00:00", status: "running" },
         },
       ],
-      sellable: { frame: ["comet"], banner: [], title: [] },
+      sellable: { frame: ["comet"], banner: [], title: [], color: [] },
     };
     const html = render(<AdminShopView shop={shop} {...handlers} />);
 

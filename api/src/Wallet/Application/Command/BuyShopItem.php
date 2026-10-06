@@ -61,6 +61,7 @@ final readonly class BuyShopItem
                 sprintf('Boutique : %s %s%s', match ($item->getType()) {
                     ShopItem::TYPE_FRAME => 'cadre',
                     ShopItem::TYPE_TITLE => 'titre',
+                    ShopItem::TYPE_COLOR => 'couleur de pseudo',
                     default => 'bannière',
                 }, $item->getCosmeticKey(), $onPromotion ? ' (en promotion)' : ''), null,
                 sprintf('shop:%s:%s', $userId, $item->getId()),

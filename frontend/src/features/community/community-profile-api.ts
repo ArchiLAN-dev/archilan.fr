@@ -43,6 +43,9 @@ export type MyCommunityProfile = {
   /** Story 41.22: the title worn (its key), and the shop titles bought (absent from an older API). */
   title?: string | null;
   ownedTitles?: string[];
+  /** Story 41.23: the colour worn by the name (its key), and the colours bought (absent from an older API). */
+  nameColor?: string | null;
+  ownedColors?: string[];
   // Resolved avatar URL (custom upload presigned, else external cache); null = render the default.
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
@@ -74,6 +77,8 @@ export type UpdateCommunityProfileInput = {
   titledName: boolean;
   /** Story 41.22: the title worn, null for none. */
   title: string | null;
+  /** Story 41.23: the colour worn by the name, null for none. */
+  nameColor: string | null;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -104,6 +109,8 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
   if ("ownedFrames" in v && !isKeyList(v.ownedFrames)) return false;
   if ("ownedBanners" in v && !isKeyList(v.ownedBanners)) return false;
   if ("ownedTitles" in v && !isKeyList(v.ownedTitles)) return false;
+  if ("ownedColors" in v && !isKeyList(v.ownedColors)) return false;
+  if ("nameColor" in v && v.nameColor !== null && typeof v.nameColor !== "string") return false;
   if ("title" in v && v.title !== null && typeof v.title !== "string") return false;
   if (!hasBooleanProp(v, "titledName") || !("titledNameStyle" in v) || (v.titledNameStyle !== null && !isNameStyle(v.titledNameStyle))) {
     return false;
