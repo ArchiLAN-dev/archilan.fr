@@ -175,6 +175,50 @@ final class AdminQuestTest extends FunctionalTestCase
         self::assertSame(40, $past[2]['pelles'] ?? null);
     }
 
+    public function testAnObjectiveAimsAtAGamePlayedOnTheSiteAndTheMemberSeesItsName(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $this->loginAs($admin);
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $never = $this->createGame('Jamais joué', 'jamais-joue');
+        $this->entityManager->persist(Session::create('s-1', 'event-1', new \DateTimeImmutable()));
+        $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), 's-1', $admin->getId(), $game->getId(), 'Admin', 1, 'slot-1'));
+        $this->entityManager->flush();
+
+        $scopes = $this->overview()['scopes'] ?? null;
+        self::assertIsArray($scopes);
+        self::assertSame([['id' => $game->getId(), 'name' => 'Hollow Knight']], $scopes['games'] ?? null, 'only the games played on the site');
+
+        $aimed = static fn (string $gameId): array => ['title' => 'Sur HK', 'reward' => 40, 'inDraw' => true, 'drawWeight' => 3, 'objectives' => [
+            ['metric' => 'goals', 'target' => 1, 'scope' => 'game', 'scopeId' => $gameId],
+        ]];
+        foreach ([
+            $aimed($never->getId()),
+            ['title' => 'Mauvais type', 'reward' => 40, 'objectives' => [['metric' => 'weeklies', 'target' => 1, 'scope' => 'game', 'scopeId' => $game->getId()]]],
+            ['title' => 'Trop lourd', 'reward' => 40, 'drawWeight' => 6, 'objectives' => [['metric' => 'goals', 'target' => 1]]],
+        ] as $payload) {
+            $this->client->request('POST', '/api/v1/admin/quests', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode($payload, \JSON_THROW_ON_ERROR));
+            self::assertResponseStatusCodeSame(422, (string) json_encode($payload));
+        }
+
+        $this->write($aimed($game->getId()));
+        $quests = $this->overview()['quests'] ?? null;
+        self::assertIsArray($quests);
+        self::assertIsArray($quests[0] ?? null);
+        self::assertSame(3, $quests[0]['drawWeight'] ?? null);
+
+        // The week drew it: the member sees the game by its name.
+        $this->client->request('GET', '/api/v1/me/quests');
+        self::assertResponseIsSuccessful();
+        $mine = $this->decodedJsonResponse()['quests'] ?? null;
+        self::assertIsArray($mine);
+        self::assertIsArray($mine[0] ?? null);
+        $objectives = $mine[0]['objectives'] ?? null;
+        self::assertIsArray($objectives);
+        self::assertIsArray($objectives[0] ?? null);
+        self::assertSame('Hollow Knight', $objectives[0]['scope'] ?? null);
+    }
+
     public function testOnlyAnAdminManagesTheQuests(): void
     {
         $this->loginAs($this->createUser('member@example.org', ['ROLE_USER'], 'Member'));

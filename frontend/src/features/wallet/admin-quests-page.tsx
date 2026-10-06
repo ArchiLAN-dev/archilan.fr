@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -17,6 +17,7 @@ import {
   type AdminQuest,
   type QuestMetricOption,
   type QuestObjectiveTerms,
+  type QuestScopes,
   type QuestStats,
   type QuestTerms,
 } from "./admin-quests-api";
@@ -84,10 +85,13 @@ export function AdminQuestTypesView({ data, onChange }: ViewProps) {
                   <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${quest.inDraw ? "border-accent/40 text-accent-text" : "border-border text-muted-foreground"}`}>
                     {quest.inDraw ? "Dans le tirage" : "Hors tirage"}
                   </span>
+                  {quest.inDraw && quest.drawWeight > 1 ? (
+                    <span className="rounded-full border border-accent/40 px-2 py-0.5 text-xs font-medium text-accent-text">×{quest.drawWeight}</span>
+                  ) : null}
                   {quest.retired ? <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">Retirée</span> : null}
                 </p>
                 {quest.description !== "" ? <p className="text-xs text-muted-foreground">{quest.description}</p> : null}
-                <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, data.metrics)}</p>
+                <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, data.metrics, data.scopes)}</p>
                 <p className="text-xs text-muted-foreground">{questStatsLine(quest.stats)}</p>
               </div>
               <PelleAmount amount={quest.reward} className="text-xs font-semibold text-warning" signed />
@@ -112,6 +116,7 @@ export function AdminQuestTypesView({ data, onChange }: ViewProps) {
       {editing !== null ? (
         <QuestDialog
           metrics={data.metrics}
+          scopes={data.scopes}
           onClose={() => setEditing(null)}
           onSave={async (terms) => {
             const done = await apply(
@@ -127,15 +132,17 @@ export function AdminQuestTypesView({ data, onChange }: ViewProps) {
   );
 }
 
-/** Writing or editing a quest: its text, reward, draw, and 1 to 5 objectives taken from the catalog. */
+/** Writing or editing a quest: its text, reward, draw and weight, and 1 to 5 objectives taken from the catalog. */
 export function QuestDialog({
   quest,
   metrics,
+  scopes,
   onClose,
   onSave,
 }: {
   quest: AdminQuest | null;
   metrics: QuestMetricOption[];
+  scopes: QuestScopes;
   onClose: () => void;
   onSave: (terms: QuestTerms) => Promise<void>;
 }) {
@@ -143,16 +150,31 @@ export function QuestDialog({
   const [description, setDescription] = useState(quest?.description ?? "");
   const [reward, setReward] = useState(String(quest?.reward ?? 30));
   const [inDraw, setInDraw] = useState(quest?.inDraw ?? true);
-  const [objectives, setObjectives] = useState<QuestObjectiveTerms[]>(quest?.objectives ?? [{ metric: metrics[0]?.key ?? "goals", target: 1 }]);
+  const [drawWeight, setDrawWeight] = useState(quest?.drawWeight ?? 1);
+  // Each row keeps its own id: a type may come back aimed at another game, so the type is no key.
+  const [rows, setRows] = useState<ObjectiveRow[]>(() =>
+    (quest?.objectives ?? [{ metric: metrics[0]?.key ?? "goals", target: 1 }]).map((objective, index) => ({ ...objective, rowId: index })),
+  );
+  const nextRowId = useRef(rows.length);
   const [pending, setPending] = useState(false);
 
+  const objectives: QuestObjectiveTerms[] = rows.map((row) => ({
+    metric: row.metric,
+    target: row.target,
+    ...(row.scope && row.scopeId ? { scope: row.scope, scopeId: row.scopeId } : {}),
+  }));
   const parsedReward = Number.parseInt(reward, 10);
-  const terms: QuestTerms = { title: title.trim(), description: description.trim(), reward: parsedReward, objectives, inDraw };
+  const terms: QuestTerms = { title: title.trim(), description: description.trim(), reward: parsedReward, objectives, inDraw, drawWeight };
   const error = questTermsError(terms);
-  const unused = metrics.filter((metric) => !objectives.some((objective) => objective.metric === metric.key));
+  const hasScopes = scopes.games.length > 0 || scopes.events.length > 0;
 
-  function update(index: number, next: Partial<QuestObjectiveTerms>): void {
-    setObjectives(objectives.map((objective, i) => (i === index ? { ...objective, ...next } : objective)));
+  function update(rowId: number, next: Partial<QuestObjectiveTerms>): void {
+    setRows(rows.map((row) => (row.rowId === rowId ? { ...row, ...next } : row)));
+  }
+
+  function addRow(): void {
+    const unused = metrics.find((metric) => !rows.some((row) => row.metric === metric.key && !row.scope)) ?? metrics[0];
+    setRows([...rows, { metric: unused?.key ?? "goals", target: 1, rowId: nextRowId.current++ }]);
   }
 
   return (
@@ -162,6 +184,7 @@ export function QuestDialog({
         if (!open) onClose();
       }}
       open
+      size="wide"
       title={quest ? `Modifier « ${quest.title} »` : "Nouvelle quête"}
     >
       <form
@@ -198,62 +221,107 @@ export function QuestDialog({
 
           <fieldset className="grid gap-2">
             <legend className="mb-1 text-sm font-medium text-foreground">Objectifs</legend>
-            {objectives.map((objective, index) => (
-              <div className="flex items-center gap-2" key={objective.metric}>
-                <select
-                  aria-label={`Type de l'objectif ${index + 1}`}
-                  className={`${fieldClass} min-w-0 flex-1`}
-                  onChange={(e) => update(index, { metric: e.target.value })}
-                  value={objective.metric}
-                >
-                  {metrics
-                    .filter((metric) => metric.key === objective.metric || unused.includes(metric))
-                    .map((metric) => (
-                      <option key={metric.key} value={metric.key}>
-                        {metric.label}
+            {rows.map((row, index) => {
+              const metric = metrics.find((candidate) => candidate.key === row.metric);
+              return (
+                <div className="flex flex-wrap items-center gap-2" key={row.rowId}>
+                  <select
+                    aria-label={`Type de l'objectif ${index + 1}`}
+                    className={`${fieldClass} min-w-40 flex-1`}
+                    onChange={(e) => {
+                      const next = metrics.find((candidate) => candidate.key === e.target.value);
+                      // A type that cannot aim at a game or an event drops the target it had.
+                      update(row.rowId, next?.scopable ? { metric: e.target.value } : { metric: e.target.value, scope: undefined, scopeId: undefined });
+                    }}
+                    value={row.metric}
+                  >
+                    {metrics.map((candidate) => (
+                      <option key={candidate.key} value={candidate.key}>
+                        {candidate.label}
                       </option>
                     ))}
-                </select>
-                <input
-                  aria-label={`Cible de l'objectif ${index + 1}`}
-                  className={`${fieldClass} w-24`}
-                  inputMode="numeric"
-                  max={QUEST_LIMITS.maxTarget}
-                  min={QUEST_LIMITS.minTarget}
-                  onChange={(e) => update(index, { target: Number.parseInt(e.target.value, 10) || 0 })}
-                  type="number"
-                  value={objective.target === 0 ? "" : objective.target}
-                />
-                <button
-                  aria-label={`Supprimer l'objectif ${index + 1}`}
-                  className={buttonVariants({ variant: "ghost" })}
-                  disabled={objectives.length === 1}
-                  onClick={() => setObjectives(objectives.filter((_, i) => i !== index))}
-                  type="button"
-                >
-                  <Trash2 aria-hidden className="size-4" />
-                </button>
-              </div>
-            ))}
-            {objectives.length < QUEST_LIMITS.maxObjectives && unused.length > 0 ? (
-              <button
-                className={`${buttonVariants({ variant: "ghost" })} justify-self-start`}
-                onClick={() => setObjectives([...objectives, { metric: unused[0].key, target: 1 }])}
-                type="button"
-              >
+                  </select>
+                  <input
+                    aria-label={`Cible de l'objectif ${index + 1}`}
+                    className={`${fieldClass} w-24`}
+                    inputMode="numeric"
+                    max={QUEST_LIMITS.maxTarget}
+                    min={QUEST_LIMITS.minTarget}
+                    onChange={(e) => update(row.rowId, { target: Number.parseInt(e.target.value, 10) || 0 })}
+                    type="number"
+                    value={row.target === 0 ? "" : row.target}
+                  />
+                  {metric?.scopable && hasScopes ? (
+                    <select
+                      aria-label={`Où compte l'objectif ${index + 1}`}
+                      className={`${fieldClass} min-w-40 flex-1`}
+                      onChange={(e) => {
+                        const [scope, scopeId] = e.target.value.split(":");
+                        update(row.rowId, scope === "game" || scope === "event" ? { scope, scopeId } : { scope: undefined, scopeId: undefined });
+                      }}
+                      value={row.scope && row.scopeId ? `${row.scope}:${row.scopeId}` : ""}
+                    >
+                      <option value="">Partout</option>
+                      {scopes.games.length > 0 ? (
+                        <optgroup label="Sur un jeu">
+                          {scopes.games.map((game) => (
+                            <option key={game.id} value={`game:${game.id}`}>
+                              {game.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {scopes.events.length > 0 ? (
+                        <optgroup label="Pendant un événement">
+                          {scopes.events.map((event) => (
+                            <option key={event.id} value={`event:${event.id}`}>
+                              {event.title}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                    </select>
+                  ) : null}
+                  <button
+                    aria-label={`Supprimer l'objectif ${index + 1}`}
+                    className={buttonVariants({ variant: "ghost" })}
+                    disabled={rows.length === 1}
+                    onClick={() => setRows(rows.filter((candidate) => candidate.rowId !== row.rowId))}
+                    type="button"
+                  >
+                    <Trash2 aria-hidden className="size-4" />
+                  </button>
+                </div>
+              );
+            })}
+            {rows.length < QUEST_LIMITS.maxObjectives ? (
+              <button className={`${buttonVariants({ variant: "ghost" })} justify-self-start`} onClick={addRow} type="button">
                 <Plus aria-hidden className="size-4" />
                 Ajouter un objectif
               </button>
             ) : null}
+            <p className="text-xs text-muted-foreground">Les goals, les checks et les parties peuvent compter sur un jeu ou pendant un événement précis (hors hebdos).</p>
           </fieldset>
 
-          <label className="flex items-start gap-2 text-sm">
-            <input checked={inDraw} className="mt-1" onChange={(e) => setInDraw(e.target.checked)} type="checkbox" />
-            <span>
-              <span className="font-medium text-foreground">Dans le tirage</span>
-              <span className="block text-xs text-muted-foreground">Décochée, la quête ne sort que si on l&apos;épingle à une semaine.</span>
-            </span>
-          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex items-start gap-2 text-sm">
+              <input checked={inDraw} className="mt-1" onChange={(e) => setInDraw(e.target.checked)} type="checkbox" />
+              <span>
+                <span className="font-medium text-foreground">Dans le tirage</span>
+                <span className="block text-xs text-muted-foreground">Décochée, la quête ne sort que si on l&apos;épingle à une semaine.</span>
+              </span>
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium text-foreground">Poids au tirage</span>
+              <select className={`${fieldClass} w-40`} disabled={!inDraw} onChange={(e) => setDrawWeight(Number.parseInt(e.target.value, 10))} value={drawWeight}>
+                {[1, 2, 3, 4, 5].map((weight) => (
+                  <option key={weight} value={weight}>
+                    {weight === 1 ? "Normal (×1)" : `×${weight} plus souvent`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           {error !== null && title !== "" ? <p className="text-sm text-danger">{error}</p> : null}
         </DialogBody>
         <DialogFooter>
@@ -269,6 +337,8 @@ export function QuestDialog({
   );
 }
 
+type ObjectiveRow = QuestObjectiveTerms & { rowId: number };
+
 /** What the API would refuse, said before sending; null when the quest can be saved. */
 export function questTermsError(terms: QuestTerms): string | null {
   if (terms.title === "" || terms.title.length > QUEST_LIMITS.maxTitle) return `Un titre de 1 à ${QUEST_LIMITS.maxTitle} caractères.`;
@@ -279,6 +349,9 @@ export function questTermsError(terms: QuestTerms): string | null {
   if (terms.objectives.some((objective) => !Number.isInteger(objective.target) || objective.target < QUEST_LIMITS.minTarget || objective.target > QUEST_LIMITS.maxTarget)) {
     return `Une cible de ${QUEST_LIMITS.minTarget} à ${QUEST_LIMITS.maxTarget}.`;
   }
+  // Story 41.18: a type may come back, aimed elsewhere - never twice at the same place.
+  const keys = terms.objectives.map((objective) => `${objective.metric}@${objective.scope ?? ""}:${objective.scopeId ?? ""}`);
+  if (new Set(keys).size !== keys.length) return "Deux objectifs identiques : change le type ou ce qu'il vise.";
   return null;
 }
 

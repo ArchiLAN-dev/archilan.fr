@@ -53,25 +53,33 @@ final readonly class QuestWeekPlanner
         return $served;
     }
 
-    /** @return list<string> the ids of the quests a draw may pick */
+    /** @return array<string, int> the quests a draw may pick, with their weight (story 41.18) */
     private function candidates(): array
     {
-        return array_values(array_map(
-            static fn (QuestDefinition $quest): string => $quest->getId(),
-            array_filter($this->quests->allQuests(), static fn (QuestDefinition $quest): bool => $quest->isDrawable()),
-        ));
+        $candidates = [];
+        foreach ($this->quests->allQuests() as $quest) {
+            if ($quest->isDrawable()) {
+                $candidates[$quest->getId()] = $quest->getDrawWeight();
+            }
+        }
+
+        return $candidates;
     }
 
     /**
-     * @param list<string> $candidates
+     * @param array<string, int> $candidates
      */
     private function draw(QuestWeek $week, array $candidates, \DateTimeImmutable $now): void
     {
-        $entries = $this->quests->entriesOfWeeks([$week->key])[$week->key] ?? [];
+        $previous = $week->previous()->key;
+        $weeks = $this->quests->entriesOfWeeks([$week->key, $previous]);
+        $entries = $weeks[$week->key] ?? [];
         $pinned = array_map(static fn (QuestWeekEntry $entry): string => $entry->getQuestId(), $entries);
+        // Story 41.18: the week before's quests come last, so a quest does not come back two weeks in a row.
+        $recent = array_map(static fn (QuestWeekEntry $entry): string => $entry->getQuestId(), $weeks[$previous] ?? []);
 
         $position = [] === $entries ? 0 : max(array_map(static fn (QuestWeekEntry $entry): int => $entry->getPosition(), $entries)) + 1;
-        foreach (QuestDraw::draw($pinned, $candidates, $this->quests->questsPerWeek(), $this->randomizer) as $questId) {
+        foreach (QuestDraw::draw($pinned, $candidates, $this->quests->questsPerWeek(), $this->randomizer, $recent) as $questId) {
             $this->quests->saveEntry(QuestWeekEntry::serve($week->key, $questId, QuestWeekOrigin::Drawn, $position++, $now));
         }
     }

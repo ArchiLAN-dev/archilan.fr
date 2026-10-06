@@ -128,12 +128,33 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
         $this->session('s-1', [['Alice', $alice]], goalOf: 'Alice');
         $this->entityManager->flush();
-        $settings = self::getContainer()->get(QuestRepositoryInterface::class);
-        self::assertInstanceOf(QuestRepositoryInterface::class, $settings);
-        $settings->changeChestReward(0);
+        $this->settings()->changeChestReward(0);
 
         self::assertSame(1, $this->award()->awardWeek(QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK))));
         self::assertSame(40, $this->paid($alice));
+    }
+
+    public function testAnObjectiveAimedAtAGameOrAnEventCountsOnlyItsSessions(): void
+    {
+        $this->quest('hk', 'Un goal sur HK', 40, [new QuestObjective(QuestMetric::Goals, 1, QuestObjective::SCOPE_GAME, 'game-hk')]);
+        $this->quest('lan', 'Deux checks à la LAN', 30, [new QuestObjective(QuestMetric::Checks, 2, QuestObjective::SCOPE_EVENT, 'event-s-lan')]);
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob');
+        // Alice reaches her goal on HK; Bob reaches his on another game, and makes his checks at the LAN.
+        $this->session('s-hk', [['Alice', $alice]], goalOf: 'Alice', gameId: 'game-hk');
+        $this->session('s-other', [['Bob', $bob]], goalOf: 'Bob');
+        $this->session('s-lan', [['Bob2', $bob], ['Alice2', $alice]]);
+        foreach (['Bob2', 'Bob2', 'Alice2'] as $slot) {
+            $this->check('s-lan', $slot, self::IN_THE_WEEK);
+        }
+        // Checks elsewhere do not count for the LAN.
+        $this->check('s-hk', 'Alice', self::IN_THE_WEEK);
+        $this->settings()->changeChestReward(0);
+        $this->entityManager->flush();
+
+        self::assertSame(2, $this->award()->awardWeek(QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK))));
+        self::assertSame(40, $this->paid($alice), 'her goal on HK; one check at the LAN is not two');
+        self::assertSame(30, $this->paid($bob), 'his goal was elsewhere; two checks at the LAN');
     }
 
     public function testTheNewWeekIsAnnouncedOnceToTheMembersWhoPlayedLately(): void
@@ -217,8 +238,8 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertSame('Marathon', $quests[0]['label'] ?? null);
         self::assertFalse($quests[0]['done'] ?? null);
         self::assertSame([
-            ['metric' => 'checks', 'label' => 'Checks faits', 'unit' => 'checks', 'target' => 5, 'current' => 3],
-            ['metric' => 'sessions', 'label' => 'Parties jouées', 'unit' => 'parties', 'target' => 2, 'current' => 1],
+            ['metric' => 'checks', 'label' => 'Checks faits', 'unit' => 'checks', 'target' => 5, 'current' => 3, 'scope' => null],
+            ['metric' => 'sessions', 'label' => 'Parties jouées', 'unit' => 'parties', 'target' => 2, 'current' => 1, 'scope' => null],
         ], $quests[0]['objectives'] ?? null);
         self::assertSame(['reward' => 50, 'done' => 0, 'total' => 1, 'paid' => false], $body['chest'] ?? null);
     }
@@ -228,7 +249,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
      */
     private function quest(string $id, string $title, int $reward, array $objectives): void
     {
-        $this->entityManager->persist(QuestDefinition::write($title, '', $reward, $objectives, true, new \DateTimeImmutable(self::LAST_MONTH), $id));
+        $this->entityManager->persist(QuestDefinition::write($title, '', $reward, $objectives, true, 1, new \DateTimeImmutable(self::LAST_MONTH), $id));
     }
 
     private function ledger(User $user, string $key, int $amount): void
@@ -236,6 +257,14 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $this->entityManager->persist(PelleMovement::record(
             $user->getId(), $amount, PelleKind::Gold, null, PelleReason::QuestReward, 'Quête', null, $key, new \DateTimeImmutable(),
         ));
+    }
+
+    private function settings(): QuestRepositoryInterface
+    {
+        $settings = self::getContainer()->get(QuestRepositoryInterface::class);
+        self::assertInstanceOf(QuestRepositoryInterface::class, $settings);
+
+        return $settings;
     }
 
     private function award(): AwardWeeklyQuests
@@ -249,12 +278,12 @@ final class WeeklyQuestsTest extends FunctionalTestCase
     /**
      * @param list<array{0: string, 1: User}> $slots
      */
-    private function session(string $sessionId, array $slots, ?string $goalOf = null): void
+    private function session(string $sessionId, array $slots, ?string $goalOf = null, string $gameId = 'game-1'): void
     {
         $this->entityManager->persist(Session::create($sessionId, 'event-'.$sessionId, new \DateTimeImmutable(self::LAST_MONTH)));
         foreach ($slots as $index => [$name, $user]) {
             // registrationId holds the member id when no registration row matches (DbalSlotPlayerSource).
-            $slot = SessionSlot::create(bin2hex(random_bytes(16)), $sessionId, $user->getId(), 'game-1', $name, $index + 1, 'slot-'.$sessionId.'-'.$name);
+            $slot = SessionSlot::create(bin2hex(random_bytes(16)), $sessionId, $user->getId(), $gameId, $name, $index + 1, 'slot-'.$sessionId.'-'.$name);
             if ($name === $goalOf) {
                 $slot->recordGoal(new \DateTimeImmutable(self::IN_THE_WEEK));
             }

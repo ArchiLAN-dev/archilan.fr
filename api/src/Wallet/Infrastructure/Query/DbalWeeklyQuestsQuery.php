@@ -9,6 +9,7 @@ use App\Shared\Infrastructure\Dbal\DbalSlotPlayerSource;
 use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
 use App\Wallet\Domain\Enum\PelleReason;
 use App\Wallet\Domain\Enum\QuestMetric;
+use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use Doctrine\DBAL\Connection;
 
@@ -24,22 +25,47 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
     {
     }
 
-    public function counts(QuestWeek $week, array $metrics, ?string $userId = null): array
+    public function counts(QuestWeek $week, array $objectives, ?string $userId = null): array
     {
         $counts = [];
-        foreach ($metrics as $metric) {
-            $rows = match ($metric) {
-                QuestMetric::Goals => $this->goals($week),
-                QuestMetric::Checks => $this->checks($week),
+        foreach ($objectives as $objective) {
+            // Story 41.18: an objective on a game or an event counts only that game's or event's sessions.
+            $scope = $this->scope($objective);
+            $rows = match ($objective->metric) {
+                QuestMetric::Goals => $this->goals($week, $scope),
+                QuestMetric::Checks => $this->checks($week, $scope),
                 QuestMetric::Weeklies => $this->weeklies($week),
                 QuestMetric::NewPartners => $this->newPartners($week),
-                QuestMetric::Sessions => $this->perCheck($week, 'COUNT(DISTINCT f.session_id)'),
-                QuestMetric::DistinctGames => $this->perCheck($week, 'COUNT(DISTINCT slot.game_id)'),
+                QuestMetric::Sessions => $this->perCheck($week, 'COUNT(DISTINCT f.session_id)', $scope),
+                QuestMetric::DistinctGames => $this->perCheck($week, 'COUNT(DISTINCT slot.game_id)', null),
             };
-            $counts[$metric->value] = $this->byMember($rows, $userId);
+            $counts[$objective->key()] = $this->byMember($rows, $userId);
         }
 
         return $counts;
+    }
+
+    public function scopeOptions(): array
+    {
+        $games = [];
+        foreach ($this->connection->fetchAllAssociative(
+            'SELECT DISTINCT g.id, g.name FROM session_slot slot JOIN game g ON g.id = slot.game_id ORDER BY g.name',
+        ) as $row) {
+            if (is_string($row['id'] ?? null) && is_string($row['name'] ?? null)) {
+                $games[] = ['id' => $row['id'], 'name' => $row['name']];
+            }
+        }
+
+        $events = [];
+        foreach ($this->connection->fetchAllAssociative(
+            "SELECT id, title FROM event WHERE status <> 'draft' ORDER BY starts_at DESC",
+        ) as $row) {
+            if (is_string($row['id'] ?? null) && is_string($row['title'] ?? null)) {
+                $events[] = ['id' => $row['id'], 'title' => $row['title']];
+            }
+        }
+
+        return ['games' => $games, 'events' => $events];
     }
 
     public function rewardedQuests(string $userId, QuestWeek $week): array
@@ -144,40 +170,51 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         return $weeks;
     }
 
-    /** @return list<array<string, mixed>> */
-    private function goals(QuestWeek $week): array
+    /**
+     * @param array{sql: string, id: string}|null $scope
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function goals(QuestWeek $week, ?array $scope): array
     {
         $players = DbalSlotPlayerSource::expression('session_slot', 'registration');
         $playerColumn = 'sp.'.DbalSlotPlayerSource::USER_COLUMN;
+        // A weekly attempt belongs to no game or event the admin can aim at: a scoped objective counts sessions only.
+        $weeklies = null === $scope ? 'UNION ALL
+                 SELECT id AS ref, user_id AS uid FROM weekly_entries
+                  WHERE goal_reached_at >= :weekStart AND goal_reached_at < :weekEnd' : '';
 
         return $this->connection->fetchAllAssociative(
             "SELECT uid, COUNT(*) AS n FROM (
                  SELECT DISTINCT slot.id AS ref, {$playerColumn} AS uid
                    FROM session_slot slot
                    JOIN {$players} sp ON sp.".DbalSlotPlayerSource::SLOT_COLUMN.' = slot.id
-                  WHERE slot.goal_reached_at >= :weekStart AND slot.goal_reached_at < :weekEnd
-                 UNION ALL
-                 SELECT id AS ref, user_id AS uid FROM weekly_entries
-                  WHERE goal_reached_at >= :weekStart AND goal_reached_at < :weekEnd
+                  WHERE slot.goal_reached_at >= :weekStart AND slot.goal_reached_at < :weekEnd '.($scope['sql'] ?? '').'
+                 '.$weeklies.'
              ) reached GROUP BY uid',
-            $this->bounds($week),
+            $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
         );
     }
 
-    /** @return list<array<string, mixed>> */
-    private function checks(QuestWeek $week): array
+    /**
+     * @param array{sql: string, id: string}|null $scope
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function checks(QuestWeek $week, ?array $scope): array
     {
         $checks = DbalSlotCheckSource::from();
         $player = DbalSlotCheckSource::player();
+        $weeklies = null === $scope ? 'UNION ALL
+                 SELECT user_id AS uid, SUM(COALESCE(checks_total, 0)) AS n FROM weekly_entries
+                  WHERE launched_at >= :weekStart AND launched_at < :weekEnd GROUP BY user_id' : '';
 
         return $this->connection->fetchAllAssociative(
             "SELECT uid, SUM(n) AS n FROM (
-                 SELECT {$player} AS uid, COUNT(*) AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd GROUP BY {$player}
-                 UNION ALL
-                 SELECT user_id AS uid, SUM(COALESCE(checks_total, 0)) AS n FROM weekly_entries
-                  WHERE launched_at >= :weekStart AND launched_at < :weekEnd GROUP BY user_id
+                 SELECT {$player} AS uid, COUNT(*) AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ".($scope['sql'] ?? '')." GROUP BY {$player}
+                 {$weeklies}
              ) made GROUP BY uid",
-            DbalSlotCheckSource::params() + $this->bounds($week),
+            DbalSlotCheckSource::params() + $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
             DbalSlotCheckSource::types(),
         );
     }
@@ -219,17 +256,35 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         );
     }
 
-    /** @return list<array<string, mixed>> */
-    private function perCheck(QuestWeek $week, string $aggregate): array
+    /**
+     * @param array{sql: string, id: string}|null $scope
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function perCheck(QuestWeek $week, string $aggregate, ?array $scope): array
     {
         $checks = DbalSlotCheckSource::from();
         $player = DbalSlotCheckSource::player();
 
         return $this->connection->fetchAllAssociative(
-            "SELECT {$player} AS uid, {$aggregate} AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd GROUP BY {$player}",
-            DbalSlotCheckSource::params() + $this->bounds($week),
+            "SELECT {$player} AS uid, {$aggregate} AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ".($scope['sql'] ?? '')." GROUP BY {$player}",
+            DbalSlotCheckSource::params() + $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
             DbalSlotCheckSource::types(),
         );
+    }
+
+    /**
+     * Story 41.18: the condition on the slot (`slot`) that narrows a count to the objective's game or event.
+     *
+     * @return array{sql: string, id: string}|null
+     */
+    private function scope(QuestObjective $objective): ?array
+    {
+        return match ($objective->scope) {
+            QuestObjective::SCOPE_GAME => ['sql' => 'AND slot.game_id = :scopeId', 'id' => (string) $objective->scopeId],
+            QuestObjective::SCOPE_EVENT => ['sql' => 'AND slot.session_id IN (SELECT ev.id FROM session ev WHERE ev.event_id = :scopeId)', 'id' => (string) $objective->scopeId],
+            default => null,
+        };
     }
 
     /** @return array{weekStart: string, weekEnd: string} */

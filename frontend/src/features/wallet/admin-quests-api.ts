@@ -3,9 +3,14 @@ import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 /** Story 41.15: an objective type of the catalog (code defined, like the facts of the achievements). */
-export type QuestMetricOption = { key: string; label: string; unit: string; unitOne: string };
+export type QuestMetricOption = { key: string; label: string; unit: string; unitOne: string; scopable: boolean };
 
-export type QuestObjectiveTerms = { metric: string; target: number };
+/** Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. */
+export type QuestScopes = { games: { id: string; name: string }[]; events: { id: string; title: string }[] };
+
+export const NO_SCOPES: QuestScopes = { games: [], events: [] };
+
+export type QuestObjectiveTerms = { metric: string; target: number; scope?: "game" | "event"; scopeId?: string };
 
 export type AdminQuest = {
   id: string;
@@ -14,6 +19,8 @@ export type AdminQuest = {
   reward: number;
   objectives: QuestObjectiveTerms[];
   inDraw: boolean;
+  /** Story 41.18: 1 to 5, how much more often it comes out of a draw. */
+  drawWeight: number;
   retired: boolean;
   createdAt: string;
   /** Story 41.16: how the quest did. */
@@ -45,22 +52,38 @@ export type AdminQuests = {
   quests: AdminQuest[];
   weeks: AdminQuestWeek[];
   pastWeeks: PastQuestWeek[];
+  scopes: QuestScopes;
 };
 
-export type QuestTerms = { title: string; description: string; reward: number; objectives: QuestObjectiveTerms[]; inDraw: boolean };
+export type QuestTerms = { title: string; description: string; reward: number; objectives: QuestObjectiveTerms[]; inDraw: boolean; drawWeight: number };
 
-export const QUEST_LIMITS = { maxTitle: 80, maxDescription: 200, minReward: 1, maxReward: 1000, maxObjectives: 5, minTarget: 1, maxTarget: 10000, minPerWeek: 1, maxPerWeek: 10, maxChest: 1000 } as const;
+export const QUEST_LIMITS = { maxTitle: 80, maxDescription: 200, minReward: 1, maxReward: 1000, maxObjectives: 5, minTarget: 1, maxTarget: 10000, minPerWeek: 1, maxPerWeek: 10, maxChest: 1000, minWeight: 1, maxWeight: 5 } as const;
 
 function isObject(v: unknown): v is object {
   return typeof v === "object" && v !== null;
 }
 
 function isObjectiveTerms(v: unknown): v is QuestObjectiveTerms {
-  return isObject(v) && hasStringProp(v, "metric") && hasNumberProp(v, "target");
+  if (!isObject(v) || !hasStringProp(v, "metric") || !hasNumberProp(v, "target")) return false;
+  // Story 41.18: an aimed objective carries its scope and the id of its game or event.
+  if (!("scope" in v)) return true;
+  return (v.scope === "game" || v.scope === "event") && hasStringProp(v, "scopeId");
+}
+
+function isScopes(v: unknown): v is QuestScopes {
+  return (
+    isObject(v) &&
+    "games" in v &&
+    Array.isArray(v.games) &&
+    v.games.every((game: unknown) => isObject(game) && hasStringProp(game, "id") && hasStringProp(game, "name")) &&
+    "events" in v &&
+    Array.isArray(v.events) &&
+    v.events.every((event: unknown) => isObject(event) && hasStringProp(event, "id") && hasStringProp(event, "title"))
+  );
 }
 
 function isMetric(v: unknown): v is QuestMetricOption {
-  return isObject(v) && hasStringProp(v, "key") && hasStringProp(v, "label") && hasStringProp(v, "unit") && hasStringProp(v, "unitOne");
+  return isObject(v) && hasStringProp(v, "key") && hasStringProp(v, "label") && hasStringProp(v, "unit") && hasStringProp(v, "unitOne") && hasBooleanProp(v, "scopable");
 }
 
 function isQuest(v: unknown): v is AdminQuest {
@@ -71,6 +94,7 @@ function isQuest(v: unknown): v is AdminQuest {
     hasStringProp(v, "description") &&
     hasNumberProp(v, "reward") &&
     hasBooleanProp(v, "inDraw") &&
+    hasNumberProp(v, "drawWeight") &&
     hasBooleanProp(v, "retired") &&
     hasStringProp(v, "createdAt") &&
     "stats" in v &&
@@ -151,7 +175,9 @@ export function isAdminQuests(v: unknown): v is AdminQuests {
     v.weeks.every(isWeek) &&
     "pastWeeks" in v &&
     Array.isArray(v.pastWeeks) &&
-    v.pastWeeks.every(isPastWeek)
+    v.pastWeeks.every(isPastWeek) &&
+    "scopes" in v &&
+    isScopes(v.scopes)
   );
 }
 
@@ -215,13 +241,24 @@ export function unpinQuest(weekKey: string, questId: string): Promise<string | n
   );
 }
 
-/** « 50 checks et 1 partie » - a quest's objectives in one line, singular for one. */
-export function objectivesSummary(objectives: QuestObjectiveTerms[], metrics: QuestMetricOption[]): string {
+/** Story 41.18: where an aimed objective counts, « sur Hollow Knight », « à la LAN #3 »; empty when it counts everywhere. */
+export function scopePhrase(objective: QuestObjectiveTerms, scopes: QuestScopes): string {
+  if (objective.scope === "game") {
+    return ` sur ${scopes.games.find((game) => game.id === objective.scopeId)?.name ?? "un jeu retiré"}`;
+  }
+  if (objective.scope === "event") {
+    return ` à ${scopes.events.find((event) => event.id === objective.scopeId)?.title ?? "un événement retiré"}`;
+  }
+  return "";
+}
+
+/** « 50 checks et 1 partie sur Hollow Knight » - a quest's objectives in one line, singular for one. */
+export function objectivesSummary(objectives: QuestObjectiveTerms[], metrics: QuestMetricOption[], scopes: QuestScopes = NO_SCOPES): string {
   return objectives
     .map((objective) => {
       const metric = metrics.find((candidate) => candidate.key === objective.metric);
       const unit = metric ? (objective.target === 1 ? metric.unitOne : metric.unit) : objective.metric;
-      return `${objective.target} ${unit}`;
+      return `${objective.target} ${unit}${scopePhrase(objective, scopes)}`;
     })
     .join(" et ");
 }

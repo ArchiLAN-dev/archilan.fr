@@ -7,6 +7,7 @@ namespace App\Wallet\Application\Command;
 use App\Shared\Application\Exception\ConflictException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ValidationException;
+use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
 use App\Wallet\Application\Support\QuestCalendar;
 use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Entity\QuestWeekEntry;
@@ -29,19 +30,20 @@ final readonly class ManageQuests
     public function __construct(
         private QuestRepositoryInterface $quests,
         private ClockInterface $clock,
+        private WeeklyQuestsQueryInterface $targets,
     ) {
     }
 
     /**
-     * @param array<mixed> $objectives raw `{metric, target}` rows
+     * @param array<mixed> $objectives raw `{metric, target, scope?, scopeId?}` rows
      *
-     * @throws ValidationException when the text, reward or objectives are invalid
+     * @throws ValidationException when the text, reward, weight or objectives are invalid
      */
-    public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw): WrittenQuest
+    public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight): WrittenQuest
     {
         $parsed = $this->objectives($objectives);
         try {
-            $quest = QuestDefinition::write($title, $description, $reward, $parsed, $inDraw, $this->clock->now());
+            $quest = QuestDefinition::write($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->clock->now());
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
@@ -51,17 +53,17 @@ final readonly class ManageQuests
     }
 
     /**
-     * @param array<mixed> $objectives raw `{metric, target}` rows
+     * @param array<mixed> $objectives raw `{metric, target, scope?, scopeId?}` rows
      *
      * @throws NotFoundException   when the quest does not exist
-     * @throws ValidationException when the text, reward or objectives are invalid
+     * @throws ValidationException when the text, reward, weight or objectives are invalid
      */
-    public function edit(string $questId, string $title, string $description, int $reward, array $objectives, bool $inDraw): void
+    public function edit(string $questId, string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight): void
     {
         $quest = $this->quest($questId);
         $parsed = $this->objectives($objectives);
         try {
-            $quest->edit($title, $description, $reward, $parsed, $inDraw);
+            $quest->edit($title, $description, $reward, $parsed, $inDraw, $drawWeight);
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
@@ -171,14 +173,29 @@ final readonly class ManageQuests
     private function objectives(array $rows): array
     {
         $objectives = [];
+        $targets = null;
         foreach ($rows as $row) {
             $metric = \is_array($row) && \is_string($row['metric'] ?? null) ? QuestMetric::tryFrom($row['metric']) : null;
-            $target = \is_array($row) && \is_int($row['target'] ?? null) ? $row['target'] : 0;
-            if (null === $metric) {
+            if (!\is_array($row) || null === $metric) {
                 throw new ValidationException('Objectif inconnu.', ['objectives' => ['Type d\'objectif inconnu.']], 'quest_metric_unknown');
             }
+            $target = \is_int($row['target'] ?? null) ? $row['target'] : 0;
+            $scope = \is_string($row['scope'] ?? null) && '' !== $row['scope'] ? $row['scope'] : null;
+            $scopeId = \is_string($row['scopeId'] ?? null) && '' !== $row['scopeId'] ? $row['scopeId'] : null;
+            // Story 41.18: an aimed objective names a game played on the site, or an event out of draft.
+            if (null !== $scope && null !== $scopeId) {
+                $targets ??= $this->targets->scopeOptions();
+                $known = match ($scope) {
+                    QuestObjective::SCOPE_GAME => array_column($targets['games'], 'id'),
+                    QuestObjective::SCOPE_EVENT => array_column($targets['events'], 'id'),
+                    default => [],
+                };
+                if (!\in_array($scopeId, $known, true)) {
+                    throw new ValidationException('Ce jeu ou cet événement ne peut pas être visé.', ['objectives' => ['Cible inconnue.']], 'quest_scope_unknown');
+                }
+            }
             try {
-                $objectives[] = new QuestObjective($metric, $target);
+                $objectives[] = new QuestObjective($metric, $target, $scope, $scopeId);
             } catch (\DomainException $e) {
                 throw $this->invalid($e);
             }
@@ -193,7 +210,9 @@ final readonly class ManageQuests
             'quest_text_invalid' => sprintf('Un titre de 1 à %d caractères, une description de %d au plus.', QuestDefinition::MAX_TITLE, QuestDefinition::MAX_DESCRIPTION),
             'quest_reward_invalid' => sprintf('Une récompense de %d à %d pelles.', QuestDefinition::MIN_REWARD, QuestDefinition::MAX_REWARD),
             'quest_objectives_invalid' => sprintf('De 1 à %d objectifs.', QuestDefinition::MAX_OBJECTIVES),
-            'quest_objectives_duplicated' => 'Chaque type d\'objectif une fois au plus.',
+            'quest_objectives_duplicated' => 'Chaque type d\'objectif une fois au plus par cible.',
+            'quest_objective_scope_invalid' => 'Seuls les goals, les checks et les parties peuvent viser un jeu ou un événement.',
+            'quest_weight_invalid' => sprintf('Un poids de tirage de %d à %d.', QuestDefinition::MIN_WEIGHT, QuestDefinition::MAX_WEIGHT),
             'quest_objective_target_invalid' => sprintf('Une cible de %d à %d.', QuestObjective::MIN_TARGET, QuestObjective::MAX_TARGET),
             default => 'Quête invalide.',
         };
