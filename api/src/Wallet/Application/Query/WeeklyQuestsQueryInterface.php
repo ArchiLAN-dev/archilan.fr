@@ -36,6 +36,21 @@ interface WeeklyQuestsQueryInterface
      */
     public function rewardedQuests(string $userId, QuestWeek $week): array;
 
+    /**
+     * Story 41.17: the members who played between the two instants - a check in a session, or a weekly attempt
+     * launched with a check or its goal.
+     *
+     * @return list<string>
+     */
+    public function activeMembers(\DateTimeImmutable $since, \DateTimeImmutable $until): array;
+
+    /**
+     * Story 41.17: what the member earned with the quests, by week (quests paid, pelles, chest opened).
+     *
+     * @return array<string, array{quests: list<string>, pelles: int, chest: bool}> by week key
+     */
+    public function earnedBy(string $userId): array;
+
     /** Story 41.16: whether the member's chest of the week is paid (key `quest-chest:{week}:{member}`). */
     public function chestPaid(string $userId, QuestWeek $week): bool;
 

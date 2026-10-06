@@ -28,6 +28,8 @@ final class Notification
     public const string TYPE_MODERATION_REPLY = 'moderation_reply';
     /** Member-facing: an admin credited or debited the member's pelles (story 41.1). */
     public const string TYPE_PELLES_ADJUSTED = 'pelles_adjusted';
+    /** Member-facing: the quests of the new week are out (story 41.17). */
+    public const string TYPE_QUESTS_RENEWED = 'quests_renewed';
 
     /**
      * @param array<string, mixed> $payload

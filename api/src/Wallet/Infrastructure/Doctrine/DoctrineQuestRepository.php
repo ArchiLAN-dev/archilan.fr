@@ -115,6 +115,16 @@ final readonly class DoctrineQuestRepository implements QuestRepositoryInterface
         $this->changeSetting(WalletSetting::QUEST_CHEST_REWARD, $reward);
     }
 
+    public function announcedWeek(): ?string
+    {
+        return $this->entityManager->find(WalletSetting::class, WalletSetting::QUESTS_ANNOUNCED_WEEK)?->getValue();
+    }
+
+    public function markAnnounced(string $weekKey): void
+    {
+        $this->changeSetting(WalletSetting::QUESTS_ANNOUNCED_WEEK, $weekKey);
+    }
+
     private function intSetting(string $key, int $default): int
     {
         $setting = $this->entityManager->find(WalletSetting::class, $key);
@@ -123,7 +133,7 @@ final readonly class DoctrineQuestRepository implements QuestRepositoryInterface
         return false === $value ? $default : $value;
     }
 
-    private function changeSetting(string $key, int $value): void
+    private function changeSetting(string $key, int|string $value): void
     {
         $setting = $this->entityManager->find(WalletSetting::class, $key);
         if (null === $setting) {

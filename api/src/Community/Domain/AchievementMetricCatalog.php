@@ -18,6 +18,9 @@ final class AchievementMetricCatalog
     public const string FACT_DISTINCT_GAMES = 'distinctGames';
     public const string FACT_EVENTS_WITH_GOAL = 'eventsWithGoal';
     public const string FACT_SUPERLATIVES = 'superlatives';
+    // Story 41.17: the weekly quests - completed in all, and the longest run of weeks with the chest.
+    public const string FACT_QUESTS_COMPLETED = 'questsCompleted';
+    public const string FACT_QUEST_CHEST_STREAK = 'questChestStreak';
 
     // A specific-event fact: `event_goal:{eventId}` = 1 when the player reached a goal in that event.
     // The id part is opaque to the rule engine; the admin layer checks it is a real event (story 30.32).
@@ -42,6 +45,8 @@ final class AchievementMetricCatalog
             self::FACT_DISTINCT_GAMES => 'Jeux différents joués',
             self::FACT_EVENTS_WITH_GOAL => 'Événements avec objectif atteint',
             self::FACT_SUPERLATIVES => 'Superlatifs de récap remportés (total)',
+            self::FACT_QUESTS_COMPLETED => 'Quêtes hebdo réussies (total)',
+            self::FACT_QUEST_CHEST_STREAK => 'Plus longue série de semaines avec le coffre',
             self::SUPERLATIVE_PREFIX.'most_generous' => 'Superlatif « Le Parrain » (le plus généreux)',
             self::SUPERLATIVE_PREFIX.'biggest_hub' => 'Superlatif « Le Facteur » (le plus grand hub)',
             self::SUPERLATIVE_PREFIX.'first_to_goal' => 'Superlatif « Speedy Gonzales » (premier au but)',
