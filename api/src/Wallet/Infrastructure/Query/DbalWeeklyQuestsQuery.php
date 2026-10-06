@@ -61,6 +61,51 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         return $quests;
     }
 
+    public function activeMembers(\DateTimeImmutable $since, \DateTimeImmutable $until): array
+    {
+        $checks = DbalSlotCheckSource::from();
+        $player = DbalSlotCheckSource::player();
+
+        return $this->ids($this->connection->fetchFirstColumn(
+            "SELECT DISTINCT {$player} {$checks} AND f.occurred_at >= :since AND f.occurred_at < :until
+             UNION
+             SELECT DISTINCT user_id FROM weekly_entries
+              WHERE launched_at >= :since AND launched_at < :until
+                AND (COALESCE(checks_total, 0) > 0 OR goal_reached_at IS NOT NULL)",
+            DbalSlotCheckSource::params() + ['since' => $since->format(\DATE_ATOM), 'until' => $until->format(\DATE_ATOM)],
+            DbalSlotCheckSource::types(),
+        ));
+    }
+
+    public function earnedBy(string $userId): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT unique_key, amount FROM pelle_movement WHERE user_id = :userId AND reason = :reason AND unique_key IS NOT NULL',
+            ['userId' => $userId, 'reason' => PelleReason::QuestReward->value],
+        );
+
+        $weeks = [];
+        foreach ($rows as $row) {
+            $key = $row['unique_key'] ?? null;
+            $amount = filter_var($row['amount'] ?? null, \FILTER_VALIDATE_INT);
+            if (!is_string($key) || false === $amount) {
+                continue;
+            }
+            // quest:{week}:{quest}:{member} or quest-chest:{week}:{member}
+            $parts = explode(':', $key);
+            $week = $parts[1] ?? '';
+            $weeks[$week] ??= ['quests' => [], 'pelles' => 0, 'chest' => false];
+            $weeks[$week]['pelles'] += $amount;
+            if ('quest' === $parts[0] && 4 === \count($parts)) {
+                $weeks[$week]['quests'][] = $parts[2];
+            } elseif ('quest-chest' === $parts[0]) {
+                $weeks[$week]['chest'] = true;
+            }
+        }
+
+        return $weeks;
+    }
+
     public function chestPaid(string $userId, QuestWeek $week): bool
     {
         return false !== $this->connection->fetchOne(
@@ -211,5 +256,15 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         }
 
         return $counts;
+    }
+
+    /**
+     * @param list<mixed> $values
+     *
+     * @return list<string>
+     */
+    private function ids(array $values): array
+    {
+        return array_values(array_filter($values, static fn (mixed $value): bool => is_string($value) && '' !== $value));
     }
 }

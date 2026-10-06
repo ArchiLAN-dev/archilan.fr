@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { ChestRow, WeeklyQuestsView, fetchMyQuests, type WeeklyQuests } from "./weekly-quests";
+import { ChestRow, QuestHistory, WeeklyQuestsView, fetchMyQuests, type WeeklyQuests } from "./weekly-quests";
 import { pelleReasonLabel } from "./wallet-api";
 
 const quests: WeeklyQuests = {
@@ -23,6 +23,10 @@ const quests: WeeklyQuests = {
     },
   ],
   chest: { reward: 50, done: 2, total: 3, paid: false },
+  history: [
+    { week: "2026-W39", startsAt: "2026-09-20T22:00:00+00:00", endsAt: "2026-09-27T22:00:00+00:00", done: 3, served: 3, chest: true, pelles: 150 },
+    { week: "2026-W38", startsAt: "2026-09-13T22:00:00+00:00", endsAt: "2026-09-20T22:00:00+00:00", done: 0, served: 0, chest: false, pelles: 0 },
+  ],
 };
 
 /** Story 41.6: the quests of the week. */
@@ -57,6 +61,20 @@ describe("weekly quests", () => {
 
     expect(renderToStaticMarkup(<ChestRow chest={{ reward: 50, done: 3, total: 3, paid: true }} />)).toContain("Ouvert");
     expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, chest: null }} />)).not.toContain("Coffre");
+  });
+
+  test("the weeks before are folded under the quests (story 41.17)", () => {
+    const html = renderToStaticMarkup(<QuestHistory weeks={quests.history} />);
+    expect(html).toContain("Semaines précédentes");
+    expect(html).toContain("Sem. du 21 sept.");
+    expect(html).toContain("3 / 3 quêtes");
+    expect(html).toContain("coffre");
+    expect(html).toContain("+150");
+    expect(html).toContain("Pas de quête");
+
+    expect(renderToStaticMarkup(<WeeklyQuestsView quests={quests} />)).toContain("Semaines précédentes");
+    const empty = quests.history.map((week) => ({ ...week, served: 0 }));
+    expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, history: empty }} />)).not.toContain("Semaines précédentes");
   });
 
   test("reads the quests, and the reason has a label", async () => {

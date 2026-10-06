@@ -33,8 +33,13 @@ final readonly class QuestWeekPlanner
     public function served(QuestWeek $week): array
     {
         $now = $this->clock->now();
-        if ($week->start <= $now && $this->quests->claimDraw($week->key, $now)) {
-            $this->draw($week, $now);
+        if ($week->start <= $now && [] === $this->quests->drawnWeeks([$week->key])) {
+            // Story 41.17: no quest to draw yet, no draw - the week stays open until a quest can come out, rather
+            // than being frozen empty before the admins wrote any.
+            $candidates = $this->candidates();
+            if ([] !== $candidates && $this->quests->claimDraw($week->key, $now)) {
+                $this->draw($week, $candidates, $now);
+            }
         }
 
         $served = [];
@@ -48,14 +53,22 @@ final readonly class QuestWeekPlanner
         return $served;
     }
 
-    private function draw(QuestWeek $week, \DateTimeImmutable $now): void
+    /** @return list<string> the ids of the quests a draw may pick */
+    private function candidates(): array
     {
-        $entries = $this->quests->entriesOfWeeks([$week->key])[$week->key] ?? [];
-        $pinned = array_map(static fn (QuestWeekEntry $entry): string => $entry->getQuestId(), $entries);
-        $candidates = array_values(array_map(
+        return array_values(array_map(
             static fn (QuestDefinition $quest): string => $quest->getId(),
             array_filter($this->quests->allQuests(), static fn (QuestDefinition $quest): bool => $quest->isDrawable()),
         ));
+    }
+
+    /**
+     * @param list<string> $candidates
+     */
+    private function draw(QuestWeek $week, array $candidates, \DateTimeImmutable $now): void
+    {
+        $entries = $this->quests->entriesOfWeeks([$week->key])[$week->key] ?? [];
+        $pinned = array_map(static fn (QuestWeekEntry $entry): string => $entry->getQuestId(), $entries);
 
         $position = [] === $entries ? 0 : max(array_map(static fn (QuestWeekEntry $entry): int => $entry->getPosition(), $entries)) + 1;
         foreach (QuestDraw::draw($pinned, $candidates, $this->quests->questsPerWeek(), $this->randomizer) as $questId) {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Community\Application\Support\QuestMetricProvider;
+use App\Community\Domain\Entity\Notification;
 use App\Identity\Domain\Entity\User;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionFeedEvent;
@@ -11,6 +13,7 @@ use App\Sessions\Domain\Entity\SessionSlot;
 use App\Wallet\Application\Command\AwardWeeklyQuests;
 use App\Wallet\Domain\Entity\PelleMovement;
 use App\Wallet\Domain\Entity\QuestDefinition;
+use App\Wallet\Domain\Enum\PelleKind;
 use App\Wallet\Domain\Enum\PelleReason;
 use App\Wallet\Domain\Enum\QuestMetric;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
@@ -133,6 +136,62 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertSame(40, $this->paid($alice));
     }
 
+    public function testTheNewWeekIsAnnouncedOnceToTheMembersWhoPlayedLately(): void
+    {
+        $week = QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK));
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $old = $this->createUser('old@example.org', ['ROLE_USER'], 'Old');
+        // Alice played the week before; Old only months ago.
+        $this->session('s-1', [['Alice', $alice], ['Old', $old]]);
+        $this->check('s-1', 'Alice', $week->start->modify('-3 days')->format(\DATE_ATOM));
+        $this->check('s-1', 'Old', $week->start->modify('-3 months')->format(\DATE_ATOM));
+        $this->entityManager->flush();
+
+        self::assertSame(0, $this->award()->announce($week), 'no quest, no announcement');
+
+        $this->quest('goal', 'Un goal', 40, [new QuestObjective(QuestMetric::Goals, 1)]);
+        $this->entityManager->flush();
+        self::assertSame(1, $this->award()->announce($week));
+        self::assertSame(0, $this->award()->announce($week), 'once a week');
+
+        $this->entityManager->clear();
+        $notices = $this->entityManager->getRepository(Notification::class)->findBy(['type' => Notification::TYPE_QUESTS_RENEWED]);
+        self::assertCount(1, $notices);
+        self::assertSame($alice->getId(), $notices[0]->getRecipientId());
+        self::assertSame(['week' => $week->key, 'count' => 1, 'maxPelles' => 40 + 50], $notices[0]->getPayload());
+    }
+
+    public function testTheWalletShowsTheWeeksBeforeAndTheFactsCountTheQuests(): void
+    {
+        $member = $this->createUser('member@example.org', ['ROLE_USER'], 'Member');
+        $last = QuestWeek::containing(new \DateTimeImmutable())->previous();
+        $before = $last->previous();
+        foreach ([$last, $before] as $week) {
+            $this->ledger($member, sprintf('quest:%s:goal:%s', $week->key, $member->getId()), 40);
+            $this->ledger($member, sprintf('quest-chest:%s:%s', $week->key, $member->getId()), 50);
+        }
+        $this->entityManager->flush();
+        $this->loginAs($member);
+
+        $this->client->request('GET', '/api/v1/me/quests');
+
+        self::assertResponseIsSuccessful();
+        $history = $this->decodedJsonResponse()['history'] ?? null;
+        self::assertIsArray($history);
+        self::assertCount(4, $history);
+        self::assertSame(
+            ['week' => $last->key, 'startsAt' => $last->start->format(\DATE_ATOM), 'endsAt' => $last->end->format(\DATE_ATOM), 'done' => 1, 'served' => 1, 'chest' => true, 'pelles' => 90],
+            $history[0],
+        );
+        self::assertIsArray($history[2]);
+        self::assertSame(0, $history[2]['pelles'] ?? null);
+
+        // Story 41.17: the achievement facts count the quests and the run of chests.
+        $facts = self::getContainer()->get(QuestMetricProvider::class);
+        self::assertInstanceOf(QuestMetricProvider::class, $facts);
+        self::assertSame(['questsCompleted' => 2, 'questChestStreak' => 2], $facts->metricsFor($member->getId()));
+    }
+
     public function testTheWalletPageShowsWhereTheMemberStandsOnEachObjective(): void
     {
         $this->quest('marathon', 'Marathon', 60, [new QuestObjective(QuestMetric::Checks, 5), new QuestObjective(QuestMetric::Sessions, 2)]);
@@ -170,6 +229,13 @@ final class WeeklyQuestsTest extends FunctionalTestCase
     private function quest(string $id, string $title, int $reward, array $objectives): void
     {
         $this->entityManager->persist(QuestDefinition::write($title, '', $reward, $objectives, true, new \DateTimeImmutable(self::LAST_MONTH), $id));
+    }
+
+    private function ledger(User $user, string $key, int $amount): void
+    {
+        $this->entityManager->persist(PelleMovement::record(
+            $user->getId(), $amount, PelleKind::Gold, null, PelleReason::QuestReward, 'Quête', null, $key, new \DateTimeImmutable(),
+        ));
     }
 
     private function award(): AwardWeeklyQuests

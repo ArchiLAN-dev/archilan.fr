@@ -143,3 +143,13 @@ describe("pelles adjusted notification (story 41.1)", () => {
     expect(messageFor(item("pelles_adjusted", { amount: -1, kind: "gold", reason: "" }))).toBe("L'équipe t'a retiré 1 pelle");
   });
 });
+
+describe("quests renewed notification (story 41.17)", () => {
+  it("tells the new quests and what they can pay, and leads to the wallet", () => {
+    const notice = item("quests_renewed", { week: "2026-W42", count: 3, maxPelles: 150 });
+
+    expect(messageFor(notice)).toBe("Nouvelles quêtes de la semaine : 3 quêtes, jusqu'à 150 pelles");
+    expect(hrefFor(notice)).toBe("/compte/portefeuille");
+    expect(messageFor(item("quests_renewed", {}))).toBe("Nouvelles quêtes de la semaine");
+  });
+});

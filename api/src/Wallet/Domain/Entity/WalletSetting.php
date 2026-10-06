@@ -16,6 +16,8 @@ final class WalletSetting
     public const string QUESTS_PER_WEEK = 'quests_per_week';
     // Story 41.16: the weekly chest, for accomplishing every quest of the week.
     public const string QUEST_CHEST_REWARD = 'quest_chest_reward';
+    // Story 41.17: the last week whose quests were announced to the members.
+    public const string QUESTS_ANNOUNCED_WEEK = 'quests_announced_week';
 
     public function __construct(
         #[ORM\Id]

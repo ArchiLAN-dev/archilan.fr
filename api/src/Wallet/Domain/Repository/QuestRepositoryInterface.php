@@ -60,5 +60,10 @@ interface QuestRepositoryInterface
 
     public function changeChestReward(int $reward): void;
 
+    /** Story 41.17: the last week announced to the members, null before the first announcement. */
+    public function announcedWeek(): ?string;
+
+    public function markAnnounced(string $weekKey): void;
+
     public function changeQuestsPerWeek(int $count): void;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Circle, Gift } from "lucide-react";
+import { CheckCircle2, ChevronRight, Circle, Gift } from "lucide-react";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -26,7 +26,24 @@ export type WeeklyQuest = {
 /** Story 41.16: the chest for doing every quest of the week; null when there is none. */
 export type QuestChest = { reward: number; done: number; total: number; paid: boolean };
 
-export type WeeklyQuests = { week: string; renewsAt: string; quests: WeeklyQuest[]; chest: QuestChest | null };
+/** Story 41.17: one of the member's weeks before this one. */
+export type QuestWeekHistory = { week: string; startsAt: string; endsAt: string; done: number; served: number; chest: boolean; pelles: number };
+
+export type WeeklyQuests = { week: string; renewsAt: string; quests: WeeklyQuest[]; chest: QuestChest | null; history: QuestWeekHistory[] };
+
+function isHistory(v: unknown): v is QuestWeekHistory {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "week") &&
+    hasStringProp(v, "startsAt") &&
+    hasStringProp(v, "endsAt") &&
+    hasNumberProp(v, "done") &&
+    hasNumberProp(v, "served") &&
+    hasBooleanProp(v, "chest") &&
+    hasNumberProp(v, "pelles")
+  );
+}
 
 function isChest(v: unknown): v is QuestChest {
   return typeof v === "object" && v !== null && hasNumberProp(v, "reward") && hasNumberProp(v, "done") && hasNumberProp(v, "total") && hasBooleanProp(v, "paid");
@@ -70,7 +87,10 @@ export function isWeeklyQuests(v: unknown): v is WeeklyQuests {
     Array.isArray(v.quests) &&
     v.quests.every(isQuest) &&
     "chest" in v &&
-    (v.chest === null || isChest(v.chest))
+    (v.chest === null || isChest(v.chest)) &&
+    "history" in v &&
+    Array.isArray(v.history) &&
+    v.history.every(isHistory)
   );
 }
 
@@ -136,6 +156,7 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
         </ul>
       )}
       {quests.chest ? <ChestRow chest={quests.chest} /> : null}
+      {quests.history.some((week) => week.served > 0) ? <QuestHistory weeks={quests.history} /> : null}
     </section>
   );
 }
@@ -187,5 +208,39 @@ export function ChestRow({ chest }: { chest: QuestChest }) {
       </span>
       <PelleAmount amount={chest.reward} className="shrink-0 text-xs font-semibold text-warning" signed />
     </div>
+  );
+}
+
+const historyDay = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "Europe/Paris" });
+
+/**
+ * Story 41.17: the member's weeks before this one, folded under the quests - each with the quests done out of those
+ * served, the chest, and what they earned.
+ */
+export function QuestHistory({ weeks }: { weeks: QuestWeekHistory[] }) {
+  return (
+    <details className="group border-t border-border pt-3">
+      <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+        <ChevronRight aria-hidden className="size-3.5 transition-transform group-open:rotate-90" />
+        Semaines précédentes
+      </summary>
+      <ul className="mt-2 grid gap-1.5" role="list">
+        {weeks.map((week) => (
+          <li className="flex items-center gap-3 text-xs" key={week.week}>
+            <span className="w-28 shrink-0 whitespace-nowrap text-muted-foreground">Sem. du {historyDay.format(new Date(week.startsAt))}</span>
+            <span className={`tabular-nums ${week.served > 0 && week.done >= week.served ? "text-success" : "text-foreground"}`}>
+              {week.served === 0 ? "Pas de quête" : `${week.done} / ${week.served} quête${week.served > 1 ? "s" : ""}`}
+            </span>
+            {week.chest ? (
+              <span className="inline-flex items-center gap-1 text-warning">
+                <Gift aria-hidden className="size-3" />
+                coffre
+              </span>
+            ) : null}
+            <PelleAmount amount={week.pelles} className="ml-auto font-semibold text-warning" signed />
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

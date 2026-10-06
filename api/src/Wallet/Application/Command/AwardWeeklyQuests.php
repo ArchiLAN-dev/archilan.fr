@@ -39,8 +39,42 @@ final readonly class AwardWeeklyQuests
     public function award(): int
     {
         $current = QuestWeek::containing($this->clock->now());
+        $paid = $this->awardWeek($current->previous()) + $this->awardWeek($current);
+        $this->announce($current);
 
-        return $this->awardWeek($current->previous()) + $this->awardWeek($current);
+        return $paid;
+    }
+
+    /**
+     * Story 41.17: tells the members who played lately (4 weeks before it) that the week's quests are out - once a
+     * week, and only once it has quests. The week is marked announced before the notices go, so a failure halfway
+     * never sends them twice.
+     *
+     * @return int the members notified
+     */
+    public function announce(QuestWeek $week): int
+    {
+        if ($this->settings->announcedWeek() === $week->key) {
+            return 0;
+        }
+        $served = $this->planner->served($week);
+        if ([] === $served) {
+            return 0;
+        }
+        $this->settings->markAnnounced($week->key);
+
+        $chest = $this->settings->chestReward();
+        $payload = [
+            'week' => $week->key,
+            'count' => \count($served),
+            'maxPelles' => array_sum(array_map(static fn (QuestDefinition $quest): int => $quest->getReward(), $served)) + $chest,
+        ];
+        $members = $this->quests->activeMembers($week->start->modify('-4 weeks'), $week->start);
+        foreach ($members as $userId) {
+            $this->notifier->notify($userId, Notification::TYPE_QUESTS_RENEWED, $payload);
+        }
+
+        return \count($members);
     }
 
     public function awardWeek(QuestWeek $week): int
