@@ -601,6 +601,14 @@ final readonly class PlayerStateController
             $optionalUser = $this->apiAccessGuard->optionalUser($request);
             $isAdmin = $optionalUser instanceof User && in_array('ROLE_ADMIN', $optionalUser->getRoles(), true);
 
+            // Story 17.28: the bridge does not hold the request while its daemon starts - it answers
+            // « computing » with the slot's last result (or none), and pushes the new one once ready.
+            if (202 === $response->getStatusCode()) {
+                $previous = is_array($data['previous'] ?? null) ? $data['previous'] : null;
+
+                return new JsonResponse(['data' => null === $previous || $isAdmin ? $previous : $this->stripItemRewards($previous), 'computing' => true], 202);
+            }
+
             if (!$isAdmin) {
                 $data = $this->stripItemRewards($data);
             }
