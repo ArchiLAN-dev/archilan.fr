@@ -10,11 +10,11 @@ use App\Identity\Domain\Entity\User;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionFeedEvent;
 use App\Sessions\Domain\Entity\SessionSlot;
+use App\Tests\Fixtures\Wallet\SpyQuestAnnouncementChannel;
 use App\Wallet\Application\Command\AwardWeeklyQuests;
 use App\Wallet\Application\Handler\AnnounceQuestsOnDiscordJobHandler;
 use App\Wallet\Application\Message\AnnounceQuestsOnDiscordJob;
 use App\Wallet\Application\Port\QuestAnnouncementChannelInterface;
-use App\Wallet\Application\Support\QuestAnnouncement;
 use App\Wallet\Domain\Entity\PelleMovement;
 use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Enum\PelleKind;
@@ -197,15 +197,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $this->quest('marathon', 'Marathon', 60, [new QuestObjective(QuestMetric::Checks, 50), new QuestObjective(QuestMetric::Sessions, 1)]);
         $this->entityManager->flush();
         $week = QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK));
-        $spy = new class implements QuestAnnouncementChannelInterface {
-            /** @var list<QuestAnnouncement> */
-            public array $posted = [];
-
-            public function post(QuestAnnouncement $announcement): void
-            {
-                $this->posted[] = $announcement;
-            }
-        };
+        $spy = new SpyQuestAnnouncementChannel();
         self::getContainer()->set(QuestAnnouncementChannelInterface::class, $spy);
         $handler = self::getContainer()->get(AnnounceQuestsOnDiscordJobHandler::class);
         self::assertInstanceOf(AnnounceQuestsOnDiscordJobHandler::class, $handler);

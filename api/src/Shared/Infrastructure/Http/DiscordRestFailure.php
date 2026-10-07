@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Community\Infrastructure\Adapter;
+namespace App\Shared\Infrastructure\Http;
 
 /**
  * A refused or failed call of the bot to the Discord REST API (stories 39.1 and 39.3), mapped by each adapter

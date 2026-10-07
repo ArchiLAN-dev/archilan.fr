@@ -47,6 +47,8 @@ export type PastQuestWeek = {
 
 export type AdminQuests = {
   questsPerWeek: number;
+  /** Story 41.26: whether the bot has a Discord channel to announce the quests in (absent from an older API). */
+  discordEnabled?: boolean;
   chestReward: number;
   metrics: QuestMetricOption[];
   quests: AdminQuest[];
@@ -163,6 +165,7 @@ export function isAdminQuests(v: unknown): v is AdminQuests {
   return (
     isObject(v) &&
     hasNumberProp(v, "questsPerWeek") &&
+    (!("discordEnabled" in v) || typeof v.discordEnabled === "boolean") &&
     hasNumberProp(v, "chestReward") &&
     "metrics" in v &&
     Array.isArray(v.metrics) &&
@@ -239,6 +242,26 @@ export function unpinQuest(weekKey: string, questId: string): Promise<string | n
     204,
     "Impossible de retirer la quête de la semaine.",
   );
+}
+
+/** Story 41.26: what announcing a week on Discord did - a new message, or the week's message updated. */
+export type DiscordAnnouncement = { outcome: "posted" | "updated"; error: null } | { outcome: null; error: string };
+
+/** Story 41.26: the week's quests on Discord now, through the bot. */
+export async function announceQuestWeekOnDiscord(weekKey: string): Promise<DiscordAnnouncement> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/quest-weeks/${encodeURIComponent(weekKey)}/announce-discord`, { method: "POST" });
+    const payload: unknown = await res.json().catch(() => null);
+    if (res.ok && isObject(payload) && "outcome" in payload && (payload.outcome === "posted" || payload.outcome === "updated")) {
+      return { outcome: payload.outcome, error: null };
+    }
+    if (isObject(payload) && "error" in payload && isObject(payload.error) && hasStringProp(payload.error, "message")) {
+      return { outcome: null, error: payload.error.message };
+    }
+    return { outcome: null, error: "Impossible d'annoncer les quêtes sur Discord." };
+  } catch {
+    return { outcome: null, error: "Impossible de contacter l'API." };
+  }
 }
 
 /** Story 41.18: where an aimed objective counts, « sur Hollow Knight », « à la LAN #3 »; empty when it counts everywhere. */

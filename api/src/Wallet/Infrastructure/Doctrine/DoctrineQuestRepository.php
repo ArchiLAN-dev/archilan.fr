@@ -133,6 +133,19 @@ final readonly class DoctrineQuestRepository implements QuestRepositoryInterface
         return false === $since ? null : $since;
     }
 
+    public function discordMessageOf(string $weekKey): ?string
+    {
+        $value = $this->entityManager->find(WalletSetting::class, WalletSetting::QUESTS_DISCORD_MESSAGE)?->getValue() ?? '';
+        $parts = explode('|', $value, 2);
+
+        return 2 === \count($parts) && $parts[0] === $weekKey && '' !== $parts[1] ? $parts[1] : null;
+    }
+
+    public function rememberDiscordMessage(string $weekKey, string $messageId): void
+    {
+        $this->changeSetting(WalletSetting::QUESTS_DISCORD_MESSAGE, $weekKey.'|'.$messageId);
+    }
+
     private function intSetting(string $key, int $default): int
     {
         $setting = $this->entityManager->find(WalletSetting::class, $key);

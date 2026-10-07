@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarClock, Gift, Minus, Pin, Plus, Repeat2, Shuffle, Users, X } from "lucide-react";
+import { ArrowRight, CalendarClock, Gift, Megaphone, Minus, Pin, Plus, Repeat2, Shuffle, Users, X } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import {
   QUEST_LIMITS,
+  announceQuestWeekOnDiscord,
   objectivesSummary,
   pinQuest,
   setQuestSettings,
@@ -36,11 +37,26 @@ export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
   const { message, pending, apply } = useQuestChange(onChange);
   const [picking, setPicking] = useState<Picking | null>(null);
   const [removing, setRemoving] = useState<Removal | null>(null);
+  // Story 41.26: the week being announced on Discord, once confirmed.
+  const [announcing, setAnnouncing] = useState<AdminQuestWeek | null>(null);
 
   const active = data.quests.filter((quest) => !quest.retired);
   const inDraw = active.filter((quest) => quest.inDraw).length;
   const [current, ...coming] = data.weeks;
   const byId = new Map(data.quests.map((quest) => [quest.id, quest]));
+
+  async function announce(week: AdminQuestWeek): Promise<void> {
+    let outcome: "posted" | "updated" | null = null;
+    const done = await apply(
+      async () => {
+        const result = await announceQuestWeekOnDiscord(week.key);
+        outcome = result.outcome;
+        return result.error;
+      },
+      () => (outcome === "updated" ? "Message Discord de la semaine mis à jour." : "Quêtes de la semaine annoncées sur Discord."),
+    );
+    if (done) setAnnouncing(null);
+  }
 
   function remove(week: AdminQuestWeek, quest: ServedQuest): void {
     // The week the members are living is confirmed first; a coming week changes right away.
@@ -68,6 +84,7 @@ export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
           chestReward={data.chestReward}
           metrics={data.metrics}
           onAdd={() => setPicking({ week: current, replaces: null })}
+          onAnnounce={data.discordEnabled === true && current.quests.length > 0 ? () => setAnnouncing(current) : undefined}
           onRemove={(quest) => remove(current, quest)}
           onReplace={(quest) => setPicking({ week: current, replaces: quest })}
           pending={pending}
@@ -112,6 +129,25 @@ export function AdminQuestWeeksView({ data, onChange }: ViewProps) {
           quests={active.filter((quest) => !picking.week.quests.some((served) => served.questId === quest.id))}
         />
       ) : null}
+
+      <ConfirmDialog
+        confirmLabel="Annoncer sur Discord"
+        description={
+          announcing
+            ? `Le bot poste les quêtes de la semaine du ${weekLabel(announcing)} dans le salon des quêtes. Si elles y sont déjà, le message existant est mis à jour : pas de doublon.`
+            : ""
+        }
+        icon={Megaphone}
+        onConfirm={() => {
+          if (announcing !== null) void announce(announcing);
+        }}
+        onOpenChange={(open) => {
+          if (!open) setAnnouncing(null);
+        }}
+        open={announcing !== null}
+        pending={pending}
+        title="Annoncer les quêtes sur Discord ?"
+      />
 
       <ConfirmDialog
         confirmLabel="Retirer de la semaine"
@@ -161,6 +197,7 @@ export function CurrentWeek({
   metrics,
   pending,
   onAdd,
+  onAnnounce,
   onReplace,
   onRemove,
 }: {
@@ -171,6 +208,8 @@ export function CurrentWeek({
   metrics: QuestMetricOption[];
   pending: boolean;
   onAdd: () => void;
+  /** Story 41.26: absent when the bot has no Discord channel, or the week no quest. */
+  onAnnounce?: () => void;
   onReplace: (quest: ServedQuest) => void;
   onRemove: (quest: ServedQuest) => void;
 }) {
@@ -190,10 +229,18 @@ export function CurrentWeek({
             {week.quests.length} quête{week.quests.length > 1 ? "s" : ""} · jusqu&apos;à <PelleAmount amount={total} className="font-semibold text-warning" /> par membre{chest > 0 ? ", coffre compris" : ""}
           </p>
         </div>
-        <button className={buttonVariants({ variant: "secondary" })} disabled={pending} onClick={onAdd} type="button">
-          <Plus aria-hidden className="size-4" />
-          Ajouter une quête
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {onAnnounce ? (
+            <button className={buttonVariants({ variant: "ghost" })} disabled={pending} onClick={onAnnounce} type="button">
+              <Megaphone aria-hidden className="size-4" />
+              Annoncer sur Discord
+            </button>
+          ) : null}
+          <button className={buttonVariants({ variant: "secondary" })} disabled={pending} onClick={onAdd} type="button">
+            <Plus aria-hidden className="size-4" />
+            Ajouter une quête
+          </button>
+        </div>
       </div>
 
       {week.quests.length === 0 ? (

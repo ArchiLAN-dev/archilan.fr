@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Wallet\Presentation\Controller;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Wallet\Application\Command\AnnounceQuestsOnDiscord;
 use App\Wallet\Application\Command\ManageQuests;
 use App\Wallet\Application\Query\QuestAdminQuery;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -21,6 +22,7 @@ final readonly class AdminQuestController
         private ApiAccessGuard $apiAccessGuard,
         private QuestAdminQuery $query,
         private ManageQuests $manage,
+        private AnnounceQuestsOnDiscord $announce,
     ) {
     }
 
@@ -150,6 +152,18 @@ final readonly class AdminQuestController
         $this->manage->unpin($weekKey, $questId);
 
         return new JsonResponse(null, 204);
+    }
+
+    /** Story 41.26: the week's quests on Discord now - a test, or a retry after a failure. */
+    #[Route('/api/v1/admin/quest-weeks/{weekKey}/announce-discord', name: 'api_wallet_admin_quest_weeks_announce_discord', methods: ['POST'])]
+    public function announceOnDiscord(Request $request, string $weekKey): JsonResponse
+    {
+        $admin = $this->apiAccessGuard->requireAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return new JsonResponse(['outcome' => $this->announce->announce($weekKey)->value]);
     }
 
     /** @return array<mixed>|null */

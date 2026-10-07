@@ -9,6 +9,8 @@ use App\Community\Application\Port\IncomingDirectMessage;
 use App\Community\Application\Port\MemberDirectMessageInterface;
 use App\Community\Application\Port\SentDirectMessage;
 use App\Community\Application\Support\ModerationForumMessage;
+use App\Shared\Infrastructure\Http\DiscordBotRest;
+use App\Shared\Infrastructure\Http\DiscordRestFailure;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -45,7 +47,7 @@ final readonly class DiscordMemberDirectMessages implements MemberDirectMessageI
             if (!is_string($channelId) || '' === $channelId) {
                 throw new MemberDirectMessageException('Discord did not return the direct message channel.');
             }
-            $sent = $this->rest->request('POST', '/channels/'.$channelId.'/messages', DiscordBotRest::messageBody($message));
+            $sent = $this->rest->request('POST', '/channels/'.$channelId.'/messages', DiscordModerationCard::body($message));
         } catch (DiscordRestFailure $e) {
             throw new MemberDirectMessageException($e->getMessage(), $e, $e->transient);
         }
