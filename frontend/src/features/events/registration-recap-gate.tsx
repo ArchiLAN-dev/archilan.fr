@@ -10,6 +10,7 @@ import { SlotNeedsReview } from "@/features/games/slot-needs-review";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { useRouter } from "next/navigation";
 import {
   fetchAuthProbe,
   fetchRegistrationRecap,
@@ -37,6 +38,7 @@ export function RegistrationRecapGate({
 }: {
   params: Promise<{ eventSlug: string; registrationId: string }>;
 }) {
+  const router = useRouter();
   const { eventSlug, registrationId } = use(params);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
 
@@ -50,9 +52,9 @@ export function RegistrationRecapGate({
 
   useEffect(() => {
     if (authQuery.data === "unauthenticated") {
-      window.location.href = `/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/recap`;
+      router.replace(`/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/recap`);
     }
-  }, [authQuery.data, eventSlug, registrationId]);
+  }, [authQuery.data, eventSlug, registrationId, router]);
 
   const recapQuery = useQuery({
     queryKey: ["registration-recap", registrationId],

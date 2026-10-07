@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarX2, History as HistoryIcon, KeyRound, Loader2, ShieldPlus, Trash2, UserCog, Wrench } from "lucide-react";
+import { CalendarX2, History as HistoryIcon, KeyRound, Loader2, ShieldPlus, Shovel, Trash2, UserCog, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -143,6 +143,18 @@ function EntryText({ entry }: { entry: AdminUserActivityEntry }) {
           {entry.subject !== null ? <span className="text-muted-foreground"> · {entry.subject}</span> : null}
         </>
       );
+    case "admin_action_received":
+      return (
+        <>
+          <strong>{adminActionLabel(entry.newRole)}</strong> par {counterpart}
+        </>
+      );
+    case "admin_action_performed":
+      return (
+        <>
+          <strong>{adminActionLabel(entry.newRole)}</strong> sur {counterpart}
+        </>
+      );
     case "private_event_access":
       return (
         <>
@@ -191,6 +203,11 @@ function visualFor(entry: AdminUserActivityEntry): { Icon: LucideIcon; tone: str
       return { Icon: Trash2, tone: "bg-danger/15 text-danger" };
     case "run_admin_action":
       return { Icon: Wrench, tone: "bg-accent/15 text-accent-text" };
+    case "admin_action_received":
+    case "admin_action_performed":
+      return entry.newRole === "pelles_credit" || entry.newRole === "pelles_debit"
+        ? { Icon: Shovel, tone: "bg-warning/15 text-warning" }
+        : { Icon: Wrench, tone: "bg-accent/15 text-accent-text" };
     case "private_event_access":
       return entry.granted === true
         ? { Icon: KeyRound, tone: "bg-success/15 text-success" }
@@ -198,6 +215,24 @@ function visualFor(entry: AdminUserActivityEntry): { Icon: LucideIcon; tone: str
     default:
       return { Icon: Wrench, tone: "bg-accent/15 text-accent-text" };
   }
+}
+
+/** The admin actions on an account (stories 36.6, 16.19, 41.1), in the journal's words. */
+const ADMIN_ACTION_LABELS: Record<string, string> = {
+  revoke_sessions: "Sessions révoquées",
+  verify_email: "Email validé",
+  run_config_override: "Réglages d'une partie modifiés",
+  run_seed_import: "Seed importée sur une partie",
+  run_slot_assign: "Slot de partie attribué",
+  run_delete: "Partie supprimée",
+  run_archive: "Partie archivée pour le membre",
+  run_unarchive: "Partie désarchivée pour le membre",
+  pelles_credit: "Pelles créditées",
+  pelles_debit: "Pelles débitées",
+};
+
+export function adminActionLabel(action: string | null): string {
+  return action === null ? "Action inconnue" : (ADMIN_ACTION_LABELS[action] ?? action);
 }
 
 function roleLabel(role: string | null): string {

@@ -1,9 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
-import { AvatarFrameSwatchLayer, AvatarFrameVideoLayer } from "./avatar-frame-video";
-import { getAvatarFrame } from "./avatar-frames";
-import styles from "./avatar-frame.module.css";
+import { cn } from "@/lib/utils";
 
-const PLAIN = "overflow-hidden rounded-2xl border-4 border-surface ring-1 ring-border bg-surface";
+import { AvatarFrameVideoLayer } from "./avatar-frame-video";
+import { getAvatarFrame } from "./avatar-frames";
+import { CatalogAvatarFrame } from "./catalog-avatar-frame";
+import styles from "./avatar-frame.module.css";
 
 // Glowing motes that drift up the frame and fade (the "spectral" frame). `from` is the start height.
 const PARTICLES: { left: string; from: string; size: number; d: number; delay: number }[] = [
@@ -25,54 +26,71 @@ const PARTICLES: { left: string; from: string; size: number; d: number; delay: n
 
 /**
  * Wraps avatar content in a decorative frame (solid colour, neon glow, animated effect, or video overlay). With
- * no frame key it renders the plain bordered ring. Pass the size via `className` (e.g. "size-24 sm:size-28").
- * Motion is disabled under prefers-reduced-motion (in CSS, and in the video layer for the video frames).
- * `preview` is the picker swatch: a video frame then fits inside the swatch, never overflowing, as its still poster
- * or, while `playing` (hovered), its video.
+ * no frame key it renders the plain bordered square. The size comes from `className` / `style`; every length of
+ * the frame scales with the `--s` variable (avatar size over 112 px), set by <MemberAvatar> (story 30.47).
+ *
+ * `animated`: the effect moves (CSS animation, video). <MemberAvatar> turns it on for good on the profile page and
+ * only while hovered elsewhere (story 30.47). Reduced motion always wins (in CSS, and in the video layer).
+ * `preview` is the picker swatch: a video frame then fits inside the swatch, never overflowing.
  */
 export function AvatarFrame({
   frameKey,
   className,
+  style,
   preview = false,
-  playing = false,
+  animated = true,
   children,
 }: {
   frameKey: string | null;
   className?: string;
+  style?: CSSProperties;
   preview?: boolean;
-  playing?: boolean;
+  animated?: boolean;
   children: ReactNode;
 }) {
   const frame = getAvatarFrame(frameKey);
   const size = className ?? "";
 
+  // Story 41.10: a key the code does not know is a frame of the admin catalog.
+  if (!frame && frameKey !== null) {
+    return (
+      <CatalogAvatarFrame animated={animated} className={className} frameKey={frameKey} preview={preview} style={style}>
+        {children}
+      </CatalogAvatarFrame>
+    );
+  }
+
   if (!frame) {
-    return <div className={`${PLAIN} ${size}`}>{children}</div>;
+    return (
+      <div className={cn(styles.plain, size)} style={style}>
+        {children}
+      </div>
+    );
   }
 
   if (frame.variant === "video" && frame.video) {
     if (preview) {
       return (
-        <div className={`${styles.videoPreview} ${size}`}>
+        <div className={cn(styles.videoPreview, size)} style={style}>
           <div className={styles.videoPreviewInner}>{children}</div>
-          <AvatarFrameSwatchLayer className={styles.videoPreviewLayer} playing={playing} video={frame.video} />
+          <AvatarFrameVideoLayer className={styles.videoPreviewLayer} playing={animated} video={frame.video} />
         </div>
       );
     }
 
     // No ring: the burning edge of the video is the frame. The overlay sits after the photo so it paints on top.
     return (
-      <div className={`${styles.videoFrame} ${size}`}>
+      <div className={cn(styles.videoFrame, size)} style={style}>
         <div className={styles.videoInner}>{children}</div>
-        <AvatarFrameVideoLayer className={styles.videoLayer} video={frame.video} />
+        <AvatarFrameVideoLayer className={styles.videoLayer} playing={animated} video={frame.video} />
       </div>
     );
   }
 
-  const style = frame.color ? ({ "--c1": frame.color } as CSSProperties) : undefined;
+  const frameStyle = frame.color ? ({ ...style, "--c1": frame.color } as CSSProperties) : style;
 
   return (
-    <div className={`${styles.frame} ${styles[frame.variant]} ${size}`} style={style}>
+    <div className={cn(styles.frame, styles[frame.variant], !animated && styles.still, size)} style={frameStyle}>
       {frame.variant === "spectral" ? (
         <span aria-hidden className={styles.particleLayer}>
           {PARTICLES.map((p, i) => (
@@ -83,8 +101,8 @@ export function AvatarFrame({
                 {
                   left: p.left,
                   "--from": p.from,
-                  width: p.size,
-                  height: p.size,
+                  width: `calc(${p.size}px * var(--s, 1))`,
+                  height: `calc(${p.size}px * var(--s, 1))`,
                   animationDuration: `${p.d}s`,
                   animationDelay: `${p.delay}s`,
                 } as CSSProperties

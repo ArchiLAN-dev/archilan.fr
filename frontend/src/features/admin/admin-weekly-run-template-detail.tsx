@@ -21,6 +21,7 @@ import type { AdminTemplateRun, AdminWeeklyTemplate } from "./admin-weekly-runs-
 const GENERATE_ERROR_LABEL: Record<string, string> = {
   run_already_exists: "Une run existe déjà pour cette semaine.",
   template_incomplete: "Template incomplet (YAML ou APWorld manquant).",
+  game_disabled: "Le jeu est désactivé : l'hebdo reprendra quand il sera réactivé.",
   template_not_found: "Template introuvable.",
   network_error: "Erreur réseau, réessaie.",
   generation_failed: "La génération a échoué.",

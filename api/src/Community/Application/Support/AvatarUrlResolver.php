@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application\Support;
 
 use App\Community\Domain\Service\CustomImageRule;
+use App\Community\Domain\ValueObject\AvatarFrame;
 use App\Community\Domain\ValueObject\ImageFraming;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
@@ -22,6 +23,7 @@ final readonly class AvatarUrlResolver
         private MinioStorageInterface $minioStorage,
         private string $minioMediaBucket,
         private int $minioPresignTtl,
+        private AvatarFrameCatalog $frames,
     ) {
     }
 
@@ -41,12 +43,13 @@ final readonly class AvatarUrlResolver
     /**
      * Story 30.42, for the card surfaces that read raw rows (directory, leaderboards): the still avatar (a GIF's
      * first frame) and, for an admin's GIF, the GIF to animate on hover, with its framing (story 30.43). The row
-     * holds the user's `roles` JSON and the profile's `avatar_url`, `custom_avatar_key`, `custom_avatar_still_key`
-     * and `avatar_framing_x` / `_y` / `_zoom` columns.
+     * holds the user's `roles` JSON and the profile's `avatar_url`, `custom_avatar_key`, `custom_avatar_still_key`,
+     * `avatar_framing_x` / `_y` / `_zoom` and `avatar_frame` columns (story 30.47: the frame follows the avatar
+     * everywhere).
      *
      * @param array<string, mixed> $row
      *
-     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}
+     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null}
      */
     public function resolveForRow(array $row): array
     {
@@ -61,13 +64,15 @@ final readonly class AvatarUrlResolver
             $this->int($row['avatar_framing_zoom'] ?? null, ImageFraming::MIN_ZOOM),
         );
 
-        return $this->forCard($key, $stillKey, is_array($roles) && in_array('ROLE_ADMIN', $roles, true), $external, $framing);
+        $frame = is_string($row['avatar_frame'] ?? null) ? $row['avatar_frame'] : null;
+
+        return $this->forCard($key, $stillKey, is_array($roles) && in_array('ROLE_ADMIN', $roles, true), $external, $framing, $frame);
     }
 
     /**
-     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null}
+     * @return array{avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null}
      */
-    public function forCard(?string $key, ?string $stillKey, bool $isAdmin, ?string $cachedExternalUrl, ImageFraming $framing): array
+    public function forCard(?string $key, ?string $stillKey, bool $isAdmin, ?string $cachedExternalUrl, ImageFraming $framing, ?string $avatarFrame): array
     {
         $animatedKey = CustomImageRule::animatedAvatarKey($key, $stillKey, $isAdmin);
 
@@ -75,6 +80,8 @@ final readonly class AvatarUrlResolver
             'avatarUrl' => $this->resolve(CustomImageRule::cardAvatarKey($key, $stillKey), $cachedExternalUrl),
             'avatarAnimatedUrl' => null !== $animatedKey ? $this->resolve($animatedKey, null) : null,
             'avatarFraming' => self::framing($key, $framing),
+            // Story 30.47: a legendary frame only while its owner is admin (story 30.46).
+            'avatarFrame' => $this->frames->displayed($avatarFrame, $isAdmin),
         ];
     }
 

@@ -22,6 +22,8 @@ export type PersonalRunParticipant = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.47: the member's avatar frame, shown wherever the avatar is.
+  avatarFrame?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
   // Story 30.44: legendary admin, epic member (null = a plain name).
@@ -57,6 +59,8 @@ export type ParticipantIdentity = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.47: the member's avatar frame, shown wherever the avatar is.
+  avatarFrame?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
   // Story 30.44: legendary admin, epic member (null = a plain name).
@@ -74,6 +78,8 @@ export type SlotCoPlayer = {
   avatarUrl: string | null;
   // Story 30.42: an admin's GIF, animated on hover off the profile page.
   avatarAnimatedUrl?: string | null;
+  // Story 30.47: the member's avatar frame, shown wherever the avatar is.
+  avatarFrame?: string | null;
   // Story 30.43: the framing of an uploaded avatar (null = centred).
   avatarFraming?: ImageFraming | null;
   // Story 30.44: legendary admin, epic member (null = a plain name).
@@ -154,7 +160,12 @@ export type PersonalRun = {
   adminPassword: string | null;
   createdAt: string;
   updatedAt: string;
+  // Story 16.21: the caller put the run away in their own list. Only on /runs/mine.
+  archived?: boolean;
 };
+
+/** Statuses a member can archive (story 16.21): no party holding - or about to hold - a server. */
+export const ARCHIVABLE_STATUSES: PersonalRunStatus[] = ["draft", "completed", "cancelled"];
 
 export type AvailableGame = {
   id: string;

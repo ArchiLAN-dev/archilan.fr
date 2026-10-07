@@ -48,6 +48,23 @@ final class LaunchWeeklyEntryTest extends TestCase
             ->execute('run-1', 'entry-1', 'user-1');
     }
 
+    /** Story 11.5: an entry of a weekly whose game was disabled since does not launch. */
+    public function testInvokeThrowsWhenGameDisabled(): void
+    {
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
+        $runs->method('findById')->willReturn($this->makeRun());
+        $entries = $this->createMock(WeeklyEntryRepositoryInterface::class);
+        $entries->method('findById')->willReturn($this->makeEntry());
+        $entries->expects(self::never())->method('flush');
+        $gateway = $this->createMock(WeeklyRunnerGatewayInterface::class);
+        $gateway->expects(self::never())->method('launchEntry');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('game_disabled');
+
+        $this->makeHandler($runs, $entries, $gateway, gameDisabled: true)->execute('run-1', 'entry-1', 'user-1');
+    }
+
     public function testInvokeThrowsWhenSessionAlreadyStarted(): void
     {
         $run = $this->makeRun();
@@ -249,6 +266,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         WeeklyRunnerGatewayInterface $gateway,
         ?WeeklyTemplateRepositoryInterface $templates = null,
         ?SessionRepositoryInterface $sessions = null,
+        bool $gameDisabled = false,
     ): LaunchWeeklyEntry {
         if (null === $templates) {
             $stub = self::createStub(WeeklyTemplateRepositoryInterface::class);
@@ -259,6 +277,9 @@ final class LaunchWeeklyEntryTest extends TestCase
         $gameNow = new \DateTimeImmutable('2026-01-01T00:00:00Z');
         $game = Game::create('Archipelago', 'archipelago', 'Description.', null, 'Alt', 'Credit', Game::AVAILABILITY_AVAILABLE, $gameNow);
         $game->configureApworld('apworlds/archipelago.apworld', 'apworld-hash-123', 'Archipelago', '', $gameNow);
+        if ($gameDisabled) {
+            $game->disable(null, $gameNow);
+        }
         $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($game);
 

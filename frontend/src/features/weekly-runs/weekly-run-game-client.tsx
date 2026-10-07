@@ -14,6 +14,7 @@ import {
   fetchCurrentWeeklyRuns,
   fetchWeeklyEntryPatches,
   isGoalReachedEvent,
+  launchErrorMessage,
   launchWeeklyEntry,
   optInToWeeklyRun,
   relaunchWeeklyEntry,
@@ -323,7 +324,7 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
     const result = await launchWeeklyEntry(run.weeklyRunId, run.myEntry.entryId);
     setActionLoading(false);
     if (result === null) { showToast("Erreur lors du lancement. Réessayez."); return; }
-    if ("error" in result) { showToast(`Erreur : ${result.error}`); return; }
+    if ("error" in result) { showToast(launchErrorMessage(result.error)); return; }
     void queryClient.invalidateQueries({ queryKey: ["weekly-runs", "current"] });
     void queryClient.invalidateQueries({ queryKey: ["weekly-run-patches", run.weeklyRunId] });
   }

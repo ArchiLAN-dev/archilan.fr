@@ -4,16 +4,21 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Command;
 
+use App\Community\Application\Port\CosmeticOwnershipInterface;
+use App\Community\Application\Support\AvatarFrameCatalog;
+use App\Community\Application\Support\ProfileBannerCatalog;
+use App\Community\Application\Support\ProfileTitleCatalog;
 use App\Community\Domain\Entity\CommunityProfile;
+use App\Community\Domain\Enum\NameColor;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\ValueObject\Audience;
-use App\Community\Domain\ValueObject\AvatarFrame;
 use App\Community\Domain\ValueObject\BannerOverlay;
 use App\Community\Domain\ValueObject\BannerPreset;
 use App\Community\Domain\ValueObject\ImageFraming;
 use App\Community\Domain\ValueObject\ShowcaseWidget;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 
@@ -30,6 +35,11 @@ final readonly class UpdateCommunityProfile
         private CommunityProfileRepositoryInterface $profiles,
         private GameRepositoryInterface $games,
         private ClockInterface $clock,
+        private CosmeticOwnershipInterface $cosmetics,
+        private AvatarFrameCatalog $frames,
+        private ActiveMembershipQueryInterface $memberships,
+        private ProfileBannerCatalog $banners,
+        private ProfileTitleCatalog $titles,
     ) {
     }
 
@@ -48,9 +58,22 @@ final readonly class UpdateCommunityProfile
         $tagline = $this->nullableString($input['tagline'] ?? null, 120, 'tagline', $errors);
         $pronouns = $this->nullableString($input['pronouns'] ?? null, 40, 'pronouns', $errors);
 
+        // Stories 41.10 and 41.11: the rights are checked when a cosmetic is picked. One already worn is kept as is
+        // on a save that does not change it (a lapsed membership must not block the rest of the profile).
+        $stored = $this->profiles->findByUserId($userId);
+        $isMember = fn (): bool => $this->memberships->hasActiveMembership($userId);
+
         $bannerPreset = is_string($input['bannerPreset'] ?? null) ? $input['bannerPreset'] : BannerPreset::DEFAULT;
-        if (!BannerPreset::isValid($bannerPreset)) {
+        if (!$this->banners->isValid($bannerPreset)) {
             $errors->add('bannerPreset', 'Bannière invalide.');
+        } elseif ($bannerPreset !== $stored?->getBannerPreset() && !$this->banners->allowedFor(
+            $bannerPreset,
+            $isAdmin,
+            $isMember(),
+            $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::BANNER),
+        )) {
+            // Stories 41.7 and 41.11: a banner may be for admins, members, or who bought it.
+            $errors->add('bannerPreset', $this->banners->refusal($bannerPreset));
         }
 
         // Story 30.41: an omitted intensity keeps what the profile holds.
@@ -80,14 +103,50 @@ final readonly class UpdateCommunityProfile
         }
 
         $avatarFrame = is_string($input['avatarFrame'] ?? null) && '' !== $input['avatarFrame'] ? $input['avatarFrame'] : null;
-        if (null !== $avatarFrame && !AvatarFrame::isValid($avatarFrame)) {
+        if (null !== $avatarFrame && !$this->frames->isValid($avatarFrame)) {
             $errors->add('avatarFrame', 'Cadre invalide.');
-        } elseif (null !== $avatarFrame && !AvatarFrame::allowedFor($avatarFrame, $isAdmin)) {
-            $errors->add('avatarFrame', 'Cadre réservé aux admins.');
+        } elseif (null !== $avatarFrame && $avatarFrame !== $stored?->getAvatarFrame() && !$this->frames->allowedFor(
+            $avatarFrame,
+            $isAdmin,
+            $isMember(),
+            $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::FRAME),
+        )) {
+            // Stories 41.7 and 41.10: a frame may be for admins, members, or who bought it.
+            $errors->add('avatarFrame', $this->frames->refusal($avatarFrame));
+        }
+
+        // Story 41.22: an omitted title keeps the one worn; empty or null takes it off. Checked like the frames: one
+        // already worn is not checked again.
+        $titleGiven = \array_key_exists('title', $input);
+        $title = $titleGiven && is_string($input['title']) && '' !== $input['title'] ? $input['title'] : null;
+        if ($titleGiven && null !== $input['title'] && !is_string($input['title'])) {
+            $errors->add('title', 'Titre invalide.');
+        } elseif (null !== $title && !$this->titles->isValid($title)) {
+            $errors->add('title', 'Titre invalide.');
+        } elseif (null !== $title && $title !== $stored?->getTitleKey() && !$this->titles->allowedFor(
+            $title,
+            $isAdmin,
+            $isMember(),
+            $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::TITLE),
+        )) {
+            $errors->add('title', $this->titles->refusal($title));
+        }
+
+        // Story 41.23: like the title - omitted keeps it, empty or null takes it off, a new one must be bought.
+        $colorGiven = \array_key_exists('nameColor', $input);
+        $nameColor = $colorGiven && is_string($input['nameColor']) && '' !== $input['nameColor'] ? $input['nameColor'] : null;
+        if ($colorGiven && null !== $input['nameColor'] && !is_string($input['nameColor'])) {
+            $errors->add('nameColor', 'Couleur invalide.');
+        } elseif (null !== $nameColor && null === NameColor::tryFrom($nameColor)) {
+            $errors->add('nameColor', 'Couleur invalide.');
+        } elseif (null !== $nameColor && $nameColor !== $stored?->getNameColor()
+            && !\in_array($nameColor, $this->cosmetics->ownedKeys($userId, CosmeticOwnershipInterface::COLOR), true)) {
+            $errors->add('nameColor', 'Couleur à acheter en boutique.');
         }
 
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);
-        $favoriteGameIds = $this->parseFavorites($input['favoriteGameIds'] ?? null, $errors);
+        $storedFavorites = $stored?->getFavoriteGameIds() ?? [];
+        $favoriteGameIds = $this->parseFavorites($input['favoriteGameIds'] ?? null, $errors, $storedFavorites);
         $showcaseLayout = $this->parseShowcaseLayout($input['showcaseLayout'] ?? null);
 
         $errorsArray = $errors->toArray();
@@ -106,6 +165,7 @@ final readonly class UpdateCommunityProfile
         // the entity default, so a first save without the field lands on Audience::DEFAULT.
         $audience = $audienceInput ?? $profile->getAudience();
 
+        $favoriteGameIds = $this->keepHiddenFavorites($favoriteGameIds, $storedFavorites);
         $profile->customize($displayName, $bio, $tagline, $pronouns, $bannerPreset, $avatarFrame, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
         if (is_int($bannerOverlay)) {
             $profile->adjustBannerOverlay($bannerOverlay, $now);
@@ -118,6 +178,12 @@ final readonly class UpdateCommunityProfile
         }
         if (is_bool($titledName)) {
             $profile->toggleTitledName($titledName, $now);
+        }
+        if ($titleGiven) {
+            $profile->wearTitle($title, $now);
+        }
+        if ($colorGiven) {
+            $profile->wearNameColor($nameColor, $now);
         }
         $this->profiles->flush();
     }
@@ -220,9 +286,11 @@ final readonly class UpdateCommunityProfile
     }
 
     /**
+     * @param list<string> $storedFavorites the favourites the profile holds, which may stay even if disabled
+     *
      * @return list<string>
      */
-    private function parseFavorites(mixed $raw, ValidationErrors $errors): array
+    private function parseFavorites(mixed $raw, ValidationErrors $errors, array $storedFavorites = []): array
     {
         if (!is_array($raw)) {
             return [];
@@ -245,6 +313,10 @@ final readonly class UpdateCommunityProfile
             $found = [];
             foreach ($this->games->findByIds($ids) as $game) {
                 $found[$game->getId()] = true;
+                // Story 11.5: a disabled game cannot become a favourite (one already there may stay).
+                if ($game->isDisabled() && !\in_array($game->getId(), $storedFavorites, true)) {
+                    $errors->add('favoriteGameIds', sprintf('Jeu désactivé : %s', $game->getName()));
+                }
             }
             foreach ($ids as $id) {
                 if (!isset($found[$id])) {
@@ -254,5 +326,29 @@ final readonly class UpdateCommunityProfile
         }
 
         return $ids;
+    }
+
+    /**
+     * Story 11.5: a disabled favourite is hidden from the editor, which sends back what it shows - keep it, so it
+     * comes back when the game is enabled again. Within the favourites limit.
+     *
+     * @param list<string> $favoriteGameIds
+     * @param list<string> $storedFavorites
+     *
+     * @return list<string>
+     */
+    private function keepHiddenFavorites(array $favoriteGameIds, array $storedFavorites): array
+    {
+        $missing = array_values(array_diff($storedFavorites, $favoriteGameIds));
+        if ([] === $missing) {
+            return $favoriteGameIds;
+        }
+        foreach ($this->games->findByIds($missing) as $game) {
+            if ($game->isDisabled() && \count($favoriteGameIds) < self::MAX_FAVORITE_GAMES) {
+                $favoriteGameIds[] = $game->getId();
+            }
+        }
+
+        return $favoriteGameIds;
     }
 }

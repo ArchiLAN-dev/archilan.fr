@@ -3,13 +3,14 @@
 import type { FormEvent } from "react";
 import { useEffect, useId, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchAdminPost, type AdminPostDetail as AdminPost } from "./admin-posts-api";
 import { RichTextEditor } from "./rich-text-editor";
+import { useRouter } from "next/navigation";
 
 type PostType = "news" | "recap" | "announcement";
 
@@ -45,6 +46,8 @@ const EMPTY_FORM: FormValues = {
 };
 
 export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postId?: string }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
   const [hydratedPostId, setHydratedPostId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -142,7 +145,9 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
       }
 
       if (mode === "create") {
-        window.location.href = "/admin/actualites";
+        // The full reload this replaces refetched the list; the router keeps the cache, so it is invalidated here.
+        await queryClient.invalidateQueries({ queryKey: ["admin-posts"] });
+        router.push("/admin/actualites");
       } else {
         setSuccessMessage("Article mis à jour.");
       }

@@ -48,6 +48,8 @@ export type PublicGameDetail = PublicGame & {
    * API build does not send it - absent means "not disabled", which is the safe default here.
    */
   disabled?: boolean;
+  // Story 11.5: the admin's message, shown on the page of a disabled game.
+  disabledMessage?: string | null;
   bundledWithAp: boolean;
   adultContent: boolean;
   apworld: GameApworld;
@@ -180,6 +182,7 @@ function isPublicGameDetail(v: unknown): v is PublicGameDetail {
   if (!isPublicGame(v)) return false;
   if (!hasStringProp(v, "coverImageCredit")) return false;
   if ("disabled" in v && typeof v.disabled !== "boolean") return false;
+  if ("disabledMessage" in v && v.disabledMessage !== null && typeof v.disabledMessage !== "string") return false;
   if (!hasBooleanProp(v, "bundledWithAp") || !hasBooleanProp(v, "adultContent")) return false;
   if (!("apworld" in v) || !isGameApworld(v.apworld)) return false;
   if (!("options" in v) || !Array.isArray(v.options) || !v.options.every(isGameOption)) return false;

@@ -11,6 +11,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchMyGameSelection } from "./personal-runs-api";
+import { useRouter } from "next/navigation";
 import {
   createYamlTemplate,
   deleteYamlTemplate,
@@ -50,6 +51,7 @@ export function PersonalRunSlotYamlPage({
 }: {
   params: Promise<{ runId: string; slotId: string }>;
 }) {
+  const router = useRouter();
   const { runId, slotId } = use(params);
 
   const editorRef = useRef<YamlEditorHandle>(null);
@@ -83,9 +85,9 @@ export function PersonalRunSlotYamlPage({
   // 401/403: full-page login redirect, exactly as the old effect did.
   useEffect(() => {
     if (resultKind === "unauthorized") {
-      window.location.href = `/connexion?returnTo=/runs/${runId}/slots/${slotId}`;
+      router.replace(`/connexion?returnTo=/runs/${runId}/slots/${slotId}`);
     }
-  }, [resultKind, runId, slotId]);
+  }, [resultKind, runId, slotId, router]);
 
   // One-shot editor hydration from the fetched slot (YamlOptionEditor reads its props at mount, so
   // the editor is only rendered once these seeds are in place - see the hydration gate below).

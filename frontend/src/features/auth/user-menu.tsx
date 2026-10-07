@@ -4,14 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, LayoutDashboard, LogOut, Shield, User } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, Shield, User, Wallet } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchMyCommunityProfile } from "@/features/community/community-profile-api";
 import { useAuth, type AuthUser } from "./auth-context";
-import { AvatarImage } from "../community/avatar-image";
-import type { ImageFraming } from "@/features/community/image-framing";
+import { MemberAvatar } from "../community/member-avatar";
+import { PelleAmount } from "../wallet/pelle-amount";
+import { fetchMyWallet } from "../wallet/wallet-api";
 
 /**
  * Account dropdown for the desktop nav. Collapses everything that used to be a row of buttons
@@ -41,6 +42,15 @@ export function UserMenu({ user }: { user: AuthUser }) {
     retry: false,
   });
   const avatarUrl = profile?.avatarUrl ?? null;
+
+  // Story 41.1: the gold balance, under the same key as the wallet page's first page, so a credit seen
+  // there shows here too.
+  const { data: wallet } = useQuery({
+    queryKey: ["my-wallet", 1],
+    queryFn: () => fetchMyWallet(1),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -82,7 +92,16 @@ export function UserMenu({ user }: { user: AuthUser }) {
         onClick={() => setOpen((value) => !value)}
         type="button"
       >
-        <Avatar animatedUrl={profile?.avatarAnimatedUrl} avatarUrl={avatarUrl} className="size-8" framing={profile?.avatarFraming} user={user} />
+        {/* The avatar animated for good off the profile page: the member's own, in the navigation bar (story 30.47) and its menu. */}
+        <MemberAvatar
+          animate="always"
+          avatarAnimatedUrl={profile?.avatarAnimatedUrl}
+          avatarUrl={avatarUrl}
+          frame={profile?.avatarFrame}
+          framing={profile?.avatarFraming}
+          name={user.displayName?.trim() || user.email}
+          size={32}
+        />
         <span className="max-w-32 truncate">{name}</span>
         <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -93,7 +112,15 @@ export function UserMenu({ user }: { user: AuthUser }) {
           id={panelId}
         >
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-            <Avatar animatedUrl={profile?.avatarAnimatedUrl} avatarUrl={avatarUrl} className="size-10" framing={profile?.avatarFraming} user={user} />
+            <MemberAvatar
+              animate="always"
+              avatarAnimatedUrl={profile?.avatarAnimatedUrl}
+              avatarUrl={avatarUrl}
+              frame={profile?.avatarFrame}
+              framing={profile?.avatarFraming}
+              name={user.displayName?.trim() || user.email}
+              size={40}
+            />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{name}</p>
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>
@@ -104,6 +131,17 @@ export function UserMenu({ user }: { user: AuthUser }) {
               <MenuLink href={`/joueurs/${user.slug}`} icon={User} label="Mon profil" onNavigate={() => setOpen(false)} />
             ) : null}
             <MenuLink href="/compte" icon={LayoutDashboard} label="Mon espace" onNavigate={() => setOpen(false)} />
+            <Link
+              className="flex items-center justify-between gap-2.5 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+              href="/compte/portefeuille"
+              onClick={() => setOpen(false)}
+            >
+              <span className="flex items-center gap-2.5">
+                <Wallet aria-hidden="true" className="size-4" />
+                Mon portefeuille
+              </span>
+              {wallet ? <PelleAmount amount={wallet.gold} className="font-semibold text-warning" /> : null}
+            </Link>
             {isAdmin ? (
               <MenuLink href="/admin" icon={Shield} label="Administration" onNavigate={() => setOpen(false)} />
             ) : null}
@@ -121,32 +159,6 @@ export function UserMenu({ user }: { user: AuthUser }) {
         </div>
       ) : null}
     </div>
-  );
-}
-
-/** Community photo when available, else initials on a tinted disc; falls back too on image load error. */
-function Avatar({ avatarUrl, animatedUrl = null, framing = null, className, user }: { avatarUrl: string | null; animatedUrl?: string | null; framing?: ImageFraming | null; className: string; user: AuthUser }) {
-  const [failed, setFailed] = useState(false);
-
-  if (avatarUrl !== null && !failed) {
-    return (
-      <AvatarImage
-        animatedSrc={animatedUrl}
-        className={`${className} shrink-0 rounded-full bg-surface object-cover`}
-        framing={framing}
-        onError={() => setFailed(true)}
-        src={avatarUrl}
-      />
-    );
-  }
-
-  return (
-    <span
-      aria-hidden="true"
-      className={`${className} flex shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent-text`}
-    >
-      {initials(user)}
-    </span>
   );
 }
 
@@ -174,9 +186,3 @@ function MenuLink({
 }
 
 /** Up to two letters for the avatar fallback: initials of the two first words, else two first chars. */
-function initials(user: AuthUser): string {
-  const source = user.displayName?.trim() || user.email;
-  const words = source.split(/\s+/).filter(Boolean);
-  const letters = words.length >= 2 ? `${words[0][0]}${words[1][0]}` : source.slice(0, 2);
-  return letters.toUpperCase();
-}

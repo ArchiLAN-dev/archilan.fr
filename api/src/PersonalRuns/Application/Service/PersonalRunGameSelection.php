@@ -106,11 +106,50 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'coverImageAlt' => $g->getCoverImageAlt(),
             'platforms' => $g->platformFamilies(),
             'steamAppId' => $g->getSteamAppId(),
-        ], $allGames);
+        ], $this->offerable($allGames, $existingSlots));
 
         $recentlyPlayed = $this->recentlyPlayedGames->recentlyPlayed($userId, $runId, 3);
 
         return $this->result(found: true, status: $run->getStatus(), slots: $slots, availableGames: $availableGames, recentlyPlayedGames: $recentlyPlayed);
+    }
+
+    /**
+     * The games a member picked in each of their runs, in slot order, keyed by run id (story 36.9): the admin
+     * sheet shows them on a draft or a paused run, which has no finished party to tell them. Two queries
+     * whatever the number of runs - the member's participations, then their games.
+     *
+     * @return array<string, list<string>>
+     */
+    public function gamesByRunForMember(string $userId): array
+    {
+        $participations = $this->participants->findByUserId($userId);
+
+        $gameIds = [];
+        foreach ($participations as $participation) {
+            foreach ($participation->getGameSlots() as $slot) {
+                $gameIds[] = $slot['gameId'];
+            }
+        }
+        $names = [];
+        foreach ([] === $gameIds ? [] : $this->games->findByIds(array_values(array_unique($gameIds))) as $game) {
+            $names[$game->getId()] = $game->getName();
+        }
+
+        $byRun = [];
+        foreach ($participations as $participation) {
+            $slots = $participation->getGameSlots();
+            usort($slots, static fn (array $a, array $b): int => $a['slotOrder'] <=> $b['slotOrder']);
+            $games = [];
+            foreach ($slots as $slot) {
+                $name = $names[$slot['gameId']] ?? $slot['gameId'];
+                if (!in_array($name, $games, true)) {
+                    $games[] = $name;
+                }
+            }
+            $byRun[$participation->getRunId()] = $games;
+        }
+
+        return $byRun;
     }
 
     /**
@@ -212,6 +251,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
                 ?? ($user instanceof User ? $user->getDisplayName() : null),
             'avatarUrl' => null !== $card ? $card['avatarUrl'] : null,
             'avatarAnimatedUrl' => null !== $card ? $card['avatarAnimatedUrl'] : null,
+            'avatarFrame' => null !== $card ? $card['avatarFrame'] : null,
             'avatarFraming' => null !== $card ? $card['avatarFraming'] : null,
             'nameStyle' => null !== $card ? $card['nameStyle'] : null,
             'isAdmin' => $user instanceof User && in_array('ROLE_ADMIN', $user->getRoles(), true),
@@ -725,5 +765,24 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'blockReason' => $blockReason,
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * Story 11.5: a disabled game is no longer offered - except to a participant who already holds it, so that
+     * slot keeps its config (flagged as disabled, it still cannot be added again).
+     *
+     * @param list<Game>                  $games
+     * @param list<array{gameId: string}> $slots
+     *
+     * @return list<Game>
+     */
+    private function offerable(array $games, array $slots): array
+    {
+        $held = array_column($slots, 'gameId');
+
+        return array_values(array_filter(
+            $games,
+            static fn (Game $game): bool => !$game->isDisabled() || \in_array($game->getId(), $held, true),
+        ));
     }
 }

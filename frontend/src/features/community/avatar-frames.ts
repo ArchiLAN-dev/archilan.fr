@@ -8,13 +8,19 @@ export type AvatarFrameVariant = "solid" | "glow" | "spectral" | "holographic" |
 
 /**
  * A video frame (story 30.46): real fire filmed on black, laid over the avatar with `mix-blend-mode: screen` so
- * the black disappears. `poster` is its first frame, shown before mount and under reduced motion.
+ * the black disappears. `poster` is its first frame on black (the video's own poster); `still` is that frame with
+ * real transparency (story 30.47), shown whenever the video does not play, safe under any parent.
  */
 export type AvatarFrameVideo = {
   webm: string;
   mp4: string;
   poster: string;
+  still: string;
+  /** Story 41.30: the dark parts (white = untouched), laid in `multiply` under the light so they can cover the photo. */
+  shade?: AvatarFrameShade | null;
 };
+
+export type AvatarFrameShade = { webm: string; mp4: string };
 
 export type AvatarFrameConfig = {
   key: string;
@@ -25,12 +31,14 @@ export type AvatarFrameConfig = {
   color?: string;
   /** the overlay of the video variant */
   video?: AvatarFrameVideo;
+  /** Story 41.7: sold in the shop, usable only once bought (none yet: drawn by members). */
+  shop?: boolean;
 };
 
-/** A video frame whose assets are `/avatar-frames/<file>.webm|.mp4` and `<file>-poster.webp`. */
+/** A video frame whose assets are `/avatar-frames/<file>.webm|.mp4`, `<file>-poster.webp` and `<file>-still.webp`. */
 function videoFrame(key: string, label: string, file: string): AvatarFrameConfig {
   const base = `/avatar-frames/${file}`;
-  return { key, label, category: "Légendaires", variant: "video", video: { webm: `${base}.webm`, mp4: `${base}.mp4`, poster: `${base}-poster.webp` } };
+  return { key, label, category: "Légendaires", variant: "video", video: { webm: `${base}.webm`, mp4: `${base}.mp4`, poster: `${base}-poster.webp`, still: `${base}-still.webp` } };
 }
 
 export const AVATAR_FRAMES: readonly AvatarFrameConfig[] = [

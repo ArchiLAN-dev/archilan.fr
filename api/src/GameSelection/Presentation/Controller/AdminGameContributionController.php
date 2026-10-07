@@ -34,12 +34,30 @@ final readonly class AdminGameContributionController
             $this->queryString($request, 'target'),
             $this->queryString($request, 'sort'),
             $this->queryString($request, 'q'),
+            $this->queryString($request, 'game'),
         );
 
         return new JsonResponse([
             'data' => $this->query->list($filters),
             'meta' => ['count' => $this->query->pendingCount()],
         ]);
+    }
+
+    /** Story 39.16: one contribution, for its own moderation page. */
+    #[Route('/api/v1/admin/game-contributions/{id}', name: 'api_admin_game_contributions_show', methods: ['GET'])]
+    public function show(Request $request, string $id): JsonResponse
+    {
+        $admin = $this->apiAccessGuard->requireAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $contribution = $this->query->find($id);
+        if (null === $contribution) {
+            return $this->apiAccessGuard->errorResponse('contribution_not_found', 'Contribution introuvable.', 404);
+        }
+
+        return new JsonResponse(['data' => $contribution]);
     }
 
     private function queryString(Request $request, string $key): ?string
@@ -60,10 +78,12 @@ final readonly class AdminGameContributionController
         $payload = json_decode($request->getContent(), true);
         $payload = is_array($payload) ? $payload : [];
         $overrideSteps = is_array($payload['steps'] ?? null) ? $payload['steps'] : null;
+        // Story 41.5: gold pelles for the author, chosen by the admin; absent means none.
+        $pelles = $payload['pelles'] ?? 0;
 
         // Failures (missing, already moderated, invalid steps) are thrown as typed ApplicationFailures
         // and mapped to HTTP by ApplicationFailureListener (epic 35).
-        $this->moderate->approve($id, $admin->getId(), $overrideSteps);
+        $this->moderate->approve($id, $admin->getId(), $overrideSteps, is_int($pelles) ? $pelles : -1);
 
         return new JsonResponse(['meta' => ['message' => 'Contribution appliquée.']]);
     }

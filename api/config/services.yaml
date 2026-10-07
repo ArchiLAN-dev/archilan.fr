@@ -82,9 +82,25 @@ services:
             - '../src/WeeklyRuns/Domain/'
             - '../src/SessionConfig/Domain/'
             - '../src/Community/Domain/'
+            - '../src/Wallet/Domain/'
 
     App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigProfileRepository'
     App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigOverrideRepository'
+
+    App\Wallet\Domain\Repository\PelleMovementRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrinePelleMovementRepository'
+    App\Wallet\Domain\Repository\ShopRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
+    App\Wallet\Domain\Repository\QuestRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineQuestRepository'
+    # Stories 41.24, 41.26: the week's quests on Discord, told by the bot in a channel (no channel or no bot = nowhere).
+    App\Wallet\Application\Port\QuestAnnouncementChannelInterface:
+        factory: ['App\Wallet\Infrastructure\Adapter\QuestAnnouncementChannelFactory', 'create']
+        arguments:
+            $httpClient: '@http_client'
+            $botToken: '%env(default:default_empty_string:DISCORD_BOT_TOKEN)%'
+            $channelId: '%env(default:default_empty_string:DISCORD_QUESTS_CHANNEL_ID)%'
+    # Story 41.15: the Monday draw of the quests (the default engine is the secure one).
+    Random\Randomizer: ~
+    # Story 41.7: Community reads what a member bought through its own port, implemented by the shop.
+    App\Community\Application\Port\CosmeticOwnershipInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
 
     App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyRunRepository'
     App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyTemplateRepository'
@@ -302,9 +318,13 @@ services:
 
     App\PersonalRuns\Domain\Repository\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunRepository'
     App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunParticipantRepository'
+    App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunArchiveRepository'
     App\PersonalRuns\Domain\Repository\YamlTemplateRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineYamlTemplateRepository'
 
     App\Community\Domain\Repository\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineCommunityProfileRepository'
+    App\Community\Domain\Repository\AvatarFrameDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAvatarFrameDefinitionRepository'
+    App\Community\Domain\Repository\ProfileBannerDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineProfileBannerDefinitionRepository'
+    App\Community\Domain\Repository\ProfileTitleDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineProfileTitleDefinitionRepository'
     App\Community\Application\Query\CommunityProfileQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityProfileQuery'
     App\Community\Application\Query\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityUserContactsQuery'
     App\Community\Application\Query\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityUserIdsQuery'
@@ -353,10 +373,13 @@ services:
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
+    App\Sessions\Domain\Repository\ItemBountyRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineItemBountyRepository'
 
     App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotCoPlayerRepository'
 
     App\Sessions\Application\Port\SeedArchiveGatewayInterface: '@App\Sessions\Infrastructure\Adapter\OrchestratorSeedArchiveGateway'
+    # Story 41.3: the bridge's free hint, once the player has paid in pelles.
+    App\Sessions\Application\Port\PelleHintGatewayInterface: '@App\Sessions\Infrastructure\Bridge\BridgePelleHintGateway'
 
     App\Sessions\Infrastructure\Adapter\OrchestratorSeedArchiveGateway:
         arguments:
@@ -439,6 +462,7 @@ services:
 
     App\Payments\Domain\Repository\HelloAssoOrderRepositoryInterface: '@App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoOrderRepository'
     App\Payments\Domain\Repository\HelloAssoSyncLogRepositoryInterface: '@App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoSyncLogRepository'
+    App\Payments\Domain\Repository\ShopAnnouncementRepositoryInterface: '@App\Payments\Infrastructure\Doctrine\DoctrineShopAnnouncementRepository'
     App\Payments\Application\Port\HelloAssoClientInterface: '@App\Payments\Infrastructure\Http\HelloAssoHttpClient'
 
     App\Registrations\Domain\Repository\RegistrationRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationRepository'
@@ -491,6 +515,11 @@ when@test:
 
         App\Sessions\Application\Port\SeedArchiveGatewayInterface:
             class: App\Sessions\Infrastructure\Double\StubSeedArchiveGateway
+
+        App\Sessions\Infrastructure\Double\SpyPelleHintGateway:
+            public: true
+
+        App\Sessions\Application\Port\PelleHintGatewayInterface: '@App\Sessions\Infrastructure\Double\SpyPelleHintGateway'
 
         App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Double\NullMinioStorage'
 

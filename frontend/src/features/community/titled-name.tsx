@@ -1,20 +1,28 @@
 import type { ReactNode } from "react";
 
+import { isNameColorStyle, nameColorOfStyle, type NameColorStyle } from "./name-colors";
 import styles from "./titled-name.module.css";
 
 /** A member's titled name (story 30.44), from the API: legendary for an admin, epic for a member. */
-export type NameStyle = "legendary" | "epic";
+export type RarityStyle = "legendary" | "epic";
 
-export function isNameStyle(value: unknown): value is NameStyle {
+/** Story 41.23: or the colour the member bought, where no rarity colour applies. */
+export type NameStyle = RarityStyle | NameColorStyle;
+
+export function isRarityStyle(value: unknown): value is RarityStyle {
   return value === "legendary" || value === "epic";
 }
 
-const TITLES: Record<NameStyle, string> = {
+export function isNameStyle(value: unknown): value is NameStyle {
+  return isRarityStyle(value) || isNameColorStyle(value);
+}
+
+const TITLES: Record<RarityStyle, string> = {
   legendary: "Administrateur",
   epic: "Adhérent ArchiLAN",
 };
 
-function Emblem({ style }: { style: NameStyle }) {
+function Emblem({ style }: { style: RarityStyle }) {
   return (
     <span aria-hidden="true" className={styles.emblem} data-emblem={style === "legendary" ? "crown" : "star"}>
       <span className={`${styles.emblemShape} ${style === "legendary" ? styles.crown : styles.star}`} />
@@ -30,7 +38,8 @@ function Emblem({ style }: { style: NameStyle }) {
  *   is hidden from screen readers: the profile badges already say it.
  * - `card`: the emblem before the name, which glows more on hover; the card keeps its height.
  *
- * Without a style, the name is rendered as is.
+ * Without a style, the name is rendered as is. Story 41.23: a colour bought only tints the name - no title, no
+ * emblem, the same on a card and on the profile.
  */
 export function TitledName({
   children,
@@ -41,7 +50,14 @@ export function TitledName({
   style: NameStyle | null | undefined;
   variant: "profile" | "card";
 }) {
-  if (!isNameStyle(style)) {
+  if (isNameColorStyle(style)) {
+    return (
+      <span data-name-style={style} style={{ color: nameColorOfStyle(style) }}>
+        {children}
+      </span>
+    );
+  }
+  if (!isRarityStyle(style)) {
     return <>{children}</>;
   }
 

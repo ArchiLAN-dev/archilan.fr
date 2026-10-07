@@ -34,6 +34,10 @@ final readonly class SessionConfigOverride
         public ?array $plandoOptions = null,
         public ?bool $race = null,
         public ?SpoilerLevel $spoiler = null,
+        public ?bool $pelleHints = null,
+        public ?int $pelleItemHintPrice = null,
+        public ?int $pelleLocationHintPrice = null,
+        public ?bool $pelleBounties = null,
     ) {
     }
 
@@ -57,6 +61,10 @@ final readonly class SessionConfigOverride
             plandoOptions: $c->generation->plandoOptions,
             race: $c->generation->race,
             spoiler: $c->generation->spoiler,
+            pelleHints: $c->server->pelleHints,
+            pelleItemHintPrice: $c->server->pelleItemHintPrice,
+            pelleLocationHintPrice: $c->server->pelleLocationHintPrice,
+            pelleBounties: $c->server->pelleBounties,
         );
     }
 
@@ -107,6 +115,18 @@ final readonly class SessionConfigOverride
         if (null !== $this->spoiler) {
             $out['spoiler'] = $this->spoiler->value;
         }
+        if (null !== $this->pelleHints) {
+            $out['pelleHints'] = $this->pelleHints;
+        }
+        if (null !== $this->pelleItemHintPrice) {
+            $out['pelleItemHintPrice'] = $this->pelleItemHintPrice;
+        }
+        if (null !== $this->pelleLocationHintPrice) {
+            $out['pelleLocationHintPrice'] = $this->pelleLocationHintPrice;
+        }
+        if (null !== $this->pelleBounties) {
+            $out['pelleBounties'] = $this->pelleBounties;
+        }
 
         return $out;
     }
@@ -144,6 +164,10 @@ final readonly class SessionConfigOverride
             plandoOptions: $plando,
             race: isset($data['race']) && is_bool($data['race']) ? $data['race'] : null,
             spoiler: isset($data['spoiler']) && is_int($data['spoiler']) ? SpoilerLevel::fromInt($data['spoiler']) : null,
+            pelleHints: isset($data['pelleHints']) && is_bool($data['pelleHints']) ? $data['pelleHints'] : null,
+            pelleItemHintPrice: isset($data['pelleItemHintPrice']) && is_int($data['pelleItemHintPrice']) ? $data['pelleItemHintPrice'] : null,
+            pelleLocationHintPrice: isset($data['pelleLocationHintPrice']) && is_int($data['pelleLocationHintPrice']) ? $data['pelleLocationHintPrice'] : null,
+            pelleBounties: isset($data['pelleBounties']) && is_bool($data['pelleBounties']) ? $data['pelleBounties'] : null,
         );
     }
 
@@ -161,6 +185,10 @@ final readonly class SessionConfigOverride
             && null === $this->joinPassword
             && null === $this->plandoOptions
             && null === $this->race
-            && null === $this->spoiler;
+            && null === $this->spoiler
+            && null === $this->pelleHints
+            && null === $this->pelleItemHintPrice
+            && null === $this->pelleLocationHintPrice
+            && null === $this->pelleBounties;
     }
 }

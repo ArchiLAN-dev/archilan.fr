@@ -482,6 +482,12 @@ final class Session
         return $this->startedAt;
     }
 
+    /** The last time the server stopped (idle, crash, stop), kept across a resume (story 40.3). */
+    public function getStoppedAt(): ?\DateTimeImmutable
+    {
+        return $this->stoppedAt;
+    }
+
     public function getLastActivityAt(): ?\DateTimeImmutable
     {
         return $this->lastActivityAt;

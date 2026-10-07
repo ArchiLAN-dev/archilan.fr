@@ -58,8 +58,13 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
           {/* Story 28.13: shown even without a steamAppId - that is the point of the manual list.
               Story 28.14: the two lists sit side by side and are independent - owning a game says
               nothing about having played it. */}
-          <GameOwnedBadge gameId={game.id} steamAppId={game.steamAppId} />
-          <GamePlannedButton gameId={game.id} />
+          {/* Story 11.5: a disabled game can no longer be put on a list. */}
+          {true === game.disabled ? null : (
+            <>
+              <GameOwnedBadge gameId={game.id} steamAppId={game.steamAppId} />
+              <GamePlannedButton gameId={game.id} />
+            </>
+          )}
           <AdminEditLink className="ml-auto" href={`/admin/jeux/${game.id}`} label="Modifier ce jeu" />
         </div>
 
@@ -91,7 +96,9 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
 
         {/* Story 17.23: the page used to be a dead end - it described the game and stopped there,
             exactly where the intention to play is strongest. Not offered on a game an admin cut off. */}
-        {true === game.disabled ? null : (
+        {true === game.disabled ? (
+          <DisabledGameBanner message={game.disabledMessage ?? null} />
+        ) : (
           <div className="mt-5">
             <CreateRunWithGameButton gameId={game.id} gameName={game.name} gameSlug={game.slug} />
           </div>
@@ -327,3 +334,22 @@ function ChipSection({ title, items }: { title: string; items: string[] }) {
     </section>
   );
 }
+
+/**
+ * Story 11.5: a disabled game left every list, but its page stays reachable by direct link (the history of a
+ * game, a profile, an old link) - it says why it cannot be picked for now.
+ */
+export function DisabledGameBanner({ message }: { message: string | null }) {
+  return (
+    <div className="mt-5 flex items-start gap-2 rounded border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-foreground" role="status">
+      <ShieldAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
+      <div className="grid gap-1">
+        <p className="font-semibold">Ce jeu est temporairement désactivé.</p>
+        <p className="text-muted-foreground">
+          {message !== null && message.trim() !== "" ? message : "On ne peut pas le choisir pour une nouvelle partie pour le moment."}
+        </p>
+      </div>
+    </div>
+  );
+}
+

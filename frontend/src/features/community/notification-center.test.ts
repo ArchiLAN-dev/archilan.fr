@@ -130,3 +130,26 @@ describe("account flagged notification (story 39.13)", () => {
     expect(hrefFor(item("account_flagged", { displayName: "Troll42" }))).toBe("/admin/moderation/signalements");
   });
 });
+
+describe("pelles adjusted notification (story 41.1)", () => {
+  it("tells a credit with its reason, and leads to the wallet", () => {
+    const credit = item("pelles_adjusted", { amount: 50, kind: "gold", reason: "Aide au montage" });
+
+    expect(messageFor(credit)).toBe("Tu as reçu 50 pelles : Aide au montage");
+    expect(hrefFor(credit)).toBe("/compte/portefeuille");
+  });
+
+  it("tells a debit", () => {
+    expect(messageFor(item("pelles_adjusted", { amount: -1, kind: "gold", reason: "" }))).toBe("L'équipe t'a retiré 1 pelle");
+  });
+});
+
+describe("quests renewed notification (story 41.17)", () => {
+  it("tells the new quests and what they can pay, and leads to the wallet", () => {
+    const notice = item("quests_renewed", { week: "2026-W42", count: 3, maxPelles: 150 });
+
+    expect(messageFor(notice)).toBe("Nouvelles quêtes de la semaine : 3 quêtes, jusqu'à 150 pelles");
+    expect(hrefFor(notice)).toBe("/compte/portefeuille");
+    expect(messageFor(item("quests_renewed", {}))).toBe("Nouvelles quêtes de la semaine");
+  });
+});

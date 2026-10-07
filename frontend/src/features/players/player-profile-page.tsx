@@ -8,7 +8,7 @@ import type {
   ProfilePresence,
   RunHistoryEntry,
 } from "./player-profile-api";
-import { ProfileAvatar } from "./profile-avatar";
+import { MemberAvatar } from "@/features/community/member-avatar";
 import { ProfileRelationshipActions } from "@/features/community/profile-relationship-actions";
 import { ProfileActivity } from "@/features/community/community-activity";
 import { ProfileAchievements } from "@/features/community/profile-achievements";
@@ -17,6 +17,7 @@ import { ProfileBanner } from "@/features/community/profile-banner";
 import { resolveLinkType } from "@/features/community/social-links";
 import { Markdown } from "@/components/markdown/markdown";
 import { TitledName } from "@/features/community/titled-name";
+import { ProfileTitleBadge } from "@/features/community/profile-title-badge";
 
 export function PlayerProfilePage({
   profile,
@@ -51,7 +52,15 @@ export function PlayerProfilePage({
               badges sit just below the name and beside the avatar - pulled up so they aren't below the photo. */}
           <div>
             <div className="-mt-12 flex items-center gap-4 sm:-mt-14">
-              <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} framing={profile.avatarFraming} name={displayName} />
+              <MemberAvatar
+                animate="always"
+                avatarUrl={profile.avatarUrl}
+                frame={profile.customization?.avatarFrame ?? null}
+                framing={profile.avatarFraming}
+                name={displayName}
+                size={112}
+                sizeClassName="size-24 sm:size-28"
+              />
               <h1 className="min-w-0 font-heading text-2xl font-bold leading-tight text-foreground [overflow-wrap:anywhere] [text-shadow:0_2px_6px_rgba(0,0,0,0.7)] sm:text-3xl md:text-4xl">
                 <TitledName style={profile.nameStyle} variant="profile">
                   {displayName}
@@ -59,6 +68,8 @@ export function PlayerProfilePage({
               </h1>
             </div>
             <div className="-mt-6 flex flex-wrap items-center gap-2 pl-28 sm:-mt-8 sm:pl-32">
+              {/* Story 41.22: the title the member wears, bought or given. */}
+              {profile.title ? <ProfileTitleBadge title={profile.title} withTooltip /> : null}
               <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
                 Niv. {profile.level.level}
               </span>

@@ -1,18 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { Lock } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
-import { AvatarContent } from "@/features/players/profile-avatar";
 import { AvatarFrame } from "./avatar-frame";
-import { AVATAR_FRAMES, type AvatarFrameCategory } from "./avatar-frames";
+import { AVATAR_FRAMES, type AvatarFrameCategory, type AvatarFrameConfig } from "./avatar-frames";
+import {
+  AVATAR_FRAME_CATALOG_QUERY_KEY,
+  catalogFrameConfig,
+  fetchAvatarFrameCatalog,
+  frameLockReason,
+  type AvatarFrameCatalogEntry,
+} from "./avatar-frame-catalog";
 import { FramePreview, type FramePreviewBanner } from "./frame-preview";
+import { AvatarContent } from "./member-avatar";
 import type { ImageFraming } from "./image-framing";
 
 export const FRAME_CATEGORIES: readonly AvatarFrameCategory[] = ["Couleurs", "Néon", "Effets", "Légendaires"];
 export const LEGENDARY_CATEGORY: AvatarFrameCategory = "Légendaires";
+// The cards draw their 48 px avatar with the frame scaled to it (story 30.47).
+const CARD_SCALE = { "--s": 48 / 112 } as CSSProperties;
 
 type Avatar = { avatarUrl: string | null; name: string; framing: ImageFraming | null };
 
@@ -28,6 +39,8 @@ export function FramePickerDialog({
   current,
   saved,
   legendaryAllowed,
+  memberAllowed = false,
+  ownedFrames = [],
   avatar,
   banner,
   onApply,
@@ -39,10 +52,21 @@ export function FramePickerDialog({
   /** The frame as last saved: a dot marks it. */
   saved: string | null;
   legendaryAllowed: boolean;
+  /** Story 41.10: the frames reserved to members. */
+  memberAllowed?: boolean;
+  /** Story 41.7: the shop frames this member bought. */
+  ownedFrames?: readonly string[];
   avatar: Avatar;
   banner: FramePreviewBanner;
   onApply: (frame: string | null) => void;
 }) {
+  // Story 41.10: the admin catalog (new frames, and the access of every video frame).
+  const { data: catalog = [] } = useQuery({
+    queryKey: AVATAR_FRAME_CATALOG_QUERY_KEY,
+    queryFn: fetchAvatarFrameCatalog,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
   return (
     <Dialog onOpenChange={onOpenChange} open={open} size="wide" title="Cadre d'avatar">
       {/* The content unmounts when the dialog closes, so each opening starts again from the draft. */}
@@ -50,7 +74,10 @@ export function FramePickerDialog({
         avatar={avatar}
         banner={banner}
         current={current}
+        catalog={catalog}
         legendaryAllowed={legendaryAllowed}
+        memberAllowed={memberAllowed}
+        ownedFrames={ownedFrames}
         onApply={(frame) => {
           onApply(frame);
           onOpenChange(false);
@@ -64,17 +91,26 @@ export function FramePickerDialog({
 
 /** The picker's content (exported for tests: the dialog itself only renders in a browser). */
 export function FramePicker({
+  catalog = [],
   current,
   saved,
   legendaryAllowed,
+  memberAllowed = false,
+  ownedFrames = [],
   avatar,
   banner,
   onApply,
   onCancel,
 }: {
+  /** Story 41.10: the admin catalog; empty in tests and before it loads. */
+  catalog?: readonly AvatarFrameCatalogEntry[];
   current: string | null;
   saved: string | null;
   legendaryAllowed: boolean;
+  /** Story 41.10: the frames reserved to members. */
+  memberAllowed?: boolean;
+  /** Story 41.7: the shop frames this member bought. */
+  ownedFrames?: readonly string[];
   avatar: Avatar;
   banner: FramePreviewBanner;
   onApply: (frame: string | null) => void;
@@ -91,38 +127,54 @@ export function FramePicker({
         <div className="grid gap-5">
           {FRAME_CATEGORIES.map((category) => {
             const legendary = category === LEGENDARY_CATEGORY;
-            const locked = legendary && !legendaryAllowed;
+            const frames: AvatarFrameConfig[] = AVATAR_FRAMES.filter((f) => f.category === category);
+            if (legendary) {
+              // Story 41.10: the frames uploaded from the admin join the video frames.
+              for (const entry of catalog) {
+                const config = entry.builtIn ? null : catalogFrameConfig(entry);
+                if (config !== null) frames.push(config);
+              }
+            }
             return (
               <section className="grid gap-2" key={category}>
-                <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                  {category}
-                  {locked ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground">
-                      <Lock aria-hidden className="size-3" /> réservés aux admins pour l&apos;instant
-                    </span>
-                  ) : null}
-                </h3>
+                <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">{category}</h3>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2">
                   {category === FRAME_CATEGORIES[0] ? (
                     <FrameCard avatar={avatar} frameKey={null} label="Aucun" onPick={setPick} saved={null === saved} selected={null === pick} />
                   ) : null}
-                  {AVATAR_FRAMES.filter((f) => f.category === category).map((f) => (
-                    <FrameCard
-                      avatar={avatar}
-                      frameKey={f.key}
-                      key={f.key}
-                      label={f.label}
-                      legendary={legendary}
-                      locked={locked}
-                      onPick={setPick}
-                      saved={saved === f.key}
-                      selected={pick === f.key}
-                    />
-                  ))}
+                  {frames.map((f) => {
+                    // Stories 41.7 and 41.10: each frame is locked by its own access.
+                    const reason = frameLockReason(
+                      { key: f.key, legendary, shop: true === f.shop },
+                      catalog.find((entry) => entry.key === f.key)?.access,
+                      { admin: legendaryAllowed, member: memberAllowed, owned: ownedFrames },
+                    );
+                    return (
+                      <FrameCard
+                        avatar={avatar}
+                        frameKey={f.key}
+                        key={f.key}
+                        label={f.label}
+                        legendary={legendary}
+                        lockReason={reason ?? undefined}
+                        locked={reason !== null}
+                        onPick={setPick}
+                        saved={saved === f.key}
+                        selected={pick === f.key}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             );
           })}
+          {/* Story 41.12: the way to the frames on sale. */}
+          <p className="text-xs text-muted-foreground">
+            D&apos;autres cadres se gagnent avec tes pelles.{" "}
+            <Link className="font-semibold text-accent-text underline-offset-2 hover:underline" href="/boutique">
+              Voir la boutique
+            </Link>
+          </p>
         </div>
       </DialogBody>
       <DialogFooter>
@@ -149,6 +201,7 @@ function FrameCard({
   saved,
   legendary = false,
   locked = false,
+  lockReason = "Réservé aux admins pour l'instant",
   onPick,
   avatar,
 }: {
@@ -158,6 +211,7 @@ function FrameCard({
   saved: boolean;
   legendary?: boolean;
   locked?: boolean;
+  lockReason?: string;
   onPick: (key: string | null) => void;
   avatar: Avatar;
 }) {
@@ -171,7 +225,7 @@ function FrameCard({
 
   return (
     <button
-      aria-label={locked ? `${label} (réservé aux admins)` : label}
+      aria-label={locked ? `${label} (${lockReason.startsWith("Réservé aux admins") ? "réservé aux admins" : lockReason.toLowerCase()})` : label}
       aria-pressed={selected}
       className={`relative grid justify-items-center gap-1.5 rounded-lg border p-2 transition-colors disabled:cursor-not-allowed ${border}`}
       disabled={locked}
@@ -180,11 +234,11 @@ function FrameCard({
       onFocus={() => setHovered(true)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title={locked ? "Réservé aux admins pour l'instant" : label}
+      title={locked ? lockReason : label}
       type="button"
     >
-      <AvatarFrame className="size-12" frameKey={frameKey} playing={hovered && !locked} preview>
-        <AvatarContent avatarUrl={avatar.avatarUrl} framing={avatar.framing} name={avatar.name} small />
+      <AvatarFrame animated={hovered && !locked} className="size-12" frameKey={frameKey} preview style={CARD_SCALE}>
+        <AvatarContent avatarUrl={avatar.avatarUrl} framing={avatar.framing} name={avatar.name} size={48} />
       </AvatarFrame>
       {locked ? (
         <Lock aria-hidden className="absolute right-1.5 top-1.5 size-3.5 text-muted-foreground" />

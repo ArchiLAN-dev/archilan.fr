@@ -31,6 +31,7 @@ final readonly class DddArchitectureValidator
         'WeeklyRuns',
         'SessionConfig',
         'Community',
+        'Wallet',
     ];
 
     /**

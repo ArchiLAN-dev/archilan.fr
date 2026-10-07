@@ -14,7 +14,7 @@ import {
   type FriendCard,
   type IncomingRequest,
 } from "./community-friends-api";
-import { AvatarImage } from "./avatar-image";
+import { MemberAvatar } from "./member-avatar";
 import { TitledName } from "@/features/community/titled-name";
 
 export function CommunityFriendsPanel() {
@@ -120,16 +120,14 @@ function FriendIdentity({ card, link = false }: { card: FriendCard; link?: boole
   const name = card.displayName ?? card.slug;
   const inner = (
     <span className="flex min-w-0 flex-1 items-center gap-3">
-      <span
-        aria-hidden
-        className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/15 text-sm font-bold text-accent-text"
-      >
-        {card.avatarUrl ? (
-          <AvatarImage animatedSrc={card.avatarAnimatedUrl} className="size-full object-cover" framing={card.avatarFraming} src={card.avatarUrl} />
-        ) : (
-          name.slice(0, 1).toUpperCase()
-        )}
-      </span>
+      <MemberAvatar
+        avatarAnimatedUrl={card.avatarAnimatedUrl}
+        avatarUrl={card.avatarUrl}
+        frame={card.avatarFrame}
+        framing={card.avatarFraming}
+        name={name}
+        size={36}
+      />
       <span className="min-w-0 truncate text-sm font-medium text-foreground">
         <TitledName style={card.nameStyle} variant="card">
           {name}

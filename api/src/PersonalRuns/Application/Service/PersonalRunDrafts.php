@@ -15,7 +15,9 @@ use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunArchive;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
+use App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Entity\Session;
@@ -38,6 +40,7 @@ final readonly class PersonalRunDrafts
         private ClockInterface $clock,
         private string $siteUrl,
         private AdminRunActionTrace $trace,
+        private RunArchiveRepositoryInterface $archives,
     ) {
     }
 
@@ -140,12 +143,14 @@ final readonly class PersonalRunDrafts
     {
         // La participation est portée par la branche elle-même : `owned` sont les runs possédées,
         // `joined` celles rejointes. Aucune requête d'appartenance à faire, ce qui serait un N+1.
+        // Story 16.21 : `archived` dit si l'appelant a rangé la run dans SA liste - une seule requête.
+        $archived = $this->archives->archivedRunIds($userId);
         $owned = array_map(
-            fn (Run $run): array => $this->payload($run, $userId, [], false),
+            fn (Run $run): array => [...$this->payload($run, $userId, [], false), 'archived' => in_array($run->getId(), $archived, true)],
             $this->runs->findByOwnerId($userId),
         );
         $joined = array_map(
-            fn (Run $run): array => $this->payload($run, $userId, [], true),
+            fn (Run $run): array => [...$this->payload($run, $userId, [], true), 'archived' => in_array($run->getId(), $archived, true)],
             $this->runs->findJoinedByUserId($userId),
         );
 
@@ -179,7 +184,11 @@ final readonly class PersonalRunDrafts
         return [
             'found' => true,
             'authorized' => true,
-            'payload' => $this->payload($run, $callerId, $participants, $isParticipant),
+            // Story 16.21 : la page de la run propose d'archiver dans SA liste, et dit si c'est déjà fait.
+            'payload' => [
+                ...$this->payload($run, $callerId, $participants, $isParticipant),
+                'archived' => $this->archives->find($run->getId(), $callerId) instanceof RunArchive,
+            ],
         ];
     }
 
@@ -296,6 +305,8 @@ final readonly class PersonalRunDrafts
         // Tracée avant la suppression : après, la partie n'existe plus pour porter son propriétaire.
         $this->trace->record($run, $callerId, AdminUserActionAudit::ACTION_RUN_DELETE);
         $this->participants->deleteByRunId($run->getId());
+        // Story 16.21 : les archives personnelles partent avec la partie, rien ne les rattache plus à rien.
+        $this->archives->deleteByRunId($run->getId());
         $this->runs->delete($run);
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
@@ -385,7 +396,7 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}>
+     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}>
      */
     private function getParticipants(string $runId): array
     {
@@ -427,6 +438,7 @@ final readonly class PersonalRunDrafts
                     ?? $user?->getDisplayName() ?? $user?->getEmail(),
                 'avatarUrl' => null !== $card ? $card['avatarUrl'] : null,
                 'avatarAnimatedUrl' => null !== $card ? $card['avatarAnimatedUrl'] : null,
+                'avatarFrame' => null !== $card ? $card['avatarFrame'] : null,
                 'avatarFraming' => null !== $card ? $card['avatarFraming'] : null,
                 'nameStyle' => null !== $card ? $card['nameStyle'] : null,
                 'joinedAt' => $p->getJoinedAt()->format(\DateTimeInterface::ATOM),
@@ -440,8 +452,8 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @param list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}> $participants
-     * @param bool                                                                                                                                                                                                                                                                                                       $isParticipant l'appelant est-il rattaché à la run sans en être propriétaire (story 16.14)
+     * @param list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}> $participants
+     * @param bool                                                                                                                                                                                                                                                                                                                                 $isParticipant l'appelant est-il rattaché à la run sans en être propriétaire (story 16.14)
      *
      * @return array<string, mixed>
      */

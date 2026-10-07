@@ -195,6 +195,30 @@ export function messageFor(item: NotificationItem): string {
         : "Un compte a atteint le seuil de modération";
     case "moderation_reply":
       return "La modération t'a répondu";
+    case "pelles_adjusted": {
+      // Story 41.1: an admin credited or debited the member's pelles; the reason is theirs to read.
+      const amount = hasNumberProp(item.data, "amount") ? item.data.amount : 0;
+      // Story 41.2: event pelles name their event.
+      const event = hasStringProp(item.data, "eventTitle") && item.data.eventTitle !== "" ? ` pour « ${item.data.eventTitle} »` : "";
+      const what = `${Math.abs(amount)} ${Math.abs(amount) > 1 ? "pelles" : "pelle"}${event}`;
+      const reason = hasStringProp(item.data, "reason") && item.data.reason !== "" ? ` : ${item.data.reason}` : "";
+      return amount < 0 ? `L'équipe t'a retiré ${what}${reason}` : `Tu as reçu ${what}${reason}`;
+    }
+    case "cosmetic_unlocked": {
+      // Story 41.28: a cosmetic won through an achievement or a quest.
+      const label = hasStringProp(item.data, "label") ? item.data.label : "Un cosmétique";
+      const kind = hasStringProp(item.data, "source") && item.data.source === "quest" ? "quête" : "succès";
+      const from = hasStringProp(item.data, "sourceLabel") ? ` (${kind} « ${item.data.sourceLabel} »)` : "";
+      return `Débloqué : ${label}${from}`;
+    }
+    case "quests_renewed": {
+      // Story 41.17: the quests of the new week are out.
+      const count = hasNumberProp(item.data, "count") ? item.data.count : 0;
+      const max = hasNumberProp(item.data, "maxPelles") ? item.data.maxPelles : 0;
+      const quests = count > 0 ? ` : ${count} ${count > 1 ? "quêtes" : "quête"}` : "";
+      const pelles = max > 0 ? `, jusqu'à ${max} pelles` : "";
+      return `Nouvelles quêtes de la semaine${quests}${pelles}`;
+    }
     case "moderation_warning":
       return hasStringProp(item.data, "reason") && item.data.reason !== ""
         ? `Avertissement de la modération : ${item.data.reason}`
@@ -260,6 +284,13 @@ export function messageFor(item: NotificationItem): string {
 export function hrefFor(item: NotificationItem): string {
   if (item.type === "account_flagged") {
     return "/admin/moderation/signalements";
+  }
+  if (item.type === "pelles_adjusted" || item.type === "quests_renewed") {
+    return "/compte/portefeuille";
+  }
+  if (item.type === "cosmetic_unlocked") {
+    // Story 41.28: where the member puts it on.
+    return "/compte/profil";
   }
   if (item.type === "apworld_incident_opened") {
     // The apworld health page (story 38.3): the incident, who holds it, and the actions.

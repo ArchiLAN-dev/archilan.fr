@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+
 import { videoLayer } from "./avatar-frame-video";
 import { getAvatarFrame, type AvatarFrameVideo } from "./avatar-frames";
 
@@ -26,6 +28,24 @@ describe("videoLayer", () => {
     const still = videoLayer(video("lava"), "layer", false);
 
     expect(still.type).toBe("img");
-    expect(still.props).toMatchObject({ src: "/avatar-frames/lava-poster.webp", alt: "" });
+    expect(still.props).toMatchObject({ src: "/avatar-frames/lava-still.webp", alt: "" });
+  });
+
+  test("a shaded frame lays its shade in multiply under the light, which keeps screen", () => {
+    const shaded: AvatarFrameVideo = { ...video("fire"), shade: { webm: "/s.webm", mp4: "/s.mp4" } };
+
+    const layer = videoLayer(shaded, "layer", true);
+    const [shade, light] = (layer.props as { children: ReactElement<{ style: { mixBlendMode: string } }>[] }).children;
+
+    expect(layer.key).toBe("/avatar-frames/fire.webm");
+    expect(shade.key).toBe("/s.webm");
+    expect(shade.props.style.mixBlendMode).toBe("multiply");
+    expect(light.props.style.mixBlendMode).toBe("screen");
+  });
+
+  test("a shaded frame without motion is still its single still image", () => {
+    const shaded: AvatarFrameVideo = { ...video("lava"), shade: { webm: "/s.webm", mp4: "/s.mp4" } };
+
+    expect(videoLayer(shaded, "layer", false).type).toBe("img");
   });
 });

@@ -4,6 +4,9 @@ import { TEST_API_BASE_URL } from "../../tests/constants";
 import {
   approveContribution,
   buildContributionsQuery,
+  compareSteps,
+  fetchContribution,
+  summarizeChanges,
   DEFAULT_CONTRIBUTION_FILTERS,
   fetchContributionQueue,
   rejectContribution,
@@ -99,8 +102,52 @@ describe("approve/reject", () => {
     expect(await approveContribution("c1")).toBe(true);
   });
 
+  it("approve sends the pelles chosen for the author (story 41.5)", async () => {
+    let body: unknown = null;
+    server.use(
+      http.post(`${BASE}/admin/game-contributions/c1/approve`, async ({ request }) => {
+        body = await request.json();
+        return new HttpResponse(null, { status: 200 });
+      }),
+    );
+
+    expect(await approveContribution("c1", 75)).toBe(true);
+    expect(body).toEqual({ pelles: 75 });
+  });
+
   it("reject returns false on conflict", async () => {
     server.use(http.post(`${BASE}/admin/game-contributions/c1/reject`, () => new HttpResponse(null, { status: 409 })));
     expect(await rejectContribution("c1", "raison")).toBe(false);
+  });
+});
+
+/** Story 39.16: one contribution on its own page, compared step by step. */
+describe("fetchContribution", () => {
+  it("reads one contribution", async () => {
+    server.use(http.get(`${BASE}/admin/game-contributions/c1`, () => HttpResponse.json({ data: { ...item, gameId: "g1", reviewedAt: null, rejectionReason: null } })));
+    const result = await fetchContribution("c1");
+    expect(result.kind).toBe("ready");
+    expect(result.kind === "ready" ? result.item.gameId : null).toBe("g1");
+  });
+
+  it("tells an unknown contribution from a failure", async () => {
+    server.use(http.get(`${BASE}/admin/game-contributions/nope`, () => new HttpResponse(null, { status: 404 })));
+    expect((await fetchContribution("nope")).kind).toBe("not_found");
+    server.use(http.get(`${BASE}/admin/game-contributions/c1`, () => HttpResponse.error()));
+    expect((await fetchContribution("c1")).kind).toBe("error");
+  });
+});
+
+describe("compareSteps", () => {
+  const step = (title: string, description = "") => ({ type: "apworld" as const, title, description });
+
+  it("compares position by position and counts each kind of change", () => {
+    const rows = compareSteps([step("A"), step("B"), step("C")], [step("A"), step("B", "plus clair")]);
+    expect(rows.map((row) => row.change)).toEqual(["same", "modified", "removed"]);
+    expect(rows[2].proposed).toBeNull();
+
+    const grown = compareSteps([step("A")], [step("A"), step("Z")]);
+    expect(grown.map((row) => row.change)).toEqual(["same", "added"]);
+    expect(summarizeChanges([...rows, ...grown])).toEqual({ same: 2, modified: 1, added: 1, removed: 1 });
   });
 });

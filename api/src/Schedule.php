@@ -19,7 +19,10 @@ use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
+use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
+use App\Wallet\Application\Message\AwardWeeklyQuestsMessage;
+use App\Wallet\Application\Message\ExpireEventPellesMessage;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
@@ -68,6 +71,19 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Backstop: catch any achievement unlock the real-time post-archive path missed
                 // (story 30.26). Runs hourly (at :45) so a missed unlock is reconciled within the hour.
                 RecurringMessage::cron('45 * * * *', new RecomputeAllAchievementsMessage()),
+            )
+            ->add(
+                // Les pelles d'un événement terminé : 10 % en or, le reste détruit (story 41.2).
+                RecurringMessage::cron('50 * * * *', new ExpireEventPellesMessage()),
+            )
+            ->add(
+                // Les primes encore ouvertes d'une partie terminée sont rendues à leur poseur (story 41.4).
+                RecurringMessage::cron('55 * * * *', new RefundEndedSessionBountiesMessage()),
+            )
+            ->add(
+                // Les quêtes de la semaine accomplies sont payées dans l'heure (story 41.6), puis en quelques minutes
+                // (story 41.19) : le paiement, le coffre et l'annonce du lundi passent toutes les 5 minutes.
+                RecurringMessage::cron('*/5 * * * *', new AwardWeeklyQuestsMessage()),
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ArrowDown, ArrowUp, Check, Crop, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
@@ -12,6 +13,10 @@ import { FramePickerDialog } from "./frame-picker-dialog";
 import { FramePreview } from "./frame-preview";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
+import { bannerLockReason, fetchProfileBannerCatalog, PROFILE_BANNER_CATALOG_QUERY_KEY } from "./profile-banner-catalog";
+import { ProfileTitleBadge } from "./profile-title-badge";
+import { NAME_COLORS } from "./name-colors";
+import { badgeOf, fetchProfileTitleCatalog, PROFILE_TITLE_CATALOG_QUERY_KEY, type ProfileTitle, titleLockReason } from "./profile-title-catalog";
 import { imageAccept, imageFormatsHint, imageUploadError } from "./custom-image-rules";
 import { ImageFramingDialog, type FramingShape } from "./image-framing-dialog";
 import { TitledName, type NameStyle } from "./titled-name";
@@ -71,6 +76,8 @@ type FormValues = {
   avatarFraming: ImageFraming;
   bannerFraming: ImageFraming;
   titledName: boolean;
+  title: string | null;
+  nameColor: string | null;
   avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
@@ -92,6 +99,8 @@ function serialize(v: FormValues): string {
     avatarFraming: v.avatarFraming,
     bannerFraming: v.bannerFraming,
     titledName: v.titledName,
+    title: v.title,
+    nameColor: v.nameColor,
     avatarFrame: v.avatarFrame,
     audience: v.audience,
     socialLinks: v.socialLinks
@@ -126,6 +135,10 @@ export function CommunityProfileCustomizationForm({
   const [savedAvatarFrame, setSavedAvatarFrame] = useState<string | null>(null);
   const [framePickerOpen, setFramePickerOpen] = useState(false);
   const [legendaryAllowed, setLegendaryAllowed] = useState(false);
+  // Story 41.7: the shop frames and banners this member bought.
+  const [ownedFrames, setOwnedFrames] = useState<string[]>([]);
+  const [memberFramesAllowed, setMemberFramesAllowed] = useState(false);
+  const [ownedBanners, setOwnedBanners] = useState<string[]>([]);
   // Story 30.43: the framing of the uploaded photo and banner image, saved with the profile; the dialog that sets it.
   const [avatarFraming, setAvatarFraming] = useState<ImageFraming>(CENTRED_FRAMING);
   const [bannerFraming, setBannerFraming] = useState<ImageFraming>(CENTRED_FRAMING);
@@ -133,6 +146,13 @@ export function CommunityProfileCustomizationForm({
   // Story 30.44: the titled name - the owner's switch, and the style their status gives (null = none).
   const [titledName, setTitledName] = useState(true);
   const [titledNameStyle, setTitledNameStyle] = useState<NameStyle | null>(null);
+  // Story 41.22: the title worn under the name, and the shop titles bought.
+  const [profileTitle, setProfileTitle] = useState<string | null>(null);
+  const [ownedTitles, setOwnedTitles] = useState<string[]>([]);
+  // Story 41.23: the colour worn by the name, and the colours bought.
+  const [nameColorKey, setNameColorKey] = useState<string | null>(null);
+  const [ownedColors, setOwnedColors] = useState<string[]>([]);
+  const { data: titleCatalog = [] } = useQuery({ queryKey: PROFILE_TITLE_CATALOG_QUERY_KEY, queryFn: fetchProfileTitleCatalog, staleTime: 5 * 60 * 1000, retry: false });
   // Avatar upload is applied immediately (not through the save bar), so it lives outside `values`.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasCustomAvatar, setHasCustomAvatar] = useState(false);
@@ -175,10 +195,27 @@ export function CommunityProfileCustomizationForm({
   });
   const catalog: PublicGame[] = catalogData ?? [];
   const loading = loadingProfile || loadingCatalog;
+  // Story 41.11: the admin catalog of banners (new ones, and the access and order of every banner).
+  const { data: bannerCatalog = [] } = useQuery({
+    queryKey: PROFILE_BANNER_CATALOG_QUERY_KEY,
+    queryFn: fetchProfileBannerCatalog,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const bannerChoices = useMemo(() => {
+    // The catalog's order once loaded (retired presets left out); the presets alone before.
+    if (bannerCatalog.length === 0) return BANNER_PRESETS.map((preset) => ({ key: preset.key, label: preset.label, shop: true === preset.shop, media: null }));
+    return bannerCatalog.map((entry) => ({
+      key: entry.key,
+      label: entry.label,
+      shop: true === BANNER_PRESETS.find((preset) => preset.key === entry.key)?.shop,
+      media: entry.media,
+    }));
+  }, [bannerCatalog]);
 
   const values: FormValues = useMemo(
-    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, avatarFrame, audience, socialLinks, favorites, showcase }),
-    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, avatarFrame, audience, socialLinks, favorites, showcase],
+    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, title: profileTitle, nameColor: nameColorKey, avatarFrame, audience, socialLinks, favorites, showcase }),
+    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, profileTitle, nameColorKey, avatarFrame, audience, socialLinks, favorites, showcase],
   );
   const serialized = useMemo(() => serialize(values), [values]);
   const isDirty = baseline !== "" && serialized !== baseline;
@@ -198,9 +235,16 @@ export function CommunityProfileCustomizationForm({
     setBannerFraming(profile.bannerFraming);
     setTitledName(profile.titledName);
     setTitledNameStyle(profile.titledNameStyle);
+    setProfileTitle(profile.title ?? null);
+    setOwnedTitles(profile.ownedTitles ?? []);
+    setNameColorKey(profile.nameColor ?? null);
+    setOwnedColors(profile.ownedColors ?? []);
     setAvatarFrame(frame);
     setSavedAvatarFrame(frame);
     setLegendaryAllowed(profile.legendaryFramesAllowed);
+    setOwnedFrames(profile.ownedFrames ?? []);
+    setMemberFramesAllowed(profile.memberFramesAllowed ?? false);
+    setOwnedBanners(profile.ownedBanners ?? []);
     // The editor previews the photo as it moves on the profile page (story 30.42).
     setAvatarUrl(profile.avatarAnimatedUrl ?? profile.avatarUrl);
     setHasCustomAvatar(profile.hasCustomAvatar);
@@ -222,6 +266,8 @@ export function CommunityProfileCustomizationForm({
         avatarFraming: profile.avatarFraming,
         bannerFraming: profile.bannerFraming,
         titledName: profile.titledName,
+        title: profile.title ?? null,
+        nameColor: profile.nameColor ?? null,
         avatarFrame: frame,
         audience: profile.audience,
         socialLinks: profile.socialLinks,
@@ -267,6 +313,8 @@ export function CommunityProfileCustomizationForm({
       avatarFraming,
       bannerFraming,
       titledName,
+      title: profileTitle,
+      nameColor: nameColorKey,
       avatarFrame,
       audience,
       socialLinks: socialLinks.filter((l) => l.url.trim() !== "").map((l) => ({ label: l.label, url: l.url })),
@@ -388,27 +436,45 @@ export function CommunityProfileCustomizationForm({
       ) : null}
       <Section title="Apparence" description="La bannière animée en tête de ton profil.">
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {BANNER_PRESETS.map((preset) => {
-            const selected = bannerPreset === preset.key;
+          {bannerChoices.map((choice) => {
+            const selected = bannerPreset === choice.key;
+            // Stories 41.7 and 41.11: each banner is locked by its own access (a shop one until bought). The one
+            // already shown stays selectable.
+            const reason = selected
+              ? null
+              : bannerLockReason(choice, bannerCatalog.find((entry) => entry.key === choice.key)?.access, {
+                  admin: legendaryAllowed,
+                  member: memberFramesAllowed,
+                  owned: ownedBanners,
+                });
             return (
               <button
                 aria-pressed={selected}
+                disabled={reason !== null}
+                title={reason ?? undefined}
                 className={`group overflow-hidden rounded-lg border text-left transition-colors ${
                   selected ? "border-accent ring-2 ring-accent/40" : "border-border hover:border-accent/60"
                 }`}
-                key={preset.key}
-                onClick={() => setBannerPreset(preset.key)}
+                key={choice.key}
+                onClick={() => setBannerPreset(choice.key)}
                 type="button"
               >
-                <ProfileBanner className="h-12 w-full" compact presetKey={preset.key} />
+                <ProfileBanner className="h-12 w-full" compact media={choice.media} presetKey={choice.key} />
                 <span className="flex items-center justify-between gap-1 px-2.5 py-1.5 text-xs font-medium text-foreground">
-                  {preset.label}
+                  {choice.label}
                   {selected ? <Check aria-hidden className="size-3.5 text-accent-text" /> : null}
                 </span>
               </button>
             );
           })}
         </div>
+        {/* Story 41.12: the way to the banners on sale. */}
+        <p className="text-xs text-muted-foreground">
+          D&apos;autres bannières se gagnent avec tes pelles.{" "}
+          <Link className="font-semibold text-accent-text underline-offset-2 hover:underline" href="/boutique">
+            Voir la boutique
+          </Link>
+        </p>
       </Section>
 
       {bannerUpload.image ? (
@@ -577,6 +643,8 @@ export function CommunityProfileCustomizationForm({
         banner={{ presetKey: bannerPreset, imageUrl: bannerImageUrl, framing: bannerFraming, overlay: bannerOverlay }}
         current={avatarFrame}
         legendaryAllowed={legendaryAllowed}
+        memberAllowed={memberFramesAllowed}
+        ownedFrames={ownedFrames}
         onApply={setAvatarFrame}
         onOpenChange={setFramePickerOpen}
         open={framePickerOpen}
@@ -624,6 +692,19 @@ export function CommunityProfileCustomizationForm({
             </span>
           </div>
         ) : null}
+        <NameColorField
+          name={displayName.trim() || accountName || slug || "Ton pseudo"}
+          onChange={setNameColorKey}
+          owned={ownedColors}
+          rarityWins={titledNameStyle !== null && titledName}
+          value={nameColorKey}
+        />
+        <ProfileTitleField
+          catalog={titleCatalog}
+          onChange={setProfileTitle}
+          rights={{ admin: legendaryAllowed, member: memberFramesAllowed, owned: ownedTitles }}
+          value={profileTitle}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Accroche" counter={<CharCount value={tagline} max={MAX_TAGLINE} />}>
             <input
@@ -1049,4 +1130,132 @@ function updateLink(
   patch: Partial<EditableSocialLink>,
 ): void {
   setSocialLinks((prev) => prev.map((link, i) => (i === index ? { ...link, ...patch } : link)));
+}
+
+/**
+ * Story 41.22: the title worn under the name - any the member may wear, the others shown locked with why (bought in
+ * the shop, members or admins only). A title the admins retired stays shown until another is picked.
+ */
+export function ProfileTitleField({
+  catalog,
+  value,
+  rights,
+  onChange,
+}: {
+  catalog: ProfileTitle[];
+  value: string | null;
+  rights: { admin: boolean; member: boolean; owned: readonly string[] };
+  onChange: (key: string | null) => void;
+}) {
+  const current = catalog.find((title) => title.key === value) ?? null;
+  const locked = catalog.filter((title) => titleLockReason(title.access, title.key, rights) !== null);
+
+  return (
+    <div className="grid gap-2 rounded-lg border border-border bg-surface-2/40 p-3">
+      <label className="grid gap-1 text-sm">
+        <span className="font-medium text-foreground">Titre de profil</span>
+        <select className="min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground" onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)} value={value ?? ""}>
+          <option value="">Aucun</option>
+          {value !== null && current === null ? <option value={value}>Titre retiré</option> : null}
+          {catalog.map((title) => {
+            const reason = titleLockReason(title.access, title.key, rights);
+            return (
+              <option disabled={reason !== null && title.key !== value} key={title.key} value={title.key}>
+                {reason !== null && title.key !== value ? `${title.label} - ${reason}` : title.label}
+              </option>
+            );
+          })}
+        </select>
+      </label>
+      {current ? (
+        <span>
+          <ProfileTitleBadge title={badgeOf(current)} />
+        </span>
+      ) : null}
+      <span className="text-xs text-muted-foreground">
+        Affiché sous ton pseudo sur ton profil.
+        {locked.some((title) => title.access === "shop") ? (
+          <>
+            {" "}
+            D&apos;autres titres s&apos;achètent en{" "}
+            <Link className="text-accent-text hover:underline" href="/boutique">
+              boutique
+            </Link>
+            .
+          </>
+        ) : null}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Story 41.23: the colour of the name, among those bought (the others shown locked, to buy in the shop). The rarity
+ * colour of a member or an admin comes first while « Pseudo à titre » is on: the field says so.
+ */
+export function NameColorField({
+  value,
+  owned,
+  name,
+  rarityWins,
+  onChange,
+}: {
+  value: string | null;
+  owned: readonly string[];
+  name: string;
+  rarityWins: boolean;
+  onChange: (key: string | null) => void;
+}) {
+  const current = NAME_COLORS.find((color) => color.key === value) ?? null;
+
+  return (
+    <fieldset className="grid gap-2 rounded-lg border border-border bg-surface-2/40 p-3">
+      <legend className="px-1 text-sm font-medium text-foreground">Couleur du pseudo</legend>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          aria-pressed={value === null}
+          className={`rounded-full border px-3 py-1 text-xs ${value === null ? "border-accent text-foreground" : "border-border text-muted-foreground hover:border-accent/50"}`}
+          onClick={() => onChange(null)}
+          type="button"
+        >
+          Aucune
+        </button>
+        {NAME_COLORS.map((color) => {
+          const mine = owned.includes(color.key) || color.key === value;
+          return (
+            <button
+              aria-label={mine ? color.label : `${color.label} - à acheter en boutique`}
+              aria-pressed={color.key === value}
+              className={`grid size-8 place-items-center rounded-full border-2 transition-transform ${color.key === value ? "scale-110 border-foreground" : "border-transparent"} ${mine ? "hover:scale-110" : "cursor-not-allowed opacity-30"}`}
+              disabled={!mine}
+              key={color.key}
+              onClick={() => onChange(color.key)}
+              style={{ backgroundColor: color.hex }}
+              title={mine ? color.label : `${color.label} - à acheter en boutique`}
+              type="button"
+            />
+          );
+        })}
+      </div>
+      {current ? (
+        <span className="font-heading text-lg font-bold" style={{ color: current.hex }}>
+          {name}
+        </span>
+      ) : null}
+      <span className="text-xs text-muted-foreground">
+        {rarityWins
+          ? "Ta couleur de rareté passe avant tant que « Pseudo à titre » est coché : décoche-le pour porter cette couleur."
+          : "Sur ton profil et partout où ton pseudo apparaît."}{" "}
+        {owned.length < NAME_COLORS.length ? (
+          <>
+            Les autres couleurs s&apos;achètent en{" "}
+            <Link className="text-accent-text hover:underline" href="/boutique">
+              boutique
+            </Link>
+            .
+          </>
+        ) : null}
+      </span>
+    </fieldset>
+  );
 }

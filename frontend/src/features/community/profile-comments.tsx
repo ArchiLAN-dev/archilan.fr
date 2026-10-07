@@ -16,8 +16,10 @@ import {
   reportComment,
   type ProfileComment,
 } from "./community-comments-api";
-import { AvatarImage } from "./avatar-image";
+import { MemberAvatar } from "./member-avatar";
 import { TitledName } from "@/features/community/titled-name";
+import { ProfileTitleBadge } from "@/features/community/profile-title-badge";
+import { isTitleBadge } from "@/features/community/profile-title-catalog";
 
 export function ProfileComments({ slug }: { slug: string }) {
   const { user } = useAuth();
@@ -105,16 +107,14 @@ export function ProfileComments({ slug }: { slug: string }) {
         <ul className="grid gap-3" role="list">
           {comments.map((comment) => (
             <li className="flex gap-3 rounded-lg border border-border bg-surface p-3" key={comment.id}>
-              <span
-                aria-hidden
-                className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/15 text-sm font-bold text-accent-text"
-              >
-                {comment.author?.avatarUrl ? (
-                  <AvatarImage animatedSrc={comment.author.avatarAnimatedUrl} className="size-full object-cover" framing={comment.author.avatarFraming} src={comment.author.avatarUrl} />
-                ) : (
-                  (comment.author?.displayName ?? comment.author?.slug ?? "?").slice(0, 1).toUpperCase()
-                )}
-              </span>
+              <MemberAvatar
+                avatarAnimatedUrl={comment.author?.avatarAnimatedUrl}
+                avatarUrl={comment.author?.avatarUrl ?? null}
+                frame={comment.author?.avatarFrame}
+                framing={comment.author?.avatarFraming}
+                name={comment.author?.displayName ?? comment.author?.slug ?? "?"}
+                size={36}
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-x-2">
                   {comment.author ? (
@@ -126,6 +126,8 @@ export function ProfileComments({ slug }: { slug: string }) {
                   ) : (
                     <span className="text-sm font-semibold text-muted-foreground">Membre</span>
                   )}
+                  {/* Story 41.27: the title worn. */}
+                  {comment.author && isTitleBadge(comment.author.title) ? <ProfileTitleBadge title={comment.author.title} variant="card" /> : null}
                   <time className="text-xs text-muted-foreground" dateTime={comment.createdAt}>
                     {relativeTime(comment.createdAt)}
                   </time>

@@ -165,7 +165,7 @@ export function CommunityHub({
           </a>
           <Link
             className="card-glow rounded-lg border border-border p-6 transition-colors hover:border-accent"
-            href="/adhesion"
+            href="/boutique?onglet=asso#adhesion"
           >
             <Trophy aria-hidden className="mb-4 size-7 text-accent-text" />
             <h3 className="font-heading text-lg font-semibold text-foreground">Adhérer à l&apos;association</h3>
@@ -189,7 +189,7 @@ function PlayingCard({ entry }: { entry: PlayingNowEntry }) {
       href={`/joueurs/${entry.slug}`}
     >
       <span className="relative inline-flex size-10 shrink-0">
-        <MemberAvatar animatedUrl={entry.avatarAnimatedUrl} avatarUrl={entry.avatarUrl} framing={entry.avatarFraming} name={name} />
+        <MemberAvatar avatarAnimatedUrl={entry.avatarAnimatedUrl} avatarUrl={entry.avatarUrl} frame={entry.avatarFrame} framing={entry.avatarFraming} name={name} size={40} />
         <span
           aria-hidden
           className="absolute -bottom-0.5 -right-0.5 size-3 animate-pulse rounded-full border-2 border-surface bg-emerald-400"

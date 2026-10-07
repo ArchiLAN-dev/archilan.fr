@@ -119,6 +119,12 @@ export default function AdminDashboardPage() {
           <StatCard label="Recettes HelloAsso" value={dashStats !== null ? eurFormatter.format(dashStats.totalRevenueCents / 100) : null} />
         </div>
       )}
+      {/* Story 42.1: the evolution over time lives on its own page. */}
+      <p className="-mt-5 mb-8 text-sm">
+        <Link className="font-semibold text-accent-text hover:underline" href="/admin/statistiques">
+          Voir les statistiques
+        </Link>
+      </p>
 
       {/* Section tiles */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

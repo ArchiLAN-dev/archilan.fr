@@ -102,6 +102,12 @@ final class CommunityProfile
         /** Whether the name shows its title when the status gives one (story 30.44); on by default. */
         #[ORM\Column(name: 'titled_name', type: 'boolean', options: ['default' => true])]
         private bool $titledName = true,
+        /** The profile title worn under the name, from the admins' catalog (story 41.22); null for none. */
+        #[ORM\Column(name: 'title_key', type: 'string', length: 32, nullable: true)]
+        private ?string $titleKey = null,
+        /** The colour bought for the name (story 41.23), shown where no rarity colour applies; null for none. */
+        #[ORM\Column(name: 'name_color', type: 'string', length: 16, nullable: true)]
+        private ?string $nameColor = null,
     ) {
     }
 
@@ -242,6 +248,30 @@ final class CommunityProfile
     public function hasTitledName(): bool
     {
         return $this->titledName;
+    }
+
+    /** Story 41.22: the title worn under the name, checked by the caller against the catalog and the rights. */
+    public function wearTitle(?string $titleKey, \DateTimeImmutable $now): void
+    {
+        $this->titleKey = $titleKey;
+        $this->updatedAt = $now;
+    }
+
+    public function getTitleKey(): ?string
+    {
+        return $this->titleKey;
+    }
+
+    /** Story 41.23: the colour worn by the name, checked by the caller against the palette and the purchases. */
+    public function wearNameColor(?string $color, \DateTimeImmutable $now): void
+    {
+        $this->nameColor = $color;
+        $this->updatedAt = $now;
+    }
+
+    public function getNameColor(): ?string
+    {
+        return $this->nameColor;
     }
 
     /** The member-uploaded avatar object key, or null when none is set. */

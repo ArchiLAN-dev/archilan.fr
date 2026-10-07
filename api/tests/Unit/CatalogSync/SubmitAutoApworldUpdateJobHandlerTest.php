@@ -40,7 +40,7 @@ final class SubmitAutoApworldUpdateJobHandlerTest extends TestCase
     {
         $this->handler(new MockResponse('apworld-bytes'))($this->job());
 
-        $candidate = $this->candidates->findTestingForGame($this->game->getId());
+        $candidate = $this->candidates->findPendingForGame($this->game->getId());
         self::assertSame(ApworldCandidateOrigin::Auto, $candidate?->getOrigin());
         self::assertSame('CrystalProject-v0.18.2', $candidate->getVersionTag());
         self::assertNull($candidate->getSubmittedBy());

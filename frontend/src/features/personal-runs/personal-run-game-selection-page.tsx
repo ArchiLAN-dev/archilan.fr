@@ -24,6 +24,7 @@ import {
 } from "@/features/games/game-picker-filters";
 import { parseNeedsReview, SlotNeedsReview } from "@/features/games/slot-needs-review";
 import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } from "./personal-runs-api";
+import { useRouter } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ export function PersonalRunGameSelectionPage({
 }: {
   params: Promise<{ runId: string }>;
 }) {
+  const router = useRouter();
   const { runId } = use(params);
   const queryClient = useQueryClient();
   const [workingGameIds, setWorkingGameIds] = useState<string[]>([]);
@@ -147,9 +149,9 @@ export function PersonalRunGameSelectionPage({
   // 401/403: full-page login redirect, exactly as the old effect did.
   useEffect(() => {
     if (resultKind === "unauthorized") {
-      window.location.href = `/connexion?returnTo=/runs/${runId}/jeux`;
+      router.replace(`/connexion?returnTo=/runs/${runId}/jeux`);
     }
-  }, [resultKind, runId]);
+  }, [resultKind, runId, router]);
 
   // Seed-into-form hydration: the working selection re-seeds from the saved slots whenever the
   // server data changes (initial load + post-save refetch, formerly the loadKey bump).

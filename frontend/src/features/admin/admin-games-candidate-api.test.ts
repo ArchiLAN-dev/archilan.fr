@@ -1,7 +1,14 @@
 import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { forceApworldCandidate, isApworldCandidate, retryApworldCandidate } from "./admin-games-api";
+import {
+  approveApworldCandidate,
+  forceApworldCandidate,
+  getApworldCandidateYamlTest,
+  isApworldCandidate,
+  retryApworldCandidate,
+  startApworldCandidateYamlTest,
+} from "./admin-games-api";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -25,9 +32,15 @@ describe("apworld candidate", () => {
     expect(isApworldCandidate(null)).toBe(false);
   });
 
+  it("story 38.14: recognizes a candidate awaiting the admin's approval", () => {
+    expect(isApworldCandidate({ ...candidate, status: "awaiting", heldForApproval: true })).toBe(true);
+    expect(isApworldCandidate({ ...candidate, heldForApproval: "yes" })).toBe(false);
+  });
+
   it.each([
     ["promote", forceApworldCandidate],
     ["retry", retryApworldCandidate],
+    ["approve", approveApworldCandidate],
   ] as const)("posts %s for the game and reports success", async (action, call) => {
     let gameId = "";
     server.use(
@@ -52,5 +65,41 @@ describe("apworld candidate", () => {
     );
 
     expect(await forceApworldCandidate("game-1")).toEqual({ ok: false, message: "Le runner est indisponible, rien n'a été changé." });
+  });
+
+  it("story 38.14: starts a YAML test on the candidate and returns its id", async () => {
+    let body: unknown = null;
+    server.use(
+      http.post(`${BASE}/admin/games/:gameId/apworld-candidate/test-yaml`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ data: { jobId: "job-1" } }, { status: 202 });
+      }),
+    );
+
+    expect(await startApworldCandidateYamlTest("game-1", "name: Jean\n")).toEqual({ ok: true, jobId: "job-1" });
+    expect(body).toEqual({ yaml: "name: Jean\n" });
+  });
+
+  it("story 38.14: surfaces a refused YAML test", async () => {
+    server.use(
+      http.post(`${BASE}/admin/games/:gameId/apworld-candidate/test-yaml`, () =>
+        HttpResponse.json({ error: { code: "validation_failed", message: "Colle un YAML (100 Ko au plus).", details: [] } }, { status: 422 }),
+      ),
+    );
+
+    expect(await startApworldCandidateYamlTest("game-1", "")).toEqual({ ok: false, message: "Colle un YAML (100 Ko au plus)." });
+  });
+
+  it("story 38.14: reads a YAML test result, and an expired one", async () => {
+    server.use(
+      http.get(`${BASE}/admin/games/:gameId/apworld-candidate/test-yaml/:jobId`, ({ params }) =>
+        params.jobId === "gone"
+          ? HttpResponse.json({ error: { code: "not_found", message: "Test introuvable ou expiré : relance-le.", details: [] } }, { status: 404 })
+          : HttpResponse.json({ data: { status: "failed", error: "AttributeError: architect" } }),
+      ),
+    );
+
+    expect(await getApworldCandidateYamlTest("game-1", "job-1")).toEqual({ kind: "result", status: "failed", error: "AttributeError: architect" });
+    expect(await getApworldCandidateYamlTest("game-1", "gone")).toEqual({ kind: "gone" });
   });
 });

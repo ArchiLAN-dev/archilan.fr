@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Presentation\Controller;
 
+use App\PersonalRuns\Application\Command\PersonalRunArchive;
 use App\PersonalRuns\Application\Command\PersonalRunGameConfig;
 use App\PersonalRuns\Application\Command\PersonalRunLifecycle;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
@@ -29,7 +30,39 @@ final readonly class PersonalRunController
         private PersonalRunLifecycle $lifecycle,
         private RunSlotCoPlayers $coPlayers,
         private PersonalRunSeedImport $seedImport,
+        private PersonalRunArchive $personalArchive,
     ) {
+    }
+
+    /**
+     * Story 16.21: put the run away in the caller's own list. Not to be confused with `archive()` below
+     * (story 16.x), which cancels the run for everyone.
+     */
+    #[Route('/api/v1/runs/{runId}/personal-archive', name: 'api_runs_personal_archive', methods: ['POST'])]
+    public function archiveForMe(Request $request, string $runId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        // Missing run, foreign run, live party: typed failures mapped to HTTP by the epic-35 listener.
+        $this->personalArchive->archive($runId, $user->getId());
+
+        return new JsonResponse(null, 204);
+    }
+
+    #[Route('/api/v1/runs/{runId}/personal-archive', name: 'api_runs_personal_unarchive', methods: ['DELETE'])]
+    public function unarchiveForMe(Request $request, string $runId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $this->personalArchive->unarchive($runId, $user->getId());
+
+        return new JsonResponse(null, 204);
     }
 
     #[Route('/api/v1/runs', name: 'api_runs_create', methods: ['POST'])]

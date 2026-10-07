@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Command;
 
+use App\Community\Application\Port\CosmeticOwnershipInterface;
+use App\Community\Application\Support\CosmeticRewarder;
 use App\Community\Application\Support\MetricBagBuilder;
 use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Entity\AchievementGrant;
@@ -27,6 +29,7 @@ final readonly class RecomputeAchievements
         private MetricBagBuilder $metrics,
         private Notifier $notifier,
         private ClockInterface $clock,
+        private CosmeticRewarder $rewarder,
     ) {
     }
 
@@ -50,6 +53,11 @@ final readonly class RecomputeAchievements
                 $this->grants->save(AchievementGrant::grant($userId, $definition->getKey(), $now));
                 if ($notify) {
                     $this->notifier->notify($userId, Notification::TYPE_ACHIEVEMENT_UNLOCKED, ['achievementKey' => $definition->getKey()]);
+                }
+                // Story 41.28: and the cosmetic it unlocks.
+                $reward = $definition->getReward();
+                if (null !== $reward) {
+                    $this->rewarder->reward($userId, $reward, CosmeticOwnershipInterface::SOURCE_ACHIEVEMENT, $definition->getName(), $notify);
                 }
                 ++$added;
             }

@@ -6,6 +6,8 @@ import { LiveMark } from "@/features/streaming/live-mark";
 import { MemberAvatar } from "./member-avatar";
 import type { DirectoryRow } from "./community-directory-api";
 import { TitledName } from "@/features/community/titled-name";
+import { ProfileTitleBadge } from "@/features/community/profile-title-badge";
+import { isTitleBadge } from "@/features/community/profile-title-catalog";
 
 type Props = {
   row: DirectoryRow;
@@ -38,9 +40,9 @@ export function MemberCard({ row, rank = null }: Props) {
           <span className="w-6 shrink-0 text-center font-heading text-sm font-bold text-muted-foreground">{rank}</span>
         ) : null}
 
-        {/* Positioning context only (no clip) so the "En jeu" badge can overflow the avatar circle. */}
+        {/* Positioning context only (no clip) so the "En jeu" badge and the frame's effect can overflow the avatar. */}
         <span className="relative inline-flex size-10 shrink-0">
-          <MemberAvatar animatedUrl={row.avatarAnimatedUrl} avatarUrl={row.avatarUrl} framing={row.avatarFraming} name={name} />
+          <MemberAvatar avatarAnimatedUrl={row.avatarAnimatedUrl} avatarUrl={row.avatarUrl} frame={row.avatarFrame} framing={row.avatarFraming} name={name} size={40} />
           {row.playing ? (
             <span
               aria-label="En jeu"
@@ -56,6 +58,8 @@ export function MemberCard({ row, rank = null }: Props) {
               {name}
             </TitledName>
           </span>
+          {/* Story 41.27: the title worn. */}
+          {isTitleBadge(row.title) ? <ProfileTitleBadge className="mt-1" title={row.title} variant="card" /> : null}
           <span className="mt-1 flex items-center gap-2">
             <span className="shrink-0 text-xs text-muted-foreground">Niv. {row.level}</span>
             <span aria-hidden className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-border">

@@ -36,6 +36,8 @@ export async function generateMetadata({ params }: GameDetailPageProps): Promise
     description,
     metadataBase: new URL(env.appUrl),
     alternates: { canonical: canonicalPath },
+    // Story 11.5: a disabled game stays reachable by link, but leaves search engines like every other list.
+    ...(true === game.disabled ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       title: `${game.name} | ArchiLAN`,
       description,

@@ -5,6 +5,267 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.33.0] - 2026-10-07
+
+Le suivi des slots tient sur les grosses parties : un seul démon de calcul par partie, jamais attendu, jamais
+désynchronisé ; et les quêtes de la semaine s'annoncent sur Discord par le bot du site, aussi à la main.
+
+### Ajouté
+
+- **Annonce des quêtes par le bot, et à la main** (41.26) : l'annonce de la semaine est postée par le bot du site
+  dans un salon, un message par semaine (une nouvelle annonce le met à jour, ou le reposte s'il a été supprimé).
+  Bouton « Annoncer sur Discord » sur la semaine en cours (Quêtes hebdo > Semaines) et commande
+  `php bin/console app:quests:announce-discord [semaine]`.
+
+### Corrigé
+
+- **Suivi des slots sur une grosse partie** (17.28) : plus de faux « Impossible de contacter l'API » ni de
+  `{ready, cached, player}` renvoyé à chaque « Réessayer ». Un démarrage du démon de suivi abandonné laissait sa ligne
+  « prêt » dans le flux, lue ensuite comme résultat et gardée en cache jusqu'au prochain check du slot.
+- **Moins de CPU et de mémoire** (17.28) : un seul démon de suivi par partie au lieu d'un par slot, chacun
+  régénérant tout le multiworld ; fermé après 30 minutes sans requête.
+- **Calcul sans attente** (17.28) : pendant le démarrage du suivi, la page affiche « calcul en cours » (ou le
+  dernier résultat) et reçoit le résultat en direct dès qu'il est prêt.
+
+### Déploiement
+
+- **Ordre** : image archipelago `0.17.0`, puis ce site, puis le bridge `0.14.0` (il exige les deux).
+- Nouvelle variable `DISCORD_QUESTS_CHANNEL_ID` (identifiant du salon des quêtes ; vide : pas d'annonce Discord). Le
+  bot (`DISCORD_BOT_TOKEN`) doit pouvoir y envoyer des messages et intégrer des liens.
+- `DISCORD_QUESTS_WEBHOOK_URL` (0.32.0) est retirée.
+
+### Migrations
+
+- Aucune.
+
+## [0.32.0] - 2026-10-06
+
+Des quêtes de la semaine écrites par l'équipe, avec un coffre, une annonce le lundi (aussi sur Discord) et des
+succès ; des premiers pas récompensés pour les nouveaux ; de nouvelles dépenses de pelles (titres et couleurs de
+pseudo) ; et le site s'installe comme une application, ce qui ouvre les notifications sur iPhone.
+
+### Ajouté
+
+- **Quêtes de la semaine configurables** (41.15) : l'équipe écrit ses types de quêtes (1 à 5 objectifs chacun),
+  tirés au hasard chaque semaine ou placés à la main sur une semaine précise. Page admin « Quêtes hebdo » en deux
+  onglets, Semaines et Types de quêtes ; barres de progression dans le portefeuille.
+- **Coffre de la semaine et statistiques** (41.16) : un bonus pour qui fait toutes les quêtes, et ce que les quêtes
+  ont payé, semaine par semaine.
+- **Annonce du lundi, historique et série** (41.17) : une notification aux joueurs récents quand les quêtes sortent,
+  les 4 semaines précédentes dans le portefeuille.
+- **Tirage plus malin et objectifs ciblés** (41.18) : poids par quête, pas les mêmes quêtes deux semaines de suite,
+  objectifs visant un jeu ou un événement.
+- **Paiement toutes les 5 minutes** (41.19) au lieu de chaque heure, et les checks des hebdos comptés au fil de la
+  partie.
+- **Six succès de quêtes** (41.20).
+- **Quêtes en cours et historique séparés** dans le portefeuille (41.21).
+- **Titres de profil achetables** (41.22) : l'équipe écrit les titres (page `/admin/titres`), la boutique en vend,
+  le membre en porte un sur son profil.
+- **Couleur de pseudo achetable** (41.23) : 8 couleurs en boutique ; la couleur de rareté d'un adhérent ou d'un
+  admin passe avant, sauf « Pseudo à titre » décoché.
+- **Quêtes annoncées sur Discord** (41.24) : l'annonce du lundi est aussi postée dans un salon, par webhook.
+- **Quêtes d'accueil** (41.25) : cinq premiers pas payés une fois (lier Discord, premier check, première hebdo,
+  jouer avec un autre membre, premier goal), pour les comptes créés à partir de cette version.
+- **Site installable** (40.4) : manifeste et icônes ; une fois ajouté à l'écran d'accueil, un iPhone reçoit les
+  notifications push.
+
+### Corrigé
+
+- Plus de faux « Tu n'es plus bloqué » au redémarrage d'un serveur de partie (40.3).
+- Une semaine atteinte sans quête tirable n'est plus figée vide (41.15).
+- Une tentative hebdo ne recevait son total de checks qu'à son goal (41.19).
+- Dépendances : `source-map-js` >= 1.2.2, `sharp` >= 0.35.5, `@modelcontextprotocol/sdk` >= 1.31.0
+  (GHSA-6qxp-vccf-f47h, via `shadcn`).
+
+### Déploiement
+
+- Nouvelle variable `DISCORD_QUESTS_WEBHOOK_URL` (vide par défaut : rien n'est posté sur Discord).
+- La tâche des quêtes du worker passe d'une fois par heure à toutes les 5 minutes (aucune action).
+
+### Migrations
+
+- `Version20261005200000` : tables `quest_definition`, `quest_week_entry`, `quest_week_draw`, `wallet_setting` ;
+  reprend les trois quêtes de 41.6.
+- `Version20261006100000` : colonne `quest_definition.draw_weight`.
+- `Version20261006120000` : les six succès de quêtes.
+- `Version20261006140000` : table `profile_title`, colonne `community_profile.title_key`.
+- `Version20261006160000` : colonne `community_profile.name_color`.
+- `Version20261006180000` : réglage `welcome_quests_since` (date du déploiement : pas d'arriéré pour les anciens
+  comptes).
+
+## [0.31.0] - 2026-10-05
+
+Une boutique qui donne envie, avec ses promotions, un onglet « Soutenir ArchiLAN », des modales de confirmation
+partout, et une admin plus lisible : fiche utilisateur en onglets, contributions en liste et page de détail.
+
+### Ajouté
+
+- **Une boutique qui donne envie** (41.12) : la boutique se trouve depuis le menu, on essaie un cosmétique sur son
+  propre profil avant de payer, et on voit ce qu'on peut se permettre. Côté admin, les articles se gèrent en voyant
+  ce qui se vend : modifier, mettre en pause ou supprimer.
+- **Promotions temporaires** (41.14) : un prix promo par article avec une date de début et de fin, affiché en prix
+  barré avec badge et compte à rebours, un filtre « En promo », et un bandeau d'annonce de la boutique.
+- **Onglet « Soutenir ArchiLAN »** (41.13) : adhésion, don et articles au même endroit ; `/adhesion` redirige vers
+  lui.
+- **Archiver une partie** (16.21) : chacun range ses parties terminées dans sa propre liste, et peut les en
+  ressortir. L'ancien bouton « Archiver » devient « Annuler la partie ».
+- **Fiche utilisateur admin en onglets** (36.8), l'onglet actif est gardé dans l'adresse ; **onglet Jeu et pelles
+  lisible** (36.9) : runs et parties dans une seule liste filtrée et paginée, avec leurs jeux.
+- **Modales de confirmation partout** (39.14, 39.15) : plus aucun popup du navigateur, des modales avec icône et
+  récapitulatif chiffré.
+- **Contributions tutoriels en liste et page de détail** (39.16) : une ligne par contribution, et une page par
+  contribution avec la comparaison étape par étape et les décisions.
+- **Éditeur de jeu** (11.7) : les onglets Notes, APWorld et Tutoriel sont mis en avant quand quelque chose y attend
+  l'admin.
+
+### Corrigé
+
+- Les statistiques admin se chargent aussi derrière un bloqueur de pub (42.4).
+- Corrections front transverses (33.27) : une requête en échec est refaite, navigations par le routeur, modales de
+  la run.
+
+### Déploiement
+
+- Nouvelle variable `HELLOASSO_DONATION_FORM_SLUG` (vide par défaut : pas de bouton de don).
+
+### Migrations
+
+- `Version20261005120000` : table `personal_run_archive` (création, sans données).
+- `Version20261005140000` : colonnes de promotion sur `shop_item`, table `shop_announcement` (sans données).
+
+## [0.30.0] - 2026-10-03
+
+Les bannières de profil se gèrent depuis l'admin, fixes ou animées, comme les cadres vidéo.
+
+### Ajouté
+
+- **Bannières gérées par l'admin** (41.11) : page « Bannières » de l'admin pour ajouter une bannière fixe (image WebP
+  ou JPEG, 3 à 6 fois plus large que haute) ou animée (la même image plus une vidéo bouclée en WebM et en MP4),
+  choisir à qui elle est ouverte (tout le monde, adhérents, admins, boutique), la retirer ou la rétablir. Les
+  bannières existantes se règlent de la même façon ; la bannière par défaut reste ouverte à tous. Une bannière
+  « boutique » se met ensuite en vente dans la page Boutique. Une bannière animée montre son image seule à qui
+  limite les animations.
+
+### Corrigé
+
+- Un cadre ou une bannière déjà porté n'est plus revérifié quand on enregistre son profil sans le changer : un membre
+  dont l'adhésion a expiré n'était plus bloqué par un cadre réservé aux adhérents.
+
+### Migrations
+
+- `Version20261003210000` : table `profile_banner` (création, sans données).
+
+## [0.29.0] - 2026-10-03
+
+Les pelles arrivent dans les hebdos et sur la fiche de slot des événements, et les cadres vidéo d'avatar se gèrent
+depuis l'admin.
+
+### Ajouté
+
+- **Indices contre pelles dans les hebdos** (41.8) : la fiche de slot d'une hebdo propose l'achat d'un indice en
+  pelles en or quand l'hebdo le permet (réglage du profil hebdo, surchargeable par modèle), pendant une tentative en
+  cours.
+- **Fiche de slot des joueurs d'événement** (41.9) : la fiche des runs privées sert aussi aux joueurs d'un
+  événement (checks, objets, indices en points et en pelles, celles de l'événement d'abord, primes). Leurs cartes de
+  progression sur la page de session ouvrent leur fiche.
+- **Cadres vidéo gérés par l'admin** (41.10) : page « Cadres » de l'admin pour ajouter un cadre vidéo à partir de
+  ses quatre fichiers préparés (WebM, MP4, aperçu et image fixe WebP 512 x 512), choisir à qui il est ouvert (tout
+  le monde, adhérents, admins, boutique), le renommer, l'ordonner, le retirer ou le rétablir. Les Légendaires
+  existants s'ouvrent de la même façon. Un cadre « boutique » se met ensuite en vente dans la page Boutique.
+
+### Migrations
+
+- `Version20261003200000` : table `avatar_frame` (création, sans données).
+
+## [0.28.0] - 2026-10-03
+
+Les Pelles, monnaie du site : un portefeuille, des pelles d'événement, des indices et des primes payés en pelles,
+des quêtes de la semaine et une boutique. Une vraie page de statistiques pour l'admin, et les jeux désactivés qui
+disparaissent des listes.
+
+### Ajouté
+
+- **Les Pelles, monnaie virtuelle d'ArchiLAN** (epic 41). Pas d'argent réel : elles se gagnent en jouant et en
+  aidant l'association, et se dépensent sur le site. Deux sortes : les pelles en or, permanentes, et les pelles
+  d'événement, valables pendant un événement. Tout le monde part de zéro.
+  - **Portefeuille** (41.1) : « Mon portefeuille » dans l'espace membre (soldes, historique paginé), solde en or
+    dans le menu du compte ; l'admin crédite ou débite un membre depuis sa fiche (motif obligatoire, tracé dans le
+    journal de la fiche, jamais sur son propre compte).
+  - **Pelles d'événement** (41.2) : page « Pelles » d'un événement pour en distribuer à tous les inscrits ou à une
+    sélection ; à la fin de l'événement, 10 % des pelles restantes passent en or, le reste disparaît.
+  - **Indices contre pelles** (41.3) : sur la fiche de slot d'une run privée, un indice d'objet ou de lieu
+    s'achète en pelles (celles de l'événement d'abord), remboursé s'il n'a pas pu être donné.
+  - **Primes sur les objets** (41.4) : un joueur offre des pelles à qui lui enverra un objet ; le propriétaire du
+    slot qui l'envoie reçoit 90 % de la prime. Rien n'est versé pour un objet envoyé à soi-même ou après un
+    release, un collect ou un goal ; la prime est alors rendue, comme à la fin de la partie.
+  - **Contributions validées** (41.5) : l'admin choisit les pelles de l'auteur en validant un tutoriel.
+  - **Quêtes de la semaine** (41.6) : atteindre un goal (40), jouer avec quelqu'un de nouveau (30), faire une hebdo
+    (30), 100 pelles par semaine au plus, comptées sur des parties réellement jouées.
+  - **Boutique** (41.7) : achat de cadres et de bannières en pelles en or, mise en vente par l'admin (prix, période
+    pour un objet saisonnier). Elle ouvre vide : ses articles seront dessinés par des membres.
+- **Page de statistiques admin** (epic 42) : `/admin/statistiques`, sur 4 semaines, 12 semaines ou 12 mois, chaque
+  chiffre comparé à la période précédente. Sections Communauté (comptes, membres actifs, adhésions, amitiés,
+  succès), Parties (runs, sessions d'événement, hebdos, goals, jeux les plus joués), Événements (inscriptions,
+  annulations, recettes HelloAsso, remplissage) et Pelles (circulation).
+- **Version candidate d'apworld à valider** (story 38.14) : une mise à jour d'apworld peut attendre l'accord d'un
+  admin avant de remplacer la version en ligne, et se tester avec un YAML avant.
+- **Repère « note interne »** dans la liste admin des jeux (story 11.6), avec le début de la note au survol.
+
+### Modifié
+
+- **Les jeux désactivés disparaissent des listes** (story 11.5) : catalogue, couplage Steam, sélecteurs
+  d'inscription et de partie privée, favoris. Ils restent dans l'historique des parties et sur leur page, accessible
+  par lien avec un bandeau. Les hebdos d'un jeu désactivé ne sont plus générées ni lancées.
+- **`/admin/pelles` redirige vers la section Pelles des statistiques.**
+
+### Sécurité
+
+- **Audit des dépendances du front** : l'avis `braces` GHSA-vfj7-8cjw-p6xm, publié sans correctif et présent
+  seulement dans l'outillage de lint (jamais livré), est ignoré par `pnpm audit` jusqu'à ce qu'un correctif sorte.
+
+### Notes de déploiement
+
+- **Migrations** : `Version20261002140000` (validation d'une version candidate), `Version20261003100000`
+  (registre des pelles), `Version20261003150000` (primes), `Version20261003170000` (boutique).
+- **Tâches planifiées** ajoutées au worker : fin des pelles d'événement (:50), remboursement des primes des parties
+  terminées (:55), paiement des quêtes (:40), toutes horaires.
+- **Réglages de partie** : indices contre pelles et primes sont désactivés par défaut sur les trois profils ; à
+  activer dans `/admin/sessions/config` (hebdos, événements, privées) ou par partie.
+- Services inchangés : `archipelago` `v0.16.5`, `orchestrateur` `v0.20.0`, `bridge` `v0.13.0`.
+
+## [0.27.1] - 2026-10-02
+
+Correctif : les parties redeviennent joignables.
+
+### Corrigé
+
+- **Plus aucune partie joignable depuis la v0.26.0.** La configuration des parties envoyée à Traefik contenait
+  `"http/1.1"` (option ALPN de la story 37.9, correctif Firefox), que l'API écrivait `"http\/1.1"`. Traefik lit
+  cette configuration en YAML, qui refuse cet échappement : il gardait sa dernière configuration valide et ne
+  routait plus aucune partie lancée ensuite. L'API n'échappe plus les `/` (#689).
+
+### Notes de déploiement
+
+- **Image `api-web`** à mettre à jour. Aucune migration. Traefik reprend la configuration en 5 secondes, sans
+  redémarrage.
+
+## [0.27.0] - 2026-10-02
+
+La photo de profil et son cadre, partout sur le site.
+
+### Modifié
+
+- **La photo de profil et son cadre, partout** (story 30.47). La photo d'un membre a désormais la même forme
+  partout, le carré arrondi de la page de profil, et porte son cadre d'avatar : annuaire, communauté, classements,
+  amis, commentaires, succès, parties privées, espace membre et menu du compte. Sans photo, les mêmes initiales sur
+  le même dégradé partout. Le cadre s'anime en permanence sur le profil et dans la barre de navigation, au survol
+  ailleurs ; jamais sous « réduire les animations ». La fenêtre de recadrage de la photo découpe aussi en carré
+  arrondi.
+
+### Notes de déploiement
+
+- Aucune migration. Services inchangés : `archipelago` `v0.16.5`, `orchestrateur` `v0.20.0`, `bridge` `v0.13.0`.
+
 ## [0.26.1] - 2026-10-02
 
 Correctif de sécurité : l'image `api-worker` de la v0.26.0 n'avait pas pu être publiée.

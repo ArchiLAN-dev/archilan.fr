@@ -7,6 +7,7 @@ namespace App\Community\Infrastructure\Dbal;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Support\AvatarUrlResolver;
 use App\Community\Application\Support\NameStyleResolver;
+use App\Community\Application\Support\ProfileTitleCatalog;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
@@ -19,6 +20,7 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
         private Connection $connection,
         private AvatarUrlResolver $avatarUrls,
         private NameStyleResolver $nameStyles,
+        private ProfileTitleCatalog $titles,
     ) {
         $this->userTable = $connection->quoteSingleIdentifier('user');
     }
@@ -79,7 +81,7 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
         $rows = $qb
             // Pseudo = community display-name override (else account name); custom_avatar_key feeds the
             // presigned-avatar resolution below.
-            ->select('u.id', 'u.slug', 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.titled_name')
+            ->select('u.id', 'u.slug', 'u.roles', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key', 'cp.custom_avatar_still_key', 'cp.avatar_framing_x', 'cp.avatar_framing_y', 'cp.avatar_framing_zoom', 'cp.avatar_frame', 'cp.titled_name', 'cp.name_color', 'cp.title_key')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
             ->where($qb->expr()->in('u.id', ':ids'))
@@ -110,6 +112,8 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
                 // an admin's GIF animating on hover only (stories 30.40, 30.42).
                 ...$this->avatarUrls->resolveForRow($row),
                 'nameStyle' => $nameStyles[$id] ?? null,
+                // Story 41.27: the title worn, on every card.
+                'title' => $this->titles->badgeForRow($row),
             ];
         }
 

@@ -19,7 +19,9 @@ import { AdminUserParticipation } from "./admin-user-participation";
 import { AdminUserModeration } from "./admin-user-moderation";
 import { AdminUserGaming } from "./admin-user-gaming";
 import { AdminUserActions } from "./admin-user-actions";
-import { SHEET_LIST_CLASS, SheetNav, SheetSection } from "./admin-sheet-section";
+import { AdminUserPelles } from "@/features/wallet/admin-user-pelles";
+import { SHEET_LIST_CLASS, SheetSection, SheetTabPanel, SheetTabs } from "./admin-sheet-section";
+import { useSheetTab } from "./use-sheet-tab";
 
 const ROLE_LABELS: Record<AssignableRole, string> = {
   user: "Utilisateur",
@@ -59,6 +61,8 @@ export function AdminUserDetailPage({ userId }: Props) {
     queryFn: () => fetchAdminUserDetail(userId),
     staleTime: DEFAULT_STALE_TIME,
   });
+
+  const [activeTab, selectTab] = useSheetTab(data?.kind === "ready");
 
   async function reload(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey });
@@ -123,52 +127,66 @@ export function AdminUserDetailPage({ userId }: Props) {
             {user.emailVerified ? null : <Badge tone="warning">Email non vérifié</Badge>}
           </div>
         </header>
-        <SheetNav />
+        <SheetTabs active={activeTab} onSelect={selectTab} />
       </div>
 
-      <SheetSection description="Qui est ce compte, et depuis quand." icon={IdCard} id="identite" title="Identité">
-        <dl className="grid gap-x-8 gap-y-4 rounded-lg border border-border bg-surface p-5 sm:grid-cols-2">
-          <Field label="Pseudo public">
-            {user.slug === null ? (
-              <span className="text-muted-foreground">Aucun profil public</span>
-            ) : (
-              <Link className="text-accent-text hover:underline" href={`/joueurs/${user.slug}`}>
-                /joueurs/{user.slug}
-              </Link>
-            )}
-          </Field>
-          <Field label="Email vérifié">{user.emailVerified ? "Oui" : "Non"}</Field>
-          <Field label="Inscrit le">{formatDate(user.createdAt)}</Field>
-          <Field label="Dernière modification">{formatDate(user.updatedAt)}</Field>
-          {user.deletedAt !== null ? (
-            <Field label="Supprimé le">{formatDate(user.deletedAt)}</Field>
-          ) : null}
-          <Field label="Rôles techniques">
-            <span className="font-mono text-xs text-muted-foreground">{user.roles.join(", ")}</span>
-          </Field>
-        </dl>
-      </SheetSection>
+      <SheetTabPanel tab={activeTab}>
+        {activeTab === "compte" ? (
+          <>
+            <SheetSection description="Qui est ce compte, et depuis quand." icon={IdCard} id="identite" title="Identité">
+              <dl className="grid gap-x-8 gap-y-4 rounded-lg border border-border bg-surface p-5 sm:grid-cols-2">
+                <Field label="Pseudo public">
+                  {user.slug === null ? (
+                    <span className="text-muted-foreground">Aucun profil public</span>
+                  ) : (
+                    <Link className="text-accent-text hover:underline" href={`/joueurs/${user.slug}`}>
+                      /joueurs/{user.slug}
+                    </Link>
+                  )}
+                </Field>
+                <Field label="Email vérifié">{user.emailVerified ? "Oui" : "Non"}</Field>
+                <Field label="Inscrit le">{formatDate(user.createdAt)}</Field>
+                <Field label="Dernière modification">{formatDate(user.updatedAt)}</Field>
+                {user.deletedAt !== null ? (
+                  <Field label="Supprimé le">{formatDate(user.deletedAt)}</Field>
+                ) : null}
+                <Field label="Rôles techniques">
+                  <span className="font-mono text-xs text-muted-foreground">{user.roles.join(", ")}</span>
+                </Field>
+              </dl>
+            </SheetSection>
 
-      <SheetSection
-        description="Sessions, vérification de l'email et niveau d'accès au site."
-        icon={KeyRound}
-        id="acces"
-        title="Accès et rôles"
-      >
-        <AdminUserActions emailVerified={user.emailVerified} isSelf={isSelf} userId={user.id} />
-        <RolePanel isSelf={isSelf} onChanged={reload} user={user} />
-      </SheetSection>
+            <SheetSection
+              description="Sessions, vérification de l'email et niveau d'accès au site."
+              icon={KeyRound}
+              id="acces"
+              title="Accès et rôles"
+            >
+              <AdminUserActions emailVerified={user.emailVerified} isSelf={isSelf} userId={user.id} />
+              <RolePanel isSelf={isSelf} onChanged={reload} user={user} />
+            </SheetSection>
+          </>
+        ) : null}
 
-      <AdminUserModeration isAdmin={user.role === "admin"} isSelf={isSelf} name={user.displayName ?? user.email} userId={user.id} />
+        {activeTab === "moderation" ? (
+          <AdminUserModeration isAdmin={user.role === "admin"} isSelf={isSelf} name={user.displayName ?? user.email} userId={user.id} />
+        ) : null}
 
-      <AdminUserParticipation userId={user.id} />
+        {activeTab === "association" ? <AdminUserParticipation userId={user.id} /> : null}
 
-      <AdminUserGaming userId={user.id} />
+        {activeTab === "jeu" ? (
+          <>
+            <AdminUserPelles isSelf={isSelf} memberName={user.displayName ?? user.email} userId={user.id} />
+            <AdminUserGaming isSelf={isSelf} userId={user.id} />
+          </>
+        ) : null}
 
-      <AdminUserActivity userId={user.id} />
+        {activeTab === "journal" ? <AdminUserActivity userId={user.id} /> : null}
+      </SheetTabPanel>
     </Shell>
   );
 }
+
 
 function RolePanel({
   user,

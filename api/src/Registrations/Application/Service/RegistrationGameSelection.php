@@ -73,7 +73,9 @@ final readonly class RegistrationGameSelection
         $availableGames = [];
         foreach ($configuredGameIds as $gameId) {
             $game = $gamesById[$gameId] ?? null;
-            if (null === $game) {
+            // Story 11.5: a disabled game is no longer offered - except to a registration that already holds it,
+            // so that slot keeps its config (flagged as disabled, it still cannot be added again).
+            if (null === $game || ($game->isDisabled() && !\in_array($gameId, $slotGameIds, true))) {
                 continue;
             }
             $availableGames[] = [

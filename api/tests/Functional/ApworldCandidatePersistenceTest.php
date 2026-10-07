@@ -51,8 +51,8 @@ final class ApworldCandidatePersistenceTest extends FunctionalTestCase
         $this->candidates->save($this->candidate('candidate-other', 'game-2', 'v1', '2026-09-25 04:10:00+00:00'));
         $this->candidates->flush();
 
-        self::assertSame('candidate-new', $this->candidates->findTestingForGame('game-1')?->getId());
-        self::assertNull($this->candidates->findTestingForGame('game-3'));
+        self::assertSame('candidate-new', $this->candidates->findPendingForGame('game-1')?->getId());
+        self::assertNull($this->candidates->findPendingForGame('game-3'));
         self::assertEqualsCanonicalizing(
             ['candidate-new', 'candidate-other'],
             array_map(static fn (ApworldCandidate $c): string => $c->getId(), $this->candidates->findAllTesting()),

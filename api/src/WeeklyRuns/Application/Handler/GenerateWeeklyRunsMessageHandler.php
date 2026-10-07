@@ -56,6 +56,12 @@ final readonly class GenerateWeeklyRunsMessageHandler
                 continue;
             }
 
+            // Story 11.5: a disabled game's weekly is not generated; the template resumes once it is enabled.
+            if ($game->isDisabled()) {
+                $this->logger->info('weekly_runs.generate.game_disabled', ['templateId' => $templateId, 'gameId' => $game->getId()]);
+                continue;
+            }
+
             $apworldStorageKey = $game->getApworldStorageKey();
 
             if ('' === $yamlConfig || null === $apworldStorageKey || '' === $apworldStorageKey) {

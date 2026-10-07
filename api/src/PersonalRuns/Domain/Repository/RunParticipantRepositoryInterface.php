@@ -15,6 +15,13 @@ interface RunParticipantRepositoryInterface
 
     public function findByRunAndUser(string $runId, string $userId): ?RunParticipant;
 
+    /**
+     * Every run a member takes part in, owned or joined (story 36.9): one query for the admin sheet.
+     *
+     * @return list<RunParticipant>
+     */
+    public function findByUserId(string $userId): array;
+
     public function countByRunId(string $runId): int;
 
     public function save(RunParticipant $participant): void;

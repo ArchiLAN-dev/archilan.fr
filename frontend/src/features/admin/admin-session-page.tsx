@@ -27,6 +27,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME, REALTIME_STALE_TIME } from "@/lib/query-client";
@@ -1840,6 +1841,7 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [actionOutput, setActionOutput] = useState<ContainerActionResult | null>(null);
   const [loadingCreate, setLoadingCreate] = useState(false);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const preRef = useRef<HTMLPreElement>(null);
 
   // 5 s container-state poll; the queryFn throws on failure so the last known state stays
@@ -1897,7 +1899,6 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
   }
 
   async function execContainer(action: string) {
-    if (action === "rm" && !window.confirm("Supprimer le container ? Cette action est irréversible.")) return;
     setLoadingAction(action);
     setActionOutput(null);
     try {
@@ -1915,6 +1916,7 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
       setActionOutput({ action, success: false, output: "Erreur réseau." });
     } finally {
       setLoadingAction(null);
+      setConfirmingRemove(false);
       refreshContainerState();
     }
   }
@@ -1953,7 +1955,10 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
               className={`flex items-center gap-1.5 rounded border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-surface-2 disabled:opacity-50 ${cls}`}
               disabled={loadingAction !== null || loadingCreate}
               key={key}
-              onClick={() => { void execContainer(key); }}
+              onClick={() => {
+                if (key === "rm") setConfirmingRemove(true);
+                else void execContainer(key);
+              }}
               type="button"
             >
               {isLoading ? (
@@ -2024,6 +2029,20 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
           </div>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        confirmLabel="Supprimer"
+        description="Le container de la session est supprimé. Cette action est irréversible."
+        onConfirm={() => { void execContainer("rm"); }}
+        onOpenChange={(open) => {
+          if (!open && loadingAction === null) setConfirmingRemove(false);
+        }}
+        open={confirmingRemove}
+        pending={loadingAction === "rm"}
+        icon={XCircle}
+        title="Supprimer le container ?"
+        tone="danger"
+      />
     </div>
   );
 }

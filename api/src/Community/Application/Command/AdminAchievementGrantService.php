@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Command;
 
+use App\Community\Application\Port\CosmeticOwnershipInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\CosmeticRewarder;
 use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Entity\AchievementGrant;
@@ -26,6 +28,7 @@ final readonly class AdminAchievementGrantService
         private CommunityUserDirectoryQueryInterface $directory,
         private Notifier $notifier,
         private ClockInterface $clock,
+        private CosmeticRewarder $rewarder,
     ) {
     }
 
@@ -54,6 +57,11 @@ final readonly class AdminAchievementGrantService
 
         $this->grants->save(AchievementGrant::grant($userId, $key, $this->clock->now()));
         $this->notifier->notify($userId, Notification::TYPE_ACHIEVEMENT_UNLOCKED, ['achievementKey' => $key]);
+        // Story 41.28: and the cosmetic it unlocks.
+        $reward = $definition->getReward();
+        if (null !== $reward) {
+            $this->rewarder->reward($userId, $reward, CosmeticOwnershipInterface::SOURCE_ACHIEVEMENT, $definition->getName());
+        }
 
         return 'ok';
     }

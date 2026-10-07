@@ -20,6 +20,7 @@ import {
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { useRouter } from "next/navigation";
 import {
   fetchAuthProbe,
   fetchGameSelection,
@@ -54,6 +55,7 @@ export function GameSelectionGate({
 }: {
   params: Promise<{ eventSlug: string; registrationId: string }>;
 }) {
+  const router = useRouter();
   const { eventSlug, registrationId } = use(params);
   const queryClient = useQueryClient();
   const [workingGameIds, setWorkingGameIds] = useState<string[]>([]);
@@ -128,9 +130,9 @@ export function GameSelectionGate({
 
   useEffect(() => {
     if (authQuery.data === "unauthenticated") {
-      window.location.href = `/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/jeux`;
+      router.replace(`/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/jeux`);
     }
-  }, [authQuery.data, eventSlug, registrationId]);
+  }, [authQuery.data, eventSlug, registrationId, router]);
 
   const selectionQuery = useQuery({
     queryKey: ["game-selection", registrationId],
@@ -502,7 +504,7 @@ export function GameSelectionGate({
                 }
                 type="button"
                 onClick={() => {
-                  window.location.href = `/evenements/${eventSlug}/inscription/${registrationId}/recap`;
+                  router.push(`/evenements/${eventSlug}/inscription/${registrationId}/recap`);
                 }}
               >
                 Continuer vers le récap →
@@ -517,7 +519,7 @@ export function GameSelectionGate({
             className="inline-flex min-h-10 w-full items-center justify-center rounded border border-accent px-5 text-sm font-semibold text-accent-text transition-colors hover:bg-accent/10 sm:w-fit"
             type="button"
             onClick={() => {
-              window.location.href = `/evenements/${eventSlug}/inscription/${registrationId}/recap`;
+              router.push(`/evenements/${eventSlug}/inscription/${registrationId}/recap`);
             }}
           >
             Voir le récapitulatif →

@@ -20,6 +20,8 @@ export type BannerPresetConfig = {
   gradient: [string, string, string];
   blobs?: BannerBlob[];
   texture?: BannerTexture;
+  /** Story 41.7: sold in the shop, usable only once bought (none yet: drawn by members). */
+  shop?: boolean;
 };
 
 export const BANNER_PRESETS: readonly BannerPresetConfig[] = [

@@ -1,9 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { env } from "@/lib/env";
 import { inter, spaceGrotesk } from "./fonts";
 import { JsonLd } from "@/components/json-ld";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
+
+/** Story 40.4: the browser bar and the installed app take the site background. */
+export const viewport: Viewport = {
+  themeColor: "#0a1629",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(env.appUrl),
@@ -15,7 +20,14 @@ export const metadata: Metadata = {
     "ArchiLAN organise des événements Archipelago en France - LAN parties coopératives, multiworld randomizer, communauté gaming.",
   icons: {
     icon: "/images/logo.webp",
-    apple: "/images/logo.webp",
+    // Story 40.4: iOS takes a PNG for the home screen, not WebP.
+    apple: "/icons/apple-touch-icon.png",
+  },
+  // Story 40.4: opened from the home screen, the site runs full screen like an app (iOS only sends pushes there).
+  appleWebApp: {
+    capable: true,
+    title: "ArchiLAN",
+    statusBarStyle: "black-translucent",
   },
   openGraph: {
     type: "website",

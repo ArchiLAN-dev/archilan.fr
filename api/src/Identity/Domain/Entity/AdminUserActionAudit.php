@@ -21,6 +21,9 @@ final class AdminUserActionAudit
 {
     public const string ACTION_REVOKE_SESSIONS = 'revoke_sessions';
     public const string ACTION_VERIFY_EMAIL = 'verify_email';
+    // Story 41.1: an admin credited or debited the member's pelles; the amount and reason live in the ledger.
+    public const string ACTION_PELLES_CREDIT = 'pelles_credit';
+    public const string ACTION_PELLES_DEBIT = 'pelles_debit';
 
     // Réglages d'une partie privée appliqués par un administrateur qui n'en est pas propriétaire
     // (story 16.19). La cible est le propriétaire de la partie : c'est dans sa fiche qu'on ira
@@ -30,6 +33,10 @@ final class AdminUserActionAudit
     public const string ACTION_RUN_SEED_IMPORT = 'run_seed_import';
     public const string ACTION_RUN_SLOT_ASSIGN = 'run_slot_assign';
     public const string ACTION_RUN_DELETE = 'run_delete';
+    // Story 16.21: an admin put a run away in the member's own list, or brought it back. The target is the
+    // member whose list changed, not the run's owner - an archive is personal.
+    public const string ACTION_RUN_ARCHIVE = 'run_archive';
+    public const string ACTION_RUN_UNARCHIVE = 'run_unarchive';
 
     public function __construct(
         #[ORM\Id]

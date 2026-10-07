@@ -37,6 +37,25 @@ final readonly class AvatarFrame
     /** Story 30.46: the video frames, reserved to admins for a start. */
     public const array LEGENDARY = ['fire', 'electric', 'spectral_fire', 'lava', 'runes', 'cosmic', 'glitch'];
 
+    /** Story 41.10: the names of the built-in video frames, as the frontend catalog shows them. */
+    public const array LEGENDARY_LABELS = [
+        'fire' => 'Feu',
+        'electric' => 'Électrique',
+        'spectral_fire' => 'Flammes spectrales',
+        'lava' => 'Magma',
+        'runes' => 'Runes arcaniques',
+        'cosmic' => 'Portail cosmique',
+        'glitch' => 'Glitch',
+    ];
+
+    /**
+     * Story 41.7: the frames sold in the shop, usable only by who bought them. Empty until members draw some (no
+     * AI-made visual): a new one goes in ALL and here, with its rendering in the frontend catalog.
+     *
+     * @var list<string>
+     */
+    public const array SHOP = [];
+
     public static function isValid(string $value): bool
     {
         return in_array($value, self::ALL, true);
@@ -47,9 +66,18 @@ final readonly class AvatarFrame
         return in_array($value, self::LEGENDARY, true);
     }
 
-    /** Whether this account may pick the frame: a legendary one is for admins only. */
-    public static function allowedFor(string $value, bool $isAdmin): bool
+    /**
+     * Whether this account may pick the frame: a legendary one is for admins only, a shop one for who owns it.
+     *
+     * @param list<string> $owned the shop frames the account bought
+     * @param list<string> $shop  the shop frames (the catalog's, by default)
+     */
+    public static function allowedFor(string $value, bool $isAdmin, array $owned = [], array $shop = self::SHOP): bool
     {
+        if (in_array($value, $shop, true)) {
+            return in_array($value, $owned, true);
+        }
+
         return $isAdmin || !self::isLegendary($value);
     }
 
@@ -59,6 +87,7 @@ final readonly class AvatarFrame
      */
     public static function displayed(?string $value, bool $isAdmin): ?string
     {
-        return null !== $value && self::allowedFor($value, $isAdmin) ? $value : null;
+        // A shop frame is only ever stored by who bought it, and buying is for good: no ownership check here.
+        return null !== $value && ($isAdmin || !self::isLegendary($value)) ? $value : null;
     }
 }

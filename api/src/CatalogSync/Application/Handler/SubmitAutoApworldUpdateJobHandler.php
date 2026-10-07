@@ -35,7 +35,7 @@ final readonly class SubmitAutoApworldUpdateJobHandler
     {
         // An admin may have submitted a version by hand since the job was queued: a submission
         // supersedes the candidate in test, and the night must not overwrite the admin's choice.
-        if (null !== $this->candidates->findTestingForGame($job->gameId)) {
+        if (null !== $this->candidates->findPendingForGame($job->gameId)) {
             $this->logger->info('catalog_sync.auto_update_skipped_candidate_in_test', ['gameId' => $job->gameId]);
 
             return;
