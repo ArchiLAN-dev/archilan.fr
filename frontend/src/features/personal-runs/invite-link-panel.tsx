@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, Link, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DiscordJoinButton } from "@/features/discord/discord-promo";
 
 export function InviteLinkPanel({
   runId,
@@ -88,6 +89,11 @@ export function InviteLinkPanel({
         </button>
       </div>
       {error && <p className="mt-2 text-xs text-[color:var(--color-danger)]">{error}</p>}
+      {/* Story 30.50: where players looking for a game are. */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">Il te manque des joueurs ? Partage ce lien sur le Discord.</p>
+        <DiscordJoinButton>Trouver des co-joueurs</DiscordJoinButton>
+      </div>
     </div>
   );
 }

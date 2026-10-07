@@ -1,8 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, CalendarClock, CalendarDays, Gamepad2, MessageCircle, Radio, Swords, Trophy } from "lucide-react";
+import { ArrowRight, CalendarClock, CalendarDays, Gamepad2, Radio, Swords, Trophy } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { externalLinks } from "@/lib/external-links";
+import { fetchDiscordStats } from "@/features/discord/discord-api";
+import { DiscordJoinButton, DiscordServerCard, DiscordStatsLine } from "@/features/discord/discord-promo";
 import { ConsentGatedTwitchEmbed } from "@/features/streaming/consent-gated-twitch-embed";
 import { LiveStreamHeading } from "@/features/streaming/live-stream-heading";
 import { CommunityStatsWidget } from "@/features/community/community-stats-widget";
@@ -97,6 +99,8 @@ function FeatureCard({ title, description, href, Icon }: Feature) {
 
 export default async function Home() {
   const { upcoming, past } = await getPublicEvents();
+  // Story 30.50: the same five-minute counts as the header (the fetch is shared).
+  const discord = await fetchDiscordStats();
 
   return (
     <div className="grid gap-24">
@@ -150,6 +154,7 @@ export default async function Home() {
                 Voir les événements
                 <ArrowRight aria-hidden="true" className="size-4" />
               </Link>
+              <DiscordJoinButton size="lg" />
               <a
                 aria-label="Ouvrir Twitch ArchiLAN (nouvel onglet)"
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded border border-border bg-background/60 px-6 font-semibold text-foreground backdrop-blur-sm transition-colors hover:border-accent"
@@ -159,6 +164,9 @@ export default async function Home() {
               >
                 Suivre sur Twitch
               </a>
+            </div>
+            <div className="mt-5">
+              <DiscordStatsLine stats={discord} />
             </div>
           </div>
         </div>
@@ -287,7 +295,7 @@ export default async function Home() {
       <CommunityStatsWidget />
 
       {/* Actions communautaires */}
-      <section aria-labelledby="community-actions" className="grid gap-6 border-t border-border pt-12 md:grid-cols-3">
+      <section aria-labelledby="community-actions" className="grid gap-6 border-t border-border pt-12 md:grid-cols-2">
         <h2 className="sr-only" id="community-actions">
           Actions communautaires
         </h2>
@@ -315,20 +323,22 @@ export default async function Home() {
             Ouvre la chaîne quand aucun live intégré n&apos;est actif.
           </p>
         </a>
-        <a
-          className="card-glow rounded-lg border border-border p-6"
-          href={externalLinks.archilanDiscord}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <MessageCircle aria-hidden="true" className="mb-5 size-7 text-accent-text" />
-          <h3 className="font-heading text-xl font-semibold">
-            Discord ArchiLAN<span className="sr-only"> (nouvel onglet)</span>
-          </h3>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Rejoins la communauté pour suivre l&apos;activité et préparer les sessions.
+      </section>
+
+      {/* Story 30.50: the community lives on Discord. */}
+      <section aria-labelledby="discord-heading" className="grid items-center gap-10 border-t border-border pt-12 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-4">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">Communauté</p>
+          <h2 className="font-heading text-3xl font-bold" id="discord-heading">
+            La communauté vit sur Discord
+          </h2>
+          <p className="max-w-xl text-lg leading-8 text-muted-foreground">
+            On y prépare les événements, on y monte les runs et on s&apos;y entraide entre deux parties. C&apos;est là que tout
+            se passe entre les LAN.
           </p>
-        </a>
+          <DiscordStatsLine stats={discord} />
+        </div>
+        <DiscordServerCard stats={discord} />
       </section>
 
       {/* ArchiLAN en direct */}
