@@ -5,6 +5,35 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.36.0] - 2026-10-07
+
+Un nouvel accueil pensé pour qui découvre Archipelago, et le Discord mis en avant partout où il sert.
+
+### Ajouté
+
+- **Nouvel accueil** (34.9) : le hero est conservé, avec « Je commence » et les pastilles « en ce moment » (runs
+  hebdos ouvertes, prochaine LAN). Suivent le concept du multiworld expliqué sur trois jeux, la première partie en
+  trois étapes, les runs hebdos de la semaine et les quêtes, les LAN (la prochaine, ou la dernière et la progression
+  des éditions), les récaps récents, la communauté en chiffres, l'association et les actualités. Chaque section se
+  replie quand elle n'a rien de réel à montrer.
+- **Le Discord mis en avant** (30.50) : un bouton dans l'en-tête avec les membres en ligne, un encart en bas du menu
+  mobile, et des appels au bon moment (page d'un événement, après une inscription, sous le lien d'invitation d'une
+  partie). Les chiffres viennent de Discord, relus toutes les cinq minutes.
+
+### Modifié
+
+- « Événements » quitte la barre de navigation sur ordinateur (le menu mobile le garde) et rejoint le pied de page.
+
+### Déploiement
+
+- Rien de particulier : pas de nouvelle variable, pas de migration.
+- Image archipelago `0.17.1` (publiée le même jour) : les noms d'items du suivi des slots sont lus dans le jeu de
+  leur destinataire (des items Minecraft s'affichaient sous des noms de Buckshot Roulette). Indépendante du site.
+
+### Migrations
+
+- Aucune.
+
 ## [0.35.0] - 2026-10-07
 
 Des notifications qui se lisent d'un coup d'œil, et un critère de succès qui ne compte que ce que les autres joueurs
