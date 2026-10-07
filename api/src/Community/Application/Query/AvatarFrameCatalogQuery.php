@@ -22,7 +22,7 @@ final readonly class AvatarFrameCatalogQuery
     /**
      * Every frame that can be worn, for the avatars and the picker.
      *
-     * @return list<array{key: string, label: string, access: string, builtIn: bool, video: array{webm: string, mp4: string, poster: string, still: string}|null}>
+     * @return list<array{key: string, label: string, access: string, builtIn: bool, video: array{webm: string, mp4: string, poster: string, still: string, shade: array{webm: string, mp4: string}|null}|null}>
      */
     public function published(): array
     {
@@ -46,7 +46,7 @@ final readonly class AvatarFrameCatalogQuery
     /**
      * Every frame, retired ones included, with its order.
      *
-     * @return list<array{key: string, label: string, access: string, builtIn: bool, retired: bool, position: int, video: array{webm: string, mp4: string, poster: string, still: string}|null}>
+     * @return list<array{key: string, label: string, access: string, builtIn: bool, retired: bool, position: int, video: array{webm: string, mp4: string, poster: string, still: string, shade: array{webm: string, mp4: string}|null}|null}>
      */
     public function forAdmin(): array
     {
@@ -62,9 +62,9 @@ final readonly class AvatarFrameCatalogQuery
     }
 
     /**
-     * @param array{webm: string, mp4: string, poster: string, still: string}|null $files
+     * @param array{webm: string, mp4: string, poster: string, still: string, shade: array{webm: string, mp4: string}|null}|null $files
      *
-     * @return array{webm: string, mp4: string, poster: string, still: string}|null
+     * @return array{webm: string, mp4: string, poster: string, still: string, shade: array{webm: string, mp4: string}|null}|null
      */
     private function urls(?array $files): ?array
     {
@@ -77,6 +77,11 @@ final readonly class AvatarFrameCatalogQuery
             'mp4' => $this->publicMedia->resolve($files['mp4']),
             'poster' => $this->publicMedia->resolve($files['poster']),
             'still' => $this->publicMedia->resolve($files['still']),
+            // Story 41.30: the dark parts, laid in `multiply` under the light.
+            'shade' => null === $files['shade'] ? null : [
+                'webm' => $this->publicMedia->resolve($files['shade']['webm']),
+                'mp4' => $this->publicMedia->resolve($files['shade']['mp4']),
+            ],
         ];
     }
 }

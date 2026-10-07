@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore, type ReactElement } from "react";
+import { Fragment, useSyncExternalStore, type ReactElement } from "react";
 import type { AvatarFrameVideo } from "./avatar-frames";
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
@@ -31,7 +31,9 @@ export function AvatarFrameVideoLayer({ video, className, playing }: { video: Av
 
 /**
  * The element of the overlay. The still is a transparent image that blends with nothing, so it is safe under any
- * parent (story 30.47). The video is light filmed on black and needs `screen`, set on the video only.
+ * parent (story 30.47). The video is light filmed on black and needs `screen`, set on the video only. `screen` can
+ * only brighten: a frame whose shapes cover the photo (story 41.30) adds its shade, dark on white, laid in `multiply`
+ * under the light and kept on the light's clock.
  */
 export function videoLayer(video: AvatarFrameVideo, className: string, play: boolean): ReactElement {
   if (!play) {
@@ -41,7 +43,7 @@ export function videoLayer(video: AvatarFrameVideo, className: string, play: boo
 
   // Keyed by its file: a browser never reloads a <video> whose <source> children change, so switching from one
   // video frame to another (the picker's try-on) would keep playing the previous effect.
-  return (
+  const light = (
     <video
       // React sets `muted` as a property, never as the attribute, and some browsers (Safari) then refuse the autoplay
       // of a video mounted after load (on hover): start it explicitly, muted (story 30.47).
@@ -63,6 +65,49 @@ export function videoLayer(video: AvatarFrameVideo, className: string, play: boo
       <source src={video.mp4} type="video/mp4" />
     </video>
   );
+  if (!video.shade) return light;
+
+  return (
+    <Fragment key={video.webm}>
+      <video
+        ref={followLight}
+        aria-hidden="true"
+        autoPlay
+        className={className}
+        disablePictureInPicture
+        key={video.shade.webm}
+        loop
+        muted
+        playsInline
+        preload="auto"
+        style={{ mixBlendMode: "multiply" }}
+        tabIndex={-1}
+      >
+        <source src={video.shade.webm} type="video/webm" />
+        <source src={video.shade.mp4} type="video/mp4" />
+      </video>
+      {light}
+    </Fragment>
+  );
+}
+
+/** Drift the shade may take before it is put back on the light's clock: a seek every frame would stutter. */
+const SHADE_DRIFT = 0.08;
+
+/** The shade plays with the light, its next sibling: two videos never stay in step on their own (story 41.30). */
+function followLight(shade: HTMLVideoElement | null): (() => void) | undefined {
+  if (shade === null) return undefined;
+  startMuted(shade);
+  let frame = 0;
+  const tick = () => {
+    const light = shade.nextElementSibling;
+    if (light instanceof HTMLVideoElement && Math.abs(shade.currentTime - light.currentTime) > SHADE_DRIFT) {
+      shade.currentTime = light.currentTime;
+    }
+    frame = requestAnimationFrame(tick);
+  };
+  frame = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(frame);
 }
 
 function startMuted(video: HTMLVideoElement | null): void {

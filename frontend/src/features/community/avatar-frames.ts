@@ -16,7 +16,11 @@ export type AvatarFrameVideo = {
   mp4: string;
   poster: string;
   still: string;
+  /** Story 41.30: the dark parts (white = untouched), laid in `multiply` under the light so they can cover the photo. */
+  shade?: AvatarFrameShade | null;
 };
+
+export type AvatarFrameShade = { webm: string; mp4: string };
 
 export type AvatarFrameConfig = {
   key: string;

@@ -44,4 +44,21 @@ describe("avatar frame catalog", () => {
     server.use(http.get(`${TEST_API_BASE_URL}/avatar-frames`, () => new HttpResponse(null, { status: 500 })));
     expect(await fetchAvatarFrameCatalog()).toEqual([]);
   });
+
+  test("a frame's shade is read when well formed, the catalog refused when not", async () => {
+    const video = { webm: "w", mp4: "m", poster: "p", still: "s" };
+    const serve = (shade: unknown) =>
+      server.use(
+        http.get(`${TEST_API_BASE_URL}/avatar-frames`, () =>
+          HttpResponse.json({ frames: [{ key: "envy", label: "Envie", access: "free", builtIn: false, video: { ...video, shade } }] }),
+        ),
+      );
+
+    serve({ webm: "sw", mp4: "sm" });
+    expect((await fetchAvatarFrameCatalog())[0]?.video?.shade).toEqual({ webm: "sw", mp4: "sm" });
+    serve(null);
+    expect(await fetchAvatarFrameCatalog()).toHaveLength(1);
+    serve({ webm: "sw" });
+    expect(await fetchAvatarFrameCatalog()).toEqual([]);
+  });
 });
