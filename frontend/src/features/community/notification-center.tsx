@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, Loader2 } from "lucide-react";
@@ -14,6 +13,8 @@ import {
   markNotificationRead,
   type NotificationItem,
 } from "./notifications-api";
+import { sectionsOf, timeLabel } from "./notification-content";
+import { NotificationRow } from "./notification-row";
 
 const QUERY_KEY = ["community-notifications"] as const;
 const STALE_TIME = 20_000;
@@ -25,6 +26,8 @@ export function NotificationCenter() {
   const userId = user?.id ?? null;
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  // The clock the periods and times are read against: taken when the bell opens, never during a render.
+  const [openedAt, setOpenedAt] = useState<Date | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data } = useQuery({
@@ -79,13 +82,13 @@ export function NotificationCenter() {
 
   const items = data?.items ?? [];
   const unread = data?.unreadCount ?? 0;
+  const now = openedAt ?? new Date(0);
 
-  async function handleItemClick(item: NotificationItem): Promise<void> {
-    setOpen(false);
-    if (!item.read) {
-      await markNotificationRead(item.id);
-      await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-    }
+  async function markRead(row: NotificationItem[]): Promise<void> {
+    const unreadIds = row.filter((item) => !item.read).map((item) => item.id);
+    if (unreadIds.length === 0) return;
+    await Promise.all(unreadIds.map((id) => markNotificationRead(id)));
+    await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
   }
 
   async function handleMarkAll(): Promise<void> {
@@ -99,7 +102,10 @@ export function NotificationCenter() {
         aria-expanded={open}
         aria-label={unread > 0 ? `Notifications (${unread} non lues)` : "Notifications"}
         className="relative inline-flex size-11 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setOpenedAt(new Date());
+          setOpen((v) => !v);
+        }}
         type="button"
       >
         <Bell aria-hidden className="size-5" />
@@ -111,7 +117,7 @@ export function NotificationCenter() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-surface shadow-xl">
+        <div className="absolute right-0 z-50 mt-2 w-[min(25rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-surface shadow-xl">
           <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
             <span className="font-heading text-sm font-semibold text-foreground">Notifications</span>
             {unread > 0 ? (
@@ -132,42 +138,41 @@ export function NotificationCenter() {
           ) : items.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">Aucune notification.</p>
           ) : (
-            <ul className="max-h-96 overflow-y-auto" role="list">
-              {items.map((item) => (
-                <li key={item.id}>
-                  <NotificationRow item={item} onSelect={() => void handleItemClick(item)} />
-                </li>
+            <div className="max-h-[32rem] overflow-y-auto">
+              {/* Story 30.48: by period, the kudos of a day on one row. */}
+              {sectionsOf(items, now).map((section) => (
+                <section aria-label={section.label} key={section.label}>
+                  <h3 className="border-t border-border px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground first:border-t-0">
+                    {section.label}
+                  </h3>
+                  <ul role="list">
+                    {section.rows.map((row) => {
+                      const first = row.items[0];
+                      if (first === undefined) return null;
+                      return (
+                        <li key={row.key}>
+                          <NotificationRow
+                            fallback={messageFor(first)}
+                            href={hrefFor(first)}
+                            items={row.items}
+                            onRead={() => void markRead(row.items)}
+                            onSelect={() => {
+                              setOpen(false);
+                              void markRead(row.items);
+                            }}
+                            timeLabel={timeLabel(first.createdAt, now)}
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       ) : null}
     </div>
-  );
-}
-
-function NotificationRow({ item, onSelect }: { item: NotificationItem; onSelect: () => void }) {
-  const href = hrefFor(item);
-  const content = (
-    <span className="flex items-start gap-2.5">
-      {item.read ? null : <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-accent" />}
-      <span className={`min-w-0 flex-1 ${item.read ? "pl-[18px]" : ""}`}>
-        <span className="block text-sm text-foreground">{messageFor(item)}</span>
-        <time className="text-xs text-muted-foreground" dateTime={item.createdAt}>
-          {relativeTime(item.createdAt)}
-        </time>
-      </span>
-    </span>
-  );
-
-  return (
-    <Link
-      className={`block px-4 py-3 transition-colors hover:bg-accent/10 ${item.read ? "" : "bg-accent/5"}`}
-      href={href}
-      onClick={onSelect}
-    >
-      {content}
-    </Link>
   );
 }
 
@@ -322,14 +327,4 @@ export function hrefFor(item: NotificationItem): string {
     return `/joueurs/${item.actor.slug}`;
   }
   return "/compte";
-}
-
-function relativeTime(iso: string): string {
-  const ts = new Date(iso).getTime();
-  if (Number.isNaN(ts)) return "";
-  const diff = Date.now() - ts;
-  if (diff < 60_000) return "à l'instant";
-  if (diff < 3_600_000) return `il y a ${Math.floor(diff / 60_000)} min`;
-  if (diff < 86_400_000) return `il y a ${Math.floor(diff / 3_600_000)} h`;
-  return `il y a ${Math.floor(diff / 86_400_000)} j`;
 }

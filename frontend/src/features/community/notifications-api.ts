@@ -2,7 +2,13 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
-export type NotificationActor = { slug: string; displayName: string | null; avatarUrl: string | null };
+export type NotificationActor = {
+  slug: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  /** Story 30.48: the actor's avatar frame, drawn on their avatar in the bell. */
+  avatarFrame?: string | null;
+};
 
 export type NotificationItem = {
   id: string;
@@ -11,6 +17,8 @@ export type NotificationItem = {
   read: boolean;
   actor: NotificationActor | null;
   data: Record<string, unknown>;
+  /** Story 30.48: what the API resolved at read time (achievement, cosmetic preview, pending friend request). */
+  details?: Record<string, unknown> | null;
 };
 
 export type NotificationsResult = { items: NotificationItem[]; unreadCount: number };
@@ -32,6 +40,7 @@ function isNotificationItem(v: unknown): v is NotificationItem {
   if (!hasStringProp(v, "id") || !hasStringProp(v, "type") || !hasStringProp(v, "createdAt")) return false;
   if (!hasBooleanProp(v, "read")) return false;
   if (!("actor" in v) || (v.actor !== null && !isActor(v.actor))) return false;
+  if ("details" in v && v.details !== null && (typeof v.details !== "object" || Array.isArray(v.details))) return false;
   return "data" in v && typeof v.data === "object" && v.data !== null;
 }
 

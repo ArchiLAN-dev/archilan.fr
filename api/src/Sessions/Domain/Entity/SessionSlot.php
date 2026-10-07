@@ -48,6 +48,16 @@ final class SessionSlot
         /** Last time the bridge reported a new check on this slot (story 30.45); null until the first one. */
         #[ORM\Column(name: 'last_check_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $lastCheckAt = null,
+
+        /**
+         * Story 30.49: when the slot released (or forfeited) its remaining items to the others, and when it collected
+         * its own back - the items moved from then on were never found by anyone. Null on a slot released before.
+         */
+        #[ORM\Column(name: 'released_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $releasedAt = null,
+
+        #[ORM\Column(name: 'collected_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $collectedAt = null,
     ) {
     }
 
@@ -167,6 +177,30 @@ final class SessionSlot
         }
 
         $this->wasReleased = true;
+    }
+
+    /**
+     * Story 30.49: the first release (or forfeit) and the first collect of the slot, whatever its goal: a slot that
+     * finished still floods the others when it releases.
+     */
+    public function recordHandOver(bool $collect, \DateTimeImmutable $at): void
+    {
+        if ($collect) {
+            $this->collectedAt ??= $at;
+
+            return;
+        }
+        $this->releasedAt ??= $at;
+    }
+
+    public function getReleasedAt(): ?\DateTimeImmutable
+    {
+        return $this->releasedAt;
+    }
+
+    public function getCollectedAt(): ?\DateTimeImmutable
+    {
+        return $this->collectedAt;
     }
 
     public function isWasReleased(): bool

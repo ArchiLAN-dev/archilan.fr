@@ -46,7 +46,7 @@ final readonly class RecordSessionFeedEvent
     {
         $type = is_string($event['type'] ?? null) ? $event['type'] : '';
         if (\in_array($type, self::RELEASE_TYPES, true)) {
-            $this->markSlotReleased($sessionId, $event);
+            $this->markSlotReleased($sessionId, $event, 'collect' === $type);
         }
         if (!\in_array($type, SessionFeedEvent::PERSISTED_TYPES, true)) {
             return;
@@ -80,7 +80,7 @@ final readonly class RecordSessionFeedEvent
     /**
      * @param array<array-key, mixed> $event
      */
-    private function markSlotReleased(string $sessionId, array $event): void
+    private function markSlotReleased(string $sessionId, array $event, bool $collect): void
     {
         $name = self::stringOrNull(self::subArray($event, 'sender'), 'name') ?? self::playerNamedInText($event);
         $slot = null !== $name ? $this->slots->findBySessionAndSlotName($sessionId, $name) : null;
@@ -89,6 +89,8 @@ final readonly class RecordSessionFeedEvent
         }
 
         $slot->markAsReleased();
+        // Story 30.49: the items it moves from now on were found by no one.
+        $slot->recordHandOver($collect, $this->occurredAt($event));
         $this->slots->flush();
     }
 
