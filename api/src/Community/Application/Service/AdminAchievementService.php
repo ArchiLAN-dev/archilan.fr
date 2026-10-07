@@ -4,20 +4,26 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
+use App\Community\Application\Port\CosmeticOwnershipInterface;
 use App\Community\Application\Query\EventCatalogueQueryInterface;
 use App\Community\Application\Support\AchievementImageUrlResolver;
+use App\Community\Application\Support\CosmeticRewardCatalog;
+use App\Community\Application\Support\CosmeticRewarder;
 use App\Community\Domain\AchievementMetricCatalog;
 use App\Community\Domain\AchievementOperator;
 use App\Community\Domain\AchievementRuleGroup;
 use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Service\AchievementRuleFactory;
+use App\Community\Domain\ValueObject\CosmeticReward;
 use Psr\Clock\ClockInterface;
 
 /**
  * Admin CRUD for achievement definitions (story 30.16): validate + persist the composable rule trees.
- * `key` is immutable after creation; the rule is validated through AchievementRuleFactory.
+ * `key` is immutable after creation; the rule is validated through AchievementRuleFactory. Story 41.28: the
+ * cosmetic an achievement unlocks - given at once to the members who already hold it.
  */
 final readonly class AdminAchievementService
 {
@@ -30,11 +36,14 @@ final readonly class AdminAchievementService
         private EventCatalogueQueryInterface $events,
         private AchievementImageUrlResolver $imageUrls,
         private ClockInterface $clock,
+        private CosmeticRewardCatalog $cosmetics,
+        private CosmeticRewarder $rewarder,
+        private AchievementGrantRepositoryInterface $grants,
     ) {
     }
 
     /**
-     * @return list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null}>
+     * @return list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null}>
      */
     public function list(): array
     {
@@ -44,7 +53,7 @@ final readonly class AdminAchievementService
     /**
      * The admin dashboard payload: every definition plus the rule-builder option lists, in one read.
      *
-     * @return array{definitions: list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null}>, options: array{facts: list<array{key: string, label: string}>, operators: list<string>, groupOps: list<string>, events: list<array{id: string, title: string}>}}
+     * @return array{definitions: list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null}>, options: array{facts: list<array{key: string, label: string}>, operators: list<string>, groupOps: list<string>, events: list<array{id: string, title: string}>}}
      */
     public function dashboard(): array
     {
@@ -75,7 +84,7 @@ final readonly class AdminAchievementService
     /**
      * @param array<string, mixed> $payload
      *
-     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null}
+     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null}
      *
      * @throws InvalidAchievementRuleException
      * @throws \InvalidArgumentException
@@ -91,7 +100,9 @@ final readonly class AdminAchievementService
         $this->validateEventScopes($rule);
         $now = $this->clock->now();
 
+        $reward = $this->reward($payload);
         $definition = AchievementDefinition::create($key, $name, $this->description($payload), $rule, $this->definitions->maxPosition() + 1, $now, $this->imageKey($payload));
+        $definition->rewardWith($reward, $now);
         $this->definitions->save($definition);
 
         return $this->present($definition);
@@ -100,7 +111,7 @@ final readonly class AdminAchievementService
     /**
      * @param array<string, mixed> $payload
      *
-     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null}|null
+     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null}|null
      *
      * @throws InvalidAchievementRuleException
      * @throws \InvalidArgumentException
@@ -121,7 +132,22 @@ final readonly class AdminAchievementService
         if ($this->hasImageKey($payload)) {
             $definition->updateCustomImage($this->imageKey($payload), $now);
         }
+        // Story 41.28: the reward only when the field is present, like the image.
+        $newReward = null;
+        if (array_key_exists('reward', $payload)) {
+            $reward = $this->reward($payload);
+            if (null !== $reward && !$reward->equals($definition->getReward())) {
+                $newReward = $reward;
+            }
+            $definition->rewardWith($reward, $now);
+        }
         $this->definitions->flush();
+        // The members who already hold the achievement get the cosmetic it now unlocks.
+        if (null !== $newReward) {
+            foreach ($this->grants->holdersOf($definition->getKey()) as $holder) {
+                $this->rewarder->reward($holder, $newReward, CosmeticOwnershipInterface::SOURCE_ACHIEVEMENT, $definition->getName());
+            }
+        }
 
         return $this->present($definition);
     }
@@ -283,7 +309,7 @@ final readonly class AdminAchievementService
     }
 
     /**
-     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null}
+     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null}
      */
     private function present(AchievementDefinition $d): array
     {
@@ -297,6 +323,38 @@ final readonly class AdminAchievementService
             'position' => $d->getPosition(),
             'customImageKey' => $d->getCustomImageKey(),
             'customImageUrl' => $this->imageUrls->resolve($d->getCustomImageKey()),
+            'reward' => $this->presentReward($d->getReward()),
         ];
+    }
+
+    /** @return array{type: string, key: string, label: string}|null */
+    private function presentReward(?CosmeticReward $reward): ?array
+    {
+        return null === $reward ? null : [...$reward->toArray(), 'label' => $this->cosmetics->label($reward)];
+    }
+
+    /**
+     * Story 41.28: the cosmetic the payload's `reward` names, `{type, key}`, or none.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function reward(array $payload): ?CosmeticReward
+    {
+        $raw = $payload['reward'] ?? null;
+        if (null === $raw) {
+            return null;
+        }
+        try {
+            $reward = is_array($raw) ? CosmeticReward::fromParts($raw['type'] ?? null, $raw['key'] ?? null) : throw new \DomainException('cosmetic_reward_invalid');
+        } catch (\DomainException) {
+            throw new \InvalidArgumentException('Récompense invalide.');
+        }
+        if (null !== $reward && !$this->cosmetics->exists($reward)) {
+            throw new \InvalidArgumentException('Ce cosmétique n\'existe pas.');
+        }
+
+        return $reward;
     }
 }

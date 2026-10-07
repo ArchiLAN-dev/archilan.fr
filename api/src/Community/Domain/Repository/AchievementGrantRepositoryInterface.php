@@ -36,6 +36,13 @@ interface AchievementGrantRepositoryInterface
     public function save(AchievementGrant $grant): void;
 
     /**
+     * Story 41.28: the members holding an achievement, to give them the cosmetic it now unlocks.
+     *
+     * @return list<string>
+     */
+    public function holdersOf(string $achievementKey): array;
+
+    /**
      * Remove a user's grant for an achievement key, if present (no-op otherwise). Used by the admin manual
      * revoke (story 30.34).
      */

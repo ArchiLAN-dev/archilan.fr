@@ -61,6 +61,7 @@ final class ProfileBannerCatalog implements ResetInterface
         return match (($this->definitions()[$key] ?? null)?->getAccess() ?? AvatarFrameAccess::Shop) {
             AvatarFrameAccess::Admins => 'Bannière réservée aux admins.',
             AvatarFrameAccess::Members => 'Bannière réservée aux adhérents.',
+            AvatarFrameAccess::Reward => 'Bannière à gagner (succès ou quête).',
             default => 'Bannière à acheter en boutique.',
         };
     }

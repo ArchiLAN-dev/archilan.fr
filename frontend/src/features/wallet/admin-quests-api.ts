@@ -1,3 +1,4 @@
+import { isCosmeticRewardView, type CosmeticReward, type CosmeticRewardView } from "@/features/community/cosmetic-reward-picker";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
@@ -21,6 +22,8 @@ export type AdminQuest = {
   inDraw: boolean;
   /** Story 41.18: 1 to 5, how much more often it comes out of a draw. */
   drawWeight: number;
+  /** Story 41.28: the cosmetic it unlocks the first time (absent from an older API). */
+  cosmetic?: CosmeticRewardView | null;
   retired: boolean;
   createdAt: string;
   /** Story 41.16: how the quest did. */
@@ -57,7 +60,7 @@ export type AdminQuests = {
   scopes: QuestScopes;
 };
 
-export type QuestTerms = { title: string; description: string; reward: number; objectives: QuestObjectiveTerms[]; inDraw: boolean; drawWeight: number };
+export type QuestTerms = { title: string; description: string; reward: number; objectives: QuestObjectiveTerms[]; inDraw: boolean; drawWeight: number; cosmetic?: CosmeticReward | null };
 
 export const QUEST_LIMITS = { maxTitle: 80, maxDescription: 200, minReward: 1, maxReward: 1000, maxObjectives: 5, minTarget: 1, maxTarget: 10000, minPerWeek: 1, maxPerWeek: 10, maxChest: 1000, minWeight: 1, maxWeight: 5 } as const;
 
@@ -103,7 +106,8 @@ function isQuest(v: unknown): v is AdminQuest {
     isStats(v.stats) &&
     "objectives" in v &&
     Array.isArray(v.objectives) &&
-    v.objectives.every(isObjectiveTerms)
+    v.objectives.every(isObjectiveTerms) &&
+    (!("cosmetic" in v) || v.cosmetic === null || isCosmeticRewardView(v.cosmetic))
   );
 }
 

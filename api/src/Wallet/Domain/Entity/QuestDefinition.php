@@ -48,7 +48,25 @@ final class QuestDefinition
         private ?\DateTimeImmutable $retiredAt = null,
         #[ORM\Column(name: 'draw_weight', type: 'integer', options: ['default' => 1])]
         private int $drawWeight = 1,
+        // Story 41.28: the cosmetic the quest unlocks the first time it is done, none by default.
+        #[ORM\Column(name: 'cosmetic_type', type: 'string', length: 12, nullable: true)]
+        private ?string $cosmeticType = null,
+        #[ORM\Column(name: 'cosmetic_key', type: 'string', length: 64, nullable: true)]
+        private ?string $cosmeticKey = null,
     ) {
+    }
+
+    /** Story 41.28: the cosmetic the quest unlocks (both null: none). Checked by the application. */
+    public function unlocks(?string $type, ?string $key): void
+    {
+        $this->cosmeticType = null === $type || null === $key ? null : $type;
+        $this->cosmeticKey = null === $type || null === $key ? null : $key;
+    }
+
+    /** @return array{type: string, key: string}|null */
+    public function getCosmetic(): ?array
+    {
+        return null === $this->cosmeticType || null === $this->cosmeticKey ? null : ['type' => $this->cosmeticType, 'key' => $this->cosmeticKey];
     }
 
     /**

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { CosmeticRewardPicker, type CosmeticReward } from "@/features/community/cosmetic-reward-picker";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -151,6 +152,8 @@ export function QuestDialog({
   const [reward, setReward] = useState(String(quest?.reward ?? 30));
   const [inDraw, setInDraw] = useState(quest?.inDraw ?? true);
   const [drawWeight, setDrawWeight] = useState(quest?.drawWeight ?? 1);
+  // Story 41.28: the cosmetic it unlocks the first time.
+  const [cosmetic, setCosmetic] = useState<CosmeticReward | null>(quest?.cosmetic ? { type: quest.cosmetic.type, key: quest.cosmetic.key } : null);
   // Each row keeps its own id: a type may come back aimed at another game, so the type is no key.
   const [rows, setRows] = useState<ObjectiveRow[]>(() =>
     (quest?.objectives ?? [{ metric: metrics[0]?.key ?? "goals", target: 1 }]).map((objective, index) => ({ ...objective, rowId: index })),
@@ -164,7 +167,7 @@ export function QuestDialog({
     ...(row.scope && row.scopeId ? { scope: row.scope, scopeId: row.scopeId } : {}),
   }));
   const parsedReward = Number.parseInt(reward, 10);
-  const terms: QuestTerms = { title: title.trim(), description: description.trim(), reward: parsedReward, objectives, inDraw, drawWeight };
+  const terms: QuestTerms = { title: title.trim(), description: description.trim(), reward: parsedReward, objectives, inDraw, drawWeight, cosmetic: cosmetic?.key ? cosmetic : null };
   const error = questTermsError(terms);
   const hasScopes = scopes.games.length > 0 || scopes.events.length > 0;
 
@@ -322,6 +325,7 @@ export function QuestDialog({
               </select>
             </label>
           </div>
+          <CosmeticRewardPicker id="quest-cosmetic" onChange={setCosmetic} value={cosmetic} />
           {error !== null && title !== "" ? <p className="text-sm text-danger">{error}</p> : null}
         </DialogBody>
         <DialogFooter>

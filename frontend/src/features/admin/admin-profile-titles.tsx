@@ -31,7 +31,7 @@ import {
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 
 const fieldClass = "min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground";
-const ACCESSES: readonly AvatarFrameAccess[] = ["free", "members", "admins", "shop"];
+const ACCESSES: readonly AvatarFrameAccess[] = ["free", "members", "admins", "shop", "reward"];
 
 type Message = { tone: "ok" | "error"; text: string };
 
