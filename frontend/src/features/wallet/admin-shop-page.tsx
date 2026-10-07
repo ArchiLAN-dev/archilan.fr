@@ -29,7 +29,7 @@ import {
   type PromotionTerms,
   type ShopItemTerms,
 } from "./shop-api";
-import { COSMETIC_TYPE_LABELS, ShopCosmeticPreview, useCosmeticLabel } from "./shop-cosmetics";
+import { COSMETIC_TYPE_LABELS, ShopCosmeticPreview, useCosmeticLabel, useTitleBadge } from "./shop-cosmetics";
 
 export const STATUS_LABELS: Record<AdminShopStatus, string> = { on_sale: "En vente", upcoming: "À venir", ended: "Terminé", paused: "En pause" };
 const STATUS_TONES: Record<AdminShopStatus, string> = {
@@ -113,6 +113,7 @@ export function AdminShopPage() {
 
 export function AdminShopView({ shop, ...handlers }: { shop: AdminShop } & Handlers) {
   const label = useCosmeticLabel();
+  const titleBadge = useTitleBadge();
   const [filter, setFilter] = useState<AdminShopStatus | "all">("all");
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [editing, setEditing] = useState<AdminShopItem | null>(null);
@@ -174,7 +175,7 @@ export function AdminShopView({ shop, ...handlers }: { shop: AdminShop } & Handl
             {shown.map((item) => (
               <li className="grid overflow-hidden rounded-xl border border-border bg-surface" key={item.id}>
                 <div className="relative">
-                  <ShopCosmeticPreview className="h-28" cosmeticKey={item.cosmeticKey} label={label(item.type, item.cosmeticKey)} type={item.type} />
+                  <ShopCosmeticPreview className="h-28" cosmeticKey={item.cosmeticKey} label={label(item.type, item.cosmeticKey)} title={item.type === "title" ? titleBadge(item.cosmeticKey) : null} type={item.type} />
                   <span className={`absolute left-3 top-3 rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_TONES[item.status]}`}>{STATUS_LABELS[item.status]}</span>
                 </div>
                 <div className="grid gap-2 p-4 text-sm">
@@ -309,6 +310,7 @@ function ListForm({
   report: (error: string | null, ok: string) => void;
 }) {
   const label = useCosmeticLabel();
+  const titleBadge = useTitleBadge();
   const [type, setType] = useState<CosmeticType>("frame");
   const [cosmeticKey, setCosmeticKey] = useState("");
   const [price, setPrice] = useState("");
@@ -392,7 +394,7 @@ function ListForm({
         <p className="text-xs font-medium text-muted-foreground">Aperçu</p>
         <div className="overflow-hidden rounded-xl border border-border">
           {cosmeticKey !== "" ? (
-            <ShopCosmeticPreview className="h-32" cosmeticKey={cosmeticKey} label={label(type, cosmeticKey)} type={type} />
+            <ShopCosmeticPreview className="h-32" cosmeticKey={cosmeticKey} label={label(type, cosmeticKey)} title={type === "title" ? titleBadge(cosmeticKey) : null} type={type} />
           ) : (
             <p className="grid h-32 place-items-center text-xs text-muted-foreground">Choisis un cosmétique</p>
           )}

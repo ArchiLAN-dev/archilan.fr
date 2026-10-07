@@ -14,6 +14,8 @@ import {
 } from "./community-api";
 import { MemberAvatar } from "./member-avatar";
 import { TitledName } from "@/features/community/titled-name";
+import { ProfileTitleBadge } from "@/features/community/profile-title-badge";
+import { isTitleBadge } from "@/features/community/profile-title-catalog";
 
 const TABS: { axis: LeaderboardAxis; label: string }[] = [
   { axis: "goals", label: "Objectifs" },
@@ -144,6 +146,8 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
                     {entry.displayName || entry.slug}
                   </TitledName>
                 </Link>
+                {/* Story 41.27: the title worn. */}
+                {isTitleBadge(entry.title) ? <ProfileTitleBadge className="hidden shrink-0 sm:inline-flex" title={entry.title} variant="card" /> : null}
               </div>
 
               <div className="shrink-0 pl-9 sm:ml-auto sm:pl-0 sm:text-right">

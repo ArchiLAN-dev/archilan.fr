@@ -16,7 +16,7 @@ import { BANNER_PRESETS } from "./banner-presets";
 import { bannerLockReason, fetchProfileBannerCatalog, PROFILE_BANNER_CATALOG_QUERY_KEY } from "./profile-banner-catalog";
 import { ProfileTitleBadge } from "./profile-title-badge";
 import { NAME_COLORS } from "./name-colors";
-import { fetchProfileTitleCatalog, PROFILE_TITLE_CATALOG_QUERY_KEY, titleLockReason, type ProfileTitle } from "./profile-title-catalog";
+import { badgeOf, fetchProfileTitleCatalog, PROFILE_TITLE_CATALOG_QUERY_KEY, type ProfileTitle, titleLockReason } from "./profile-title-catalog";
 import { imageAccept, imageFormatsHint, imageUploadError } from "./custom-image-rules";
 import { ImageFramingDialog, type FramingShape } from "./image-framing-dialog";
 import { TitledName, type NameStyle } from "./titled-name";
@@ -1169,7 +1169,7 @@ export function ProfileTitleField({
       </label>
       {current ? (
         <span>
-          <ProfileTitleBadge label={current.label} />
+          <ProfileTitleBadge title={badgeOf(current)} />
         </span>
       ) : null}
       <span className="text-xs text-muted-foreground">

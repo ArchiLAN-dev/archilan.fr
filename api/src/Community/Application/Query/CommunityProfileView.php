@@ -74,7 +74,7 @@ final readonly class CommunityProfileView
      *     avatarUrl: string|null,
      *     avatarFraming: array{x: int, y: int, zoom: int}|null,
      *     nameStyle: string|null,
-     *     title: string|null,
+     *     title: array{label: string, rarity: string, icon: string|null, access: string}|null,
      *     audience: string,
      *     badges: array{member: bool, admin: bool},
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
@@ -153,7 +153,8 @@ final readonly class CommunityProfileView
             // Story 41.23: or the colour bought, where no rarity colour applies.
             'nameStyle' => NameColor::nameStyle($badges['admin'], $badges['member'], $profile?->hasTitledName() ?? true, $profile?->getNameColor()),
             // Story 41.22: the title worn under the name, by its label (none when retired).
-            'title' => $this->titles->displayed($profile?->getTitleKey(), $badges['admin']),
+            // Story 41.27: the badge - label, rarity, icon, and who may wear it.
+            'title' => $this->titles->badge($profile?->getTitleKey(), $badges['admin']),
             'audience' => $audience,
             'badges' => $badges,
             'stats' => $model['stats'],

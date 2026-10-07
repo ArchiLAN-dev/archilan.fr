@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import { isImageFraming, type ImageFraming } from "@/features/community/image-framing";
 import { isNameStyle, type NameStyle } from "@/features/community/titled-name";
+import { isTitleBadge, type TitleBadge } from "@/features/community/profile-title-catalog";
 
 export type PlayerStats = {
   runsParticipated: number;
@@ -96,8 +97,8 @@ export type PlayerProfile = {
   avatarFraming?: ImageFraming | null;
   // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
-  // Story 41.22: the title worn under the name, by its label (null = none).
-  title?: string | null;
+  // Story 41.22: the title worn under the name (null = none). Story 41.27: its badge - rarity, icon, origin.
+  title?: TitleBadge | null;
   audience: string;
   badges: ProfileBadges;
   level: ProfileLevel;
@@ -278,7 +279,7 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       avatarUrl: data.avatarUrl ?? null,
       avatarFraming: isImageFraming(data.avatarFraming) ? data.avatarFraming : null,
       nameStyle: isNameStyle(data.nameStyle) ? data.nameStyle : null,
-      title: "title" in data && typeof data.title === "string" && data.title !== "" ? data.title : null,
+      title: "title" in data && isTitleBadge(data.title) ? data.title : null,
       audience: typeof data.audience === "string" ? data.audience : "members",
       badges: parseBadges("badges" in data ? data.badges : null),
       level: isProfileLevel(data.level) ? data.level : DEFAULT_LEVEL,

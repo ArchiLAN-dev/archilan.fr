@@ -1,0 +1,240 @@
+/*
+ * Story 41.27: a profile title by rarity - common plain, rare a frank blue, epic a violet-to-pink gradient with a
+ * glow, legendary gold with a breathing glow and a sheen crossing it diagonally. The motion stops for whoever asked
+ * the system to reduce it.
+ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.profile {
+  gap: 0.45rem;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.75rem;
+}
+
+.card {
+  gap: 0.3rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.profile .icon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.card .icon {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.common {
+  border-color: #3a4566;
+  background: #1a1840;
+  color: #c7d0e0;
+}
+
+.common .icon {
+  color: #8d9ab3;
+}
+
+.rare {
+  border-color: rgb(64 148 255 / 65%);
+  background: rgb(40 110 220 / 16%);
+  color: #8cc4ff;
+}
+
+.rare .icon {
+  color: #5aa7ff;
+}
+
+.epic {
+  font-weight: 700;
+  background:
+    linear-gradient(#1f1446, #1f1446) padding-box,
+    linear-gradient(90deg, #a335ee, #e0246a) border-box;
+}
+
+.epic.profile {
+  box-shadow: 0 0 14px rgb(163 53 238 / 45%);
+}
+
+.epic .icon {
+  color: #d48cff;
+}
+
+.legendary {
+  position: relative;
+  overflow: hidden;
+  font-weight: 700;
+  background:
+    linear-gradient(#2a1a0c, #2a1a0c) padding-box,
+    linear-gradient(90deg, #ffd27a, #ff8000, #ffd27a) border-box;
+}
+
+.legendary .icon {
+  color: #ffc256;
+}
+
+.legendary.profile {
+  animation: breathe 2.6s ease-in-out infinite;
+}
+
+.legendary.card {
+  box-shadow: 0 0 8px rgb(255 128 0 / 35%);
+}
+
+/* The sheen: a band at 45 degrees crossing from the top left corner to the bottom right one. */
+.legendary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, transparent 43%, rgb(255 240 200 / 65%) 50%, transparent 57%) no-repeat;
+  background-size: 300% 300%;
+  background-position: 100% 100%;
+  animation: sheen 3.2s ease-in-out infinite;
+}
+
+/* The label in the rarity gradient, a solid colour where the gradient cannot be clipped to the text. */
+.epic .label,
+.legendary .label {
+  color: #ecc8ff;
+}
+
+.legendary .label {
+  color: #ffc256;
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .epic .label,
+  .legendary .label {
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .epic .label {
+    background-image: linear-gradient(90deg, #ecc8ff, #ff8cc0);
+  }
+
+  .legendary .label {
+    background-image: linear-gradient(180deg, #fff0c9, #ff9a2e);
+  }
+}
+
+@keyframes sheen {
+  0%,
+  55% {
+    background-position: 100% 100%;
+  }
+
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgb(255 128 0 / 35%);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgb(255 160 40 / 60%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legendary::after {
+    display: none;
+  }
+
+  .legendary.profile {
+    animation: none;
+    box-shadow: 0 0 14px rgb(255 128 0 / 40%);
+  }
+}
+
+/* Story 41.27: where the title comes from, on hover and on keyboard focus. */
+.withTip {
+  position: relative;
+  display: inline-flex;
+  border-radius: 999px;
+}
+
+.withTip:focus-visible {
+  outline: 2px solid var(--color-accent-text);
+  outline-offset: 2px;
+}
+
+.tip {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  gap: 0.2rem;
+  width: max-content;
+  max-width: 18rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #3a2c75;
+  border-radius: 0.6rem;
+  background: var(--color-surface-2);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 45%);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+  color: var(--color-text-body);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.withTip:hover .tip,
+.withTip:focus-visible .tip {
+  opacity: 1;
+  transform: none;
+}
+
+.tipTitle {
+  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+  font-weight: 700;
+}
+
+.tipcommon {
+  color: #c7d0e0;
+}
+
+.tiprare {
+  color: #5aa7ff;
+}
+
+.tipepic {
+  color: #c58bff;
+}
+
+.tiplegendary {
+  color: #ffa23a;
+}
