@@ -21,6 +21,13 @@ const TRANSFORMED_PACKAGES = [
   "rettime",
   "until-async",
   "@open-draft\\+.*",
+  // msw 3 pulls in its ESM-only interceptors.
+  "@mswjs\\+interceptors",
+  "@msw\\+.*",
+  "cookie",
+  "headers-polyfill",
+  "tough-cookie",
+  "tldts.*",
   "geist",
   "next\\+.*",
   // ESM-only markdown chain.
