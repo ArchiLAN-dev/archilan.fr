@@ -31,8 +31,10 @@ laissait qu'un booléen `was_released` sur le slot, sans date ni nature.
 3. **Release et collect** : un slot garde désormais la date de sa première release (ou abandon) et de son premier
    collect. Ne comptent pas les items envoyés par un slot depuis sa release, ni ceux reçus par un slot depuis son
    collect (marge de deux secondes, l'annonce pouvant arriver après les premiers items).
-4. **Historique** : pour les slots relâchés avant, une rafale de 10 items ou plus dans la même seconde depuis un même
-   slot (release) ou vers un même slot (collect) ne compte pas.
+4. **Historique** : pour un slot sans ces dates (relâché avant), une rafale de 10 items ou plus dans la même seconde ne
+   compte pas seulement si elle part d'un slot qui pouvait relâcher (marqué relâché, ou objectif déjà atteint : la
+   release à l'objectif) ou arrive dans un slot qui pouvait collecter (objectif déjà atteint). Dix vrais checks dans
+   la même seconde en cours de partie comptent (remarque de Jean).
 5. Gates verts ; tests.
 
 ## Tasks / Subtasks

@@ -26,11 +26,15 @@ final class ItemsFromOthersTest extends FunctionalTestCase
         $bob = $this->createUser('bob@example.org', slug: 'bob');
         $carol = $this->createUser('carol@example.org', slug: 'carol');
         $this->entityManager->persist(Session::create(self::SESSION, 'event-items', new \DateTimeImmutable('2026-10-01T10:00:00+00:00')));
-        $this->slot($alice->getId(), 'Alice', 'slot-alice');
+        $aliceSlot = $this->slot($alice->getId(), 'Alice', 'slot-alice');
         $this->slot($alice->getId(), 'Alice2', 'slot-alice2');
         $bobSlot = $this->slot($bob->getId(), 'Bob', 'slot-bob');
         $this->slot($carol->getId(), 'Carol', 'slot-carol');
-        $this->slot($carol->getId(), 'Dan', 'slot-dan');
+        // Released before story 30.49: marked, never dated.
+        $this->slot($carol->getId(), 'Dan', 'slot-dan')->markAsReleased();
+        $this->slot($bob->getId(), 'Frank', 'slot-frank');
+        $this->slot($bob->getId(), 'Gina', 'slot-gina');
+        $aliceSlot->recordGoal(new \DateTimeImmutable('2026-10-01T11:40:00+00:00'));
         // Alice plays Carol's slot too.
         $this->entityManager->persist(SlotCoPlayer::create(bin2hex(random_bytes(16)), 'slot-carol', $alice->getId(), new \DateTimeImmutable('2026-10-01T10:00:00+00:00')));
         $bobSlot->recordHandOver(false, new \DateTimeImmutable('2026-10-01T12:00:00+00:00'));
@@ -42,11 +46,13 @@ final class ItemsFromOthersTest extends FunctionalTestCase
         $this->item('Carol', 'Alice', '2026-10-01T11:04:00+00:00');    // a slot she co-plays
         $this->item('Bob', 'Alice', '2026-10-01T12:00:01+00:00');      // Bob released
         for ($i = 0; $i < 10; ++$i) {
-            $this->item('Dan', 'Alice', '2026-10-01T11:30:00+00:00');  // a burst: an undated release
+            $this->item('Dan', 'Alice', '2026-10-01T11:30:00+00:00');  // a burst from a released slot: an undated release
+            $this->item('Frank', 'Alice', '2026-10-01T11:20:00+00:00'); // ten real checks in a second: they count
+            $this->item('Gina', 'Alice', '2026-10-01T11:45:00+00:00');  // a burst after her goal: an undated collect
         }
         $this->entityManager->flush();
 
-        self::assertSame(2, $this->query()->count($alice->getId()));
+        self::assertSame(12, $this->query()->count($alice->getId()));
         self::assertSame(1, $this->query()->count($carol->getId()), 'the item Bob sent to her slot');
     }
 
