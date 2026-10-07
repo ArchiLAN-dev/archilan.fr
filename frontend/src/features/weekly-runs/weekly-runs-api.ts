@@ -197,7 +197,7 @@ export async function relaunchWeeklyEntry(externalSessionId: string): Promise<bo
 
 // ── Type guards ────────────────────────────────────────────────────────────────
 
-function isCurrentRunsPayload(v: unknown): v is { data: CurrentWeeklyRun[] } {
+export function isCurrentRunsPayload(v: unknown): v is { data: CurrentWeeklyRun[] } {
   return typeof v === "object" && v !== null && "data" in v && Array.isArray(v.data);
 }
 
