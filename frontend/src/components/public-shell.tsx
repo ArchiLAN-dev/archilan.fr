@@ -333,7 +333,8 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
                 src="/images/logo.webp"
                 width={24}
               />
-              <span>© ArchiLAN. Association gaming et Archipelago.</span>
+              {/* Short, so the footer holds on one line with the Événements link (story 30.50); the home page presents the association. */}
+              <span>© ArchiLAN</span>
             </span>
             <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
             <Link className="inline-flex items-center hover:text-foreground" href="/aide/archipelago">
