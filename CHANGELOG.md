@@ -5,6 +5,31 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.35.0] - 2026-10-07
+
+Des notifications qui se lisent d'un coup d'œil, et un critère de succès qui ne compte que ce que les autres joueurs
+nous envoient.
+
+### Ajouté
+
+- **Notifications mises en forme** (30.48) : chaque notification de la cloche a un visuel (avatar avec son cadre,
+  image du succès, miniature du cosmétique gagné, icône colorée), une étiquette de famille en couleur, les noms en
+  gras, une ligne de détail et le montant de pelles en pastille. Une demande d'ami s'accepte ou se refuse depuis la
+  cloche, un cosmétique gagné se porte en un clic. Les notifications sont rangées par période (Aujourd'hui, Hier,
+  Cette semaine, Plus ancien) et les kudos d'une même journée regroupés.
+- **Critère « Items reçus d'autres joueurs »** (30.49) : pour les succès, les items reçus dans un slot que l'on joue,
+  envoyés par un slot que l'on ne joue pas (ni le même, ni un autre des siens). Les releases et les collects ne
+  comptent pas : un slot garde désormais l'heure de sa release et de son collect. Le compteur part du 26 juillet
+  2026, date depuis laquelle les items sont enregistrés un par un.
+
+### Déploiement
+
+- Rien de particulier : pas de nouvelle variable, services inchangés.
+
+### Migrations
+
+- `Version20261007180000` (heure de release et de collect des slots).
+
 ## [0.34.0] - 2026-10-07
 
 Les cosmétiques prennent du relief : des titres à rareté, des cosmétiques gagnés par les succès et les quêtes, une
