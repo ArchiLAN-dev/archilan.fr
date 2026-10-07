@@ -21,6 +21,8 @@ final class AchievementMetricCatalog
     // Story 41.17: the weekly quests - completed in all, and the longest run of weeks with the chest.
     public const string FACT_QUESTS_COMPLETED = 'questsCompleted';
     public const string FACT_QUEST_CHEST_STREAK = 'questChestStreak';
+    // Story 30.49: items found by another player for one of the member's slots.
+    public const string FACT_ITEMS_FROM_OTHERS = 'itemsFromOthers';
 
     // A specific-event fact: `event_goal:{eventId}` = 1 when the player reached a goal in that event.
     // The id part is opaque to the rule engine; the admin layer checks it is a real event (story 30.32).
@@ -42,6 +44,7 @@ final class AchievementMetricCatalog
             self::FACT_GOALS => 'Objectifs atteints',
             self::FACT_CHECKS => 'Checks complétés (total)',
             self::FACT_ITEMS => 'Items reçus (total)',
+            self::FACT_ITEMS_FROM_OTHERS => 'Items reçus d\'autres joueurs (hors release et collect)',
             self::FACT_DISTINCT_GAMES => 'Jeux différents joués',
             self::FACT_EVENTS_WITH_GOAL => 'Événements avec objectif atteint',
             self::FACT_SUPERLATIVES => 'Superlatifs de récap remportés (total)',
