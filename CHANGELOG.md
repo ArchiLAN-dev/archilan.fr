@@ -5,6 +5,39 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.33.0] - 2026-10-07
+
+Le suivi des slots tient sur les grosses parties : un seul démon de calcul par partie, jamais attendu, jamais
+désynchronisé ; et les quêtes de la semaine s'annoncent sur Discord par le bot du site, aussi à la main.
+
+### Ajouté
+
+- **Annonce des quêtes par le bot, et à la main** (41.26) : l'annonce de la semaine est postée par le bot du site
+  dans un salon, un message par semaine (une nouvelle annonce le met à jour, ou le reposte s'il a été supprimé).
+  Bouton « Annoncer sur Discord » sur la semaine en cours (Quêtes hebdo > Semaines) et commande
+  `php bin/console app:quests:announce-discord [semaine]`.
+
+### Corrigé
+
+- **Suivi des slots sur une grosse partie** (17.28) : plus de faux « Impossible de contacter l'API » ni de
+  `{ready, cached, player}` renvoyé à chaque « Réessayer ». Un démarrage du démon de suivi abandonné laissait sa ligne
+  « prêt » dans le flux, lue ensuite comme résultat et gardée en cache jusqu'au prochain check du slot.
+- **Moins de CPU et de mémoire** (17.28) : un seul démon de suivi par partie au lieu d'un par slot, chacun
+  régénérant tout le multiworld ; fermé après 30 minutes sans requête.
+- **Calcul sans attente** (17.28) : pendant le démarrage du suivi, la page affiche « calcul en cours » (ou le
+  dernier résultat) et reçoit le résultat en direct dès qu'il est prêt.
+
+### Déploiement
+
+- **Ordre** : image archipelago `0.17.0`, puis ce site, puis le bridge `0.14.0` (il exige les deux).
+- Nouvelle variable `DISCORD_QUESTS_CHANNEL_ID` (identifiant du salon des quêtes ; vide : pas d'annonce Discord). Le
+  bot (`DISCORD_BOT_TOKEN`) doit pouvoir y envoyer des messages et intégrer des liens.
+- `DISCORD_QUESTS_WEBHOOK_URL` (0.32.0) est retirée.
+
+### Migrations
+
+- Aucune.
+
 ## [0.32.0] - 2026-10-06
 
 Des quêtes de la semaine écrites par l'équipe, avec un coffre, une annonce le lundi (aussi sur Discord) et des
