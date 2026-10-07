@@ -59,7 +59,7 @@ function isLeaderboardResponse(payload: unknown): payload is LeaderboardResponse
   );
 }
 
-function isCommunityStatsPayload(payload: unknown): payload is { data: CommunityStats } {
+export function isCommunityStatsPayload(payload: unknown): payload is { data: CommunityStats } {
   if (typeof payload !== "object" || payload === null) return false;
   if (!("data" in payload) || typeof payload.data !== "object" || payload.data === null) return false;
   const data = payload.data;

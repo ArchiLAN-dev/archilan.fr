@@ -1,13 +1,25 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, CalendarClock, CalendarDays, Gamepad2, MessageCircle, Radio, Swords, Trophy } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { externalLinks } from "@/lib/external-links";
+import { fetchDiscordStats } from "@/features/discord/discord-api";
+import { DiscordJoinButton } from "@/features/discord/discord-promo";
 import { ConsentGatedTwitchEmbed } from "@/features/streaming/consent-gated-twitch-embed";
 import { LiveStreamHeading } from "@/features/streaming/live-stream-heading";
-import { CommunityStatsWidget } from "@/features/community/community-stats-widget";
-import { EventCard, EventsEmptyState } from "@/features/events/event-card";
 import { getPublicEvents } from "@/features/events/public-events-api";
+import { getPublicPosts } from "@/features/content/public-posts-api";
+import { getHomeCommunityStats, getHomeConceptCovers, getHomeRecaps, getHomeWeeklyRuns, newestFirst } from "@/features/home/home-api";
+import {
+  HomeAssociation,
+  HomeCommunity,
+  HomeConcept,
+  HomeLan,
+  HomeNews,
+  HomeNow,
+  HomeRecaps,
+  HomeStartSteps,
+  HomeThisWeek,
+} from "@/features/home/home-sections";
 import { buildPageMetadata } from "@/lib/seo";
 
 // Keyword skeleton (Archipelago-in-France cluster); final copy is 34.6's scope.
@@ -23,80 +35,17 @@ export const metadata = buildPageMetadata({
 // (Twitch live badge, community stats) are client components and fetch their own fresh data.
 export const revalidate = 300;
 
-type Feature = { title: string; description: string; href?: string; Icon: LucideIcon };
-
-const FEATURES: Feature[] = [
-  {
-    title: "Runs hebdomadaires",
-    href: "/runs-hebdo",
-    Icon: CalendarClock,
-    description:
-      "Une nouvelle seed Archipelago chaque semaine, par jeu. Complète tes checks à ton rythme et grimpe au classement.",
-  },
-  {
-    title: "Parties privées",
-    href: "/runs",
-    Icon: Swords,
-    description:
-      "Crée ta propre partie multiworld, invite tes amis avec un lien et lancez l'aventure quand vous voulez.",
-  },
-  {
-    title: "Événements & LAN",
-    href: "/evenements",
-    Icon: CalendarDays,
-    description:
-      "Inscris-toi aux événements ArchiLAN, choisis tes jeux et rejoins le multiworld du jour.",
-  },
-  {
-    title: "Suivi en direct",
-    Icon: Radio,
-    description:
-      "La progression de chaque joueur en temps réel : checks, objets envoyés, indices et objectifs atteints.",
-  },
-  {
-    title: "Classements & profils",
-    href: "/communaute",
-    Icon: Trophy,
-    description:
-      "Ton profil joueur, l'historique de tes runs et les classements de la communauté.",
-  },
-  {
-    title: "Catalogue de jeux",
-    href: "/jeux",
-    Icon: Gamepad2,
-    description:
-      "Parcours les jeux compatibles Archipelago disponibles pour tes runs et événements.",
-  },
-];
-
-function FeatureCard({ title, description, href, Icon }: Feature) {
-  const body = (
-    <>
-      <Icon aria-hidden="true" className="mb-5 size-7 text-accent-text" />
-      <h3 className="font-heading text-lg font-semibold text-foreground">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
-      {href ? (
-        <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent-text">
-          Découvrir
-          <ArrowRight aria-hidden="true" className="size-4" />
-        </span>
-      ) : null}
-    </>
-  );
-
-  if (href) {
-    return (
-      <Link className="card-glow flex flex-col rounded-lg border border-border p-6 transition-colors hover:border-accent" href={href}>
-        {body}
-      </Link>
-    );
-  }
-
-  return <div className="card-glow flex flex-col rounded-lg border border-border p-6">{body}</div>;
-}
-
 export default async function Home() {
-  const { upcoming, past } = await getPublicEvents();
+  // Story 34.9: everything the sections show, read in parallel and kept five minutes.
+  const [{ upcoming, past: pastAnyOrder }, discord, weeklyRuns, stats, posts] = await Promise.all([
+    getPublicEvents(),
+    fetchDiscordStats(),
+    getHomeWeeklyRuns(),
+    getHomeCommunityStats(),
+    getPublicPosts(),
+  ]);
+  const past = newestFirst(pastAnyOrder);
+  const [recaps, covers] = await Promise.all([getHomeRecaps(past), getHomeConceptCovers(weeklyRuns)]);
 
   return (
     <div className="grid gap-24">
@@ -145,11 +94,12 @@ export default async function Home() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 className="btn-glow inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent px-6 font-semibold text-white transition-all duration-300 hover:bg-accent-hover"
-                href="/evenements"
+                href="#commencer"
               >
-                Voir les événements
+                Je commence
                 <ArrowRight aria-hidden="true" className="size-4" />
               </Link>
+              <DiscordJoinButton size="lg" />
               <a
                 aria-label="Ouvrir Twitch ArchiLAN (nouvel onglet)"
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded border border-border bg-background/60 px-6 font-semibold text-foreground backdrop-blur-sm transition-colors hover:border-accent"
@@ -160,176 +110,23 @@ export default async function Home() {
                 Suivre sur Twitch
               </a>
             </div>
+            <div className="mt-6">
+              <HomeNow nextEvent={upcoming[0] ?? null} weeklyRuns={weeklyRuns.length} />
+            </div>
           </div>
         </div>
       </section>
 
       <div className="grid gap-24">
 
-      {/* C'est quoi Archipelago ? */}
-      <section aria-labelledby="archipelago-heading">
-        <div className="max-w-2xl">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-text text-on-canvas">
-            Le concept
-          </p>
-          <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl text-on-canvas" id="archipelago-heading">
-            C&apos;est quoi Archipelago&nbsp;?
-          </h2>
-          <p className="mt-4 text-lg leading-8 text-muted-foreground text-on-canvas">
-            Imagine trouver une clé dans Hollow Knight qui ouvre une porte dans
-            Stardew Valley pour une autre personne. Archipelago mélange les
-            objets de plusieurs jeux pour transformer une soirée LAN en chasse
-            au trésor coopérative.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-4 sm:grid-cols-3">
-          <div className="card-glow rounded-lg border border-border p-6">
-            <p className="font-heading text-lg font-semibold text-foreground">Multiworld</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Les objets de chaque jeu sont redistribués entre les joueurs. Tu
-              progresses chez toi, tu aides les autres à progresser chez eux.
-            </p>
-          </div>
-          <div className="card-glow rounded-lg border border-border p-6">
-            <p className="font-heading text-lg font-semibold text-foreground">Coopératif</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Pas de compétition - tout le monde gagne ensemble. Chaque
-              découverte peut débloquer la progression d&apos;un coéquipier.
-            </p>
-          </div>
-          <div className="card-glow rounded-lg border border-border p-6">
-            <p className="font-heading text-lg font-semibold text-foreground">Communauté</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Ambiance chill et entraide. ArchiLAN c&apos;est aussi des streams,
-              des replays, et une communauté francophone qui grandit.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Fonctionnalités de la plateforme */}
-      <section aria-labelledby="features-heading" className="border-t border-border pt-12">
-        <div className="max-w-2xl">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-text text-on-canvas">
-            La plateforme
-          </p>
-          <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl text-on-canvas" id="features-heading">
-            Tout pour jouer à Archipelago
-          </h2>
-          <p className="mt-4 text-lg leading-8 text-muted-foreground text-on-canvas">
-            Des runs hebdomadaires aux parties privées entre amis, ArchiLAN gère
-            la génération des seeds, les serveurs et le suivi en direct - tu n&apos;as
-            plus qu&apos;à jouer.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature) => (
-            <FeatureCard key={feature.title} {...feature} />
-          ))}
-        </div>
-      </section>
-
-      {/* Événements - dynamiques (à venir + passés) */}
-      <section aria-labelledby="events-heading" className="border-t border-border pt-12">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-accent-text text-on-canvas">
-              Agenda
-            </p>
-            <h2 className="font-heading text-3xl font-bold text-foreground text-on-canvas" id="events-heading">
-              Nos événements
-            </h2>
-          </div>
-          <Link
-            className="shrink-0 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground text-on-canvas"
-            href="/evenements"
-          >
-            Voir tous les événements →
-          </Link>
-        </div>
-
-        {upcoming.length === 0 && past.length === 0 ? (
-          <EventsEmptyState />
-        ) : (
-          <div className="grid gap-12">
-            {upcoming.length > 0 ? (
-              <div>
-                <h3 className="mb-5 font-heading text-xl font-semibold text-foreground text-on-canvas">
-                  À venir
-                </h3>
-                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                  {upcoming.slice(0, 3).map((event) => (
-                    <EventCard event={event} key={event.id} />
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {past.length > 0 ? (
-              <div>
-                <h3 className="mb-5 font-heading text-xl font-semibold text-foreground text-on-canvas">
-                  Passés
-                </h3>
-                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                  {past.slice(0, 3).map((event) => (
-                    <EventCard event={event} key={event.id} />
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </section>
-
-      {/* Stats communautaires */}
-      <CommunityStatsWidget />
-
-      {/* Actions communautaires */}
-      <section aria-labelledby="community-actions" className="grid gap-6 border-t border-border pt-12 md:grid-cols-3">
-        <h2 className="sr-only" id="community-actions">
-          Actions communautaires
-        </h2>
-        <Link
-          className="card-glow rounded-lg border border-border p-6"
-          href="/evenements"
-        >
-          <CalendarDays aria-hidden="true" className="mb-5 size-7 text-accent-text" />
-          <h3 className="font-heading text-xl font-semibold">Événements à venir</h3>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Consulte les prochaines sessions dès leur publication.
-          </p>
-        </Link>
-        <a
-          className="card-glow rounded-lg border border-border p-6"
-          href={externalLinks.twitch}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <Radio aria-hidden="true" className="mb-5 size-7 text-accent-text" />
-          <h3 className="font-heading text-xl font-semibold">
-            Chaîne Twitch ArchiLAN<span className="sr-only"> (nouvel onglet)</span>
-          </h3>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Ouvre la chaîne quand aucun live intégré n&apos;est actif.
-          </p>
-        </a>
-        <a
-          className="card-glow rounded-lg border border-border p-6"
-          href={externalLinks.archilanDiscord}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <MessageCircle aria-hidden="true" className="mb-5 size-7 text-accent-text" />
-          <h3 className="font-heading text-xl font-semibold">
-            Discord ArchiLAN<span className="sr-only"> (nouvel onglet)</span>
-          </h3>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Rejoins la communauté pour suivre l&apos;activité et préparer les sessions.
-          </p>
-        </a>
-      </section>
+      <HomeConcept covers={covers} />
+      <HomeStartSteps />
+      <HomeThisWeek runs={weeklyRuns} />
+      <HomeLan past={past} upcoming={upcoming} />
+      <HomeRecaps recaps={recaps} />
+      <HomeCommunity discord={discord} stats={stats} />
+      <HomeAssociation />
+      <HomeNews posts={posts} />
 
       {/* ArchiLAN en direct */}
       <section aria-labelledby="live-stream-heading" className="border-t border-border pt-12">
