@@ -83,6 +83,7 @@ images. So the epic's before/after mobile Lighthouse (34.5 AC5) is run on a **de
 | 2026-07-29 | event detail | 92 | 96 | 96 | 100 | 1.8 s | - | pre-v0.11.0; flattering - the cover 404ed (missing bucket) so LCP had no image |
 | 2026-07-29 | `/` | **88** | 100 | 96 | 100 | **3.8 s** | 0 | v0.11.0 deployed: compressed assets, 898 KiB total (was 18.8 MiB), TBT 70 ms |
 | 2026-07-29 | event detail | 82 | 96 | 96 | 100 | 4.6 s | 0 | v0.11.0 + media-public live: the real 309 KiB cover now renders (and IS the LCP); optimizer passthrough serves it full-size - the sharp fix below claws this back |
+| 2026-10-07 | `/` | **96** | 96 | 96 | 100 | **2.7 s** | 0 | v0.36.0, new home (story 34.9): median of 3 runs (87 / 96 / 96, LCP 4.0 / 2.7 / 2.7 s), 758 KiB total, TBT 10-20 ms. LCP = hero photo. A11y 96: the association eyebrow (special pink on surface, 4.03:1) and the hero Twitch link label - both fixed after the measure |
 
 Baseline findings (2026-07-29, Lighthouse 12 mobile, local machine against https://archilan.fr):
 
