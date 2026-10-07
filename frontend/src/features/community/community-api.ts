@@ -18,6 +18,8 @@ export type LeaderboardEntry = {
   avatarFraming?: ImageFraming | null;
   // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
+  /** Story 41.27: the title worn. */
+  title?: unknown;
   value: number;
   unit: string;
 };

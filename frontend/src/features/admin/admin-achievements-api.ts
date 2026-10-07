@@ -1,3 +1,4 @@
+import { isCosmeticRewardView, type CosmeticReward, type CosmeticRewardView } from "@/features/community/cosmetic-reward-picker";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
@@ -36,6 +37,8 @@ export type AchievementDefinition = {
   position: number;
   customImageKey: string | null;
   customImageUrl: string | null;
+  /** Story 41.28: the cosmetic it unlocks. */
+  reward: CosmeticRewardView | null;
 };
 
 export type AchievementFactOption = { key: string; label: string };
@@ -59,6 +62,7 @@ export type CreateAchievementPayload = {
   description: string;
   rule: RuleGroup;
   customImageKey?: string | null;
+  reward?: CosmeticReward | null;
 };
 
 export type UpdateAchievementPayload = {
@@ -66,6 +70,7 @@ export type UpdateAchievementPayload = {
   description: string;
   rule: RuleGroup;
   customImageKey?: string | null;
+  reward?: CosmeticReward | null;
 };
 
 export type MutationResult<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -259,5 +264,7 @@ function isAchievementDefinition(v: unknown): v is AchievementDefinition {
   if (!("active" in v) || typeof v.active !== "boolean") return false;
   if (!("position" in v) || typeof v.position !== "number") return false;
   if (!("rule" in v) || !isRuleNode(v.rule) || !("op" in v.rule)) return false;
+  // Story 41.28: absent from an older API.
+  if ("reward" in v && v.reward !== null && !isCosmeticRewardView(v.reward)) return false;
   return true;
 }

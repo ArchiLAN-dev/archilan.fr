@@ -92,7 +92,7 @@ export function UserMenu({ user }: { user: AuthUser }) {
         onClick={() => setOpen((value) => !value)}
         type="button"
       >
-        {/* The one avatar animated for good off the profile page: the member's own, in the navigation bar (story 30.47). */}
+        {/* The avatar animated for good off the profile page: the member's own, in the navigation bar (story 30.47) and its menu. */}
         <MemberAvatar
           animate="always"
           avatarAnimatedUrl={profile?.avatarAnimatedUrl}
@@ -112,7 +112,15 @@ export function UserMenu({ user }: { user: AuthUser }) {
           id={panelId}
         >
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-            <MemberAvatar avatarAnimatedUrl={profile?.avatarAnimatedUrl} avatarUrl={avatarUrl} frame={profile?.avatarFrame} framing={profile?.avatarFraming} name={user.displayName?.trim() || user.email} size={40} />
+            <MemberAvatar
+              animate="always"
+              avatarAnimatedUrl={profile?.avatarAnimatedUrl}
+              avatarUrl={avatarUrl}
+              frame={profile?.avatarFrame}
+              framing={profile?.avatarFraming}
+              name={user.displayName?.trim() || user.email}
+              size={40}
+            />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{name}</p>
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>

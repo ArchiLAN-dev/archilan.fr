@@ -74,7 +74,7 @@ final readonly class CommunityProfileView
      *     avatarUrl: string|null,
      *     avatarFraming: array{x: int, y: int, zoom: int}|null,
      *     nameStyle: string|null,
-     *     title: string|null,
+     *     title: array{label: string, rarity: string, icon: string|null, access: string, origin?: string|null}|null,
      *     audience: string,
      *     badges: array{member: bool, admin: bool},
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
@@ -153,7 +153,8 @@ final readonly class CommunityProfileView
             // Story 41.23: or the colour bought, where no rarity colour applies.
             'nameStyle' => NameColor::nameStyle($badges['admin'], $badges['member'], $profile?->hasTitledName() ?? true, $profile?->getNameColor()),
             // Story 41.22: the title worn under the name, by its label (none when retired).
-            'title' => $this->titles->displayed($profile?->getTitleKey(), $badges['admin']),
+            // Story 41.27: the badge - label, rarity, icon, and who may wear it.
+            'title' => $this->withOrigin($this->titles->badge($profile?->getTitleKey(), $badges['admin']), $profile?->getTitleKey(), $model['userId']),
             'audience' => $audience,
             'badges' => $badges,
             'stats' => $model['stats'],
@@ -423,5 +424,29 @@ final readonly class CommunityProfileView
     private function cardAvatar(?CommunityProfile $profile, bool $isAdmin): array
     {
         return $this->avatarUrls->forCard($profile?->getCustomAvatarKey(), $profile?->getCustomAvatarStillKey(), $isAdmin, $profile?->getAvatarUrl(), $profile?->getAvatarFraming() ?? ImageFraming::centred(), $profile?->getAvatarFrame());
+    }
+
+    /**
+     * Story 41.28: the title's origin for its tooltip - the achievement or the quest that unlocked it, or the shop.
+     *
+     * @param array{label: string, rarity: string, icon: string|null, access: string}|null $badge
+     *
+     * @return array{label: string, rarity: string, icon: string|null, access: string, origin: string|null}|null
+     */
+    private function withOrigin(?array $badge, ?string $key, string $userId): ?array
+    {
+        if (null === $badge || null === $key) {
+            return null;
+        }
+        $owned = $this->cosmetics->origins($userId)[CosmeticOwnershipInterface::TITLE.':'.$key] ?? null;
+        $label = $owned['label'] ?? null;
+        $origin = match ($owned['source'] ?? null) {
+            CosmeticOwnershipInterface::SOURCE_ACHIEVEMENT => sprintf('Succès « %s »', $label ?? '?'),
+            CosmeticOwnershipInterface::SOURCE_QUEST => sprintf('Quête « %s »', $label ?? '?'),
+            'shop' => 'Acheté en boutique',
+            default => null,
+        };
+
+        return [...$badge, 'origin' => $origin];
     }
 }

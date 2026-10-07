@@ -12,6 +12,8 @@ namespace App\Community\Application\Support;
 final class AvatarFrameFileRule
 {
     public const array ROLES = ['webm', 'mp4', 'poster', 'still'];
+    // Story 41.30: the optional shade, both videos or none.
+    public const array SHADE_ROLES = ['shadeWebm', 'shadeMp4'];
     public const int MAX_VIDEO_BYTES = 3 * 1024 * 1024;
     public const int MAX_IMAGE_BYTES = 1024 * 1024;
     public const int SIZE = 512;
@@ -20,14 +22,14 @@ final class AvatarFrameFileRule
     public static function refusal(string $role, string $bytes): ?string
     {
         return match ($role) {
-            'webm' => match (true) {
-                \strlen($bytes) > self::MAX_VIDEO_BYTES => 'La vidéo WebM dépasse 3 Mo.',
-                !str_starts_with($bytes, "\x1A\x45\xDF\xA3") => "Ce n'est pas une vidéo WebM.",
+            'webm', 'shadeWebm' => match (true) {
+                \strlen($bytes) > self::MAX_VIDEO_BYTES => sprintf('La vidéo WebM%s dépasse 3 Mo.', 'shadeWebm' === $role ? ' de l\'ombre' : ''),
+                !str_starts_with($bytes, "\x1A\x45\xDF\xA3") => sprintf("Ce n'est pas une vidéo WebM%s.", 'shadeWebm' === $role ? ' (ombre)' : ''),
                 default => null,
             },
-            'mp4' => match (true) {
-                \strlen($bytes) > self::MAX_VIDEO_BYTES => 'La vidéo MP4 dépasse 3 Mo.',
-                'ftyp' !== substr($bytes, 4, 4) => "Ce n'est pas une vidéo MP4.",
+            'mp4', 'shadeMp4' => match (true) {
+                \strlen($bytes) > self::MAX_VIDEO_BYTES => sprintf('La vidéo MP4%s dépasse 3 Mo.', 'shadeMp4' === $role ? ' de l\'ombre' : ''),
+                'ftyp' !== substr($bytes, 4, 4) => sprintf("Ce n'est pas une vidéo MP4%s.", 'shadeMp4' === $role ? ' (ombre)' : ''),
                 default => null,
             },
             'poster', 'still' => self::imageRefusal($role, $bytes),

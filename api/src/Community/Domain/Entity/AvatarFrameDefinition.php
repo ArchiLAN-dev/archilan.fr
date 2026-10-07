@@ -11,7 +11,8 @@ use Doctrine\ORM\Mapping as ORM;
  * A video frame managed from the admin (story 41.10): its name, who may wear it and, for a frame uploaded by an
  * admin, its four files in the public media bucket. A row whose key is a built-in video frame of the code (the
  * Légendaires of story 30.46) only overrides its name, access or retirement: its files stay the built-in ones (null
- * here). A frame is retired, never deleted - it may be worn or bought.
+ * here). A frame is retired, never deleted - it may be worn or bought. Story 41.30: an uploaded frame may also have a
+ * shade - a video of its dark parts (white elsewhere), laid in `multiply` under the light so they cover the photo.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'avatar_frame')]
@@ -41,7 +42,21 @@ final class AvatarFrameDefinition
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'retired_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $retiredAt = null,
+        #[ORM\Column(name: 'shade_webm_key', type: 'string', length: 255, nullable: true)]
+        private ?string $shadeWebmKey = null,
+        #[ORM\Column(name: 'shade_mp4_key', type: 'string', length: 255, nullable: true)]
+        private ?string $shadeMp4Key = null,
     ) {
+    }
+
+    /** Story 41.30: the frame's shade videos, or none (both null). Only an uploaded frame has one. */
+    public function shadeWith(?string $webmKey, ?string $mp4Key): void
+    {
+        if (!$this->hasOwnFiles() || (null === $webmKey) !== (null === $mp4Key)) {
+            throw new \DomainException('avatar_frame_shade_invalid');
+        }
+        $this->shadeWebmKey = $webmKey;
+        $this->shadeMp4Key = $mp4Key;
     }
 
     /** A new frame uploaded by an admin, with its four files. */
@@ -109,15 +124,16 @@ final class AvatarFrameDefinition
     }
 
     /**
-     * @return array{webm: string, mp4: string, poster: string, still: string}|null null for a built-in override
+     * @return array{webm: string, mp4: string, poster: string, still: string, shade: array{webm: string, mp4: string}|null}|null null for a built-in override
      */
     public function getFileKeys(): ?array
     {
         if (null === $this->webmKey || null === $this->mp4Key || null === $this->posterKey || null === $this->stillKey) {
             return null;
         }
+        $shade = null === $this->shadeWebmKey || null === $this->shadeMp4Key ? null : ['webm' => $this->shadeWebmKey, 'mp4' => $this->shadeMp4Key];
 
-        return ['webm' => $this->webmKey, 'mp4' => $this->mp4Key, 'poster' => $this->posterKey, 'still' => $this->stillKey];
+        return ['webm' => $this->webmKey, 'mp4' => $this->mp4Key, 'poster' => $this->posterKey, 'still' => $this->stillKey, 'shade' => $shade];
     }
 
     public function getPosition(): int

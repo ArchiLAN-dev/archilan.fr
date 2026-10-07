@@ -15,7 +15,7 @@ import { FramePreview, type FramePreviewBanner } from "@/features/community/fram
 import { CENTRED_FRAMING, type ImageFraming } from "@/features/community/image-framing";
 import { PelleAmount, pellesLabel } from "./pelle-amount";
 import { buyShopItem, fetchShop, isNewItem, timeLeftLabel, type CosmeticType, type ShopItem } from "./shop-api";
-import { COSMETIC_TYPE_LABELS, ShopCosmeticPreview, useCosmeticLabel } from "./shop-cosmetics";
+import { COSMETIC_TYPE_LABELS, ShopCosmeticPreview, useCosmeticLabel, useTitleBadge } from "./shop-cosmetics";
 import { fetchMyWallet } from "./wallet-api";
 
 const untilFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
@@ -98,6 +98,7 @@ export function ShopView({
   now?: Date;
 }) {
   const label = useCosmeticLabel();
+  const titleBadge = useTitleBadge();
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string; wear?: boolean } | null>(null);
   const [buying, setBuying] = useState<ShopItem | null>(null);
   const [pending, setPending] = useState(false);
@@ -179,6 +180,7 @@ export function ShopView({
                     cosmeticKey={item.cosmeticKey}
                     framing={shopper?.framing ?? null}
                     label={name}
+                    title={item.type === "title" ? titleBadge(item.cosmeticKey) : null}
                     name={shopper?.name ?? "?"}
                     type={item.type}
                   />

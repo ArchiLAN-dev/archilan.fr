@@ -189,6 +189,8 @@ final readonly class AdminQuestController
             true === ($payload['inDraw'] ?? false),
             // Story 41.18: absent, the weight is 1; given but not a number, it is refused.
             $this->optionalInt($payload, 'drawWeight') ?? 1,
+            // Story 41.28: the cosmetic the quest unlocks, `{type, key}` or null.
+            $payload['cosmetic'] ?? null,
         ];
     }
 }

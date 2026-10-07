@@ -7,8 +7,11 @@ const BASE = TEST_API_BASE_URL;
 
 const CURRENT = { token: "stale-token", hubUrl: "https://hub.test/.well-known/mercure", topic: "runs/r1/players" };
 
-function flush(): Promise<void> {
-  return new Promise((resolve) => { setTimeout(resolve, 0); });
+/** Lets the mocked token request settle: msw takes several macrotasks to answer, how many depends on its version. */
+async function flush(): Promise<void> {
+  for (let turn = 0; turn < 20; turn++) {
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+  }
 }
 
 /**

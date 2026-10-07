@@ -23,6 +23,21 @@ enum NameColor: string
     /** The prefix the name style carries a colour with (`color-emerald`). */
     public const string STYLE_PREFIX = 'color-';
 
+    /** Story 41.28: the colour's name, as the front's palette says it. */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Emerald => 'Émeraude',
+            self::Azure => 'Azur',
+            self::Ruby => 'Rubis',
+            self::Amber => 'Ambre',
+            self::Amethyst => 'Améthyste',
+            self::Turquoise => 'Turquoise',
+            self::Lime => 'Lime',
+            self::Pink => 'Rose',
+        };
+    }
+
     /** @return list<string> */
     public static function keys(): array
     {

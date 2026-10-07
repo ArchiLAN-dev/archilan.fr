@@ -3,8 +3,39 @@ import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import type { AvatarFrameAccess } from "./avatar-frame-catalog";
 
-/** Story 41.22: a profile title the admins write, worn under the name. */
-export type ProfileTitle = { key: string; label: string; access: AvatarFrameAccess };
+/** Story 41.27: how a title shines, and the icon before its label. */
+export type TitleRarity = "common" | "rare" | "epic" | "legendary";
+export type TitleIcon = "crown" | "star" | "sword" | "gem" | "shield" | "flame" | "trophy" | "bolt";
+
+export const TITLE_RARITIES: readonly TitleRarity[] = ["common", "rare", "epic", "legendary"];
+export const TITLE_ICONS: readonly TitleIcon[] = ["crown", "star", "sword", "gem", "shield", "flame", "trophy", "bolt"];
+
+export const TITLE_RARITY_LABELS: Record<TitleRarity, string> = { common: "Commun", rare: "Rare", epic: "Épique", legendary: "Légendaire" };
+export const TITLE_ICON_LABELS: Record<TitleIcon, string> = {
+  crown: "Couronne",
+  star: "Étoile",
+  sword: "Épée",
+  gem: "Gemme",
+  shield: "Bouclier",
+  flame: "Flamme",
+  trophy: "Trophée",
+  bolt: "Éclair",
+};
+
+/** Story 41.22: a profile title the admins write, worn under the name. Story 41.27: its rarity and icon. */
+export type ProfileTitle = { key: string; label: string; access: AvatarFrameAccess; rarity: TitleRarity; icon: TitleIcon | null };
+
+/** Story 41.27: a title as a profile or a card wears it. Story 41.28: on the profile, where the member got it. */
+export type TitleBadge = { label: string; rarity: TitleRarity; icon: TitleIcon | null; access: AvatarFrameAccess; origin?: string | null };
+
+/** Story 41.27: how a title is obtained, for its tooltip. */
+export function titleOrigin(access: AvatarFrameAccess): string {
+  return { free: "Ouvert à tous", members: "Réservé aux adhérents", admins: "Réservé aux admins", shop: "En boutique", reward: "À gagner (succès ou quête)" }[access];
+}
+
+export function badgeOf(title: Pick<ProfileTitle, "label" | "rarity" | "icon" | "access">): TitleBadge {
+  return { label: title.label, rarity: title.rarity, icon: title.icon, access: title.access };
+}
 
 export type AdminProfileTitle = ProfileTitle & { retired: boolean; position: number };
 
@@ -18,12 +49,48 @@ export const TITLE_ACCESS_LABELS: Record<AvatarFrameAccess, string> = {
   members: "Adhérents",
   admins: "Admins",
   shop: "Boutique",
+  reward: "Récompense",
 };
 
-const ACCESSES: readonly AvatarFrameAccess[] = ["free", "members", "admins", "shop"];
+const ACCESSES: readonly AvatarFrameAccess[] = ["free", "members", "admins", "shop", "reward"];
+
+function isRarity(v: unknown): v is TitleRarity {
+  return TITLE_RARITIES.some((rarity) => rarity === v);
+}
+
+function isIcon(v: unknown): v is TitleIcon | null {
+  return v === null || TITLE_ICONS.some((icon) => icon === v);
+}
 
 function isTitle(v: unknown): v is ProfileTitle {
-  return typeof v === "object" && v !== null && hasStringProp(v, "key") && hasStringProp(v, "label") && hasStringProp(v, "access") && ACCESSES.some((a) => a === v.access);
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "key") &&
+    hasStringProp(v, "label") &&
+    hasStringProp(v, "access") &&
+    ACCESSES.some((a) => a === v.access) &&
+    "rarity" in v &&
+    isRarity(v.rarity) &&
+    "icon" in v &&
+    isIcon(v.icon)
+  );
+}
+
+/** Story 41.27: the title badge an API answer carries (profile, cards). */
+export function isTitleBadge(v: unknown): v is TitleBadge {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "label") &&
+    "rarity" in v &&
+    isRarity(v.rarity) &&
+    "icon" in v &&
+    isIcon(v.icon) &&
+    hasStringProp(v, "access") &&
+    ACCESSES.some((a) => a === v.access) &&
+    (!("origin" in v) || v.origin === null || typeof v.origin === "string")
+  );
 }
 
 function isAdminTitle(v: unknown): v is AdminProfileTitle {
@@ -76,7 +143,7 @@ export function writeProfileTitle(title: ProfileTitle): Promise<string | null> {
   return send("/admin/profile-titles", json("POST", title), 201, "Impossible de créer le titre.");
 }
 
-export function updateProfileTitle(key: string, changes: { label?: string; access?: AvatarFrameAccess; position?: number }): Promise<string | null> {
+export function updateProfileTitle(key: string, changes: { label?: string; access?: AvatarFrameAccess; position?: number; rarity?: TitleRarity; icon?: TitleIcon | "" }): Promise<string | null> {
   return send(`/admin/profile-titles/${encodeURIComponent(key)}`, json("PATCH", changes), 204, "Impossible de modifier le titre.");
 }
 
@@ -95,6 +162,8 @@ export function titleLockReason(access: AvatarFrameAccess, key: string, rights: 
       return rights.admin ? null : "Réservé aux admins";
     case "shop":
       return rights.owned.includes(key) ? null : "À acheter en boutique";
+    case "reward":
+      return rights.owned.includes(key) ? null : "À gagner (succès ou quête)";
   }
 }
 

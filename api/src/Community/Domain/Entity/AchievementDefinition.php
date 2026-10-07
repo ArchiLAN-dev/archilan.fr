@@ -6,6 +6,7 @@ namespace App\Community\Domain\Entity;
 
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
 use App\Community\Domain\Service\AchievementRuleFactory;
+use App\Community\Domain\ValueObject\CosmeticReward;
 use App\Community\Domain\ValueObject\MetricBag;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -45,7 +46,29 @@ final class AchievementDefinition
         // Optional MinIO key for a custom image shown in place of the default trophy (story 30.33).
         #[ORM\Column(name: 'custom_image_key', type: 'string', length: 512, nullable: true)]
         private ?string $customImageKey = null,
+        // Story 41.28: the cosmetic the achievement unlocks, none by default.
+        #[ORM\Column(name: 'cosmetic_type', type: 'string', length: 12, nullable: true)]
+        private ?string $cosmeticType = null,
+        #[ORM\Column(name: 'cosmetic_key', type: 'string', length: 64, nullable: true)]
+        private ?string $cosmeticKey = null,
     ) {
+    }
+
+    /** Story 41.28: the cosmetic the achievement unlocks, or none. */
+    public function rewardWith(?CosmeticReward $reward, \DateTimeImmutable $now): void
+    {
+        $this->cosmeticType = $reward?->type;
+        $this->cosmeticKey = $reward?->key;
+        $this->updatedAt = $now;
+    }
+
+    public function getReward(): ?CosmeticReward
+    {
+        try {
+            return CosmeticReward::fromParts($this->cosmeticType, $this->cosmeticKey);
+        } catch (\DomainException) {
+            return null;
+        }
     }
 
     /**

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Wallet\Application\Command;
 
+use App\Community\Application\Port\CosmeticOwnershipInterface;
+use App\Community\Application\Support\CosmeticRewarder;
 use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Entity\Notification;
+use App\Community\Domain\ValueObject\CosmeticReward;
 use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Wallet\Application\Message\AnnounceQuestsOnDiscordJob;
@@ -35,6 +38,7 @@ final readonly class AwardWeeklyQuests
         private Notifier $notifier,
         private ClockInterface $clock,
         private MessageBusInterface $messageBus,
+        private CosmeticRewarder $rewarder,
     ) {
     }
 
@@ -96,11 +100,17 @@ final readonly class AwardWeeklyQuests
             $accomplishers = $this->accomplishers($quest, $counts);
             // Story 41.16: the chest goes to those who accomplished every quest the week serves.
             $doneAll = null === $doneAll ? $accomplishers : array_values(array_intersect($doneAll, $accomplishers));
+            $cosmetic = $this->cosmeticOf($quest);
             foreach ($accomplishers as $userId) {
-                $paid += $this->pay(
+                $newly = $this->pay(
                     $userId, $quest->getReward(), sprintf('Quête : %s', $quest->getTitle()),
                     sprintf('quest:%s:%s:%s', $week->key, $quest->getId(), $userId), sprintf('quête « %s »', $quest->getTitle()),
                 );
+                $paid += $newly;
+                // Story 41.28: the cosmetic it unlocks, given once (the member keeps it when the quest comes back).
+                if (1 === $newly && null !== $cosmetic) {
+                    $this->rewarder->reward($userId, $cosmetic, CosmeticOwnershipInterface::SOURCE_QUEST, $quest->getTitle());
+                }
             }
         }
 
@@ -112,6 +122,16 @@ final readonly class AwardWeeklyQuests
         }
 
         return $paid;
+    }
+
+    private function cosmeticOf(QuestDefinition $quest): ?CosmeticReward
+    {
+        $cosmetic = $quest->getCosmetic();
+        try {
+            return null === $cosmetic ? null : CosmeticReward::fromParts($cosmetic['type'], $cosmetic['key']);
+        } catch (\DomainException) {
+            return null;
+        }
     }
 
     /** @return int 1 when paid now, 0 when already paid or the member cannot earn */

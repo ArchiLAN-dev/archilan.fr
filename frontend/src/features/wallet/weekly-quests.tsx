@@ -1,8 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Circle, Gift } from "lucide-react";
+import { CheckCircle2, Circle, Gift, Sparkles } from "lucide-react";
 
+import { isCosmeticRewardView, type CosmeticRewardView } from "@/features/community/cosmetic-reward-picker";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -21,6 +22,8 @@ export type WeeklyQuest = {
   done: boolean;
   paid: boolean;
   objectives: QuestObjectiveProgress[];
+  /** Story 41.28: the cosmetic it unlocks the first time (absent from an older API). */
+  cosmetic?: CosmeticRewardView | null;
 };
 
 /** Story 41.16: the chest for doing every quest of the week; null when there is none. */
@@ -74,7 +77,8 @@ function isQuest(v: unknown): v is WeeklyQuest {
     hasBooleanProp(v, "paid") &&
     "objectives" in v &&
     Array.isArray(v.objectives) &&
-    v.objectives.every(isObjective)
+    v.objectives.every(isObjective) &&
+    (!("cosmetic" in v) || v.cosmetic === null || isCosmeticRewardView(v.cosmetic))
   );
 }
 
@@ -155,6 +159,13 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
                 <PelleAmount amount={quest.reward} className="shrink-0 text-xs font-semibold text-warning" signed />
               </div>
               {quest.description !== "" ? <p className="pl-6 text-xs text-muted-foreground">{quest.description}</p> : null}
+              {/* Story 41.28: the cosmetic it unlocks. */}
+              {quest.cosmetic ? (
+                <p className="flex items-center gap-1.5 pl-6 text-xs text-accent-text">
+                  <Sparkles aria-hidden className="size-3.5" />
+                  Débloque : {quest.cosmetic.label}
+                </p>
+              ) : null}
               <ul className="grid gap-1.5 pl-6">
                 {quest.objectives.map((objective) => (
                   <ObjectiveBar done={quest.done} key={objective.metric} objective={objective} />

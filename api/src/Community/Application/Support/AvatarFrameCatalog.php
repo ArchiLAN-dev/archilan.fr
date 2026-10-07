@@ -66,6 +66,7 @@ final class AvatarFrameCatalog implements ResetInterface
         return match ($access) {
             AvatarFrameAccess::Admins => 'Cadre réservé aux admins.',
             AvatarFrameAccess::Members => 'Cadre réservé aux adhérents.',
+            AvatarFrameAccess::Reward => 'Cadre à gagner (succès ou quête).',
             default => 'Cadre à acheter en boutique.',
         };
     }
@@ -94,7 +95,7 @@ final class AvatarFrameCatalog implements ResetInterface
     /**
      * The video frames - built-in and admin-managed, the built-in ones with the admin's override when there is one.
      *
-     * @return list<array{key: string, label: string, access: AvatarFrameAccess, builtIn: bool, retired: bool, files: array{webm: string, mp4: string, poster: string, still: string}|null, position: int}>
+     * @return list<array{key: string, label: string, access: AvatarFrameAccess, builtIn: bool, retired: bool, files: array{webm: string, mp4: string, poster: string, still: string, shade: array{webm: string, mp4: string}|null}|null, position: int}>
      */
     public function videoFrames(): array
     {

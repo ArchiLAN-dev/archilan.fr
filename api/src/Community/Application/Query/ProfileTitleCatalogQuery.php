@@ -16,14 +16,14 @@ final readonly class ProfileTitleCatalogQuery
     /**
      * The titles that can be worn, in order.
      *
-     * @return list<array{key: string, label: string, access: string}>
+     * @return list<array{key: string, label: string, access: string, rarity: string, icon: string|null}>
      */
     public function published(): array
     {
         $titles = [];
         foreach ($this->catalog->titles() as $title) {
             if (!$title['retired']) {
-                $titles[] = ['key' => $title['key'], 'label' => $title['label'], 'access' => $title['access']->value];
+                $titles[] = ['key' => $title['key'], 'label' => $title['label'], 'access' => $title['access']->value, 'rarity' => $title['rarity'], 'icon' => $title['icon']];
             }
         }
 
@@ -31,7 +31,7 @@ final readonly class ProfileTitleCatalogQuery
     }
 
     /**
-     * @return list<array{key: string, label: string, access: string, retired: bool, position: int}>
+     * @return list<array{key: string, label: string, access: string, retired: bool, position: int, rarity: string, icon: string|null}>
      */
     public function forAdmin(): array
     {

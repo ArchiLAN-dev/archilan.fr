@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, Image as ImageIcon, Loader2, Plus, Search, Trash2, Upload, UserPlus, X } from "lucide-react";
 
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
+import { CosmeticRewardPicker, type CosmeticReward } from "@/features/community/cosmetic-reward-picker";
 import { ACHIEVEMENT_DESCRIPTION_MAX } from "@/lib/content-limits";
 import { fetchDirectory, type DirectoryRow } from "@/features/community/community-directory-api";
 import {
@@ -390,6 +391,8 @@ function AchievementForm({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [rule, setRule] = useState<RuleGroup>(initial?.rule ?? newGroup(options));
   const [imageKey, setImageKey] = useState<string | null>(initial?.customImageKey ?? null);
+  // Story 41.28: the cosmetic it unlocks.
+  const [reward, setReward] = useState<CosmeticReward | null>(initial?.reward ? { type: initial.reward.type, key: initial.reward.key } : null);
   const [imageUrl, setImageUrl] = useState<string | null>(initial?.customImageUrl ?? null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -418,8 +421,8 @@ function AchievementForm({
     setSaving(true);
     setError(null);
     const result = isEdit
-      ? await updateAchievement(initial.id, { name: name.trim(), description: description.trim(), rule, customImageKey: imageKey })
-      : await createAchievement({ key, name: name.trim(), description: description.trim(), rule, customImageKey: imageKey });
+      ? await updateAchievement(initial.id, { name: name.trim(), description: description.trim(), rule, customImageKey: imageKey, reward: reward?.key ? reward : null })
+      : await createAchievement({ key, name: name.trim(), description: description.trim(), rule, customImageKey: imageKey, reward: reward?.key ? reward : null });
     setSaving(false);
     if (!result.ok) {
       setError(result.error);
@@ -519,6 +522,11 @@ function AchievementForm({
           </div>
           {imageError ? <span className="text-xs text-red-400">{imageError}</span> : null}
         </Field>
+
+        <CosmeticRewardPicker id="achievement-reward" onChange={setReward} value={reward} />
+        {initial && reward?.key && !(initial.reward?.type === reward.type && initial.reward.key === reward.key) ? (
+          <p className="text-xs text-muted-foreground">Les membres qui ont déjà ce succès recevront le cosmétique à l&apos;enregistrement.</p>
+        ) : null}
 
         <div className="grid gap-2">
           <span className="text-sm font-semibold text-foreground">Règle de déblocage</span>

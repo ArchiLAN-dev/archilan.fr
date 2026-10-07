@@ -18,6 +18,8 @@ export type DirectoryRow = {
   avatarFraming?: ImageFraming | null;
   // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
+  /** Story 41.27: the title worn. */
+  title?: unknown;
   level: number;
   xp: number;
   xpIntoLevel: number;

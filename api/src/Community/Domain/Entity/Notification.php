@@ -30,6 +30,8 @@ final class Notification
     public const string TYPE_PELLES_ADJUSTED = 'pelles_adjusted';
     /** Member-facing: the quests of the new week are out (story 41.17). */
     public const string TYPE_QUESTS_RENEWED = 'quests_renewed';
+    // Story 41.28: a cosmetic won through an achievement or a quest.
+    public const string TYPE_COSMETIC_UNLOCKED = 'cosmetic_unlocked';
 
     /**
      * @param array<string, mixed> $payload
