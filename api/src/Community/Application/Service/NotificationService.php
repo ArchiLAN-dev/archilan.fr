@@ -6,6 +6,7 @@ namespace App\Community\Application\Service;
 
 use App\Community\Application\Message\SendWebPushJob;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\NotificationDetails;
 use App\Community\Application\Support\Notifier;
 use App\Community\Application\Support\PushMessageFactory;
 use App\Community\Domain\Entity\Notification;
@@ -31,6 +32,7 @@ final readonly class NotificationService implements Notifier
         private LoggerInterface $logger,
         private ClockInterface $clock,
         private MessageBusInterface $messageBus,
+        private NotificationDetails $details,
     ) {
     }
 
@@ -68,7 +70,7 @@ final readonly class NotificationService implements Notifier
     /**
      * @return array{
      *     unreadCount: int,
-     *     items: list<array{id: string, type: string, createdAt: string, read: bool, actor: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null, data: array<string, mixed>}>
+     *     items: list<array{id: string, type: string, createdAt: string, read: bool, actor: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null, data: array<string, mixed>, details: array<string, mixed>|null}>
      * }
      */
     public function recent(string $recipientId, int $limit): array
@@ -83,6 +85,8 @@ final readonly class NotificationService implements Notifier
             }
         }
         $cards = [] === $actorIds ? [] : $this->directory->cards(array_values(array_unique($actorIds)));
+        // Story 30.48: the achievement, the cosmetic and the pending request each notification shows.
+        $details = $this->details->of($recipientId, $notifications);
 
         $items = [];
         foreach ($notifications as $notification) {
@@ -105,6 +109,7 @@ final readonly class NotificationService implements Notifier
                     'nameStyle' => $card['nameStyle'],
                 ],
                 'data' => $payload,
+                'details' => $details[$notification->getId()] ?? null,
             ];
         }
 
