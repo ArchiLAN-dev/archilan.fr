@@ -5,6 +5,40 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.34.0] - 2026-10-07
+
+Les cosmétiques prennent du relief : des titres à rareté, des cosmétiques gagnés par les succès et les quêtes, une
+page pour voir toute la collection, et des cadres vidéo qui peuvent passer devant la photo.
+
+### Ajouté
+
+- **Un vrai design pour les titres** (41.27) : rareté (commun, rare, épique, légendaire) et icône choisies par
+  l'admin ; légendaire en or avec halo et reflet en diagonale. Le titre s'affiche sur le profil (avec une infobulle :
+  rareté et origine) et en version compacte sur les cartes, les commentaires et le classement.
+- **Cosmétiques en récompense** (41.28) : nouvel accès « Récompense » pour les cadres, bannières et titres. Un succès
+  ou une quête peut donner un cosmétique (cadre, bannière, titre ou couleur de pseudo), avec une notification ; les
+  membres qui ont déjà le succès le reçoivent quand l'admin l'ajoute. Chaque cosmétique possédé garde son origine.
+- **Ma collection** (41.29) : `/compte/collection` montre tous les cosmétiques du site, ceux obtenus et comment
+  obtenir les autres (succès, quêtes, boutique, statut), avec progression et filtres.
+- **Calque d'ombre des cadres vidéo** (41.30) : un cadre téléversé peut porter une ombre (vidéo noir sur blanc, WebM et
+  MP4) posée sous sa lumière, pour que ses formes passent devant la photo. Ajout, remplacement et retrait depuis
+  Admin > Cadres.
+
+### Modifié
+
+- L'avatar du menu déroulé du compte est animé comme celui de la barre de navigation.
+- Le formulaire d'ajout d'un cadre ne mentionne plus l'interdiction des visuels générés par IA.
+- Dépendances : msw 3 (tests), et mises à jour mineures npm.
+
+### Déploiement
+
+- Rien de particulier : pas de nouvelle variable, services inchangés.
+
+### Migrations
+
+- `Version20261007120000` (rareté et icône des titres), `Version20261007140000` (origine des cosmétiques possédés,
+  cosmétiques des succès et des quêtes), `Version20261007160000` (ombre des cadres vidéo).
+
 ## [0.33.0] - 2026-10-07
 
 Le suivi des slots tient sur les grosses parties : un seul démon de calcul par partie, jamais attendu, jamais
