@@ -17,8 +17,20 @@ export const AVATAR_FRAME_CATALOG_QUERY_KEY = ["avatar-frame-catalog"] as const;
 
 const ACCESSES: readonly AvatarFrameAccess[] = ["free", "members", "admins", "shop", "reward"];
 
+function isShade(v: unknown): boolean {
+  return v === undefined || v === null || (typeof v === "object" && hasStringProp(v, "webm") && hasStringProp(v, "mp4"));
+}
+
 function isVideo(v: unknown): v is AvatarFrameVideo {
-  return typeof v === "object" && v !== null && hasStringProp(v, "webm") && hasStringProp(v, "mp4") && hasStringProp(v, "poster") && hasStringProp(v, "still");
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "webm") &&
+    hasStringProp(v, "mp4") &&
+    hasStringProp(v, "poster") &&
+    hasStringProp(v, "still") &&
+    isShade("shade" in v ? v.shade : undefined)
+  );
 }
 
 function isEntry(v: unknown): v is AvatarFrameCatalogEntry {

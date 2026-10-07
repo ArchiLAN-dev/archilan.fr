@@ -58,14 +58,7 @@ final readonly class AvatarFrameController
             return $admin;
         }
 
-        $files = [];
-        foreach (AvatarFrameFileRule::ROLES as $role) {
-            $file = $request->files->get($role);
-            if ($file instanceof UploadedFile && $file->isValid()) {
-                $bytes = file_get_contents($file->getPathname());
-                $files[$role] = false === $bytes ? '' : $bytes;
-            }
-        }
+        $files = $this->files($request, [...AvatarFrameFileRule::ROLES, ...AvatarFrameFileRule::SHADE_ROLES]);
 
         $uploaded = $this->manage->upload(
             $request->request->getString('key'),
@@ -101,6 +94,33 @@ final readonly class AvatarFrameController
         return new JsonResponse(null, 204);
     }
 
+    /** Story 41.30: gives an uploaded frame its shade, or replaces it (multipart: shadeWebm, shadeMp4). */
+    #[Route('/api/v1/admin/avatar-frames/{key}/shade', name: 'api_community_admin_avatar_frames_shade', methods: ['POST'])]
+    public function shade(Request $request, string $key): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $this->manage->shade($key, $this->files($request, AvatarFrameFileRule::SHADE_ROLES));
+
+        return new JsonResponse(null, 204);
+    }
+
+    #[Route('/api/v1/admin/avatar-frames/{key}/shade', name: 'api_community_admin_avatar_frames_shade_remove', methods: ['DELETE'])]
+    public function removeShade(Request $request, string $key): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $this->manage->removeShade($key);
+
+        return new JsonResponse(null, 204);
+    }
+
     #[Route('/api/v1/admin/avatar-frames/{key}/retire', name: 'api_community_admin_avatar_frames_retire', methods: ['POST'])]
     public function retire(Request $request, string $key): JsonResponse
     {
@@ -125,5 +145,26 @@ final readonly class AvatarFrameController
         $this->manage->restore($key);
 
         return new JsonResponse(null, 204);
+    }
+
+    /**
+     * The bytes of the multipart files of these roles.
+     *
+     * @param list<string> $roles
+     *
+     * @return array<string, string>
+     */
+    private function files(Request $request, array $roles): array
+    {
+        $files = [];
+        foreach ($roles as $role) {
+            $file = $request->files->get($role);
+            if ($file instanceof UploadedFile && $file->isValid()) {
+                $bytes = file_get_contents($file->getPathname());
+                $files[$role] = false === $bytes ? '' : $bytes;
+            }
+        }
+
+        return $files;
     }
 }

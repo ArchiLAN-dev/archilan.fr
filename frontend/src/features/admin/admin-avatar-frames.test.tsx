@@ -3,7 +3,16 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { AdminAvatarFrameList, fetchAdminAvatarFrames, framePoster, uploadAvatarFrame, type AdminAvatarFrame } from "./admin-avatar-frames";
+import {
+  AdminAvatarFrameList,
+  fetchAdminAvatarFrames,
+  framePoster,
+  removeAvatarFrameShade,
+  setAvatarFrameShade,
+  shadeComplete,
+  uploadAvatarFrame,
+  type AdminAvatarFrame,
+} from "./admin-avatar-frames";
 
 const BASE = TEST_API_BASE_URL;
 const fire: AdminAvatarFrame = { key: "fire", label: "Feu", access: "admins", builtIn: true, retired: false, position: 0, video: null };
@@ -25,7 +34,7 @@ describe("admin avatar frames", () => {
   });
 
   test("the list shows access, origin and state", () => {
-    const html = renderToStaticMarkup(<AdminAvatarFrameList frames={[fire, comet]} onAccess={() => Promise.resolve()} onRetire={() => Promise.resolve()} />);
+    const html = renderToStaticMarkup(<AdminAvatarFrameList frames={[fire, comet]} onAccess={() => Promise.resolve()} onRemoveShade={() => Promise.resolve()} onRetire={() => Promise.resolve()} onShade={() => Promise.resolve()} />);
 
     expect(html).toContain("fire · intégré");
     expect(html).toContain("comet · retiré");
@@ -43,5 +52,39 @@ describe("admin avatar frames", () => {
       ),
     );
     expect(await uploadAvatarFrame({ key: "comet", label: "Comète", access: "shop" }, {})).toBe("L'aperçu doit mesurer 512 x 512 pixels.");
+  });
+
+  test("story 41.30: an uploaded frame offers its shade, a built-in one does not", () => {
+    const shade = { webm: "https://m.test/sh.webm", mp4: "https://m.test/sh.mp4" };
+    const envy: AdminAvatarFrame = { ...comet, key: "envy", retired: false, video: comet.video && { ...comet.video, shade } };
+    const list = (frames: AdminAvatarFrame[]) =>
+      renderToStaticMarkup(
+        <AdminAvatarFrameList frames={frames} onAccess={() => Promise.resolve()} onRemoveShade={() => Promise.resolve()} onRetire={() => Promise.resolve()} onShade={() => Promise.resolve()} />,
+      );
+
+    expect(list([fire])).not.toContain("ombre");
+    expect(list([comet])).toContain("Ajouter une ombre");
+    expect(list([envy])).toContain("envy · ombre");
+    expect(list([envy])).toContain("Retirer l&#x27;ombre");
+  });
+
+  test("story 41.30: the shade goes both videos or none", () => {
+    const file = new File(["x"], "f");
+
+    expect(shadeComplete({})).toBe(true);
+    expect(shadeComplete({ shadeWebm: file, shadeMp4: file })).toBe(true);
+    expect(shadeComplete({ shadeWebm: file })).toBe(false);
+  });
+
+  test("API: sets and removes a shade, relaying a refusal", async () => {
+    server.use(
+      http.post(`${BASE}/admin/avatar-frames/envy/shade`, () => new HttpResponse(null, { status: 204 })),
+      http.delete(`${BASE}/admin/avatar-frames/envy/shade`, () => new HttpResponse(null, { status: 204 })),
+    );
+    expect(await setAvatarFrameShade("envy", {})).toBeNull();
+    expect(await removeAvatarFrameShade("envy")).toBeNull();
+
+    server.use(http.post(`${BASE}/admin/avatar-frames/fire/shade`, () => HttpResponse.json({ error: { code: "avatar_frame_built_in", message: "Cadre intégré" } }, { status: 409 })));
+    expect(await setAvatarFrameShade("fire", {})).toBe("Cadre intégré");
   });
 });
