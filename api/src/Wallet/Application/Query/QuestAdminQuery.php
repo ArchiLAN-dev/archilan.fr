@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Wallet\Application\Query;
 
+use App\Wallet\Application\Port\QuestAnnouncementChannelInterface;
 use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Application\Support\QuestCalendar;
 use App\Wallet\Domain\Entity\QuestDefinition;
@@ -30,12 +31,14 @@ final readonly class QuestAdminQuery
         private WeeklyQuestsQueryInterface $ledger,
         private QuestWeekPlanner $planner,
         private ClockInterface $clock,
+        private QuestAnnouncementChannelInterface $discord,
     ) {
     }
 
     /**
      * @return array{
      *   questsPerWeek: int,
+     *   discordEnabled: bool,
      *   chestReward: int,
      *   metrics: list<array{key: string, label: string, unit: string, unitOne: string, scopable: bool}>,
      *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>},
@@ -105,6 +108,8 @@ final readonly class QuestAdminQuery
 
         return [
             'questsPerWeek' => $this->quests->questsPerWeek(),
+            // Story 41.26: whether the « Annoncer sur Discord » button has anywhere to post.
+            'discordEnabled' => $this->discord->isEnabled(),
             'chestReward' => $this->quests->chestReward(),
             'metrics' => array_map(
                 static fn (QuestMetric $metric): array => [

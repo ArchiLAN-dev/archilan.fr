@@ -7,6 +7,8 @@ namespace App\Community\Infrastructure\Adapter;
 use App\Community\Application\Exception\ModerationForumDeliveryException;
 use App\Community\Application\Port\ModerationForumInterface;
 use App\Community\Application\Support\ModerationForumMessage;
+use App\Shared\Infrastructure\Http\DiscordBotRest;
+use App\Shared\Infrastructure\Http\DiscordRestFailure;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -40,7 +42,7 @@ final class DiscordModerationForum implements ModerationForumInterface
     {
         $body = [
             'name' => mb_substr('' !== trim($title) ? $title : 'Membre', 0, 100),
-            'message' => DiscordBotRest::messageBody($message),
+            'message' => DiscordModerationCard::body($message),
         ];
         $tagId = $this->tagId($message->tag);
         if (null !== $tagId) {
@@ -65,7 +67,7 @@ final class DiscordModerationForum implements ModerationForumInterface
             $patch['applied_tags'] = [$tagId];
         }
         $this->request('PATCH', '/channels/'.$threadId, $patch);
-        $this->request('POST', '/channels/'.$threadId.'/messages', DiscordBotRest::messageBody($message));
+        $this->request('POST', '/channels/'.$threadId.'/messages', DiscordModerationCard::body($message));
     }
 
     /**
