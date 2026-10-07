@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Wallet\Application\Query;
 
+use App\Community\Application\Support\CosmeticRewardCatalog;
+use App\Community\Domain\ValueObject\CosmeticReward;
 use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
@@ -25,11 +27,12 @@ final readonly class MyWeeklyQuests
         private QuestWeekPlanner $planner,
         private QuestRepositoryInterface $settings,
         private ClockInterface $clock,
+        private CosmeticRewardCatalog $cosmetics,
     ) {
     }
 
     /**
-     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int, scope: string|null}>}>, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>}
+     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int, scope: string|null}>, cosmetic: array{type: string, key: string, label: string}|null}>, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>}
      */
     public function of(string $userId): array
     {
@@ -63,6 +66,8 @@ final readonly class MyWeeklyQuests
                 'done' => $isPaid || $quest->isAccomplishedWith($mine),
                 'paid' => $isPaid,
                 'objectives' => $objectives,
+                // Story 41.28: the cosmetic it unlocks, besides the pelles.
+                'cosmetic' => $this->cosmetic($quest),
             ];
         }
 
@@ -135,5 +140,22 @@ final readonly class MyWeeklyQuests
                 'pelles' => $mine['pelles'],
             ];
         }, $weeks);
+    }
+
+    /**
+     * Story 41.28: the cosmetic a quest unlocks, in words.
+     *
+     * @return array{type: string, key: string, label: string}|null
+     */
+    private function cosmetic(QuestDefinition $quest): ?array
+    {
+        $cosmetic = $quest->getCosmetic();
+        try {
+            $reward = null === $cosmetic ? null : CosmeticReward::fromParts($cosmetic['type'], $cosmetic['key']);
+        } catch (\DomainException) {
+            return null;
+        }
+
+        return null === $reward ? null : [...$reward->toArray(), 'label' => $this->cosmetics->label($reward)];
     }
 }

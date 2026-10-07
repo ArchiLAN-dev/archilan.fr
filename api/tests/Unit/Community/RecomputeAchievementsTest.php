@@ -20,6 +20,8 @@ use Symfony\Component\Clock\MockClock;
 
 final class RecomputeAchievementsTest extends TestCase
 {
+    use CosmeticRewardDoubles;
+
     public function testDefaultCatalogKeysAreUnique(): void
     {
         $keys = array_map(static fn (array $d): string => $d['key'], DefaultAchievementDefinitions::all());
@@ -78,7 +80,7 @@ final class RecomputeAchievementsTest extends TestCase
         $builder = new MetricBagBuilder([new StatsMetricProvider($stats, $history)]);
         $definitions = $this->definitionsRepo(deactivate: ['veteran']);
         $grants = $this->inMemoryGrantRepo();
-        $service = new RecomputeAchievements($definitions, $grants, $builder, $this->nullNotifier(), new MockClock());
+        $service = new RecomputeAchievements($definitions, $grants, $builder, $this->nullNotifier(), new MockClock(), $this->cosmeticRewarder());
 
         $service->recomputeForUser('u3');
 
@@ -100,7 +102,7 @@ final class RecomputeAchievementsTest extends TestCase
 
         $builder = new MetricBagBuilder([new StatsMetricProvider($statsStub, $historyStub)]);
 
-        return new RecomputeAchievements($this->definitionsRepo(), $grants, $builder, $this->nullNotifier(), new MockClock());
+        return new RecomputeAchievements($this->definitionsRepo(), $grants, $builder, $this->nullNotifier(), new MockClock(), $this->cosmeticRewarder());
     }
 
     /**
@@ -220,6 +222,18 @@ final class RecomputeAchievementsTest extends TestCase
             public function save(AchievementGrant $grant): void
             {
                 $this->stored[] = $grant;
+            }
+
+            public function holdersOf(string $achievementKey): array
+            {
+                $holders = [];
+                foreach ($this->stored as $grant) {
+                    if ($grant->getAchievementKey() === $achievementKey) {
+                        $holders[] = $grant->getUserId();
+                    }
+                }
+
+                return $holders;
             }
 
             public function ownerOf(string $grantId): ?string

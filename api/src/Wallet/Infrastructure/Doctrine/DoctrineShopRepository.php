@@ -55,6 +55,30 @@ final readonly class DoctrineShopRepository implements ShopRepositoryInterface, 
         $this->entityManager->flush();
     }
 
+    public function grant(string $userId, string $type, string $key, string $source, string $sourceLabel): bool
+    {
+        if ($this->owns($userId, $type, $key)) {
+            return false;
+        }
+        $this->saveOwned(OwnedCosmetic::acquire($userId, $type, $key, new \DateTimeImmutable(), $source, $sourceLabel));
+
+        return true;
+    }
+
+    public function origins(string $userId): array
+    {
+        $origins = [];
+        foreach ($this->entityManager->getRepository(OwnedCosmetic::class)->findBy(['userId' => $userId]) as $owned) {
+            $origins[$owned->getType().':'.$owned->getCosmeticKey()] = [
+                'source' => $owned->getSource(),
+                'label' => $owned->getSourceLabel(),
+                'acquiredAt' => $owned->getAcquiredAt()->format(\DATE_ATOM),
+            ];
+        }
+
+        return $origins;
+    }
+
     public function saveOwned(OwnedCosmetic $owned): void
     {
         $this->entityManager->persist($owned);

@@ -53,6 +53,7 @@ final class ProfileTitleCatalog implements ResetInterface
         return match (($this->definitions()[$key] ?? null)?->getAccess() ?? AvatarFrameAccess::Shop) {
             AvatarFrameAccess::Admins => 'Titre réservé aux admins.',
             AvatarFrameAccess::Members => 'Titre réservé aux adhérents.',
+            AvatarFrameAccess::Reward => 'Titre à gagner (succès ou quête).',
             default => 'Titre à acheter en boutique.',
         };
     }

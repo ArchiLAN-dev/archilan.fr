@@ -83,7 +83,7 @@ final class ProfileTitleTest extends FunctionalTestCase
         $this->client->jsonRequest('GET', '/api/v1/community/profiles/mem');
         $profile = $this->decodedJsonResponse()['data'] ?? null;
         self::assertIsArray($profile);
-        self::assertSame(['label' => 'Chasseur de goals', 'rarity' => 'common', 'icon' => null, 'access' => 'shop'], $profile['title'] ?? null);
+        self::assertSame(['label' => 'Chasseur de goals', 'rarity' => 'common', 'icon' => null, 'access' => 'shop', 'origin' => 'Acheté en boutique'], $profile['title'] ?? null);
 
         // Saving without the field keeps it; an empty title takes it off.
         $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['bio' => 'Salut']);
@@ -126,7 +126,7 @@ final class ProfileTitleTest extends FunctionalTestCase
         $this->client->jsonRequest('GET', '/api/v1/community/profiles/mem');
         $profile = $this->decodedJsonResponse()['data'] ?? null;
         self::assertIsArray($profile);
-        self::assertSame($badge, $profile['title'] ?? null);
+        self::assertSame([...$badge, 'origin' => null], $profile['title'] ?? null, 'free for all: no origin of its own');
 
         // A card: the comment author.
         $this->client->jsonRequest('POST', '/api/v1/community/profiles/mem/comments', ['body' => 'Salut']);

@@ -63,6 +63,16 @@ final readonly class DoctrineAchievementGrantRepository implements AchievementGr
         return $grant instanceof AchievementGrant ? $grant->getUserId() : null;
     }
 
+    public function holdersOf(string $achievementKey): array
+    {
+        $holders = [];
+        foreach ($this->entityManager->getRepository(AchievementGrant::class)->findBy(['achievementKey' => $achievementKey]) as $grant) {
+            $holders[] = $grant->getUserId();
+        }
+
+        return $holders;
+    }
+
     public function save(AchievementGrant $grant): void
     {
         $this->entityManager->persist($grant);

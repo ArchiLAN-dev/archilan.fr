@@ -12,7 +12,7 @@ export type ProfileBannerCatalogEntry = { key: string; label: string; access: Av
 
 export const PROFILE_BANNER_CATALOG_QUERY_KEY = ["profile-banner-catalog"] as const;
 
-const ACCESSES: readonly AvatarFrameAccess[] = ["free", "members", "admins", "shop"];
+const ACCESSES: readonly AvatarFrameAccess[] = ["free", "members", "admins", "shop", "reward"];
 
 function isNullableString(v: unknown): v is string | null {
   return v === null || typeof v === "string";
@@ -80,5 +80,7 @@ export function bannerLockReason(
       return rights.admin ? null : "Réservée aux admins";
     case "shop":
       return rights.owned.includes(banner.key) ? null : "En boutique";
+    case "reward":
+      return rights.owned.includes(banner.key) ? null : "À gagner (succès ou quête)";
   }
 }

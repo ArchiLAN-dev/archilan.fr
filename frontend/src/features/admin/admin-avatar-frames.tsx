@@ -27,6 +27,7 @@ export const ACCESS_LABELS: Record<AvatarFrameAccess, string> = {
   members: "Adhérents",
   admins: "Admins",
   shop: "Boutique",
+  reward: "Récompense",
 };
 
 const ACCESSES = Object.keys(ACCESS_LABELS) as AvatarFrameAccess[];

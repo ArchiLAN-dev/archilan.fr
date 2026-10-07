@@ -66,6 +66,7 @@ final class AvatarFrameCatalog implements ResetInterface
         return match ($access) {
             AvatarFrameAccess::Admins => 'Cadre réservé aux admins.',
             AvatarFrameAccess::Members => 'Cadre réservé aux adhérents.',
+            AvatarFrameAccess::Reward => 'Cadre à gagner (succès ou quête).',
             default => 'Cadre à acheter en boutique.',
         };
     }

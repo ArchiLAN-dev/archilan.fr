@@ -72,7 +72,8 @@ export function ProfileTitleBadge({ title, variant = "profile", withTooltip = fa
   if (!withTooltip) return badge;
 
   const rarity = `Titre ${TITLE_RARITY_LABELS[title.rarity].toLowerCase()}`;
-  const origin = titleOrigin(title.access);
+  // Story 41.28: the achievement, the quest or the shop it came from, else who may wear it.
+  const origin = title.origin ?? titleOrigin(title.access);
 
   return (
     <span aria-label={`${title.label} : ${rarity.toLowerCase()}, ${origin.toLowerCase()}`} className={`${styles.withTip} ${className}`} role="note" tabIndex={0}>

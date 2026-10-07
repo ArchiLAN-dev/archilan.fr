@@ -204,6 +204,13 @@ export function messageFor(item: NotificationItem): string {
       const reason = hasStringProp(item.data, "reason") && item.data.reason !== "" ? ` : ${item.data.reason}` : "";
       return amount < 0 ? `L'équipe t'a retiré ${what}${reason}` : `Tu as reçu ${what}${reason}`;
     }
+    case "cosmetic_unlocked": {
+      // Story 41.28: a cosmetic won through an achievement or a quest.
+      const label = hasStringProp(item.data, "label") ? item.data.label : "Un cosmétique";
+      const kind = hasStringProp(item.data, "source") && item.data.source === "quest" ? "quête" : "succès";
+      const from = hasStringProp(item.data, "sourceLabel") ? ` (${kind} « ${item.data.sourceLabel} »)` : "";
+      return `Débloqué : ${label}${from}`;
+    }
     case "quests_renewed": {
       // Story 41.17: the quests of the new week are out.
       const count = hasNumberProp(item.data, "count") ? item.data.count : 0;
@@ -280,6 +287,10 @@ export function hrefFor(item: NotificationItem): string {
   }
   if (item.type === "pelles_adjusted" || item.type === "quests_renewed") {
     return "/compte/portefeuille";
+  }
+  if (item.type === "cosmetic_unlocked") {
+    // Story 41.28: where the member puts it on.
+    return "/compte/profil";
   }
   if (item.type === "apworld_incident_opened") {
     // The apworld health page (story 38.3): the incident, who holds it, and the actions.
