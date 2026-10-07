@@ -69,7 +69,7 @@ export function PlayerProfilePage({
             </div>
             <div className="-mt-6 flex flex-wrap items-center gap-2 pl-28 sm:-mt-8 sm:pl-32">
               {/* Story 41.22: the title the member wears, bought or given. */}
-              {profile.title ? <ProfileTitleBadge label={profile.title} /> : null}
+              {profile.title ? <ProfileTitleBadge title={profile.title} withTooltip /> : null}
               <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
                 Niv. {profile.level.level}
               </span>

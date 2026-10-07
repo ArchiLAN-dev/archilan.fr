@@ -9,7 +9,7 @@ import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import { AVATAR_FRAME_CATALOG_QUERY_KEY, type AvatarFrameAccess } from "@/features/community/avatar-frame-catalog";
-import { getAvatarFrame } from "@/features/community/avatar-frames";
+import { getAvatarFrame, type AvatarFrameVideo } from "@/features/community/avatar-frames";
 
 /** Story 41.10: a video frame as the admin manages it. */
 export type AdminAvatarFrame = {
@@ -19,7 +19,7 @@ export type AdminAvatarFrame = {
   builtIn: boolean;
   retired: boolean;
   position: number;
-  video: { webm: string; mp4: string; poster: string; still: string } | null;
+  video: AvatarFrameVideo | null;
 };
 
 export const ACCESS_LABELS: Record<AvatarFrameAccess, string> = {
@@ -27,6 +27,7 @@ export const ACCESS_LABELS: Record<AvatarFrameAccess, string> = {
   members: "Adhérents",
   admins: "Admins",
   shop: "Boutique",
+  reward: "Récompense",
 };
 
 const ACCESSES = Object.keys(ACCESS_LABELS) as AvatarFrameAccess[];
@@ -36,6 +37,16 @@ const FILES = [
   { role: "poster", label: "Aperçu WebP 512 x 512 (sur fond noir)", accept: "image/webp" },
   { role: "still", label: "Image fixe WebP 512 x 512 (transparente)", accept: "image/webp" },
 ] as const;
+/** Story 41.30: the optional shade, both videos or none. */
+const SHADE_FILES = [
+  { role: "shadeWebm", label: "Ombre WebM (noir sur blanc, optionnelle)", accept: "video/webm" },
+  { role: "shadeMp4", label: "Ombre MP4 (noir sur blanc, optionnelle)", accept: "video/mp4" },
+] as const;
+
+/** Whether the shade files are both given or both left out. */
+export function shadeComplete(files: Record<string, File>): boolean {
+  return SHADE_FILES.every((f) => files[f.role] !== undefined) || SHADE_FILES.every((f) => files[f.role] === undefined);
+}
 
 function isAdminFrame(v: unknown): v is AdminAvatarFrame {
   return (
@@ -115,6 +126,27 @@ export async function setAvatarFrameRetired(key: string, retired: boolean): Prom
   }
 }
 
+/** Story 41.30: gives an uploaded frame its shade, or replaces it. */
+export async function setAvatarFrameShade(key: string, files: Record<string, File>): Promise<string | null> {
+  try {
+    const body = new FormData();
+    for (const [role, file] of Object.entries(files)) body.append(role, file);
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/avatar-frames/${key}/shade`, { method: "POST", body });
+    return res.status === 204 ? null : await errorOf(res, "L'ajout de l'ombre a échoué.");
+  } catch {
+    return "Impossible de contacter l'API.";
+  }
+}
+
+export async function removeAvatarFrameShade(key: string): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/avatar-frames/${key}/shade`, { method: "DELETE" });
+    return res.status === 204 ? null : await errorOf(res, "Le retrait de l'ombre a échoué.");
+  } catch {
+    return "Impossible de contacter l'API.";
+  }
+}
+
 /** The poster of a frame: its own for an uploaded one, the code's for a built-in one. */
 export function framePoster(frame: AdminAvatarFrame): string | null {
   return frame.video?.poster ?? getAvatarFrame(frame.key)?.video?.poster ?? null;
@@ -156,6 +188,8 @@ export function AdminAvatarFramesPage() {
           frames={data}
           onAccess={async (key, access) => after(await updateAvatarFrame(key, { access }), "Accès modifié.")}
           onRetire={async (key, retired) => after(await setAvatarFrameRetired(key, retired), retired ? "Cadre retiré." : "Cadre rétabli.")}
+          onShade={async (key, files) => after(await setAvatarFrameShade(key, files), "Ombre enregistrée.")}
+          onRemoveShade={async (key) => after(await removeAvatarFrameShade(key), "Ombre retirée.")}
         />
       ) : null}
     </section>
@@ -166,10 +200,14 @@ export function AdminAvatarFrameList({
   frames,
   onAccess,
   onRetire,
+  onShade,
+  onRemoveShade,
 }: {
   frames: AdminAvatarFrame[];
   onAccess: (key: string, access: AvatarFrameAccess) => Promise<void>;
   onRetire: (key: string, retired: boolean) => Promise<void>;
+  onShade: (key: string, files: Record<string, File>) => Promise<void>;
+  onRemoveShade: (key: string) => Promise<void>;
 }) {
   return (
     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -190,6 +228,7 @@ export function AdminAvatarFrameList({
                   {frame.key}
                   {frame.builtIn ? " · intégré" : ""}
                   {frame.retired ? " · retiré" : ""}
+                  {frame.video?.shade ? " · ombre" : ""}
                 </p>
               </div>
             </div>
@@ -212,11 +251,99 @@ export function AdminAvatarFrameList({
                 {frame.retired ? "Rétablir" : "Retirer"}
               </button>
             </div>
+            {frame.builtIn ? null : (
+              <ShadeControl hasShade={Boolean(frame.video?.shade)} onRemove={() => onRemoveShade(frame.key)} onShade={(files) => onShade(frame.key, files)} />
+            )}
           </li>
         );
       })}
     </ul>
   );
+}
+
+/** Story 41.30: the shade of an uploaded frame, its dark parts laid in `multiply` so they can cover the photo. */
+function ShadeControl({
+  hasShade,
+  onShade,
+  onRemove,
+}: {
+  hasShade: boolean;
+  onShade: (files: Record<string, File>) => Promise<void>;
+  onRemove: () => Promise<void>;
+}) {
+  const [files, setFiles] = useState<Record<string, File>>({});
+  const [pending, setPending] = useState(false);
+  const ready = SHADE_FILES.every((f) => files[f.role] !== undefined);
+
+  async function run(action: () => Promise<void>): Promise<void> {
+    setPending(true);
+    await action();
+    setFiles({});
+    setPending(false);
+  }
+
+  return (
+    <details className="text-xs">
+      <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+        {hasShade ? "Ombre : remplacer ou retirer" : "Ajouter une ombre"}
+      </summary>
+      <div className="mt-2 grid gap-2">
+        <FileInputs files={files} roles={SHADE_FILES} setFiles={setFiles} />
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="font-semibold text-foreground hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!ready || pending}
+            onClick={() => void run(() => onShade(files))}
+            type="button"
+          >
+            {hasShade ? "Remplacer l'ombre" : "Ajouter l'ombre"}
+          </button>
+          {hasShade ? (
+            <button
+              className="text-muted-foreground hover:text-foreground disabled:opacity-40"
+              disabled={pending}
+              onClick={() => void run(onRemove)}
+              type="button"
+            >
+              Retirer l&apos;ombre
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function FileInputs({
+  roles,
+  files,
+  setFiles,
+}: {
+  roles: readonly { role: string; label: string; accept: string }[];
+  files: Record<string, File>;
+  setFiles: (update: (current: Record<string, File>) => Record<string, File>) => void;
+}) {
+  return roles.map((f) => (
+    <label className="grid gap-1 text-sm" key={f.role}>
+      <span className="font-medium text-foreground">{f.label}</span>
+      <input
+        accept={f.accept}
+        className="text-xs"
+        // Remounted once the files are sent, so the inputs empty too.
+        key={files[f.role] === undefined ? "empty" : "set"}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          setFiles((current) => {
+            const next = { ...current };
+            if (file === undefined) delete next[f.role];
+            else next[f.role] = file;
+            return next;
+          });
+        }}
+        type="file"
+      />
+    </label>
+  ));
 }
 
 function UploadForm({ onDone }: { onDone: (error: string | null) => Promise<void> }) {
@@ -226,7 +353,7 @@ function UploadForm({ onDone }: { onDone: (error: string | null) => Promise<void
   const [files, setFiles] = useState<Record<string, File>>({});
   const [pending, setPending] = useState(false);
   const fieldClass = "min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground";
-  const complete = key.trim() !== "" && label.trim() !== "" && FILES.every((f) => files[f.role] !== undefined);
+  const complete = key.trim() !== "" && label.trim() !== "" && FILES.every((f) => files[f.role] !== undefined) && shadeComplete(files);
 
   async function submit(): Promise<void> {
     setPending(true);
@@ -252,7 +379,7 @@ function UploadForm({ onDone }: { onDone: (error: string | null) => Promise<void
       <p className="text-xs text-muted-foreground sm:col-span-3">
         Les fichiers arrivent préparés : une vidéo de lumière sur fond noir, bouclée, à la géométrie commune des cadres (512 px,
         ouverture 107 à 403 sur 111 à 407), en WebM et MP4, avec son aperçu sur fond noir et son image fixe transparente. Rien
-        n&apos;est converti ici. Pas de visuel généré par IA : un dessin de membre.
+        n&apos;est converti ici.
       </p>
       <label className="grid gap-1 text-sm">
         <span className="font-medium text-foreground">Clé (minuscules, chiffres, _)</span>
@@ -272,25 +399,12 @@ function UploadForm({ onDone }: { onDone: (error: string | null) => Promise<void
           ))}
         </select>
       </label>
-      {FILES.map((f) => (
-        <label className="grid gap-1 text-sm" key={f.role}>
-          <span className="font-medium text-foreground">{f.label}</span>
-          <input
-            accept={f.accept}
-            className="text-xs"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              setFiles((current) => {
-                const next = { ...current };
-                if (file === undefined) delete next[f.role];
-                else next[f.role] = file;
-                return next;
-              });
-            }}
-            type="file"
-          />
-        </label>
-      ))}
+      <FileInputs files={files} roles={FILES} setFiles={setFiles} />
+      <FileInputs files={files} roles={SHADE_FILES} setFiles={setFiles} />
+      <p className="text-xs text-muted-foreground sm:col-span-3">
+        L&apos;ombre (optionnelle) sert aux cadres qui passent devant la photo : une vidéo de la même boucle, noir sur blanc, posée en « produit » sous la
+        lumière. Le blanc ne change rien, le noir assombrit. Les deux formats, ou aucun.
+      </p>
       <div className="sm:col-span-3">
         <button
           className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold hover:border-accent disabled:cursor-not-allowed disabled:opacity-40"

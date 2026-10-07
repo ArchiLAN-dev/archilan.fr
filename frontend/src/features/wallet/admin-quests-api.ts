@@ -1,3 +1,4 @@
+import { isCosmeticRewardView, type CosmeticReward, type CosmeticRewardView } from "@/features/community/cosmetic-reward-picker";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
@@ -21,6 +22,8 @@ export type AdminQuest = {
   inDraw: boolean;
   /** Story 41.18: 1 to 5, how much more often it comes out of a draw. */
   drawWeight: number;
+  /** Story 41.28: the cosmetic it unlocks the first time (absent from an older API). */
+  cosmetic?: CosmeticRewardView | null;
   retired: boolean;
   createdAt: string;
   /** Story 41.16: how the quest did. */
@@ -47,6 +50,8 @@ export type PastQuestWeek = {
 
 export type AdminQuests = {
   questsPerWeek: number;
+  /** Story 41.26: whether the bot has a Discord channel to announce the quests in (absent from an older API). */
+  discordEnabled?: boolean;
   chestReward: number;
   metrics: QuestMetricOption[];
   quests: AdminQuest[];
@@ -55,7 +60,7 @@ export type AdminQuests = {
   scopes: QuestScopes;
 };
 
-export type QuestTerms = { title: string; description: string; reward: number; objectives: QuestObjectiveTerms[]; inDraw: boolean; drawWeight: number };
+export type QuestTerms = { title: string; description: string; reward: number; objectives: QuestObjectiveTerms[]; inDraw: boolean; drawWeight: number; cosmetic?: CosmeticReward | null };
 
 export const QUEST_LIMITS = { maxTitle: 80, maxDescription: 200, minReward: 1, maxReward: 1000, maxObjectives: 5, minTarget: 1, maxTarget: 10000, minPerWeek: 1, maxPerWeek: 10, maxChest: 1000, minWeight: 1, maxWeight: 5 } as const;
 
@@ -101,7 +106,8 @@ function isQuest(v: unknown): v is AdminQuest {
     isStats(v.stats) &&
     "objectives" in v &&
     Array.isArray(v.objectives) &&
-    v.objectives.every(isObjectiveTerms)
+    v.objectives.every(isObjectiveTerms) &&
+    (!("cosmetic" in v) || v.cosmetic === null || isCosmeticRewardView(v.cosmetic))
   );
 }
 
@@ -163,6 +169,7 @@ export function isAdminQuests(v: unknown): v is AdminQuests {
   return (
     isObject(v) &&
     hasNumberProp(v, "questsPerWeek") &&
+    (!("discordEnabled" in v) || typeof v.discordEnabled === "boolean") &&
     hasNumberProp(v, "chestReward") &&
     "metrics" in v &&
     Array.isArray(v.metrics) &&
@@ -239,6 +246,26 @@ export function unpinQuest(weekKey: string, questId: string): Promise<string | n
     204,
     "Impossible de retirer la quête de la semaine.",
   );
+}
+
+/** Story 41.26: what announcing a week on Discord did - a new message, or the week's message updated. */
+export type DiscordAnnouncement = { outcome: "posted" | "updated"; error: null } | { outcome: null; error: string };
+
+/** Story 41.26: the week's quests on Discord now, through the bot. */
+export async function announceQuestWeekOnDiscord(weekKey: string): Promise<DiscordAnnouncement> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/quest-weeks/${encodeURIComponent(weekKey)}/announce-discord`, { method: "POST" });
+    const payload: unknown = await res.json().catch(() => null);
+    if (res.ok && isObject(payload) && "outcome" in payload && (payload.outcome === "posted" || payload.outcome === "updated")) {
+      return { outcome: payload.outcome, error: null };
+    }
+    if (isObject(payload) && "error" in payload && isObject(payload.error) && hasStringProp(payload.error, "message")) {
+      return { outcome: null, error: payload.error.message };
+    }
+    return { outcome: null, error: "Impossible d'annoncer les quêtes sur Discord." };
+  } catch {
+    return { outcome: null, error: "Impossible de contacter l'API." };
+  }
 }
 
 /** Story 41.18: where an aimed objective counts, « sur Hollow Knight », « à la LAN #3 »; empty when it counts everywhere. */

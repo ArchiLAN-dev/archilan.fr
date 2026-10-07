@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Wallet\Application\Query;
 
+use App\Community\Application\Support\CosmeticRewardCatalog;
+use App\Community\Domain\ValueObject\CosmeticReward;
+use App\Wallet\Application\Port\QuestAnnouncementChannelInterface;
 use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Application\Support\QuestCalendar;
 use App\Wallet\Domain\Entity\QuestDefinition;
@@ -30,16 +33,19 @@ final readonly class QuestAdminQuery
         private WeeklyQuestsQueryInterface $ledger,
         private QuestWeekPlanner $planner,
         private ClockInterface $clock,
+        private QuestAnnouncementChannelInterface $discord,
+        private CosmeticRewardCatalog $cosmetics,
     ) {
     }
 
     /**
      * @return array{
      *   questsPerWeek: int,
+     *   discordEnabled: bool,
      *   chestReward: int,
      *   metrics: list<array{key: string, label: string, unit: string, unitOne: string, scopable: bool}>,
      *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>},
-     *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}}>,
+     *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, cosmetic: array{type: string, key: string, label: string}|null, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}}>,
      *   weeks: list<array{key: string, startsAt: string, endsAt: string, current: bool, drawn: bool, quests: list<ServedQuest>}>,
      *   pastWeeks: list<array{key: string, startsAt: string, endsAt: string, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool, members: int, pelles: int}>, chests: int, pelles: int}>
      * }
@@ -105,6 +111,8 @@ final readonly class QuestAdminQuery
 
         return [
             'questsPerWeek' => $this->quests->questsPerWeek(),
+            // Story 41.26: whether the « Annoncer sur Discord » button has anywhere to post.
+            'discordEnabled' => $this->discord->isEnabled(),
             'chestReward' => $this->quests->chestReward(),
             'metrics' => array_map(
                 static fn (QuestMetric $metric): array => [
@@ -125,6 +133,8 @@ final readonly class QuestAdminQuery
                 'objectives' => array_map(static fn (QuestObjective $objective): array => $objective->toArray(), $quest->getObjectives()),
                 'inDraw' => $quest->isInDraw(),
                 'drawWeight' => $quest->getDrawWeight(),
+                // Story 41.28: the cosmetic it unlocks.
+                'cosmetic' => $this->cosmetic($quest),
                 'retired' => $quest->isRetired(),
                 'createdAt' => $quest->getCreatedAt()->format(\DATE_ATOM),
                 'stats' => $this->stats($servedWeeks[$quest->getId()] ?? [], $quest->getId(), $current, $payments),
@@ -192,5 +202,22 @@ final readonly class QuestAdminQuery
         }
 
         return $served;
+    }
+
+    /**
+     * Story 41.28: the cosmetic a quest unlocks, in words.
+     *
+     * @return array{type: string, key: string, label: string}|null
+     */
+    private function cosmetic(QuestDefinition $quest): ?array
+    {
+        $cosmetic = $quest->getCosmetic();
+        try {
+            $reward = null === $cosmetic ? null : CosmeticReward::fromParts($cosmetic['type'], $cosmetic['key']);
+        } catch (\DomainException) {
+            return null;
+        }
+
+        return null === $reward ? null : [...$reward->toArray(), 'label' => $this->cosmetics->label($reward)];
     }
 }

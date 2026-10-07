@@ -88,6 +88,38 @@ export function isReachabilityData(v: unknown): v is ReachabilityData {
   );
 }
 
+/**
+ * Story 17.28: what the player reads when the game server answered something that is not a computation (a
+ * tracking daemon out of step, for instance) - the API was reached, it is not a network failure.
+ */
+export const REACHABILITY_INVALID_MESSAGE =
+  "Le calcul de ce slot n'a pas abouti (le serveur de partie a renvoyé une réponse inattendue). Réessaie dans un instant.";
+
+/** Story 17.28: the computation carried by an API answer `{ data }`, or null when it is not one. */
+export function reachabilityOf(payload: unknown): ReachabilityData | null {
+  if (typeof payload !== "object" || payload === null || !("data" in payload)) return null;
+  return isReachabilityData(payload.data) ? payload.data : null;
+}
+
+/**
+ * Story 17.28: what a reachability request answered. The game server does not hold the request while its
+ * tracking daemon starts (up to a minute on a big run): it answers 202 « computing », with the slot's last
+ * result when there is one, and the new result reaches the page through the live push.
+ */
+export type ReachableAnswer =
+  | { kind: "data"; data: ReachabilityData; computing: boolean }
+  | { kind: "computing" }
+  | { kind: "invalid" };
+
+export function reachableAnswerOf(status: number, payload: unknown): ReachableAnswer {
+  const data = reachabilityOf(payload);
+  if (status === 202) return data ? { kind: "data", data, computing: true } : { kind: "computing" };
+  return data ? { kind: "data", data, computing: false } : { kind: "invalid" };
+}
+
+/** Story 17.28: while computing, the page asks again this often in case the live push is not connected. */
+export const REACHABILITY_RETRY_MS = 15_000;
+
 /** Hints pushes arrive as partial frames; `hints` is the discriminant the pages already keyed on. */
 export function isHintsUpdate(v: unknown): v is Partial<HintsData> & Pick<HintsData, "hints"> {
   if (typeof v !== "object" || v === null) return false;

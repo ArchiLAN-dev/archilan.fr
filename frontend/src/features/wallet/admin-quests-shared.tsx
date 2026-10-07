@@ -25,11 +25,12 @@ export function useQuestChange(onChange: ViewProps["onChange"]) {
   const [message, setMessage] = useState<StatusMessage | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function apply(run: () => Promise<string | null>, ok: string): Promise<boolean> {
+  /** `ok` may be read once the change is done, when the message depends on what it did (story 41.26). */
+  async function apply(run: () => Promise<string | null>, ok: string | (() => string)): Promise<boolean> {
     setPending(true);
     const error = await onChange(await run());
     setPending(false);
-    setMessage(error === null ? { tone: "ok", text: ok } : { tone: "error", text: error });
+    setMessage(error === null ? { tone: "ok", text: typeof ok === "string" ? ok : ok() } : { tone: "error", text: error });
     return error === null;
   }
 

@@ -6,6 +6,7 @@ namespace App\Wallet\Presentation\Controller;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
+use App\Wallet\Application\Query\MyCollection;
 use App\Wallet\Application\Query\MyWeeklyQuests;
 use App\Wallet\Application\Query\MyWelcomeQuests;
 use App\Wallet\Application\Query\WalletQueryInterface;
@@ -25,6 +26,7 @@ final readonly class WalletController
         private WalletQueryInterface $wallets,
         private MyWeeklyQuests $quests,
         private MyWelcomeQuests $welcome,
+        private MyCollection $collection,
     ) {
     }
 
@@ -50,6 +52,18 @@ final readonly class WalletController
         }
 
         return new JsonResponse(['welcome' => $this->welcome->of($user->getId())]);
+    }
+
+    /** Story 41.29: every cosmetic, owned or not, and how to get the others. */
+    #[Route('/api/v1/me/collection', name: 'api_wallet_me_collection', methods: ['GET'])]
+    public function collection(Request $request): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        return new JsonResponse($this->collection->of($user->getId(), in_array('ROLE_ADMIN', $user->getRoles(), true)));
     }
 
     #[Route('/api/v1/me/wallet', name: 'api_wallet_me', methods: ['GET'])]

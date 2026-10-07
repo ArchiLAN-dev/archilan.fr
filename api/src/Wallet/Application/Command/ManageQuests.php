@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Wallet\Application\Command;
 
+use App\Community\Application\Support\CosmeticRewardCatalog;
+use App\Community\Domain\ValueObject\CosmeticReward;
 use App\Shared\Application\Exception\ConflictException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ValidationException;
@@ -31,6 +33,7 @@ final readonly class ManageQuests
         private QuestRepositoryInterface $quests,
         private ClockInterface $clock,
         private WeeklyQuestsQueryInterface $targets,
+        private CosmeticRewardCatalog $cosmetics,
     ) {
     }
 
@@ -39,14 +42,16 @@ final readonly class ManageQuests
      *
      * @throws ValidationException when the text, reward, weight or objectives are invalid
      */
-    public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight): WrittenQuest
+    public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null): WrittenQuest
     {
         $parsed = $this->objectives($objectives);
+        $unlocks = $this->cosmetic($cosmetic);
         try {
             $quest = QuestDefinition::write($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->clock->now());
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
+        $quest->unlocks($unlocks?->type, $unlocks?->key);
         $this->quests->saveQuest($quest);
 
         return new WrittenQuest($quest->getId());
@@ -58,15 +63,17 @@ final readonly class ManageQuests
      * @throws NotFoundException   when the quest does not exist
      * @throws ValidationException when the text, reward, weight or objectives are invalid
      */
-    public function edit(string $questId, string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight): void
+    public function edit(string $questId, string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null): void
     {
         $quest = $this->quest($questId);
         $parsed = $this->objectives($objectives);
+        $unlocks = $this->cosmetic($cosmetic);
         try {
             $quest->edit($title, $description, $reward, $parsed, $inDraw, $drawWeight);
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
+        $quest->unlocks($unlocks?->type, $unlocks?->key);
         $this->quests->saveQuest($quest);
     }
 
@@ -248,5 +255,27 @@ final readonly class ManageQuests
         }
 
         return $week;
+    }
+
+    /**
+     * Story 41.28: the cosmetic the quest unlocks, `{type, key}` from the form, or none.
+     *
+     * @throws ValidationException
+     */
+    private function cosmetic(mixed $raw): ?CosmeticReward
+    {
+        if (null === $raw) {
+            return null;
+        }
+        try {
+            $reward = is_array($raw) ? CosmeticReward::fromParts($raw['type'] ?? null, $raw['key'] ?? null) : throw new \DomainException('cosmetic_reward_invalid');
+        } catch (\DomainException) {
+            throw new ValidationException('Récompense cosmétique invalide.', ['cosmetic' => ['Récompense cosmétique invalide.']], 'quest_cosmetic_invalid');
+        }
+        if (null !== $reward && !$this->cosmetics->exists($reward)) {
+            throw new ValidationException('Ce cosmétique n\'existe pas.', ['cosmetic' => ['Ce cosmétique n\'existe pas.']], 'quest_cosmetic_unknown');
+        }
+
+        return $reward;
     }
 }

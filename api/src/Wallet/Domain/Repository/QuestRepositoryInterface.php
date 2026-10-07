@@ -69,4 +69,9 @@ interface QuestRepositoryInterface
 
     /** Story 41.25: the welcome quests are for the accounts created from this instant; null for every account. */
     public function welcomeQuestsSince(): ?\DateTimeImmutable;
+
+    /** Story 41.26: the Discord message announcing the week, null when none was posted for it. */
+    public function discordMessageOf(string $weekKey): ?string;
+
+    public function rememberDiscordMessage(string $weekKey, string $messageId): void;
 }

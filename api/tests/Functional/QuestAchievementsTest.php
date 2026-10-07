@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Community\Application\Command\RecomputeAchievements;
 use App\Community\Application\Port\AchievementMetricProviderInterface;
+use App\Community\Application\Support\CosmeticRewarder;
 use App\Community\Application\Support\MetricBagBuilder;
 use App\Community\Application\Support\Notifier;
 use App\Community\Domain\AchievementMetricCatalog;
@@ -41,7 +42,7 @@ final class QuestAchievementsTest extends FunctionalTestCase
                 return ['questsCompleted' => 12, 'questChestStreak' => 4];
             }
         };
-        $recompute = new RecomputeAchievements($definitions, $grants, new MetricBagBuilder([$facts]), $notifier, new MockClock());
+        $recompute = new RecomputeAchievements($definitions, $grants, new MetricBagBuilder([$facts]), $notifier, new MockClock(), $this->rewarder());
 
         self::assertSame(4, $recompute->recomputeForUser('user-1', notify: false));
         $keys = $grants->grantedKeys('user-1');
@@ -62,5 +63,13 @@ final class QuestAchievementsTest extends FunctionalTestCase
             self::assertIsString($rules[0]['fact'] ?? null);
             self::assertTrue(AchievementMetricCatalog::isValidFact($rules[0]['fact']), $definition['key']);
         }
+    }
+
+    private function rewarder(): CosmeticRewarder
+    {
+        $rewarder = self::getContainer()->get(CosmeticRewarder::class);
+        self::assertInstanceOf(CosmeticRewarder::class, $rewarder);
+
+        return $rewarder;
     }
 }

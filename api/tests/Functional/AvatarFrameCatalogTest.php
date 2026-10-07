@@ -50,6 +50,40 @@ final class AvatarFrameCatalogTest extends FunctionalTestCase
         self::assertIsArray($video);
         self::assertIsString($video['webm'] ?? null);
         self::assertStringContainsString('avatar-frames/comet-webm-', $video['webm']);
+        self::assertArrayHasKey('shade', $video);
+        self::assertNull($video['shade'], 'no shade unless given');
+    }
+
+    public function testAFrameGetsItsShadeAtUploadOrLater(): void
+    {
+        // Story 41.30: the dark parts of a frame, laid in `multiply` under its light.
+        $this->loginAs($this->admin);
+
+        $this->upload('envy', 'Mains de l\'Envie', 'free', shade: true);
+        self::assertResponseStatusCodeSame(201);
+        $shade = $this->shadeOf('envy');
+        self::assertIsArray($shade);
+        self::assertIsString($shade['webm'] ?? null);
+        self::assertStringContainsString('avatar-frames/envy-shade-', $shade['webm']);
+        self::assertIsString($shade['mp4'] ?? null);
+
+        $this->client->request('DELETE', '/api/v1/admin/avatar-frames/envy/shade');
+        self::assertResponseStatusCodeSame(204);
+        self::assertNull($this->shadeOf('envy'));
+
+        $this->client->request('POST', '/api/v1/admin/avatar-frames/envy/shade', [], ['shadeWebm' => $this->webmFile()]);
+        self::assertResponseStatusCodeSame(422, 'both videos or none');
+        $this->client->request('POST', '/api/v1/admin/avatar-frames/envy/shade', [], ['shadeWebm' => $this->webmFile(), 'shadeMp4' => $this->mp4File()]);
+        self::assertResponseStatusCodeSame(204);
+        self::assertIsArray($this->shadeOf('envy'));
+
+        $this->client->request('POST', '/api/v1/admin/avatar-frames/fire/shade', [], ['shadeWebm' => $this->webmFile(), 'shadeMp4' => $this->mp4File()]);
+        self::assertContains($this->client->getResponse()->getStatusCode(), [404, 409], 'a built-in frame keeps the code\'s files');
+
+        $this->client->request('POST', '/api/v1/admin/avatar-frames', ['key' => 'half', 'label' => 'Moitié', 'access' => 'free'], [
+            'webm' => $this->webmFile(), 'mp4' => $this->mp4File(), 'poster' => $this->file($this->webp(512), 'p.webp'), 'still' => $this->file($this->webp(512), 's.webp'), 'shadeMp4' => $this->mp4File(),
+        ]);
+        self::assertResponseStatusCodeSame(422, 'a shade at upload needs both videos too');
     }
 
     public function testFilesThatDoNotFitAreRefusedWithTheReason(): void
@@ -167,14 +201,45 @@ final class AvatarFrameCatalogTest extends FunctionalTestCase
     /**
      * @param positive-int $posterSize
      */
-    private function upload(string $key, string $label, string $access, int $posterSize = 512): void
+    private function upload(string $key, string $label, string $access, int $posterSize = 512, bool $shade = false): void
     {
-        $this->client->request('POST', '/api/v1/admin/avatar-frames', ['key' => $key, 'label' => $label, 'access' => $access], [
-            'webm' => $this->file("\x1A\x45\xDF\xA3".str_repeat("\0", 64), 'frame.webm'),
-            'mp4' => $this->file("\0\0\0\x18ftypmp42".str_repeat("\0", 64), 'frame.mp4'),
+        $files = [
+            'webm' => $this->webmFile(),
+            'mp4' => $this->mp4File(),
             'poster' => $this->file($this->webp($posterSize), 'poster.webp'),
             'still' => $this->file($this->webp(512), 'still.webp'),
-        ]);
+        ];
+        if ($shade) {
+            $files['shadeWebm'] = $this->webmFile();
+            $files['shadeMp4'] = $this->mp4File();
+        }
+        $this->client->request('POST', '/api/v1/admin/avatar-frames', ['key' => $key, 'label' => $label, 'access' => $access], $files);
+    }
+
+    private function webmFile(): UploadedFile
+    {
+        return $this->file("\x1A\x45\xDF\xA3".str_repeat("\0", 64), 'frame.webm');
+    }
+
+    private function mp4File(): UploadedFile
+    {
+        return $this->file("\0\0\0\x18ftypmp42".str_repeat("\0", 64), 'frame.mp4');
+    }
+
+    /** @return array<mixed>|null the published shade of a frame */
+    private function shadeOf(string $key): ?array
+    {
+        $this->client->request('GET', '/api/v1/admin/avatar-frames');
+        foreach ($this->frames() as $frame) {
+            if ($key === ($frame['key'] ?? null)) {
+                $video = $frame['video'] ?? null;
+                self::assertIsArray($video);
+                $shade = $video['shade'] ?? null;
+
+                return is_array($shade) ? $shade : null;
+            }
+        }
+        self::fail('frame not listed: '.$key);
     }
 
     private function pick(string $frame): void

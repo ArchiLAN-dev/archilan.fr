@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Community\Domain\Entity;
 
 use App\Community\Domain\Enum\AvatarFrameAccess;
+use App\Community\Domain\Enum\TitleIcon;
+use App\Community\Domain\Enum\TitleRarity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * A profile title the admins write (story 41.22): a short text a member wears under their name, open to everyone,
  * members, admins, or bought in the shop. Retired, it can no longer be picked and leaves the profiles wearing it.
+ * Story 41.27: a rarity (how it shines) and an optional icon.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'profile_title')]
@@ -32,16 +35,37 @@ final class ProfileTitleDefinition
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'retired_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $retiredAt = null,
+        #[ORM\Column(type: 'string', length: 10, enumType: TitleRarity::class, options: ['default' => 'common'])]
+        private TitleRarity $rarity = TitleRarity::Common,
+        #[ORM\Column(type: 'string', length: 10, nullable: true, enumType: TitleIcon::class)]
+        private ?TitleIcon $icon = null,
     ) {
     }
 
-    public static function write(string $key, string $label, AvatarFrameAccess $access, int $position, \DateTimeImmutable $now): self
+    public static function write(string $key, string $label, AvatarFrameAccess $access, int $position, \DateTimeImmutable $now, TitleRarity $rarity = TitleRarity::Common, ?TitleIcon $icon = null): self
     {
         if (1 !== preg_match('/^[a-z0-9][a-z0-9_-]{1,31}$/', $key)) {
             throw new \DomainException('profile_title_key_invalid');
         }
 
-        return new self($key, self::assertLabel($label), $access, $position, $now);
+        return new self($key, self::assertLabel($label), $access, $position, $now, null, $rarity, $icon);
+    }
+
+    /** Story 41.27: how the title shines, and the icon before its label (none: null). */
+    public function restyle(TitleRarity $rarity, ?TitleIcon $icon): void
+    {
+        $this->rarity = $rarity;
+        $this->icon = $icon;
+    }
+
+    public function getRarity(): TitleRarity
+    {
+        return $this->rarity;
+    }
+
+    public function getIcon(): ?TitleIcon
+    {
+        return $this->icon;
     }
 
     public function update(?string $label, ?AvatarFrameAccess $access, ?int $position): void

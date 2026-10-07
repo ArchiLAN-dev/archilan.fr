@@ -19,7 +19,8 @@ use Psr\Clock\ClockInterface;
 /**
  * The admin side of the video frames (story 41.10): upload a new frame with its four prepared files, change a
  * frame's name, access or order, retire or restore it. The built-in frames of the code (story 30.46) are managed the
- * same way: their first change creates the row that overrides them, their files stay the built-in ones.
+ * same way: their first change creates the row that overrides them, their files stay the built-in ones. Story 41.30:
+ * an uploaded frame may have a shade (its dark parts, laid in `multiply`), given at upload or later.
  */
 final readonly class ManageAvatarFrames
 {
@@ -32,7 +33,8 @@ final readonly class ManageAvatarFrames
     }
 
     /**
-     * @param array<string, string> $files the bytes of each file, by role (webm, mp4, poster, still)
+     * @param array<string, string> $files the bytes of each file, by role (webm, mp4, poster, still, and optionally
+     *                                     shadeWebm with shadeMp4)
      *
      * @throws ConflictException   when the key is taken
      * @throws ValidationException when the key, the name, the access or a file is invalid
@@ -51,9 +53,11 @@ final readonly class ManageAvatarFrames
                 $errors[$role] = [$refusal];
             }
         }
+        $errors += $this->shadeErrors($files, false);
         if ([] !== $errors) {
             throw new ValidationException('Les fichiers du cadre ne conviennent pas.', $errors, 'avatar_frame_files_invalid');
         }
+        $withShade = isset($files['shadeWebm']);
 
         $now = $this->clock->now();
         try {
@@ -64,6 +68,11 @@ final readonly class ManageAvatarFrames
                 $keys[$role] = sprintf('avatar-frames/%s-%s-%s.%s', $key, $role, $stamp, $extension);
             }
             $definition = AvatarFrameDefinition::upload($key, $label, $accessValue, $keys['webm'], $keys['mp4'], $keys['poster'], $keys['still'], $this->nextPosition(), $now);
+            if ($withShade) {
+                $keys['shadeWebm'] = sprintf('avatar-frames/%s-shade-%s.webm', $key, $stamp);
+                $keys['shadeMp4'] = sprintf('avatar-frames/%s-shade-%s.mp4', $key, $stamp);
+                $definition->shadeWith($keys['shadeWebm'], $keys['shadeMp4']);
+            }
         } catch (\DomainException $e) {
             throw new ValidationException('Clé (2 à 32 caractères : minuscules, chiffres, _) ou nom invalide.', [], $e->getMessage());
         }
@@ -74,6 +83,44 @@ final readonly class ManageAvatarFrames
         $this->frames->save($definition);
 
         return new UploadedAvatarFrame($key);
+    }
+
+    /**
+     * Story 41.30: gives an uploaded frame its shade, or replaces it.
+     *
+     * @param array<string, string> $files shadeWebm and shadeMp4
+     *
+     * @throws NotFoundException   when the frame does not exist
+     * @throws ConflictException   when the frame is a built-in one (its files are the code's)
+     * @throws ValidationException when a file is missing or invalid
+     */
+    public function shade(string $key, array $files): void
+    {
+        $definition = $this->uploaded($key);
+        $errors = $this->shadeErrors($files, true);
+        if ([] !== $errors) {
+            throw new ValidationException('Les fichiers de l\'ombre ne conviennent pas.', $errors, 'avatar_frame_files_invalid');
+        }
+        $stamp = bin2hex(random_bytes(4));
+        $webm = sprintf('avatar-frames/%s-shade-%s.webm', $key, $stamp);
+        $mp4 = sprintf('avatar-frames/%s-shade-%s.mp4', $key, $stamp);
+        $this->storage->upload($this->publicMedia->bucket(), $webm, $files['shadeWebm']);
+        $this->storage->upload($this->publicMedia->bucket(), $mp4, $files['shadeMp4']);
+        $definition->shadeWith($webm, $mp4);
+        $this->frames->save($definition);
+    }
+
+    /**
+     * Story 41.30: takes an uploaded frame's shade off (its files stay in the bucket, like a retired frame's).
+     *
+     * @throws NotFoundException when the frame does not exist
+     * @throws ConflictException when the frame is a built-in one
+     */
+    public function removeShade(string $key): void
+    {
+        $definition = $this->uploaded($key);
+        $definition->shadeWith(null, null);
+        $this->frames->save($definition);
     }
 
     /**
@@ -126,6 +173,43 @@ final readonly class ManageAvatarFrames
         }
 
         return AvatarFrameDefinition::overrideBuiltIn($key, AvatarFrame::LEGENDARY_LABELS[$key] ?? $key, AvatarFrameAccess::Admins, $position, $this->clock->now());
+    }
+
+    private function uploaded(string $key): AvatarFrameDefinition
+    {
+        $definition = $this->frames->find($key);
+        if (!$definition instanceof AvatarFrameDefinition) {
+            throw new NotFoundException('Cadre introuvable.', 'avatar_frame_not_found');
+        }
+        if (!$definition->hasOwnFiles()) {
+            throw new ConflictException('Un cadre intégré au site n\'a pas d\'ombre à envoyer.', 'avatar_frame_built_in');
+        }
+
+        return $definition;
+    }
+
+    /**
+     * The shade's files: both or none (none allowed only when `$required` is false).
+     *
+     * @param array<string, string> $files
+     *
+     * @return array<string, list<string>>
+     */
+    private function shadeErrors(array $files, bool $required): array
+    {
+        $given = array_filter(AvatarFrameFileRule::SHADE_ROLES, static fn (string $role): bool => isset($files[$role]));
+        if ([] === $given && !$required) {
+            return [];
+        }
+        $errors = [];
+        foreach (AvatarFrameFileRule::SHADE_ROLES as $role) {
+            $refusal = isset($files[$role]) ? AvatarFrameFileRule::refusal($role, $files[$role]) : 'L\'ombre demande ses deux vidéos, WebM et MP4.';
+            if (null !== $refusal) {
+                $errors[$role] = [$refusal];
+            }
+        }
+
+        return $errors;
     }
 
     private function nextPosition(): int

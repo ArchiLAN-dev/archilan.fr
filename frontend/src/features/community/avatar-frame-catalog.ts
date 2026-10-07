@@ -4,7 +4,8 @@ import { hasBooleanProp, hasStringProp } from "@/lib/type-guards";
 import type { AvatarFrameConfig, AvatarFrameVideo } from "./avatar-frames";
 
 /** Story 41.10: who may wear a video frame of the catalog. */
-export type AvatarFrameAccess = "free" | "members" | "admins" | "shop";
+/** Story 41.28: `reward` - won through an achievement or a quest, never sold. */
+export type AvatarFrameAccess = "free" | "members" | "admins" | "shop" | "reward";
 
 /**
  * A video frame of the admin catalog. A built-in one (the Légendaires of story 30.46) carries no files: the frontend
@@ -14,10 +15,22 @@ export type AvatarFrameCatalogEntry = { key: string; label: string; access: Avat
 
 export const AVATAR_FRAME_CATALOG_QUERY_KEY = ["avatar-frame-catalog"] as const;
 
-const ACCESSES: readonly AvatarFrameAccess[] = ["free", "members", "admins", "shop"];
+const ACCESSES: readonly AvatarFrameAccess[] = ["free", "members", "admins", "shop", "reward"];
+
+function isShade(v: unknown): boolean {
+  return v === undefined || v === null || (typeof v === "object" && hasStringProp(v, "webm") && hasStringProp(v, "mp4"));
+}
 
 function isVideo(v: unknown): v is AvatarFrameVideo {
-  return typeof v === "object" && v !== null && hasStringProp(v, "webm") && hasStringProp(v, "mp4") && hasStringProp(v, "poster") && hasStringProp(v, "still");
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "webm") &&
+    hasStringProp(v, "mp4") &&
+    hasStringProp(v, "poster") &&
+    hasStringProp(v, "still") &&
+    isShade("shade" in v ? v.shade : undefined)
+  );
 }
 
 function isEntry(v: unknown): v is AvatarFrameCatalogEntry {
@@ -74,5 +87,7 @@ export function frameLockReason(
       return rights.admin ? null : "Réservé aux admins pour l'instant";
     case "shop":
       return rights.owned.includes(frame.key) ? null : "En boutique";
+    case "reward":
+      return rights.owned.includes(frame.key) ? null : "À gagner (succès ou quête)";
   }
 }

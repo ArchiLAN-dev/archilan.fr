@@ -7,6 +7,8 @@ namespace App\Community\Infrastructure\Adapter;
 use App\Community\Application\Exception\DiscordServerSanctionException;
 use App\Community\Application\Port\DiscordBan;
 use App\Community\Application\Port\DiscordServerSanctionsInterface;
+use App\Shared\Infrastructure\Http\DiscordBotRest;
+use App\Shared\Infrastructure\Http\DiscordRestFailure;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
