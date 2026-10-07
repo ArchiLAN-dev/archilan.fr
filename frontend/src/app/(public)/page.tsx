@@ -8,7 +8,7 @@ import { ConsentGatedTwitchEmbed } from "@/features/streaming/consent-gated-twit
 import { LiveStreamHeading } from "@/features/streaming/live-stream-heading";
 import { getPublicEvents } from "@/features/events/public-events-api";
 import { getPublicPosts } from "@/features/content/public-posts-api";
-import { getHomeCommunityStats, getHomeRecaps, getHomeWeeklyRuns, newestFirst } from "@/features/home/home-api";
+import { getHomeCommunityStats, getHomeConceptCovers, getHomeRecaps, getHomeWeeklyRuns, newestFirst } from "@/features/home/home-api";
 import {
   HomeAssociation,
   HomeCommunity,
@@ -45,8 +45,7 @@ export default async function Home() {
     getPublicPosts(),
   ]);
   const past = newestFirst(pastAnyOrder);
-  const recaps = await getHomeRecaps(past);
-  const covers = weeklyRuns.flatMap((run) => (run.coverImageUrl ? [{ name: run.gameName, url: run.coverImageUrl }] : [])).slice(0, 3);
+  const [recaps, covers] = await Promise.all([getHomeRecaps(past), getHomeConceptCovers(weeklyRuns)]);
 
   return (
     <div className="grid gap-24">

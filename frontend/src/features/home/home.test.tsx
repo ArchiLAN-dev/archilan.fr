@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import type { PublicEvent } from "@/features/events/event-types";
-import { getHomeRecaps, getHomeWeeklyRuns, newestFirst } from "./home-api";
+import { getHomeConceptCovers, getHomeRecaps, getHomeWeeklyRuns, newestFirst } from "./home-api";
 import { HomeCommunity, HomeConcept, HomeLan, HomeNews, HomeNow, HomeRecaps } from "./home-sections";
 
 const BASE = TEST_API_BASE_URL;
@@ -30,6 +30,23 @@ describe("home page data", () => {
     });
     server.use(http.get(`${BASE}/weekly-runs/current`, () => HttpResponse.json({ data: [run("a", "active"), run("b", "finished")] })));
     expect((await getHomeWeeklyRuns()).map((r) => r.weeklyRunId)).toEqual(["a"]);
+  });
+
+  test("the concept covers complete the week's games from the catalog, playable ones only", async () => {
+    server.use(
+      http.get(`${BASE}/games`, () =>
+        HttpResponse.json({
+          data: [
+            { name: "Wind Waker", coverImageUrl: "https://img.test/ww.jpg", availability: "available" },
+            { name: "2048", coverImageUrl: "https://img.test/2048.jpg", availability: "experimental" },
+            { name: "Hollow Knight", coverImageUrl: "https://img.test/hk.jpg", availability: "available" },
+            { name: "Celeste", coverImageUrl: "https://img.test/c.jpg", availability: "available" },
+          ],
+        }),
+      ),
+    );
+    const week = [{ gameName: "Wind Waker", coverImageUrl: "https://img.test/ww-week.jpg" }] as Parameters<typeof getHomeConceptCovers>[0];
+    expect((await getHomeConceptCovers(week)).map((c) => c.name)).toEqual(["Wind Waker", "Hollow Knight", "Celeste"]);
   });
 
   test("the latest finished recaps across the recent LANs, with their LAN", async () => {

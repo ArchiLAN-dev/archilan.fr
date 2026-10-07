@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { hasStringProp } from "@/lib/type-guards";
 import { isCommunityStatsPayload, type CommunityStats } from "@/features/community/community-api";
 import type { PublicEvent } from "@/features/events/event-types";
 import { isEventRecapIndexPayload, type EventRecapIndexEntry } from "@/features/recap/recap-api";
@@ -26,6 +27,32 @@ async function getJson(path: string): Promise<unknown> {
 export async function getHomeWeeklyRuns(): Promise<CurrentWeeklyRun[]> {
   const payload = await getJson("/weekly-runs/current");
   return isCurrentRunsPayload(payload) ? payload.data.filter((run) => run.status === "active") : [];
+}
+
+/** A game of the catalog with its cover, to illustrate the concept. */
+export type HomeCover = { name: string; url: string };
+
+function isCatalogGame(v: unknown): v is { name: string; coverImageUrl: string; availability?: string } {
+  return typeof v === "object" && v !== null && hasStringProp(v, "name") && hasStringProp(v, "coverImageUrl") && v.coverImageUrl !== "";
+}
+
+/**
+ * Three covers for the concept: the games of this week's runs first, completed from the catalog (playable games
+ * only) when the week has fewer than three.
+ */
+export async function getHomeConceptCovers(weeklyRuns: CurrentWeeklyRun[]): Promise<HomeCover[]> {
+  const covers: HomeCover[] = weeklyRuns.flatMap((run) => (run.coverImageUrl ? [{ name: run.gameName, url: run.coverImageUrl }] : []));
+  if (covers.length < 3) {
+    const payload = await getJson("/games");
+    const games = typeof payload === "object" && payload !== null && "data" in payload && Array.isArray(payload.data) ? payload.data : [];
+    for (const game of games) {
+      if (covers.length >= 3) break;
+      if (isCatalogGame(game) && game.availability !== "experimental" && !covers.some((c) => c.name === game.name)) {
+        covers.push({ name: game.name, url: game.coverImageUrl });
+      }
+    }
+  }
+  return covers.slice(0, 3);
 }
 
 export async function getHomeCommunityStats(): Promise<CommunityStats | null> {
