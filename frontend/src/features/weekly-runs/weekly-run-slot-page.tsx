@@ -31,7 +31,7 @@ import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
 import type { HintsData, ReachabilityData, ToastItem } from "@/features/reachability/types";
-import { HINT_STATUS_NAMES, isHintsUpdate, isReachabilityData } from "@/features/reachability/types";
+import { HINT_STATUS_NAMES, REACHABILITY_INVALID_MESSAGE, REACHABILITY_RETRY_MS, isHintsUpdate, isReachabilityData, reachableAnswerOf } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { fetchCurrentWeeklyRuns, fetchWeeklyEntryPlayerSlots, relaunchWeeklyEntry } from "./weekly-runs-api";
 
@@ -129,6 +129,8 @@ export function WeeklyRunSlotPage({
 
   const [state, setState] = useState<PageState>({ kind: "idle" });
   const [refreshing, setRefreshing] = useState(false);
+  // Story 17.28: how many « computing » answers in a row (0: none) - each one schedules another ask.
+  const [computingTick, setComputingTick] = useState(0);
   const [liveConnected, setLiveConnected] = useState(false);
   const [showDisconnected, setShowDisconnected] = useState(false);
   const [toastQueue, setToastQueue] = useState<ToastItem[]>([]);
@@ -169,10 +171,23 @@ export function WeeklyRunSlotPage({
         if (!silent) setState({ kind: "error", message: msg });
         return;
       }
-      const json = (await res.json()) as { data: ReachabilityData };
-      setState({ kind: "data", data: json.data });
+      // Story 17.28: « computing » while the game server's tracking starts - the result comes through the live
+      // push; an answer that is not a computation says so, instead of crashing into « Impossible de contacter l'API ».
+      const answer = reachableAnswerOf(res.status, await res.json());
+      if (answer.kind === "invalid") {
+        if (!silent) setState({ kind: "error", message: REACHABILITY_INVALID_MESSAGE });
+        return;
+      }
+      if (answer.kind === "computing") {
+        setComputingTick((tick) => tick + 1);
+        if (!silent) setState({ kind: "loading" });
+        return;
+      }
+      const data = answer.data;
+      setComputingTick((tick) => (answer.computing ? tick + 1 : 0));
+      setState({ kind: "data", data });
       if (prevItemsRef.current.size === 0) {
-        prevItemsRef.current = new Map(json.data.items_received.map((i) => [i.id, i.count]));
+        prevItemsRef.current = new Map(data.items_received.map((i) => [i.id, i.count]));
       }
     } catch {
       if (!silent) setState({ kind: "error", message: "Impossible de contacter l'API." });
@@ -185,6 +200,13 @@ export function WeeklyRunSlotPage({
   useLayoutEffect(() => {
     fetchReachabilityRef.current = fetchReachability;
   });
+
+  // Story 17.28: the live push normally brings the result; asking again covers a push that never comes.
+  useEffect(() => {
+    if (computingTick === 0) return;
+    const timer = setTimeout(() => { void fetchReachabilityRef.current(true); }, REACHABILITY_RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [computingTick]);
 
   useEffect(() => {
     if (entryBaseUrl && slotIndex) void fetchReachabilityRef.current();
@@ -257,6 +279,7 @@ export function WeeklyRunSlotPage({
           }
 
           setState({ kind: "data", data });
+          setComputingTick(0);
         } catch { /* ignore malformed SSE frames */ }
       };
 
@@ -719,7 +742,7 @@ export function WeeklyRunSlotPage({
           <div className="grid gap-6">
             <div className="flex items-center gap-3 rounded border border-border bg-surface p-6 text-sm text-muted-foreground">
               <Loader2 aria-hidden="true" className="size-5 animate-spin text-accent-text" />
-              <span>Calcul de la réatteignabilité en cours… (jusqu&apos;à ~20 secondes)</span>
+              <span>Calcul de la réatteignabilité en cours… Sur une grosse partie, le premier calcul peut prendre une minute : la page se met à jour toute seule.</span>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {[0, 1, 2].map((i) => (
@@ -807,7 +830,7 @@ export function WeeklyRunSlotPage({
                       Résultat mis en cache
                     </span>
                   ) : null}
-                  {refreshing ? (
+                  {refreshing || computingTick > 0 ? (
                     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Loader2 aria-hidden="true" className="size-3.5 animate-spin" />
                       Actualisation…

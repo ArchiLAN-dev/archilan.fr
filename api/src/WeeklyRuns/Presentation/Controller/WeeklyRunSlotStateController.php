@@ -52,6 +52,13 @@ final readonly class WeeklyRunSlotStateController
             );
             $data = $response->toArray();
 
+            // Story 17.28: « computing », with the slot's last result (or none); the new one is pushed.
+            if (202 === $response->getStatusCode()) {
+                $previous = is_array($data['previous'] ?? null) ? $data['previous'] : null;
+
+                return new JsonResponse(['data' => null === $previous ? null : $this->stripItemRewards($previous), 'computing' => true], 202);
+            }
+
             $data = $this->stripItemRewards($data);
 
             return new JsonResponse(['data' => $data]);

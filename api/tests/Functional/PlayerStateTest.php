@@ -167,6 +167,33 @@ final class PlayerStateTest extends FunctionalTestCase
         self::assertStringContainsString('Twilight Princess', $error['message']);
     }
 
+    public function testReachableRelaysComputingWithThePreviousResultStripped(): void
+    {
+        // Story 17.28: the bridge answers 202 while its daemon starts; the page gets « computing »
+        // and the slot's last result, without the item rewards a player must not see.
+        $session = $this->createRunningSession('run-bridge-computing', 'evt-001');
+        $this->httpClient->setResponseFactory(new MockResponse(
+            (string) json_encode(['computing' => true, 'previous' => ['counts' => ['reachable_now' => 4], 'reachable_unchecked' => [['id' => 1, 'name' => 'Cave', 'item' => ['name' => 'Sword']]]]]),
+            ['http_code' => 202],
+        ));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(202);
+        $body = $this->decodedJsonResponse();
+        self::assertTrue($body['computing'] ?? null);
+        self::assertSame(['counts' => ['reachable_now' => 4], 'reachable_unchecked' => [['id' => 1, 'name' => 'Cave']]], $body['data'] ?? null);
+    }
+
+    public function testReachableRelaysComputingWithoutAPreviousResult(): void
+    {
+        $session = $this->createRunningSession('run-bridge-first', 'evt-001');
+        $this->httpClient->setResponseFactory(new MockResponse('{"computing":true,"previous":null}', ['http_code' => 202]));
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+        self::assertResponseStatusCodeSame(202);
+        self::assertSame(['data' => null, 'computing' => true], $this->decodedJsonResponse());
+    }
+
     public function testReachableMapsABridgeTimeoutToItsOwnCode(): void
     {
         $session = $this->createRunningSession('run-bridge-timeout', 'evt-001');

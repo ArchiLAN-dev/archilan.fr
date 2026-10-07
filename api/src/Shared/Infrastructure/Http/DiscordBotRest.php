@@ -2,17 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Community\Infrastructure\Adapter;
+namespace App\Shared\Infrastructure\Http;
 
-use App\Community\Application\Support\ModerationForumMessage;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * The project's existing bot on the Discord REST API, as the moderation uses it (stories 39.1 and 39.3): one
- * authenticated call, and the card every moderation message takes. Mentions are rendered but never notify
- * anyone (`allowed_mentions` empty).
+ * The project's existing bot on the Discord REST API (stories 39.1 and 39.3): one authenticated call. Shared since
+ * story 41.26, when the quest announcement started speaking through the bot too; each caller builds its own message
+ * and keeps mentions inert (`allowed_mentions` empty).
  */
 final readonly class DiscordBotRest
 {
@@ -88,25 +87,5 @@ final readonly class DiscordBotRest
         }
 
         return '' === $content ? [] : json_decode($content, true);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public static function messageBody(ModerationForumMessage $message): array
-    {
-        return [
-            'embeds' => [[
-                'title' => mb_substr($message->title, 0, 256),
-                'description' => mb_substr($message->description, 0, 4096),
-                'color' => $message->color,
-                'fields' => array_map(static fn (array $field): array => [
-                    'name' => mb_substr($field['name'], 0, 256),
-                    'value' => mb_substr('' !== $field['value'] ? $field['value'] : '-', 0, 1024),
-                    'inline' => false,
-                ], $message->fields),
-            ]],
-            'allowed_mentions' => ['parse' => []],
-        ];
     }
 }

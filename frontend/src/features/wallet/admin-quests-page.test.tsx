@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { fetchAdminQuests, objectivesSummary, pinQuest, type AdminQuests } from "./admin-quests-api";
+import { announceQuestWeekOnDiscord, fetchAdminQuests, isAdminQuests, objectivesSummary, pinQuest, type AdminQuests } from "./admin-quests-api";
 import { AdminQuestWeeksView, ComingWeekRow, CurrentWeek, DrawPanel, PastWeeks } from "./admin-quest-weeks";
 import { AdminQuestTypesView, questStatsLine, questTermsError } from "./admin-quests-page";
 import { weekLabel } from "./admin-quests-shared";
@@ -90,6 +90,33 @@ describe("admin weekly quests", () => {
     expect(html).toContain("1 quête");
     expect(html).toContain("110");
     expect(html).toContain("coffre compris");
+  });
+
+  test("story 41.26: the current week offers « Annoncer sur Discord » only when the bot has a channel", () => {
+    const byId = new Map(data.quests.map((quest) => [quest.id, quest]));
+    const withDiscord = renderToStaticMarkup(
+      <CurrentWeek byId={byId} chestReward={50} metrics={metrics} scopes={data.scopes} onAdd={noop} onAnnounce={noop} onRemove={noop} onReplace={noop} pending={false} week={data.weeks[0]} />,
+    );
+    const without = renderToStaticMarkup(
+      <CurrentWeek byId={byId} chestReward={50} metrics={metrics} scopes={data.scopes} onAdd={noop} onRemove={noop} onReplace={noop} pending={false} week={data.weeks[0]} />,
+    );
+
+    expect(withDiscord).toContain("Annoncer sur Discord");
+    expect(without).not.toContain("Annoncer sur Discord");
+    expect(isAdminQuests({ ...data, discordEnabled: true })).toBe(true);
+    expect(isAdminQuests({ ...data, discordEnabled: "yes" })).toBe(false);
+  });
+
+  test("story 41.26: announcing a week says what Discord did, or why it refused", async () => {
+    server.use(
+      http.post(`${TEST_API_BASE_URL}/admin/quest-weeks/2026-W41/announce-discord`, () => HttpResponse.json({ outcome: "updated" })),
+      http.post(`${TEST_API_BASE_URL}/admin/quest-weeks/2026-W42/announce-discord`, () =>
+        HttpResponse.json({ error: { code: "discord_not_configured", message: "Discord n'est pas configuré." } }, { status: 409 }),
+      ),
+    );
+
+    expect(await announceQuestWeekOnDiscord("2026-W41")).toEqual({ outcome: "updated", error: null });
+    expect(await announceQuestWeekOnDiscord("2026-W42")).toEqual({ outcome: null, error: "Discord n'est pas configuré." });
   });
 
   test("the draw panel gives the quests a week, the types in the draw and the next draw", () => {
