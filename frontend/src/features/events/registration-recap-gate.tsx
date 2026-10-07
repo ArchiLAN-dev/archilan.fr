@@ -11,6 +11,7 @@ import { SlotNeedsReview } from "@/features/games/slot-needs-review";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { useRouter } from "next/navigation";
+import { DiscordNudge } from "@/features/discord/discord-promo";
 import {
   fetchAuthProbe,
   fetchRegistrationRecap,
@@ -364,6 +365,12 @@ function ConfirmationScreen({
           À très bientôt !
         </p>
       </div>
+
+      {/* Story 30.50: the next step is the community. */}
+      <DiscordNudge cta="Rejoindre le Discord" title="Prochaine étape : rejoindre le Discord">
+        Les annonces de l&apos;événement, la constitution des équipes et les questions de dernière minute passent par le
+        Discord.
+      </DiscordNudge>
 
       {slots.length > 0 ? (
         <section className="grid gap-3">

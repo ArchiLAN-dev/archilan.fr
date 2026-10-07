@@ -18,6 +18,8 @@ import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { QueryProvider } from "@/lib/query-provider";
+import type { DiscordStats } from "@/features/discord/discord-api";
+import { DiscordHeaderLink, DiscordIconLink, DiscordJoinButton, DiscordStatsLine } from "@/features/discord/discord-promo";
 
 const legalLinks = [
   { href: "/mentions-legales", label: "Mentions légales" },
@@ -200,7 +202,7 @@ function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
   );
 }
 
-export function PublicShell({ children }: Readonly<{ children: React.ReactNode }>) {
+export function PublicShell({ children, discord = null }: Readonly<{ children: React.ReactNode; discord?: DiscordStats | null }>) {
   const menuId = useId();
   const pathname = usePathname();
   const [menuState, setMenuState] = useState({ open: false, pathname });
@@ -258,7 +260,12 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
           </div>
 
           <div className="hidden items-center gap-2 lg:flex">
+            <DiscordHeaderLink stats={discord} />
             <AuthNavDesktop />
+          </div>
+
+          <div className="ml-auto mr-2 lg:hidden">
+            <DiscordIconLink />
           </div>
 
           <button
@@ -295,7 +302,15 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
               <NavLink href="/boutique" label="Boutique" onNavigate={() => setMenuState({ open: false, pathname })} suffix={<ShopBalance />} />
               <LiveTwitchBadge onNavigate={() => setMenuState({ open: false, pathname })} />
             </div>
-            <div className="mt-auto grid gap-3 border-t border-border pt-6">
+            {/* Story 30.50: the community, at the bottom of the menu. */}
+            <div className="mt-auto grid gap-3 rounded-xl border border-discord/50 bg-discord/10 p-4">
+              <div className="grid gap-1">
+                <p className="font-heading text-base font-semibold text-foreground">La communauté est sur Discord</p>
+                <DiscordStatsLine compact stats={discord} />
+              </div>
+              <DiscordJoinButton size="lg" />
+            </div>
+            <div className="mt-6 grid gap-3 border-t border-border pt-6">
               <AuthNavMobile onNavigate={() => setMenuState({ open: false, pathname })} />
             </div>
           </nav>

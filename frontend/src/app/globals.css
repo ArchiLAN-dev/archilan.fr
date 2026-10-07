@@ -14,6 +14,8 @@
   /* Discord brand colors (blurple + hover shade) */
   --color-discord: #5865F2;
   --color-discord-hover: #4752C4;
+  /* Story 30.50: the logo on a dark ground, where the blurple is too dark to read. */
+  --color-discord-light: #9AA3FF;
   --color-success: var(--color-success);
   --color-danger: var(--color-danger);
   --color-warning: var(--color-warning);

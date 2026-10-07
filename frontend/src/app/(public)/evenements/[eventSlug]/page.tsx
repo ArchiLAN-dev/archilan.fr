@@ -11,6 +11,8 @@ import type { EventAttendanceMode, EventStatus, PublicEvent } from "@/features/e
 import { getPublicEvent } from "@/features/events/public-events-api";
 import { EventCheckout } from "@/features/events/event-checkout";
 import { EventRegistrationCta } from "@/features/events/event-registration-cta";
+import { fetchDiscordStats } from "@/features/discord/discord-api";
+import { DiscordNudge } from "@/features/discord/discord-promo";
 import { LiveSeatCounter } from "@/features/events/live-seat-counter";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import type { EventRecapIndexEntry } from "@/features/recap/recap-api";
@@ -133,6 +135,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
   if (!event) {
     notFound();
   }
+  const discord = await fetchDiscordStats();
 
   const recapParties = await getEventRecapIndex(event.id);
 
@@ -237,6 +240,12 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             )}
             {event.status === "open" ? (
               <EventRegistrationCta eventId={event.id} eventSlug={eventSlug} />
+            ) : null}
+            {/* Story 30.50: questions go to the Discord. */}
+            {event.status !== "completed" ? (
+              <DiscordNudge cta="Poser ma question sur Discord" stats={discord} title="Une question sur l'événement ?">
+                L&apos;équipe et les inscrits se retrouvent sur le Discord : horaires, matériel, choix des jeux, covoiturage.
+              </DiscordNudge>
             ) : null}
           </aside>
         </section>
