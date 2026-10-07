@@ -112,7 +112,7 @@ export default async function Home() {
               </a>
             </div>
             <div className="mt-6">
-              <HomeNow discord={discord} nextEvent={upcoming[0] ?? null} weeklyRuns={weeklyRuns.length} />
+              <HomeNow nextEvent={upcoming[0] ?? null} weeklyRuns={weeklyRuns.length} />
             </div>
           </div>
         </div>

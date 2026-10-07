@@ -49,11 +49,11 @@ describe("home page data", () => {
 
 describe("home page sections", () => {
   test("the « right now » chips say what is open and when the next LAN is", () => {
-    const html = renderToStaticMarkup(<HomeNow discord={{ members: 95, online: 45 }} nextEvent={null} weeklyRuns={3} />);
+    const html = renderToStaticMarkup(<HomeNow nextEvent={null} weeklyRuns={3} />);
     expect(html).toContain("3 runs hebdos ouvertes");
-    expect(html).toContain("45 en ligne");
+    expect(html).not.toContain("en ligne");
     expect(html).toContain("bientôt annoncée");
-    expect(renderToStaticMarkup(<HomeNow discord={null} nextEvent={null} weeklyRuns={0} />)).not.toContain("runs hebdos");
+    expect(renderToStaticMarkup(<HomeNow nextEvent={null} weeklyRuns={0} />)).not.toContain("runs hebdos");
   });
 
   test("the concept shows three games only when it has three covers", () => {

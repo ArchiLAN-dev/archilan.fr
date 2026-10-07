@@ -45,8 +45,8 @@ function MoreLink({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
-/** Under the hero buttons: proof that the site is alive this week. */
-export function HomeNow({ weeklyRuns, discord, nextEvent }: { weeklyRuns: number; discord: DiscordStats | null; nextEvent: PublicEvent | null }) {
+/** Under the hero buttons: proof that the site is alive this week (the Discord counts live in the header). */
+export function HomeNow({ weeklyRuns, nextEvent }: { weeklyRuns: number; nextEvent: PublicEvent | null }) {
   const chip = "inline-flex min-h-8 items-center gap-2 rounded-full border border-border bg-surface/85 px-3 text-[13px] text-muted-foreground";
   return (
     <ul className="flex flex-wrap gap-2" role="list">
@@ -57,11 +57,6 @@ export function HomeNow({ weeklyRuns, discord, nextEvent }: { weeklyRuns: number
             {weeklyRuns} {weeklyRuns > 1 ? "runs hebdos ouvertes" : "run hebdo ouverte"}
           </strong>
           cette semaine
-        </li>
-      ) : null}
-      {discord ? (
-        <li className={chip}>
-          <strong className="font-semibold text-foreground">{discord.online} en ligne</strong> sur le Discord
         </li>
       ) : null}
       <li className={chip}>
