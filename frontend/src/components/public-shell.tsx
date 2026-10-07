@@ -234,7 +234,7 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
       >
         <nav
           aria-label="Navigation principale"
-          className="mx-auto flex min-h-16 w-full max-w-shell items-center justify-between px-6 md:px-12 lg:px-20"
+          className="mx-auto flex min-h-16 w-full max-w-shell items-center justify-between gap-6 px-6 md:px-12 lg:px-20"
         >
           <Link className="group flex min-h-11 items-center gap-2.5" href="/">
             <Image
@@ -251,7 +251,7 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
           </Link>
 
           <div className="hidden items-center gap-4 lg:flex xl:gap-6">
-            <NavLink href="/evenements" label="Événements" />
+            {/* Événements left the desktop bar (the home hero and the footer lead there); the phone menu keeps it. */}
             <NavLink href="/runs-hebdo" label="Runs hebdos" />
             <NavLink href="/jeux" label="Jeux" />
             <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" />
@@ -338,6 +338,10 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
             <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
             <Link className="inline-flex items-center hover:text-foreground" href="/aide/archipelago">
               Installer Archipelago
+            </Link>
+            <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
+            <Link className="inline-flex items-center hover:text-foreground" href="/evenements">
+              Événements
             </Link>
             <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
             <Link className="inline-flex items-center hover:text-foreground" href="/actualites">

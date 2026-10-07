@@ -16,19 +16,22 @@ function OnlineDot() {
   return <span aria-hidden className="size-2 shrink-0 rounded-full bg-success" />;
 }
 
-/** The header button: the logo, and how many are online. */
+/**
+ * The header button: the logo, and how many are online. No word: the header is capped at the shell width, and a
+ * logged-in member already has the live badge, the bell and their menu there (the label says it all).
+ */
 export function DiscordHeaderLink({ stats, className = "" }: { stats: DiscordStats | null; className?: string }) {
   const label = stats ? `Rejoindre le Discord ArchiLAN, ${stats.online} membres en ligne (nouvel onglet)` : "Rejoindre le Discord ArchiLAN (nouvel onglet)";
   return (
     <a
       {...NEW_TAB}
       aria-label={label}
-      className={`inline-flex min-h-10 items-center gap-2 rounded-lg border border-discord/60 bg-discord/15 px-3 text-sm font-semibold text-foreground transition-colors hover:bg-discord/25 ${className}`}
+      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-discord/60 bg-discord/15 px-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-discord/25 ${className}`}
+      title="Rejoindre le Discord ArchiLAN"
     >
-      <FaDiscord aria-hidden className="size-[18px] text-discord-light" />
-      <span>Discord</span>
+      <FaDiscord aria-hidden className="size-5 text-discord-light" />
       {stats ? (
-        <span className="inline-flex items-center gap-1.5 border-l border-discord/50 pl-2 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <OnlineDot />
           {stats.online}
         </span>
