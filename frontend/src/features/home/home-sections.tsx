@@ -20,9 +20,9 @@ const NUMBER = new Intl.NumberFormat("fr-FR");
 const MONTH_YEAR = new Intl.DateTimeFormat("fr-FR", { month: "short", year: "numeric" });
 const DAY_MONTH_YEAR = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 
-function Eyebrow({ children, special = false }: { children: ReactNode; special?: boolean }) {
+function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className={`text-sm font-semibold uppercase tracking-[0.18em] ${special ? "text-[color:var(--color-special)]" : "text-accent-text"} text-on-canvas`}>
+    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-text text-on-canvas">
       {children}
     </p>
   );
@@ -367,7 +367,7 @@ export function HomeAssociation() {
   return (
     <section aria-labelledby="asso-heading" className="grid items-start gap-10 rounded-3xl border border-border bg-surface p-6 sm:p-10 lg:grid-cols-2">
       <div className="grid gap-4">
-        <Eyebrow special>L&apos;association</Eyebrow>
+        <Eyebrow>L&apos;association</Eyebrow>
         <h2 className="font-heading text-2xl font-bold text-foreground md:text-3xl" id="asso-heading">
           ArchiLAN est portée par une association à Clermont-Ferrand
         </h2>
