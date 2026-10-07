@@ -18,6 +18,8 @@ import {
 } from "./community-comments-api";
 import { MemberAvatar } from "./member-avatar";
 import { TitledName } from "@/features/community/titled-name";
+import { ProfileTitleBadge } from "@/features/community/profile-title-badge";
+import { isTitleBadge } from "@/features/community/profile-title-catalog";
 
 export function ProfileComments({ slug }: { slug: string }) {
   const { user } = useAuth();
@@ -124,6 +126,8 @@ export function ProfileComments({ slug }: { slug: string }) {
                   ) : (
                     <span className="text-sm font-semibold text-muted-foreground">Membre</span>
                   )}
+                  {/* Story 41.27: the title worn. */}
+                  {comment.author && isTitleBadge(comment.author.title) ? <ProfileTitleBadge title={comment.author.title} variant="card" /> : null}
                   <time className="text-xs text-muted-foreground" dateTime={comment.createdAt}>
                     {relativeTime(comment.createdAt)}
                   </time>

@@ -9,7 +9,7 @@ import { fetchProfileBannerCatalog, PROFILE_BANNER_CATALOG_QUERY_KEY } from "@/f
 import { ProfileTitleBadge } from "@/features/community/profile-title-badge";
 import type { NameColorStyle } from "@/features/community/name-colors";
 import { TitledName } from "@/features/community/titled-name";
-import { fetchProfileTitleCatalog, PROFILE_TITLE_CATALOG_QUERY_KEY } from "@/features/community/profile-title-catalog";
+import { fetchProfileTitleCatalog, PROFILE_TITLE_CATALOG_QUERY_KEY, badgeOf, type TitleBadge } from "@/features/community/profile-title-catalog";
 import type { ImageFraming } from "@/features/community/image-framing";
 import { cosmeticLabel, type CosmeticType } from "./shop-api";
 
@@ -26,6 +26,15 @@ export function useCosmeticLabel(): (type: CosmeticType, key: string) => string 
   return (type, key) => cosmeticLabel(type, key, type === "frame" ? frames : type === "banner" ? banners : titles);
 }
 
+/** Story 41.27: a title's badge (rarity, icon) from the catalog, null for a key it does not know. */
+export function useTitleBadge(): (key: string) => TitleBadge | null {
+  const { data: titles = [] } = useQuery({ queryKey: PROFILE_TITLE_CATALOG_QUERY_KEY, queryFn: fetchProfileTitleCatalog, staleTime: CATALOG_STALE_TIME, retry: false });
+  return (key) => {
+    const title = titles.find((candidate) => candidate.key === key);
+    return title ? badgeOf(title) : null;
+  };
+}
+
 export const COSMETIC_TYPE_LABELS: Record<CosmeticType, string> = { frame: "Cadre d'avatar", banner: "Bannière", title: "Titre de profil", color: "Couleur de pseudo" };
 
 /**
@@ -40,11 +49,14 @@ export function ShopCosmeticPreview({
   name = "?",
   className = "h-36",
   label = null,
+  title = null,
 }: {
   type: CosmeticType;
   cosmeticKey: string;
   /** Story 41.22: a title shows its text under the member's name. */
   label?: string | null;
+  /** Story 41.27: the title's badge, its rarity and icon (a plain one when unknown). */
+  title?: TitleBadge | null;
   avatarUrl?: string | null;
   framing?: ImageFraming | null;
   name?: string;
@@ -69,7 +81,7 @@ export function ShopCosmeticPreview({
       <div className={`flex flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_center,var(--color-surface),var(--color-background))] ${className}`}>
         <MemberAvatar avatarUrl={avatarUrl} framing={framing} name={name} size={64} sizeClassName="size-14" />
         <span className="text-sm font-semibold text-foreground">{name}</span>
-        <ProfileTitleBadge label={label ?? cosmeticKey} />
+        <ProfileTitleBadge title={title ?? { label: label ?? cosmeticKey, rarity: "common", icon: null, access: "shop" }} />
       </div>
     );
   }

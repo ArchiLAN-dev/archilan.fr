@@ -57,6 +57,7 @@ final readonly class LeaderboardController
                 'avatarFrame' => $entry['avatarFrame'],
                 'avatarFraming' => $entry['avatarFraming'],
                 'nameStyle' => $entry['nameStyle'],
+                'title' => $entry['title'],
                 'value' => $entry['value'],
                 'unit' => $unit,
             ];

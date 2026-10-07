@@ -57,7 +57,7 @@ final readonly class ProfileTitleController
         }
         $payload = $this->payload($request);
 
-        $this->manage->write($this->text($payload, 'key') ?? '', $this->text($payload, 'label') ?? '', $this->text($payload, 'access') ?? '');
+        $this->manage->write($this->text($payload, 'key') ?? '', $this->text($payload, 'label') ?? '', $this->text($payload, 'access') ?? '', $this->text($payload, 'rarity') ?? 'common', $this->text($payload, 'icon') ?? '');
 
         return new JsonResponse(null, 201);
     }
@@ -72,7 +72,7 @@ final readonly class ProfileTitleController
         $payload = $this->payload($request);
         $position = $payload['position'] ?? null;
 
-        $this->manage->update($key, $this->text($payload, 'label'), $this->text($payload, 'access'), is_int($position) ? $position : null);
+        $this->manage->update($key, $this->text($payload, 'label'), $this->text($payload, 'access'), is_int($position) ? $position : null, $this->text($payload, 'rarity'), $this->text($payload, 'icon'));
 
         return new JsonResponse(null, 204);
     }

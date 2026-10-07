@@ -58,21 +58,47 @@ final class ProfileTitleCatalog implements ResetInterface
     }
 
     /**
-     * The label a profile shows for its title, null for none - a retired title, or an admin-only one while its
-     * owner is not admin, shows nothing (the stored key is kept, so the title comes back with the right).
+     * The title a profile shows, null for none - a retired title, or an admin-only one while its owner is not admin,
+     * shows nothing (the stored key is kept, so the title comes back with the right). Story 41.27: with its rarity,
+     * its icon and who may wear it, for the badge and its tooltip.
+     *
+     * @return array{label: string, rarity: string, icon: string|null, access: string}|null
      */
-    public function displayed(?string $key, bool $isAdmin): ?string
+    public function badge(?string $key, bool $isAdmin): ?array
     {
         $definition = null === $key ? null : ($this->definitions()[$key] ?? null);
         if (null === $definition || $definition->isRetired() || (AvatarFrameAccess::Admins === $definition->getAccess() && !$isAdmin)) {
             return null;
         }
 
-        return $definition->getLabel();
+        return [
+            'label' => $definition->getLabel(),
+            'rarity' => $definition->getRarity()->value,
+            'icon' => $definition->getIcon()?->value,
+            'access' => $definition->getAccess()->value,
+        ];
     }
 
     /**
-     * @return list<array{key: string, label: string, access: AvatarFrameAccess, retired: bool, position: int}>
+     * Story 41.27: the badge of a card row (`title_key`, `roles` JSON), for the surfaces that read raw rows.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return array{label: string, rarity: string, icon: string|null, access: string}|null
+     */
+    public function badgeForRow(array $row): ?array
+    {
+        $key = $row['title_key'] ?? null;
+        if (!is_string($key)) {
+            return null;
+        }
+        $roles = is_string($row['roles'] ?? null) ? json_decode($row['roles'], true) : null;
+
+        return $this->badge($key, is_array($roles) && in_array('ROLE_ADMIN', $roles, true));
+    }
+
+    /**
+     * @return list<array{key: string, label: string, access: AvatarFrameAccess, retired: bool, position: int, rarity: string, icon: string|null}>
      */
     public function titles(): array
     {
@@ -82,6 +108,8 @@ final class ProfileTitleCatalog implements ResetInterface
             'access' => $definition->getAccess(),
             'retired' => $definition->isRetired(),
             'position' => $definition->getPosition(),
+            'rarity' => $definition->getRarity()->value,
+            'icon' => $definition->getIcon()?->value,
         ], $this->definitions()));
     }
 

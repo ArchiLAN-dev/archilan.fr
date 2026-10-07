@@ -14,12 +14,19 @@ import {
   PROFILE_TITLE_CATALOG_QUERY_KEY,
   PROFILE_TITLE_LIMITS,
   TITLE_ACCESS_LABELS,
+  TITLE_ICONS,
+  TITLE_ICON_LABELS,
+  TITLE_RARITIES,
+  TITLE_RARITY_LABELS,
+  badgeOf,
   fetchAdminProfileTitles,
   setProfileTitleRetired,
   titleKeyFrom,
   updateProfileTitle,
   writeProfileTitle,
   type AdminProfileTitle,
+  type TitleIcon,
+  type TitleRarity,
 } from "@/features/community/profile-title-catalog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 
@@ -94,8 +101,9 @@ export function AdminProfileTitlesView({ titles, onChange }: { titles: AdminProf
         <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface" role="list">
           {titles.map((title) => (
             <li className={`flex flex-wrap items-center gap-3 px-4 py-3 ${title.retired ? "opacity-60" : ""}`} key={title.key}>
-              <ProfileTitleBadge label={title.label} />
+              <ProfileTitleBadge title={badgeOf(title)} />
               <span className="text-xs text-muted-foreground">{title.key}</span>
+              <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{TITLE_RARITY_LABELS[title.rarity]}</span>
               <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{TITLE_ACCESS_LABELS[title.access]}</span>
               {title.retired ? <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">Retiré</span> : null}
               <div className="ml-auto flex gap-1">
@@ -119,9 +127,12 @@ export function AdminProfileTitlesView({ titles, onChange }: { titles: AdminProf
       {editing !== null ? (
         <TitleDialog
           onClose={() => setEditing(null)}
-          onSave={async (label, access) => {
+          onSave={async (label, access, rarity, icon) => {
             const done = await apply(
-              () => (editing === "new" ? writeProfileTitle({ key: titleKeyFrom(label), label, access }) : updateProfileTitle(editing.key, { label, access })),
+              () =>
+                editing === "new"
+                  ? writeProfileTitle({ key: titleKeyFrom(label), label, access, rarity, icon })
+                  : updateProfileTitle(editing.key, { label, access, rarity, icon: icon ?? "" }),
               editing === "new" ? "Titre créé." : "Titre modifié.",
             );
             if (done) setEditing(null);
@@ -142,11 +153,14 @@ function TitleDialog({
 }: {
   title: AdminProfileTitle | null;
   pending: boolean;
-  onSave: (label: string, access: AvatarFrameAccess) => Promise<void>;
+  onSave: (label: string, access: AvatarFrameAccess, rarity: TitleRarity, icon: TitleIcon | null) => Promise<void>;
   onClose: () => void;
 }) {
   const [label, setLabel] = useState(title?.label ?? "");
   const [access, setAccess] = useState<AvatarFrameAccess>(title?.access ?? "shop");
+  // Story 41.27: how the title shines, and its icon.
+  const [rarity, setRarity] = useState<TitleRarity>(title?.rarity ?? "common");
+  const [icon, setIcon] = useState<TitleIcon | null>(title?.icon ?? null);
   const trimmed = label.trim();
   const valid = trimmed.length >= PROFILE_TITLE_LIMITS.minLabel && trimmed.length <= PROFILE_TITLE_LIMITS.maxLabel && (title !== null || titleKeyFrom(trimmed).length >= 2);
 
@@ -163,7 +177,7 @@ function TitleDialog({
         className="flex min-h-0 flex-1 flex-col"
         onSubmit={(event) => {
           event.preventDefault();
-          if (valid) void onSave(trimmed, access);
+          if (valid) void onSave(trimmed, access, rarity, icon);
         }}
       >
         <DialogBody className="grid gap-3">
@@ -181,12 +195,36 @@ function TitleDialog({
               ))}
             </select>
           </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium text-foreground">Rareté</span>
+              <select className={fieldClass} onChange={(e) => setRarity(TITLE_RARITIES.find((candidate) => candidate === e.target.value) ?? "common")} value={rarity}>
+                {TITLE_RARITIES.map((candidate) => (
+                  <option key={candidate} value={candidate}>
+                    {TITLE_RARITY_LABELS[candidate]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium text-foreground">Icône</span>
+              <select className={fieldClass} onChange={(e) => setIcon(TITLE_ICONS.find((candidate) => candidate === e.target.value) ?? null)} value={icon ?? ""}>
+                <option value="">Aucune</option>
+                {TITLE_ICONS.map((candidate) => (
+                  <option key={candidate} value={candidate}>
+                    {TITLE_ICON_LABELS[candidate]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           {trimmed !== "" ? (
-            <div className="grid gap-1 text-sm">
+            <div className="grid gap-2 text-sm">
               <span className="font-medium text-foreground">Aperçu</span>
-              <span>
-                <ProfileTitleBadge label={trimmed} />
-              </span>
+              <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-background p-4">
+                <ProfileTitleBadge title={{ label: trimmed, rarity, icon, access }} />
+                <ProfileTitleBadge title={{ label: trimmed, rarity, icon, access }} variant="card" />
+              </div>
             </div>
           ) : null}
         </DialogBody>
