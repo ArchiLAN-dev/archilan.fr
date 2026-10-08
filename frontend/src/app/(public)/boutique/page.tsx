@@ -5,6 +5,7 @@ import { getMembershipCheckoutUrl } from "@/features/payments/membership-api";
 import { getShopCheckoutUrl } from "@/features/payments/shop-api";
 import { SupportArchilan } from "@/features/payments/support-archilan";
 import { CosmeticShop } from "@/features/wallet/shop-page";
+import { shelfFromParam } from "@/features/wallet/shop-shelves";
 
 export const metadata = buildPageMetadata({
   title: "Boutique",
@@ -20,8 +21,8 @@ const ASSO_TAB = "asso";
  * « Soutenir ArchiLAN »: membership, donation and official items through HelloAsso. The tab lives in the address so
  * each can be linked.
  */
-export default async function BoutiquePage({ searchParams }: { searchParams: Promise<{ onglet?: string }> }) {
-  const { onglet } = await searchParams;
+export default async function BoutiquePage({ searchParams }: { searchParams: Promise<{ onglet?: string; rayon?: string }> }) {
+  const { onglet, rayon } = await searchParams;
   const asso = onglet === ASSO_TAB;
 
   return (
@@ -38,7 +39,7 @@ export default async function BoutiquePage({ searchParams }: { searchParams: Pro
         <ShopTab active={asso} href={`/boutique?onglet=${ASSO_TAB}`} label="Soutenir ArchiLAN" />
       </nav>
 
-      {asso ? <SupportTab /> : <CosmeticShop />}
+      {asso ? <SupportTab /> : <CosmeticShop shelf={shelfFromParam(rayon)} />}
     </div>
   );
 }
