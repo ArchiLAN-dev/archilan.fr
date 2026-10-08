@@ -349,8 +349,8 @@ function EventCheckoutUnavailable({ eventId }: { eventId: string }) {
           Billetterie temporairement indisponible
         </h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Le formulaire HelloAsso ne peut pas etre charge pour le moment. Aucune inscription
-          locale n&apos;est creee tant que le paiement n&apos;est pas disponible.
+          Le formulaire HelloAsso ne peut pas être chargé pour le moment : réessaie un peu plus tard.
+          Aucune inscription n&apos;est enregistrée tant que le paiement n&apos;est pas possible.
         </p>
         <Link
           className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"

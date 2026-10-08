@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ResponsiveContainer, Sankey } from "recharts";
+import { InfoHint } from "@/components/ui/info-hint";
 
 export type ExchangeSlot = {
   slotId: string;
@@ -279,10 +280,13 @@ export function ExchangeSankey({ slots, flows, locals, progressionAvailable }: P
         </div>
       ) : null}
 
-      <p className="mb-3 text-xs text-muted-foreground">
-        Expéditeurs à gauche, destinataires à droite. L&apos;épaisseur d&apos;un ruban est le nombre d&apos;objets
-        envoyés ; un ruban qui traverse tout droit correspond aux objets qu&apos;un joueur a trouvés pour lui-même.
-      </p>
+      <InfoHint
+        className="mb-3 text-xs text-muted-foreground"
+        hint="L'épaisseur d'un ruban est le nombre d'objets envoyés ; un ruban qui traverse tout droit correspond aux objets qu'un joueur a trouvés pour lui-même."
+        label="Comment lire le graphique"
+      >
+        Expéditeurs à gauche, destinataires à droite.
+      </InfoHint>
       {/* The two label gutters need room; below ~36rem the diagram scrolls rather than crushing
           into an unreadable strip. The sr-only table stays the non-visual path either way. */}
       {links.length === 0 ? (

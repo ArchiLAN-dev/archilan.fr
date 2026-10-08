@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Loader2, PauseCircle, Play, RotateCcw } from "lucide-react";
 
 import { formatIdleDuration } from "./idle-duration";
+import { InfoHint } from "@/components/ui/info-hint";
 
 /**
  * The state of a sleeping run, and the one gesture that gets it going again (story 16.15).
@@ -73,11 +74,22 @@ export function IdleBanner({
                 : `Partie en veille${duration !== null ? ` depuis ${duration}` : ""}`}
             </h2>
 
-            <p className="mt-1 text-sm text-foreground/80">
-              {pausedWithoutSave
-                ? "Le serveur s'est arrêté sans sauvegarde exploitable. La relancer repart de zéro : la progression de tous les participants sera perdue. La configuration et les slots, eux, sont conservés."
-                : "Le serveur s'est arrêté faute d'activité. En la reprenant, la dernière sauvegarde est rechargée automatiquement."}
-            </p>
+            {/* Story 33.28: the consequence stays visible, the why behind the « i ». */}
+            {pausedWithoutSave ? (
+              <InfoHint
+                className="mt-1 text-sm text-foreground/80"
+                hint="Le serveur s'est arrêté sans sauvegarde exploitable. La configuration et les slots, eux, sont conservés."
+              >
+                La relancer repart de zéro : la progression de tous les participants sera perdue.
+              </InfoHint>
+            ) : (
+              <InfoHint
+                className="mt-1 text-sm text-foreground/80"
+                hint="Le serveur d'une partie s'arrête après une période sans activité, pour libérer les ressources du serveur."
+              >
+                En la reprenant, la dernière sauvegarde est rechargée.
+              </InfoHint>
+            )}
 
             {pausedWithoutSave && duration !== null && (
               <p className="mt-1 text-xs text-muted-foreground">En veille depuis {duration}.</p>

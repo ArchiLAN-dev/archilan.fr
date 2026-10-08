@@ -14,7 +14,7 @@ export function EventCheckout({ checkoutEmbedUrl }: { checkoutEmbedUrl: string }
       </div>
 
       <p className="mt-4 text-sm leading-6 text-muted-foreground">
-        Les inscriptions sont gerees via HelloAsso. Accepte les conditions ci-dessous pour acceder au
+        Les inscriptions passent par HelloAsso. Accepte les conditions ci-dessous pour accéder au
         formulaire d&apos;inscription.
       </p>
 

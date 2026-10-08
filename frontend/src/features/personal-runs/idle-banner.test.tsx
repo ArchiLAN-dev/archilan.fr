@@ -22,7 +22,7 @@ describe("IdleBanner", () => {
     const html = render(<IdleBanner {...base} pausedWithoutSave={false} />);
 
     expect(html).toContain("Partie en veille");
-    expect(html).toContain("la dernière sauvegarde est rechargée automatiquement");
+    expect(html).toContain("la dernière sauvegarde est rechargée");
     expect(html).toContain("Reprendre");
     // No confirmation on the harmless path: teaching the reflex of confirming without reading is
     // exactly what would defeat the dialog on the destructive one.

@@ -39,7 +39,8 @@ describe("ConnectionFields - les formes d'adresse mesurées en 37.6", () => {
 
     // Sans port, un client vise 38281 et échoue en une demi-seconde ; l'un d'eux conseille alors
     // de passer sur une version non chiffrée, ce qui envoie le joueur dans une impasse.
-    expect(html).toContain("port fait partie de l");
+    // Story 33.28: the instruction stays visible, the why (38281) sits behind the « i ».
+    expect(html).toContain("Copie l&#x27;adresse avec son port");
     expect(html).toContain("38281");
   });
 

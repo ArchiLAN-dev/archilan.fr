@@ -1,4 +1,5 @@
 import type { SendQuality, TopItems } from "./build-item-content";
+import { InfoHint } from "@/components/ui/info-hint";
 
 /**
  * Category colours, rebuilt for colour-vision deficiency.
@@ -76,10 +77,12 @@ export function RecapItemContent({ topItems, quality }: { topItems: TopItems; qu
       {showQuality ? (
         <div className="rounded-lg border border-border bg-surface p-4">
           <h3 className="font-heading text-lg font-bold text-foreground">Qualité des envois</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Ce que chaque joueur a envoyé aux autres. Cinquante objets de remplissage et cinquante
-            déblocages font le même total, pas la même contribution.
-          </p>
+          <InfoHint
+            className="mt-1 text-xs text-muted-foreground"
+            hint="Cinquante objets de remplissage et cinquante déblocages font le même total, pas la même contribution : la qualité sépare les deux."
+          >
+            Ce que chaque joueur a envoyé aux autres.
+          </InfoHint>
 
           <ul className="mt-3 grid gap-3">
             {quality.map((entry) => (
