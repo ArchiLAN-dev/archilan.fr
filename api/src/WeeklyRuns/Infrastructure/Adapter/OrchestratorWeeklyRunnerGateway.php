@@ -6,14 +6,19 @@ namespace App\WeeklyRuns\Infrastructure\Adapter;
 
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface;
+use Archilan\OrchestratorClient\Exception\SessionNotFoundException;
 use Archilan\OrchestratorClient\OrchestratorClient;
+use Archilan\OrchestratorClient\Sessions\Response\SessionResponse;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class OrchestratorWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
 {
-    private const int LAUNCH_POLL_INTERVAL_MS = 2_000;
-    private const int LAUNCH_TIMEOUT_S = 60;
+    // Story 23.15: the orchestrateur gives a launch 120 s (LAUNCH_TIMEOUT) and a heavy world does take
+    // more than a minute; waiting less made the API give up on a launch the orchestrateur then finished.
+    private const int LAUNCH_TIMEOUT_S = 150;
+    /** Orchestrateur states of a launch still under way, worth waiting for rather than relaunching. */
+    private const array IN_PROGRESS_STATUSES = ['generating', 'launching'];
 
     public function __construct(
         private OrchestratorClient $client,
@@ -24,6 +29,7 @@ final readonly class OrchestratorWeeklyRunnerGateway implements WeeklyRunnerGate
         private string $orchestrateurApiKey,
         private string $runnerPublicHost,
         private string $minioSessionsBucket,
+        private int $launchPollIntervalMs = 2_000,
     ) {
     }
 
@@ -33,19 +39,26 @@ final readonly class OrchestratorWeeklyRunnerGateway implements WeeklyRunnerGate
         // The join password comes from the resolved config when set, else a random one.
         $serverPassword = (null !== $joinPassword && '' !== $joinPassword) ? $joinPassword : bin2hex(random_bytes(8));
 
-        // 1. Configure the entry session: uploads the template YAML + manifest to MinIO so
-        //    the orchestrator can stage /data/yamls + /data/worlds (needed for reachability).
-        $this->configureSession($entryId, $apworldHash, $templateYaml);
+        // Story 23.15: a previous click may have launched this entry already (the API gave up before the
+        // orchestrateur finished). Its session would refuse a new configure/launch with a 409 forever, so
+        // adopt it instead - same template, same generated world, nothing to redo.
+        $session = $this->adoptExisting($entryId);
 
-        // 2. Download the run's pre-generated world from MinIO (zero regeneration).
-        $output = $this->minioStorage->download($this->minioSessionsBucket, $outputKey);
+        if (!$session instanceof SessionResponse) {
+            // 1. Configure the entry session: uploads the template YAML + manifest to MinIO so
+            //    the orchestrator can stage /data/yamls + /data/worlds (needed for reachability).
+            $this->configureSession($entryId, $apworldHash, $templateYaml);
 
-        // 3. Inject it into the session volume and launch - no generation is run.
-        $this->client->sessions()->launchFromFile($entryId, $output, basename($outputKey), $adminPassword, $serverPassword, $serverOptions);
-        $this->logger->info('weekly_entry.launch_from_file.triggered', ['entryId' => $entryId]);
+            // 2. Download the run's pre-generated world from MinIO (zero regeneration).
+            $output = $this->minioStorage->download($this->minioSessionsBucket, $outputKey);
 
-        // 4. Poll until running and get connection info.
-        $session = $this->pollUntilStatus($entryId, 'running', self::LAUNCH_TIMEOUT_S, self::LAUNCH_POLL_INTERVAL_MS);
+            // 3. Inject it into the session volume and launch - no generation is run.
+            $this->client->sessions()->launchFromFile($entryId, $output, basename($outputKey), $adminPassword, $serverPassword, $serverOptions);
+            $this->logger->info('weekly_entry.launch_from_file.triggered', ['entryId' => $entryId]);
+
+            // 4. Poll until running and get connection info.
+            $session = $this->pollUntilStatus($entryId, 'running', self::LAUNCH_TIMEOUT_S, $this->launchPollIntervalMs);
+        }
 
         $apPort = $session->apPort;
         if (null === $apPort) {
@@ -77,6 +90,32 @@ final readonly class OrchestratorWeeklyRunnerGateway implements WeeklyRunnerGate
         throw new \RuntimeException('getStats not yet implemented for OrchestratorWeeklyRunnerGateway');
     }
 
+    /**
+     * The entry's orchestrateur session when it is running already (or about to), null when a launch
+     * must happen: no session, or one stopped, idle, crashed or never launched.
+     */
+    private function adoptExisting(string $entryId): ?SessionResponse
+    {
+        try {
+            $session = $this->client->sessions()->get($entryId);
+        } catch (SessionNotFoundException) {
+            return null;
+        }
+
+        if (in_array($session->status, self::IN_PROGRESS_STATUSES, true)) {
+            $this->logger->info('weekly_entry.launch.awaiting_existing', ['entryId' => $entryId, 'status' => $session->status]);
+            $session = $this->pollUntilStatus($entryId, 'running', self::LAUNCH_TIMEOUT_S, $this->launchPollIntervalMs);
+        }
+
+        if ('running' !== $session->status) {
+            return null;
+        }
+
+        $this->logger->info('weekly_entry.launch.adopted_existing', ['entryId' => $entryId]);
+
+        return $session;
+    }
+
     private function configureSession(string $entryId, string $apworldHash, string $templateYaml): void
     {
         $url = rtrim($this->orchestrateurBaseUrl, '/')."/sessions/{$entryId}/configure";
@@ -99,7 +138,7 @@ final readonly class OrchestratorWeeklyRunnerGateway implements WeeklyRunnerGate
         string $expectedStatus,
         int $timeoutSeconds,
         int $intervalMs,
-    ): \Archilan\OrchestratorClient\Sessions\Response\SessionResponse {
+    ): SessionResponse {
         $deadline = time() + $timeoutSeconds;
 
         while (time() < $deadline) {
