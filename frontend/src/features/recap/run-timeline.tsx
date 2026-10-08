@@ -108,8 +108,10 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
   const [search, setSearch] = useState("");
   const [facet, setFacet] = useState<LogFacet>("all");
 
-  // Days that actually saw item finds, chronological (YYYY-MM-DD sorts as a string).
-  const finds = useMemo(() => events.filter((e) => e.sender.slot !== null), [events]);
+  // Days that actually saw item finds, chronological (YYYY-MM-DD sorts as a string). Item events only:
+  // they are all the curve counts. A day holding nothing but a hint or a goal used to become the
+  // default day, draw no series, and blank the whole timeline - pager included (story 32.21).
+  const finds = useMemo(() => events.filter((e) => e.type === "item-received" && e.sender.slot !== null), [events]);
   const days = useMemo(() => [...new Set(finds.map((e) => dayKey(e.occurredAt)))].sort(), [finds]);
 
   // Default to the most recent day; clamp in case live events add a day under a stale selection.
