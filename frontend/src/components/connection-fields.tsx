@@ -1,6 +1,7 @@
 "use client";
 
 import { SecretField } from "@/components/secret-field";
+import { SlotNameField, type ConnectionSlot } from "@/components/slot-name-field";
 import { InfoHint } from "@/components/ui/info-hint";
 
 /**
@@ -20,6 +21,7 @@ export function ConnectionFields({
   uri,
   password,
   adminPassword,
+  slots = [],
 }: {
   host: string;
   port: number;
@@ -28,11 +30,20 @@ export function ConnectionFields({
   /** Null quand la run a été lancée sans mot de passe (story 16.13) - la ligne est alors omise. */
   password: string | null;
   adminPassword?: string | null;
+  /** Story 17.29: the player's slot name(s), shown first - the value a client asks for before anything else. */
+  slots?: ConnectionSlot[];
 }) {
   const joined = `${host}:${port}`;
 
   return (
     <div className="flex flex-col gap-3">
+      {slots.length > 0 ? (
+        <div className="grid grid-cols-1 gap-2">
+          {slots.map((slot) => (
+            <SlotNameField key={slot.name} showGame={slots.length > 1} slot={slot} />
+          ))}
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {uri != null && <SecretField label="Adresse - client Archipelago" value={uri} />}
         <SecretField label="Adresse - client web" value={joined} />

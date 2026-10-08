@@ -31,6 +31,8 @@ export type WeeklyRunMyEntry = {
   // Live status of the entry's AP container, from the shared Session lifecycle (story 17.13).
   // null = never launched. "running" = up; idle/stopped/crashed = relaunchable; restarting = in progress.
   sessionStatus: string | null;
+  // Story 17.29: the name to type in the client (the template's YAML name, resolved). Absent on older payloads.
+  slotName?: string | null;
   connectionInfo: { host: string; port: number; uri?: string | null; password: string | null } | null;
 };
 

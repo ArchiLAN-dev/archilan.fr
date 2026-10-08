@@ -61,3 +61,38 @@ describe("ConnectionFields - les formes d'adresse mesurées en 37.6", () => {
     expect(html).toContain("Pas de mot de passe");
   });
 });
+
+/** Story 17.29: the slot name is the first thing a client asks for - shown first, in clear. */
+describe("ConnectionFields - nom du slot", () => {
+  test("le nom du slot vient en premier, en clair, avant l'adresse", () => {
+    const html = render(<ConnectionFields {...props} slots={[{ name: "Player1", game: null }]} />);
+
+    expect(html).toContain(">Player1<");
+    expect(html.indexOf("Nom du slot")).toBeLessThan(html.indexOf("Adresse - client Archipelago"));
+  });
+
+  test("avec plusieurs slots, chacun dit son jeu", () => {
+    const html = render(
+      <ConnectionFields
+        {...props}
+        slots={[
+          { name: "Alice_PE", game: "Pokemon Emerald" },
+          { name: "Carol_HK", game: "Hollow Knight" },
+        ]}
+      />,
+    );
+
+    expect(html).toContain("Nom du slot - Pokemon Emerald");
+    expect(html).toContain("Nom du slot - Hollow Knight");
+  });
+
+  test("un seul slot ne répète pas son jeu", () => {
+    const html = render(<ConnectionFields {...props} slots={[{ name: "Alice_PE", game: "Pokemon Emerald" }]} />);
+
+    expect(html).not.toContain("Nom du slot - ");
+  });
+
+  test("sans slot connu, rien ne change", () => {
+    expect(render(<ConnectionFields {...props} />)).not.toContain("Nom du slot");
+  });
+});

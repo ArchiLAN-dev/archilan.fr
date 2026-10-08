@@ -13,6 +13,7 @@ use App\Identity\Domain\Repository\AdminUserActionAuditRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
+use App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
@@ -44,6 +45,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
             'https://archilan.test',
             new AdminRunActionTrace(self::createStub(AdminUserActionAuditRepositoryInterface::class), new MockClock()),
             $archives ?? self::createStub(RunArchiveRepositoryInterface::class),
+            self::createStub(MyRunSlotsQueryInterface::class),
         );
     }
 

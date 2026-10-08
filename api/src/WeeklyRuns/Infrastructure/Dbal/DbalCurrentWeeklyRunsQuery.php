@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\WeeklyRuns\Infrastructure\Dbal;
 
 use App\Shared\Application\Support\ArchipelagoConnectionUri;
+use App\Shared\Application\Support\ArchipelagoSlotNameResolver;
+use App\Shared\Application\Support\SlotYamlNameReader;
 use App\WeeklyRuns\Application\Query\CurrentWeeklyRunsQueryInterface;
 use Doctrine\DBAL\Connection;
 
@@ -124,6 +126,11 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                         'launchedAt' => $launchedAt,
                         'goalReachedAt' => $goalReachedAt,
                         'sessionStatus' => $sessionStatus,
+                        // Story 17.29: the name to type in the client - the template's YAML name as
+                        // Archipelago resolved it in this one-player world (`Player{number}` -> `Player1`).
+                        'slotName' => ArchipelagoSlotNameResolver::soloWorld(
+                            is_string($runRow['yaml_config']) ? SlotYamlNameReader::read($runRow['yaml_config']) : null,
+                        ),
                         'connectionInfo' => null,
                     ];
                     if (null !== $externalSessionId && null !== $connectionHost && null !== $connectionPort) {
