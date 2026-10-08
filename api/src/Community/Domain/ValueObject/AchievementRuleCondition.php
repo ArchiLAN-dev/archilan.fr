@@ -25,6 +25,22 @@ final readonly class AchievementRuleCondition implements AchievementRule
         return $this->operator->evaluate($bag->get($this->fact), $this->value, $this->value2);
     }
 
+    /**
+     * @return array{type: 'condition', fact: string, operator: string, value: int, value2: int|null, current: int, met: bool}
+     */
+    public function progress(MetricBag $bag): array
+    {
+        return [
+            'type' => 'condition',
+            'fact' => $this->fact,
+            'operator' => $this->operator->value,
+            'value' => $this->value,
+            'value2' => $this->operator->requiresUpperBound() ? ($this->value2 ?? $this->value) : null,
+            'current' => $bag->get($this->fact),
+            'met' => $this->matches($bag),
+        ];
+    }
+
     public function toArray(): array
     {
         $out = ['fact' => $this->fact, 'operator' => $this->operator->value, 'value' => $this->value];

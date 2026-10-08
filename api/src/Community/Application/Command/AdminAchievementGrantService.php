@@ -57,7 +57,7 @@ final readonly class AdminAchievementGrantService
             return 'ok';
         }
 
-        $this->grants->save(AchievementGrant::grant($userId, $key, $this->clock->now()));
+        $this->grants->save(AchievementGrant::grant($userId, $key, $this->clock->now(), byTeam: true));
         $this->notifier->notify($userId, Notification::TYPE_ACHIEVEMENT_UNLOCKED, ['achievementKey' => $key]);
         // Story 41.28: and the cosmetic it unlocks.
         $reward = $definition->getReward();

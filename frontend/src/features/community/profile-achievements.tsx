@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 import type { Achievement, AchievementCollectionProgress, AchievementStats } from "@/features/players/player-profile-api";
-import { AchievementCard } from "./achievement-card";
+import { AchievementTile } from "./achievement-details";
 import { ProfileCollections } from "./achievement-collections";
 
 /**
@@ -47,7 +47,7 @@ export function ProfileAchievements({
       {achievements.length > 0 ? (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="list">
           {achievements.map((achievement) => (
-            <AchievementCard achievement={achievement} key={achievement.key} />
+            <AchievementTile achievement={achievement} key={achievement.key} slug={slug} />
           ))}
         </ul>
       ) : (
