@@ -13,7 +13,7 @@ type DialogProps = {
   description?: ReactNode;
   /** `center` for a form or a confirmation, `side` for a panel to read next to the list it comes from. */
   variant?: "center" | "side";
-  /** A centred dialog's width: `wide` for a picker with a preview beside it. */
+  /** `wide`: a centred picker with a preview beside it, or a side panel holding a large form (story 30.51). */
   size?: "default" | "wide";
   children: ReactNode;
 };
@@ -34,7 +34,10 @@ export function Dialog({ open, onOpenChange, title, description, variant = "cent
           className={cn(
             "fixed z-50 flex flex-col border-border bg-surface shadow-xl focus:outline-none",
             variant === "side"
-              ? "inset-y-0 right-0 h-full w-full max-w-md border-l data-[state=open]:animate-in data-[state=open]:slide-in-from-right"
+              ? cn(
+                  "inset-y-0 right-0 h-full w-full border-l data-[state=open]:animate-in data-[state=open]:slide-in-from-right",
+                  size === "wide" ? "max-w-2xl" : "max-w-md",
+                )
               : cn(
                   "left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
                   size === "wide" ? "max-w-4xl" : "max-w-lg",

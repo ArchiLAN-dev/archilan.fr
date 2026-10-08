@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Community\Domain\DefaultAchievementDefinitions;
+use App\Community\Domain\Entity\AchievementGrant;
 
 final class AdminAchievementTest extends FunctionalTestCase
 {
@@ -36,6 +37,31 @@ final class AdminAchievementTest extends FunctionalTestCase
         $operators = $options['operators'] ?? null;
         self::assertIsArray($operators);
         self::assertContains('between', $operators);
+    }
+
+    public function testTheDashboardCountsWhoHoldsEachAchievement(): void
+    {
+        // Story 30.51: how many members unlocked it, next to each definition.
+        $this->seedDefaultAchievementDefinitions();
+        $alice = $this->createUser('alice@example.org', slug: 'alice');
+        $bob = $this->createUser('bob@example.org', slug: 'bob');
+        foreach ([$alice, $bob] as $member) {
+            $this->entityManager->persist(AchievementGrant::grant($member->getId(), 'first_run', new \DateTimeImmutable()));
+        }
+        $this->entityManager->flush();
+        $this->loginAs($this->createUser('admin@example.org', roles: ['ROLE_USER', 'ROLE_ADMIN']));
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/community/achievements');
+        self::assertResponseIsSuccessful();
+
+        $holders = [];
+        foreach ($this->dataArray() as $definition) {
+            self::assertIsArray($definition);
+            self::assertIsString($definition['key'] ?? null);
+            $holders[$definition['key']] = $definition['holders'] ?? null;
+        }
+        self::assertSame(2, $holders['first_run']);
+        self::assertSame(0, $holders['veteran']);
     }
 
     public function testCreateUpdateToggleAndReorder(): void

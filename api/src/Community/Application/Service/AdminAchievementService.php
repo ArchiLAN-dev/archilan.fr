@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application\Service;
 
 use App\Community\Application\Port\CosmeticOwnershipInterface;
+use App\Community\Application\Query\AchievementRarityQueryInterface;
 use App\Community\Application\Query\EventCatalogueQueryInterface;
 use App\Community\Application\Support\AchievementImageUrlResolver;
 use App\Community\Application\Support\CosmeticRewardCatalog;
@@ -39,6 +40,7 @@ final readonly class AdminAchievementService
         private CosmeticRewardCatalog $cosmetics,
         private CosmeticRewarder $rewarder,
         private AchievementGrantRepositoryInterface $grants,
+        private AchievementRarityQueryInterface $rarity,
     ) {
     }
 
@@ -51,13 +53,19 @@ final readonly class AdminAchievementService
     }
 
     /**
-     * The admin dashboard payload: every definition plus the rule-builder option lists, in one read.
+     * The admin dashboard payload: every definition plus the rule-builder option lists, in one read. Story 30.51:
+     * each definition carries how many members hold it (listable members, as the catalogue's rarity).
      *
-     * @return array{definitions: list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null}>, options: array{facts: list<array{key: string, label: string}>, operators: list<string>, groupOps: list<string>, events: list<array{id: string, title: string}>}}
+     * @return array{definitions: list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null, holders: int}>, options: array{facts: list<array{key: string, label: string}>, operators: list<string>, groupOps: list<string>, events: list<array{id: string, title: string}>}}
      */
     public function dashboard(): array
     {
-        return ['definitions' => $this->list(), 'options' => $this->formOptions()];
+        $holders = $this->rarity->snapshot()['grantsByKey'];
+
+        return [
+            'definitions' => array_map(static fn (array $definition): array => [...$definition, 'holders' => $holders[$definition['key']] ?? 0], $this->list()),
+            'options' => $this->formOptions(),
+        ];
     }
 
     /**
