@@ -51,8 +51,12 @@ describe("achievement rules", () => {
   });
 
   test("the whole rule reads as one French sentence", () => {
-    expect(ruleInFrench(threeLevels, options)).toBe(
-      "Débloqué si Parties jouées : au moins 10, et (Objectif - ArchiLAN #3 : au moins 1, ou (Checks complétés (total) entre 500 et 2 000, et Quêtes hebdo réussies (total) : au moins 20)), et aucun de (Superlatif « Le Parrain » (le plus généreux) : au moins 1).",
+    // Story 30.54: each condition as the member would say it.
+    expect(ruleInFrench(threeLevels, options).replace(/\s/g, " ")).toBe(
+      "Pour le débloquer : jouer 10 parties, et (atteindre son objectif à « ArchiLAN #3 », ou (compléter entre 500 et 2 000 checks, et réussir 20 quêtes de la semaine)), et ne pas remporter le superlatif « Le Parrain ».",
+    );
+    expect(ruleInFrench({ op: "all", rules: [cond("questChestStreak", 10)] }, { ...options, facts: [{ key: "questChestStreak", label: "Plus longue série de semaines avec le coffre" }] })).toBe(
+      "Pour le débloquer : ouvrir le coffre des quêtes 10 semaines d'affilée.",
     );
     expect(ruleDepth(threeLevels)).toBe(3);
   });

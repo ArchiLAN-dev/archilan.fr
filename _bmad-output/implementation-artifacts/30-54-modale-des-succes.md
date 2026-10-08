@@ -29,13 +29,16 @@ conditions se lisent comme une formule (« Items reçus d'autres joueurs : au mo
    collect) », « Atteindre son objectif à « ArchiLAN #3 » », « Remporter le superlatif « Le Parrain » 3 fois »,
    « Compléter entre 500 et 2 000 checks » ; singulier et article (« Jouer une partie ») ; « Ne pas … » sous « aucune » ;
    un critère inconnu retombe sur son libellé.
-6. Gates verts ; tests (phrases, score global, rendu).
+6. **Admin, « En clair »** : les mêmes phrases (« Pour le débloquer : ouvrir le coffre des quêtes 10 semaines
+   d'affilée. ») au lieu de « Débloqué si Plus longue série de semaines avec le coffre : au moins 10. » (retour de Jean).
+7. Gates verts ; tests (phrases, score global, rendu, « En clair »).
 
 ## Tasks / Subtasks
 
 - [x] **Task 1** (AC 5) - `achievement-phrasing.ts` : une phrase par critère ; tests.
 - [x] **Task 2** (AC 1-4) - `achievement-details.tsx` : barre, progression globale, en-tête, groupes ; tests.
-- [x] **Task 3** (AC 6) - Gates.
+- [x] **Task 3** (AC 6) - `ruleInFrench()` de l'admin passe par `conditionPhrase()` ; « ne pas … » sous « aucune » ; tests.
+- [x] **Task 4** (AC 7) - Gates.
 
 ## Dev Agent Record
 
@@ -43,4 +46,6 @@ conditions se lisent comme une formule (« Items reçus d'autres joueurs : au mo
   avec son article ; événement et superlatif par leur nom tiré du libellé de l'API.
 - `progressScore()` et `conditionsMet()` pour la tête de la modale ; `Bar` commune (piste `bg-border`, `h-2` / `h-3`,
   largeur minimale visible dès 1 %).
+- `achievement-rules.ts` : `ruleInFrench()` réutilise `conditionPhrase()` (un objectif d'événement par le titre de
+  l'événement des options). Les pastilles de la liste admin gardent leur forme courte.
 - Front seulement, aucune API touchée.
