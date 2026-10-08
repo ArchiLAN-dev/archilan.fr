@@ -5,6 +5,52 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.37.0] - 2026-10-08
+
+Les succès se rangent en collections et disent où l'on en est ; la boutique se range en rayons et s'essaie sur tout
+son profil. Correctif de sécurité Next.js.
+
+### Ajouté
+
+- **Collections de succès** (30.52) : une collection (nom, description, image) regroupe des succès, et la compléter
+  rapporte une récompense une seule fois (un cosmétique, des pelles, ou les deux), avec une notification
+  « Collection complète ». Le catalogue d'un joueur se lit par collection avec sa progression, le profil montre les
+  trois plus avancées. Une collection secrète reste cachée (elle, ses succès et leur compte) jusqu'au premier de ses
+  succès débloqué.
+- **Où j'en suis d'un succès** (30.53) : un clic sur un succès ouvre sa fiche. Sur son propre profil, le membre voit
+  l'avancement de chaque condition (valeur, cible, barre), calculé seulement à l'ouverture. Les autres ne voient pas
+  ces chiffres. Un succès donné par l'équipe le dit (« Attribué par l'équipe »).
+- **Rayons de la boutique** (41.31) : cadres, bannières, titres et couleurs de pseudo chacun dans son rayon, avec des
+  pastilles pour n'en garder qu'un (le rayon est dans l'adresse) ; « En promo » se combine au rayon.
+
+### Modifié
+
+- **Admin des succès** (30.51) : la liste se range par glisser-déposer (aussi d'une collection à l'autre), se filtre
+  et se cherche ; chaque succès montre ses critères en pastilles et le nombre de membres qui l'ont ; la règle se
+  modifie en arbre dans un panneau latéral.
+- **Fiche d'un succès** (30.54) : barres lisibles, progression globale en tête, conditions écrites en phrases
+  (« Jouer 10 parties », « Ne pas … ») ; l'« En clair » de l'admin parle de la même façon.
+- **Essayer un cosmétique** (41.32) : l'aperçu montre tout l'en-tête du profil (bannière, cadre, pseudo, titre), avec
+  « Avant / Avec l'objet ».
+- **Explications techniques à la demande** (33.28) : les longues explications passent derrière un bouton « i » qui
+  ouvre un panneau flottant.
+- Accueil : contraste et libellés relevés par Lighthouse ; le pied de page tient de nouveau sur une ligne.
+
+### Sécurité
+
+- Next.js 16.3.8 (GHSA-cjq9-62q9-8jv4).
+
+### Déploiement
+
+- Pas de nouvelle variable.
+- Après déploiement : créer la collection « Re:Zero » depuis l'admin des succès et y ranger « Je t'aime, je t'aime,
+  je t'aime… ».
+
+### Migrations
+
+- `Version20261008090000` : collections de succès, leurs complétions, `collection_id` sur les succès.
+- `Version20261008100000` : `community_achievement_grant.by_team`.
+
 ## [0.36.0] - 2026-10-07
 
 Un nouvel accueil pensé pour qui découvre Archipelago, et le Discord mis en avant partout où il sert.
