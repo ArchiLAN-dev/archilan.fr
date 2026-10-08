@@ -96,5 +96,6 @@ export async function fetchMyCollection(): Promise<Collection | null> {
 export function originText(origin: NonNullable<CollectionItem["origin"]>): string {
   if (origin.source === "achievement") return `Succès « ${origin.label ?? "?"} »`;
   if (origin.source === "quest") return `Quête « ${origin.label ?? "?"} »`;
+  if (origin.source === "collection") return `Collection « ${origin.label ?? "?"} »`;
   return "Acheté en boutique";
 }

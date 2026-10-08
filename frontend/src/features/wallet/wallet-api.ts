@@ -50,6 +50,7 @@ export const PELLE_REASON_LABELS: Record<string, string> = {
   quest_reward: "Quête de la semaine",
   shop_purchase: "Achat en boutique",
   welcome_reward: "Premiers pas",
+  collection_reward: "Collection complète",
 };
 
 export function pelleReasonLabel(reason: string): string {

@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Community\Application\Command\RecomputeAchievements;
 use App\Community\Application\Port\AchievementMetricProviderInterface;
+use App\Community\Application\Support\CollectionCompletionRewarder;
 use App\Community\Application\Support\CosmeticRewarder;
 use App\Community\Application\Support\MetricBagBuilder;
 use App\Community\Application\Support\Notifier;
@@ -42,7 +43,7 @@ final class AchievementSeedParityTest extends FunctionalTestCase
         $builder = new MetricBagBuilder([$this->fixedProvider([
             'runs' => 10, 'goals' => 10, 'checks' => 1000, 'items' => 1000, 'distinctGames' => 5,
         ])]);
-        $recompute = new RecomputeAchievements($definitions, $grants, $builder, $notifier, new MockClock(), $this->rewarder());
+        $recompute = new RecomputeAchievements($definitions, $grants, $builder, $notifier, new MockClock(), $this->rewarder(), $this->collections());
 
         $added = $recompute->recomputeForUser('user-1', notify: false);
 
@@ -82,5 +83,13 @@ final class AchievementSeedParityTest extends FunctionalTestCase
         self::assertInstanceOf(CosmeticRewarder::class, $rewarder);
 
         return $rewarder;
+    }
+
+    private function collections(): CollectionCompletionRewarder
+    {
+        $collections = self::getContainer()->get(CollectionCompletionRewarder::class);
+        self::assertInstanceOf(CollectionCompletionRewarder::class, $collections);
+
+        return $collections;
     }
 }

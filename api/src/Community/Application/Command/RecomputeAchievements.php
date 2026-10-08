@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application\Command;
 
 use App\Community\Application\Port\CosmeticOwnershipInterface;
+use App\Community\Application\Support\CollectionCompletionRewarder;
 use App\Community\Application\Support\CosmeticRewarder;
 use App\Community\Application\Support\MetricBagBuilder;
 use App\Community\Application\Support\Notifier;
@@ -30,6 +31,7 @@ final readonly class RecomputeAchievements
         private Notifier $notifier,
         private ClockInterface $clock,
         private CosmeticRewarder $rewarder,
+        private CollectionCompletionRewarder $collections,
     ) {
     }
 
@@ -62,6 +64,9 @@ final readonly class RecomputeAchievements
                 ++$added;
             }
         }
+        // Story 30.52: and the collections now complete - also those an admin just filled with achievements the
+        // member already held.
+        $this->collections->settle($userId, $notify);
 
         return $added;
     }

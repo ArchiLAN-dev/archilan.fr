@@ -19,6 +19,7 @@ const profile: PlayerProfile = {
   level: { level: 16, xp: 5000, xpIntoLevel: 10, xpForNextLevel: 100 },
   achievements: [],
   achievementStats: { unlocked: 0, total: 0 },
+  collections: [],
   presence: { playing: false, sessionId: null, game: null },
   customization: null,
   stats: { runsParticipated: 15, goalCompletions: 15, totalChecksDone: 5855, totalItemsReceived: 4200, goalCompletionRate: 1 },

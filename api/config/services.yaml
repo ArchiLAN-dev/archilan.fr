@@ -101,6 +101,8 @@ services:
     Random\Randomizer: ~
     # Story 41.7: Community reads what a member bought through its own port, implemented by the shop.
     App\Community\Application\Port\CosmeticOwnershipInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
+    # Story 30.52: a completed collection's pelles, credited through the Wallet ledger.
+    App\Community\Application\Port\PelleRewardInterface: '@App\Wallet\Infrastructure\Adapter\LedgerPelleReward'
 
     App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyRunRepository'
     App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyTemplateRepository'
@@ -341,6 +343,7 @@ services:
     App\Sessions\Application\Port\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\Adapter\MessengerAchievementRecomputeTrigger'
     App\Community\Domain\Repository\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementGrantRepository'
     App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementDefinitionRepository'
+    App\Community\Domain\Repository\AchievementCollectionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementCollectionRepository'
     App\Community\Domain\Repository\FriendshipRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendshipRepository'
     App\Community\Domain\Repository\BlockRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineBlockRepository'
     App\Community\Domain\Repository\ActivityEntryRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineActivityEntryRepository'

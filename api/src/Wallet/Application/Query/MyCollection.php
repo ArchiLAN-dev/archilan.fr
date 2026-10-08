@@ -11,6 +11,7 @@ use App\Community\Application\Support\ProfileTitleCatalog;
 use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Enum\AvatarFrameAccess;
 use App\Community\Domain\Enum\NameColor;
+use App\Community\Domain\Repository\AchievementCollectionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\Wallet\Domain\Entity\QuestDefinition;
@@ -37,6 +38,7 @@ final readonly class MyCollection
         private ShopRepositoryInterface $shop,
         private QuestRepositoryInterface $quests,
         private AchievementDefinitionRepositoryInterface $achievements,
+        private AchievementCollectionRepositoryInterface $collections,
         private AvatarFrameCatalog $frames,
         private ProfileBannerCatalog $banners,
         private ProfileTitleCatalog $titles,
@@ -139,7 +141,7 @@ final readonly class MyCollection
     }
 
     /**
-     * The active achievements and the quests still out that unlock each cosmetic.
+     * The active achievements, the collections and the quests still out that unlock each cosmetic.
      *
      * @return array<string, list<array{kind: string, label: string, detail: string|null, price: int|null}>> keyed `{type}:{key}`
      */
@@ -150,6 +152,15 @@ final readonly class MyCollection
             $reward = $achievement->getReward();
             if (null !== $reward) {
                 $rewards[$reward->type.':'.$reward->key][] = $this->fromAchievement($achievement);
+            }
+        }
+        // Story 30.52: a completed collection; a secret one keeps its name.
+        foreach ($this->collections->all() as $collection) {
+            $cosmetic = $collection->getCosmeticReward();
+            if (null !== $cosmetic) {
+                $rewards[$cosmetic->type.':'.$cosmetic->key][] = $collection->isSecret()
+                    ? ['kind' => 'achievement', 'label' => 'Une collection secrète de succès', 'detail' => 'Complète-la pour le gagner.', 'price' => null]
+                    : ['kind' => 'achievement', 'label' => sprintf('Collection « %s »', $collection->getName()), 'detail' => 'Débloque tous les succès de la collection.', 'price' => null];
             }
         }
         foreach ($this->quests->allQuests() as $quest) {
