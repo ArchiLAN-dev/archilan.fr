@@ -44,7 +44,7 @@ export function AchievementsCataloguePage({ catalogue }: { catalogue: PlayerAchi
       </header>
 
       {sections.map((section) => (
-        <CatalogueSectionView key={section.collection?.id ?? "others"} section={section} />
+        <CatalogueSectionView key={section.collection?.id ?? "others"} section={section} slug={catalogue.slug} />
       ))}
     </article>
   );

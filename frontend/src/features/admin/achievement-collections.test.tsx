@@ -73,7 +73,7 @@ describe("public catalogue", () => {
 
   test("a section shows its progress, a secret mark, and gold once complete with what it gave", () => {
     const html = renderToStaticMarkup(
-      <CatalogueSectionView section={{ collection: progress({ secret: true, unlocked: 2, complete: true, reward: "Cadre « Mains de l'Envie »", pelles: 50 }), achievements: [achievement("envy", true, "rz")] }} />,
+      <CatalogueSectionView slug="alice" section={{ collection: progress({ secret: true, unlocked: 2, complete: true, reward: "Cadre « Mains de l'Envie »", pelles: 50 }), achievements: [achievement("envy", true, "rz")] }} />,
     );
     expect(html).toContain("Secrète");
     expect(html).toContain("Collection complète");

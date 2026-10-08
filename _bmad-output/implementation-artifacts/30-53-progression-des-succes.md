@@ -1,6 +1,6 @@
 # Story 30.53: Où j'en suis d'un succès
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 30 - Communauté
 **Date:** 2026-10-08
 
@@ -38,23 +38,42 @@ le calcule donc **qu'à la demande**, quand le membre clique sur une carte, dans
 7. Gates verts ; tests (évaluation nœud par nœud, groupes `all`/`any`/`none`, « entre », secret, obtenu, rendu de la
    modale).
 
-## Questions ouvertes pour Jean
+## Décisions de Jean (2026-10-08)
 
-- **Qui voit l'avancement d'un autre ?** Par défaut proposé : tout le monde voit la modale d'un succès, mais
-  l'avancement chiffré n'est montré **qu'au membre lui-même** (sur le profil d'un autre, seulement « à obtenir »).
-  Les chiffres révèlent son activité (checks, items, quêtes), alors que le profil public n'en montre que les totaux.
-- Un succès obtenu manuellement par un admin (story 30.34) : afficher « Attribué par l'équipe » ?
+1. L'avancement chiffré n'est montré **qu'au membre lui-même**. Sur le profil d'un autre, la modale montre le succès
+   et « À obtenir », sans chiffres.
+2. Un succès attribué par un admin affiche « Attribué par l'équipe ».
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 2, 3) - Domaine : une évaluation détaillée de l'arbre (`AchievementRuleGroup` / conditions)
+- [x] **Task 1** (AC 2, 3) - Domaine : une évaluation détaillée de l'arbre (`AchievementRuleGroup` / conditions)
   qui renvoie, par nœud, la valeur courante, la cible et si c'est rempli, sans changer `matches()` ; tests unitaires.
-- [ ] **Task 2** (AC 3-6) - Application : `AchievementProgressQuery` (profil par slug, définition par clé, secret,
+- [x] **Task 2** (AC 3-6) - Application : `AchievementProgressQuery` (profil par slug, définition par clé, secret,
   inactif, obtenu, `MetricBagBuilder::build`) ; contrôleur et limite de débit ; tests fonctionnels.
-- [ ] **Task 3** (AC 1, 2) - Front : `achievement-progress-api.ts` (garde de type), modale (`Dialog`) ouverte au clic
+- [x] **Task 3** (AC 1, 2) - Front : `achievement-progress-api.ts` (garde de type), modale (`Dialog`) ouverte au clic
   sur `AchievementCard`, rendu de l'arbre (réutiliser les libellés de `achievement-rules.ts`) ; tests.
-- [ ] **Task 4** (AC 7) - Gates.
+- [x] **Task 4** (AC 7) - Gates.
 
 ## Dépendances
 
 - Story 30.52 (collections) : la modale affiche la collection et applique la règle du secret.
+
+## Dev Agent Record
+
+- Domaine : `AchievementRule::progress()` (groupe : `op`, `met`, `rules` ; condition : valeur courante, cible,
+  `value2` pour « entre », `met`), à côté de `matches()` sans le changer.
+- `AchievementGrant.by_team` (migration `Version20261008100000`), posé par l'attribution manuelle. Les attributions
+  manuelles d'avant cette story restent à `false` (rien ne les distingue en base).
+- `AchievementProgressQuery::forMember()` + `MyAchievementProgressController` : `GET
+  /api/v1/community/profile/achievements/{key}/progress`, le membre connecté seulement. Le `MetricBag` est construit
+  une fois par ouverture ; un succès obtenu renvoie sa date et `byTeam` sans recalcul ; 404 pour un succès inactif non
+  obtenu, d'une collection secrète encore cachée, ou inconnu. Libellés des critères côté API (un objectif
+  d'événement par le titre de l'événement).
+- AC 6, écart : pas de limiteur de débit. Le projet n'a pas `symfony/rate-limiter`, et l'endpoint est réservé au
+  membre connecté, pour ses propres succès, appelé seulement à l'ouverture de la modale (TanStack Query, `staleTime`
+  60 s). À ajouter avec le paquet si la charge le demande.
+- Front : `achievement-progress-api.ts` (garde nœud par nœud), `achievement-details.tsx` (`AchievementTile` : la carte
+  devient un bouton, modale `Dialog` ; arbre « Toutes / Au moins une / Aucune de ces conditions », coche, valeur,
+  barre pour « au moins » et « plus de », « pas … » sous « aucune »). Catalogue et profil passent par la tuile.
+- Tests : `AchievementRuleTest::testProgress…`, `AchievementProgressTest` (membre, attribué par l'équipe, cachés),
+  `achievement-details.test.tsx`.

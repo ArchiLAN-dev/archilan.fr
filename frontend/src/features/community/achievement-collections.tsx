@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronRight, EyeOff, Gift, Library, Sparkles } from "lucide-react";
 
 import type { AchievementCollectionProgress, CatalogueAchievement } from "@/features/players/player-profile-api";
-import { AchievementCard } from "./achievement-card";
+import { AchievementTile } from "./achievement-details";
 
 /** Story 30.52: one section of the catalogue per collection, then « Autres succès ». */
 export type CatalogueSection = { collection: AchievementCollectionProgress | null; achievements: CatalogueAchievement[] };
@@ -76,12 +76,12 @@ function CollectionBadges({ collection }: { collection: AchievementCollectionPro
 }
 
 /** A section of the « Tous les succès » page: the collection's header and progress, then its achievements. */
-export function CatalogueSectionView({ section }: { section: CatalogueSection }) {
+export function CatalogueSectionView({ section, slug }: { section: CatalogueSection; slug: string }) {
   const { collection, achievements } = section;
   const grid = (
     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="list">
       {achievements.map((achievement) => (
-        <AchievementCard achievement={achievement} key={achievement.key} rarity={achievement.rarity} />
+        <AchievementTile achievement={achievement} collectionName={collection?.name} key={achievement.key} rarity={achievement.rarity} slug={slug} />
       ))}
     </ul>
   );
