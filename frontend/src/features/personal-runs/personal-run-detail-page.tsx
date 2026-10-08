@@ -48,6 +48,7 @@ import { showsRunStatusLine, showsSettingsDelete } from "./run-overview-visibili
 import { ARCHIVABLE_STATUSES, type PersonalRun, type PersonalRunParticipant, type ValidationSlotError } from "./types";
 import { MemberAvatar } from "../community/member-avatar";
 import { TitledName } from "@/features/community/titled-name";
+import { InfoHint } from "@/components/ui/info-hint";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -898,11 +899,13 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                   <ValidationErrorBanner errors={run.validationErrors} logExcerpt={run.generationLogExcerpt ?? null} />
                 )}
                 {run.status === "draft" && (run.failedPreflightCount ?? 0) > 0 && (
-                  <p className="rounded-lg border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/5 p-3 text-xs text-[color:var(--color-warning)]">
-                    {run.failedPreflightCount} slot{(run.failedPreflightCount ?? 0) > 1 ? "s ont" : " a"} échoué au
-                    test de génération individuel. La génération complète risque d&apos;échouer : vérifie les configs
-                    marquées « Échec du test » avant de lancer.
-                  </p>
+                  <InfoHint
+                    className="rounded-lg border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/5 p-3 text-xs text-[color:var(--color-warning)]"
+                    hint="Chaque config est testée seule quand elle est enregistrée. Une config qui échoue à ce test fait très probablement échouer la génération complète de la partie."
+                  >
+                    {run.failedPreflightCount} slot{(run.failedPreflightCount ?? 0) > 1 ? "s ont" : " a"} échoué au test :
+                    vérifie les configs marquées « Échec du test » avant de lancer.
+                  </InfoHint>
                 )}
                 <button
                   className="inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"

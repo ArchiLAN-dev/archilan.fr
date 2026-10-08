@@ -25,6 +25,7 @@ import {
 import { parseNeedsReview, SlotNeedsReview } from "@/features/games/slot-needs-review";
 import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } from "./personal-runs-api";
 import { useRouter } from "next/navigation";
+import { GeneratedLockNote } from "@/components/run-notes";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -376,10 +377,9 @@ export function PersonalRunGameSelectionPage({
       {locked && (
         <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
           <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
-          <p>
+          <GeneratedLockNote className="min-w-0 flex-1">
             La partie a déjà été générée : la sélection de jeux et les YAML ne sont plus modifiables.
-            La reprise rejoue toujours la partie existante.
-          </p>
+          </GeneratedLockNote>
         </div>
       )}
 

@@ -8,6 +8,7 @@ import { buildDrySpells } from "./build-dry-spells";
 import { ChecksChart, type ChartGoal } from "./checks-chart";
 import { matchesFacet, matchesSearch, normalizeSearch, type LogFacet } from "./log-filters";
 import { formatDuration } from "./recap-format";
+import { InfoHint } from "@/components/ui/info-hint";
 
 /** Beyond this many hint markers the axis turns into noise; the surplus is announced, not hidden. */
 const MAX_HINT_MARKERS = 24;
@@ -203,11 +204,13 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
         <h2 className="font-heading text-2xl font-semibold text-foreground" id="timeline-heading">
           Déroulé de la partie
         </h2>
-        <p className="text-sm text-muted-foreground">
-          L&apos;activité de la partie au fil du temps et le journal des objets. Un point plein marque un objet
-          de progression, un trait vertical le moment où un joueur atteint son objectif. Clique un joueur pour
-          le masquer.
-        </p>
+        <InfoHint
+          className="text-sm text-muted-foreground"
+          hint="Un point plein marque un objet de progression, un trait vertical le moment où un joueur atteint son objectif."
+          label="Comment lire le graphique"
+        >
+          L&apos;activité de la partie au fil du temps et le journal des objets. Clique un joueur pour le masquer.
+        </InfoHint>
       </div>
 
       {/* Day pager: only when the run spans more than one day. */}

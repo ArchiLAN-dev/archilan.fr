@@ -52,7 +52,8 @@ describe("ImportedSeedPanel", () => {
     const html = render(<ImportedSeedPanel {...base} editable importedSeed importedSlots={[slot]} />);
 
     expect(html).toContain("Remplacer la seed");
-    expect(html).toContain("configurations des joueurs");
+    // Story 33.28: what is missing stays visible, the why (players' configurations) opens behind the « i ».
+    expect(html).toContain("indisponibles sur une seed importée");
     expect(html).toContain("Alice_MC");
     expect(html).toContain("Minecraft");
   });

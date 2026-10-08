@@ -1,6 +1,7 @@
 "use client";
 
 import { SecretField } from "@/components/secret-field";
+import { InfoHint } from "@/components/ui/info-hint";
 
 /**
  * Les champs de connexion d'une run, dans la seule forme qui marche partout : il n'y en a pas une.
@@ -47,17 +48,20 @@ export function ConnectionFields({
         </p>
       )}
 
-      <p className="text-xs text-muted-foreground">
-        <strong className="font-semibold text-foreground">Le port fait partie de l&apos;adresse.</strong>{" "}
-        Sans lui, un client cherche le port 38281 et échoue aussitôt - certains conseillent alors de
-        passer sur une version non chiffrée, ce qui ne marchera pas davantage. Si ton client a deux
-        champs séparés, utilise l&apos;hôte et le port ci-dessus.
-      </p>
-
-      <p className="text-xs text-muted-foreground">
-        Un client web tiers reçoit l&apos;adresse, ton nom de slot et le mot de passe de la partie.
-        Ces clients ne sont pas hébergés par ArchiLAN.
-      </p>
+      {/* Story 33.28: what to do stays visible, the why behind the « i ». */}
+      <InfoHint
+        className="text-xs text-muted-foreground"
+        hint={
+          <>
+            Sans le port, un client cherche le port 38281 et échoue aussitôt ; passer sur une version non chiffrée ne
+            marchera pas davantage. Un client web tiers reçoit l&apos;adresse, ton nom de slot et le mot de passe de la
+            partie : ces clients ne sont pas hébergés par ArchiLAN.
+          </>
+        }
+      >
+        <strong className="font-semibold text-foreground">Copie l&apos;adresse avec son port.</strong> Si ton client a
+        deux champs, utilise l&apos;hôte et le port.
+      </InfoHint>
     </div>
   );
 }

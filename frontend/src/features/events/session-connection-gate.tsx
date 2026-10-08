@@ -23,6 +23,7 @@ import { EventFeed } from "./event-feed";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { useRouter } from "next/navigation";
+import { StreamMaskedNote } from "@/components/run-notes";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -322,9 +323,7 @@ function RunningConnectionCard({ session }: { session: SessionPayload }) {
         <span className="text-xs font-semibold uppercase tracking-wide text-success">EN LIGNE</span>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Valeurs masquées pour le stream - la copie fonctionne sans les afficher.
-      </p>
+      <StreamMaskedNote />
 
       <ConnectionFields
         host={session.host ?? ""}

@@ -47,6 +47,7 @@ import { ItemBountiesPanel } from "@/features/wallet/item-bounties";
 import { sessionSlotUrl, usePelleHintOffers } from "@/features/wallet/pelle-hints";
 import type { PersonalRun } from "./types";
 import { fetchSessionConnection } from "@/features/events/events-api";
+import { ImportedSeedNote, ReachabilityComputingNote } from "@/features/reachability/reachability-notes";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -850,7 +851,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
           <div className="grid gap-6">
             <div className="flex items-center gap-3 rounded border border-border bg-surface p-6 text-sm text-muted-foreground">
               <Loader2 aria-hidden="true" className="size-5 animate-spin text-accent-text" />
-              <span>Calcul de la réatteignabilité en cours… Sur une grosse partie, le premier calcul peut prendre une minute : la page se met à jour toute seule.</span>
+              <ReachabilityComputingNote />
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {[0, 1, 2].map((i) => (
@@ -870,17 +871,9 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
         {state.kind === "imported" ? (
           <div className="flex items-start gap-3 rounded border border-border bg-surface p-4 text-sm text-muted-foreground">
             <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-text" />
-            <div>
+            <div className="grid gap-0.5">
               <p className="font-medium text-foreground">Progression détaillée indisponible</p>
-              <p className="mt-0.5">
-                Cette partie a été créée depuis une seed générée ailleurs. Savoir quels checks sont
-                faisables demande de reconstruire le monde à partir des configurations des joueurs,
-                que l&apos;archive ne contient pas.
-              </p>
-              <p className="mt-1.5">
-                Le reste fonctionne normalement : checks faits, objets reçus, objectif, indices,
-                fichiers et récap de fin.
-              </p>
+              <ImportedSeedNote />
             </div>
           </div>
         ) : null}

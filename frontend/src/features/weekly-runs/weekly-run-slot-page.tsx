@@ -34,6 +34,8 @@ import type { HintsData, ReachabilityData, ToastItem } from "@/features/reachabi
 import { HINT_STATUS_NAMES, REACHABILITY_INVALID_MESSAGE, REACHABILITY_RETRY_MS, isHintsUpdate, isReachabilityData, reachableAnswerOf } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { fetchCurrentWeeklyRuns, fetchWeeklyEntryPlayerSlots, relaunchWeeklyEntry } from "./weekly-runs-api";
+import { ReachabilityComputingNote } from "@/features/reachability/reachability-notes";
+import { ServerPausedNote } from "@/components/run-notes";
 
 type PageState =
   | { kind: "idle" }
@@ -625,10 +627,7 @@ export function WeeklyRunSlotPage({
           </div>
         ) : (
           <>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Le serveur a été mis en pause après une période d&apos;inactivité. Relance-le pour
-              reprendre ta partie là où elle s&apos;était arrêtée.
-            </p>
+            <ServerPausedNote className="mt-3 text-sm text-muted-foreground" />
             <button
               className="mt-6 inline-flex items-center gap-2 rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
               disabled={relaunching}
@@ -742,7 +741,7 @@ export function WeeklyRunSlotPage({
           <div className="grid gap-6">
             <div className="flex items-center gap-3 rounded border border-border bg-surface p-6 text-sm text-muted-foreground">
               <Loader2 aria-hidden="true" className="size-5 animate-spin text-accent-text" />
-              <span>Calcul de la réatteignabilité en cours… Sur une grosse partie, le premier calcul peut prendre une minute : la page se met à jour toute seule.</span>
+              <ReachabilityComputingNote />
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {[0, 1, 2].map((i) => (

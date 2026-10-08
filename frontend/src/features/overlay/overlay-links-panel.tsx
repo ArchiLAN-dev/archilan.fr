@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import type { OverlaySlot } from "./overlay-api";
 import { fetchOverlaySlots, testOverlayEvent } from "./overlay-api";
+import { InfoHint } from "@/components/ui/info-hint";
 
 type Props = { sessionId: string };
 
@@ -125,10 +126,12 @@ export function OverlayLinksPanel({ sessionId }: Props) {
         <h2 className="font-heading text-sm font-semibold text-foreground">Overlays OBS</h2>
       </header>
 
-      <p className="text-xs text-muted-foreground">
-        Ajoute ces URLs comme sources « Navigateur » dans OBS. Lecture seule, fond transparent. Liens
-        permanents : colle-les une fois, ils ne changent pas.
-      </p>
+      <InfoHint
+        className="text-xs text-muted-foreground"
+        hint="Lecture seule, fond transparent. Les liens sont permanents : colle-les une fois, ils ne changent pas. Les checks réalisables sont calculés par joueur, d'où le choix d'un seul joueur pour certains overlays."
+      >
+        Ajoute ces URLs comme sources « Navigateur » dans OBS.
+      </InfoHint>
 
       {error ? (
         <p className="rounded border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>
@@ -163,10 +166,6 @@ export function OverlayLinksPanel({ sessionId }: Props) {
             {slots.length === 0 ? (
               <span className="text-[11px] text-muted-foreground">
                 (démarre la session pour lister les joueurs)
-              </span>
-            ) : singlePlayerOnly ? (
-              <span className="text-[11px] text-muted-foreground">
-                (les checks réalisables sont calculés par joueur)
               </span>
             ) : null}
           </div>
@@ -273,7 +272,7 @@ export function OverlayLinksPanel({ sessionId }: Props) {
             <p className="text-[11px] text-muted-foreground">
               {slots.length === 0
                 ? "Démarre la session pour simuler un événement."
-                : "Événement visible uniquement par les overlays. L'aperçu ne l'affiche que si le filtre « Afficher » inclut ce joueur."}
+                : "Visible uniquement par les overlays (et l'aperçu, si son filtre inclut ce joueur)."}
             </p>
           </div>
       </div>
