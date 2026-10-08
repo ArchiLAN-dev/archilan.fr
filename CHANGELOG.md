@@ -5,6 +5,38 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.38.0] - 2026-10-08
+
+Le nom du slot passe en tête des infos de connexion, « Mes parties » s'atteint depuis le menu du compte, et deux
+pannes vues en prod sont corrigées : le lancement d'une hebdo qui restait bloqué, et le graphique en direct qui
+disparaissait d'une partie async.
+
+### Ajouté
+
+- **Le nom du slot en tête des infos de connexion** (17.29) : sur une hebdo, une partie privée ou un événement, le
+  nom à taper dans le client Archipelago vient en premier, en grand, en clair et copiable (un champ par slot, avec
+  son jeu, quand on en joue plusieurs). Pour une hebdo, c'est le nom du template tel qu'Archipelago le résout
+  (`Player{number}` devient `Player1`). Sur un événement, « Tout copier » commence par lui.
+- **« Mes parties » dans le menu du compte** (16.22) : en première position du menu de l'avatar et du menu mobile.
+
+### Modifié
+
+- **Parties en cours en tête de « Mes parties »** (16.22) : les parties rejointes rejoignent les groupes de statut des
+  parties créées au lieu d'une section à part en bas de page ; une partie rejointe en cours remonte donc en tête,
+  avec un repère « Rejointe ». « Reprendre » reste réservé au propriétaire.
+- **api-web sur FrankenPHP 1.13.0** (#780) : plus aucune exclusion dans `.trivyignore`.
+
+### Corrigé
+
+- **Lancement d'une hebdo bloqué sur « launch_failed »** (23.15) : un serveur plus lent qu'une minute à démarrer
+  faisait abandonner le site alors que le serveur finissait de démarrer ; chaque clic suivant échouait aussitôt, et
+  le serveur tournait sans personne. Le lancement attend désormais aussi longtemps que l'orchestrateur et reprend
+  un serveur déjà lancé pour l'entrée : les entrées bloquées se débloquent au premier clic. La cause d'un échec
+  est désormais journalisée.
+- **Graphique en direct disparu d'une partie async** (32.21) : un jour où l'on n'avait reçu qu'un indice (ou un
+  objectif) sans objet trouvé, l'onglet Progression n'affichait plus ni graphique, ni sélecteur de jour, ni
+  journal. Seuls les jours avec des objets trouvés forment désormais la pagination.
+
 ## [0.37.0] - 2026-10-08
 
 Les succès se rangent en collections et disent où l'on en est ; la boutique se range en rayons et s'essaie sur tout
