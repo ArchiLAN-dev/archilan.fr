@@ -6,6 +6,7 @@ import { FaDiscord, FaSteam } from "react-icons/fa";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { removeSteamAccount, saveSteamAccount } from "./steam-account-api";
+import { InfoHint } from "@/components/ui/info-hint";
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 
@@ -351,10 +352,12 @@ export function PrivacySection() {
         <h2 className="font-heading text-xl font-semibold text-foreground">
           Données et confidentialité
         </h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Tu peux exercer tes droits RGPD depuis ce formulaire. Les demandes sont enregistrées
-          puis traitées manuellement par une personne habilitée.
-        </p>
+        <InfoHint
+          className="mt-2 text-sm leading-6 text-muted-foreground"
+          hint="Les demandes sont enregistrées puis traitées à la main par une personne habilitée. La portabilité aussi : aucun export automatique n'est promis."
+        >
+          Exerce tes droits RGPD depuis ce formulaire.
+        </InfoHint>
         <Link
           className="mt-3 inline-flex text-sm font-semibold text-accent-text hover:text-accent-text-hover"
           href="/confidentialite"
@@ -416,8 +419,7 @@ export function PrivacySection() {
             value={privacyDetails}
           />
           <p className="text-sm text-muted-foreground" id={`${privacyDetailsId}-hint`}>
-            1000 caractères maximum. La portabilité est traitée par revue manuelle, aucun export
-            automatique n&apos;est promis.
+            1000 caractères maximum.
           </p>
           {privacyErrors.details ? (
             <p className="text-sm text-danger">{privacyErrors.details}</p>

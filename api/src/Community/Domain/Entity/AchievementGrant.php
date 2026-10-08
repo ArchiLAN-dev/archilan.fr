@@ -25,12 +25,20 @@ final class AchievementGrant
         private string $achievementKey,
         #[ORM\Column(name: 'unlocked_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $unlockedAt,
+        // Story 30.53: given by an admin rather than earned by the rule (story 30.34); false for older manual grants.
+        #[ORM\Column(name: 'by_team', type: 'boolean', options: ['default' => false])]
+        private bool $byTeam = false,
     ) {
     }
 
-    public static function grant(string $userId, string $achievementKey, \DateTimeImmutable $now): self
+    public static function grant(string $userId, string $achievementKey, \DateTimeImmutable $now, bool $byTeam = false): self
     {
-        return new self(bin2hex(random_bytes(16)), $userId, $achievementKey, $now);
+        return new self(bin2hex(random_bytes(16)), $userId, $achievementKey, $now, $byTeam);
+    }
+
+    public function isByTeam(): bool
+    {
+        return $this->byTeam;
     }
 
     public function getId(): string

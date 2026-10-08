@@ -24,6 +24,7 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { env } from "@/lib/env";
 import { YamlOptionsView, parseGameOptions } from "@/components/yaml/yaml-options-view";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
+import { ServerPausedNote } from "@/components/run-notes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -493,10 +494,7 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
 
                 {isRelaunchable && (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
-                    <p className="mb-3 text-sm text-muted-foreground">
-                      Le serveur a été mis en pause après une période d&apos;inactivité. Relance-le pour
-                      reprendre ta partie là où elle s&apos;était arrêtée.
-                    </p>
+                    <ServerPausedNote className="mb-3 text-sm text-muted-foreground" />
                     <button
                       className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
                       disabled={actionLoading}

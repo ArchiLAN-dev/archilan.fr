@@ -88,6 +88,17 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
     }
     case "cosmetic_unlocked":
       return cosmeticContent(item);
+    case "collection_completed": {
+      // Story 30.52: every achievement of a collection unlocked, and what the collection gave.
+      const name = text(data, "name");
+      const pelles = hasNumberProp(data, "pelles") ? data.pelles : 0;
+      const cosmetic = text(data, "cosmetic");
+      return {
+        ...base("reward", "Collection complète", icon("trophy"), name !== "" ? [{ text: "Collection " }, strong(name), { text: " complète" }] : [{ text: "Collection complète" }]),
+        amount: pelles > 0 ? pelles : null,
+        detail: cosmetic !== "" ? `Gagné : ${cosmetic}` : null,
+      };
+    }
     case "pelles_adjusted": {
       const amount = hasNumberProp(data, "amount") ? data.amount : 0;
       const event = text(data, "eventTitle");
@@ -151,7 +162,7 @@ function cosmeticContent(item: NotificationItem): NotificationContent {
   const name = text(preview, "name") || (type === "color" ? (nameColor(key)?.label ?? stored) : stored) || "Un cosmétique";
   const kind = COSMETIC_KINDS[type] ?? "Cosmétique";
   const sourceLabel = text(data, "sourceLabel");
-  const source = text(data, "source") === "quest" ? "la quête" : "le succès";
+  const source = ({ quest: "la quête", collection: "la collection" } as Record<string, string>)[text(data, "source")] ?? "le succès";
   const rarity = TITLE_RARITIES.find((r) => r === text(preview, "rarity"));
   const titleIcon = text(preview, "icon");
   const badge = type === "title" && rarity !== undefined ? { label: name, rarity, icon: TITLE_ICONS.find((i) => i === titleIcon) ?? null } : null;

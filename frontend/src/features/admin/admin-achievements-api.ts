@@ -1,6 +1,7 @@
 import { isCosmeticRewardView, type CosmeticReward, type CosmeticRewardView } from "@/features/community/cosmetic-reward-picker";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 // ── Rule tree ────────────────────────────────────────────────────────────────
 // Mirrors the backend AchievementRule tree (story 30.16): a node is either a
@@ -39,6 +40,32 @@ export type AchievementDefinition = {
   customImageUrl: string | null;
   /** Story 41.28: the cosmetic it unlocks. */
   reward: CosmeticRewardView | null;
+  /** Story 30.51: how many members hold it (absent from an older API). */
+  holders?: number;
+  /** Story 30.52: the collection it belongs to (null = « Autres succès »; absent from an older API). */
+  collectionId?: string | null;
+};
+
+/** Story 30.52: a collection of achievements, and what completing it gives. */
+export type AdminAchievementCollection = {
+  id: string;
+  name: string;
+  description: string;
+  imageKey: string | null;
+  imageUrl: string | null;
+  position: number;
+  secret: boolean;
+  reward: CosmeticRewardView | null;
+  pelles: number;
+};
+
+export type AchievementCollectionPayload = {
+  name: string;
+  description: string;
+  secret: boolean;
+  imageKey: string | null;
+  reward: CosmeticReward | null;
+  pelles: number;
 };
 
 export type AchievementFactOption = { key: string; label: string };
@@ -54,6 +81,7 @@ export type AchievementFormOptions = {
 export type AchievementDashboard = {
   definitions: AchievementDefinition[];
   options: AchievementFormOptions;
+  collections: AdminAchievementCollection[];
 };
 
 export type CreateAchievementPayload = {
@@ -63,6 +91,7 @@ export type CreateAchievementPayload = {
   rule: RuleGroup;
   customImageKey?: string | null;
   reward?: CosmeticReward | null;
+  collectionId?: string | null;
 };
 
 export type UpdateAchievementPayload = {
@@ -71,6 +100,7 @@ export type UpdateAchievementPayload = {
   rule: RuleGroup;
   customImageKey?: string | null;
   reward?: CosmeticReward | null;
+  collectionId?: string | null;
 };
 
 export type MutationResult<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -90,8 +120,10 @@ export async function fetchAchievementDashboard(): Promise<AchievementDashboard 
       typeof meta === "object" && meta !== null && "options" in meta ? meta.options : null;
     const options = parseOptions(rawOptions);
     if (options === null) return null;
+    const rawCollections: unknown = typeof meta === "object" && meta !== null && "collections" in meta ? meta.collections : null;
+    const collections = Array.isArray(rawCollections) ? rawCollections.filter(isAdminAchievementCollection) : [];
 
-    return { definitions, options };
+    return { definitions, options, collections };
   } catch {
     return null;
   }
@@ -121,8 +153,33 @@ export async function setAchievementActive(id: string, active: boolean): Promise
   );
 }
 
-export async function reorderAchievements(ids: string[]): Promise<boolean> {
-  return noContent(`${env.apiBaseUrl}/admin/community/achievements/reorder`, { ids });
+/** The profile order; story 30.52: and the new collection of the achievements `collections` names (null = none). */
+export async function reorderAchievements(ids: string[], collections: Record<string, string | null> = {}): Promise<boolean> {
+  return noContent(`${env.apiBaseUrl}/admin/community/achievements/reorder`, { ids, collections });
+}
+
+// ── Collections (story 30.52) ─────────────────────────────────────────────────
+
+export async function createAchievementCollection(payload: AchievementCollectionPayload): Promise<MutationResult<AdminAchievementCollection>> {
+  return mutateCollection(`${env.apiBaseUrl}/admin/community/achievement-collections`, "POST", payload);
+}
+
+export async function updateAchievementCollection(id: string, payload: AchievementCollectionPayload): Promise<MutationResult<AdminAchievementCollection>> {
+  return mutateCollection(`${env.apiBaseUrl}/admin/community/achievement-collections/${encodeURIComponent(id)}`, "PATCH", payload);
+}
+
+/** Its achievements go back to « Autres succès ». */
+export async function deleteAchievementCollection(id: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/community/achievement-collections/${encodeURIComponent(id)}`, { method: "DELETE" });
+    return res.status === 204;
+  } catch {
+    return false;
+  }
+}
+
+export async function reorderAchievementCollections(ids: string[]): Promise<boolean> {
+  return noContent(`${env.apiBaseUrl}/admin/community/achievement-collections/reorder`, { ids });
 }
 
 /** Manually award an achievement to a player (by community slug). Idempotent (story 30.34). */
@@ -201,6 +258,22 @@ async function mutateDefinition(
   }
 }
 
+async function mutateCollection(url: string, method: "POST" | "PATCH", payload: AchievementCollectionPayload): Promise<MutationResult<AdminAchievementCollection>> {
+  try {
+    const res = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    if (!res.ok) {
+      const err: unknown = await res.json().catch(() => null);
+      return { ok: false, error: extractErrorMessage(err) };
+    }
+    const json: unknown = await res.json();
+    const data: unknown = typeof json === "object" && json !== null && "data" in json ? json.data : null;
+    if (!isAdminAchievementCollection(data)) return { ok: false, error: "Réponse invalide du serveur." };
+    return { ok: true, value: data };
+  } catch {
+    return { ok: false, error: "Erreur réseau." };
+  }
+}
+
 async function noContent(url: string, body: unknown): Promise<boolean> {
   try {
     const res = await apiFetch(url, {
@@ -266,5 +339,24 @@ function isAchievementDefinition(v: unknown): v is AchievementDefinition {
   if (!("rule" in v) || !isRuleNode(v.rule) || !("op" in v.rule)) return false;
   // Story 41.28: absent from an older API.
   if ("reward" in v && v.reward !== null && !isCosmeticRewardView(v.reward)) return false;
+  if ("holders" in v && typeof v.holders !== "number") return false;
+  if ("collectionId" in v && v.collectionId !== null && typeof v.collectionId !== "string") return false;
   return true;
+}
+
+function isAdminAchievementCollection(v: unknown): v is AdminAchievementCollection {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "id") &&
+    hasStringProp(v, "name") &&
+    hasStringProp(v, "description") &&
+    hasNullableStringProp(v, "imageKey") &&
+    hasNullableStringProp(v, "imageUrl") &&
+    hasNumberProp(v, "position") &&
+    hasBooleanProp(v, "secret") &&
+    hasNumberProp(v, "pelles") &&
+    "reward" in v &&
+    (v.reward === null || isCosmeticRewardView(v.reward))
+  );
 }

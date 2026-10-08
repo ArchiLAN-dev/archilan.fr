@@ -14,13 +14,12 @@ export function ShopCheckout({ checkoutEmbedUrl }: { checkoutEmbedUrl: string })
       </div>
 
       <p className="mt-4 text-sm leading-6 text-muted-foreground">
-        Les commandes sont traitees via HelloAsso. Accepte les conditions ci-dessous pour acceder au
+        Les commandes passent par HelloAsso. Accepte les conditions ci-dessous pour accéder au
         formulaire de commande.
       </p>
 
       <div className="mt-3 rounded border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
-        La boutique ArchiLAN est distincte des inscriptions aux evenements. Un article achete ici ne
-        constitue pas une inscription a un evenement.
+        Un article acheté ici n&apos;est pas une inscription à un événement.
       </div>
 
       <CgvAcceptanceGate actionLabel="Afficher le formulaire de commande">

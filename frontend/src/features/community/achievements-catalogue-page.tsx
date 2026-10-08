@@ -2,19 +2,17 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import type { PlayerAchievementsCatalogue } from "@/features/players/player-profile-api";
-import { AchievementCard } from "./achievement-card";
+import { CatalogueSectionView, catalogueSections } from "./achievement-collections";
 import { MemberAvatar } from "./member-avatar";
 
 /** The full « Tous les succès » catalogue for a player: every achievement with this player's state +
- * rarity. Unlocked first (most recent), then locked. */
+ * rarity. Story 30.52: one section per collection with the player's progress, then « Autres succès » (unlocked first,
+ * most recent, then locked). */
 export function AchievementsCataloguePage({ catalogue }: { catalogue: PlayerAchievementsCatalogue }) {
   const name = catalogue.displayName ?? catalogue.slug;
   const unlockedCount = catalogue.achievements.filter((a) => a.unlocked).length;
 
-  const sorted = [...catalogue.achievements].sort((a, b) => {
-    if (a.unlocked !== b.unlocked) return Number(b.unlocked) - Number(a.unlocked);
-    return (b.unlockedAt ?? "").localeCompare(a.unlockedAt ?? "");
-  });
+  const sections = catalogueSections(catalogue.achievements, catalogue.collections);
 
   return (
     <article className="mx-auto grid max-w-content gap-6">
@@ -45,11 +43,9 @@ export function AchievementsCataloguePage({ catalogue }: { catalogue: PlayerAchi
         </div>
       </header>
 
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="list">
-        {sorted.map((achievement) => (
-          <AchievementCard achievement={achievement} key={achievement.key} rarity={achievement.rarity} />
-        ))}
-      </ul>
+      {sections.map((section) => (
+        <CatalogueSectionView key={section.collection?.id ?? "others"} section={section} slug={catalogue.slug} />
+      ))}
     </article>
   );
 }

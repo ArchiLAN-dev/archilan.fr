@@ -10,6 +10,7 @@ import { GamePlannedButton } from "./game-planned-button";
 import { InstallStepsView } from "./install-steps-view";
 import type { GameApworld, PublicGameDetail } from "./public-games-api";
 import { Markdown } from "@/components/markdown/markdown";
+import { InfoHint } from "@/components/ui/info-hint";
 
 export function GameDetail({ game, client }: { game: PublicGameDetail; client: ArchipelagoClient | null }) {
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
@@ -279,10 +280,12 @@ function VersionMatchCallout({
         </VersionRow>
       </dl>
 
-      <p className="text-sm leading-6 text-muted-foreground">
-        Ton apworld <strong className="text-foreground">et</strong> ton client doivent correspondre à la
-        version de la session, sinon la génération ou la connexion échoue.
-      </p>
+      <InfoHint
+        className="text-sm leading-6 text-muted-foreground"
+        hint="L'apworld et le client doivent correspondre à la version de la session : une autre version fait échouer la génération ou la connexion."
+      >
+        Prends l&apos;apworld <strong className="text-foreground">et</strong> le client aux versions indiquées.
+      </InfoHint>
     </section>
   );
 }

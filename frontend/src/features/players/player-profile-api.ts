@@ -50,6 +50,23 @@ export type Achievement = {
   kudosCount: number;
   /** Optional custom image (presigned) shown in place of the default trophy (story 30.33). */
   customImageUrl: string | null;
+  /** Story 30.52: the collection it belongs to (null = « Autres succès »). */
+  collectionId?: string | null;
+};
+
+/** Story 30.52: a collection of achievements, with this player's progress in it. */
+export type AchievementCollectionProgress = {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl: string | null;
+  secret: boolean;
+  unlocked: number;
+  total: number;
+  complete: boolean;
+  /** The cosmetic a complete collection gives, by its label. */
+  reward: string | null;
+  pelles: number;
 };
 
 /** Unlocked / total achievement counts shown on the profile card alongside the recent unlocks. */
@@ -72,6 +89,8 @@ export type PlayerAchievementsCatalogue = {
   // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
   achievements: CatalogueAchievement[];
+  // Story 30.52: the sections of the catalogue, in the admin's order.
+  collections: AchievementCollectionProgress[];
 };
 
 export type ProfileLevel = {
@@ -104,6 +123,8 @@ export type PlayerProfile = {
   level: ProfileLevel;
   achievements: Achievement[];
   achievementStats: AchievementStats;
+  // Story 30.52: the started collections, the most advanced first.
+  collections: AchievementCollectionProgress[];
   presence: ProfilePresence;
   customization: ProfileCustomization | null;
   stats: PlayerStats;
@@ -120,6 +141,28 @@ function parseAchievementStats(v: unknown): AchievementStats {
 }
 const OFFLINE: ProfilePresence = { playing: false, sessionId: null, game: null };
 const NO_BADGES: ProfileBadges = { member: false, admin: false };
+
+function isCollectionProgress(v: unknown): v is AchievementCollectionProgress {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "id") &&
+    hasStringProp(v, "name") &&
+    hasStringProp(v, "description") &&
+    hasNullableStringProp(v, "imageUrl") &&
+    hasBooleanProp(v, "secret") &&
+    hasNumberProp(v, "unlocked") &&
+    hasNumberProp(v, "total") &&
+    hasBooleanProp(v, "complete") &&
+    hasNullableStringProp(v, "reward") &&
+    hasNumberProp(v, "pelles")
+  );
+}
+
+/** Lenient: a payload without collections (transient on deploy) reads as none. */
+export function parseCollections(v: unknown): AchievementCollectionProgress[] {
+  return Array.isArray(v) ? v.filter(isCollectionProgress) : [];
+}
 
 function parseBadges(v: unknown): ProfileBadges {
   if (typeof v !== "object" || v === null) return NO_BADGES;
@@ -213,7 +256,8 @@ function isAchievement(v: unknown): v is Achievement {
     hasNullableStringProp(v, "grantId") &&
     hasNumberProp(v, "kudosCount") &&
     // Lenient: tolerate a payload without the field (transient on deploy); default to no image.
-    (!("customImageUrl" in v) || v.customImageUrl === null || typeof v.customImageUrl === "string")
+    (!("customImageUrl" in v) || v.customImageUrl === null || typeof v.customImageUrl === "string") &&
+    (!("collectionId" in v) || v.collectionId === null || typeof v.collectionId === "string")
   );
 }
 
@@ -285,6 +329,7 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       level: isProfileLevel(data.level) ? data.level : DEFAULT_LEVEL,
       achievements: Array.isArray(data.achievements) ? data.achievements : [],
       achievementStats: parseAchievementStats("achievementStats" in data ? data.achievementStats : null),
+      collections: parseCollections("collections" in data ? data.collections : null),
       presence: parsePresence("presence" in data ? data.presence : null),
       customization: data.customization ?? null,
       stats: data.stats,
@@ -337,6 +382,7 @@ export const getPlayerAchievements = cache(async (slug: string): Promise<PlayerA
       avatarFrame: typeof data.avatarFrame === "string" ? data.avatarFrame : null,
       avatarFraming: isImageFraming(data.avatarFraming) ? data.avatarFraming : null,
       achievements: data.achievements,
+      collections: parseCollections("collections" in data ? data.collections : null),
     };
   } catch {
     return null;

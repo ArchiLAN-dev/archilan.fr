@@ -563,7 +563,7 @@ export function CommunityProfileCustomizationForm({
 
       <Section
         title="Photo de profil et cadre"
-        description={`Importe ta propre image (${imageFormatsHint("avatar", avatarGifAllowed)}) Sans image, un avatar par défaut est généré. Un cadre choisi ne s'enregistre qu'avec « Enregistrer ».`}
+        description={`Importe ta propre image (${imageFormatsHint("avatar", avatarGifAllowed)}) Un cadre choisi ne s'enregistre qu'avec « Enregistrer ».`}
       >
         <div className="grid gap-6 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
           <FramePreview

@@ -8,6 +8,7 @@ use App\Community\Application\Port\CosmeticOwnershipInterface;
 use App\Community\Application\Support\AchievementImageUrlResolver;
 use App\Community\Application\Support\AvatarFrameCatalog;
 use App\Community\Application\Support\AvatarUrlResolver;
+use App\Community\Application\Support\CosmeticRewardCatalog;
 use App\Community\Application\Support\ProfileBannerCatalog;
 use App\Community\Application\Support\ProfileTitleCatalog;
 use App\Community\Application\Support\ProfileVisibility;
@@ -15,6 +16,7 @@ use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Entity\Kudos;
 use App\Community\Domain\Enum\NameColor;
 use App\Community\Domain\Enum\NameStyle;
+use App\Community\Domain\Repository\AchievementCollectionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
@@ -38,11 +40,16 @@ use Psr\Clock\ClockInterface;
  * the customization surface via the shared ProfileVisibility (audience vs viewer tier, block overrides).
  * Identity + aggregate stats + achievements + level stay public. The profile row is created lazily only
  * when the owner views their own profile (or edits it) - never on an anonymous/foreign read.
+ *
+ * @phpstan-type CollectionProgress array{id: string, name: string, description: string, imageUrl: string|null, secret: bool, unlocked: int, total: int, complete: bool, reward: string|null, pelles: int}
  */
 final readonly class CommunityProfileView
 {
     /** Recent unlocked achievements surfaced on the profile card; the rest live on the catalogue page. */
     private const int PROFILE_RECENT_LIMIT = 6;
+
+    /** Story 30.52: the collections under the profile's count, the most advanced first. */
+    private const int PROFILE_COLLECTION_LIMIT = 3;
 
     public function __construct(
         private CommunityProfileQueryInterface $query,
@@ -63,6 +70,8 @@ final readonly class CommunityProfileView
         private AvatarFrameCatalog $frames,
         private ProfileBannerCatalog $banners,
         private ProfileTitleCatalog $titles,
+        private AchievementCollectionRepositoryInterface $achievementCollections,
+        private CosmeticRewardCatalog $cosmeticRewards,
     ) {
     }
 
@@ -79,8 +88,9 @@ final readonly class CommunityProfileView
      *     badges: array{member: bool, admin: bool},
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
      *     level: array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int},
-     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null}>,
+     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null, collectionId: string|null}>,
      *     achievementStats: array{unlocked: int, total: int},
+     *     collections: list<CollectionProgress>,
      *     presence: array{playing: bool, sessionId: string|null, game: string|null},
      *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, avatarFrame: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, showcaseLayout: list<string>}|null
      * }|null
@@ -105,7 +115,7 @@ final readonly class CommunityProfileView
         // Kudos are peer-only: a viewer can't kudos their own achievements, so the target is suppressed
         // when the owner views their own profile (story 30.11). The profile card shows only the most
         // recent unlocks + counts; the full catalogue lives on its own page (story 30.31).
-        $achievements = $this->achievementsFor($model['userId'], $viewerId !== $model['userId']);
+        ['achievements' => $achievements, 'collections' => $collections] = $this->catalogue($model['userId'], $viewerId !== $model['userId']);
         $unlocked = array_values(array_filter($achievements, static fn (array $a): bool => true === $a['unlocked']));
 
         // Level/XP from the shared query so every surface (profile, run participant detail…) agrees.
@@ -166,6 +176,7 @@ final readonly class CommunityProfileView
             ],
             'achievements' => $this->recentUnlocked($unlocked),
             'achievementStats' => ['unlocked' => count($unlocked), 'total' => count($achievements)],
+            'collections' => $this->mostAdvanced($collections),
             'presence' => $presence,
             'customization' => $customization,
         ];
@@ -179,7 +190,8 @@ final readonly class CommunityProfileView
      *     slug: string,
      *     displayName: string|null,
      *     avatarUrl: string|null,
-     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null, rarity: array{count: int, percent: int|null}}>
+     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null, collectionId: string|null, rarity: array{count: int, percent: int|null}}>,
+     *     collections: list<CollectionProgress>
      * }|null
      */
     public function achievementsCatalogFor(string $slug, ?string $viewerId): ?array
@@ -190,7 +202,7 @@ final readonly class CommunityProfileView
         }
 
         $profile = $this->profiles->findByUserId($model['userId']);
-        $achievements = $this->achievementsFor($model['userId'], $viewerId !== $model['userId']);
+        ['achievements' => $achievements, 'collections' => $collections] = $this->catalogue($model['userId'], $viewerId !== $model['userId']);
 
         $snapshot = $this->rarity->snapshot();
         $memberCount = $snapshot['memberCount'];
@@ -212,15 +224,16 @@ final readonly class CommunityProfileView
             'displayName' => $profile?->getDisplayName() ?? $model['displayName'],
             ...$this->cardAvatar($profile, $model['isAdmin']),
             'achievements' => $withRarity,
+            'collections' => $collections,
         ];
     }
 
     /**
      * The most recently unlocked achievements (by unlock date desc), capped for the profile card.
      *
-     * @param list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null}> $unlocked
+     * @param list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null, collectionId: string|null}> $unlocked
      *
-     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null}>
+     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null, collectionId: string|null}>
      */
     private function recentUnlocked(array $unlocked): array
     {
@@ -230,9 +243,91 @@ final readonly class CommunityProfileView
     }
 
     /**
+     * Story 30.52: the started collections, the three most advanced first (the profile card).
+     *
+     * @param list<CollectionProgress> $collections
+     *
+     * @return list<CollectionProgress>
+     */
+    private function mostAdvanced(array $collections): array
+    {
+        $started = array_values(array_filter($collections, static fn (array $c): bool => $c['unlocked'] > 0 && $c['total'] > 0));
+        // usort is stable: equal progress keeps the admin's order.
+        usort($started, static fn (array $a, array $b): int => $b['unlocked'] * $a['total'] <=> $a['unlocked'] * $b['total']);
+
+        return array_slice($started, 0, self::PROFILE_COLLECTION_LIMIT);
+    }
+
+    /**
+     * The member's achievements and (story 30.52) the collections they are sorted into, with the member's progress.
+     * A secret collection, and its achievements, stay out until the member unlocked one of them; an inactive
+     * achievement shows when held but never counts in a collection's progress.
+     *
+     * @return array{achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null, collectionId: string|null}>, collections: list<CollectionProgress>}
+     */
+    private function catalogue(string $userId, bool $kudosable): array
+    {
+        $achievements = $this->achievementsFor($userId, $kudosable);
+        $active = [];
+        foreach ($this->achievementDefinitions->allActive() as $definition) {
+            $active[$definition->getKey()] = true;
+        }
+
+        $progress = [];
+        foreach ($achievements as $a) {
+            $collectionId = $a['collectionId'];
+            if (null === $collectionId) {
+                continue;
+            }
+            $count = $progress[$collectionId] ?? ['unlocked' => 0, 'total' => 0, 'seen' => false];
+            $count['seen'] = $count['seen'] || $a['unlocked'];
+            if (isset($active[$a['key']])) {
+                ++$count['total'];
+                if ($a['unlocked']) {
+                    ++$count['unlocked'];
+                }
+            }
+            $progress[$collectionId] = $count;
+        }
+
+        $collections = [];
+        $hidden = [];
+        foreach ($this->achievementCollections->all() as $collection) {
+            $id = $collection->getId();
+            $count = $progress[$id] ?? null;
+            if ($collection->isSecret() && true !== ($count['seen'] ?? false)) {
+                $hidden[$id] = true;
+
+                continue;
+            }
+            if (null === $count) {
+                continue;
+            }
+            $reward = $collection->getCosmeticReward();
+            $collections[] = [
+                'id' => $id,
+                'name' => $collection->getName(),
+                'description' => $collection->getDescription(),
+                'imageUrl' => $this->achievementImages->resolve($collection->getImageKey()),
+                'secret' => $collection->isSecret(),
+                'unlocked' => $count['unlocked'],
+                'total' => $count['total'],
+                'complete' => $count['total'] > 0 && $count['unlocked'] >= $count['total'],
+                'reward' => null === $reward ? null : $this->cosmeticRewards->label($reward),
+                'pelles' => $collection->getRewardPelles(),
+            ];
+        }
+
+        return [
+            'achievements' => array_values(array_filter($achievements, static fn (array $a): bool => null === $a['collectionId'] || !isset($hidden[$a['collectionId']]))),
+            'collections' => $collections,
+        ];
+    }
+
+    /**
      * @param bool $kudosable whether the viewer may kudos these achievements (false for the owner's own view)
      *
-     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null}>
+     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null, collectionId: string|null}>
      */
     private function achievementsFor(string $userId, bool $kudosable): array
     {
@@ -265,6 +360,7 @@ final readonly class CommunityProfileView
                 'grantId' => $grantId,
                 'kudosCount' => null !== $grantId ? ($kudosCounts[$grantId] ?? 0) : 0,
                 'customImageUrl' => $this->achievementImages->resolve($definition->getCustomImageKey()),
+                'collectionId' => $definition->getCollectionId(),
             ];
         }
 
@@ -443,6 +539,7 @@ final readonly class CommunityProfileView
         $origin = match ($owned['source'] ?? null) {
             CosmeticOwnershipInterface::SOURCE_ACHIEVEMENT => sprintf('Succès « %s »', $label ?? '?'),
             CosmeticOwnershipInterface::SOURCE_QUEST => sprintf('Quête « %s »', $label ?? '?'),
+            CosmeticOwnershipInterface::SOURCE_COLLECTION => sprintf('Collection « %s »', $label ?? '?'),
             'shop' => 'Acheté en boutique',
             default => null,
         };

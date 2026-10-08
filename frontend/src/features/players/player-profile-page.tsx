@@ -148,6 +148,7 @@ export function PlayerProfilePage({
       {profile.achievementStats.total > 0 ? (
         <ProfileAchievements
           achievements={profile.achievements}
+          collections={profile.collections}
           slug={profile.slug}
           stats={profile.achievementStats}
         />

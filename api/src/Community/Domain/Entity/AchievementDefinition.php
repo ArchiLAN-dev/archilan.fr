@@ -51,7 +51,22 @@ final class AchievementDefinition
         private ?string $cosmeticType = null,
         #[ORM\Column(name: 'cosmetic_key', type: 'string', length: 64, nullable: true)]
         private ?string $cosmeticKey = null,
+        // Story 30.52: the collection it belongs to, at most one.
+        #[ORM\Column(name: 'collection_id', type: 'string', length: 32, nullable: true)]
+        private ?string $collectionId = null,
     ) {
+    }
+
+    /** Story 30.52: into a collection, or back to « Autres succès » (null). */
+    public function moveToCollection(?string $collectionId, \DateTimeImmutable $now): void
+    {
+        $this->collectionId = $collectionId;
+        $this->updatedAt = $now;
+    }
+
+    public function getCollectionId(): ?string
+    {
+        return $this->collectionId;
     }
 
     /** Story 41.28: the cosmetic the achievement unlocks, or none. */

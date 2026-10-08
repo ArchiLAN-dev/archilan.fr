@@ -32,6 +32,8 @@ final class Notification
     public const string TYPE_QUESTS_RENEWED = 'quests_renewed';
     // Story 41.28: a cosmetic won through an achievement or a quest.
     public const string TYPE_COSMETIC_UNLOCKED = 'cosmetic_unlocked';
+    // Story 30.52: a collection of achievements completed, with what it gave.
+    public const string TYPE_COLLECTION_COMPLETED = 'collection_completed';
 
     /**
      * @param array<string, mixed> $payload

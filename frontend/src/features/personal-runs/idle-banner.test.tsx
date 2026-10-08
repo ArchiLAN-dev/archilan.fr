@@ -22,11 +22,13 @@ describe("IdleBanner", () => {
     const html = render(<IdleBanner {...base} pausedWithoutSave={false} />);
 
     expect(html).toContain("Partie en veille");
-    expect(html).toContain("la dernière sauvegarde est rechargée automatiquement");
+    expect(html).toContain("la dernière sauvegarde est rechargée");
     expect(html).toContain("Reprendre");
     // No confirmation on the harmless path: teaching the reflex of confirming without reading is
     // exactly what would defeat the dialog on the destructive one.
-    expect(html).not.toContain('aria-haspopup="dialog"');
+    // The only dialog is the « i » explanation (story 33.28), not a confirmation.
+    expect(html.match(/aria-haspopup="dialog"/g)).toHaveLength(1);
+    expect(html).toContain('aria-label="Pourquoi ?"');
     expect(html).not.toContain("Relancer depuis le début");
   });
 

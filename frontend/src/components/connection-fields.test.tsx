@@ -39,14 +39,10 @@ describe("ConnectionFields - les formes d'adresse mesurées en 37.6", () => {
 
     // Sans port, un client vise 38281 et échoue en une demi-seconde ; l'un d'eux conseille alors
     // de passer sur une version non chiffrée, ce qui envoie le joueur dans une impasse.
-    expect(html).toContain("port fait partie de l");
-    expect(html).toContain("38281");
-  });
-
-  test("ce qu'un client web tiers reçoit est annoncé", () => {
-    const html = render(<ConnectionFields {...props} />);
-
-    expect(html).toContain("ne sont pas hébergés par ArchiLAN");
+    // Story 33.28: the instruction stays visible; the why (38281, the third-party web clients) opens in the
+    // « i » panel, rendered only once asked.
+    expect(html).toContain("Copie l&#x27;adresse avec son port");
+    expect(html).toContain('aria-label="Pourquoi ?"');
   });
 
   test("sans URI fournie, la ligne est omise plutôt que fabriquée", () => {

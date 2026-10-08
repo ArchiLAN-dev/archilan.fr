@@ -3,6 +3,7 @@
 import { Server } from "lucide-react";
 
 import { ConnectionFields } from "@/components/connection-fields";
+import { StreamMaskedNote } from "@/components/run-notes";
 
 export function ConnectionDetails({
   host,
@@ -24,9 +25,7 @@ export function ConnectionDetails({
         <Server aria-hidden className="size-4 text-[color:var(--color-success)]" />
         <h3 className="text-sm font-semibold text-foreground">Infos de connexion</h3>
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">
-        Valeurs masquées pour le stream - la copie fonctionne sans les afficher.
-      </p>
+      <StreamMaskedNote className="mb-3 text-xs text-muted-foreground" />
       <ConnectionFields
         adminPassword={adminPassword}
         host={host}

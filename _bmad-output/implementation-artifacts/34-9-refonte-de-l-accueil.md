@@ -1,6 +1,6 @@
 # Story 34.9: Refonte de la page d'accueil
 
-**Status:** review
+**Status:** done
 **Epic:** 34 - SEO & visibilité
 **Date:** 2026-10-07
 
@@ -99,7 +99,9 @@ sections vivantes, pour ne pas répéter.
 - [x] **Task 3** - Sections : `features/home/home-sections.tsx` (`HomeNow`, `HomeConcept`, `HomeStartSteps`,
   `HomeThisWeek`, `HomeLan`, `HomeRecaps`, `HomeCommunity`, `HomeAssociation`, `HomeNews`), chacune repliée sans
   donnée réelle.
-- [ ] **Task 4** - Mesure Lighthouse avant / après, une fois déployé (workflow advisory).
+- [x] **Task 4** - Mesure Lighthouse (mobile, médiane de 3) : avant 88 / 100 / 96 / 100, LCP 3,8 s (2026-07-29) ;
+  après 96 / 96 / 96 / 100, LCP 2,7 s, 758 Kio (2026-10-07). Les deux points d'accessibilité relevés (contraste du
+  surtitre « L'association », libellé du lien Twitch) corrigés ensuite. Détail dans `docs/seo-measurement.md`.
 - [x] **Task 5** - `home.test.tsx` ; gates.
 
 ## Dev Agent Record

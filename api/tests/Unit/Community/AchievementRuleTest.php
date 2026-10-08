@@ -16,6 +16,44 @@ use PHPUnit\Framework\TestCase;
 
 final class AchievementRuleTest extends TestCase
 {
+    public function testProgressGivesEachConditionItsCurrentValueAndEachGroupWhetherItHolds(): void
+    {
+        // Story 30.53: runs >= 10 AND (checks between 500 and 2000 OR none of (goals >= 1)).
+        $rule = AchievementRuleFactory::fromArray([
+            'op' => 'all',
+            'rules' => [
+                ['fact' => 'runs', 'operator' => '>=', 'value' => 10],
+                ['op' => 'any', 'rules' => [
+                    ['fact' => 'checks', 'operator' => 'between', 'value' => 500, 'value2' => 2000],
+                    ['op' => 'none', 'rules' => [['fact' => 'goals', 'operator' => '>=', 'value' => 1]]],
+                ]],
+            ],
+        ]);
+
+        $progress = $rule->progress($this->bag(['runs' => 4, 'checks' => 2500, 'goals' => 0]));
+
+        self::assertSame(['type' => 'group', 'op' => 'all', 'met' => false], array_slice($progress, 0, 3));
+        $rules = $progress['rules'] ?? null;
+        self::assertIsArray($rules);
+        self::assertSame(
+            ['type' => 'condition', 'fact' => 'runs', 'operator' => '>=', 'value' => 10, 'value2' => null, 'current' => 4, 'met' => false],
+            $rules[0] ?? null,
+        );
+        $any = $rules[1] ?? null;
+        self::assertIsArray($any);
+        self::assertTrue($any['met']);
+        $anyRules = $any['rules'] ?? null;
+        self::assertIsArray($anyRules);
+        $between = $anyRules[0] ?? null;
+        self::assertIsArray($between);
+        self::assertSame([2000, 2500, false], [$between['value2'], $between['current'], $between['met']]);
+        $none = $anyRules[1] ?? null;
+        self::assertIsArray($none);
+        // « none » holds while its condition does not.
+        self::assertTrue($none['met']);
+        self::assertSame($rule->matches($this->bag(['runs' => 4, 'checks' => 2500])), $progress['met']);
+    }
+
     #[DataProvider('operatorCases')]
     public function testOperatorEvaluationMatchesExpectation(AchievementOperator $op, int $left, int $value, ?int $value2, bool $expected): void
     {

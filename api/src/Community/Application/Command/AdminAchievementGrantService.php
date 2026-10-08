@@ -6,6 +6,7 @@ namespace App\Community\Application\Command;
 
 use App\Community\Application\Port\CosmeticOwnershipInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\CollectionCompletionRewarder;
 use App\Community\Application\Support\CosmeticRewarder;
 use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Entity\AchievementDefinition;
@@ -29,6 +30,7 @@ final readonly class AdminAchievementGrantService
         private Notifier $notifier,
         private ClockInterface $clock,
         private CosmeticRewarder $rewarder,
+        private CollectionCompletionRewarder $collections,
     ) {
     }
 
@@ -55,13 +57,15 @@ final readonly class AdminAchievementGrantService
             return 'ok';
         }
 
-        $this->grants->save(AchievementGrant::grant($userId, $key, $this->clock->now()));
+        $this->grants->save(AchievementGrant::grant($userId, $key, $this->clock->now(), byTeam: true));
         $this->notifier->notify($userId, Notification::TYPE_ACHIEVEMENT_UNLOCKED, ['achievementKey' => $key]);
         // Story 41.28: and the cosmetic it unlocks.
         $reward = $definition->getReward();
         if (null !== $reward) {
             $this->rewarder->reward($userId, $reward, CosmeticOwnershipInterface::SOURCE_ACHIEVEMENT, $definition->getName());
         }
+        // Story 30.52: the last missing piece of a collection.
+        $this->collections->settle($userId);
 
         return 'ok';
     }

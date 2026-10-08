@@ -101,7 +101,7 @@ export default async function Home() {
               </Link>
               <DiscordJoinButton size="lg" />
               <a
-                aria-label="Ouvrir Twitch ArchiLAN (nouvel onglet)"
+                aria-label="Suivre sur Twitch (nouvel onglet)"
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded border border-border bg-background/60 px-6 font-semibold text-foreground backdrop-blur-sm transition-colors hover:border-accent"
                 href={externalLinks.twitch}
                 rel="noopener noreferrer"

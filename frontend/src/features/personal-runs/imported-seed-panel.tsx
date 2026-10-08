@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { AlertCircle, FileUp, Info, Loader2, Users } from "lucide-react";
+import { AlertCircle, FileUp, Loader2, Users } from "lucide-react";
 
 import { assignImportedSlot, importRunSeed } from "./personal-runs-api";
 import type { ImportedSlot, PersonalRunParticipant } from "./types";
+import { ImportedSeedNote } from "@/features/reachability/reachability-notes";
 
 /**
  * Creating a party from a seed generated somewhere else (story 16.18).
@@ -117,14 +118,7 @@ export function ImportedSeedPanel({
       )}
 
       {importedSeed && (
-        <p className="flex items-start gap-2 rounded border border-border bg-background p-3 text-xs text-muted-foreground">
-          <Info aria-hidden className="mt-0.5 size-3.5 shrink-0 text-accent-text" />
-          <span>
-            La progression détaillée (checks faisables, sphères, détail des objets) n&apos;est pas
-            disponible sur une seed importée : la calculer demande les configurations des joueurs,
-            que l&apos;archive ne contient pas. Tout le reste fonctionne.
-          </span>
-        </p>
+        <ImportedSeedNote className="rounded border border-border bg-background p-3 text-xs text-muted-foreground" />
       )}
 
       {shownSlots.length > 0 && (

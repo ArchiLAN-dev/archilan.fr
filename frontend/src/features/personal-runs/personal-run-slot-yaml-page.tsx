@@ -18,6 +18,7 @@ import {
   fetchYamlTemplates,
   updateYamlTemplate,
 } from "./yaml-templates-api";
+import { GeneratedLockNote } from "@/components/run-notes";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -214,10 +215,9 @@ export function PersonalRunSlotYamlPage({
         </header>
         <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
           <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
-          <p>
-            La partie a déjà été générée : cette configuration n&apos;est plus modifiable (la reprise
-            rejoue toujours la partie existante).
-          </p>
+          <GeneratedLockNote className="min-w-0 flex-1">
+            La partie a déjà été générée : cette configuration n&apos;est plus modifiable.
+          </GeneratedLockNote>
         </div>
         <div className="rounded-lg border border-border bg-surface p-5">
           <YamlOptionsView

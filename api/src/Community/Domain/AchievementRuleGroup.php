@@ -42,6 +42,19 @@ final readonly class AchievementRuleGroup implements AchievementRule
         };
     }
 
+    /**
+     * @return array{type: 'group', op: string, met: bool, rules: list<array<string, mixed>>}
+     */
+    public function progress(MetricBag $bag): array
+    {
+        return [
+            'type' => 'group',
+            'op' => $this->op,
+            'met' => $this->matches($bag),
+            'rules' => array_map(static fn (AchievementRule $r): array => $r->progress($bag), $this->rules),
+        ];
+    }
+
     public function toArray(): array
     {
         return [
