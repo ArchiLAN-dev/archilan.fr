@@ -56,6 +56,7 @@ final class SlotBlockTrackerTest extends TestCase
         self::assertSame('session-1', $job->sessionId);
         self::assertSame('Alice_HK1', $job->slotName);
         self::assertSame(4, $job->reachableNow);
+        self::assertSame('1', $job->slotIndex, 'story 40.5: the slot number, for its progression page');
 
         $tracker->track('session-1', $this->payload(reachableNow: 4));
         self::assertCount(1, $this->bus->messages, 'a duplicate push does not notify twice');

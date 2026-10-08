@@ -50,10 +50,18 @@ final class PushMessageFactory
             $body = sprintf('Tu n\'es plus bloqué dans « %s »%s%s', $runTitle, $slot, $checks);
         }
 
+        // Story 40.5: the progression of the unblocked slot; a notice from before it only knows the run.
+        $slotIndex = self::text($payload, 'slotIndex');
+        $url = match (true) {
+            null === $runId => '/compte/parties',
+            null === $slotIndex => '/runs/'.$runId,
+            default => sprintf('/runs/%s/progression/%s', $runId, $slotIndex),
+        };
+
         return new WebPushMessage(
             self::TITLE,
             $body,
-            null !== $runId ? '/runs/'.$runId : '/compte/parties',
+            $url,
             sprintf('slot_unblocked-%s-%s', $runId ?? 'run', $slotName ?? 'slot'),
         );
     }
