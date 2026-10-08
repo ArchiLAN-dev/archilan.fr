@@ -212,9 +212,15 @@ export function messageFor(item: NotificationItem): string {
     case "cosmetic_unlocked": {
       // Story 41.28: a cosmetic won through an achievement or a quest.
       const label = hasStringProp(item.data, "label") ? item.data.label : "Un cosmétique";
-      const kind = hasStringProp(item.data, "source") && item.data.source === "quest" ? "quête" : "succès";
+      const source = hasStringProp(item.data, "source") ? item.data.source : "";
+      const kind = source === "quest" ? "quête" : source === "collection" ? "collection" : "succès";
       const from = hasStringProp(item.data, "sourceLabel") ? ` (${kind} « ${item.data.sourceLabel} »)` : "";
       return `Débloqué : ${label}${from}`;
+    }
+    case "collection_completed": {
+      // Story 30.52: a collection of achievements completed.
+      const name = hasStringProp(item.data, "name") && item.data.name !== "" ? ` : ${item.data.name}` : "";
+      return `Collection complète${name} \u{1F3C6}`;
     }
     case "quests_renewed": {
       // Story 41.17: the quests of the new week are out.

@@ -28,4 +28,6 @@ enum PelleReason: string
     case ShopPurchase = 'shop_purchase';
     // Story 41.25: a first step of a newcomer.
     case WelcomeReward = 'welcome_reward';
+    // Story 30.52: a collection of achievements completed.
+    case CollectionReward = 'collection_reward';
 }

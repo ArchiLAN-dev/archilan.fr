@@ -15,6 +15,7 @@ use App\Community\Domain\AchievementOperator;
 use App\Community\Domain\AchievementRuleGroup;
 use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
+use App\Community\Domain\Repository\AchievementCollectionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Service\AchievementRuleFactory;
@@ -41,11 +42,13 @@ final readonly class AdminAchievementService
         private CosmeticRewarder $rewarder,
         private AchievementGrantRepositoryInterface $grants,
         private AchievementRarityQueryInterface $rarity,
+        private AchievementCollectionRepositoryInterface $collections,
+        private AdminAchievementCollectionService $collectionAdmin,
     ) {
     }
 
     /**
-     * @return list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null}>
+     * @return list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null, collectionId: string|null}>
      */
     public function list(): array
     {
@@ -56,7 +59,7 @@ final readonly class AdminAchievementService
      * The admin dashboard payload: every definition plus the rule-builder option lists, in one read. Story 30.51:
      * each definition carries how many members hold it (listable members, as the catalogue's rarity).
      *
-     * @return array{definitions: list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null, holders: int}>, options: array{facts: list<array{key: string, label: string}>, operators: list<string>, groupOps: list<string>, events: list<array{id: string, title: string}>}}
+     * @return array{definitions: list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null, collectionId: string|null, holders: int}>, options: array{facts: list<array{key: string, label: string}>, operators: list<string>, groupOps: list<string>, events: list<array{id: string, title: string}>}, collections: list<array{id: string, name: string, description: string, imageKey: string|null, imageUrl: string|null, position: int, secret: bool, reward: array{type: string, key: string, label: string}|null, pelles: int}>}
      */
     public function dashboard(): array
     {
@@ -65,6 +68,8 @@ final readonly class AdminAchievementService
         return [
             'definitions' => array_map(static fn (array $definition): array => [...$definition, 'holders' => $holders[$definition['key']] ?? 0], $this->list()),
             'options' => $this->formOptions(),
+            // Story 30.52.
+            'collections' => $this->collectionAdmin->list(),
         ];
     }
 
@@ -92,7 +97,7 @@ final readonly class AdminAchievementService
     /**
      * @param array<string, mixed> $payload
      *
-     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null}
+     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null, collectionId: string|null}
      *
      * @throws InvalidAchievementRuleException
      * @throws \InvalidArgumentException
@@ -111,6 +116,7 @@ final readonly class AdminAchievementService
         $reward = $this->reward($payload);
         $definition = AchievementDefinition::create($key, $name, $this->description($payload), $rule, $this->definitions->maxPosition() + 1, $now, $this->imageKey($payload));
         $definition->rewardWith($reward, $now);
+        $definition->moveToCollection($this->collectionId($payload), $now);
         $this->definitions->save($definition);
 
         return $this->present($definition);
@@ -119,7 +125,7 @@ final readonly class AdminAchievementService
     /**
      * @param array<string, mixed> $payload
      *
-     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null}|null
+     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null, collectionId: string|null}|null
      *
      * @throws InvalidAchievementRuleException
      * @throws \InvalidArgumentException
@@ -148,6 +154,10 @@ final readonly class AdminAchievementService
                 $newReward = $reward;
             }
             $definition->rewardWith($reward, $now);
+        }
+        // Story 30.52: the collection only when the field is present, like the image.
+        if (array_key_exists('collectionId', $payload)) {
+            $definition->moveToCollection($this->collectionId($payload), $now);
         }
         $this->definitions->flush();
         // The members who already hold the achievement get the cosmetic it now unlocks.
@@ -178,20 +188,56 @@ final readonly class AdminAchievementService
     }
 
     /**
-     * @param list<string> $orderedIds
+     * The order of the achievements, and (story 30.52) the collection of those `$collections` names: a drop into
+     * another collection's section moves the achievement there.
+     *
+     * @param list<string>               $orderedIds
+     * @param array<string, string|null> $collections achievement id => collection id, or null for « Autres succès »
+     *
+     * @throws \InvalidArgumentException when a collection does not exist
      */
-    public function reorder(array $orderedIds): void
+    public function reorder(array $orderedIds, array $collections = []): void
     {
+        foreach ($collections as $collectionId) {
+            $this->requireCollection($collectionId);
+        }
         $now = $this->clock->now();
         $position = 0;
         foreach ($orderedIds as $id) {
             $definition = $this->definitions->findById($id);
             if ($definition instanceof AchievementDefinition) {
                 $definition->reorder($position, $now);
+                if (array_key_exists($id, $collections)) {
+                    $definition->moveToCollection($collections[$id], $now);
+                }
                 ++$position;
             }
         }
         $this->definitions->flush();
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @throws \InvalidArgumentException when the collection does not exist
+     */
+    private function collectionId(array $payload): ?string
+    {
+        $id = $payload['collectionId'] ?? null;
+        $id = is_string($id) && '' !== trim($id) ? trim($id) : null;
+        $this->requireCollection($id);
+
+        return $id;
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     */
+    private function requireCollection(?string $id): void
+    {
+        if (null !== $id && null === $this->collections->findById($id)) {
+            throw new \InvalidArgumentException('Cette collection n\'existe pas.');
+        }
     }
 
     /**
@@ -317,7 +363,7 @@ final readonly class AdminAchievementService
     }
 
     /**
-     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null}
+     * @return array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null, collectionId: string|null}
      */
     private function present(AchievementDefinition $d): array
     {
@@ -332,6 +378,7 @@ final readonly class AdminAchievementService
             'customImageKey' => $d->getCustomImageKey(),
             'customImageUrl' => $this->imageUrls->resolve($d->getCustomImageKey()),
             'reward' => $this->presentReward($d->getReward()),
+            'collectionId' => $d->getCollectionId(),
         ];
     }
 

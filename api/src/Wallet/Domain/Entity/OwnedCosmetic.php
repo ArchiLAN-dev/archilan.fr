@@ -37,6 +37,8 @@ final class OwnedCosmetic
     public const string SOURCE_SHOP = 'shop';
     public const string SOURCE_ACHIEVEMENT = 'achievement';
     public const string SOURCE_QUEST = 'quest';
+    // Story 30.52: a collection of achievements completed.
+    public const string SOURCE_COLLECTION = 'collection';
 
     public static function acquire(string $userId, string $type, string $cosmeticKey, \DateTimeImmutable $now, string $source = self::SOURCE_SHOP, ?string $sourceLabel = null): self
     {

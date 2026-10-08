@@ -51,7 +51,7 @@ final readonly class AdminAchievementController
 
         $dashboard = $this->achievements->dashboard();
 
-        return new JsonResponse(['data' => $dashboard['definitions'], 'meta' => ['options' => $dashboard['options']]]);
+        return new JsonResponse(['data' => $dashboard['definitions'], 'meta' => ['options' => $dashboard['options'], 'collections' => $dashboard['collections']]]);
     }
 
     #[Route('/api/v1/admin/community/achievements', name: 'api_admin_community_achievements_create', methods: ['POST'])]
@@ -195,7 +195,8 @@ final readonly class AdminAchievementController
             return $admin;
         }
 
-        $rawIds = $this->jsonPayload($request)['ids'] ?? null;
+        $payload = $this->jsonPayload($request);
+        $rawIds = $payload['ids'] ?? null;
         $ids = [];
         if (is_array($rawIds)) {
             foreach ($rawIds as $id) {
@@ -204,8 +205,22 @@ final readonly class AdminAchievementController
                 }
             }
         }
+        // Story 30.52: `collections` maps an achievement id to its collection id, or null for « Autres succès ».
+        $rawCollections = $payload['collections'] ?? null;
+        $collections = [];
+        if (is_array($rawCollections)) {
+            foreach ($rawCollections as $id => $collectionId) {
+                if (is_string($id) && (null === $collectionId || is_string($collectionId))) {
+                    $collections[$id] = '' === $collectionId ? null : $collectionId;
+                }
+            }
+        }
 
-        $this->achievements->reorder($ids);
+        try {
+            $this->achievements->reorder($ids, $collections);
+        } catch (\InvalidArgumentException $e) {
+            return $this->invalid($e);
+        }
 
         return new JsonResponse(null, 204);
     }

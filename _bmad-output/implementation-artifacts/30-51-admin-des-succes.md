@@ -1,6 +1,6 @@
 # Story 30.51: Une admin des succès qu'on manipule
 
-**Status:** review
+**Status:** done
 **Epic:** 30 - Communauté
 **Date:** 2026-10-08
 

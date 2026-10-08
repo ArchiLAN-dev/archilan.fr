@@ -80,7 +80,7 @@ final class RecomputeAchievementsTest extends TestCase
         $builder = new MetricBagBuilder([new StatsMetricProvider($stats, $history)]);
         $definitions = $this->definitionsRepo(deactivate: ['veteran']);
         $grants = $this->inMemoryGrantRepo();
-        $service = new RecomputeAchievements($definitions, $grants, $builder, $this->nullNotifier(), new MockClock(), $this->cosmeticRewarder());
+        $service = new RecomputeAchievements($definitions, $grants, $builder, $this->nullNotifier(), new MockClock(), $this->cosmeticRewarder(), $this->collectionRewarder());
 
         $service->recomputeForUser('u3');
 
@@ -102,7 +102,7 @@ final class RecomputeAchievementsTest extends TestCase
 
         $builder = new MetricBagBuilder([new StatsMetricProvider($statsStub, $historyStub)]);
 
-        return new RecomputeAchievements($this->definitionsRepo(), $grants, $builder, $this->nullNotifier(), new MockClock(), $this->cosmeticRewarder());
+        return new RecomputeAchievements($this->definitionsRepo(), $grants, $builder, $this->nullNotifier(), new MockClock(), $this->cosmeticRewarder(), $this->collectionRewarder());
     }
 
     /**

@@ -27,12 +27,14 @@ interface CosmeticOwnershipInterface
 
     public const string SOURCE_ACHIEVEMENT = 'achievement';
     public const string SOURCE_QUEST = 'quest';
+    // Story 30.52: a collection of achievements completed.
+    public const string SOURCE_COLLECTION = 'collection';
 
     /**
      * Story 41.28: gives a member a cosmetic they won.
      *
-     * @param self::SOURCE_ACHIEVEMENT|self::SOURCE_QUEST $source
-     * @param string                                      $sourceLabel the achievement's or the quest's name
+     * @param self::SOURCE_ACHIEVEMENT|self::SOURCE_QUEST|self::SOURCE_COLLECTION $source
+     * @param string                                                              $sourceLabel the achievement's, the quest's or the collection's name
      *
      * @return bool true when newly owned, false when the member already had it
      */

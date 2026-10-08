@@ -1,22 +1,26 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
-import type { Achievement, AchievementStats } from "@/features/players/player-profile-api";
+import type { Achievement, AchievementCollectionProgress, AchievementStats } from "@/features/players/player-profile-api";
 import { AchievementCard } from "./achievement-card";
+import { ProfileCollections } from "./achievement-collections";
 
 /**
  * The "Succès" section on the profile card. Shows only the most recently unlocked achievements + the
  * unlocked/total count and a link to the full catalogue page (story 30.31). Kudos on achievements were
- * dropped (they added no value); kudos remain on the activity feed / runs.
+ * dropped (they added no value); kudos remain on the activity feed / runs. Story 30.52: the started collections
+ * under the count.
  */
 export function ProfileAchievements({
   slug,
   achievements,
   stats,
+  collections = [],
 }: {
   slug: string;
   achievements: Achievement[];
   stats: AchievementStats;
+  collections?: AchievementCollectionProgress[];
 }) {
   const remaining = Math.max(0, stats.total - stats.unlocked);
 
@@ -37,6 +41,8 @@ export function ProfileAchievements({
           <ChevronRight aria-hidden className="size-4" />
         </Link>
       </div>
+
+      <ProfileCollections collections={collections} slug={slug} />
 
       {achievements.length > 0 ? (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="list">

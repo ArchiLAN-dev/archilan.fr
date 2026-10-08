@@ -22,7 +22,7 @@ final readonly class CosmeticRewarder
     }
 
     /**
-     * @param CosmeticOwnershipInterface::SOURCE_ACHIEVEMENT|CosmeticOwnershipInterface::SOURCE_QUEST $source
+     * @param CosmeticOwnershipInterface::SOURCE_ACHIEVEMENT|CosmeticOwnershipInterface::SOURCE_QUEST|CosmeticOwnershipInterface::SOURCE_COLLECTION $source
      *
      * @return bool true when newly given
      */
