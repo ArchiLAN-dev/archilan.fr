@@ -146,6 +146,13 @@ function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
     const isAdmin = user.roles.includes("ROLE_ADMIN");
     return (
       <>
+        <Link
+          className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+          href="/compte/parties"
+          onClick={onNavigate}
+        >
+          Mes parties
+        </Link>
         {user.slug ? (
           <Link
             className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"

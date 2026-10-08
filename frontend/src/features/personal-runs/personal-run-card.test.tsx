@@ -49,3 +49,14 @@ describe("PersonalRunCard archive action", () => {
     expect(renderToStaticMarkup(<PersonalRunCard run={run("draft")} />)).not.toContain("Archiver");
   });
 });
+
+/** Story 16.22: a joined run shares the status groups with the owned ones, tagged so it stands apart. */
+describe("PersonalRunCard joined tag", () => {
+  test("a joined run is tagged « Rejointe »", () => {
+    expect(renderToStaticMarkup(<PersonalRunCard joined run={run("active")} />)).toContain("Rejointe");
+  });
+
+  test("an owned run is not", () => {
+    expect(renderToStaticMarkup(<PersonalRunCard run={run("active")} />)).not.toContain("Rejointe");
+  });
+});

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Archive, ArchiveRestore, Gamepad2, Loader2, RotateCcw } from "lucide-react";
+import { Archive, ArchiveRestore, Gamepad2, Loader2, RotateCcw, UserPlus } from "lucide-react";
 import { ARCHIVABLE_STATUSES, type PersonalRun } from "./types";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 
@@ -25,8 +25,11 @@ export function PersonalRunCard({
   onRestart,
   archiving = false,
   onArchive,
+  joined = false,
 }: {
   run: PersonalRun;
+  /** Story 16.22: a run the member joined, listed among their own - tagged so they tell them apart. */
+  joined?: boolean;
   restarting?: boolean;
   onRestart?: (run: PersonalRun) => void;
   archiving?: boolean;
@@ -46,6 +49,12 @@ export function PersonalRunCard({
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-heading font-semibold text-foreground">{run.title}</span>
               <PersonalRunStatusBadge status={run.status} />
+              {joined ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  <UserPlus aria-hidden className="size-3" />
+                  Rejointe
+                </span>
+              ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <span>Créée le {formatDate(run.createdAt)}</span>
