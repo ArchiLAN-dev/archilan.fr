@@ -39,6 +39,8 @@ export type AchievementDefinition = {
   customImageUrl: string | null;
   /** Story 41.28: the cosmetic it unlocks. */
   reward: CosmeticRewardView | null;
+  /** Story 30.51: how many members hold it (absent from an older API). */
+  holders?: number;
 };
 
 export type AchievementFactOption = { key: string; label: string };
@@ -266,5 +268,6 @@ function isAchievementDefinition(v: unknown): v is AchievementDefinition {
   if (!("rule" in v) || !isRuleNode(v.rule) || !("op" in v.rule)) return false;
   // Story 41.28: absent from an older API.
   if ("reward" in v && v.reward !== null && !isCosmeticRewardView(v.reward)) return false;
+  if ("holders" in v && typeof v.holders !== "number") return false;
   return true;
 }

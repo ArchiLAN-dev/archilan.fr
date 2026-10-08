@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, Image as ImageIcon, Loader2, Plus, Search, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { DropdownMenu } from "radix-ui";
+import { GripVertical, Image as ImageIcon, Loader2, MoreHorizontal, Plus, Search, Trophy, Upload, X } from "lucide-react";
 
+import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { CosmeticRewardPicker, type CosmeticReward } from "@/features/community/cosmetic-reward-picker";
 import { ACHIEVEMENT_DESCRIPTION_MAX } from "@/lib/content-limits";
@@ -20,58 +25,90 @@ import {
   uploadAchievementImage,
   type AchievementDefinition,
   type AchievementFormOptions,
-  type RuleCondition,
   type RuleGroup,
-  type RuleGroupOp,
   type RuleNode,
-  type RuleOperator,
 } from "./admin-achievements-api";
-import {
-  EVENTS_FACT,
-  eventIdOfFact,
-  eventScopedFact,
-  factLabel,
-  isEventScopedFact,
-} from "./admin-achievement-event-scope";
+import { RuleChips } from "./achievement-rule-chips";
+import { RuleTreeEditor } from "./achievement-rule-editor";
+import { FAMILY_LABELS, FAMILY_ORDER, familyOf, type FactFamily } from "./achievement-rules";
 
 const QUERY_KEY = ["admin-achievements"] as const;
 const STALE_TIME = 15_000;
 
-const GROUP_OP_LABELS: Record<RuleGroupOp, string> = {
-  all: "Toutes les règles (ET)",
-  any: "Au moins une règle (OU)",
-  none: "Aucune des règles (NON)",
-};
+type EditorState = { mode: "closed" } | { mode: "create" } | { mode: "edit"; definition: AchievementDefinition };
 
-const OPERATOR_LABELS: Record<RuleOperator, string> = {
-  ">=": "≥",
-  ">": ">",
-  "=": "=",
-  "!=": "≠",
-  "<=": "≤",
-  "<": "<",
-  between: "entre",
-};
+export type AchievementFilters = { search: string; status: "all" | "active" | "inactive"; family: FactFamily | ""; rewardOnly: boolean };
 
+export const NO_FILTERS: AchievementFilters = { search: "", status: "all", family: "", rewardOnly: false };
 
-type EditorState =
-  | { mode: "closed" }
-  | { mode: "create" }
-  | { mode: "edit"; definition: AchievementDefinition };
+function fold(value: string): string {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
 
+function families(node: RuleNode): FactFamily[] {
+  return isRuleGroup(node) ? node.rules.flatMap(families) : [familyOf(node.fact)];
+}
+
+/** Story 30.51: the definitions a search and the filters keep, in catalogue order. */
+export function filterAchievements(definitions: AchievementDefinition[], filters: AchievementFilters): AchievementDefinition[] {
+  const needle = fold(filters.search.trim());
+  return definitions.filter(
+    (d) =>
+      (needle === "" || fold(d.name).includes(needle) || fold(d.key).includes(needle)) &&
+      (filters.status === "all" || (filters.status === "active") === d.active) &&
+      (filters.family === "" || families(d.rule).includes(filters.family)) &&
+      (!filters.rewardOnly || d.reward !== null),
+  );
+}
+
+export function isFiltered(filters: AchievementFilters): boolean {
+  return filters.search.trim() !== "" || filters.status !== "all" || filters.family !== "" || filters.rewardOnly;
+}
+
+/**
+ * « Succès » (stories 30.16, 30.51): the catalogue in profile order. Drag a line by its handle to reorder it (or
+ * « Déplacer en position… »), find one by name or key, read its rule in chips; create and edit in a side panel.
+ */
 export function AdminAchievementsDashboard() {
   const queryClient = useQueryClient();
-  const { data, isLoading, isError } = useQuery({
-    queryKey: QUERY_KEY,
-    queryFn: fetchAchievementDashboard,
-    staleTime: STALE_TIME,
-  });
+  const { data, isLoading, isError } = useQuery({ queryKey: QUERY_KEY, queryFn: fetchAchievementDashboard, staleTime: STALE_TIME });
   const [editor, setEditor] = useState<EditorState>({ mode: "closed" });
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [filters, setFilters] = useState<AchievementFilters>(NO_FILTERS);
   const [grantingId, setGrantingId] = useState<string | null>(null);
+  const [moving, setMoving] = useState<AchievementDefinition | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  // The order shown while a reorder is saved, so the line stays where it was dropped.
+  const [pendingOrder, setPendingOrder] = useState<string[] | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
+  const ordered = useMemo(() => {
+    const definitions = data?.definitions ?? [];
+    if (pendingOrder === null) return definitions;
+    const byId = new Map(definitions.map((d) => [d.id, d]));
+    return pendingOrder.flatMap((id) => (byId.has(id) ? [byId.get(id) as AchievementDefinition] : []));
+  }, [data, pendingOrder]);
+  const shown = filterAchievements(ordered, filters);
+  const filtered = isFiltered(filters);
 
   async function refresh(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+  }
+
+  async function reorder(ids: string[]): Promise<void> {
+    setPendingOrder(ids);
+    await reorderAchievements(ids);
+    await refresh();
+    setPendingOrder(null);
+  }
+
+  function onDragEnd(event: DragEndEvent): void {
+    const over = event.over?.id;
+    if (over === undefined || over === event.active.id) return;
+    const ids = ordered.map((d) => d.id);
+    const from = ids.indexOf(String(event.active.id));
+    const to = ids.indexOf(String(over));
+    if (from < 0 || to < 0) return;
+    void reorder(arrayMove(ids, from, to));
   }
 
   async function toggleActive(definition: AchievementDefinition): Promise<void> {
@@ -81,41 +118,19 @@ export function AdminAchievementsDashboard() {
     setBusyId(null);
   }
 
-  async function move(definitions: AchievementDefinition[], index: number, delta: number): Promise<void> {
-    const target = index + delta;
-    if (target < 0 || target >= definitions.length) return;
-    const ordered = [...definitions];
-    const [moved] = ordered.splice(index, 1);
-    ordered.splice(target, 0, moved);
-    setBusyId(definitions[index].id);
-    await reorderAchievements(ordered.map((d) => d.id));
-    await refresh();
-    setBusyId(null);
-  }
-
-  if (editor.mode !== "closed" && data) {
-    return (
-      <AchievementForm
-        existingKeys={data.definitions.map((d) => d.key)}
-        initial={editor.mode === "edit" ? editor.definition : null}
-        onClose={() => setEditor({ mode: "closed" })}
-        onSaved={async () => {
-          await refresh();
-          setEditor({ mode: "closed" });
-        }}
-        options={data.options}
-      />
-    );
-  }
+  const activeCount = ordered.filter((d) => d.active).length;
+  const granting = ordered.find((d) => d.id === grantingId) ?? null;
 
   return (
-    <section className="grid gap-6 p-6 md:p-8">
+    <section className="grid gap-5 p-6 md:p-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="grid gap-1">
           <h1 className="font-heading text-2xl font-bold text-foreground">Succès</h1>
-          <p className="text-sm text-muted-foreground">
-            Catalogue des succès débloquables. Les règles sont composables ; un succès gagné n’est jamais retiré.
-          </p>
+          {data ? (
+            <p className="text-sm text-muted-foreground">
+              {ordered.length} succès · {activeCount} actifs · glisse une ligne par sa poignée pour changer l&apos;ordre du profil
+            </p>
+          ) : null}
         </div>
         <button
           className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-accent bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
@@ -127,6 +142,8 @@ export function AdminAchievementsDashboard() {
         </button>
       </header>
 
+      {data ? <Toolbar filters={filters} onChange={setFilters} /> : null}
+
       {isLoading ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 aria-hidden className="size-4 animate-spin" /> Chargement…
@@ -134,103 +151,281 @@ export function AdminAchievementsDashboard() {
       ) : isError || !data ? (
         <p className="text-sm text-muted-foreground">Impossible de charger les succès.</p>
       ) : data.definitions.length === 0 ? (
-        <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
-          Aucun succès défini pour le moment.
-        </p>
+        <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">Aucun succès défini pour le moment.</p>
       ) : (
-        <ul className="grid gap-3" role="list">
-          {data.definitions.map((definition, index) => (
-            <li key={definition.id}>
-              <article className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4">
-                <div className="min-w-0 grid gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">{definition.name}</span>
-                    <code className="rounded bg-surface-2 px-1.5 py-0.5 text-xs text-muted-foreground">{definition.key}</code>
-                    {!definition.active ? (
-                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-400">
-                        inactif
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{summariseRule(definition.rule, data.options)}</p>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <IconButton
+        <>
+          {filtered ? (
+            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <strong className="text-foreground">
+                {shown.length} succès sur {ordered.length}
+              </strong>
+              · l&apos;ordre ne se change pas pendant une recherche
+              <button className="font-semibold text-accent-text hover:underline" onClick={() => setFilters(NO_FILTERS)} type="button">
+                Tout afficher
+              </button>
+            </p>
+          ) : null}
+          <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd} sensors={sensors}>
+            <SortableContext disabled={filtered} items={shown.map((d) => d.id)} strategy={verticalListSortingStrategy}>
+              <ol className="grid gap-1.5">
+                {shown.map((definition) => (
+                  <AchievementRow
                     busy={busyId === definition.id}
-                    label="Monter"
-                    onClick={() => void move(data.definitions, index, -1)}
-                  >
-                    <ChevronUp aria-hidden className="size-4" />
-                  </IconButton>
-                  <IconButton
-                    busy={busyId === definition.id}
-                    label="Descendre"
-                    onClick={() => void move(data.definitions, index, 1)}
-                  >
-                    <ChevronDown aria-hidden className="size-4" />
-                  </IconButton>
-                  <button
-                    className="inline-flex min-h-9 items-center rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground disabled:opacity-50"
-                    disabled={busyId === definition.id}
-                    onClick={() => void toggleActive(definition)}
-                    type="button"
-                  >
-                    {definition.active ? "Désactiver" : "Activer"}
-                  </button>
-                  <button
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-                    onClick={() => setGrantingId(grantingId === definition.id ? null : definition.id)}
-                    type="button"
-                  >
-                    <UserPlus aria-hidden className="size-4" /> Attribuer
-                  </button>
-                  <button
-                    className="inline-flex min-h-9 items-center rounded-lg border border-accent px-3 text-sm font-semibold text-accent-text transition-colors hover:bg-accent hover:text-white"
-                    onClick={() => setEditor({ mode: "edit", definition })}
-                    type="button"
-                  >
-                    Modifier
-                  </button>
-                </div>
-              </article>
-              {grantingId === definition.id ? (
-                <GrantPanel
-                  definitionId={definition.id}
-                  definitionName={definition.name}
-                  onClose={() => setGrantingId(null)}
-                />
-              ) : null}
-            </li>
-          ))}
-        </ul>
+                    definition={definition}
+                    key={definition.id}
+                    onEdit={() => setEditor({ mode: "edit", definition })}
+                    onGrant={() => setGrantingId(definition.id)}
+                    onMove={() => setMoving(definition)}
+                    onToggle={() => void toggleActive(definition)}
+                    options={data.options}
+                    position={ordered.indexOf(definition) + 1}
+                    sortable={!filtered}
+                  />
+                ))}
+              </ol>
+            </SortableContext>
+          </DndContext>
+        </>
       )}
+
+      {data ? (
+        <Dialog
+          onOpenChange={(open) => (open ? null : setEditor({ mode: "closed" }))}
+          open={editor.mode !== "closed"}
+          size="wide"
+          title={editor.mode === "edit" ? "Modifier le succès" : "Nouveau succès"}
+          variant="side"
+        >
+          {editor.mode !== "closed" ? (
+            <AchievementForm
+              existingKeys={data.definitions.map((d) => d.key)}
+              initial={editor.mode === "edit" ? editor.definition : null}
+              onClose={() => setEditor({ mode: "closed" })}
+              onSaved={async () => {
+                await refresh();
+                setEditor({ mode: "closed" });
+              }}
+              options={data.options}
+            />
+          ) : null}
+        </Dialog>
+      ) : null}
+
+      {moving ? (
+        <MoveDialog
+          count={ordered.length}
+          current={ordered.indexOf(moving) + 1}
+          name={moving.name}
+          onClose={() => setMoving(null)}
+          onMove={async (position) => {
+            const ids = ordered.map((d) => d.id).filter((id) => id !== moving.id);
+            ids.splice(position - 1, 0, moving.id);
+            setMoving(null);
+            await reorder(ids);
+          }}
+        />
+      ) : null}
+
+      {granting ? <GrantPanel definitionId={granting.id} definitionName={granting.name} onClose={() => setGrantingId(null)} /> : null}
     </section>
   );
 }
 
-function IconButton({
-  children,
-  busy,
-  label,
-  onClick,
-}: {
-  children: React.ReactNode;
-  busy: boolean;
-  label: string;
-  onClick: () => void;
-}) {
+function Toolbar({ filters, onChange }: { filters: AchievementFilters; onChange: (filters: AchievementFilters) => void }) {
+  const field = "min-h-10 rounded-lg border border-border bg-surface px-3 text-sm text-foreground outline-none focus:border-accent";
   return (
-    <button
-      aria-label={label}
-      className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-accent hover:text-foreground disabled:opacity-50"
-      disabled={busy}
-      onClick={onClick}
-      title={label}
-      type="button"
+    <div className="flex flex-wrap items-center gap-2">
+      <label className="flex min-h-10 min-w-0 flex-[1_1_16rem] items-center gap-2 rounded-lg border border-border bg-surface px-3 text-muted-foreground focus-within:border-accent">
+        <Search aria-hidden className="size-4 shrink-0" />
+        <span className="sr-only">Rechercher un succès</span>
+        <input
+          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none"
+          onChange={(e) => onChange({ ...filters, search: e.target.value })}
+          placeholder="Rechercher par nom ou clé"
+          type="search"
+          value={filters.search}
+        />
+      </label>
+      <div aria-label="État" className="inline-flex rounded-lg border border-border bg-surface p-0.5 text-sm" role="group">
+        {(
+          [
+            ["all", "Tous"],
+            ["active", "Actifs"],
+            ["inactive", "Inactifs"],
+          ] as const
+        ).map(([status, label]) => (
+          <button
+            aria-pressed={filters.status === status}
+            className={`min-h-9 rounded-md px-3 ${filters.status === status ? "bg-accent font-semibold text-white" : "text-muted-foreground hover:text-foreground"}`}
+            key={status}
+            onClick={() => onChange({ ...filters, status })}
+            type="button"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <select
+        aria-label="Famille de critère"
+        className={field}
+        onChange={(e) => onChange({ ...filters, family: FAMILY_ORDER.find((f) => f === e.target.value) ?? "" })}
+        value={filters.family}
+      >
+        <option value="">Tous les critères</option>
+        {FAMILY_ORDER.map((family) => (
+          <option key={family} value={family}>
+            {FAMILY_LABELS[family]}
+          </option>
+        ))}
+      </select>
+      <button
+        aria-pressed={filters.rewardOnly}
+        className={`${field} ${filters.rewardOnly ? "border-amber-400/60 text-amber-300" : "text-muted-foreground"}`}
+        onClick={() => onChange({ ...filters, rewardOnly: !filters.rewardOnly })}
+        type="button"
+      >
+        Avec récompense
+      </button>
+    </div>
+  );
+}
+
+function AchievementRow({
+  definition,
+  options,
+  position,
+  sortable,
+  busy,
+  onEdit,
+  onToggle,
+  onGrant,
+  onMove,
+}: {
+  definition: AchievementDefinition;
+  options: AchievementFormOptions;
+  position: number;
+  sortable: boolean;
+  busy: boolean;
+  onEdit: () => void;
+  onToggle: () => void;
+  onGrant: () => void;
+  onMove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: definition.id, disabled: !sortable });
+  const holders = definition.holders;
+
+  return (
+    <li
+      className={`flex flex-wrap items-center gap-3 rounded-xl border bg-surface py-2 pl-1 pr-2 sm:flex-nowrap ${
+        isDragging ? "relative z-10 border-accent-text shadow-xl" : "border-border"
+      } ${definition.active ? "" : "opacity-60"}`}
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      {children}
-    </button>
+      {sortable ? (
+        <button
+          {...attributes}
+          {...listeners}
+          aria-label={`Déplacer ${definition.name}`}
+          className="inline-flex size-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
+          ref={setActivatorNodeRef}
+          type="button"
+        >
+          <GripVertical aria-hidden className="size-4" />
+        </button>
+      ) : (
+        <span aria-hidden className="w-2 shrink-0" />
+      )}
+      <span className="w-6 shrink-0 text-right text-xs text-muted-foreground">{position}</span>
+      {definition.customImageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- remote presigned image, not a local asset
+        <img alt="" className="size-9 shrink-0 rounded-full object-cover ring-2 ring-amber-400" src={definition.customImageUrl} />
+      ) : (
+        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-400/15 text-amber-400">
+          <Trophy aria-hidden className="size-4" />
+        </span>
+      )}
+      <button className="grid min-w-0 flex-1 gap-1 text-left" onClick={onEdit} type="button">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-semibold text-foreground">{definition.name}</span>
+          <code className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted-foreground">{definition.key}</code>
+        </span>
+        <RuleChips options={options} rule={definition.rule} />
+      </button>
+      {definition.reward ? (
+        <span className="inline-flex h-6 max-w-48 shrink-0 items-center truncate rounded-full border border-amber-400/35 bg-amber-400/10 px-2.5 text-xs text-amber-300">
+          {definition.reward.label}
+        </span>
+      ) : null}
+      {holders !== undefined ? (
+        <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+          {holders} {holders > 1 ? "membres" : "membre"}
+        </span>
+      ) : null}
+      <button
+        aria-checked={definition.active}
+        aria-label={`${definition.name} actif`}
+        className={`inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors disabled:opacity-50 ${definition.active ? "justify-end bg-success" : "justify-start bg-border"}`}
+        disabled={busy}
+        onClick={onToggle}
+        role="switch"
+        type="button"
+      >
+        <span className="size-5 rounded-full bg-white" />
+      </button>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild>
+          <button aria-label={`Plus d'actions pour ${definition.name}`} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-2 hover:text-foreground" type="button">
+            <MoreHorizontal aria-hidden className="size-4" />
+          </button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content align="end" className="z-50 grid min-w-56 rounded-xl border border-border bg-surface p-1.5 text-sm shadow-xl" sideOffset={4}>
+            <DropdownMenu.Item className="cursor-pointer rounded-lg px-3 py-2 text-foreground outline-none data-[highlighted]:bg-surface-2" onSelect={onEdit}>
+              Modifier
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className="cursor-pointer rounded-lg px-3 py-2 text-foreground outline-none data-[highlighted]:bg-surface-2" onSelect={onGrant}>
+              Attribuer à un membre…
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className="cursor-pointer rounded-lg px-3 py-2 text-foreground outline-none data-[highlighted]:bg-surface-2" onSelect={onMove}>
+              Déplacer en position…
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+    </li>
+  );
+}
+
+function MoveDialog({ name, current, count, onMove, onClose }: { name: string; current: number; count: number; onMove: (position: number) => Promise<void>; onClose: () => void }) {
+  const [position, setPosition] = useState(current);
+  const valid = position >= 1 && position <= count && position !== current;
+  return (
+    <Dialog onOpenChange={(open) => (open ? null : onClose())} open title={`Déplacer « ${name} »`}>
+      <DialogBody>
+        <label className="grid gap-1.5 text-sm">
+          <span className="font-medium text-foreground">
+            Nouvelle position (1 à {count}, actuellement {current})
+          </span>
+          <input
+            className="min-h-10 w-32 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent"
+            max={count}
+            min={1}
+            onChange={(e) => setPosition(Number.parseInt(e.target.value, 10) || 0)}
+            type="number"
+            value={position}
+          />
+        </label>
+      </DialogBody>
+      <DialogFooter>
+        <button className="min-h-10 rounded-lg border border-border px-4 text-sm text-muted-foreground hover:text-foreground" onClick={onClose} type="button">
+          Annuler
+        </button>
+        <button className="min-h-10 rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-50" disabled={!valid} onClick={() => void onMove(position)} type="button">
+          Déplacer
+        </button>
+      </DialogFooter>
+    </Dialog>
   );
 }
 
@@ -432,17 +627,11 @@ function AchievementForm({
   }
 
   return (
-    <section className="mx-auto grid w-full max-w-content gap-6 p-6 md:p-8">
-      <header className="grid gap-1">
-        <h1 className="font-heading text-2xl font-bold text-foreground">
-          {isEdit ? "Modifier un succès" : "Nouveau succès"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Le déblocage est évalué de manière monotone : une règle assouplie débloque rétroactivement, mais un
-          succès déjà obtenu n’est jamais retiré.
+    <>
+      <DialogBody>
+        <p className="text-xs text-muted-foreground">
+          Une règle assouplie débloque rétroactivement ; un succès déjà obtenu n’est jamais retiré.
         </p>
-      </header>
-
       <div className="grid gap-4">
         <Field label="Clé (immuable)">
           <input
@@ -530,7 +719,7 @@ function AchievementForm({
 
         <div className="grid gap-2">
           <span className="text-sm font-semibold text-foreground">Règle de déblocage</span>
-          <RuleGroupEditor group={rule} onChange={setRule} options={options} root />
+          <RuleTreeEditor onChange={setRule} options={options} rule={rule} />
           {!ruleIsComplete(rule) ? (
             <span className="text-xs text-amber-400">Chaque groupe doit contenir au moins une règle.</span>
           ) : null}
@@ -540,8 +729,9 @@ function AchievementForm({
       {error ? (
         <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>
       ) : null}
+      </DialogBody>
 
-      <div className="flex justify-end gap-3">
+      <DialogFooter>
         <button
           className="inline-flex min-h-10 items-center rounded-lg border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           onClick={onClose}
@@ -558,8 +748,8 @@ function AchievementForm({
           {saving ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
           Enregistrer
         </button>
-      </div>
-    </section>
+      </DialogFooter>
+    </>
   );
 }
 
@@ -572,244 +762,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-// ── Recursive rule builder ──────────────────────────────────────────────────────
-
-function RuleGroupEditor({
-  group,
-  options,
-  onChange,
-  root = false,
-}: {
-  group: RuleGroup;
-  options: AchievementFormOptions;
-  onChange: (next: RuleGroup) => void;
-  root?: boolean;
-}) {
-  function setOp(op: RuleGroupOp): void {
-    onChange({ ...group, op });
-  }
-
-  function setChild(index: number, node: RuleNode): void {
-    const rules = group.rules.map((r, i) => (i === index ? node : r));
-    onChange({ ...group, rules });
-  }
-
-  function removeChild(index: number): void {
-    onChange({ ...group, rules: group.rules.filter((_, i) => i !== index) });
-  }
-
-  function addCondition(): void {
-    onChange({ ...group, rules: [...group.rules, newCondition(options)] });
-  }
-
-  function addGroup(): void {
-    onChange({ ...group, rules: [...group.rules, newGroup(options)] });
-  }
-
-  return (
-    <div className={`grid gap-3 rounded-lg border p-3 ${root ? "border-border bg-surface" : "border-border/70 bg-surface-2"}`}>
-      <div className="flex items-center gap-2">
-        <select
-          aria-label="Opérateur du groupe"
-          className="min-h-9 rounded-lg border border-border bg-surface px-2 text-sm text-foreground outline-none focus:border-accent"
-          onChange={(e) => setOp(asGroupOp(e.target.value, options))}
-          value={group.op}
-        >
-          {options.groupOps.map((op) => (
-            <option key={op} value={op}>
-              {GROUP_OP_LABELS[op] ?? op}
-            </option>
-          ))}
-        </select>
-        <span className="text-xs text-muted-foreground">doivent être satisfaites</span>
-      </div>
-
-      <div className="grid gap-2">
-        {/* Index keys are the least-bad option here: rule nodes are the persisted rule JSON
-            (no id field can be added without leaking into the payload) and every edit replaces
-            the node object, so content/identity keys would remount inputs mid-keystroke.
-            Editors are fully controlled, so values stay correct across removal. */}
-        {group.rules.map((node, index) => (
-          <div className="flex items-start gap-2" key={index}>
-            <div className="flex-1">
-              {isRuleGroup(node) ? (
-                <RuleGroupEditor group={node} onChange={(n) => setChild(index, n)} options={options} />
-              ) : (
-                <ConditionEditor
-                  condition={node}
-                  onChange={(n) => setChild(index, n)}
-                  options={options}
-                />
-              )}
-            </div>
-            <button
-              aria-label="Supprimer cette règle"
-              className="mt-1 inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-red-400 hover:text-red-400"
-              onClick={() => removeChild(index)}
-              title="Supprimer"
-              type="button"
-            >
-              <Trash2 aria-hidden className="size-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-          onClick={addCondition}
-          type="button"
-        >
-          <Plus aria-hidden className="size-3.5" /> Condition
-        </button>
-        <button
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-          onClick={addGroup}
-          type="button"
-        >
-          <Plus aria-hidden className="size-3.5" /> Sous-groupe
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ConditionEditor({
-  condition,
-  options,
-  onChange,
-}: {
-  condition: RuleCondition;
-  options: AchievementFormOptions;
-  onChange: (next: RuleCondition) => void;
-}) {
-  const eventScoped = isEventScopedFact(condition.fact);
-  const eventId = eventIdOfFact(condition.fact);
-  const eventMissing = eventId !== null && !options.events.some((e) => e.id === eventId);
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-surface px-2 py-2">
-      <select
-        aria-label="Métrique"
-        className="min-h-9 rounded-lg border border-border bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent"
-        onChange={(e) => onChange({ ...condition, fact: e.target.value })}
-        value={eventScoped ? EVENTS_FACT : condition.fact}
-      >
-        {options.facts.map((f) => (
-          <option key={f.key} value={f.key}>
-            {f.label}
-          </option>
-        ))}
-      </select>
-
-      {eventScoped ? (
-        <select
-          aria-label="Événement"
-          className="min-h-9 rounded-lg border border-border bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent"
-          onChange={(e) => onChange({ ...condition, fact: eventScopedFact(e.target.value) })}
-          value={eventId ?? ""}
-        >
-          <option value="">Tous les événements</option>
-          {options.events.map((ev) => (
-            <option key={ev.id} value={ev.id}>
-              {ev.title}
-            </option>
-          ))}
-          {eventMissing && eventId !== null ? (
-            <option value={eventId}>(événement supprimé)</option>
-          ) : null}
-        </select>
-      ) : null}
-
-      <select
-        aria-label="Opérateur"
-        className="min-h-9 rounded-lg border border-border bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent"
-        onChange={(e) => onChange(withOperator(condition, asOperator(e.target.value, options)))}
-        value={condition.operator}
-      >
-        {options.operators.map((op) => (
-          <option key={op} value={op}>
-            {OPERATOR_LABELS[op] ?? op}
-          </option>
-        ))}
-      </select>
-
-      <input
-        aria-label="Valeur"
-        className="min-h-9 w-24 rounded-lg border border-border bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent"
-        inputMode="numeric"
-        onChange={(e) => onChange({ ...condition, value: toInt(e.target.value) })}
-        type="number"
-        value={condition.value}
-      />
-
-      {condition.operator === "between" ? (
-        <>
-          <span className="text-xs text-muted-foreground">et</span>
-          <input
-            aria-label="Valeur supérieure"
-            className="min-h-9 w-24 rounded-lg border border-border bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent"
-            inputMode="numeric"
-            onChange={(e) => onChange({ ...condition, value2: toInt(e.target.value) })}
-            type="number"
-            value={condition.value2 ?? condition.value}
-          />
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function newGroup(options: AchievementFormOptions): RuleGroup {
   return { op: options.groupOps[0] ?? "all", rules: [] };
-}
-
-function newCondition(options: AchievementFormOptions): RuleCondition {
-  return { fact: options.facts[0]?.key ?? "", operator: options.operators[0] ?? ">=", value: 1 };
-}
-
-function withOperator(condition: RuleCondition, operator: RuleOperator): RuleCondition {
-  if (operator === "between") {
-    return { ...condition, operator, value2: condition.value2 ?? condition.value };
-  }
-  // Drop value2 entirely for non-range operators.
-  return { fact: condition.fact, operator, value: condition.value };
-}
-
-function toInt(raw: string): number {
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function asGroupOp(value: string, options: AchievementFormOptions): RuleGroupOp {
-  return options.groupOps.find((op) => op === value) ?? options.groupOps[0] ?? "all";
-}
-
-function asOperator(value: string, options: AchievementFormOptions): RuleOperator {
-  return options.operators.find((op) => op === value) ?? options.operators[0] ?? ">=";
 }
 
 function ruleIsComplete(node: RuleNode): boolean {
   if (!isRuleGroup(node)) return true;
   if (node.rules.length === 0) return false;
   return node.rules.every(ruleIsComplete);
-}
-
-function summariseRule(node: RuleNode, options: AchievementFormOptions, depth = 0): string {
-  if (!isRuleGroup(node)) {
-    const op = OPERATOR_LABELS[node.operator] ?? node.operator;
-    const label = factLabel(node.fact, options);
-    if (node.operator === "between") {
-      return `${label} ${op} ${node.value}–${node.value2 ?? node.value}`;
-    }
-    return `${label} ${op} ${node.value}`;
-  }
-  if (node.rules.length === 0) return "(vide)";
-  const joiner = node.op === "all" ? " ET " : node.op === "any" ? " OU " : " NI ";
-  const inner = node.rules.map((r) => summariseRule(r, options, depth + 1)).join(joiner);
-  const body = node.op === "none" ? `NON(${inner})` : inner;
-  return depth === 0 ? body : `(${body})`;
 }

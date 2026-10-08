@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
+use App\Community\Application\Query\AchievementRarityQueryInterface;
 use App\Community\Application\Query\EventCatalogueQueryInterface;
 use App\Community\Application\Service\AdminAchievementService;
 use App\Community\Application\Support\AchievementImageUrlResolver;
@@ -21,7 +22,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreatePersistsAndPositionsAfterMax(): void
     {
-        $service = new AdminAchievementService($repo = $this->repo(), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class));
+        $service = new AdminAchievementService($repo = $this->repo(), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class));
 
         $created = $service->create([
             'key' => 'night_owl',
@@ -38,7 +39,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsDuplicateKey(): void
     {
-        $service = new AdminAchievementService($this->repo([$this->definition('first_run')]), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class));
+        $service = new AdminAchievementService($this->repo([$this->definition('first_run')]), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class));
 
         $this->expectException(\InvalidArgumentException::class);
         $service->create(['key' => 'first_run', 'name' => 'X', 'rule' => $this->simpleRule()]);
@@ -46,7 +47,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsInvalidKey(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class));
+        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class));
 
         $this->expectException(\InvalidArgumentException::class);
         $service->create(['key' => 'Bad Key!', 'name' => 'X', 'rule' => $this->simpleRule()]);
@@ -54,7 +55,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsMissingName(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class));
+        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class));
 
         $this->expectException(\InvalidArgumentException::class);
         $service->create(['key' => 'ok_key', 'name' => '  ', 'rule' => $this->simpleRule()]);
@@ -62,7 +63,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsMalformedRule(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class));
+        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class));
 
         $this->expectException(InvalidAchievementRuleException::class);
         $service->create(['key' => 'ok_key', 'name' => 'X', 'rule' => ['op' => 'all', 'rules' => []]]);
@@ -70,7 +71,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateAcceptsScopedEventFactForRealEvent(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events(['evt-1']), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class));
+        $service = new AdminAchievementService($this->repo(), $this->events(['evt-1']), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class));
 
         $created = $service->create([
             'key' => 'archilan3',
@@ -83,7 +84,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsScopedEventFactForUnknownEvent(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events([]), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class));
+        $service = new AdminAchievementService($this->repo(), $this->events([]), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class));
 
         $this->expectException(InvalidAchievementRuleException::class);
         $service->create(['key' => 'ghost_event', 'name' => 'X', 'rule' => $this->scopedRule('nope')]);
@@ -91,7 +92,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testUpdateUnknownIdReturnsNull(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class));
+        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class));
 
         self::assertNull($service->update('missing', ['name' => 'X', 'rule' => $this->simpleRule()]));
     }
@@ -99,7 +100,7 @@ final class AdminAchievementServiceTest extends TestCase
     public function testUpdateKeepsKeyImmutable(): void
     {
         $definition = $this->definition('first_run');
-        $service = new AdminAchievementService($this->repo([$definition]), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class));
+        $service = new AdminAchievementService($this->repo([$definition]), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class));
 
         $result = $service->update($definition->getId(), [
             'key' => 'attempted_rename',
@@ -116,7 +117,7 @@ final class AdminAchievementServiceTest extends TestCase
     {
         $a = $this->definition('a');
         $b = $this->definition('b');
-        $service = new AdminAchievementService($this->repo([$a, $b]), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class));
+        $service = new AdminAchievementService($this->repo([$a, $b]), $this->events(), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class));
 
         self::assertTrue($service->setActive($a->getId(), false));
         self::assertFalse($a->isActive());
@@ -129,7 +130,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testFormOptionsExposesFactsOperatorsGroupsAndEvents(): void
     {
-        $options = new AdminAchievementService($this->repo(), $this->events(['evt-1']), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class))->formOptions();
+        $options = new AdminAchievementService($this->repo(), $this->events(['evt-1']), $this->imageUrls(), new MockClock(), $this->cosmeticCatalog(), $this->cosmeticRewarder(), self::createStub(AchievementGrantRepositoryInterface::class), self::createStub(AchievementRarityQueryInterface::class))->formOptions();
 
         self::assertNotEmpty($options['facts']);
         self::assertContains('eventsWithGoal', array_map(static fn (array $f): string => $f['key'], $options['facts']));
