@@ -1,4 +1,6 @@
 import { EVENT_GOAL_PREFIX, EVENTS_FACT, factLabel } from "./admin-achievement-event-scope";
+import { conditionPhrase } from "@/features/community/achievement-phrasing";
+
 import { isRuleGroup, type AchievementFormOptions, type RuleCondition, type RuleGroup, type RuleGroupOp, type RuleNode, type RuleOperator } from "./admin-achievements-api";
 
 /**
@@ -80,25 +82,32 @@ export function ruleDepth(node: RuleNode): number {
   return 1 + Math.max(0, ...node.rules.map(ruleDepth));
 }
 
-function conditionInFrench(condition: RuleCondition, options: AchievementFormOptions): string {
-  const label = factLabel(condition.fact, options);
-  if (condition.operator === "between") {
-    return `${label} entre ${NUMBER.format(condition.value)} et ${NUMBER.format(condition.value2 ?? condition.value)}`;
-  }
-  return `${label} : ${OPERATOR_WORDS[condition.operator]} ${NUMBER.format(condition.value)}`;
+/** « jouer 10 parties » - a sentence's first letter down, to sit inside the « En clair » line. */
+function lower(phrase: string): string {
+  return `${phrase.charAt(0).toLowerCase()}${phrase.slice(1)}`;
+}
+
+/** Story 30.54: a condition as the member would say it, the sentence the profile's modal shows. */
+function conditionInFrench(condition: RuleCondition, options: AchievementFormOptions, negated: boolean): string {
+  const eventId = condition.fact.startsWith(EVENT_GOAL_PREFIX) ? condition.fact.slice(EVENT_GOAL_PREFIX.length) : null;
+  const event = eventId === null ? undefined : options.events.find((e) => e.id === eventId);
+  const label = eventId === null ? factLabel(condition.fact, options) : `Objectif atteint à « ${event ? event.title : "événement supprimé"} »`;
+  return lower(conditionPhrase({ fact: condition.fact, label, operator: condition.operator, value: condition.value, value2: condition.value2 ?? null }, negated));
 }
 
 function groupInFrench(group: RuleGroup, options: AchievementFormOptions, nested: boolean): string {
-  const parts = group.rules.map((node) => (isRuleGroup(node) ? groupInFrench(node, options, true) : conditionInFrench(node, options)));
+  const negated = group.op === "none";
+  const parts = group.rules.map((node) =>
+    isRuleGroup(node) ? `${negated ? "ne pas " : ""}${groupInFrench(node, options, true)}` : conditionInFrench(node, options, negated),
+  );
   if (parts.length === 0) return "(groupe vide)";
-  if (group.op === "none") return `aucun de (${parts.join(", ")})`;
-  const body = parts.join(group.op === "all" ? ", et " : ", ou ");
+  const body = parts.join(group.op === "any" ? ", ou " : ", et ");
   return nested && parts.length > 1 ? `(${body})` : body;
 }
 
 /** The whole rule as one French sentence, the guard against an ET put where an OU was meant. */
 export function ruleInFrench(rule: RuleGroup, options: AchievementFormOptions): string {
-  return `Débloqué si ${groupInFrench(rule, options, false)}.`;
+  return `Pour le débloquer : ${groupInFrench(rule, options, false)}.`;
 }
 
 // ── Moving inside the tree ───────────────────────────────────────────────────
