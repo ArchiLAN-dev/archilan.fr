@@ -7,36 +7,19 @@ import { Eye, Percent, Sparkles } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Dialog, DialogBody } from "@/components/ui/dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
-import { fetchMyCommunityProfile } from "@/features/community/community-profile-api";
-import { FramePreview, type FramePreviewBanner } from "@/features/community/frame-preview";
-import { CENTRED_FRAMING, type ImageFraming } from "@/features/community/image-framing";
+import { fetchMyCommunityProfile, type MyCommunityProfile } from "@/features/community/community-profile-api";
+import type { NameColorStyle } from "@/features/community/name-colors";
+import { isRarityStyle } from "@/features/community/titled-name";
 import { PelleAmount, pellesLabel } from "./pelle-amount";
-import { buyShopItem, fetchShop, isNewItem, timeLeftLabel, type CosmeticType, type ShopItem } from "./shop-api";
+import { buyShopItem, fetchShop, isNewItem, timeLeftLabel, type ShopItem } from "./shop-api";
 import { COSMETIC_TYPE_LABELS, ShopCosmeticPreview, useCosmeticLabel, useTitleBadge } from "./shop-cosmetics";
 import { shelfHref, shopShelves, type ShelfKey } from "./shop-shelves";
+import { TryOnDialog, VISITOR, type ShopShopper } from "./shop-try-on";
 import { fetchMyWallet } from "./wallet-api";
 
 const untilFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
-
-/** The member trying things on: their photo, frame and banner, as on their profile. */
-export type ShopShopper = {
-  avatarUrl: string | null;
-  name: string;
-  framing: ImageFraming | null;
-  frame: string | null;
-  banner: FramePreviewBanner;
-};
-
-const VISITOR: ShopShopper = {
-  avatarUrl: null,
-  name: "Toi",
-  framing: null,
-  frame: null,
-  banner: { presetKey: "default", imageUrl: null, framing: CENTRED_FRAMING, overlay: 50 },
-};
 
 /**
  * The cosmetics tab of « Boutique » (stories 41.7 and 41.12): frames and banners drawn by members, sold for gold
@@ -62,6 +45,7 @@ export function CosmeticShop({ shelf = null }: { shelf?: ShelfKey | null }) {
           framing: profile.avatarFraming,
           frame: profile.avatarFrame,
           banner: { presetKey: profile.bannerPreset, imageUrl: profile.bannerImageUrl, framing: profile.bannerFraming, overlay: profile.bannerOverlay },
+          ...nameAndTitle(profile),
         }
       : { ...VISITOR, name: user.displayName ?? "?" }
     : null;
@@ -82,6 +66,18 @@ export function CosmeticShop({ shelf = null }: { shelf?: ShelfKey | null }) {
     />
   );
 }
+
+/**
+ * Story 41.32: the name as the profile draws it (a rarity style wins over a colour while « Pseudo à titre » is on), and
+ * the title worn.
+ */
+function nameAndTitle(profile: MyCommunityProfile): Pick<ShopShopper, "nameStyle" | "rarityStyle" | "title"> {
+  const rarity = profile.titledName && isRarityStyle(profile.titledNameStyle) ? profile.titledNameStyle : null;
+  const color = profile.nameColor ? (`color-${profile.nameColor}` as NameColorStyle) : null;
+  return { nameStyle: rarity ?? color, rarityStyle: rarity, title: profile.title ?? null };
+}
+
+export type { ShopShopper } from "./shop-try-on";
 
 export function ShopView({
   items,
@@ -329,33 +325,5 @@ function FilterChip({ label, active, onClick, count, icon = false }: { label: st
       {label}
       {count !== undefined ? <span className="tabular-nums text-xs text-muted-foreground">{count}</span> : null}
     </button>
-  );
-}
-
-/** The member's own profile header with the item in place of theirs. Nothing is saved. */
-function TryOnDialog({ item, label, shopper, onClose }: { item: ShopItem; label: string; shopper: ShopShopper; onClose: () => void }) {
-  const frame = item.type === "frame" ? item.cosmeticKey : shopper.frame;
-  // A banner tried on shows alone: the member's own image would hide it.
-  const banner: FramePreviewBanner = item.type === "banner" ? { presetKey: item.cosmeticKey, imageUrl: null, framing: CENTRED_FRAMING, overlay: 50 } : shopper.banner;
-
-  return (
-    <Dialog
-      description={`${COSMETIC_TYPE_LABELS[item.type as CosmeticType]} sur ton profil, rien n'est enregistré.`}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      open
-      size="wide"
-      title={`Essayer « ${label} »`}
-    >
-      <DialogBody>
-        {item.type === "title" || item.type === "color" ? (
-          // Story 41.22: a title is a text under the name, tried on the member's own avatar.
-          <ShopCosmeticPreview avatarUrl={shopper.avatarUrl} className="h-48 rounded-lg" cosmeticKey={item.cosmeticKey} framing={shopper.framing} label={label} name={shopper.name} type={item.type} />
-        ) : (
-          <FramePreview avatarUrl={shopper.avatarUrl} banner={banner} frame={frame} framing={shopper.framing} name={shopper.name} />
-        )}
-      </DialogBody>
-    </Dialog>
   );
 }
