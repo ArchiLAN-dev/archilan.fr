@@ -1,43 +1,42 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { Popover } from "radix-ui";
 
-import { InfoHint, InfoHintView } from "./info-hint";
+import { InfoHint, InfoHintPanel } from "./info-hint";
 
-function view(open: boolean): string {
-  return renderToStaticMarkup(
-    <InfoHintView hint="Le pourquoi technique." label="Pourquoi le port ?" onToggle={() => undefined} open={open}>
-      Copie l&apos;adresse avec son port.
-    </InfoHintView>,
-  );
-}
-
-/** Story 33.28: the sentence visible, the technical why behind an « i » button. */
+/** Story 33.28: the sentence visible, the technical why in a panel opened by an « i » button. */
 describe("InfoHint", () => {
-  test("is closed by default: the sentence shows, the explanation is hidden", () => {
+  test("shows the sentence and keeps the explanation out of the page until asked", () => {
     const html = renderToStaticMarkup(<InfoHint hint="Le pourquoi technique.">Copie l&apos;adresse.</InfoHint>);
 
     expect(html).toContain("Copie l&#x27;adresse.");
-    expect(html).toContain('aria-expanded="false"');
-    expect(html).toMatch(/class="[^"]*\bhidden\b[^"]*"[^>]*>Le pourquoi technique\./);
+    expect(html).not.toContain("Le pourquoi technique.");
   });
 
-  test("open, it shows the explanation and says so", () => {
-    const html = view(true);
-
-    expect(html).toContain('aria-expanded="true"');
-    expect(html).not.toMatch(/class="[^"]*\bhidden\b[^"]*" id=/);
-  });
-
-  test("is a real button named for screen readers, tied to what it unfolds", () => {
-    const html = view(false);
-    const controls = html.match(/aria-controls="([^"]+)"/)?.[1];
+  test("is a real button, named for screen readers, announcing a closed panel", () => {
+    const html = renderToStaticMarkup(
+      <InfoHint hint="x" label="Pourquoi le port ?">
+        y
+      </InfoHint>,
+    );
 
     expect(html).toContain('type="button"');
     expect(html).toContain('aria-label="Pourquoi le port ?"');
-    expect(controls).toBeDefined();
-    expect(html).toContain(`id="${controls}"`);
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toContain('aria-expanded="false"');
   });
 
   test("names itself « Pourquoi ? » by default", () => {
     expect(renderToStaticMarkup(<InfoHint hint="x">y</InfoHint>)).toContain('aria-label="Pourquoi ?"');
+  });
+
+  test("the open panel holds the explanation and a way to close it", () => {
+    const html = renderToStaticMarkup(
+      <Popover.Root open>
+        <InfoHintPanel label="Pourquoi ?">Le pourquoi technique.</InfoHintPanel>
+      </Popover.Root>,
+    );
+
+    expect(html).toContain("Le pourquoi technique.");
+    expect(html).toContain('aria-label="Fermer"');
   });
 });

@@ -28,8 +28,9 @@ Chaque texte tombe dans l'une de trois familles :
 
 ## Critères d'acceptation
 
-1. **Un composant unique** `InfoHint` : une icône « i » (bouton) ou un lien « Pourquoi ? » qui déplie
-   l'explication sous le texte.
+1. **Un composant unique** `InfoHint` : une icône « i » (bouton) qui ouvre l'explication dans un petit panneau
+   ancré au bouton, au-dessus de la page (popover) : rien ne se déplace en dessous (retour de Jean : un dépliement
+   cassait l'affichage des blocs serrés).
    - Accessible : vrai `<button>`, `aria-expanded`, contenu lié par `aria-controls`, utilisable au clavier et au
      doigt (cible de 44 px).
    - Fermé par défaut, état non mémorisé.
@@ -81,11 +82,13 @@ brouillon), `features/weekly-runs/*`, `features/games/game-detail.tsx`, `feature
 ## Dev Agent Record
 
 - `InfoHint` : phrase visible dans un `<p>`, bouton `type="button"` de 44 px (marges négatives pour ne pas
-  agrandir la ligne), `aria-expanded`, `aria-controls` vers le panneau ; panneau rendu mais masqué (`hidden`) tant
-  qu'il est fermé. Libellé par défaut « Pourquoi ? », « Comment lire le graphique » sur les légendes du récap.
+  agrandir la ligne) ; explication dans un Popover Radix (portail, gardé à l'écran, fermeture par la croix, un clic
+  à côté ou Échap, focus géré). Libellé par défaut « Pourquoi ? », « Comment lire le graphique » sur les légendes
+  du récap. Un premier jet dépliait l'explication sous le texte : abandonné, il poussait le contenu.
 - Cas traités : connexion (partie et événement), seed importée (page de la partie et suivi du slot), calcul du
   suivi (slot privé et hebdo), bannière de veille, brouillon (test de génération), fiche d'un jeu (versions),
   overlay OBS, récap (timeline, flux d'objets, qualité des envois), compte (RGPD, portabilité), profil (description
   de la photo raccourcie).
-- Tests mis à jour : `connection-fields.test.tsx`, `idle-banner.test.tsx` (nouvelles formulations).
+- Tests mis à jour : `connection-fields.test.tsx`, `idle-banner.test.tsx`, `imported-seed-panel.test.tsx` (le
+  pourquoi n'est plus dans la page tant que le panneau est fermé).
 
