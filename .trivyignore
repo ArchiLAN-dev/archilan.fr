@@ -17,55 +17,10 @@
 #
 # Unfixed CVEs do not belong here: `ignore-unfixed: true` already excludes them.
 
-# --- api-web: compiled into the FrankenPHP binary, not reachable from our runtime ---
+# Aucune exclusion en cours.
 #
-# Both live in Go modules linked into /usr/local/bin/frankenphp. We do not build that binary,
-# so the only real fix is an upstream release, and 1.12.7 (2026-08-07) is the latest one.
-# Tracked in #518; revisit when FrankenPHP ships a build with the bumped modules.
-# Expiry pushed from 2026-10-01 to 2026-10-10 on 2026-09-27: still no FrankenPHP release after
-# 1.12.7, and aligned with the three #585 entries so all seven are reviewed on the same day.
-# Re-examined on 2026-10-01, all seven entries of this file: still no FrankenPHP release after
-# 1.12.7 (the `1.12.7-php8-alpine` image was created on 2026-08-06, same binary), and a scan of
-# that base image without this file finds exactly these seven, nothing new. Justifications
-# re-checked: the image runs FrankenPHP's own Caddyfile (no OpenAPI validation, no gRPC listener,
-# nothing in Caddyfile.d, no CADDY_* override in prod), and starts no SSH server. Expiry pushed to
-# 2026-10-31. Next step if FrankenPHP still ships nothing: build the binary ourselves with bumped
-# Go modules, rather than a fourth renewal.
-#
-# kin-openapi: fail-open auth bypass in ValidationHandler.Load(). That handler is FrankenPHP's
-# optional OpenAPI request validation - we do not enable it, Symfony does our routing and auth.
-GHSA-r277-6w6q-xmqw exp:2026-10-31  # api-web: getkin/kin-openapi v0.140.0, ValidationHandler unused - #518
-#
-# grpc: xDS RBAC and HTTP/2 issues. We run FrankenPHP standalone behind Traefik, with no xDS
-# control plane and no gRPC listener.
-GHSA-hrxh-6v49-42gf exp:2026-10-31  # api-web: google.golang.org/grpc v1.81.1, no xDS/gRPC in use - #518
-#
-# Deux advisories de plus sur le même module, apparues le 2026-08-24 et bloquant la publication de
-# la v0.16.4. Toutes deux sont dans `openapi3filter`, le validateur de requêtes OpenAPI de
-# FrankenPHP : le déni de service par corps multipart malformé n'est atteignable que si
-# l'application valide un corps de requête avec `ValidationErrorEncoder`/`ConvertErrors`, et
-# l'explosion mémoire que si une spec déclare un paramètre `deepObject`. Nous n'embarquons aucun
-# Caddyfile : l'image tourne sur celui livré par FrankenPHP, qui n'active pas cette validation, et
-# c'est Symfony qui route et valide. FrankenPHP 1.12.7 (2026-08-07) reste sa dernière version, donc
-# aucun correctif amont n'existe à ce jour.
-CVE-2026-76905 exp:2026-10-31  # api-web: kin-openapi openapi3filter, validation OpenAPI non activée - #518
-CVE-2026-77354 exp:2026-10-31  # api-web: kin-openapi openapi3filter, validation OpenAPI non activée - #518
-
-# --- api-web: dependances Go compilees dans le binaire FrankenPHP, non atteignables ---
-# `golang.org/x/crypto/ssh` : la faille porte sur les restrictions de `authorized_keys` cote serveur
-# SSH. L'image n'expose aucun serveur SSH et FrankenPHP n'en demarre pas. `google.golang.org/grpc` :
-# rien n'est expose en gRPC ici, l'API parle HTTP via Symfony. FrankenPHP 1.12.7 reste sa derniere
-# version publiee, donc aucun correctif amont n'existe a ce jour : sans ces deux entrees, l'image
-# api-web n'atteint plus GHCR et aucune version n'est deployable.
-# Echeance repoussee du 26 septembre au 10 octobre le 2026-09-27 : FrankenPHP n'a toujours rien
-# publie apres la 1.12.7, et la 0.20.5 (correctif de securite) ne pouvait pas sortir sans elles.
-CVE-2026-56854 exp:2026-10-31  # api-web: golang.org/x/crypto/ssh, aucun serveur SSH dans l'image - #585
-CVE-2026-84304 exp:2026-10-31  # api-web: google.golang.org/grpc, rien d'expose en gRPC - #585
-
-# Troisieme advisory sur le meme module grpc, apparue apres la 0.20.3 et bloquant a son tour la
-# publication de api-web. Deni de service des serveurs xDS de gRPC-Go : l'image ne demarre aucun
-# serveur gRPC ni plan de controle xDS, FrankenPHP tourne en autonome derriere Traefik et c'est
-# Symfony qui sert l'API en HTTP. Meme raisonnement et meme echeance que CVE-2026-84304 ci-dessus,
-# pour que les trois entrees soient revues ensemble. FrankenPHP 1.12.7 (2026-08-20) reste sa
-# derniere version publiee : aucun correctif amont n'existe.
-CVE-2026-84445 exp:2026-10-31  # api-web: google.golang.org/grpc xDS, aucun serveur gRPC dans l'image - #585
+# 2026-10-08 : les sept entrees api-web (kin-openapi, grpc, x/crypto/ssh, suivies en #518 et #585)
+# sont retirees. Elles venaient des modules Go compiles dans le binaire FrankenPHP 1.12.7 ;
+# FrankenPHP 1.13.0 (2026-10-04) les met a jour, et un scan Trivy de
+# `dunglas/frankenphp:1.13.0-php8-alpine` (HIGH/CRITICAL, corrigeables) ne trouve plus rien, ni dans
+# le binaire ni dans Alpine, alors que le meme scan de la 1.12.7 trouvait exactement ces sept-la.
