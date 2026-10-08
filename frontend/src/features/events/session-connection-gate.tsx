@@ -6,6 +6,7 @@ import { AlertCircle, Check, Clock, Copy, Download, XCircle } from "lucide-react
 
 import { env } from "@/lib/env";
 import { ConnectionFields } from "@/components/connection-fields";
+import type { ConnectionSlot } from "@/components/slot-name-field";
 import { DEFAULT_STALE_TIME, REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useSSE } from "@/hooks/use-sse";
 import { isSessionStatusFrame, type SessionStatusFrame } from "@/features/realtime/realtime-api";
@@ -219,7 +220,10 @@ function ConnectionView({
       )}
 
       {session?.status === "running" && session.host ? (
-        <RunningConnectionCard session={session} />
+        <RunningConnectionCard
+          session={session}
+          slots={data.slots.map((slot) => ({ name: slot.slotName, game: slot.gameName }))}
+        />
       ) : null}
 
       {session && ["running", "stopped", "finished"].includes(session.status) ? (
@@ -295,13 +299,15 @@ function WaitingCard({ onRefetch }: { onRefetch: () => Promise<void> }) {
 
 // ─── RunningConnectionCard ────────────────────────────────────────────────────
 
-function RunningConnectionCard({ session }: { session: SessionPayload }) {
+function RunningConnectionCard({ session, slots }: { session: SessionPayload; slots: ConnectionSlot[] }) {
   const [copiedAll, setCopiedAll] = useState(false);
 
   function copyAll() {
     // Les deux formes, parce qu'aucune ne marche partout : l'URI complète pour le client
     // Archipelago, l'adresse jointe pour les clients web (mesuré, story 37.6).
     const lignes = [
+      // Story 17.29: the slot name comes first, as in the card.
+      ...slots.map((slot) => (slots.length > 1 && slot.game !== null ? `Nom du slot (${slot.game}): ${slot.name}` : `Nom du slot: ${slot.name}`)),
       session.connectionUri != null ? `Adresse (client Archipelago): ${session.connectionUri}` : null,
       `Adresse (client web): ${session.host}:${session.port ?? ""}`,
       `Mot de passe: ${session.password ?? ""}`,
@@ -329,6 +335,7 @@ function RunningConnectionCard({ session }: { session: SessionPayload }) {
         host={session.host ?? ""}
         password={session.password}
         port={session.port ?? 0}
+        slots={slots}
         uri={session.connectionUri}
       />
 

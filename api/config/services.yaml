@@ -373,6 +373,7 @@ services:
         arguments:
             $discordBotToken: '%env(default:default_empty_string:DISCORD_BOT_TOKEN)%'
     App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRecentlyPlayedGamesQuery'
+    App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalMyRunSlotsQuery'
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'

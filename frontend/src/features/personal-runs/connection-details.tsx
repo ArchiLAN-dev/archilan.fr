@@ -3,6 +3,7 @@
 import { Server } from "lucide-react";
 
 import { ConnectionFields } from "@/components/connection-fields";
+import type { ConnectionSlot } from "@/components/slot-name-field";
 import { StreamMaskedNote } from "@/components/run-notes";
 
 export function ConnectionDetails({
@@ -11,6 +12,7 @@ export function ConnectionDetails({
   uri,
   password,
   adminPassword,
+  slots = [],
 }: {
   host: string;
   port: number;
@@ -18,6 +20,7 @@ export function ConnectionDetails({
   /** Null when the run was launched without a join password (story 16.13) - the row is then omitted. */
   password: string | null;
   adminPassword?: string | null;
+  slots?: ConnectionSlot[];
 }) {
   return (
     <div className="min-w-0 rounded-lg border border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/5 p-4">
@@ -31,6 +34,7 @@ export function ConnectionDetails({
         host={host}
         password={password}
         port={port}
+        slots={slots}
         uri={uri}
       />
     </div>

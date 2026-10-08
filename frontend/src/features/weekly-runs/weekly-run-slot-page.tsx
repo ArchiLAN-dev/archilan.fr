@@ -709,6 +709,7 @@ export function WeeklyRunSlotPage({
                 host={myEntry.connectionInfo.host}
                 password={myEntry.connectionInfo.password}
                 port={myEntry.connectionInfo.port}
+                slots={myEntry.slotName ? [{ name: myEntry.slotName, game: null }] : []}
                 uri={myEntry.connectionInfo.uri ?? null}
               />
             </div>

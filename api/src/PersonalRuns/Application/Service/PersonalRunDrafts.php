@@ -13,6 +13,7 @@ use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
+use App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunArchive;
@@ -41,6 +42,7 @@ final readonly class PersonalRunDrafts
         private string $siteUrl,
         private AdminRunActionTrace $trace,
         private RunArchiveRepositoryInterface $archives,
+        private MyRunSlotsQueryInterface $mySlots,
     ) {
     }
 
@@ -528,6 +530,8 @@ final readonly class PersonalRunDrafts
                 ? ArchipelagoConnectionUri::tryBuild($run->getConnectionHost(), $run->getConnectionPort())
                 : null,
             'connectionPassword' => $isActive ? $run->getConnectionPassword() : null,
+            // Story 17.29: the name(s) the caller types in their client, shown first in the connection block.
+            'mySlots' => $isActive && null !== $callerId && null !== $sessionId ? $this->mySlots($run, $sessionId, $callerId) : [],
             'isOwner' => $isOwner,
             // Droit de démarrer *dans l'état courant*, distinct de `isOwner` (story 16.14). Le front
             // garde une dizaine d'éléments sur `isOwner` - réglages, override, lien d'invitation,
@@ -551,5 +555,21 @@ final readonly class PersonalRunDrafts
             'createdAt' => $run->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $run->getUpdatedAt()->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    /**
+     * The caller's slots in the run's session, each with its game. A slot of an imported seed has no
+     * catalogue game: its name comes from the archive, which the run keeps (story 16.18).
+     *
+     * @return list<array{name: string, game: string|null}>
+     */
+    private function mySlots(Run $run, string $sessionId, string $callerId): array
+    {
+        $importedGames = array_column($run->playableImportedSlots(), 'game', 'name');
+
+        return array_map(
+            static fn (array $slot): array => ['name' => $slot['name'], 'game' => $slot['game'] ?? $importedGames[$slot['name']] ?? null],
+            $this->mySlots->forMember($sessionId, $callerId),
+        );
     }
 }

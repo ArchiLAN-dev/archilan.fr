@@ -141,6 +141,8 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
         self::assertSame($entry->getId(), $myEntry['entryId']);
         self::assertNull($myEntry['connectionInfo']);
         self::assertNull($myEntry['goalReachedAt']);
+        // Story 17.29: the template's YAML name as Archipelago resolved it, shown first in the connection block.
+        self::assertSame('ArchiLAN', $myEntry['slotName']);
 
         $participants = $item['participants'];
         self::assertIsArray($participants);
