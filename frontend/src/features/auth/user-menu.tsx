@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, LayoutDashboard, LogOut, Shield, User, Wallet } from "lucide-react";
+import { ChevronDown, Gamepad2, LayoutDashboard, LogOut, Shield, User, Wallet } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -79,7 +79,6 @@ export function UserMenu({ user }: { user: AuthUser }) {
     router.push("/");
   }
 
-  const isAdmin = user.roles.includes("ROLE_ADMIN");
   const name = user.displayName ?? "Mon compte";
 
   return (
@@ -126,26 +125,7 @@ export function UserMenu({ user }: { user: AuthUser }) {
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             </div>
           </div>
-          <div className="grid py-1">
-            {user.slug ? (
-              <MenuLink href={`/joueurs/${user.slug}`} icon={User} label="Mon profil" onNavigate={() => setOpen(false)} />
-            ) : null}
-            <MenuLink href="/compte" icon={LayoutDashboard} label="Mon espace" onNavigate={() => setOpen(false)} />
-            <Link
-              className="flex items-center justify-between gap-2.5 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
-              href="/compte/portefeuille"
-              onClick={() => setOpen(false)}
-            >
-              <span className="flex items-center gap-2.5">
-                <Wallet aria-hidden="true" className="size-4" />
-                Mon portefeuille
-              </span>
-              {wallet ? <PelleAmount amount={wallet.gold} className="font-semibold text-warning" /> : null}
-            </Link>
-            {isAdmin ? (
-              <MenuLink href="/admin" icon={Shield} label="Administration" onNavigate={() => setOpen(false)} />
-            ) : null}
-          </div>
+          <AccountMenuLinks gold={wallet?.gold ?? null} onNavigate={() => setOpen(false)} user={user} />
           <div className="border-t border-border py-1">
             <button
               className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
@@ -158,6 +138,42 @@ export function UserMenu({ user }: { user: AuthUser }) {
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+type AccountMenuLinksProps = {
+  user: AuthUser;
+  /** The wallet balance, or null while it loads (or when it failed). */
+  gold: number | null;
+  onNavigate: () => void;
+};
+
+/**
+ * The account links of the open panel. Pulled out of `UserMenu`, which only renders them once opened,
+ * so their list can be rendered statically in tests.
+ */
+export function AccountMenuLinks({ user, gold, onNavigate }: AccountMenuLinksProps) {
+  const isAdmin = user.roles.includes("ROLE_ADMIN");
+
+  return (
+    <div className="grid py-1">
+      {/* Story 16.22: the private runs come first, one click away instead of through the account space. */}
+      <MenuLink href="/compte/parties" icon={Gamepad2} label="Mes parties" onNavigate={onNavigate} />
+      {user.slug ? <MenuLink href={`/joueurs/${user.slug}`} icon={User} label="Mon profil" onNavigate={onNavigate} /> : null}
+      <MenuLink href="/compte" icon={LayoutDashboard} label="Mon espace" onNavigate={onNavigate} />
+      <Link
+        className="flex items-center justify-between gap-2.5 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+        href="/compte/portefeuille"
+        onClick={onNavigate}
+      >
+        <span className="flex items-center gap-2.5">
+          <Wallet aria-hidden="true" className="size-4" />
+          Mon portefeuille
+        </span>
+        {gold !== null ? <PelleAmount amount={gold} className="font-semibold text-warning" /> : null}
+      </Link>
+      {isAdmin ? <MenuLink href="/admin" icon={Shield} label="Administration" onNavigate={onNavigate} /> : null}
     </div>
   );
 }

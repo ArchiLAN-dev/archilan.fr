@@ -174,11 +174,13 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
     },
   });
 
-  // Group owned runs by status
+  // Story 16.22: owned and joined runs share the status groups, so a joined run in progress sits on
+  // top with the owned ones instead of in a section of its own at the bottom.
+  const joinedIds = new Set(mine.joined.map((run) => run.id));
   const grouped: Partial<Record<PersonalRunStatus, PersonalRun[]>> = {};
   const cancelledRuns: PersonalRun[] = [];
 
-  for (const run of owned) {
+  for (const run of [...owned, ...joined]) {
     if (COLLAPSED_STATUSES.includes(run.status)) {
       cancelledRuns.push(run);
     } else {
@@ -312,10 +314,12 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
               <div className="grid gap-3">
                 {grouped[status]!.map((run) => (
                   <PersonalRunCard
+                    joined={joinedIds.has(run.id)}
                     key={run.id}
                     restarting={restartingId === run.id}
                     run={run}
-                    onRestart={status === "idle" ? (target) => { void handleRestart(target); } : undefined}
+                    // Resuming stays the owner's action, as before joined runs shared these groups.
+                    onRestart={status === "idle" && !joinedIds.has(run.id) ? (target) => { void handleRestart(target); } : undefined}
                     {...archiveProps(run)}
                   />
                 ))}
@@ -336,23 +340,10 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
               {showCancelled && (
                 <div className="grid gap-3 opacity-60">
                   {cancelledRuns.map((run) => (
-                    <PersonalRunCard key={run.id} run={run} {...archiveProps(run)} />
+                    <PersonalRunCard joined={joinedIds.has(run.id)} key={run.id} run={run} {...archiveProps(run)} />
                   ))}
                 </div>
               )}
-            </section>
-          )}
-
-          {joined.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Parties rejointes
-              </h2>
-              <div className="grid gap-3">
-                {joined.map((run) => (
-                  <PersonalRunCard key={run.id} run={run} {...archiveProps(run)} />
-                ))}
-              </div>
             </section>
           )}
 
@@ -371,7 +362,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
               {showArchived && (
                 <div className="grid gap-3 opacity-70">
                   {archivedRuns.map((run) => (
-                    <PersonalRunCard key={run.id} run={run} {...archiveProps(run)} />
+                    <PersonalRunCard joined={joinedIds.has(run.id)} key={run.id} run={run} {...archiveProps(run)} />
                   ))}
                 </div>
               )}
