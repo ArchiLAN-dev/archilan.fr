@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
+import { replaceLocationParam, useLocationParam } from "@/lib/use-location-param";
 import { useAuth } from "@/features/auth/auth-context";
 import { SESSION_STALE_TIME } from "@/lib/query-client";
 import type { PublicEvent } from "@/features/events/event-types";
@@ -28,32 +29,6 @@ const PAGE_SIZE = 20;
 
 /** Story 43.8: « Mes amis », kept in the URL. */
 const FRIENDS_PARAM = "amis";
-const URL_CHANGE = "leaderboard-url-change";
-
-/**
- * Whether the URL asks for the friends board. Read from the location rather than `useSearchParams`, which would take
- * the statically rendered /communaute out of prerendering; the server render never has it.
- */
-function subscribeToUrl(onChange: () => void): () => void {
-  window.addEventListener("popstate", onChange);
-  window.addEventListener(URL_CHANGE, onChange);
-  return () => {
-    window.removeEventListener("popstate", onChange);
-    window.removeEventListener(URL_CHANGE, onChange);
-  };
-}
-
-function urlAsksFriends(): boolean {
-  return new URLSearchParams(window.location.search).get(FRIENDS_PARAM) === "1";
-}
-
-function setUrlFriends(on: boolean): void {
-  const url = new URL(window.location.href);
-  if (on) url.searchParams.set(FRIENDS_PARAM, "1");
-  else url.searchParams.delete(FRIENDS_PARAM);
-  window.history.replaceState(window.history.state, "", url);
-  window.dispatchEvent(new Event(URL_CHANGE));
-}
 
 type Props = {
   initialData: LeaderboardResponse | null;
@@ -67,8 +42,9 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
   const [limit, setLimit] = useState(PAGE_SIZE);
 
   const { user } = useAuth();
-  const friendsAsked = useSyncExternalStore(subscribeToUrl, urlAsksFriends, () => false);
-  const friendsOnly = user !== null && friendsAsked;
+  // Read from the location: `useSearchParams` would take the prerendered /communaute out of prerendering.
+  const friendsParam = useLocationParam(FRIENDS_PARAM);
+  const friendsOnly = user !== null && friendsParam === "1";
 
   const activeEventId = eventId !== "" ? eventId : undefined;
   const isInitial = axis === "goals" && limit === PAGE_SIZE && !activeEventId && !friendsOnly;
@@ -83,7 +59,7 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
   });
 
   function handleFriendsToggle() {
-    setUrlFriends(!friendsOnly);
+    replaceLocationParam(FRIENDS_PARAM, friendsOnly ? null : "1");
     setLimit(PAGE_SIZE);
   }
 
