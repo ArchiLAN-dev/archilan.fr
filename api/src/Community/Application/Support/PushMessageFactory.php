@@ -14,7 +14,7 @@ final class PushMessageFactory
     private const string TITLE = 'ArchiLAN';
 
     /** @var list<string> */
-    private const array PUSHABLE_TYPES = ['slot_unblocked'];
+    private const array PUSHABLE_TYPES = ['slot_unblocked', 'run_invitation'];
 
     public static function isPushable(string $type): bool
     {
@@ -28,6 +28,7 @@ final class PushMessageFactory
     {
         return match ($type) {
             'slot_unblocked' => self::slotUnblocked($payload),
+            'run_invitation' => self::runInvitation($payload),
             default => null,
         };
     }
@@ -63,6 +64,29 @@ final class PushMessageFactory
             $body,
             $url,
             sprintf('slot_unblocked-%s-%s', $runId ?? 'run', $slotName ?? 'slot'),
+        );
+    }
+
+    /**
+     * Story 43.1: a friend invites the member into a personal run; the push leads to « Mes parties », where the
+     * invitation is answered.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private static function runInvitation(array $payload): WebPushMessage
+    {
+        $inviter = self::text($payload, 'inviterName');
+        $runTitle = self::text($payload, 'runTitle');
+        $who = $inviter ?? 'Un ami';
+        $body = null !== $runTitle
+            ? sprintf('%s t\'invite dans « %s »', $who, $runTitle)
+            : sprintf('%s t\'invite dans sa partie', $who);
+
+        return new WebPushMessage(
+            self::TITLE,
+            $body,
+            '/compte/parties',
+            sprintf('run_invitation-%s', self::text($payload, 'invitationId') ?? 'invitation'),
         );
     }
 

@@ -73,6 +73,14 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
     }
     case "friend_request_accepted":
       return base("social", "Ami", { kind: "actors" }, [strong(actorName(item)), { text: " a accepté ta demande d'ami" }]);
+    case "run_invitation": {
+      // Story 43.1: a friend invites the member into a personal run.
+      const run = text(data, "runTitle");
+      return base("run", "Invitation", { kind: "actors" }, [
+        strong(actorName(item)),
+        ...(run !== "" ? [{ text: " t'invite dans " }, strong(run)] : [{ text: " t'invite dans sa partie" }]),
+      ]);
+    }
     case "comment_received":
       return base("social", "Commentaire", { kind: "actors" }, [strong(actorName(item)), { text: " a commenté ton profil" }]);
     case "kudos_received":

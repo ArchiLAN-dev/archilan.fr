@@ -186,6 +186,11 @@ export function messageFor(item: NotificationItem): string {
       return `${actorName(item)} t'a envoyé une demande d'ami`;
     case "friend_request_accepted":
       return `${actorName(item)} a accepté ta demande d'ami`;
+    case "run_invitation":
+      // Story 43.1: answered on « Mes parties ».
+      return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
+        ? `${actorName(item)} t'invite dans « ${item.data.runTitle} »`
+        : `${actorName(item)} t'invite dans sa partie`;
     case "comment_received":
       return `${actorName(item)} a commenté ton profil`;
     case "kudos_received":
@@ -309,6 +314,9 @@ export function hrefFor(item: NotificationItem): string {
   }
   if (item.type === "generation_failed") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte";
+  }
+  if (item.type === "run_invitation") {
+    return "/compte/parties";
   }
   if (item.type === "slot_unblocked") {
     if (!hasStringProp(item.data, "runId") || item.data.runId === "") {

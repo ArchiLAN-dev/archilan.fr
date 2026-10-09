@@ -35,6 +35,7 @@ import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
 import { ConnectionDetails } from "./connection-details";
+import { InviteFriendsButton, RunInvitationsList } from "./run-invitations";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { LiveRunTimeline } from "@/features/recap/live-run-timeline";
@@ -760,6 +761,10 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 }}
                 runId={run.id}
               />
+              {/* Story 43.1: friends invited by name, next to the link. */}
+              <div className="mt-3">
+                <InviteFriendsButton participantIds={run.participants.map((p) => p.userId)} runId={run.id} />
+              </div>
             </div>
           )}
         </header>
@@ -1225,6 +1230,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             <ParticipantList participants={run.participants} runId={run.id} />
           </section>
         )}
+        {activeTab === "participants" && run.isOwner && <RunInvitationsList runId={run.id} />}
       </div>
     </>
   );

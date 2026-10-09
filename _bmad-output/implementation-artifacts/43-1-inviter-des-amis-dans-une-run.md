@@ -1,6 +1,6 @@
 # Story 43.1: Inviter des amis dans une run perso
 
-**Status:** draft
+**Status:** review
 **Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
@@ -39,16 +39,16 @@ par le lien à jeton (`Run::inviteToken`, `GET /api/v1/runs/invite/{token}/previ
 
 ## Tasks / Subtasks
 
-- [ ] **Domaine** (`PersonalRuns`) : entité `RunInvitation` (statuts pending / accepted / declined / closed),
+- [x] **Domaine** (`PersonalRuns`) : entité `RunInvitation` (statuts pending / accepted / declined / closed),
       règles de renvoi et de clôture ; tests unitaires.
-- [ ] **Migration** + dépôt Doctrine.
-- [ ] **Application** : commandes `InviteFriendsToRun`, `AcceptRunInvitation`, `DeclineRunInvitation` ; lecture
+- [x] **Migration** + dépôt Doctrine.
+- [x] **Application** : commandes `InviteFriendsToRun`, `AcceptRunInvitation`, `DeclineRunInvitation` ; lecture
       des amis derrière une interface Application (pas d'import du domaine `Community`).
-- [ ] **Présentation** : `POST /runs/{runId}/invitations`, `GET /runs/{runId}/invitations`,
+- [x] **Présentation** : `POST /runs/{runId}/invitations`, `GET /runs/{runId}/invitations`,
       `POST /run-invitations/{id}/accept`, `POST /run-invitations/{id}/decline`, `GET /account/run-invitations`.
-- [ ] **Notifications** : type `run_invitation` ajouté à `PUSHABLE_TYPES` ; `messageFor` / `hrefFor` côté front.
-- [ ] **Front** : modale de sélection d'amis, bloc « Invitations » sur la page de run et dans `/compte/parties`.
-- [ ] Tests fonctionnels (invitation, rejoindre, refus, blocage entre-temps, run terminée, plafonds) et gates.
+- [x] **Notifications** : type `run_invitation` ajouté à `PUSHABLE_TYPES` ; `messageFor` / `hrefFor` côté front.
+- [x] **Front** : modale de sélection d'amis, bloc « Invitations » sur la page de run et dans `/compte/parties`.
+- [x] Tests fonctionnels (invitation, rejoindre, refus, blocage entre-temps, run terminée, plafonds) et gates.
 
 ## Notes
 
@@ -57,3 +57,35 @@ par le lien à jeton (`Run::inviteToken`, `GET /api/v1/runs/invite/{token}/previ
 - Socle de 43.13 (inviter un groupe) et 43.14 (run ouverte aux amis).
 - Rejoindre une run déjà lancée (`active` / `idle`) reste possible comme avec le lien ; l'invité arrive alors
   sans slot, comme aujourd'hui.
+
+## Dev Agent Record
+
+### Notes
+
+- Une invitation par (run, invité) : la ligne est rouverte quand on réinvite (refus de plus de 24 h, ou invitation
+  close). Le plafond de 20 par jour compte les envois et renvois des 24 dernières heures ; un lot qui le dépasse
+  est refusé en entier (429).
+- Clôture paresseuse (AC 6) : une run terminée ou annulée disparaît des invitations reçues, et rejoindre clôt
+  l'invitation (409). La suppression d'une run supprime ses invitations.
+- `RunJoiner` porte la logique « rejoindre » partagée par le lien (`joinByToken`) et l'invitation : le
+  participant et l'invitation acceptée partent dans le même flush.
+- Notification `run_invitation` (payload `fromUserId`, `inviterName`, `invitationId`, `runId`, `runTitle`) envoyée
+  après l'enregistrement ; `Notifier` est best-effort, le push part en asynchrone (`SendWebPushJob`).
+- Lecture des amitiés via `RunInviteFriendsQueryInterface` (DBAL sur les tables community), sans import du domaine
+  Community.
+
+### File List
+
+- `api/src/PersonalRuns/Domain/Entity/RunInvitation.php`, `Domain/Repository/RunInvitationRepositoryInterface.php`,
+  `Infrastructure/Doctrine/DoctrineRunInvitationRepository.php`, `api/migrations/Version20261009110000.php`
+- `api/src/PersonalRuns/Application/Command/InviteFriendsToRun.php` (+ `Result`, `Outcome`),
+  `AnswerRunInvitation.php` (+ `Result`, `Outcome`)
+- `api/src/PersonalRuns/Application/Query/RunInvitationsQuery.php`, `RunInviteFriendsQueryInterface.php`,
+  `Infrastructure/Dbal/DbalRunInviteFriendsQuery.php`, `Application/Support/RunJoiner.php`
+- `api/src/PersonalRuns/Application/Service/PersonalRunDrafts.php`, `Presentation/Controller/RunInvitationController.php`
+- `api/src/Community/Application/Support/PushMessageFactory.php`, `api/config/services.yaml`
+- Tests : `api/tests/Functional/RunInvitationTest.php`, `api/tests/Unit/PersonalRuns/RunInvitationTest.php`,
+  `PushMessageFactoryTest`, `PersonalRunDraftsGetTest`, `PersonalRunDraftsListMineTest`
+- `frontend/src/features/personal-runs/run-invitations-api.ts`, `run-invitations.tsx` (+ test),
+  `personal-run-detail-page.tsx`, `personal-runs-list-page.tsx`
+- `frontend/src/features/community/notification-center.tsx` (+ test), `notification-content.ts`
