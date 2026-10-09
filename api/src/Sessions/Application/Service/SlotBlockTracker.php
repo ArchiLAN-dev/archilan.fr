@@ -83,7 +83,7 @@ final readonly class SlotBlockTracker
                 $this->episodes->remove($episode);
                 if (SlotBlockDecision::CloseAndNotify === $decision) {
                     $reachableNow = $slot['reachable_now'] ?? 0;
-                    $unblocked[] = new NotifySlotUnblockedJob($sessionId, $slotName, is_int($reachableNow) ? $reachableNow : 0);
+                    $unblocked[] = new NotifySlotUnblockedJob($sessionId, $slotName, is_int($reachableNow) ? $reachableNow : 0, $key);
                 }
             }
         }

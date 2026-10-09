@@ -40,6 +40,14 @@ final class PushMessageFactoryTest extends TestCase
         );
     }
 
+    public function testAnUnblockedSlotWithItsNumberLeadsToItsProgression(): void
+    {
+        // Story 40.5.
+        $message = PushMessageFactory::forNotification('slot_unblocked', ['runId' => 'run-1', 'runTitle' => 'Ma run', 'slotName' => 'Alice_HK1', 'reachableNow' => 3, 'slotIndex' => '4']);
+
+        self::assertSame('/runs/run-1/progression/4', $message?->url);
+    }
+
     public function testASingleCheckAndABarePayloadStayReadable(): void
     {
         $single = PushMessageFactory::forNotification('slot_unblocked', ['runId' => 'run-1', 'runTitle' => 'Ma run', 'slotName' => 'Alice_HK1', 'reachableNow' => 1]);

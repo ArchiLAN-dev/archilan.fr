@@ -311,7 +311,13 @@ export function hrefFor(item: NotificationItem): string {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte";
   }
   if (item.type === "slot_unblocked") {
-    return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte/parties";
+    if (!hasStringProp(item.data, "runId") || item.data.runId === "") {
+      return "/compte/parties";
+    }
+    // Story 40.5: the progression of the unblocked slot; a notice from before it only knows the run.
+    return hasStringProp(item.data, "slotIndex") && item.data.slotIndex !== ""
+      ? `/runs/${item.data.runId}/progression/${item.data.slotIndex}`
+      : `/runs/${item.data.runId}`;
   }
   if (item.type === "slot_yaml_needs_review") {
     // Where the slot is marked "à revoir" (story 38.7): the run game selection, or the registration
