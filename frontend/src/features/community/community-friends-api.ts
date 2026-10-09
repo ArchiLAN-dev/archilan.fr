@@ -116,3 +116,50 @@ export async function fetchFriends(): Promise<FriendsData | null> {
     return null;
   }
 }
+
+/** Story 43.2: a member played with, and how much. */
+export type FriendSuggestion = FriendCard & {
+  sessionsTogether: number;
+  lastTitle: string | null;
+  lastPlayedAt: string | null;
+};
+
+function isFriendSuggestion(v: unknown): v is FriendSuggestion {
+  return (
+    isFriendCard(v) &&
+    "sessionsTogether" in v &&
+    typeof v.sessionsTogether === "number" &&
+    hasNullableStringProp(v, "lastTitle") &&
+    hasNullableStringProp(v, "lastPlayedAt")
+  );
+}
+
+/**
+ * « Tu as joué avec » (story 43.2). With a session, only the members played with in it. Null on failure.
+ */
+export async function fetchFriendSuggestions(options: { sessionId?: string; limit?: number } = {}): Promise<FriendSuggestion[] | null> {
+  const params = new URLSearchParams();
+  if (options.sessionId !== undefined) params.set("sessionId", options.sessionId);
+  if (options.limit !== undefined) params.set("limit", String(options.limit));
+  const query = params.toString();
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-suggestions${query === "" ? "" : `?${query}`}`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return Array.isArray(data) && data.every(isFriendSuggestion) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** « Ignorer »: never suggested again (story 43.2). */
+export async function dismissFriendSuggestion(slug: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-suggestions/${encodeURIComponent(slug)}/ignore`, {
+      method: "POST",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
