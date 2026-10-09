@@ -1,7 +1,7 @@
-# Story 41.1: Inviter des amis dans une run perso
+# Story 43.1: Inviter des amis dans une run perso
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
 ## Story
@@ -12,7 +12,7 @@ afin qu'ils la rejoignent en un clic sans que j'aie à copier le lien d'invitati
 
 ## Contexte
 
-Voir `_bmad-output/planning-artifacts/epics/epic-41-amis-utiles.md`. Aujourd'hui l'invitation passe uniquement
+Voir `_bmad-output/planning-artifacts/epics/epic-43-amis-utiles.md`. Aujourd'hui l'invitation passe uniquement
 par le lien à jeton (`Run::inviteToken`, `GET /api/v1/runs/invite/{token}/preview`,
 `GET /api/v1/runs/join/{token}`). Les notifications passent par `Notifier::notify()` et, pour les types
 « poussables » (`PushMessageFactory::PUSHABLE_TYPES`), par Web Push (story 40.2). Rejoindre crée un
@@ -53,6 +53,6 @@ par le lien à jeton (`Run::inviteToken`, `GET /api/v1/runs/invite/{token}/previ
 
 - La dépendance PersonalRuns vers Community passe par une interface Application (même schéma que
   `CommunityPresenceQueryInterface`) pour respecter `app:architecture:ddd`.
-- Socle de 41.13 (inviter un groupe) et 41.14 (run ouverte aux amis).
+- Socle de 43.13 (inviter un groupe) et 43.14 (run ouverte aux amis).
 - Rejoindre une run déjà lancée (`active` / `idle`) reste possible comme avec le lien ; l'invité arrive alors
   sans slot, comme aujourd'hui.

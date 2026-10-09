@@ -1,7 +1,7 @@
-# Story 41.2: Suggestions d'amis d'après les parties jouées ensemble
+# Story 43.2: Suggestions d'amis d'après les parties jouées ensemble
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
 ## Story
@@ -43,4 +43,4 @@ vide pour la plupart des membres : c'est le levier principal pour le remplir.
 ## Notes
 
 - Le seuil de 2 évite de suggérer tous les inscrits d'une grosse LAN ; constante nommée, ajustable.
-- Même agrégat de co-participations que 41.9 (historique commun) : à factoriser.
+- Même agrégat de co-participations que 43.9 (historique commun) : à factoriser.

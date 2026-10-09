@@ -1,9 +1,9 @@
-# Story 41.14: Run ouverte aux amis
+# Story 43.14: Run ouverte aux amis
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
-**Dépend de:** 41.1
+**Dépend de:** 43.1
 
 ## Story
 
@@ -13,14 +13,14 @@ afin qu'ils la trouvent et la rejoignent sans que j'invite chacun.
 
 ## Contexte
 
-Aujourd'hui une run perso n'est accessible que par lien ou (avec 41.1) invitation nominative. Les lobbies
+Aujourd'hui une run perso n'est accessible que par lien ou (avec 43.1) invitation nominative. Les lobbies
 Archipelago (ap-lobby, multiworld.gg) rassemblent un groupe avant la génération : la run en `draft` joue ce rôle.
 
 ## Critères d'acceptation
 
 1. Une run `draft` a un réglage d'ouverture : Sur invitation (défaut, comportement actuel) / Amis.
-2. « Amis » : la run apparaît dans un bloc « Parties de tes amis » (`/compte/parties` et encart 41.5) pour les
-   amis acceptés du propriétaire, qui peuvent la rejoindre directement (même logique que 41.1).
+2. « Amis » : la run apparaît dans un bloc « Parties de tes amis » (`/compte/parties` et encart 43.5) pour les
+   amis acceptés du propriétaire, qui peuvent la rejoindre directement (même logique que 43.1).
 3. Le propriétaire peut fixer un nombre de places (optionnel) ; la run disparaît du bloc quand elle est pleine,
    quitte `draft`, ou repasse « Sur invitation ».
 4. Blocages respectés dans les deux sens.
@@ -37,4 +37,4 @@ Archipelago (ap-lobby, multiworld.gg) rassemblent un groupe avant la génératio
 
 ## Notes
 
-- L'ouverture à tous les membres, avec annonce publique, est la story 41.17.
+- L'ouverture à tous les membres, avec annonce publique, est la story 43.17.

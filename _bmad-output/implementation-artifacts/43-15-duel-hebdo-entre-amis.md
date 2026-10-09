@@ -1,9 +1,9 @@
-# Story 41.15: Duel hebdo entre amis
+# Story 43.15: Duel hebdo entre amis
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
-**Dépend de:** 41.8 (bloc « Tes amis cette semaine »)
+**Dépend de:** 43.8 (bloc « Tes amis cette semaine »)
 
 ## Story
 

@@ -1,7 +1,7 @@
-# Story 41.4: Amis inscrits aux événements
+# Story 43.4: Amis inscrits aux événements
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
 ## Story
@@ -25,7 +25,7 @@ personnalisée se charge côté client.
 2. La page d'un événement affiche « *N* de tes amis participent » avec les avatars (3 visibles + compteur),
    chargé côté client ; rien pour un anonyme ou sans ami inscrit.
 3. Les cartes de la liste des événements à venir affichent la même pastille, via une requête groupée.
-4. Aucune notification par défaut quand un ami s'inscrit (c'est le rôle des favoris, 41.11).
+4. Aucune notification par défaut quand un ami s'inscrit (c'est le rôle des favoris, 43.11).
 5. Un blocage dans un sens ou l'autre exclut la personne.
 6. `composer gates` et `pnpm gates` passent.
 

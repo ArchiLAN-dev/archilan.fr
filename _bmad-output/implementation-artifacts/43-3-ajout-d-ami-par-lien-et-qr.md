@@ -1,7 +1,7 @@
-# Story 41.3: Ajout d'ami par lien personnel et QR code
+# Story 43.3: Ajout d'ami par lien personnel et QR code
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
 ## Story

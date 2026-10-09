@@ -1,7 +1,7 @@
-# Story 41.10: Les amis dans le recap
+# Story 43.10: Les amis dans le recap
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
 ## Story
@@ -24,7 +24,7 @@ BK sont connus depuis 40.1 (`SlotBlockEpisode`).
    BK » quand un item de progression reçu précède la clôture d'un épisode de BK du viewer (fenêtre courte,
    constante documentée).
 3. Les amis sont mis en avant (en premier, avec avatar) ; les non-amis co-joueurs suivent, avec un bouton
-   « Ajouter » (raccourci vers 41.2).
+   « Ajouter » (raccourci vers 43.2).
 4. Calcul côté serveur, une requête agrégée par recap, mis en cache avec le recap si possible.
 5. Visible seulement des participants de la session (pas sur un recap public vu par un tiers).
 6. `composer gates` et `pnpm gates` passent.

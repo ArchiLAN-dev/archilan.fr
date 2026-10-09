@@ -1,9 +1,9 @@
-# Story 41.11: Amis favoris et alertes d'activité
+# Story 43.11: Amis favoris et alertes d'activité
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
-**Dépend de:** 41.6
+**Dépend de:** 43.6
 
 ## Story
 
@@ -20,13 +20,13 @@ le Web Push existent (`Notifier`, story 40.2), mais le caractère « poussable �
 ## Critères d'acceptation
 
 1. Un ami peut être marqué « favori » (étoile) depuis `/compte/amis` ou son profil ; les favoris passent en tête
-   dans l'annuaire filtré sur les amis et dans 41.5. Maximum 15 favoris.
+   dans l'annuaire filtré sur les amis et dans 43.5. Maximum 15 favoris.
 2. Pour chaque favori, le viewer reçoit une notification `friend_activity` quand l'ami :
    - s'inscrit à un événement à venir (`Registration` réservée) ;
-   - lance une session d'événement ou une run perso ouverte aux amis (41.14), dont le viewer n'est pas déjà
+   - lance une session d'événement ou une run perso ouverte aux amis (43.14), dont le viewer n'est pas déjà
      participant ;
    - atteint l'objectif d'une partie.
-   Le réglage de présence de l'ami (41.6) prime : rien n'est annoncé à qui ne peut pas voir sa présence.
+   Le réglage de présence de l'ami (43.6) prime : rien n'est annoncé à qui ne peut pas voir sa présence.
 3. Anti-bruit : au plus une alerte par favori et par heure, et au plus 10 alertes `friend_activity` par jour et par
    destinataire.
 4. Préférences dans `/compte` pour `friend_activity` : « Cloche + push » / « Cloche seulement » / « Rien ».
@@ -48,7 +48,7 @@ le Web Push existent (`Notifier`, story 40.2), mais le caractère « poussable �
 
 ## Notes
 
-- Story lourde. Découpage possible : **41.11a** favoris + tri (petit, sans notification), **41.11b** alertes +
+- Story lourde. Découpage possible : **43.11a** favoris + tri (petit, sans notification), **43.11b** alertes +
   préférences de notification.
-- Les préférences par type serviront aussi à 41.1 (`run_invitation`) et 41.12 (`run_nudge`).
+- Les préférences par type serviront aussi à 43.1 (`run_invitation`) et 43.12 (`run_nudge`).
 - Fin d'amitié ou blocage : supprimer le favori dans les deux sens.
