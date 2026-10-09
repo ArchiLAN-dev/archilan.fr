@@ -17,6 +17,8 @@ function playing(slug: string, extra: Partial<FriendPlaying> = {}): FriendPlayin
     displayName: slug.toUpperCase(),
     avatarUrl: null,
     game: "Hollow Knight",
+    slotState: "playing",
+    progressPercent: null,
     kind: "event",
     title: null,
     eventId: null,
@@ -63,6 +65,22 @@ describe("friends now card (story 43.5)", () => {
     expect(html).toContain("En jeu");
     expect(html).toContain("CAROL");
     expect(html).toContain("Celeste, il y a 2 h");
+  });
+
+  it("tells a BK and a goal apart, with the progress while playing", () => {
+    const html = render({
+      hasFriends: true,
+      playing: [
+        playing("dan", { slotState: "bk", progressPercent: 60 }),
+        playing("eve", { slotState: "goal" }),
+        playing("fay", { progressPercent: 42 }),
+      ],
+      recent: [],
+    });
+
+    expect(html).toContain("En BK");
+    expect(html).toContain("Objectif atteint");
+    expect(html).toContain("Hollow Knight · 42 % · Événement");
   });
 
   it("says when no friend played lately, and points to the directory without a friend", () => {

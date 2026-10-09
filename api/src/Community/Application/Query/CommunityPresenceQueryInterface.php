@@ -12,11 +12,12 @@ interface CommunityPresenceQueryInterface
 {
     /**
      * Of the given users, those currently in a live (running) session, keyed by userId. A user not in the
-     * map is not playing, or not for this viewer.
+     * map is not playing, or not for this viewer. Story 43.7: where they stand in the slot shown (playing with a
+     * progress, BK, goal reached in the last half hour, or unknown).
      *
      * @param list<string> $userIds
      *
-     * @return array<string, array{sessionId: string, game: string|null}>
+     * @return array<string, array{sessionId: string, game: string|null, slotState: string, progressPercent: int|null}>
      */
     public function playing(array $userIds, ?string $viewerId): array;
 

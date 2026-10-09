@@ -59,7 +59,15 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
 
         $playing = [];
         foreach ($this->bestSlotPerUser($rows) as $userId => $row) {
-            $playing[$userId] = ['sessionId' => $row['sessionId'], 'game' => $row['game'], 'visibility' => $row['visibility'], 'friend' => $row['friend']];
+            $playing[$userId] = [
+                'sessionId' => $row['sessionId'],
+                'game' => $row['game'],
+                'slotName' => $row['slotName'],
+                'goalReached' => $row['goalReached'],
+                'tracked' => $row['tracked'],
+                'visibility' => $row['visibility'],
+                'friend' => $row['friend'],
+            ];
         }
 
         return $playing;
@@ -92,6 +100,40 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
         return $finished;
     }
 
+    public function snapshotSlots(array $sessionIds): array
+    {
+        if ([] === $sessionIds) {
+            return [];
+        }
+
+        $qb = $this->connection->createQueryBuilder();
+        $rows = $qb
+            ->select('snap.session_id', 'snap.payload')
+            ->from('session_players_snapshot', 'snap')
+            ->where($qb->expr()->in('snap.session_id', ':ids'))
+            ->setParameter('ids', $sessionIds, ArrayParameterType::STRING)
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $bySession = [];
+        foreach ($rows as $row) {
+            $sessionId = $row['session_id'] ?? null;
+            $payload = is_string($row['payload'] ?? null) ? json_decode($row['payload'], true) : null;
+            $slots = is_array($payload) ? ($payload['slots'] ?? null) : null;
+            if (!is_string($sessionId) || !is_array($slots)) {
+                continue;
+            }
+            foreach ($slots as $slot) {
+                $slotName = is_array($slot) ? ($slot['slot_name'] ?? null) : null;
+                if (is_array($slot) && is_string($slotName)) {
+                    $bySession[$sessionId][$slotName] = $slot;
+                }
+            }
+        }
+
+        return $bySession;
+    }
+
     public function playingNow(?string $viewerId): array
     {
         // Restricted to listable members: the hub renders every row as a profile link, so a slug-less or deleted
@@ -117,7 +159,8 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
     }
 
     /**
-     * Every active (member, slot) pair, owner or co-player, in a running session.
+     * Every active (member, slot) pair, owner or co-player, in a running session: checked in the window, or whose
+     * goal was reached in it.
      */
     private function activeSlots(?string $viewerId): QueryBuilder
     {
@@ -126,9 +169,9 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
 
         return $qb
             ->andWhere($qb->expr()->eq('s.status', ':status'))
-            ->andWhere($qb->expr()->isNull('slot.goal_reached_at'))
             ->andWhere('slot.was_released = false')
-            ->andWhere($activeAt.' >= :since')
+            // Story 43.7: a goal reached within the window keeps the member shown, « Objectif atteint ».
+            ->andWhere('(slot.goal_reached_at IS NULL AND '.$activeAt.' >= :since) OR slot.goal_reached_at >= :since')
             ->setParameter('status', self::RUNNING)
             ->setParameter('since', $this->clock->now()->modify(self::ACTIVE_WINDOW), Types::DATETIMETZ_IMMUTABLE);
     }
@@ -167,6 +210,10 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
                 $activeAt.' AS active_at',
                 'COALESCE(cp.presence_visibility, :defaultVisibility) AS visibility',
                 $friend.' AS friend',
+                'slot.slot_name AS slot_name',
+                'CASE WHEN slot.goal_reached_at IS NULL THEN 0 ELSE 1 END AS goal_reached',
+                // An imported seed has no detailed tracking (story 43.7): its presence shows the game only.
+                'CASE WHEN run.imported_output_key IS NULL THEN 1 ELSE 0 END AS tracked',
             )
             ->from('session_slot', 'slot')
             ->join('slot', DbalSlotPlayerSource::expression('session_slot', 'registration'), 'sp', $qb->expr()->eq('sp.'.DbalSlotPlayerSource::SLOT_COLUMN, 'slot.id'))
@@ -174,6 +221,7 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
             ->leftJoin('slot', 'registration', 'reg', $qb->expr()->eq('reg.id', 'slot.registration_id'))
             ->leftJoin('slot', 'game', 'g', $qb->expr()->eq('g.id', 'slot.game_id'))
             ->leftJoin('sp', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', $user))
+            ->leftJoin('s', 'run', 'run', $qb->expr()->eq('run.id', 's.event_id'))
             ->setParameter('defaultVisibility', PresenceVisibility::DEFAULT->value);
 
         if (null !== $viewerId) {
@@ -187,11 +235,28 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
     }
 
     /**
-     * The slot shown for each member: own slots before co-played ones, then the most recent activity.
+     * @param array{owned: bool, activeAt: int, goalReached: bool} $a
+     * @param array{owned: bool, activeAt: int, goalReached: bool} $b
+     */
+    private static function shownBefore(array $a, array $b): bool
+    {
+        if ($a['goalReached'] !== $b['goalReached']) {
+            return !$a['goalReached'];
+        }
+        if ($a['owned'] !== $b['owned']) {
+            return $a['owned'];
+        }
+
+        return $a['activeAt'] > $b['activeAt'];
+    }
+
+    /**
+     * The slot shown for each member: a slot still played before one whose goal is reached (story 43.7), then own
+     * slots before co-played ones, then the most recent activity (story 30.45).
      *
      * @param list<array<string, mixed>> $rows
      *
-     * @return array<string, array{userId: string, sessionId: string, game: string|null, owned: bool, activeAt: int, visibility: string, friend: bool}>
+     * @return array<string, array{userId: string, sessionId: string, game: string|null, owned: bool, activeAt: int, visibility: string, friend: bool, slotName: string|null, goalReached: bool, tracked: bool}>
      */
     private function bestSlotPerUser(array $rows): array
     {
@@ -213,11 +278,12 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
                 'activeAt' => new \DateTimeImmutable($activeAtRaw)->getTimestamp(),
                 'visibility' => is_string($visibility) ? $visibility : PresenceVisibility::DEFAULT->value,
                 'friend' => in_array($row['friend'] ?? null, [1, '1', true], true),
+                'slotName' => is_string($row['slot_name'] ?? null) ? $row['slot_name'] : null,
+                'goalReached' => in_array($row['goal_reached'] ?? null, [1, '1', true], true),
+                'tracked' => in_array($row['tracked'] ?? null, [1, '1', true], true),
             ];
             $current = $best[$userId] ?? null;
-            if (null === $current
-                || ($candidate['owned'] && !$current['owned'])
-                || ($candidate['owned'] === $current['owned'] && $candidate['activeAt'] > $current['activeAt'])) {
+            if (null === $current || self::shownBefore($candidate, $current)) {
                 $best[$userId] = $candidate;
             }
         }

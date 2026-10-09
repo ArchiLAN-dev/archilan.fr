@@ -1,6 +1,6 @@
 # Story 43.7: Présence riche - où en est l'ami dans sa partie
 
-**Status:** draft
+**Status:** review
 **Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 **Dépend de:** 43.6
@@ -34,8 +34,28 @@ perso `SessionSlot::registrationId` est l'id utilisateur ; en événement c'est 
 
 ## Tasks / Subtasks
 
-- [ ] **Application** : extension du DTO de présence (`slotState`, `progressPercent`), lecture batch des snapshots.
-- [ ] **Infrastructure** : résolution utilisateur vers slots pour les trois cas (run perso, événement, co-joueur),
+- [x] **Application** : extension du DTO de présence (`slotState`, `progressPercent`), lecture batch des snapshots.
+- [x] **Infrastructure** : résolution utilisateur vers slots pour les trois cas (run perso, événement, co-joueur),
       en une requête.
-- [ ] **Front** : libellés et pastilles (réutiliser les couleurs BK / goal de `PlayerProgressGrid`).
-- [ ] Tests (règle multi-slot, BK, goal, inconnu, seed importée) et gates.
+- [x] **Front** : libellés et pastilles (réutiliser les couleurs BK / goal de `PlayerProgressGrid`).
+- [x] Tests (règle multi-slot, BK, goal, inconnu, seed importée) et gates.
+
+## Dev Notes (2026-10-09)
+
+- **Choix validés par Jean (2026-10-09)** :
+  - Plusieurs slots : on garde la règle de 30.45 (ses slots avant les co-joués, puis le plus récemment checké), et non
+    « le moins avancé » de l'AC 3, pour que le jeu affiché ne change pas d'une surface à l'autre. S'y ajoute en tête :
+    un slot encore joué passe avant un slot dont l'objectif est atteint (`DbalCommunityPresenceQuery::shownBefore`).
+  - Objectif : un slot dont le goal a été atteint dans la dernière demi-heure garde le membre « en jeu », état
+    « Objectif atteint » ; passé ce délai il sort de la présence comme avant.
+- `PresenceSlotState` (Community Domain/Enum) : `of(snapshotSlot, goalReached, tracked)` donne l'état et le
+  pourcentage. Le BK est `SlotBlockRule::stateOf`, la règle du badge. Tous les checks faits sans goal = « en jeu » à
+  100 %. Sans snapshot, ou seed importée (`run.imported_output_key`), état `unknown` : le jeu seul.
+- La lecture brute donne le nom du slot, le goal et le suivi ; `snapshotSlots` lit les snapshots de toutes les sessions
+  affichées en une requête, et seulement pour les présences que le viewer peut voir (AC 5 et 6).
+- `CommunityPresenceQueryInterface::playing` renvoie `slotState` et `progressPercent` ; repris par le profil
+  (`presence`), le fil (`actor`) et 43.5 (`playing`). Le hub (`playingNow`) n'en a pas besoin.
+- Front : `rich-presence.ts` (libellés, couleurs BK/goal de `PlayerProgressGrid`) utilisé par le badge du profil, le
+  point du fil (libellé au survol) et l'encart 43.5.
+- Tests : `RichPresenceTest`, `PresenceSlotStateTest`, `CommunityPresenceLastCheckTest` (goal hors fenêtre),
+  `rich-presence.test.ts`, `friends-now-card.test.tsx`.

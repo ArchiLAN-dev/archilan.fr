@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Query;
 
+use App\Community\Domain\Enum\PresenceSlotState;
 use App\Community\Domain\Enum\PresenceVisibility;
 use App\Community\Domain\Service\AudiencePolicy;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
@@ -25,11 +26,20 @@ final readonly class CommunityPresenceQuery implements CommunityPresenceQueryInt
     public function playing(array $userIds, ?string $viewerId): array
     {
         $strangerTier = null;
-        $playing = [];
+        $visible = [];
         foreach ($this->live->playing($userIds, $viewerId) as $userId => $row) {
             if ($this->shows($row, $userId, $viewerId, $strangerTier)) {
-                $playing[$userId] = ['sessionId' => $row['sessionId'], 'game' => $row['game']];
+                $visible[$userId] = $row;
             }
+        }
+
+        // Story 43.7: one snapshot read for every session shown, and only for the presences the viewer may see.
+        $snapshots = $this->live->snapshotSlots(array_values(array_unique(array_column($visible, 'sessionId'))));
+        $playing = [];
+        foreach ($visible as $userId => $row) {
+            $slot = null === $row['slotName'] ? null : ($snapshots[$row['sessionId']][$row['slotName']] ?? null);
+            ['state' => $state, 'percent' => $percent] = PresenceSlotState::of($slot, $row['goalReached'], $row['tracked']);
+            $playing[$userId] = ['sessionId' => $row['sessionId'], 'game' => $row['game'], 'slotState' => $state->value, 'progressPercent' => $percent];
         }
 
         return $playing;

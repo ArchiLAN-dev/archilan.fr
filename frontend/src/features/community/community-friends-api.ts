@@ -255,6 +255,9 @@ export async function fetchEventFriendsBatch(eventIds: string[]): Promise<Record
 /** Story 43.5: a friend playing now. Title and page only when the viewer may open the session. */
 export type FriendPlaying = FriendCard & {
   game: string | null;
+  /** Story 43.7: playing, bk, goal or unknown; the progress while playing. */
+  slotState: string;
+  progressPercent: number | null;
   kind: "event" | "run" | null;
   title: string | null;
   eventId: string | null;
@@ -268,6 +271,8 @@ export type FriendsNow = { hasFriends: boolean; playing: FriendPlaying[]; recent
 
 function isFriendPlaying(v: unknown): v is FriendPlaying {
   if (!isFriendCard(v) || !hasNullableStringProp(v, "game") || !hasNullableStringProp(v, "title")) return false;
+  if (!hasStringProp(v, "slotState") || !("progressPercent" in v)) return false;
+  if (v.progressPercent !== null && typeof v.progressPercent !== "number") return false;
   if (!hasNullableStringProp(v, "eventId") || !hasNullableStringProp(v, "runId")) return false;
   return "kind" in v && (v.kind === "event" || v.kind === "run" || v.kind === null);
 }
