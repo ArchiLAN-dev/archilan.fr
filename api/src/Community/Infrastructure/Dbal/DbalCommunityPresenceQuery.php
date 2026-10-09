@@ -32,6 +32,7 @@ use Psr\Clock\ClockInterface;
 final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInterface
 {
     private const string RUNNING = 'running';
+    private const string FINISHED = 'finished';
     private const string ACTIVE_WINDOW = '-30 minutes';
 
     private string $userTable;
@@ -64,6 +65,33 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
         return $playing;
     }
 
+    public function recentlyFinished(array $userIds, ?string $viewerId, \DateTimeImmutable $since): array
+    {
+        if ([] === $userIds) {
+            return [];
+        }
+
+        $qb = $this->finishedSlots($viewerId, $since);
+        $rows = $qb
+            ->andWhere($qb->expr()->in('sp.'.DbalSlotPlayerSource::USER_COLUMN, ':ids'))
+            ->setParameter('ids', $userIds, ArrayParameterType::STRING)
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $finished = [];
+        foreach ($this->bestSlotPerUser($rows) as $userId => $row) {
+            $finished[$userId] = [
+                'sessionId' => $row['sessionId'],
+                'game' => $row['game'],
+                'finishedAt' => new \DateTimeImmutable('@'.$row['activeAt'])->format(\DateTimeInterface::ATOM),
+                'visibility' => $row['visibility'],
+                'friend' => $row['friend'],
+            ];
+        }
+
+        return $finished;
+    }
+
     public function playingNow(?string $viewerId): array
     {
         // Restricted to listable members: the hub renders every row as a profile link, so a slug-less or deleted
@@ -89,14 +117,44 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
     }
 
     /**
-     * Every active (member, slot) pair, owner or co-player, with whether the member owns the slot, their presence
-     * visibility and whether the viewer is their friend. A member blocked either way with the viewer is left out.
+     * Every active (member, slot) pair, owner or co-player, in a running session.
      */
     private function activeSlots(?string $viewerId): QueryBuilder
     {
+        $activeAt = 'COALESCE(slot.last_check_at, s.started_at)';
+        $qb = $this->playerSlots($viewerId, $activeAt);
+
+        return $qb
+            ->andWhere($qb->expr()->eq('s.status', ':status'))
+            ->andWhere($qb->expr()->isNull('slot.goal_reached_at'))
+            ->andWhere('slot.was_released = false')
+            ->andWhere($activeAt.' >= :since')
+            ->setParameter('status', self::RUNNING)
+            ->setParameter('since', $this->clock->now()->modify(self::ACTIVE_WINDOW), Types::DATETIMETZ_IMMUTABLE);
+    }
+
+    /**
+     * Every (member, slot) pair of a session finished since the given time (story 43.5), its end as activity.
+     */
+    private function finishedSlots(?string $viewerId, \DateTimeImmutable $since): QueryBuilder
+    {
+        $qb = $this->playerSlots($viewerId, 's.finished_at');
+
+        return $qb
+            ->andWhere($qb->expr()->eq('s.status', ':status'))
+            ->andWhere($qb->expr()->gte('s.finished_at', ':since'))
+            ->setParameter('status', self::FINISHED)
+            ->setParameter('since', $since, Types::DATETIMETZ_IMMUTABLE);
+    }
+
+    /**
+     * The (member, slot) pairs, owner or co-player, with whether the member owns the slot, their presence visibility
+     * and whether the viewer is their friend. A member blocked either way with the viewer is left out.
+     */
+    private function playerSlots(?string $viewerId, string $activeAt): QueryBuilder
+    {
         $qb = $this->connection->createQueryBuilder();
         $user = 'sp.'.DbalSlotPlayerSource::USER_COLUMN;
-        $activeAt = 'COALESCE(slot.last_check_at, s.started_at)';
         $friend = null === $viewerId ? '0' : "CASE WHEN EXISTS (SELECT 1 FROM community_friendship f WHERE f.status = 'accepted'"
             .' AND ((f.requester_id = :viewer AND f.addressee_id = '.$user.') OR (f.addressee_id = :viewer AND f.requester_id = '.$user.'))) THEN 1 ELSE 0 END';
 
@@ -116,13 +174,7 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
             ->leftJoin('slot', 'registration', 'reg', $qb->expr()->eq('reg.id', 'slot.registration_id'))
             ->leftJoin('slot', 'game', 'g', $qb->expr()->eq('g.id', 'slot.game_id'))
             ->leftJoin('sp', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', $user))
-            ->where($qb->expr()->eq('s.status', ':status'))
-            ->andWhere($qb->expr()->isNull('slot.goal_reached_at'))
-            ->andWhere('slot.was_released = false')
-            ->andWhere($activeAt.' >= :since')
-            ->setParameter('status', self::RUNNING)
-            ->setParameter('defaultVisibility', PresenceVisibility::DEFAULT->value)
-            ->setParameter('since', $this->clock->now()->modify(self::ACTIVE_WINDOW), Types::DATETIMETZ_IMMUTABLE);
+            ->setParameter('defaultVisibility', PresenceVisibility::DEFAULT->value);
 
         if (null !== $viewerId) {
             $qb

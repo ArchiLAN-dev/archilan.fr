@@ -35,6 +35,19 @@ final readonly class CommunityPresenceQuery implements CommunityPresenceQueryInt
         return $playing;
     }
 
+    public function recentlyPlayed(array $userIds, ?string $viewerId, \DateTimeImmutable $since): array
+    {
+        $strangerTier = null;
+        $finished = [];
+        foreach ($this->live->recentlyFinished($userIds, $viewerId, $since) as $userId => $row) {
+            if ($this->shows($row, $userId, $viewerId, $strangerTier)) {
+                $finished[$userId] = ['sessionId' => $row['sessionId'], 'game' => $row['game'], 'finishedAt' => $row['finishedAt']];
+            }
+        }
+
+        return $finished;
+    }
+
     public function playingNow(int $limit, ?string $viewerId): array
     {
         if ($limit <= 0) {

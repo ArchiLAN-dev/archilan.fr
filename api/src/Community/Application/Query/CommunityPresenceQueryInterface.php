@@ -21,6 +21,16 @@ interface CommunityPresenceQueryInterface
     public function playing(array $userIds, ?string $viewerId): array;
 
     /**
+     * Of the given users, those whose last session finished since the given time, keyed by userId (story 43.5),
+     * under the same visibility as the live presence.
+     *
+     * @param list<string> $userIds
+     *
+     * @return array<string, array{sessionId: string, game: string|null, finishedAt: string}>
+     */
+    public function recentlyPlayed(array $userIds, ?string $viewerId, \DateTimeImmutable $since): array;
+
+    /**
      * Everyone currently in a live (running) session, most recently started first, capped at $limit.
      * Unlike {@see playing()} this takes no id list - it answers "who is playing right now" for the
      * community hub (story 30.38). Restricted to listable members (a public slug, not deleted) so the

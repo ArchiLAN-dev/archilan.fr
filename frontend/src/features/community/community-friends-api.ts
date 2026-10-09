@@ -251,3 +251,43 @@ export async function fetchEventFriendsBatch(eventIds: string[]): Promise<Record
     return null;
   }
 }
+
+/** Story 43.5: a friend playing now. Title and page only when the viewer may open the session. */
+export type FriendPlaying = FriendCard & {
+  game: string | null;
+  kind: "event" | "run" | null;
+  title: string | null;
+  eventId: string | null;
+  runId: string | null;
+};
+
+/** A friend whose last session ended less than a day ago. */
+export type FriendRecent = FriendCard & { game: string | null; finishedAt: string };
+
+export type FriendsNow = { hasFriends: boolean; playing: FriendPlaying[]; recent: FriendRecent[] };
+
+function isFriendPlaying(v: unknown): v is FriendPlaying {
+  if (!isFriendCard(v) || !hasNullableStringProp(v, "game") || !hasNullableStringProp(v, "title")) return false;
+  if (!hasNullableStringProp(v, "eventId") || !hasNullableStringProp(v, "runId")) return false;
+  return "kind" in v && (v.kind === "event" || v.kind === "run" || v.kind === null);
+}
+
+function isFriendRecent(v: unknown): v is FriendRecent {
+  return isFriendCard(v) && hasNullableStringProp(v, "game") && hasStringProp(v, "finishedAt");
+}
+
+/** « Mes amis en ce moment » (story 43.5). Null on failure. */
+export async function fetchFriendsNow(): Promise<FriendsNow | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friends/now`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    if (typeof data !== "object" || data === null) return null;
+    if (!("hasFriends" in data) || typeof data.hasFriends !== "boolean") return null;
+    if (!("playing" in data) || !Array.isArray(data.playing) || !data.playing.every(isFriendPlaying)) return null;
+    if (!("recent" in data) || !Array.isArray(data.recent) || !data.recent.every(isFriendRecent)) return null;
+    return { hasFriends: data.hasFriends, playing: data.playing, recent: data.recent };
+  } catch {
+    return null;
+  }
+}
