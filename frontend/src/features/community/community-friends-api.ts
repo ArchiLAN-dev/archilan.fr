@@ -163,3 +163,60 @@ export async function dismissFriendSuggestion(slug: string): Promise<boolean> {
     return false;
   }
 }
+
+function codeOf(json: unknown): string | null {
+  const data = dataOf(json);
+  return typeof data === "object" && data !== null && hasStringProp(data, "code") ? data.code : null;
+}
+
+/** Story 43.3: the code of « Mon lien d'ami » (`/ami/{code}`), made on first ask. Null on failure. */
+export async function fetchMyFriendLinkCode(): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-link`);
+    return res.ok ? codeOf(await res.json()) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A new code: the old link stops working. Null on failure. */
+export async function regenerateFriendLink(): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-link/regenerate`, { method: "POST" });
+    return res.ok ? codeOf(await res.json()) : null;
+  } catch {
+    return null;
+  }
+}
+
+export type FriendLinkView = { member: FriendCard; relationship: Relationship };
+
+export type FriendLinkResult = { kind: "ok"; view: FriendLinkView } | { kind: "invalid" } | { kind: "error" };
+
+/** The member a scanned link points to. An unknown, regenerated or blocked link is `invalid`, all alike. */
+export async function fetchFriendLink(code: string): Promise<FriendLinkResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-link/${encodeURIComponent(code)}`);
+    if (res.status === 404) return { kind: "invalid" };
+    if (!res.ok) return { kind: "error" };
+    const data = dataOf(await res.json());
+    if (typeof data !== "object" || data === null) return { kind: "error" };
+    if (!("member" in data) || !isFriendCard(data.member)) return { kind: "error" };
+    if (!("relationship" in data) || !isRelationship(data.relationship)) return { kind: "error" };
+    return { kind: "ok", view: { member: data.member, relationship: data.relationship } };
+  } catch {
+    return { kind: "error" };
+  }
+}
+
+/** « Ajouter en ami » from the link. Null on failure. */
+export async function addFriendFromLink(code: string): Promise<Relationship | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-link/${encodeURIComponent(code)}/add`, { method: "POST" });
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return isRelationship(data) ? data : null;
+  } catch {
+    return null;
+  }
+}

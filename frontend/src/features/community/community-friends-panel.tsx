@@ -13,6 +13,7 @@ import {
   type IncomingRequest,
 } from "./community-friends-api";
 import { FriendIdentity } from "./friend-identity";
+import { MyFriendLink } from "./friend-link";
 import { FriendSuggestions } from "./friend-suggestions";
 
 export function CommunityFriendsPanel() {
@@ -81,6 +82,9 @@ export function CommunityFriendsPanel() {
 
       {/* Story 43.2: the members played with, to fill the list without searching each name. */}
       <FriendSuggestions limit={6} title="Tu as joué avec" />
+
+      {/* Story 43.3: a QR code to show at a LAN. */}
+      <MyFriendLink />
 
       <section className="grid gap-3">
         <h2 className="font-heading text-lg font-semibold text-foreground">
