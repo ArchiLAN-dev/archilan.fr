@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { AuthUser } from "../auth/auth-context";
 import type { FriendPlaying, FriendRecent, FriendsNow } from "./community-friends-api";
 import { FRIENDS_NOW_KEY, FriendsNowCard, sessionHref } from "./friends-now-card";
+import { timeLabel } from "./notification-content";
 
 let mockUser: Partial<AuthUser> | null = null;
 jest.mock("../auth/auth-context", () => ({
@@ -53,10 +54,11 @@ describe("friends now card (story 43.5)", () => {
   });
 
   it("shows the friends playing, then those active recently", () => {
+    const twoHoursAgo = new Date(Date.now() - 2 * 3_600_000).toISOString();
     const html = render({
       hasFriends: true,
       playing: [playing("alice", { title: "LAN d'automne", eventId: "e1" }), playing("bob", { kind: "run" })],
-      recent: [recent("carol", new Date(Date.now() - 2 * 3_600_000).toISOString())],
+      recent: [recent("carol", twoHoursAgo)],
     });
 
     expect(html).toContain("Mes amis en ce moment");
@@ -64,7 +66,8 @@ describe("friends now card (story 43.5)", () => {
     expect(html).toContain("Hollow Knight · Run perso");
     expect(html).toContain("En jeu");
     expect(html).toContain("CAROL");
-    expect(html).toContain("Celeste, il y a 2 h");
+    // « il y a 2 h », or « hier » just after midnight.
+    expect(html).toContain(`Celeste, ${timeLabel(twoHoursAgo, new Date())}`);
   });
 
   it("tells a BK and a goal apart, with the progress while playing", () => {

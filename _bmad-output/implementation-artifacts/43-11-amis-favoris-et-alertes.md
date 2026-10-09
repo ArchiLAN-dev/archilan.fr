@@ -1,6 +1,7 @@
 # Story 43.11: Amis favoris et alertes d'activité
 
-**Status:** draft
+**Status:** split
+**Découpée en:** 43.11a (`43-11a-amis-favoris.md`), 43.11b (`43-11b-alertes-d-activite-des-favoris.md`)
 **Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 **Dépend de:** 43.6

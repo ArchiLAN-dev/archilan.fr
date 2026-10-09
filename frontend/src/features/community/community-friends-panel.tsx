@@ -12,6 +12,7 @@ import {
   fetchFriends,
   type IncomingRequest,
 } from "./community-friends-api";
+import { FavoriteFriendButton } from "./favorite-friend-button";
 import { FriendIdentity } from "./friend-identity";
 import { MyFriendLink } from "./friend-link";
 import { FriendSuggestions } from "./friend-suggestions";
@@ -95,8 +96,16 @@ export function CommunityFriendsPanel() {
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2" role="list">
             {data.friends.map((card) => (
-              <li className="rounded-lg border border-border bg-surface px-3 py-2" key={card.userId}>
+              <li className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2" key={card.userId}>
                 <FriendIdentity card={card} link />
+                {/* Story 43.11a: starred friends come first, the list is refetched in the new order. */}
+                <FavoriteFriendButton
+                  compact
+                  favorite={card.isFavorite === true}
+                  name={card.displayName ?? card.slug}
+                  onChange={() => queryClient.invalidateQueries({ queryKey: ["community-friends"] })}
+                  slug={card.slug}
+                />
               </li>
             ))}
           </ul>

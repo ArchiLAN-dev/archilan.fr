@@ -13,7 +13,8 @@ export type RelationshipState =
   | "blocked"
   | "self";
 
-export type Relationship = { state: RelationshipState; friendshipId: string | null };
+/** `favorite`: the viewer starred this friend (story 43.11a), never shown to the friend. */
+export type Relationship = { state: RelationshipState; friendshipId: string | null; favorite?: boolean };
 
 export type FriendCard = {
   userId: string;
@@ -28,6 +29,8 @@ export type FriendCard = {
   avatarFraming?: ImageFraming | null;
   // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
+  // Story 43.11a: in the viewer's own lists, a friend they starred.
+  isFavorite?: boolean;
 };
 
 export type IncomingRequest = FriendCard & { friendshipId: string };
@@ -86,6 +89,9 @@ export const sendFriendRequest = (slug: string) => relationshipAction(slug, "fri
 export const removeFriendship = (slug: string) => relationshipAction(slug, "friendship", "DELETE");
 export const blockUser = (slug: string) => relationshipAction(slug, "block", "POST");
 export const unblockUser = (slug: string) => relationshipAction(slug, "block", "DELETE");
+/** Story 43.11a: null on failure, past the limit of 15 too. */
+export const favoriteFriend = (slug: string) => relationshipAction(slug, "favorite", "POST");
+export const unfavoriteFriend = (slug: string) => relationshipAction(slug, "favorite", "DELETE");
 
 async function respondToRequest(friendshipId: string, action: "accept" | "decline"): Promise<boolean> {
   try {
