@@ -1,7 +1,7 @@
-# Story 41.8: Classements entre amis
+# Story 43.8: Classements entre amis
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
 ## Story

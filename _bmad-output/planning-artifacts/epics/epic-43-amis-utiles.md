@@ -1,4 +1,4 @@
-# Epic 41: Des amis qui servent à jouer
+# Epic 43: Des amis qui servent à jouer
 
 **Statut :** proposé le 2026-10-02
 **Date :** 2026-10-02
@@ -55,7 +55,7 @@ autres plateformes n'ont pas (items envoyés, BK débloqués par un autre joueur
   suggestion, invitation, présence ni classement entre amis.
 - **Anti-spam** : invitations, relances et alertes sont plafonnées et dédoublonnées ; les alertes d'activité
   sont opt-in (favoris).
-- **Vie privée** : tout ce qui expose une activité en direct respecte un réglage de visibilité (story 41.6).
+- **Vie privée** : tout ce qui expose une activité en direct respecte un réglage de visibilité (story 43.6).
 - **Réutiliser** : `Notifier` + Web Push (epic 40), présence dérivée (30.14), `SlotCoPlayer`, feed persisté des
   recaps (epic 32), succès en base (30.x), `friendsOnly` de l'annuaire.
 
@@ -63,38 +63,38 @@ autres plateformes n'ont pas (items envoyés, BK débloqués par un autre joueur
 
 ### Phase 1 - donner une raison d'avoir des amis, et en avoir
 
-- **41.1** - Inviter des amis dans une run perso (notification + push, rejoindre en un clic).
-- **41.2** - Suggestions d'amis d'après les parties jouées ensemble.
-- **41.3** - Ajout d'ami par lien personnel et QR code (pensé pour la LAN).
-- **41.4** - Amis inscrits aux événements.
+- **43.1** - Inviter des amis dans une run perso (notification + push, rejoindre en un clic).
+- **43.2** - Suggestions d'amis d'après les parties jouées ensemble.
+- **43.3** - Ajout d'ami par lien personnel et QR code (pensé pour la LAN).
+- **43.4** - Amis inscrits aux événements.
 
 ### Phase 2 - voir ses amis jouer
 
-- **41.5** - Encart « Mes amis en ce moment ».
-- **41.6** - Visibilité de la présence (mode discret). *Prérequis de 41.5 et 41.7.*
-- **41.7** - Présence riche : où en est l'ami dans sa partie.
-- **41.8** - Classements entre amis (classement communautaire et hebdo).
-- **41.9** - Historique commun sur le profil d'un ami.
-- **41.10** - Les amis dans le recap (items échangés, déblocages).
+- **43.5** - Encart « Mes amis en ce moment ».
+- **43.6** - Visibilité de la présence (mode discret). *Prérequis de 43.5 et 43.7.*
+- **43.7** - Présence riche : où en est l'ami dans sa partie.
+- **43.8** - Classements entre amis (classement communautaire et hebdo).
+- **43.9** - Historique commun sur le profil d'un ami.
+- **43.10** - Les amis dans le recap (items échangés, déblocages).
 
 ### Phase 3 - jouer ensemble plus souvent
 
-- **41.11** - Amis favoris et alertes d'activité (découpable en favoris / alertes + préférences).
-- **41.12** - Relancer un co-joueur inactif.
-- **41.13** - Groupes d'amis.
-- **41.14** - Run ouverte aux amis.
-- **41.15** - Duel hebdo entre amis.
-- **41.16** - Succès sociaux (nouveaux faits pour le moteur de règles existant).
-- **41.17** - Annonces « cherche joueurs » (ouverture aux membres).
+- **43.11** - Amis favoris et alertes d'activité (découpable en favoris / alertes + préférences).
+- **43.12** - Relancer un co-joueur inactif.
+- **43.13** - Groupes d'amis.
+- **43.14** - Run ouverte aux amis.
+- **43.15** - Duel hebdo entre amis.
+- **43.16** - Succès sociaux (nouveaux faits pour le moteur de règles existant).
+- **43.17** - Annonces « cherche joueurs » (ouverture aux membres).
 
 ## Dépendances
 
-- 41.6 avant 41.5, 41.7 et 41.11 (la présence est aujourd'hui visible de tous, anonymes compris).
-- 41.1 avant 41.13, 41.14 ; 41.14 avant 41.17.
-- 41.2 fournit l'agrégat de co-participations réutilisé par 41.9 et 41.16.
-- 41.8 avant 41.15 (le duel s'affiche dans le bloc « Tes amis cette semaine »).
-- 41.8 : démarrer après le merge de la story 30.47, qui modifie `LeaderboardQuery`.
-- 41.10 change `SlotBlockTracker` (40.1) pour archiver les épisodes de BK au lieu de les supprimer.
+- 43.6 avant 43.5, 43.7 et 43.11 (la présence est aujourd'hui visible de tous, anonymes compris).
+- 43.1 avant 43.13, 43.14 ; 43.14 avant 43.17.
+- 43.2 fournit l'agrégat de co-participations réutilisé par 43.9 et 43.16.
+- 43.8 avant 43.15 (le duel s'affiche dans le bloc « Tes amis cette semaine »).
+- 43.8 : démarrer après le merge de la story 30.47, qui modifie `LeaderboardQuery`.
+- 43.10 change `SlotBlockTracker` (40.1) pour archiver les épisodes de BK au lieu de les supprimer.
 
 ## Hors périmètre
 

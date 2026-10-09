@@ -1,7 +1,7 @@
-# Story 41.12: Relancer un co-joueur inactif
+# Story 43.12: Relancer un co-joueur inactif
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
 ## Story

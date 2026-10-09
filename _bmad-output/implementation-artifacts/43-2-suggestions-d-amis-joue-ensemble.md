@@ -1,7 +1,7 @@
-# Story 41.2: Suggestions d'amis d'après les parties jouées ensemble
+# Story 43.2: Suggestions d'amis d'après les parties jouées ensemble
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
 ## Story
@@ -19,15 +19,17 @@ vide pour la plupart des membres : c'est le levier principal pour le remplir.
 
 ## Critères d'acceptation
 
-1. `FriendSuggestionsQuery` renvoie au viewer les utilisateurs ayant partagé **au moins 2 sessions** avec lui
-   (run perso ou session d'événement), classés par nombre de sessions communes puis par date de
-   la dernière.
+1. `FriendSuggestionsQuery` renvoie au viewer les utilisateurs ayant partagé avec lui **au moins une run perso**
+   (groupe choisi : une partie suffit) **ou au moins 2 sessions d'événement** (une grosse LAN jouée une fois ne
+   suffit pas, c'est le rôle du QR de 43.3), classés par nombre de sessions communes puis par date de la
+   dernière. Propriétaires de slot et co-joueurs (`SlotCoPlayer`) comptent.
 2. Sont exclus : soi-même, les amis acceptés, les demandes en attente (dans les deux sens), les blocages (dans
    les deux sens), les comptes bannis ou supprimés, et les suggestions ignorées.
 3. Chaque suggestion affiche avatar (avec cadre), pseudo, « N parties ensemble », titre de la dernière, un bouton
    « Ajouter » (demande existante) et « Ignorer » (définitif pour cette personne).
-4. Affichage : section « Tu as joué avec » dans `/compte/amis`, et un encart de 3 suggestions sur la page d'une
-   run perso terminée (« Ajoute tes co-joueurs »).
+4. Affichage : section « Tu as joué avec » dans `/compte/amis`, et un encart de 3 suggestions sur le récap d'une
+   partie (`/parties/{sessionId}`, la page de fin de partie depuis la 32.20), visible seulement des participants
+   connectés (« Ajoute tes co-joueurs »), limité aux joueurs de cette partie.
 5. Une seule requête SQL agrégée (pas de N+1), testée sur un jeu de données mixte.
 6. `composer gates` et `pnpm gates` passent.
 
@@ -42,5 +44,5 @@ vide pour la plupart des membres : c'est le levier principal pour le remplir.
 
 ## Notes
 
-- Le seuil de 2 évite de suggérer tous les inscrits d'une grosse LAN ; constante nommée, ajustable.
-- Même agrégat de co-participations que 41.9 (historique commun) : à factoriser.
+- Seuils validés par Jean le 2026-10-09 : 1 run perso, 2 sessions d'événement ; constantes nommées, ajustables.
+- Même agrégat de co-participations que 43.9 (historique commun) : à factoriser.

@@ -1,9 +1,9 @@
-# Story 41.7: Présence riche - où en est l'ami dans sa partie
+# Story 43.7: Présence riche - où en est l'ami dans sa partie
 
 **Status:** draft
-**Epic:** 41 - Des amis qui servent à jouer
+**Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
-**Dépend de:** 41.6
+**Dépend de:** 43.6
 
 ## Story
 
@@ -23,12 +23,12 @@ perso `SessionSlot::registrationId` est l'id utilisateur ; en événement c'est 
 
 1. La présence d'un utilisateur en jeu s'enrichit d'un état de slot : progression `checks_done / checks_total`,
    `bk` (via `SlotBlockRule`, même règle que le badge), `goal` (objectif atteint), ou inconnu.
-2. Affichage : « En jeu · Hollow Knight · 42 % », « En BK », « Objectif atteint » dans 41.5, sur le profil et
+2. Affichage : « En jeu · Hollow Knight · 42 % », « En BK », « Objectif atteint » dans 43.5, sur le profil et
    dans le fil.
 3. Parties avec plusieurs slots pour un même utilisateur : on affiche le slot le moins avancé non terminé
    (règle documentée et testée).
 4. Seed importée sans suivi détaillé : seul le jeu est affiché.
-5. Le réglage de 41.6 s'applique ; pas de détail de progression pour un viewer qui ne voit pas la présence.
+5. Le réglage de 43.6 s'applique ; pas de détail de progression pour un viewer qui ne voit pas la présence.
 6. Une seule lecture de snapshot par session (batch), pas de N+1.
 7. `composer gates` et `pnpm gates` passent.
 
