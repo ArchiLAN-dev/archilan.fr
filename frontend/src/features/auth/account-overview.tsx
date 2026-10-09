@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchFriends } from "@/features/community/community-friends-api";
+import { FriendsNowCard } from "@/features/community/friends-now-card";
 import { getAccountMembership, type AccountMembership } from "@/features/payments/membership-api";
 import { AccountModerationContact } from "@/features/moderation-contact/moderation-contact";
 import { fetchAccountRegistrations } from "./auth-api";
@@ -83,6 +84,7 @@ export function AccountOverview() {
           title="Activité"
         />
       </div>
+      <FriendsNowCard />
       <AccountModerationContact />
     </div>
   );

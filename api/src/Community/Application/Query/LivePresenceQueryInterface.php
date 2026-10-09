@@ -22,6 +22,15 @@ interface LivePresenceQueryInterface
     public function playing(array $userIds, ?string $viewerId): array;
 
     /**
+     * Of the given users, those whose last session finished since the given time (story 43.5), likewise.
+     *
+     * @param list<string> $userIds
+     *
+     * @return array<string, array{sessionId: string, game: string|null, finishedAt: string, visibility: string, friend: bool}>
+     */
+    public function recentlyFinished(array $userIds, ?string $viewerId, \DateTimeImmutable $since): array;
+
+    /**
      * Every listable member currently in a live session, most recently active first, likewise.
      *
      * @return list<array{userId: string, sessionId: string, game: string|null, visibility: string, friend: bool}>

@@ -1,6 +1,6 @@
 # Story 43.5: Encart « Mes amis en ce moment »
 
-**Status:** draft
+**Status:** review
 **Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 **Dépend de:** 43.6 (visibilité de la présence)
@@ -32,9 +32,27 @@ La présence dérivée existe (story 30.14) : `CommunityPresenceQueryInterface` 
 
 ## Tasks / Subtasks
 
-- [ ] **Application** : `FriendsNowQuery` qui combine amitiés + `CommunityPresenceQueryInterface` (batch) + accès.
+- [x] **Application** : `FriendsNowQuery` qui combine amitiés + `CommunityPresenceQueryInterface` (batch) + accès.
       La présence ne couvre que les sessions **en cours** : « actif récemment » demande une lecture de plus
       (dernière session terminée par utilisateur), à ajouter à l'interface ou dans une requête dédiée.
-- [ ] **Présentation** : `GET /community/friends/now`.
-- [ ] **Front** : composant `FriendsNowCard` (avatars encadrés, pastille « En jeu »), état vide.
-- [ ] Tests fonctionnels (en jeu, récent, discret, accès au lien) et gates.
+- [x] **Présentation** : `GET /community/friends/now`.
+- [x] **Front** : composant `FriendsNowCard` (avatars encadrés, pastille « En jeu »), état vide.
+- [x] Tests fonctionnels (en jeu, récent, discret, accès au lien) et gates.
+
+## Dev Notes (2026-10-09)
+
+- `GET /api/v1/community/friends/now` (`CommunityFriendsNowController` -> `FriendsNowQuery`) renvoie
+  `{hasFriends, playing, recent}`. `playing` : carte + jeu + `kind` (`event` | `run`) + `title`, `eventId`, `runId`
+  donnés seulement si le viewer a accès (événement public, run dont il est propriétaire ou participant). `recent` :
+  carte + jeu + `finishedAt` de la dernière session terminée depuis moins de 24 h, sans lien.
+- Les deux listes passent par `CommunityPresenceQueryInterface` (nouvelle méthode `recentlyPlayed`), donc le
+  réglage 43.6 et les blocages s'appliquent aussi aux « actifs récemment ». La lecture brute partage la même
+  requête de base (`playerSlots`) que la présence en direct.
+- Accès et titre : `FriendSessionContextQueryInterface` / `DbalFriendSessionContextQuery` (le `event_id` d'une session
+  est un événement, sinon un id de run perso).
+- **Écart** : pas de type « hebdo ». Les hebdos ne passent pas par `session_slot` (tables `weekly_entries`), la
+  présence 30.14 ne les voit donc pas : un ami en hebdo n'apparaît pas en jeu. À traiter avec la présence riche (43.7)
+  si on le veut.
+- Front : `FriendsNowCard` sur `/compte` (aperçu) et `/communaute` (sous les chiffres), rafraîchi au focus et toutes
+  les 60 s. Sans ami : lien vers l'annuaire et suggestions « Tu as joué avec » (43.2).
+- Tests : `tests/Functional/FriendsNowTest.php`, `friends-now-card.test.tsx`.

@@ -5,6 +5,7 @@ import { externalLinks } from "@/lib/external-links";
 import type { PublicEvent } from "@/features/events/event-types";
 import { CommunityHubStats } from "./community-hub-stats";
 import { CommunityMembersPreview } from "./community-members-preview";
+import { FriendsNowCard } from "./friends-now-card";
 import { LeaderboardClient } from "./leaderboard-client";
 import { MemberAvatar } from "./member-avatar";
 import type { CommunityStats, LeaderboardResponse } from "./community-api";
@@ -59,6 +60,7 @@ export function CommunityHub({
           goalsReached={stats?.totalGoalsReached ?? null}
           memberCount={overview?.memberCount ?? null}
         />
+        <FriendsNowCard />
       </section>
 
       {playing.length > 0 ? (
