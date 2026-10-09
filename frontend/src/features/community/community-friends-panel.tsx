@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, X } from "lucide-react";
@@ -11,11 +10,10 @@ import {
   acceptFriendship,
   declineFriendship,
   fetchFriends,
-  type FriendCard,
   type IncomingRequest,
 } from "./community-friends-api";
-import { MemberAvatar } from "./member-avatar";
-import { TitledName } from "@/features/community/titled-name";
+import { FriendIdentity } from "./friend-identity";
+import { FriendSuggestions } from "./friend-suggestions";
 
 export function CommunityFriendsPanel() {
   const queryClient = useQueryClient();
@@ -81,6 +79,9 @@ export function CommunityFriendsPanel() {
         </section>
       ) : null}
 
+      {/* Story 43.2: the members played with, to fill the list without searching each name. */}
+      <FriendSuggestions limit={6} title="Tu as joué avec" />
+
       <section className="grid gap-3">
         <h2 className="font-heading text-lg font-semibold text-foreground">
           Mes amis <span className="text-sm font-normal text-muted-foreground">({data.friends.length})</span>
@@ -113,34 +114,5 @@ export function CommunityFriendsPanel() {
         </section>
       ) : null}
     </div>
-  );
-}
-
-function FriendIdentity({ card, link = false }: { card: FriendCard; link?: boolean }) {
-  const name = card.displayName ?? card.slug;
-  const inner = (
-    <span className="flex min-w-0 flex-1 items-center gap-3">
-      <MemberAvatar
-        avatarAnimatedUrl={card.avatarAnimatedUrl}
-        avatarUrl={card.avatarUrl}
-        frame={card.avatarFrame}
-        framing={card.avatarFraming}
-        name={name}
-        size={36}
-      />
-      <span className="min-w-0 truncate text-sm font-medium text-foreground">
-        <TitledName style={card.nameStyle} variant="card">
-          {name}
-        </TitledName>
-      </span>
-    </span>
-  );
-
-  return link ? (
-    <Link className="flex items-center gap-3 hover:text-accent-text" href={`/joueurs/${card.slug}`}>
-      {inner}
-    </Link>
-  ) : (
-    inner
   );
 }

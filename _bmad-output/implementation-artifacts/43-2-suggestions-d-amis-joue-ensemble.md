@@ -1,6 +1,6 @@
 # Story 43.2: Suggestions d'amis d'après les parties jouées ensemble
 
-**Status:** draft
+**Status:** review
 **Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
@@ -35,14 +35,37 @@ vide pour la plupart des membres : c'est le levier principal pour le remplir.
 
 ## Tasks / Subtasks
 
-- [ ] **Application** : `FriendSuggestionsQueryInterface` + `FriendSuggestionDTO`.
-- [ ] **Infrastructure** : DBAL (union des co-participations, exclusions en `NOT EXISTS`).
-- [ ] **Domaine/Migration** : table des suggestions ignorées `(user_id, ignored_user_id)`.
-- [ ] **Présentation** : `GET /community/friend-suggestions`, `POST /community/friend-suggestions/{slug}/ignore`.
-- [ ] **Front** : section dans `community-friends-panel.tsx`, encart en fin de run.
-- [ ] Tests fonctionnels (seuil de 2, exclusions, ignorer) et gates.
+- [x] **Application** : `FriendSuggestionsQueryInterface` + `FriendSuggestionDTO`.
+- [x] **Infrastructure** : DBAL (union des co-participations, exclusions en `NOT EXISTS`).
+- [x] **Domaine/Migration** : table des suggestions ignorées `(user_id, ignored_user_id)`.
+- [x] **Présentation** : `GET /community/friend-suggestions`, `POST /community/friend-suggestions/{slug}/ignore`.
+- [x] **Front** : section dans `community-friends-panel.tsx`, encart en fin de run.
+- [x] Tests fonctionnels (seuil de 2, exclusions, ignorer) et gates.
 
 ## Notes
 
 - Seuils validés par Jean le 2026-10-09 : 1 run perso, 2 sessions d'événement ; constantes nommées, ajustables.
 - Même agrégat de co-participations que 43.9 (historique commun) : à factoriser.
+
+## Dev Agent Record
+
+### Notes
+
+- Exclusions : toute ligne d'amitié entre les deux (acceptée, en attente ou refusée, dans un sens ou l'autre) ;
+  une demande refusée ne revient donc pas en suggestion. Les comptes bannis, suspendus, supprimés ou sans profil
+  public tombent avec `CommunityUserDirectoryQueryInterface::cards()`.
+- « Ajouter » réutilise la demande d'ami existante (`POST /community/profiles/{slug}/friend-request`).
+- Encart du récap : `sessionId` en paramètre ; vide si le lecteur n'a pas joué la partie.
+- `FriendIdentity` sorti dans `friend-identity.tsx` (partagé par la liste d'amis et les suggestions).
+
+### File List
+
+- `api/src/Community/Domain/Entity/FriendSuggestionDismissal.php`, `Domain/Repository/FriendSuggestionDismissalRepositoryInterface.php`,
+  `Infrastructure/Doctrine/DoctrineFriendSuggestionDismissalRepository.php`, `api/migrations/Version20261009100000.php`
+- `api/src/Community/Application/Query/FriendSuggestionsQueryInterface.php`, `FriendSuggestionsQuery.php`,
+  `Infrastructure/Dbal/DbalFriendSuggestionsQuery.php`
+- `api/src/Community/Application/Command/DismissFriendSuggestion.php` (+ `Outcome`)
+- `api/src/Community/Presentation/Controller/CommunityFriendSuggestionsController.php`, `api/config/services.yaml`
+- `api/tests/Functional/FriendSuggestionsTest.php`
+- `frontend/src/features/community/community-friends-api.ts`, `friend-suggestions.tsx` (+ test), `friend-identity.tsx`,
+  `community-friends-panel.tsx`, `frontend/src/features/recap/session-recap-page.tsx`

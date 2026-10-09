@@ -13,6 +13,7 @@ import { RunTimeline, type GoalMarker } from "@/features/recap/run-timeline";
 import type { FeedEvent } from "@/features/recap/feed-api";
 import { formatDuration } from "@/features/recap/recap-format";
 import { RecapVod } from "@/features/recap/recap-vod";
+import { FriendSuggestions } from "@/features/community/friend-suggestions";
 import type { SessionRecap } from "@/features/recap/recap-api";
 
 /** Enough to see a pattern, few enough to stay readable; the total is announced next to it. */
@@ -82,6 +83,9 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
         </h2>
         <RecapPlayerTable colorBySlotName={colorBySlotName} rows={buildPlayerRows(recap)} />
       </div>
+
+      {/* Story 43.2: for a signed-in player of this game only, the co-players they could add. */}
+      <FriendSuggestions limit={3} sessionId={recap.sessionId} title="Ajoute tes co-joueurs" />
 
       <div className="grid gap-4">
         <h2 className="font-heading text-2xl font-bold text-foreground">Qui a envoyé quoi à qui</h2>
