@@ -24,6 +24,16 @@ final readonly class DoctrineFriendFavoriteRepository implements FriendFavoriteR
         return $ids;
     }
 
+    public function starredBy(string $favoriteUserId): array
+    {
+        $ids = [];
+        foreach ($this->entityManager->getRepository(FriendFavorite::class)->findBy(['favoriteUserId' => $favoriteUserId]) as $favorite) {
+            $ids[] = $favorite->getUserId();
+        }
+
+        return $ids;
+    }
+
     public function find(string $userId, string $favoriteUserId): ?FriendFavorite
     {
         return $this->entityManager->getRepository(FriendFavorite::class)

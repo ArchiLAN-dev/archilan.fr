@@ -34,6 +34,8 @@ final class Notification
     public const string TYPE_COSMETIC_UNLOCKED = 'cosmetic_unlocked';
     // Story 30.52: a collection of achievements completed, with what it gave.
     public const string TYPE_COLLECTION_COMPLETED = 'collection_completed';
+    // Story 43.11b: a starred friend registered to an event, launched a session or reached a goal.
+    public const string TYPE_FRIEND_ACTIVITY = 'friend_activity';
 
     /**
      * @param array<string, mixed> $payload

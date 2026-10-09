@@ -13,7 +13,7 @@ import {
   markNotificationRead,
   type NotificationItem,
 } from "./notifications-api";
-import { sectionsOf, timeLabel } from "./notification-content";
+import { friendActivityTitle, sectionsOf, timeLabel } from "./notification-content";
 import { NotificationRow } from "./notification-row";
 
 const QUERY_KEY = ["community-notifications"] as const;
@@ -191,6 +191,12 @@ export function messageFor(item: NotificationItem): string {
       return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
         ? `${actorName(item)} t'invite dans « ${item.data.runTitle} »`
         : `${actorName(item)} t'invite dans sa partie`;
+    case "friend_activity":
+      // Story 43.11b: a starred friend registered, launched a session or reached a goal.
+      return friendActivityTitle(item.data, actorName(item))
+        // The name comes first; any other name in bold is a title, quoted.
+        .map((segment, index) => (index > 0 && segment.strong === true ? `« ${segment.text} »` : segment.text))
+        .join("");
     case "comment_received":
       return `${actorName(item)} a commenté ton profil`;
     case "kudos_received":
@@ -317,6 +323,12 @@ export function hrefFor(item: NotificationItem): string {
   }
   if (item.type === "run_invitation") {
     return "/compte/parties";
+  }
+  if (item.type === "friend_activity") {
+    // Story 43.11b: the event or the run when the member may open it, else the friend's profile.
+    if (hasStringProp(item.data, "eventId") && item.data.eventId !== "") return `/evenements/${item.data.eventId}`;
+    if (hasStringProp(item.data, "runId") && item.data.runId !== "") return `/runs/${item.data.runId}`;
+    return item.actor !== null && item.actor !== undefined ? `/joueurs/${item.actor.slug}` : "/compte/amis";
   }
   if (item.type === "slot_unblocked") {
     if (!hasStringProp(item.data, "runId") || item.data.runId === "") {

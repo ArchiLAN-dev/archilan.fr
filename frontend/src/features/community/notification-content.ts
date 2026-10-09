@@ -61,6 +61,29 @@ const icon = (name: NotificationIcon): NotificationVisual => ({ kind: "icon", ic
 const strong = (value: string): Segment => ({ text: value, strong: true });
 
 /**
+ * Story 43.11b: what a starred friend did. `others`: more starred friends launched the same session or reached a goal
+ * in it together, gathered in one alert.
+ */
+export function friendActivityTitle(data: Record<string, unknown> | null | undefined, actor: string): Segment[] {
+  const title = text(data, "title");
+  const others = data && hasNumberProp(data, "others") ? data.others : 0;
+  const subject: Segment[] = others > 0 ? [strong(actor), { text: ` et ${others} ${others > 1 ? "autres favoris" : "autre favori"}` }] : [strong(actor)];
+  const plural = others > 0;
+  switch (text(data, "kind")) {
+    case "registered":
+      return [...subject, ...(title !== "" ? [{ text: " s'inscrit à " }, strong(title)] : [{ text: " s'inscrit à un événement" }])];
+    case "session_started":
+      return [...subject, ...(title !== "" ? [{ text: plural ? " lancent " : " lance " }, strong(title)] : [{ text: plural ? " lancent une partie" : " lance une partie" }])];
+    default:
+      return [
+        ...subject,
+        { text: plural ? " ont atteint leur objectif" : " a atteint son objectif" },
+        ...(title !== "" ? [{ text: " dans " }, strong(title)] : []),
+      ];
+  }
+}
+
+/**
  * What the bell shows for one notification (story 30.48). `fallback` is the plain sentence of `messageFor`, kept for
  * a type this function does not know.
  */
@@ -81,6 +104,8 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
         ...(run !== "" ? [{ text: " t'invite dans " }, strong(run)] : [{ text: " t'invite dans sa partie" }]),
       ]);
     }
+    case "friend_activity":
+      return base("social", "Favori", { kind: "actors" }, friendActivityTitle(data, actorName(item)));
     case "comment_received":
       return base("social", "Commentaire", { kind: "actors" }, [strong(actorName(item)), { text: " a commenté ton profil" }]);
     case "kudos_received":
