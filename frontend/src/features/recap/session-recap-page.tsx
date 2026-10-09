@@ -13,6 +13,7 @@ import { RunTimeline, type GoalMarker } from "@/features/recap/run-timeline";
 import type { FeedEvent } from "@/features/recap/feed-api";
 import { formatDuration } from "@/features/recap/recap-format";
 import { RecapVod } from "@/features/recap/recap-vod";
+import { RecapExchanges } from "@/features/recap/recap-exchanges";
 import { FriendSuggestions } from "@/features/community/friend-suggestions";
 import type { SessionRecap } from "@/features/recap/recap-api";
 
@@ -86,6 +87,8 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
 
       {/* Story 43.2: for a signed-in player of this game only, the co-players they could add. */}
       <FriendSuggestions limit={3} sessionId={recap.sessionId} title="Ajoute tes co-joueurs" />
+      {/* Story 43.10: what the viewer exchanged with each player, for a player of this game only. */}
+      <RecapExchanges sessionId={recap.sessionId} />
 
       <div className="grid gap-4">
         <h2 className="font-heading text-2xl font-bold text-foreground">Qui a envoyé quoi à qui</h2>

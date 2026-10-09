@@ -412,6 +412,8 @@ services:
     App\Sessions\Domain\Repository\SessionFeedEventRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionFeedEventRepository'
     App\Sessions\Domain\Repository\SessionPlayersSnapshotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionPlayersSnapshotRepository'
     App\Sessions\Domain\Repository\SlotBlockEpisodeRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotBlockEpisodeRepository'
+    App\Sessions\Domain\Repository\SlotBlockReleaseRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotBlockReleaseRepository'
+    App\Sessions\Application\Query\RecapExchangesQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalRecapExchangesQuery'
     App\Sessions\Application\Query\CommunityStatsQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalCommunityStatsQuery'
     App\Sessions\Application\Query\LeaderboardQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalLeaderboardQuery'
     App\Sessions\Application\Query\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalPlayerConnectionQuery'
