@@ -15,6 +15,7 @@ import {
   unblockUser,
   type Relationship,
 } from "./community-friends-api";
+import { FavoriteFriendButton } from "./favorite-friend-button";
 import { ProfileReportDialog } from "./profile-report-dialog";
 
 const PRIMARY = "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full bg-accent px-3.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50";
@@ -85,9 +86,19 @@ export function ProfileRelationshipActions({ slug, name }: { slug: string; name?
       )}
 
       {rel.state === "friends" && (
-        <button className={SECONDARY} disabled={busy} onClick={() => run(() => removeFriendship(slug))} type="button">
-          <UserMinus aria-hidden className="size-4" /> Retirer des amis
-        </button>
+        <>
+          <FavoriteFriendButton
+            favorite={rel.favorite === true}
+            name={name ?? slug}
+            onChange={(next) => {
+              queryClient.setQueryData(["community-relationship", slug], next);
+            }}
+            slug={slug}
+          />
+          <button className={SECONDARY} disabled={busy} onClick={() => run(() => removeFriendship(slug))} type="button">
+            <UserMinus aria-hidden className="size-4" /> Retirer des amis
+          </button>
+        </>
       )}
 
       {rel.state === "blocking" && (

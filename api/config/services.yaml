@@ -354,6 +354,7 @@ services:
     App\Community\Domain\Repository\FriendshipRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendshipRepository'
     App\Community\Domain\Repository\BlockRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineBlockRepository'
     App\Community\Domain\Repository\FriendSuggestionDismissalRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendSuggestionDismissalRepository'
+    App\Community\Domain\Repository\FriendFavoriteRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendFavoriteRepository'
     App\Community\Domain\Repository\FriendLinkRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendLinkRepository'
     App\Community\Domain\Repository\ActivityEntryRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineActivityEntryRepository'
     App\Community\Domain\Repository\ProfileCommentRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineProfileCommentRepository'

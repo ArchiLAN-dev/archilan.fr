@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Community\Domain\Entity\CommunityProfile;
+use App\Community\Domain\Entity\FriendFavorite;
 use App\Community\Domain\Entity\Friendship;
 use App\Community\Domain\Enum\PresenceVisibility;
 use App\Identity\Domain\Entity\User;
@@ -76,6 +77,19 @@ final class FriendsNowTest extends FunctionalTestCase
         self::assertSame(['recent'], array_column($recent, 'slug'));
         self::assertSame('Hollow Knight', $recent[0]['game']);
         self::assertArrayNotHasKey('runId', $recent[0], 'no link for a past session');
+    }
+
+    public function testStarredFriendsComeFirst(): void
+    {
+        $this->finishedEvent($this->friend('newest'), new \DateTimeImmutable('-1 hour'));
+        $starred = $this->friend('starred');
+        $this->finishedEvent($starred, new \DateTimeImmutable('-5 hours'));
+        $this->entityManager->persist(FriendFavorite::create($this->viewer->getId(), $starred->getId(), new \DateTimeImmutable()));
+        $this->entityManager->flush();
+
+        $recent = $this->rows($this->friendsNow()['recent']);
+        self::assertSame(['starred', 'newest'], array_column($recent, 'slug'), 'story 43.11a: the star before the most recent');
+        self::assertSame([true, false], array_column($recent, 'isFavorite'));
     }
 
     public function testAViewerWithoutFriendsIsToldSo(): void

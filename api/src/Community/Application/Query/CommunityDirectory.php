@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Query;
 
+use App\Community\Domain\Repository\FriendFavoriteRepositoryInterface;
 use App\Community\Domain\Repository\FriendshipRepositoryInterface;
 use App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface;
 use App\Streaming\Application\Support\LiveTwitchLogins;
@@ -40,6 +41,7 @@ final readonly class CommunityDirectory
         private LiveTwitchLogins $liveLogins,
         private FriendshipRepositoryInterface $friendships,
         private CommunityLevelQuery $levels,
+        private FriendFavoriteRepositoryInterface $favorites,
     ) {
     }
 
@@ -87,6 +89,10 @@ final readonly class CommunityDirectory
         // deux fois ou disparaître entre deux.
         $liveLoginByUser = $this->liveLoginByUser($candidateIds);
         $sortedIds = self::liveFirst($sortedIds, $liveLoginByUser);
+        if ($friendsOnly && null !== $viewerId) {
+            // Story 43.11a: among their friends, the viewer's starred ones come first, the order kept inside.
+            $sortedIds = self::favoritesFirst($sortedIds, $this->favorites->favoriteIds($viewerId));
+        }
 
         $pageIds = array_slice($sortedIds, $offset, $perPage);
 
@@ -148,6 +154,31 @@ final readonly class CommunityDirectory
         }
 
         return [...$live, ...$rest];
+    }
+
+    /**
+     * @param list<string>        $sortedIds
+     * @param array<string, true> $favoriteIds
+     *
+     * @return list<string>
+     */
+    private static function favoritesFirst(array $sortedIds, array $favoriteIds): array
+    {
+        if ([] === $favoriteIds) {
+            return $sortedIds;
+        }
+
+        $starred = [];
+        $rest = [];
+        foreach ($sortedIds as $userId) {
+            if (isset($favoriteIds[$userId])) {
+                $starred[] = $userId;
+            } else {
+                $rest[] = $userId;
+            }
+        }
+
+        return [...$starred, ...$rest];
     }
 
     /**

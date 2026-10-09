@@ -68,7 +68,7 @@ final readonly class FriendLinkService
     /**
      * The link's owner as the visitor sees them, or null for an invalid link.
      *
-     * @return array{member: array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, title: array{label: string, rarity: string, icon: string|null, access: string}|null}, relationship: array{state: string, friendshipId: string|null}}|null
+     * @return array{member: array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, title: array{label: string, rarity: string, icon: string|null, access: string}|null}, relationship: array{state: string, friendshipId: string|null, favorite: bool}}|null
      */
     public function open(string $viewerId, string $code): ?array
     {
@@ -87,7 +87,7 @@ final readonly class FriendLinkService
     /**
      * « Ajouter en ami » from the link: a friend request, or a mutual accept when the owner already asked.
      *
-     * @return array{state: string, friendshipId: string|null}|null null for an invalid link
+     * @return array{state: string, friendshipId: string|null, favorite: bool}|null null for an invalid link
      */
     public function add(string $viewerId, string $code): ?array
     {
