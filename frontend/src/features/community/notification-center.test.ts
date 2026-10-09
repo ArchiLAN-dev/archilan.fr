@@ -131,6 +131,15 @@ describe("slot unblocked notification (story 40.1)", () => {
   });
 });
 
+describe("run invitation notification (story 43.1)", () => {
+  it("says who invites into which run, and leads to my runs", () => {
+    const invitation = item("run_invitation", { runId: "run-1", runTitle: "Ma run", invitationId: "i-1" });
+
+    expect(messageFor(invitation)).toContain("t'invite dans « Ma run »");
+    expect(hrefFor(invitation)).toBe("/compte/parties");
+  });
+});
+
 describe("account flagged notification (story 39.13)", () => {
   it("leads to the reports page", () => {
     expect(hrefFor(item("account_flagged", { displayName: "Troll42" }))).toBe("/admin/moderation/signalements");

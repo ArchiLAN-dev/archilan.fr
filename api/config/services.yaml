@@ -321,6 +321,7 @@ services:
     App\PersonalRuns\Domain\Repository\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunRepository'
     App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunParticipantRepository'
     App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunArchiveRepository'
+    App\PersonalRuns\Domain\Repository\RunInvitationRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunInvitationRepository'
     App\PersonalRuns\Domain\Repository\YamlTemplateRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineYamlTemplateRepository'
 
     App\Community\Domain\Repository\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineCommunityProfileRepository'
@@ -376,6 +377,7 @@ services:
             $discordBotToken: '%env(default:default_empty_string:DISCORD_BOT_TOKEN)%'
     App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRecentlyPlayedGamesQuery'
     App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalMyRunSlotsQuery'
+    App\PersonalRuns\Application\Query\RunInviteFriendsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRunInviteFriendsQuery'
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'

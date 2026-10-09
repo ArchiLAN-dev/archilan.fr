@@ -15,10 +15,12 @@ use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
+use App\PersonalRuns\Application\Support\RunJoiner;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunArchive;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunInvitationRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Entity\Session;
@@ -43,6 +45,8 @@ final readonly class PersonalRunDrafts
         private AdminRunActionTrace $trace,
         private RunArchiveRepositoryInterface $archives,
         private MyRunSlotsQueryInterface $mySlots,
+        private RunJoiner $joiner,
+        private RunInvitationRepositoryInterface $invitations,
     ) {
     }
 
@@ -309,6 +313,8 @@ final readonly class PersonalRunDrafts
         $this->participants->deleteByRunId($run->getId());
         // Story 16.21 : les archives personnelles partent avec la partie, rien ne les rattache plus à rien.
         $this->archives->deleteByRunId($run->getId());
+        // Story 43.1: so do the invitations by name.
+        $this->invitations->deleteByRunId($run->getId());
         $this->runs->delete($run);
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
@@ -356,14 +362,8 @@ final readonly class PersonalRunDrafts
             return ['status' => 'not_found', 'payload' => null];
         }
 
-        if (!$run->isOwnedBy($callerId)) {
-            $existing = $this->participants->findByRunAndUser($run->getId(), $callerId);
-
-            if (!$existing instanceof RunParticipant) {
-                $participant = RunParticipant::create($run->getId(), $callerId, $this->clock->now());
-                $this->participants->save($participant);
-            }
-        }
+        // Story 43.1: the same joining as an invitation by name.
+        $this->joiner->join($run, $callerId, $this->clock->now());
 
         $participants = $this->getParticipants($run->getId());
 

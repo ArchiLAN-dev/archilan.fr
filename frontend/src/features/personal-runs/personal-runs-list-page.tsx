@@ -11,6 +11,7 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { fetchMyRuns, setRunArchivedForMe } from "./personal-runs-api";
 import { PersonalRunCard } from "./personal-run-card";
+import { MyRunInvitations } from "./run-invitations";
 import type { PersonalRun, PersonalRunStatus } from "./types";
 
 // Statuses that should appear in the collapsed "Annulées" section
@@ -230,6 +231,9 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
           </div>
         </section>
       )}
+
+      {/* Story 43.1: invitations by name, answered first. */}
+      <MyRunInvitations />
 
       {showForm && (
         <section className="rounded-lg border border-border bg-surface p-6">
