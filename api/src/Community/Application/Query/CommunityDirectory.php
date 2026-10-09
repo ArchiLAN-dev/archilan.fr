@@ -90,7 +90,7 @@ final readonly class CommunityDirectory
 
         $pageIds = array_slice($sortedIds, $offset, $perPage);
 
-        return $this->page($this->enrich($pageIds, null, $levels, $liveLoginByUser), count($sortedIds), $page, $perPage);
+        return $this->page($this->enrich($pageIds, $viewerId, null, $levels, $liveLoginByUser), count($sortedIds), $page, $perPage);
     }
 
     /**
@@ -216,7 +216,7 @@ final readonly class CommunityDirectory
      *
      * @return list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, title: array{label: string, rarity: string, icon: string|null, access: string}|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool, liveTwitchLogin: string|null}>
      */
-    private function enrich(array $userIds, ?array $cards = null, ?array $levels = null, array $liveLoginByUser = []): array
+    private function enrich(array $userIds, ?string $viewerId, ?array $cards = null, ?array $levels = null, array $liveLoginByUser = []): array
     {
         if ([] === $userIds) {
             return [];
@@ -224,7 +224,7 @@ final readonly class CommunityDirectory
 
         $cards ??= $this->cards->cards($userIds);
         $levels ??= $this->levels->levelForMany($userIds);
-        $playing = $this->presence->playing($userIds);
+        $playing = $this->presence->playing($userIds, $viewerId);
 
         $rows = [];
         foreach ($userIds as $userId) {

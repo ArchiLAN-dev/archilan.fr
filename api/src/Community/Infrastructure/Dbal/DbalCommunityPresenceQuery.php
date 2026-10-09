@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure\Dbal;
 
-use App\Community\Application\Query\CommunityPresenceQueryInterface;
+use App\Community\Application\Query\LivePresenceQueryInterface;
+use App\Community\Domain\Enum\PresenceVisibility;
 use App\Shared\Infrastructure\Dbal\DbalSlotPlayerSource;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
@@ -24,8 +25,11 @@ use Psr\Clock\ClockInterface;
  * is therefore picked among the member's **own** active slots first, then the ones they co-play, and within
  * each group the most recently checked one wins - a member alternating between two games shows the one they
  * just checked, and a co-player busy on their own game is not pulled onto the owner's.
+ *
+ * Story 43.6: each row carries what the caller needs to apply the member's presence visibility (their setting, and
+ * whether the viewer is a friend). A block either way with the viewer removes the row here, whatever the setting.
  */
-final readonly class DbalCommunityPresenceQuery implements CommunityPresenceQueryInterface
+final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInterface
 {
     private const string RUNNING = 'running';
     private const string ACTIVE_WINDOW = '-30 minutes';
@@ -39,13 +43,13 @@ final readonly class DbalCommunityPresenceQuery implements CommunityPresenceQuer
         $this->userTable = $connection->quoteSingleIdentifier('user');
     }
 
-    public function playing(array $userIds): array
+    public function playing(array $userIds, ?string $viewerId): array
     {
         if ([] === $userIds) {
             return [];
         }
 
-        $qb = $this->activeSlots();
+        $qb = $this->activeSlots($viewerId);
         $rows = $qb
             ->andWhere($qb->expr()->in('sp.'.DbalSlotPlayerSource::USER_COLUMN, ':ids'))
             ->setParameter('ids', $userIds, ArrayParameterType::STRING)
@@ -54,21 +58,17 @@ final readonly class DbalCommunityPresenceQuery implements CommunityPresenceQuer
 
         $playing = [];
         foreach ($this->bestSlotPerUser($rows) as $userId => $row) {
-            $playing[$userId] = ['sessionId' => $row['sessionId'], 'game' => $row['game']];
+            $playing[$userId] = ['sessionId' => $row['sessionId'], 'game' => $row['game'], 'visibility' => $row['visibility'], 'friend' => $row['friend']];
         }
 
         return $playing;
     }
 
-    public function playingNow(int $limit): array
+    public function playingNow(?string $viewerId): array
     {
-        if ($limit <= 0) {
-            return [];
-        }
-
         // Restricted to listable members: the hub renders every row as a profile link, so a slug-less or deleted
         // account has nothing to point at.
-        $qb = $this->activeSlots();
+        $qb = $this->activeSlots($viewerId);
         $rows = $qb
             ->join('sp', $this->userTable, 'u', $qb->expr()->eq('u.id', 'sp.'.DbalSlotPlayerSource::USER_COLUMN))
             ->andWhere('u.slug IS NOT NULL')
@@ -81,41 +81,57 @@ final readonly class DbalCommunityPresenceQuery implements CommunityPresenceQuer
         uasort($best, static fn (array $a, array $b): int => $b['activeAt'] <=> $a['activeAt'] ?: strcmp($a['userId'], $b['userId']));
 
         $result = [];
-        foreach (array_slice(array_values($best), 0, $limit) as $row) {
-            $result[] = ['userId' => $row['userId'], 'sessionId' => $row['sessionId'], 'game' => $row['game']];
+        foreach ($best as $row) {
+            $result[] = ['userId' => $row['userId'], 'sessionId' => $row['sessionId'], 'game' => $row['game'], 'visibility' => $row['visibility'], 'friend' => $row['friend']];
         }
 
         return $result;
     }
 
     /**
-     * Every active (member, slot) pair, owner or co-player, with whether the member owns the slot.
+     * Every active (member, slot) pair, owner or co-player, with whether the member owns the slot, their presence
+     * visibility and whether the viewer is their friend. A member blocked either way with the viewer is left out.
      */
-    private function activeSlots(): QueryBuilder
+    private function activeSlots(?string $viewerId): QueryBuilder
     {
         $qb = $this->connection->createQueryBuilder();
         $user = 'sp.'.DbalSlotPlayerSource::USER_COLUMN;
         $activeAt = 'COALESCE(slot.last_check_at, s.started_at)';
+        $friend = null === $viewerId ? '0' : "CASE WHEN EXISTS (SELECT 1 FROM community_friendship f WHERE f.status = 'accepted'"
+            .' AND ((f.requester_id = :viewer AND f.addressee_id = '.$user.') OR (f.addressee_id = :viewer AND f.requester_id = '.$user.'))) THEN 1 ELSE 0 END';
 
-        return $qb
+        $qb
             ->select(
                 $user.' AS user_id',
                 's.id AS session_id',
                 'g.name AS game',
                 'CASE WHEN '.$user.' = COALESCE(reg.user_id, slot.registration_id) THEN 1 ELSE 0 END AS owned',
                 $activeAt.' AS active_at',
+                'COALESCE(cp.presence_visibility, :defaultVisibility) AS visibility',
+                $friend.' AS friend',
             )
             ->from('session_slot', 'slot')
             ->join('slot', DbalSlotPlayerSource::expression('session_slot', 'registration'), 'sp', $qb->expr()->eq('sp.'.DbalSlotPlayerSource::SLOT_COLUMN, 'slot.id'))
             ->join('slot', 'session', 's', $qb->expr()->eq('s.id', 'slot.session_id'))
             ->leftJoin('slot', 'registration', 'reg', $qb->expr()->eq('reg.id', 'slot.registration_id'))
             ->leftJoin('slot', 'game', 'g', $qb->expr()->eq('g.id', 'slot.game_id'))
+            ->leftJoin('sp', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', $user))
             ->where($qb->expr()->eq('s.status', ':status'))
             ->andWhere($qb->expr()->isNull('slot.goal_reached_at'))
             ->andWhere('slot.was_released = false')
             ->andWhere($activeAt.' >= :since')
             ->setParameter('status', self::RUNNING)
+            ->setParameter('defaultVisibility', PresenceVisibility::DEFAULT->value)
             ->setParameter('since', $this->clock->now()->modify(self::ACTIVE_WINDOW), Types::DATETIMETZ_IMMUTABLE);
+
+        if (null !== $viewerId) {
+            $qb
+                ->andWhere('NOT EXISTS (SELECT 1 FROM community_block b WHERE (b.blocker_id = :viewer AND b.blocked_id = '.$user.')'
+                    .' OR (b.blocker_id = '.$user.' AND b.blocked_id = :viewer))')
+                ->setParameter('viewer', $viewerId);
+        }
+
+        return $qb;
     }
 
     /**
@@ -123,7 +139,7 @@ final readonly class DbalCommunityPresenceQuery implements CommunityPresenceQuer
      *
      * @param list<array<string, mixed>> $rows
      *
-     * @return array<string, array{userId: string, sessionId: string, game: string|null, owned: bool, activeAt: int}>
+     * @return array<string, array{userId: string, sessionId: string, game: string|null, owned: bool, activeAt: int, visibility: string, friend: bool}>
      */
     private function bestSlotPerUser(array $rows): array
     {
@@ -136,12 +152,15 @@ final readonly class DbalCommunityPresenceQuery implements CommunityPresenceQuer
                 continue;
             }
             $game = $row['game'] ?? null;
+            $visibility = $row['visibility'] ?? null;
             $candidate = [
                 'userId' => $userId,
                 'sessionId' => $sessionId,
                 'game' => is_string($game) ? $game : null,
                 'owned' => in_array($row['owned'] ?? null, [1, '1', true], true),
                 'activeAt' => new \DateTimeImmutable($activeAtRaw)->getTimestamp(),
+                'visibility' => is_string($visibility) ? $visibility : PresenceVisibility::DEFAULT->value,
+                'friend' => in_array($row['friend'] ?? null, [1, '1', true], true),
             ];
             $current = $best[$userId] ?? null;
             if (null === $current
