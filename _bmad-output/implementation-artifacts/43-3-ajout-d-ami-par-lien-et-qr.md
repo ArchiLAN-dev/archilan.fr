@@ -32,7 +32,6 @@ aujourd'hui. La demande d'ami existe (`FriendshipService`), adressée par slug.
 - [ ] **Domaine/Migration** : code d'ami sur le profil communautaire (unique, régénérable).
 - [ ] **Application/Présentation** : `GET /community/friend-link`, `POST /community/friend-link/regenerate`,
       `GET /community/friend-link/{code}` (carte minimale).
-- [ ] **Front** : page `/ami/[code]` (`noindex`, hors sitemap), bloc QR dans `/compte/amis`. Aucune
-      bibliothèque QR dans `frontend/package.json` : nouvelle dépendance à faire valider (candidate :
-      `qrcode`, rendu SVG, sans dépendance réseau).
+- [ ] **Front** : page `/ami/[code]` (`noindex`, hors sitemap), bloc QR dans `/compte/amis`. Nouvelle
+      dépendance `qrcode` (rendu SVG, sans réseau), validée par Jean le 2026-10-09.
 - [ ] Tests fonctionnels (code invalide, régénéré, bloqué, soi-même) et gates.

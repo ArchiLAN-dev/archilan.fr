@@ -25,7 +25,8 @@ par le lien à jeton (`Run::inviteToken`, `GET /api/v1/runs/invite/{token}/previ
    invitation en attente sont marqués et non cochables.
 2. Valider crée une **invitation** par ami (run, invité, invitant, date) ; l'invité reçoit une notification
    `run_invitation` (« *X* t'invite dans *Titre de la run* ») qui part aussi en Web Push.
-3. Depuis la notification ou `/compte/parties`, l'invité voit l'invitation et peut **rejoindre** (même logique
+3. Depuis la notification ou `/compte/parties` (bloc « Invitations » en tête de page, au-dessus des parties
+   créées et rejointes regroupées par la 16.22), l'invité voit l'invitation et peut **rejoindre** (même logique
    métier que le lien à jeton, extraite pour être partagée, mais en `POST`) ou **refuser**. Le propriétaire voit l'état de chaque invitation
    (en attente / acceptée / refusée).
 4. Une invitation n'est valable que si l'amitié est toujours acceptée, sans blocage, et que la run n'est ni
