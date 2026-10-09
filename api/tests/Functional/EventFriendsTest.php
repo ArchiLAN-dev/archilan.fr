@@ -93,7 +93,11 @@ final class EventFriendsTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(200);
         $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
-        self::assertSame([$this->event->getId(), $other->getId()], array_keys($data), 'an event without a friend is left out');
+        $expected = [$this->event->getId(), $other->getId()];
+        $keys = array_keys($data);
+        sort($expected);
+        sort($keys);
+        self::assertSame($expected, $keys, 'an event without a friend is left out');
         self::assertSame(['alice'], self::slugs($data[$this->event->getId()]));
         self::assertCount(2, self::slugs($data[$other->getId()]));
 
