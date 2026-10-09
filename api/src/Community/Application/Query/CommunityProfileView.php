@@ -92,7 +92,7 @@ final readonly class CommunityProfileView
      *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null, collectionId: string|null}>,
      *     achievementStats: array{unlocked: int, total: int},
      *     collections: list<CollectionProgress>,
-     *     presence: array{playing: bool, sessionId: string|null, game: string|null},
+     *     presence: array{playing: bool, sessionId: string|null, game: string|null, slotState: string|null, progressPercent: int|null},
      *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, avatarFrame: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, showcaseLayout: list<string>}|null
      * }|null
      */
@@ -127,6 +127,9 @@ final readonly class CommunityProfileView
             'playing' => null !== $live,
             'sessionId' => $live['sessionId'] ?? null,
             'game' => $live['game'] ?? null,
+            // Story 43.7: rich presence.
+            'slotState' => $live['slotState'] ?? null,
+            'progressPercent' => $live['progressPercent'] ?? null,
         ];
 
         // Public recognition badges (always visible, never audience-gated). Member status is a *live*

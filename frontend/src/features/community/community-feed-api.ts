@@ -17,6 +17,9 @@ export type ActivityActor = {
   // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
   playing: boolean;
+  /** Story 43.7: where the actor stands in their game (absent from an older API). */
+  slotState?: string | null;
+  progressPercent?: number | null;
 };
 
 export type ActivityItem = {

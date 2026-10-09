@@ -58,6 +58,8 @@ final readonly class FriendsNowQuery
             $playingRows[] = [
                 ...$card,
                 'game' => $live['game'],
+                'slotState' => $live['slotState'],
+                'progressPercent' => $live['progressPercent'],
                 'kind' => $context['kind'] ?? null,
                 'title' => $context['title'] ?? null,
                 'eventId' => $context['eventId'] ?? null,

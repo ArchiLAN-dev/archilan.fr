@@ -48,12 +48,13 @@ final class CommunityPresenceLastCheckTest extends FunctionalTestCase
         self::assertSame('Hollow Knight', $this->presence('jo')['game']);
     }
 
-    public function testAGoalReachedSlotIsNotPlayed(): void
+    public function testAGoalReachedSlotIsNotPlayedOnceTheWindowIsOver(): void
     {
         $jean = $this->createUser('jim@example.org', slug: 'jim');
-        [$session, $reg] = $this->runningSessionWith($jean, '-1 hour');
+        [$session, $reg] = $this->runningSessionWith($jean, '-2 hours');
         $done = $this->slot($session, $reg->getId(), 'Minecraft Dig', 'JimMD', '-1 minute');
-        $done->recordGoal(new \DateTimeImmutable('-1 minute'));
+        // Story 43.7: a goal reached within the half hour still shows, « Objectif atteint ».
+        $done->recordGoal(new \DateTimeImmutable('-1 hour'));
         $this->entityManager->flush();
 
         self::assertFalse($this->presence('jim')['playing']);

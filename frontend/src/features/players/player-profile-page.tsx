@@ -17,6 +17,7 @@ import { ProfileBanner } from "@/features/community/profile-banner";
 import { resolveLinkType } from "@/features/community/social-links";
 import { Markdown } from "@/components/markdown/markdown";
 import { TitledName } from "@/features/community/titled-name";
+import { PRESENCE_TONE_CLASSES, presenceLabel, presenceTone } from "@/features/community/rich-presence";
 import { ProfileTitleBadge } from "@/features/community/profile-title-badge";
 import { formatDate, PlayerRunHistory } from "./player-run-history";
 
@@ -331,14 +332,15 @@ function SocialLinkIcons({ links }: { links: ProfileCustomizationData["socialLin
 }
 
 function PresenceBadge({ presence }: { presence: ProfilePresence }) {
-  const label = presence.game ? `En jeu · ${presence.game}` : "En jeu";
-  const dot = <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-emerald-400" />;
-  const className =
-    "inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-300";
+  // Story 43.7: « En jeu · Hollow Knight · 42 % », « En BK », « Objectif atteint ».
+  const label = presenceLabel(presence);
+  const tone = PRESENCE_TONE_CLASSES[presenceTone(presence)];
+  const dot = <span aria-hidden className={`size-1.5 rounded-full ${tone.dot}`} />;
+  const className = `inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${tone.pill}`;
 
   if (presence.sessionId) {
     return (
-      <Link className={`${className} hover:bg-emerald-500/20`} href={`/runs/${presence.sessionId}`}>
+      <Link className={`${className} hover:opacity-90`} href={`/runs/${presence.sessionId}`}>
         {dot} {label}
       </Link>
     );

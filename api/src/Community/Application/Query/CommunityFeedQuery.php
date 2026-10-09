@@ -148,6 +148,9 @@ final readonly class CommunityFeedQuery
                     'avatarFraming' => $card['avatarFraming'],
                     'nameStyle' => $card['nameStyle'],
                     'playing' => isset($playing[$entry->getActorId()]),
+                    // Story 43.7: where the actor stands in their game, for the dot's label.
+                    'slotState' => $playing[$entry->getActorId()]['slotState'] ?? null,
+                    'progressPercent' => $playing[$entry->getActorId()]['progressPercent'] ?? null,
                 ];
             }
 

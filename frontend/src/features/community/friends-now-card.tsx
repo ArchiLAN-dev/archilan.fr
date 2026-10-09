@@ -8,6 +8,7 @@ import { FriendIdentity } from "./friend-identity";
 import { FriendSuggestions } from "./friend-suggestions";
 import { fetchFriendsNow, type FriendPlaying, type FriendRecent } from "./community-friends-api";
 import { timeLabel } from "./notification-content";
+import { PRESENCE_TONE_CLASSES, presenceStateLabel, presenceTone } from "./rich-presence";
 
 export const FRIENDS_NOW_KEY = ["friends-now"] as const;
 
@@ -74,16 +75,19 @@ export function FriendsNowCard() {
 function PlayingRow({ friend }: { friend: FriendPlaying }) {
   const href = sessionHref(friend);
   const kind = friend.kind === null ? null : KIND_LABELS[friend.kind];
+  // Story 43.7: the state in the pill, the progress next to the game while playing.
+  const tone = PRESENCE_TONE_CLASSES[presenceTone(friend)];
+  const progress = friend.slotState === "playing" && friend.progressPercent !== null ? `${friend.progressPercent} %` : null;
   return (
     <li className="flex items-center gap-3">
       <FriendIdentity card={friend} link />
       <span className="grid min-w-0 justify-items-end gap-0.5 text-right text-xs">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-2 py-0.5 font-semibold text-success">
-          <span aria-hidden className="size-1.5 rounded-full bg-success" />
-          En jeu
+        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-semibold ${tone.pill}`}>
+          <span aria-hidden className={`size-1.5 rounded-full ${tone.dot}`} />
+          {presenceStateLabel(friend)}
         </span>
         <span className="truncate text-muted-foreground">
-          {[friend.game, kind].filter((part) => part !== null && part !== undefined).join(" · ")}
+          {[friend.game, progress, kind].filter((part) => part !== null && part !== undefined).join(" · ")}
           {friend.title !== null ? (
             <>
               {" · "}

@@ -101,7 +101,14 @@ export type ProfileLevel = {
   xpForNextLevel: number;
 };
 
-export type ProfilePresence = { playing: boolean; sessionId: string | null; game: string | null };
+export type ProfilePresence = {
+  playing: boolean;
+  sessionId: string | null;
+  game: string | null;
+  /** Story 43.7: rich presence (absent from an older API). */
+  slotState?: string | null;
+  progressPercent?: number | null;
+};
 
 /** Public recognition badges: active membership (live lookup) and admin role. */
 export type ProfileBadges = { member: boolean; admin: boolean };
@@ -179,6 +186,8 @@ function parsePresence(v: unknown): ProfilePresence {
     playing: v.playing,
     sessionId: hasNullableStringProp(v, "sessionId") ? v.sessionId : null,
     game: hasNullableStringProp(v, "game") ? v.game : null,
+    slotState: hasNullableStringProp(v, "slotState") ? v.slotState : null,
+    progressPercent: "progressPercent" in v && typeof v.progressPercent === "number" ? v.progressPercent : null,
   };
 }
 
