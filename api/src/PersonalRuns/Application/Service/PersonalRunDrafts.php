@@ -134,7 +134,7 @@ final readonly class PersonalRunDrafts
             'found' => true,
             'authorized' => true,
             // Renommage réservé au propriétaire (garde ci-dessus), donc jamais un participant.
-            'run' => $this->payload($run, $callerId, $this->getParticipants($run->getId()), false),
+            'run' => $this->payload($run, $callerId, $this->getParticipants($run->getId(), $callerId), false),
             'errors' => [],
         ];
     }
@@ -173,7 +173,7 @@ final readonly class PersonalRunDrafts
             return ['found' => false, 'authorized' => false, 'payload' => null];
         }
 
-        $participants = $this->getParticipants($run->getId());
+        $participants = $this->getParticipants($run->getId(), $callerId);
         $isOwner = $run->isOwnedBy($callerId);
         $isParticipant = in_array($callerId, array_column($participants, 'userId'), true);
 
@@ -365,7 +365,7 @@ final readonly class PersonalRunDrafts
         // Story 43.1: the same joining as an invitation by name.
         $this->joiner->join($run, $callerId, $this->clock->now());
 
-        $participants = $this->getParticipants($run->getId());
+        $participants = $this->getParticipants($run->getId(), $callerId);
 
         // Qui rejoint par lien est participant, sauf si c'est le propriétaire qui suit son propre lien.
         return [
@@ -400,7 +400,7 @@ final readonly class PersonalRunDrafts
     /**
      * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}>
      */
-    private function getParticipants(string $runId): array
+    private function getParticipants(string $runId, string $viewerId): array
     {
         $participants = $this->participants->findByRunId($runId);
 
@@ -426,7 +426,7 @@ final readonly class PersonalRunDrafts
         // profile: Adhérent (live membership, never the stale ROLE_MEMBER), niveau, En jeu (story 30.37).
         $memberIds = array_fill_keys($this->memberships->activeMemberIds($userIds), true);
         $levels = $this->levels->levelForMany($userIds);
-        $playing = $this->presence->playing($userIds);
+        $playing = $this->presence->playing($userIds, $viewerId);
 
         return array_map(function (RunParticipant $p) use ($usersById, $cards, $memberIds, $levels, $playing): array {
             $user = $usersById[$p->getUserId()] ?? null;

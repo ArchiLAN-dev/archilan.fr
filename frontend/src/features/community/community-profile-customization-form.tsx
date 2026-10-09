@@ -26,7 +26,9 @@ import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from ".
 import {
   AUDIENCES,
   DEFAULT_AUDIENCE,
+  DEFAULT_PRESENCE_VISIBILITY,
   fetchMyCommunityProfile,
+  PRESENCE_VISIBILITIES,
   removeCommunityAvatar,
   removeCommunityBanner,
   SHOWCASE_WIDGETS,
@@ -60,6 +62,20 @@ const AUDIENCE_HINTS: Record<string, string> = {
   friends: "Visible uniquement par tes amis.",
 };
 
+const PRESENCE_LABELS: Record<string, string> = {
+  everyone: "Tout le monde",
+  members: "Membres",
+  friends: "Amis",
+  nobody: "Personne",
+};
+
+const PRESENCE_HINTS: Record<string, string> = {
+  everyone: "Tout le monde voit « En jeu » sur ton profil, dans l'annuaire et sur le fil, même les visiteurs.",
+  members: "Seuls les membres connectés et tes amis voient quand tu joues.",
+  friends: "Seuls tes amis voient quand tu joues.",
+  nobody: "Personne ne voit quand tu joues, pas même tes amis. Toi, tu le vois toujours.",
+};
+
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { kind: "error"; message: string };
 
 // Local row wrapper: gives each link row a stable list key (rows can be removed/re-added and
@@ -80,6 +96,7 @@ type FormValues = {
   nameColor: string | null;
   avatarFrame: string | null;
   audience: string;
+  presenceVisibility: string;
   socialLinks: EditableSocialLink[];
   favorites: EditableFavoriteGame[];
   showcase: string[];
@@ -103,6 +120,7 @@ function serialize(v: FormValues): string {
     nameColor: v.nameColor,
     avatarFrame: v.avatarFrame,
     audience: v.audience,
+    presenceVisibility: v.presenceVisibility,
     socialLinks: v.socialLinks
       .filter((l) => l.url.trim() !== "")
       .map((l) => ({ label: l.label.trim(), url: l.url.trim() })),
@@ -165,6 +183,7 @@ export function CommunityProfileCustomizationForm({
   const [bannerImage, setBannerImage] = useState<SaveState>({ kind: "idle" });
   const bannerInputRef = useRef<HTMLInputElement | null>(null);
   const [audience, setAudience] = useState<string>(DEFAULT_AUDIENCE);
+  const [presenceVisibility, setPresenceVisibility] = useState<string>(DEFAULT_PRESENCE_VISIBILITY);
   const [socialLinks, setSocialLinks] = useState<SocialLinkRowState[]>([]);
   const [favorites, setFavorites] = useState<EditableFavoriteGame[]>([]);
   const [showcase, setShowcase] = useState<string[]>([]);
@@ -214,8 +233,8 @@ export function CommunityProfileCustomizationForm({
   }, [bannerCatalog]);
 
   const values: FormValues = useMemo(
-    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, title: profileTitle, nameColor: nameColorKey, avatarFrame, audience, socialLinks, favorites, showcase }),
-    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, profileTitle, nameColorKey, avatarFrame, audience, socialLinks, favorites, showcase],
+    () => ({ displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, title: profileTitle, nameColor: nameColorKey, avatarFrame, audience, presenceVisibility, socialLinks, favorites, showcase }),
+    [displayName, bio, tagline, pronouns, bannerPreset, bannerOverlay, avatarFraming, bannerFraming, titledName, profileTitle, nameColorKey, avatarFrame, audience, presenceVisibility, socialLinks, favorites, showcase],
   );
   const serialized = useMemo(() => serialize(values), [values]);
   const isDirty = baseline !== "" && serialized !== baseline;
@@ -252,6 +271,7 @@ export function CommunityProfileCustomizationForm({
     setBannerUpload(profile.bannerUpload);
     setBannerImageUrl(profile.bannerImageUrl);
     setAudience(profile.audience);
+    setPresenceVisibility(profile.presenceVisibility ?? DEFAULT_PRESENCE_VISIBILITY);
     setSocialLinks(profile.socialLinks.map((l) => ({ ...l, rowId: crypto.randomUUID() })));
     setFavorites(profile.favoriteGames);
     setShowcase(profile.showcaseLayout);
@@ -270,6 +290,7 @@ export function CommunityProfileCustomizationForm({
         nameColor: profile.nameColor ?? null,
         avatarFrame: frame,
         audience: profile.audience,
+        presenceVisibility: profile.presenceVisibility ?? DEFAULT_PRESENCE_VISIBILITY,
         socialLinks: profile.socialLinks,
         favorites: profile.favoriteGames,
         showcase: profile.showcaseLayout,
@@ -317,6 +338,7 @@ export function CommunityProfileCustomizationForm({
       nameColor: nameColorKey,
       avatarFrame,
       audience,
+      presenceVisibility,
       socialLinks: socialLinks.filter((l) => l.url.trim() !== "").map((l) => ({ label: l.label, url: l.url })),
       favoriteGameIds: favorites.map((g) => g.id),
       showcaseLayout: showcase,
@@ -824,12 +846,21 @@ export function CommunityProfileCustomizationForm({
         ) : null}
       </Section>
 
-      <Section title="Confidentialité" description="Qui peut voir la partie personnalisée de ton profil.">
+      <Section title="Confidentialité" description="Qui peut voir la partie personnalisée de ton profil, et quand tu joues.">
         <Field label="Audience" hint={AUDIENCE_HINTS[audience]}>
           <select className={inputClass} onChange={(e) => setAudience(e.target.value)} value={audience}>
             {AUDIENCES.map((value) => (
               <option key={value} value={value}>
                 {AUDIENCE_LABELS[value] ?? value}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Qui voit quand je joue" hint={PRESENCE_HINTS[presenceVisibility]}>
+          <select className={inputClass} onChange={(e) => setPresenceVisibility(e.target.value)} value={presenceVisibility}>
+            {PRESENCE_VISIBILITIES.map((value) => (
+              <option key={value} value={value}>
+                {PRESENCE_LABELS[value] ?? value}
               </option>
             ))}
           </select>

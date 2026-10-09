@@ -1,6 +1,6 @@
 # Story 43.6: Visibilité de la présence (mode discret)
 
-**Status:** draft
+**Status:** review
 **Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
@@ -31,11 +31,28 @@ La présence (30.14) est aujourd'hui visible de tous, anonymes compris, sur le p
 
 ## Tasks / Subtasks
 
-- [ ] **Domaine/Migration** : enum dédiée `PresenceVisibility` (`everyone`, `members`, `friends`, `nobody`) et
+- [x] **Domaine/Migration** : enum dédiée `PresenceVisibility` (`everyone`, `members`, `friends`, `nobody`) et
       champ `presence_visibility` sur le profil communautaire. On n'élargit pas `Audience` : `nobody` n'a pas de
       sens pour les sections de profil et serait proposé partout.
-- [ ] **Application** : le viewer (tier résolu + blocage) devient un paramètre de
+- [x] **Application** : le viewer (tier résolu + blocage) devient un paramètre de
       `CommunityPresenceQueryInterface` ; adapter les appelants existants (`CommunityProfileView`,
       `CommunityFeedQuery`, annuaire).
-- [ ] **Front** : champ dans `community-profile-customization-form.tsx`.
-- [ ] Tests fonctionnels (chaque niveau x chaque tier de viewer, blocage) et gates.
+- [x] **Front** : champ dans `community-profile-customization-form.tsx`.
+- [x] Tests fonctionnels (chaque niveau x chaque tier de viewer, blocage) et gates.
+
+## Dev Notes (2026-10-09)
+
+- `PresenceVisibility` (Domain/Enum) porte la décision pure `shows(tier)` ; le membre se voit toujours.
+- Colonne `community_profile.presence_visibility` (défaut `everyone`, migration `Version20261009130000`) ; un
+  profil sans ligne garde aussi une présence visible de tous.
+- La lecture brute devient `LivePresenceQueryInterface` (`DbalCommunityPresenceQuery`) : chaque ligne porte le réglage
+  et l'amitié avec le viewer, et un blocage dans un sens ou l'autre retire la ligne dans le SQL.
+- `CommunityPresenceQuery` (Application) implémente `CommunityPresenceQueryInterface`, désormais paramétrée par le
+  viewer, et applique le réglage. L'adhésion du viewer n'est demandée qu'au besoin, une fois par appel. Tous les
+  appelants passent le viewer : profil, fil, annuaire, hub (`playingNow`, le filtre s'applique avant la limite) et
+  participants d'une partie perso. 43.5, 43.7 et 43.11 n'auront qu'à passer par la même interface.
+- `PUT /community/profile` accepte `presenceVisibility` (omis = conservé, invalide = 422) ; `GET` la renvoie.
+- Front : champ « Qui voit quand je joue » dans la section Confidentialité du formulaire de profil, avec une phrase
+  par niveau.
+- Tests : `tests/Functional/PresenceVisibilityTest.php` (4 niveaux x 5 tiers, blocage, hub, sauvegarde),
+  `tests/Unit/Community/PresenceVisibilityTest.php`.

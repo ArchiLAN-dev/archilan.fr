@@ -51,7 +51,7 @@ final readonly class CommunityOverviewQuery
      */
     public function forViewer(?string $viewerId): array
     {
-        $playingRows = $this->presence->playingNow(self::PLAYING_LIMIT);
+        $playingRows = $this->presence->playingNow(self::PLAYING_LIMIT, $viewerId);
         $grantRows = $this->grants->recent(self::RECENT_ACHIEVEMENTS_LIMIT);
 
         // One card read for both lists - the same member is routinely in each.

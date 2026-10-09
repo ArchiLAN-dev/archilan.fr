@@ -92,7 +92,7 @@ final readonly class CommunityFeedQuery
         $playing = [];
         if ($withActor) {
             $actorIds = array_values(array_unique(array_map(static fn (ActivityEntry $e): string => $e->getActorId(), $entries)));
-            $playing = $this->presence->playing($actorIds);
+            $playing = $this->presence->playing($actorIds, $viewerId);
         }
 
         // Kudos on run entries (one batch count + the viewer's given set).
