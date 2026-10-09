@@ -7,10 +7,12 @@ namespace App\Sessions\Application\Service;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Message\NotifySlotUnblockedJob;
 use App\Sessions\Domain\Entity\SlotBlockEpisode;
+use App\Sessions\Domain\Entity\SlotBlockRelease;
 use App\Sessions\Domain\Enum\SlotBlockDecision;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Sessions\Domain\Repository\SlotBlockEpisodeRepositoryInterface;
+use App\Sessions\Domain\Repository\SlotBlockReleaseRepositoryInterface;
 use App\Sessions\Domain\Service\SlotBlockRule;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -33,6 +35,7 @@ final readonly class SlotBlockTracker
         private SessionSlotRepositoryInterface $slots,
         private SessionRepositoryInterface $sessions,
         private SlotBlockEpisodeRepositoryInterface $episodes,
+        private SlotBlockReleaseRepositoryInterface $releases,
         private MessageBusInterface $messageBus,
         private ClockInterface $clock,
     ) {
@@ -82,6 +85,8 @@ final readonly class SlotBlockTracker
             } elseif (null !== $episode && (SlotBlockDecision::CloseSilently === $decision || SlotBlockDecision::CloseAndNotify === $decision)) {
                 $this->episodes->remove($episode);
                 if (SlotBlockDecision::CloseAndNotify === $decision) {
+                    // Story 43.10: a real block left is kept for the recap, in the same flush as the episode's removal.
+                    $this->releases->add(SlotBlockRelease::of($episode, bin2hex(random_bytes(16)), $now));
                     $reachableNow = $slot['reachable_now'] ?? 0;
                     $unblocked[] = new NotifySlotUnblockedJob($sessionId, $slotName, is_int($reachableNow) ? $reachableNow : 0, $key);
                 }
