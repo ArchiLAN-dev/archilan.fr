@@ -24,12 +24,10 @@ final class CapacityNotificationTest extends FunctionalTestCase
         $this->client->jsonRequest('POST', '/api/v1/events/'.$event->getId().'/registrations');
         self::assertResponseStatusCodeSame(201);
 
-        $transport = $this->transport();
-        $sent = $transport->getSent();
+        $sent = $this->capacityMessages();
         self::assertCount(1, $sent);
 
-        $envelope = $sent[0];
-        $message = $envelope->getMessage();
+        $message = $sent[0];
         self::assertInstanceOf(EventCapacityReachedMessage::class, $message);
         self::assertSame($event->getId(), $message->eventId);
         self::assertSame('Spring Sync 2027', $message->eventTitle);
@@ -48,7 +46,7 @@ final class CapacityNotificationTest extends FunctionalTestCase
         $this->client->jsonRequest('POST', '/api/v1/events/'.$event->getId().'/registrations');
         self::assertResponseStatusCodeSame(201);
 
-        self::assertCount(0, $this->transport()->getSent());
+        self::assertCount(0, $this->capacityMessages());
     }
 
     public function testNotificationNotDispatchedWhenAlreadySent(): void
@@ -60,7 +58,7 @@ final class CapacityNotificationTest extends FunctionalTestCase
         $this->client->jsonRequest('POST', '/api/v1/events/'.$event->getId().'/registrations');
         self::assertResponseStatusCodeSame(201);
 
-        self::assertCount(0, $this->transport()->getSent());
+        self::assertCount(0, $this->capacityMessages());
     }
 
     private function makeEvent(int $capacity = 48, bool $notificationAlreadySent = false): Event
@@ -81,6 +79,24 @@ final class CapacityNotificationTest extends FunctionalTestCase
         }
 
         return $event;
+    }
+
+    /**
+     * Only the capacity messages: a reservation also tells the member's starred friends (story 43.11b).
+     *
+     * @return list<EventCapacityReachedMessage>
+     */
+    private function capacityMessages(): array
+    {
+        $messages = [];
+        foreach ($this->transport()->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+            if ($message instanceof EventCapacityReachedMessage) {
+                $messages[] = $message;
+            }
+        }
+
+        return $messages;
     }
 
     private function transport(): InMemoryTransport

@@ -15,6 +15,13 @@ interface FriendFavoriteRepositoryInterface
      */
     public function favoriteIds(string $userId): array;
 
+    /**
+     * Who starred a member (story 43.11b): the ones told of their activity.
+     *
+     * @return list<string>
+     */
+    public function starredBy(string $favoriteUserId): array;
+
     public function find(string $userId, string $favoriteUserId): ?FriendFavorite;
 
     public function count(string $userId): int;

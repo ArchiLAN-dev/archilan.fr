@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application\Command;
 
+use App\Community\Application\Message\FriendActivityJob;
 use App\Events\Application\Message\EventCapacityReachedMessage;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
@@ -126,6 +127,13 @@ final readonly class ReserveRegistration
         $this->dispatchCapacityNotificationIfNeeded($lockedEvent, $newCount, $this->clock->now());
         $this->realtimePublisher->seatCounter($lockedEvent->getId(), $remaining);
         $this->realtimePublisher->adminRegistrationCreated($lockedEvent->getId(), $registrationId, $this->clock->now());
+
+        // Story 43.11b: the friends who starred the member hear of it. Best-effort, after the commit.
+        try {
+            $this->messageBus->dispatch(FriendActivityJob::registered($lockedEvent->getId(), $userId));
+        } catch (\Throwable $e) {
+            $this->logger->warning('friend_activity.dispatch_failed', ['eventId' => $lockedEvent->getId(), 'error' => $e->getMessage()]);
+        }
 
         return new ReservationResult(ReservationOutcome::Reserved, $registrationId);
     }

@@ -14,7 +14,7 @@ final class PushMessageFactory
     private const string TITLE = 'ArchiLAN';
 
     /** @var list<string> */
-    private const array PUSHABLE_TYPES = ['slot_unblocked', 'run_invitation'];
+    private const array PUSHABLE_TYPES = ['slot_unblocked', 'run_invitation', 'friend_activity'];
 
     public static function isPushable(string $type): bool
     {
@@ -29,6 +29,7 @@ final class PushMessageFactory
         return match ($type) {
             'slot_unblocked' => self::slotUnblocked($payload),
             'run_invitation' => self::runInvitation($payload),
+            'friend_activity' => self::friendActivity($payload),
             default => null,
         };
     }
@@ -87,6 +88,36 @@ final class PushMessageFactory
             $body,
             '/compte/parties',
             sprintf('run_invitation-%s', self::text($payload, 'invitationId') ?? 'invitation'),
+        );
+    }
+
+    /**
+     * Story 43.11b: a starred friend's activity, pushed only to a member who chose « Cloche + push ».
+     *
+     * @param array<string, mixed> $payload
+     */
+    private static function friendActivity(array $payload): WebPushMessage
+    {
+        $who = self::text($payload, 'actorName') ?? 'Un ami';
+        $title = self::text($payload, 'title');
+        $eventId = self::text($payload, 'eventId');
+        $runId = self::text($payload, 'runId');
+        $body = match (self::text($payload, 'kind')) {
+            'registered' => null !== $title ? sprintf('%s s\'inscrit à « %s »', $who, $title) : sprintf('%s s\'inscrit à un événement', $who),
+            'session_started' => null !== $title ? sprintf('%s lance « %s »', $who, $title) : sprintf('%s lance une partie', $who),
+            default => null !== $title ? sprintf('%s a atteint son objectif dans « %s »', $who, $title) : sprintf('%s a atteint son objectif', $who),
+        };
+        $url = match (true) {
+            null !== $eventId => '/evenements/'.$eventId,
+            null !== $runId => '/runs/'.$runId,
+            default => '/compte/amis',
+        };
+
+        return new WebPushMessage(
+            self::TITLE,
+            $body,
+            $url,
+            sprintf('friend_activity-%s-%s', self::text($payload, 'fromUserId') ?? 'friend', self::text($payload, 'kind') ?? 'activity'),
         );
     }
 
