@@ -220,3 +220,34 @@ export async function addFriendFromLink(code: string): Promise<Relationship | nu
     return null;
   }
 }
+
+/** Story 43.4: the viewer's friends registered to an event. Null on failure. */
+export async function fetchEventFriends(eventId: string): Promise<FriendCard[] | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/friends`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return Array.isArray(data) && data.every(isFriendCard) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The same for a list of events in one call, keyed by event id; an event without a friend is absent. */
+export async function fetchEventFriendsBatch(eventIds: string[]): Promise<Record<string, FriendCard[]> | null> {
+  if (eventIds.length === 0) return {};
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/event-friends?ids=${eventIds.map(encodeURIComponent).join(",")}`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
+    const byEvent: Record<string, FriendCard[]> = {};
+    for (const [eventId, cards] of Object.entries(data)) {
+      if (!Array.isArray(cards) || !cards.every(isFriendCard)) return null;
+      byEvent[eventId] = cards;
+    }
+    return byEvent;
+  } catch {
+    return null;
+  }
+}
