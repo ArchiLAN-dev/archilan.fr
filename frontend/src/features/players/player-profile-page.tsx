@@ -18,6 +18,7 @@ import { resolveLinkType } from "@/features/community/social-links";
 import { Markdown } from "@/components/markdown/markdown";
 import { TitledName } from "@/features/community/titled-name";
 import { ProfileTitleBadge } from "@/features/community/profile-title-badge";
+import { formatDate, PlayerRunHistory } from "./player-run-history";
 
 export function PlayerProfilePage({
   profile,
@@ -28,7 +29,6 @@ export function PlayerProfilePage({
 }) {
   const displayName = profile.displayName ?? profile.slug;
   const entries = history?.data ?? [];
-  const historyError = history === null;
 
   return (
     // `grid-cols-1` on this grid and on the card's: an implicit column grows to its content's min-content,
@@ -158,32 +158,7 @@ export function PlayerProfilePage({
 
       <ProfileComments slug={profile.slug} />
 
-      <section aria-labelledby="history-heading" className="grid gap-4">
-        <h2 className="font-heading text-xl font-semibold text-foreground" id="history-heading">
-          Historique des runs
-        </h2>
-
-        {historyError ? (
-          <p className="text-muted-foreground">
-            L&apos;historique est temporairement indisponible.
-          </p>
-        ) : entries.length === 0 ? (
-          <p className="text-muted-foreground">Aucune run terminée pour l&apos;instant.</p>
-        ) : (
-          <>
-            <div className="grid gap-2">
-              {entries.map((entry) => (
-                <RunHistoryRow entry={entry} key={`${entry.sessionId}-${entry.game}`} />
-              ))}
-            </div>
-            {history !== null && history.meta.total > entries.length ? (
-              <p className="text-xs text-muted-foreground text-center">
-                Affichage des {entries.length} dernières runs ({history.meta.total} au total)
-              </p>
-            ) : null}
-          </>
-        )}
-      </section>
+      <PlayerRunHistory history={history} slug={profile.slug} />
     </article>
   );
 }
@@ -383,96 +358,4 @@ function StatCard({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-xs text-muted-foreground">{label}</p>
     </div>
   );
-}
-
-function RunHistoryRow({ entry }: { entry: RunHistoryEntry }) {
-  const muted = entry.isInvalidated;
-
-  // A row links to its recap only when the server says this viewer may open it (story 32.20):
-  // weekly runs have none, and a private run's recap is owner/participants-only.
-  const baseClassName = `grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_auto] ${
-    muted ? "border-border/60 bg-surface/60" : "border-border bg-surface"
-  }`;
-
-  const inner = (
-    <>
-      <div className="grid gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`font-semibold ${muted ? "text-muted-foreground" : "text-foreground"}`}
-          >
-            {entry.eventName}
-          </span>
-          <StatusBadge entry={entry} />
-        </div>
-
-        <p className={`text-sm ${muted ? "text-muted-foreground/70" : "text-muted-foreground"}`}>
-          {entry.game}
-          {entry.finishedAt ? (
-            <>
-              {" · "}
-              <time dateTime={entry.finishedAt}>{formatDate(entry.finishedAt)}</time>
-            </>
-          ) : null}
-        </p>
-      </div>
-
-      <dl
-        className={`flex gap-4 text-sm sm:flex-col sm:items-end sm:gap-1 ${
-          muted ? "text-muted-foreground/70" : "text-muted-foreground"
-        }`}
-      >
-        <div className="flex gap-1">
-          <dt className="sr-only">Checks</dt>
-          <dd>
-            <span className="font-semibold text-foreground">{entry.checksDone}</span> checks
-          </dd>
-        </div>
-        <div className="flex gap-1">
-          <dt className="sr-only">Items reçus</dt>
-          <dd>
-            <span className="font-semibold text-foreground">{entry.itemsReceived}</span> items
-          </dd>
-        </div>
-      </dl>
-    </>
-  );
-
-  if (entry.isWeekly || entry.recapAccessible !== true) {
-    return <div className={baseClassName}>{inner}</div>;
-  }
-
-  return (
-    <Link className={`${baseClassName} transition-colors hover:border-accent`} href={`/parties/${entry.sessionId}`}>
-      {inner}
-    </Link>
-  );
-}
-
-function StatusBadge({ entry }: { entry: RunHistoryEntry }) {
-  if (entry.isInvalidated) {
-    return (
-      <span className="shrink-0 rounded border border-amber-500/50 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-        Forfait
-      </span>
-    );
-  }
-
-  if (entry.goalReachedAt !== null) {
-    return (
-      <span className="shrink-0 rounded border border-success/50 px-2 py-0.5 text-xs font-semibold text-success">
-        Objectif atteint
-      </span>
-    );
-  }
-
-  return (
-    <span className="shrink-0 rounded border border-muted-foreground/40 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-      Incomplet
-    </span>
-  );
-}
-
-function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(new Date(iso));
 }
