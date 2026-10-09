@@ -10,6 +10,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { getAccountMembership } from "@/features/payments/membership-api";
 import { slugify } from "@/features/weekly-runs/slugify";
 import { MembershipNotice } from "./weekly-runs-client-page";
+import { WeeklyRunFriends } from "./weekly-run-friends";
 import {
   fetchCurrentWeeklyRuns,
   fetchWeeklyEntryPatches,
@@ -355,12 +356,13 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
       </div>
 
       {/* Leaderboard */}
-      <div className="px-5 py-4">
+      <div className="grid gap-5 px-5 py-4">
         <DualLeaderboard
           leaderboard={run.leaderboard}
           myEntryId={myEntryId}
           myUserId={myUserId}
         />
+        <WeeklyRunFriends weeklyRunId={run.weeklyRunId} />
       </div>
 
       {/* Live participant streams (story 7.7) - public, only while the run is active and someone is live */}
