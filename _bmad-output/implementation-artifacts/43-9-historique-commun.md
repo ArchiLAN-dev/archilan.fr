@@ -1,6 +1,6 @@
 # Story 43.9: Historique commun sur le profil d'un ami
 
-**Status:** draft
+**Status:** review
 **Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 **Dépend de:** 43.2 (agrégat de co-participations)
@@ -32,8 +32,26 @@ recaps (epic 32) donnent les items échangés par session (`SessionFeedEvent` : 
 
 ## Tasks / Subtasks
 
-- [ ] **Application** : `SharedHistoryQueryInterface` (viewer, autre utilisateur).
-- [ ] **Infrastructure** : DBAL réutilisant l'agrégat de 43.2 + comptage des `SessionFeedEvent` par paire de slots.
-- [ ] **Présentation** : `GET /community/profiles/{slug}/shared-history`.
-- [ ] **Front** : bloc sur `player-profile-page.tsx`, bouton « Relancer ».
-- [ ] Tests fonctionnels et gates.
+- [x] **Application** : `SharedHistoryQueryInterface` (viewer, autre utilisateur).
+- [x] **Infrastructure** : DBAL réutilisant l'agrégat de 43.2 + comptage des `SessionFeedEvent` par paire de slots.
+- [x] **Présentation** : `GET /community/profiles/{slug}/shared-history`.
+- [x] **Front** : bloc sur `player-profile-page.tsx`, bouton « Relancer ».
+- [x] Tests fonctionnels et gates.
+
+## Dev Notes (2026-10-09)
+
+- `GET /api/v1/community/profiles/{slug}/shared-history` (`CommunitySharedHistoryController` -> `SharedHistoryQuery`)
+  renvoie `null` quand rien n'a été joué ensemble, pour soi-même ou en cas de blocage ; sinon `userId`, `isFriend`,
+  `count`, `firstAt`, `lastAt`, les 5 dernières (`kind`, `title`, `playedAt`, `recap` si le viewer peut ouvrir le
+  recap via `ViewableRecapsQuery`) et `items {sent, received, since}`.
+- `DbalSharedHistoryQuery` : mêmes « players » que 43.2 (propriétaires et co-joueurs), sessions de run perso ou
+  d'événement. Items : le feed nomme les slots, chacun mène à ses joueurs (lien de `DbalItemsFromOthersQuery`) ;
+  ce qu'un slot envoie après son release ou reçoit après son collect est exclu. `since` = premier événement de feed
+  des sessions communes (null : aucun feed, la ligne n'est pas affichée).
+- Visibilité (32.22) : le viewer a joué la partie, il la voit ; le lien vers le recap suit la règle d'accès du recap.
+- Front : `SharedHistoryBlock` sous l'en-tête du profil. Ami : « Relancer une partie ensemble » ouvre `/runs?inviter=<id>`,
+  le formulaire de création s'ouvre avec l'ami présélectionné, l'invitation 43.1 part après la création (« Ne pas
+  inviter » le retire). Non-ami : « Ajouter en ami pour rejouer » envoie la demande d'ami. Rien n'est créé sans clic.
+- `src/lib/use-location-param.ts` : lecture/écriture d'un paramètre d'URL sans `useSearchParams` (qui sort une page
+  du prérendu) ; le classement de 43.8 l'utilise aussi désormais.
+- Tests : `SharedHistoryTest`, `shared-history.test.tsx`.

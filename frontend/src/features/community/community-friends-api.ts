@@ -296,3 +296,43 @@ export async function fetchFriendsNow(): Promise<FriendsNow | null> {
     return null;
   }
 }
+
+/** Story 43.9: one of the latest sessions played together. `recap`: the viewer may open its recap. */
+export type SharedSession = { sessionId: string; kind: "run" | "event"; title: string | null; playedAt: string; recap: boolean };
+
+export type SharedHistory = {
+  userId: string;
+  isFriend: boolean;
+  count: number;
+  firstAt: string;
+  lastAt: string;
+  latest: SharedSession[];
+  items: { sent: number; received: number; since: string | null };
+};
+
+function isSharedSession(v: unknown): v is SharedSession {
+  if (typeof v !== "object" || v === null || !hasStringProp(v, "sessionId") || !hasStringProp(v, "playedAt")) return false;
+  if (!hasNullableStringProp(v, "title") || !("kind" in v) || (v.kind !== "run" && v.kind !== "event")) return false;
+  return "recap" in v && typeof v.recap === "boolean";
+}
+
+function isSharedHistory(v: unknown): v is SharedHistory {
+  if (typeof v !== "object" || v === null || !hasStringProp(v, "userId") || !hasStringProp(v, "firstAt") || !hasStringProp(v, "lastAt")) return false;
+  if (!("isFriend" in v) || typeof v.isFriend !== "boolean" || !("count" in v) || typeof v.count !== "number") return false;
+  if (!("latest" in v) || !Array.isArray(v.latest) || !v.latest.every(isSharedSession)) return false;
+  if (!("items" in v) || typeof v.items !== "object" || v.items === null) return false;
+  const items = v.items;
+  return "sent" in items && typeof items.sent === "number" && "received" in items && typeof items.received === "number" && hasNullableStringProp(items, "since");
+}
+
+/** « Vous avez joué ensemble » (story 43.9): null when nothing was played together, and on failure. */
+export async function fetchSharedHistory(slug: string): Promise<SharedHistory | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/profiles/${encodeURIComponent(slug)}/shared-history`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return isSharedHistory(data) ? data : null;
+  } catch {
+    return null;
+  }
+}

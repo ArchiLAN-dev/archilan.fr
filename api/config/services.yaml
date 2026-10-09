@@ -339,6 +339,7 @@ services:
     App\Community\Application\Query\FriendSuggestionsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalFriendSuggestionsQuery'
     App\Community\Application\Query\EventFriendsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalEventFriendsQuery'
     App\Community\Application\Query\FriendSessionContextQueryInterface: '@App\Community\Infrastructure\Dbal\DbalFriendSessionContextQuery'
+    App\Community\Application\Query\SharedHistoryQueryInterface: '@App\Community\Infrastructure\Dbal\DbalSharedHistoryQuery'
     App\Community\Application\Query\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityDirectoryQuery'
     App\Community\Application\Query\RecentAchievementGrantsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalRecentAchievementGrantsQuery'
     App\Identity\Application\Query\AdminUserActivityQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalAdminUserActivityQuery'

@@ -11,9 +11,9 @@ jest.mock("../auth/auth-context", () => ({
   useAuth: () => ({ user: mockUser, loading: false, setUser: () => undefined }),
 }));
 // The server snapshot never has the URL: stand in for the client one.
-jest.mock("react", () => ({
-  ...jest.requireActual<typeof import("react")>("react"),
-  useSyncExternalStore: () => mockFriendsInUrl,
+jest.mock("../../lib/use-location-param", () => ({
+  useLocationParam: () => (mockFriendsInUrl ? "1" : null),
+  replaceLocationParam: jest.fn(),
 }));
 
 const EMPTY: LeaderboardResponse = { data: [], meta: { axis: "goals", page: 1, total: 0 } };

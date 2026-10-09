@@ -11,6 +11,7 @@ import type {
 import { MemberAvatar } from "@/features/community/member-avatar";
 import { ProfileRelationshipActions } from "@/features/community/profile-relationship-actions";
 import { ProfileActivity } from "@/features/community/community-activity";
+import { SharedHistoryBlock } from "@/features/community/shared-history";
 import { ProfileAchievements } from "@/features/community/profile-achievements";
 import { ProfileComments } from "@/features/community/profile-comments";
 import { ProfileBanner } from "@/features/community/profile-banner";
@@ -137,6 +138,9 @@ export function PlayerProfilePage({
           </div>
         </div>
       </header>
+
+      {/* Story 43.9: loaded client-side, the profile's SSR being anonymous. */}
+      <SharedHistoryBlock name={displayName} slug={profile.slug} />
 
       {profile.customization && profile.customization.showcaseLayout.length > 0 ? (
         <ProfileShowcase
