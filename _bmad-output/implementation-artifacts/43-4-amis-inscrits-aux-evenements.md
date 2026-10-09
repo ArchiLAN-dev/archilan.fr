@@ -1,6 +1,6 @@
 # Story 43.4: Amis inscrits aux événements
 
-**Status:** draft
+**Status:** review
 **Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
@@ -31,12 +31,26 @@ personnalisée se charge côté client.
 
 ## Tasks / Subtasks
 
-- [ ] **Application** : `EventFriendsQueryInterface` (un événement + lot d'événements).
-- [ ] **Infrastructure** : DBAL (inscriptions x amitiés acceptées, exclusion des blocages).
-- [ ] **Présentation** : `GET /events/{eventId}/friends`, `GET /events/friends?ids=...`.
-- [ ] **Front** : composant client `EventFriendsBadge` sur la page et les cartes.
-- [ ] Tests fonctionnels (réservée, soumise, annulée, blocage, anonyme 401) et gates.
+- [x] **Application** : `EventFriendsQueryInterface` (un lot d'événements) et `EventFriendsQuery` (un ou plusieurs).
+- [x] **Infrastructure** : DBAL (inscriptions x amitiés acceptées, exclusion des blocages).
+- [x] **Présentation** : `GET /events/{eventId}/friends`, `GET /community/event-friends?ids=...` (voir Dev Notes).
+- [x] **Front** : composant client `EventFriendsBadge` sur la page et les cartes.
+- [x] Tests fonctionnels (réservée, soumise, annulée, blocage, anonyme 401) et gates.
 
 ## Notes
 
 - Les événements privés (`verify-private-access`) : ne renvoyer les amis que si le viewer a accès à l'événement.
+
+## Dev Notes
+
+- **Route groupée** : `GET /community/event-friends?ids=a,b` au lieu de `/events/friends` : `GET /events/{eventId}`
+  existe déjà et lirait « friends » comme un identifiant d'événement. 50 événements au plus par appel ; la
+  réponse est un objet `{eventId: cartes}` dont les événements sans ami sont absents.
+- **Accès** : seuls les événements publiés comptent, publics ou ouverts au viewer (accès privé accordé dans
+  `event_private_access_log`, ou viewer lui-même inscrit). Sinon la liste est vide, sans 404, pour ne rien
+  révéler de l'existence de l'événement.
+- **Amis** : amitié `accepted` uniquement (une demande en attente ne compte pas), inscription `reserved`
+  soumise ou non, blocage dans un sens ou l'autre exclu, membre non listable écarté par `cards()`.
+- **Front** : sur la page d'un événement non terminé, sous la description ; sur les cartes des événements à
+  venir, une seule requête partagée par toutes les cartes (même clé TanStack). Trois avatars, `+N`, et la
+  liste des noms au survol. Aucune notification (43.11).

@@ -4,6 +4,7 @@ import { CalendarDays, ImageIcon, Lock, MapPin, Radio, Trophy, Users } from "luc
 import type { EventStatus, PublicEvent } from "./event-types";
 import { externalLinks } from "@/lib/external-links";
 import { getCapacityBarColor, getCapacityPercent } from "./event-utils";
+import { EventFriendsBadge } from "@/features/community/event-friends-badge";
 
 type StatusConfig = { label: string; cta?: string; tone: string };
 
@@ -43,7 +44,8 @@ function EventMeta({ icon: Icon, children }: { icon: typeof CalendarDays; childr
   );
 }
 
-export function EventCard({ event }: { event: PublicEvent }) {
+/** `friendEventIds`: the events of the list, for « N de tes amis participent » in one grouped call (story 43.4). */
+export function EventCard({ event, friendEventIds }: { event: PublicEvent; friendEventIds?: string[] }) {
   const state = statusCopy[event.status];
   const capacityPercent = getCapacityPercent(event.capacity);
   const barColor = getCapacityBarColor(capacityPercent);
@@ -72,6 +74,12 @@ export function EventCard({ event }: { event: PublicEvent }) {
         </EventMeta>
         <EventMeta icon={MapPin}>{event.location}</EventMeta>
       </div>
+
+      {friendEventIds !== undefined ? (
+        <div className="mt-4">
+          <EventFriendsBadge eventId={event.id} eventIds={friendEventIds} />
+        </div>
+      ) : null}
 
       {event.capacity ? (
         <div className="mt-5">
