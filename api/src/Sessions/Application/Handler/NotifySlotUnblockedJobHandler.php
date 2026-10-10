@@ -64,7 +64,7 @@ final readonly class NotifySlotUnblockedJobHandler
                 'runTitle' => $run->getTitle(),
                 'slotName' => $job->slotName,
                 'reachableNow' => $job->reachableNow,
-            ]);
+            ] + (null !== $job->slotIndex ? ['slotIndex' => $job->slotIndex] : []));
         }
     }
 }

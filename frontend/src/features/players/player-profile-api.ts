@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import { isImageFraming, type ImageFraming } from "@/features/community/image-framing";
@@ -100,7 +101,14 @@ export type ProfileLevel = {
   xpForNextLevel: number;
 };
 
-export type ProfilePresence = { playing: boolean; sessionId: string | null; game: string | null };
+export type ProfilePresence = {
+  playing: boolean;
+  sessionId: string | null;
+  game: string | null;
+  /** Story 43.7: rich presence (absent from an older API). */
+  slotState?: string | null;
+  progressPercent?: number | null;
+};
 
 /** Public recognition badges: active membership (live lookup) and admin role. */
 export type ProfileBadges = { member: boolean; admin: boolean };
@@ -178,6 +186,8 @@ function parsePresence(v: unknown): ProfilePresence {
     playing: v.playing,
     sessionId: hasNullableStringProp(v, "sessionId") ? v.sessionId : null,
     game: hasNullableStringProp(v, "game") ? v.game : null,
+    slotState: hasNullableStringProp(v, "slotState") ? v.slotState : null,
+    progressPercent: "progressPercent" in v && typeof v.progressPercent === "number" ? v.progressPercent : null,
   };
 }
 
@@ -197,6 +207,11 @@ export type RunHistoryEntry = {
    * link", the safe default - a link the viewer cannot follow is worse than plain text.
    */
   recapAccessible?: boolean;
+  /**
+   * A run visitors do not see (story 32.22): only ever true on the player's own history, read with their
+   * cookies. Optional: absent means public.
+   */
+  isPrivate?: boolean;
 };
 
 export type PlayerHistory = {
@@ -291,6 +306,7 @@ function isRunHistoryEntry(v: unknown): v is RunHistoryEntry {
   if (!hasBooleanProp(v, "wasReleased")) return false;
   if (!hasBooleanProp(v, "isInvalidated")) return false;
   if ("recapAccessible" in v && typeof v.recapAccessible !== "boolean") return false;
+  if ("isPrivate" in v && typeof v.isPrivate !== "boolean") return false;
   return hasBooleanProp(v, "isWeekly");
 }
 
@@ -410,6 +426,23 @@ export const getPlayerHistory = cache(async (slug: string): Promise<PlayerHistor
     return null;
   }
 });
+
+/**
+ * The player's own history, read client-side with their cookies (story 32.22): the server render is always
+ * anonymous, so it only ever has the public runs. Null on any failure.
+ */
+export async function fetchOwnPlayerHistory(slug: string): Promise<PlayerHistory | null> {
+  try {
+    const response = await apiFetch(`${env.apiBaseUrl}/players/${encodeURIComponent(slug)}/history?limit=100`);
+    if (!response.ok) {
+      return null;
+    }
+    const payload: unknown = await response.json();
+    return isPlayerHistoryPayload(payload) ? payload : null;
+  } catch {
+    return null;
+  }
+}
 
 /** One sitemap entry for a public-audience profile (story 34.8). */
 export type PublicProfileSlug = { slug: string; updatedAt: string };

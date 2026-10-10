@@ -39,7 +39,7 @@ final class SlotUnblockedNotificationTest extends FunctionalTestCase
         $this->entityManager->clear();
 
         $this->push('session-bk-1', 3);
-        self::assertEquals([new NotifySlotUnblockedJob('session-bk-1', 'Alice_HK1', 3)], $this->queuedUnblockJobs());
+        self::assertEquals([new NotifySlotUnblockedJob('session-bk-1', 'Alice_HK1', 3, '1')], $this->queuedUnblockJobs());
 
         // The client resets the transport between requests: what the duplicate queues is all that shows.
         $this->push('session-bk-1', 3);

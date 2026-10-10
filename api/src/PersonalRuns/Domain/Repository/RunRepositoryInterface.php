@@ -24,6 +24,15 @@ interface RunRepositoryInterface
 
     public function findByInviteToken(string $inviteToken): ?Run;
 
+    /**
+     * Story 43.19: several runs in one query.
+     *
+     * @param list<string> $ids
+     *
+     * @return array<string, Run> keyed by id
+     */
+    public function findByIds(array $ids): array;
+
     public function findBySessionId(string $sessionId): ?Run;
 
     /**
@@ -32,6 +41,24 @@ interface RunRepositoryInterface
      * @return list<Run>
      */
     public function findByStatuses(array $statuses): array;
+
+    /**
+     * Story 43.17: the draft runs listed for every member.
+     *
+     * @return list<Run>
+     */
+    public function findListed(): array;
+
+    /**
+     * Story 43.18: the run, locked until the transaction ends, so two members cannot take its last seat at once.
+     */
+    public function findWithExclusiveLock(string $id): ?Run;
+
+    public function beginTransaction(): void;
+
+    public function commit(): void;
+
+    public function rollBack(): void;
 
     public function save(Run $run): void;
 

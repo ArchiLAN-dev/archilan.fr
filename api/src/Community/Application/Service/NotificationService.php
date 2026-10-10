@@ -33,6 +33,7 @@ final readonly class NotificationService implements Notifier
         private ClockInterface $clock,
         private MessageBusInterface $messageBus,
         private NotificationDetails $details,
+        private NotificationPreferenceService $preferences,
     ) {
     }
 
@@ -46,6 +47,12 @@ final readonly class NotificationService implements Notifier
         // Best-effort: a notification is a side effect of an already-committed action, so a failure here
         // must never roll back or 500 the primary write (friend accept, comment, kudos, achievement).
         try {
+            // Story 43.11b: the recipient's choice for this type - bell and push, bell only, or nothing.
+            $channel = $this->preferences->channelFor($recipientId, $type);
+            if (!$channel->reachesBell()) {
+                return;
+            }
+
             $notification = Notification::create($recipientId, $type, $payload, $this->clock->now());
             $this->notifications->save($notification);
 
@@ -55,7 +62,7 @@ final readonly class NotificationService implements Notifier
             ]);
 
             // Story 40.2: a few types also go to the recipient's devices, as a browser push.
-            if (PushMessageFactory::isPushable($type)) {
+            if ($channel->reachesDevices() && PushMessageFactory::isPushable($type)) {
                 $this->messageBus->dispatch(new SendWebPushJob($notification->getId()));
             }
         } catch (\Throwable $e) {

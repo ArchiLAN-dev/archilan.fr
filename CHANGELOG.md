@@ -5,6 +5,65 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.39.0] - 2026-10-10
+
+L'epic 43 « Des amis qui servent à jouer » : les amis deviennent un moyen de trouver des parties, d'y inviter, de
+suivre ce que font les autres et de se défier. S'y ajoutent quatre correctifs (quêtes hebdo, notification de
+déblocage, historique public, nom du slot d'une hebdo) et FrankenPHP 1.13.1.
+
+### Ajouté
+
+- **Inviter des amis dans une run perso** (43.1) : invitation directe depuis la page de la run, acceptée en un clic.
+- **Suggestions d'amis** (43.2) : les membres avec qui l'on a déjà joué (même run, ou deux événements en commun).
+- **Lien d'ami personnel et QR code** (43.3) : pour s'ajouter en ami sans épeler son pseudo, par exemple en LAN.
+- **Amis inscrits aux événements** (43.4) : la page d'un événement montre lesquels de tes amis y sont inscrits.
+- **« Mes amis en ce moment »** (43.5) : qui joue, à quoi, et qui a joué récemment.
+- **Visibilité de la présence** (43.6) : chacun choisit qui voit qu'il joue (tout le monde, adhérents, amis,
+  personne).
+- **Présence riche** (43.7) : progression, BK et objectif atteint de l'ami dans sa partie.
+- **Classements entre amis** (43.8) : interrupteur « Mes amis » sur les classements.
+- **Historique commun** (43.9) : sur le profil d'un ami, les parties jouées ensemble.
+- **Les amis dans le récap** (43.10) : onglet « Entre nous », ce que les amis se sont envoyé pendant la partie.
+- **Amis favoris** (43.11a) et **alertes d'activité des favoris** (43.11b) : un favori qui lance une partie ou
+  s'inscrit à un événement est annoncé (au plus une alerte par favori et par heure), avec des préférences de
+  notification par type.
+- **Relancer un co-joueur inactif** (43.12) : au plus une relance par jour et par joueur, depuis la page de la run.
+- **Groupes d'amis** (43.13) : groupes nommés, pour inviter tout le groupe en un clic.
+- **Run ouverte aux amis** (43.14) : une run perso peut s'ouvrir à tous les amis du propriétaire, avec un nombre de
+  places facultatif ; « Parties de tes amis » les liste.
+- **Duel hebdo entre amis** (43.15) : défier des amis sur l'hebdo de la semaine (3 duels par semaine au plus) ; le
+  meilleur temps à l'objectif gagne, une égalité ne désigne pas de gagnant.
+- **Succès sociaux** (43.16) : « Les Goonies » (jouer avec 5 amis différents), « L'Arme fatale » (terminer 3 parties
+  avec la même personne), « Il ne peut en rester qu'un » (gagner un duel hebdo).
+- **Annonces « cherche joueurs »** (43.17) : une run perso peut s'ouvrir à tous les membres, avec un message ; page
+  `/communaute/parties`, expiration après 14 jours sans arrivée, signalement à la modération (le texte signalé est
+  conservé).
+
+### Modifié
+
+- **Une hebdo compte pour les quêtes une fois terminée** (41.33) : l'objectif « hebdos » demande de terminer l'hebdo,
+  pas seulement de la lancer.
+- **La notification de déblocage mène à la progression du slot** (40.5).
+- **FrankenPHP 1.13.1** (#812) : corrige CVE-2026-78669 (`golang.org/x/net`) et trois CVE de la stdlib Go dans
+  l'image `api-web`, toujours sans exclusion Trivy.
+
+### Corrigé
+
+- **L'historique d'un profil ne montre que les parties publiques** (32.22) : une partie dont le récap n'est pas
+  public n'y apparaît plus, ni son titre, ni son jeu, ni ses checks.
+- **Nom du slot sur la page d'un jeu hebdo** (17.30).
+- **Revue de l'epic 43** (43.18, 43.19) : résolution des duels rattrapable avec délai de grâce, places respectées
+  sous concurrence, succès sociaux notifiés, blocages respectés dans le fil, présence et suggestions plus justes,
+  requêtes de co-participation bornées aux parties du membre.
+
+### Déploiement
+
+- 13 migrations, de `Version20261009100000` à `Version20261010180000`.
+- Deux tâches planifiées au worker : expiration des annonces (toutes les heures, à la 10e minute) et résolution des
+  duels (toutes les 15 minutes).
+- Une fois les migrations passées, activer les succès sociaux (semés inactifs) et notifier leurs attributions :
+  `php bin/console community:achievements:recompute --notify --activate=friends_played_5,same_partner_3,weekly_duel_won`
+
 ## [0.38.0] - 2026-10-08
 
 Le nom du slot passe en tête des infos de connexion, « Mes parties » s'atteint depuis le menu du compte, et deux

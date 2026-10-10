@@ -11,9 +11,11 @@ use App\Sessions\Application\Service\SlotBlockTracker;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Entity\SlotBlockEpisode;
+use App\Sessions\Domain\Entity\SlotBlockRelease;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Sessions\Domain\Repository\SlotBlockEpisodeRepositoryInterface;
+use App\Sessions\Domain\Repository\SlotBlockReleaseRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
@@ -26,12 +28,14 @@ use Symfony\Component\Messenger\MessageBusInterface;
 final class SlotBlockTrackerTest extends TestCase
 {
     private InMemorySlotBlockEpisodes $episodes;
+    private InMemorySlotBlockReleases $releases;
     private SpySlotBlockBus $bus;
     private MockClock $clock;
 
     protected function setUp(): void
     {
         $this->episodes = new InMemorySlotBlockEpisodes();
+        $this->releases = new InMemorySlotBlockReleases();
         $this->bus = new SpySlotBlockBus();
         $this->clock = new MockClock('2026-09-29T10:00:00+00:00');
     }
@@ -56,6 +60,11 @@ final class SlotBlockTrackerTest extends TestCase
         self::assertSame('session-1', $job->sessionId);
         self::assertSame('Alice_HK1', $job->slotName);
         self::assertSame(4, $job->reachableNow);
+        self::assertSame('1', $job->slotIndex, 'story 40.5: the slot number, for its progression page');
+        self::assertCount(1, $this->releases->all, 'story 43.10: the block left is kept for the recap');
+        self::assertSame('Alice_HK1', $this->releases->all[0]->getSlotName());
+        self::assertEquals(new \DateTimeImmutable('2026-09-29T10:00:00+00:00'), $this->releases->all[0]->getBlockedSince());
+        self::assertEquals(new \DateTimeImmutable('2026-09-29T10:02:30+00:00'), $this->releases->all[0]->getReleasedAt());
 
         $tracker->track('session-1', $this->payload(reachableNow: 4));
         self::assertCount(1, $this->bus->messages, 'a duplicate push does not notify twice');
@@ -179,7 +188,7 @@ final class SlotBlockTrackerTest extends TestCase
         $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
-        return new SlotBlockTracker($runs, $slotRepository, $sessions, $this->episodes, $this->bus, $this->clock);
+        return new SlotBlockTracker($runs, $slotRepository, $sessions, $this->episodes, $this->releases, $this->bus, $this->clock);
     }
 
     /** A session that ran, then stopped at that instant. */
@@ -242,6 +251,17 @@ final class InMemorySlotBlockEpisodes implements SlotBlockEpisodeRepositoryInter
 
     public function flush(): void
     {
+    }
+}
+
+final class InMemorySlotBlockReleases implements SlotBlockReleaseRepositoryInterface
+{
+    /** @var list<SlotBlockRelease> */
+    public array $all = [];
+
+    public function add(SlotBlockRelease $release): void
+    {
+        $this->all[] = $release;
     }
 }
 

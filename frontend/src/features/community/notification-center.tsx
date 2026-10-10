@@ -13,7 +13,7 @@ import {
   markNotificationRead,
   type NotificationItem,
 } from "./notifications-api";
-import { sectionsOf, timeLabel } from "./notification-content";
+import { friendActivityTitle, sectionsOf, timeLabel, weeklyDuelResultTitle } from "./notification-content";
 import { NotificationRow } from "./notification-row";
 
 const QUERY_KEY = ["community-notifications"] as const;
@@ -186,6 +186,39 @@ export function messageFor(item: NotificationItem): string {
       return `${actorName(item)} t'a envoyé une demande d'ami`;
     case "friend_request_accepted":
       return `${actorName(item)} a accepté ta demande d'ami`;
+    case "run_invitation":
+      // Story 43.1: answered on « Mes parties ».
+      return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
+        ? `${actorName(item)} t'invite dans « ${item.data.runTitle} »`
+        : `${actorName(item)} t'invite dans sa partie`;
+    case "run_joined":
+      // Story 43.14: a friend joined the member's run opened to friends.
+      return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
+        ? `${actorName(item)} a rejoint « ${item.data.runTitle} »`
+        : `${actorName(item)} a rejoint ta partie`;
+    case "weekly_duel":
+      // Story 43.15: answered on the weekly run's page or on « Mon compte ».
+      return hasStringProp(item.data, "gameName") && item.data.gameName !== ""
+        ? `${actorName(item)} te défie sur l'hebdo ${item.data.gameName}`
+        : `${actorName(item)} te défie sur l'hebdo`;
+    case "run_listing_expired":
+      // Story 43.17: the run went back to invitations only.
+      return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
+        ? `Ton annonce pour « ${item.data.runTitle} » a expiré`
+        : "Ton annonce a expiré";
+    case "weekly_duel_result":
+      return weeklyDuelResultTitle(item.data).map((segment) => segment.text).join("");
+    case "run_nudge":
+      // Story 43.12: a co-player waits for the member's next session.
+      return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
+        ? `${actorName(item)} attend ta prochaine session dans « ${item.data.runTitle} »`
+        : `${actorName(item)} attend ta prochaine session`;
+    case "friend_activity":
+      // Story 43.11b: a starred friend registered, launched a session or reached a goal.
+      return friendActivityTitle(item.data, actorName(item))
+        // The name comes first; any other name in bold is a title, quoted.
+        .map((segment, index) => (index > 0 && segment.strong === true ? `« ${segment.text} »` : segment.text))
+        .join("");
     case "comment_received":
       return `${actorName(item)} a commenté ton profil`;
     case "kudos_received":
@@ -310,8 +343,33 @@ export function hrefFor(item: NotificationItem): string {
   if (item.type === "generation_failed") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte";
   }
-  if (item.type === "slot_unblocked") {
+  if (item.type === "weekly_duel") {
+    // Story 43.19: « Mon compte » lists the open duels, with the answer buttons.
+    return "/compte";
+  }
+  if (item.type === "weekly_duel_result") {
+    return "/runs-hebdo";
+  }
+  if (item.type === "run_invitation") {
+    return "/compte/parties";
+  }
+  if (item.type === "run_nudge" || item.type === "run_joined" || item.type === "run_listing_expired") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte/parties";
+  }
+  if (item.type === "friend_activity") {
+    // Story 43.11b: the event or the run when the member may open it, else the friend's profile.
+    if (hasStringProp(item.data, "eventId") && item.data.eventId !== "") return `/evenements/${item.data.eventId}`;
+    if (hasStringProp(item.data, "runId") && item.data.runId !== "") return `/runs/${item.data.runId}`;
+    return item.actor !== null && item.actor !== undefined ? `/joueurs/${item.actor.slug}` : "/compte/amis";
+  }
+  if (item.type === "slot_unblocked") {
+    if (!hasStringProp(item.data, "runId") || item.data.runId === "") {
+      return "/compte/parties";
+    }
+    // Story 40.5: the progression of the unblocked slot; a notice from before it only knows the run.
+    return hasStringProp(item.data, "slotIndex") && item.data.slotIndex !== ""
+      ? `/runs/${item.data.runId}/progression/${item.data.slotIndex}`
+      : `/runs/${item.data.runId}`;
   }
   if (item.type === "slot_yaml_needs_review") {
     // Where the slot is marked "à revoir" (story 38.7): the run game selection, or the registration

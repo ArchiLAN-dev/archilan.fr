@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Domain\Entity;
 
+use App\Community\Domain\Enum\PresenceVisibility;
 use App\Community\Domain\ValueObject\Audience;
 use App\Community\Domain\ValueObject\AvatarFrame;
 use App\Community\Domain\ValueObject\BannerOverlay;
@@ -108,6 +109,9 @@ final class CommunityProfile
         /** The colour bought for the name (story 41.23), shown where no rarity colour applies; null for none. */
         #[ORM\Column(name: 'name_color', type: 'string', length: 16, nullable: true)]
         private ?string $nameColor = null,
+        /** Who sees that the member is playing right now (story 43.6). */
+        #[ORM\Column(name: 'presence_visibility', type: 'string', length: 16, enumType: PresenceVisibility::class, options: ['default' => 'everyone'])]
+        private PresenceVisibility $presenceVisibility = PresenceVisibility::DEFAULT,
     ) {
     }
 
@@ -267,6 +271,17 @@ final class CommunityProfile
     {
         $this->nameColor = $color;
         $this->updatedAt = $now;
+    }
+
+    public function choosePresenceVisibility(PresenceVisibility $visibility, \DateTimeImmutable $now): void
+    {
+        $this->presenceVisibility = $visibility;
+        $this->updatedAt = $now;
+    }
+
+    public function getPresenceVisibility(): PresenceVisibility
+    {
+        return $this->presenceVisibility;
     }
 
     public function getNameColor(): ?string

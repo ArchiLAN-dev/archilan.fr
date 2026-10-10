@@ -68,6 +68,21 @@ final readonly class DoctrineFriendshipRepository implements FriendshipRepositor
         $this->entityManager->flush();
     }
 
+    public function beginTransaction(): void
+    {
+        $this->entityManager->getConnection()->beginTransaction();
+    }
+
+    public function commit(): void
+    {
+        $this->entityManager->getConnection()->commit();
+    }
+
+    public function rollBack(): void
+    {
+        $this->entityManager->getConnection()->rollBack();
+    }
+
     /**
      * @return list<Friendship>
      */

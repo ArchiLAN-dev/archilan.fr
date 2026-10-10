@@ -33,7 +33,7 @@ final class NotifySlotUnblockedJobHandlerTest extends TestCase
             SlotCoPlayer::create('co-2', 'game-slot-1', 'user-1', $now),
         ]);
 
-        $handler(new NotifySlotUnblockedJob('session-1', 'Alice_HK1', 3));
+        $handler(new NotifySlotUnblockedJob('session-1', 'Alice_HK1', 3, '4'));
 
         self::assertSame(['user-1', 'user-2'], array_column($this->notifier->calls, 'recipientId'));
         $call = $this->notifier->calls[0];
@@ -42,6 +42,19 @@ final class NotifySlotUnblockedJobHandlerTest extends TestCase
         self::assertSame('Ma run', $call['payload']['runTitle']);
         self::assertSame('Alice_HK1', $call['payload']['slotName']);
         self::assertSame(3, $call['payload']['reachableNow']);
+        self::assertSame('4', $call['payload']['slotIndex']);
+    }
+
+    public function testAJobQueuedBeforeTheSlotNumberLeavesItOut(): void
+    {
+        // Story 40.5: a job queued before the deploy has no slot number; the notice then only knows the run.
+        $run = Run::create('owner-1', 'Ma run', new \DateTimeImmutable('2026-09-29T09:00:00+00:00'));
+        $slot = SessionSlot::create('slot-1', 'session-1', 'user-1', 'game-1', 'Alice_HK1', 0, 'game-slot-1');
+
+        ($this->handler($run, $slot, []))(new NotifySlotUnblockedJob('session-1', 'Alice_HK1', 3));
+
+        self::assertCount(1, $this->notifier->calls);
+        self::assertArrayNotHasKey('slotIndex', $this->notifier->calls[0]['payload']);
     }
 
     public function testNoRunOrNoSlotNotifiesNobody(): void

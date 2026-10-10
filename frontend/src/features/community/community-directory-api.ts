@@ -32,7 +32,7 @@ export type DirectoryRow = {
 export type DirectoryResult = { rows: DirectoryRow[]; total: number; page: number; perPage: number };
 
 /** The three controls compose server-side: the term narrows, the filter narrows further, the sort orders. */
-export type DirectoryParams = { sort: DirectorySort; search: string; friendsOnly: boolean; page: number };
+export type DirectoryParams = { sort: DirectorySort; search: string; friendsOnly: boolean; page: number; group?: string | null };
 
 function isRow(v: unknown): v is DirectoryRow {
   return (
@@ -54,6 +54,8 @@ function directoryUrl(params: DirectoryParams): string {
   const query = new URLSearchParams({ sort: params.sort, page: String(params.page) });
   if (params.search.trim() !== "") query.set("search", params.search.trim());
   if (params.friendsOnly) query.set("friendsOnly", "1");
+  // Story 43.13: one of the member's groups, among their friends.
+  if (params.friendsOnly && params.group !== undefined && params.group !== null) query.set("group", params.group);
 
   return `${env.apiBaseUrl}/community/directory?${query.toString()}`;
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Query;
 
+use App\Community\Domain\Repository\FriendFavoriteRepositoryInterface;
+use App\Community\Domain\Repository\FriendGroupRepositoryInterface;
 use App\Community\Domain\Repository\FriendshipRepositoryInterface;
 use App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface;
 use App\Streaming\Application\Support\LiveTwitchLogins;
@@ -40,6 +42,8 @@ final readonly class CommunityDirectory
         private LiveTwitchLogins $liveLogins,
         private FriendshipRepositoryInterface $friendships,
         private CommunityLevelQuery $levels,
+        private FriendFavoriteRepositoryInterface $favorites,
+        private FriendGroupRepositoryInterface $groups,
     ) {
     }
 
@@ -56,6 +60,7 @@ final readonly class CommunityDirectory
         ?string $viewerId,
         int $page,
         int $perPage,
+        ?string $groupId = null,
     ): array {
         $perPage = $perPage <= 0 ? self::DEFAULT_PER_PAGE : min($perPage, self::MAX_PER_PAGE);
         $page = max(1, $page);
@@ -70,6 +75,10 @@ final readonly class CommunityDirectory
             $candidateIds = null === $viewerId
                 ? []
                 : array_values(array_intersect($candidateIds, $this->friendIds($viewerId)));
+            if (null !== $groupId && null !== $viewerId) {
+                // Story 43.13: one of the viewer's groups; another member's group is just empty.
+                $candidateIds = array_values(array_intersect($candidateIds, $this->groups->membersByGroup($viewerId)[$groupId] ?? []));
+            }
         }
 
         if ([] === $candidateIds) {
@@ -87,10 +96,14 @@ final readonly class CommunityDirectory
         // deux fois ou disparaître entre deux.
         $liveLoginByUser = $this->liveLoginByUser($candidateIds);
         $sortedIds = self::liveFirst($sortedIds, $liveLoginByUser);
+        if ($friendsOnly && null !== $viewerId) {
+            // Story 43.11a: among their friends, the viewer's starred ones come first, the order kept inside.
+            $sortedIds = self::favoritesFirst($sortedIds, $this->favorites->favoriteIds($viewerId));
+        }
 
         $pageIds = array_slice($sortedIds, $offset, $perPage);
 
-        return $this->page($this->enrich($pageIds, null, $levels, $liveLoginByUser), count($sortedIds), $page, $perPage);
+        return $this->page($this->enrich($pageIds, $viewerId, null, $levels, $liveLoginByUser), count($sortedIds), $page, $perPage);
     }
 
     /**
@@ -148,6 +161,31 @@ final readonly class CommunityDirectory
         }
 
         return [...$live, ...$rest];
+    }
+
+    /**
+     * @param list<string>        $sortedIds
+     * @param array<string, true> $favoriteIds
+     *
+     * @return list<string>
+     */
+    private static function favoritesFirst(array $sortedIds, array $favoriteIds): array
+    {
+        if ([] === $favoriteIds) {
+            return $sortedIds;
+        }
+
+        $starred = [];
+        $rest = [];
+        foreach ($sortedIds as $userId) {
+            if (isset($favoriteIds[$userId])) {
+                $starred[] = $userId;
+            } else {
+                $rest[] = $userId;
+            }
+        }
+
+        return [...$starred, ...$rest];
     }
 
     /**
@@ -216,7 +254,7 @@ final readonly class CommunityDirectory
      *
      * @return list<array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, title: array{label: string, rarity: string, icon: string|null, access: string}|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool, liveTwitchLogin: string|null}>
      */
-    private function enrich(array $userIds, ?array $cards = null, ?array $levels = null, array $liveLoginByUser = []): array
+    private function enrich(array $userIds, ?string $viewerId, ?array $cards = null, ?array $levels = null, array $liveLoginByUser = []): array
     {
         if ([] === $userIds) {
             return [];
@@ -224,7 +262,7 @@ final readonly class CommunityDirectory
 
         $cards ??= $this->cards->cards($userIds);
         $levels ??= $this->levels->levelForMany($userIds);
-        $playing = $this->presence->playing($userIds);
+        $playing = $this->presence->playing($userIds, $viewerId);
 
         $rows = [];
         foreach ($userIds as $userId) {

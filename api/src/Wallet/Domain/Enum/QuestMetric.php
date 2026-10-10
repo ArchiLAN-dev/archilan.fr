@@ -22,7 +22,7 @@ enum QuestMetric: string
         return match ($this) {
             self::Goals => 'Goals atteints',
             self::Checks => 'Checks faits',
-            self::Weeklies => 'Hebdos jouées',
+            self::Weeklies => 'Hebdos terminées',
             self::NewPartners => 'Nouveaux partenaires de jeu',
             self::Sessions => 'Parties jouées',
             self::DistinctGames => 'Jeux différents joués',

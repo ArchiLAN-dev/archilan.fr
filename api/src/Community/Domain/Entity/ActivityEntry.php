@@ -20,6 +20,8 @@ final class ActivityEntry
 {
     public const string TYPE_RUN_FINISHED = 'run_finished';
     public const string TYPE_FRIENDSHIP = 'friendship';
+    /** Story 43.15: the actor won a weekly duel between friends. */
+    public const string TYPE_WEEKLY_DUEL = 'weekly_duel';
 
     /**
      * @param array<string, mixed> $payload

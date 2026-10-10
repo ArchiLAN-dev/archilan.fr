@@ -61,6 +61,64 @@ const icon = (name: NotificationIcon): NotificationVisual => ({ kind: "icon", ic
 const strong = (value: string): Segment => ({ text: value, strong: true });
 
 /**
+ * Story 43.11b: what a starred friend did. `others`: more starred friends launched the same session or reached a goal
+ * in it together, gathered in one alert.
+ */
+/** « 12 min », « 1 h 05 », « 40 s »: a gap between two times (story 43.15). */
+export function formatMargin(seconds: number): string {
+  if (seconds < 60) return `${seconds} s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.round((seconds % 3600) / 60);
+  return m === 0 ? `${h} h` : `${h} h ${String(m).padStart(2, "0")}`;
+}
+
+/** Story 43.15: the result of a weekly duel, as the member reads it. */
+export function weeklyDuelResultTitle(data: Record<string, unknown> | null | undefined): Segment[] {
+  const opponent = text(data, "opponentName");
+  const margin = data !== null && data !== undefined && typeof data.marginSeconds === "number" ? data.marginSeconds : null;
+  const game = text(data, "gameName");
+  const onGame = game !== "" ? [{ text: " sur " }, strong(game)] : [];
+  switch (text(data, "outcome")) {
+    case "won":
+      return opponent !== "" && margin !== null
+        ? [{ text: "Tu bats " }, strong(opponent), { text: ` de ${formatMargin(margin)}` }, ...onGame]
+        : [{ text: "Tu remportes ton duel hebdo" }, ...onGame];
+    case "tie":
+      // Story 43.18: the best times alike at the goal crown nobody.
+      return [{ text: "Égalité avec " }, strong(opponent !== "" ? opponent : "un ami"), { text: " pour ton duel hebdo" }, ...onGame];
+    case "lost":
+      return [
+        strong(opponent !== "" ? opponent : "Un ami"),
+        { text: " remporte le duel hebdo" },
+        ...onGame,
+        ...(margin !== null ? [{ text: ` (${formatMargin(margin)} devant toi)` }] : []),
+      ];
+    default:
+      return [{ text: "Personne n'a atteint l'objectif : pas de gagnant pour ce duel" }, ...onGame];
+  }
+}
+
+export function friendActivityTitle(data: Record<string, unknown> | null | undefined, actor: string): Segment[] {
+  const title = text(data, "title");
+  const others = data && hasNumberProp(data, "others") ? data.others : 0;
+  const subject: Segment[] = others > 0 ? [strong(actor), { text: ` et ${others} ${others > 1 ? "autres favoris" : "autre favori"}` }] : [strong(actor)];
+  const plural = others > 0;
+  switch (text(data, "kind")) {
+    case "registered":
+      return [...subject, ...(title !== "" ? [{ text: " s'inscrit à " }, strong(title)] : [{ text: " s'inscrit à un événement" }])];
+    case "session_started":
+      return [...subject, ...(title !== "" ? [{ text: plural ? " lancent " : " lance " }, strong(title)] : [{ text: plural ? " lancent une partie" : " lance une partie" }])];
+    default:
+      return [
+        ...subject,
+        { text: plural ? " ont atteint leur objectif" : " a atteint son objectif" },
+        ...(title !== "" ? [{ text: " dans " }, strong(title)] : []),
+      ];
+  }
+}
+
+/**
  * What the bell shows for one notification (story 30.48). `fallback` is the plain sentence of `messageFor`, kept for
  * a type this function does not know.
  */
@@ -73,6 +131,51 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
     }
     case "friend_request_accepted":
       return base("social", "Ami", { kind: "actors" }, [strong(actorName(item)), { text: " a accepté ta demande d'ami" }]);
+    case "run_invitation": {
+      // Story 43.1: a friend invites the member into a personal run.
+      const run = text(data, "runTitle");
+      return base("run", "Invitation", { kind: "actors" }, [
+        strong(actorName(item)),
+        ...(run !== "" ? [{ text: " t'invite dans " }, strong(run)] : [{ text: " t'invite dans sa partie" }]),
+      ]);
+    }
+    case "run_joined": {
+      // Story 43.14: a friend joined the member's run opened to friends.
+      const run = text(data, "runTitle");
+      return base("run", "Partie", { kind: "actors" }, [
+        strong(actorName(item)),
+        ...(run !== "" ? [{ text: " a rejoint " }, strong(run)] : [{ text: " a rejoint ta partie" }]),
+      ]);
+    }
+    case "weekly_duel": {
+      // Story 43.15: a friend challenges the member on a weekly run.
+      const game = text(data, "gameName");
+      return base("run", "Duel", { kind: "actors" }, [
+        strong(actorName(item)),
+        ...(game !== "" ? [{ text: " te défie sur l'hebdo " }, strong(game)] : [{ text: " te défie sur l'hebdo" }]),
+      ]);
+    }
+    case "run_listing_expired": {
+      // Story 43.17: nobody joined the listing for 14 days.
+      const run = text(data, "runTitle");
+      return base("run", "Annonce", icon("bell"), [
+        { text: "Ton annonce pour " },
+        strong(run !== "" ? run : "ta partie"),
+        { text: " a expiré : personne ne l'a rejointe en 14 jours" },
+      ]);
+    }
+    case "weekly_duel_result":
+      return base("run", "Duel", icon("trophy"), weeklyDuelResultTitle(data));
+    case "run_nudge": {
+      // Story 43.12: a co-player waits for the member's next session.
+      const run = text(data, "runTitle");
+      return base("run", "Relance", { kind: "actors" }, [
+        strong(actorName(item)),
+        ...(run !== "" ? [{ text: " attend ta prochaine session dans " }, strong(run)] : [{ text: " attend ta prochaine session" }]),
+      ]);
+    }
+    case "friend_activity":
+      return base("social", "Favori", { kind: "actors" }, friendActivityTitle(data, actorName(item)));
     case "comment_received":
       return base("social", "Commentaire", { kind: "actors" }, [strong(actorName(item)), { text: " a commenté ton profil" }]);
     case "kudos_received":

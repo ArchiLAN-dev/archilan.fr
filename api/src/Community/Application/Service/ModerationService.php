@@ -8,6 +8,7 @@ use App\Community\Application\Query\AccountReportScoreQueryInterface;
 use App\Community\Application\Query\AdminReportsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Query\ReportQueryFilters;
+use App\Community\Application\Query\RunListingReportQueryInterface;
 use App\Community\Domain\Entity\ContentReport;
 use App\Community\Domain\Entity\ProfileComment;
 use App\Community\Domain\Repository\ContentReportRepositoryInterface;
@@ -29,6 +30,7 @@ final readonly class ModerationService
         private CommunityUserDirectoryQueryInterface $directory,
         private AdminReportsQueryInterface $reportsQuery,
         private AccountReportScoreQueryInterface $scores,
+        private RunListingReportQueryInterface $runListings,
         private ClockInterface $clock,
         private int $escalationThreshold,
     ) {
@@ -44,7 +46,8 @@ final readonly class ModerationService
      *         category: string, problem: string, note: string|null, severity: int, uncategorized: bool,
      *         reporter: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null,
      *         comment: array{id: string, body: string, hidden: bool, createdAt: string, author: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null, profileSlug: string|null}|null,
-     *         profile: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null
+     *         profile: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null,
+     *         runListing: array{runId: string, title: string, pitch: string|null, changedSince: bool, owner: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null}|null
      *     }>
      * }
      */
@@ -116,7 +119,8 @@ final readonly class ModerationService
      *     category: string, problem: string, note: string|null, severity: int, uncategorized: bool,
      *     reporter: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null,
      *     comment: array{id: string, body: string, hidden: bool, createdAt: string, author: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null, profileSlug: string|null}|null,
-     *     profile: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null
+     *     profile: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null,
+     *     runListing: array{runId: string, title: string, pitch: string|null, changedSince: bool, owner: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null}|null
      * }>
      */
     private function assemble(array $reports): array
@@ -129,6 +133,14 @@ final readonly class ModerationService
             }
         }
         $commentsById = $this->comments->findByIds(array_values(array_unique($commentIds)));
+        // Story 43.17: the run listings reported, as they stand now.
+        $listingIds = [];
+        foreach ($reports as $report) {
+            if (ContentReport::TARGET_RUN_LISTING === $report->getTargetType()) {
+                $listingIds[] = $report->getTargetId();
+            }
+        }
+        $listingsById = $this->runListings->byIds(array_values(array_unique($listingIds)));
 
         $userIds = [];
         foreach ($reports as $report) {
@@ -136,6 +148,9 @@ final readonly class ModerationService
             if (ContentReport::TARGET_PROFILE === $report->getTargetType()) {
                 $userIds[] = $report->getTargetId();
             }
+        }
+        foreach ($listingsById as $listing) {
+            $userIds[] = $listing['ownerId'];
         }
         foreach ($commentsById as $comment) {
             $userIds[] = $comment->getAuthorId();
@@ -171,6 +186,7 @@ final readonly class ModerationService
                 'profile' => ContentReport::TARGET_PROFILE === $report->getTargetType()
                     ? $this->card($cards, $report->getTargetId())
                     : null,
+                'runListing' => $this->runListing($listingsById, $cards, $report),
             ];
         }
 
@@ -198,6 +214,32 @@ final readonly class ModerationService
         }
 
         return $ordered;
+    }
+
+    /**
+     * @param array<string, array{runId: string, title: string, pitch: string|null, ownerId: string}>                                                                                                                                                      $listings
+     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}> $cards
+     *
+     * @return array{runId: string, title: string, pitch: string|null, changedSince: bool, owner: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null}|null
+     */
+    private function runListing(array $listings, array $cards, ContentReport $report): ?array
+    {
+        $listing = ContentReport::TARGET_RUN_LISTING === $report->getTargetType() ? ($listings[$report->getTargetId()] ?? null) : null;
+
+        if (null === $listing) {
+            return null;
+        }
+        // Story 43.18: what was reported, rather than what the owner left of it since.
+        $snapshot = $report->getTargetSnapshot();
+        $pitch = null !== $snapshot && \array_key_exists('pitch', $snapshot) ? $snapshot['pitch'] : $listing['pitch'];
+
+        return [
+            'runId' => $listing['runId'],
+            'title' => $snapshot['title'] ?? $listing['title'],
+            'pitch' => $pitch,
+            'changedSince' => null !== $snapshot && $pitch !== $listing['pitch'],
+            'owner' => $this->card($cards, $listing['ownerId']),
+        ];
     }
 
     public function hideComment(string $commentId): string

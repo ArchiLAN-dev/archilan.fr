@@ -219,18 +219,19 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         );
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * Story 41.33: a weekly attempt counts once finished, in the week its goal is reached - like a goal, so an
+     * attempt launched the week before counts in the week it ends, and never twice.
+     *
+     * @return list<array<string, mixed>>
+     */
     private function weeklies(QuestWeek $week): array
     {
-        $weekly = self::weeklyChecks();
-
         return $this->connection->fetchAllAssociative(
-            "SELECT wc.uid, COUNT(*) AS n FROM ({$weekly}) wc
-              WHERE wc.launched_at >= :weekStart AND wc.launched_at < :weekEnd
-                AND (wc.n > 0 OR wc.goal_reached_at IS NOT NULL)
-              GROUP BY wc.uid",
-            DbalSlotCheckSource::params() + $this->bounds($week) + ['attemptsFrom' => $this->attemptsFrom($week->start)],
-            DbalSlotCheckSource::types(),
+            'SELECT user_id AS uid, COUNT(*) AS n FROM weekly_entries
+              WHERE goal_reached_at >= :weekStart AND goal_reached_at < :weekEnd
+              GROUP BY user_id',
+            $this->bounds($week),
         );
     }
 

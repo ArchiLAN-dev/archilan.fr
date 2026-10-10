@@ -259,3 +259,39 @@ export function isGoalReachedEvent(v: unknown): v is GoalReachedEvent {
   if (!("entryId" in v) || typeof v.entryId !== "string") return false;
   return true;
 }
+
+/** Story 43.8: the viewer or a friend in a weekly run, at their best attempt. */
+export type WeeklyRunFriend = {
+  userId: string;
+  slug: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  avatarAnimatedUrl?: string | null;
+  avatarFrame?: string | null;
+  status: "goal" | "launched" | "registered";
+  completionTimeSeconds: number | null;
+  isViewer: boolean;
+};
+
+function isWeeklyRunFriend(v: unknown): v is WeeklyRunFriend {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("userId" in v) || typeof v.userId !== "string" || !("slug" in v) || typeof v.slug !== "string") return false;
+  if (!("displayName" in v) || (v.displayName !== null && typeof v.displayName !== "string")) return false;
+  if (!("avatarUrl" in v) || (v.avatarUrl !== null && typeof v.avatarUrl !== "string")) return false;
+  if (!("status" in v) || (v.status !== "goal" && v.status !== "launched" && v.status !== "registered")) return false;
+  if (!("completionTimeSeconds" in v) || (v.completionTimeSeconds !== null && typeof v.completionTimeSeconds !== "number")) return false;
+  return "isViewer" in v && typeof v.isViewer === "boolean";
+}
+
+/** « Tes amis cette semaine » (story 43.8). Null on failure. */
+export async function fetchWeeklyRunFriends(weeklyRunId: string): Promise<WeeklyRunFriend[] | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/weekly-runs/${encodeURIComponent(weeklyRunId)}/friends`);
+    if (!res.ok) return null;
+    const json: unknown = await res.json();
+    const data = typeof json === "object" && json !== null && "data" in json ? json.data : null;
+    return Array.isArray(data) && data.every(isWeeklyRunFriend) ? data : null;
+  } catch {
+    return null;
+  }
+}

@@ -11,6 +11,7 @@ import type { EventAttendanceMode, EventStatus, PublicEvent } from "@/features/e
 import { getPublicEvent } from "@/features/events/public-events-api";
 import { EventCheckout } from "@/features/events/event-checkout";
 import { EventRegistrationCta } from "@/features/events/event-registration-cta";
+import { EventFriendsBadge } from "@/features/community/event-friends-badge";
 import { fetchDiscordStats } from "@/features/discord/discord-api";
 import { DiscordNudge } from "@/features/discord/discord-promo";
 import { LiveSeatCounter } from "@/features/events/live-seat-counter";
@@ -183,6 +184,9 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           </div>
 
           <Markdown className="text-lg leading-8 text-muted-foreground">{event.description}</Markdown>
+
+          {/* Story 43.4: who among my friends is coming, client-side. */}
+          {event.status !== "completed" ? <EventFriendsBadge eventId={event.id} /> : null}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {primaryCta ? <DetailCta cta={primaryCta} /> : null}

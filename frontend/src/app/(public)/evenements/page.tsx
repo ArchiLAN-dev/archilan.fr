@@ -12,6 +12,7 @@ export const metadata = buildPageMetadata({
 
 export default async function EventsPage() {
   const { past, upcoming } = await getPublicEvents();
+  const upcomingIds = upcoming.map((event) => event.id);
 
   return (
     <div className="mx-auto w-full max-w-content grid gap-16">
@@ -42,7 +43,7 @@ export default async function EventsPage() {
         {upcoming.length > 0 ? (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {upcoming.map((event) => (
-              <EventCard event={event} key={event.id} />
+              <EventCard event={event} friendEventIds={upcomingIds} key={event.id} />
             ))}
           </div>
         ) : (

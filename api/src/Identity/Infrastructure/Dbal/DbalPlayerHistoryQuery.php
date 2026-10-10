@@ -40,6 +40,7 @@ final readonly class DbalPlayerHistoryQuery implements PlayerHistoryQueryInterfa
                 'slot.items_received',
                 'slot.goal_reached_at',
                 'slot.was_released',
+                'e.is_public AS is_public',
             )
             ->from(self::SLOT_TABLE, 'slot')
             ->join('slot', self::REGISTRATION_TABLE, 'reg', $eventQb->expr()->eq('reg.id', 'slot.registration_id'))
@@ -64,6 +65,8 @@ final readonly class DbalPlayerHistoryQuery implements PlayerHistoryQueryInterfa
                 'slot.items_received',
                 'slot.goal_reached_at',
                 'slot.was_released',
+                // Story 32.22: a private run shows on the profile only once its recap is published.
+                'pr.recap_public AS is_public',
             )
             ->from(self::SLOT_TABLE, 'slot')
             ->join('slot', self::SESSION_TABLE, 's', $prQb->expr()->eq('s.id', 'slot.session_id'))
@@ -92,6 +95,7 @@ final readonly class DbalPlayerHistoryQuery implements PlayerHistoryQueryInterfa
                 'we.goal_reached_at AS goal_reached_at',
                 '0 AS was_released',
                 '1 AS is_weekly',
+                'TRUE AS is_public',
             )
             ->from(self::WEEKLY_ENTRY_TABLE, 'we')
             ->join('we', self::WEEKLY_RUN_TABLE, 'wr', $weeklyQb->expr()->eq('wr.id', 'we.weekly_run_id'))

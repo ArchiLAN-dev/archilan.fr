@@ -8,7 +8,7 @@ import { isRuleGroup, type AchievementFormOptions, type RuleCondition, type Rule
  * icon), the short chip text, the rule in plain French, and moving a condition or a group inside the tree.
  */
 
-export type FactFamily = "parties" | "progression" | "objectifs" | "quetes" | "recaps" | "autres";
+export type FactFamily = "parties" | "progression" | "objectifs" | "quetes" | "recaps" | "ensemble" | "autres";
 
 export const FAMILY_LABELS: Record<FactFamily, string> = {
   parties: "Parties",
@@ -16,10 +16,11 @@ export const FAMILY_LABELS: Record<FactFamily, string> = {
   objectifs: "Objectifs et événements",
   quetes: "Quêtes",
   recaps: "Récaps",
+  ensemble: "Jouer ensemble",
   autres: "Autres",
 };
 
-export const FAMILY_ORDER: readonly FactFamily[] = ["parties", "progression", "objectifs", "quetes", "recaps", "autres"];
+export const FAMILY_ORDER: readonly FactFamily[] = ["parties", "progression", "objectifs", "quetes", "recaps", "ensemble", "autres"];
 
 const FAMILY_OF_FACT: Record<string, FactFamily> = {
   runs: "parties",
@@ -32,6 +33,11 @@ const FAMILY_OF_FACT: Record<string, FactFamily> = {
   questsCompleted: "quetes",
   questChestStreak: "quetes",
   superlatives: "recaps",
+  // Story 43.16: playing with others.
+  distinctCoplayers: "ensemble",
+  distinctFriendsPlayedWith: "ensemble",
+  maxFinishedWithSamePerson: "ensemble",
+  weeklyDuelsWon: "ensemble",
 };
 
 export function familyOf(fact: string): FactFamily {

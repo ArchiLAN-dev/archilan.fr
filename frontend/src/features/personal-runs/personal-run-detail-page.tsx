@@ -35,7 +35,11 @@ import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
 import { ConnectionDetails } from "./connection-details";
+import { InviteFriendsButton, RunInvitationsList } from "./run-invitations";
+import { RunOpennessSetting } from "./friends-open-runs";
 import { InviteLinkPanel } from "./invite-link-panel";
+import { RunNudgeButton, RunNudgeMute, useRunNudges } from "./run-nudges";
+import type { RunNudges } from "./run-nudges-api";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { LiveRunTimeline } from "@/features/recap/live-run-timeline";
 import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
@@ -106,7 +110,18 @@ function MyGamesCard({ run, mySlotCount }: { run: PersonalRun; mySlotCount: numb
 
 // ─── Participant list ─────────────────────────────────────────────────────────
 
-function ParticipantList({ runId, participants }: { runId: string; participants: PersonalRunParticipant[] }) {
+function ParticipantList({
+  runId,
+  participants,
+  nudges = null,
+  myUserId = null,
+}: {
+  runId: string;
+  participants: PersonalRunParticipant[];
+  // Story 43.12: who the caller may nudge, while the run is being played.
+  nudges?: RunNudges | null;
+  myUserId?: string | null;
+}) {
   if (participants.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">Aucun participant pour l&apos;instant.</p>
@@ -166,6 +181,9 @@ function ParticipantList({ runId, participants }: { runId: string; participants:
             ) : (
               <span className="shrink-0 text-xs text-muted-foreground/60">Sans jeux</span>
             )}
+            {nudges !== null ? (
+              <RunNudgeButton isMe={p.userId === myUserId} player={nudges.players.find((n) => n.userId === p.userId)} runId={runId} />
+            ) : null}
           </li>
         );
       })}
@@ -590,6 +608,17 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
       ? { kind: "loading" }
       : runResult ?? { kind: "error", message: "Impossible de joindre le serveur." };
 
+  // Story 43.12: nudges, on the participants tab of a run being played, for someone in it.
+  const nudgeableRun = state.kind === "ready" ? state.run : null;
+  const nudgesQuery = useRunNudges(
+    runId,
+    tab === "participants"
+      && nudgeableRun !== null
+      && (nudgeableRun.status === "active" || nudgeableRun.status === "idle")
+      && (nudgeableRun.isOwner || nudgeableRun.participants.some((p) => p.userId === user?.id)),
+  );
+  const nudges = nudgesQuery.data ?? null;
+
   if (state.kind === "loading") {
     return (
       <div className="mx-auto max-w-2xl">
@@ -760,6 +789,24 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 }}
                 runId={run.id}
               />
+              {/* Story 43.1: friends invited by name, next to the link. */}
+              <div className="mt-3">
+                <InviteFriendsButton participantIds={run.participants.map((p) => p.userId)} runId={run.id} />
+              </div>
+              {/* Story 43.14: a draft opened to all the owner's friends, who join it themselves. */}
+              {run.status === "draft" ? (
+                <div className="mt-3">
+                  <RunOpennessSetting
+                    // Story 43.19: starts over from the server when the openness changes there (an expired listing).
+                    key={`${run.openness ?? "invite"}-${run.listedAt ?? ""}`}
+                    openness={run.openness ?? "invite"}
+                    pitch={run.pitch ?? null}
+                    plannedFor={run.plannedFor ?? null}
+                    runId={run.id}
+                    seatsWanted={run.seatsWanted ?? null}
+                  />
+                </div>
+              ) : null}
             </div>
           )}
         </header>
@@ -1222,9 +1269,13 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 </span>
               )}
             </h2>
-            <ParticipantList participants={run.participants} runId={run.id} />
+            <ParticipantList myUserId={myUserId} nudges={nudges} participants={run.participants} runId={run.id} />
+            {nudges !== null && myUserId !== null && nudges.players.some((n) => n.userId === myUserId) ? (
+              <RunNudgeMute nudges={nudges} runId={run.id} />
+            ) : null}
           </section>
         )}
+        {activeTab === "participants" && run.isOwner && <RunInvitationsList runId={run.id} />}
       </div>
     </>
   );
