@@ -1,4 +1,4 @@
-import { CircleHelp, Flag, Gamepad2, Medal, Package, ScrollText, type LucideIcon } from "lucide-react";
+import { CircleHelp, Flag, Gamepad2, Medal, Package, ScrollText, Users, type LucideIcon } from "lucide-react";
 
 import { isEventScopedFact } from "./admin-achievement-event-scope";
 import { isRuleGroup, type AchievementFormOptions, type RuleGroup, type RuleGroupOp, type RuleNode } from "./admin-achievements-api";
@@ -11,6 +11,7 @@ export const FAMILY_STYLES: Record<FactFamily, { chip: string; icon: LucideIcon 
   objectifs: { chip: "border-amber-400/45 bg-amber-400/12 text-amber-300", icon: Flag },
   quetes: { chip: "border-yellow-400/45 bg-yellow-400/12 text-yellow-300", icon: ScrollText },
   recaps: { chip: "border-orange-400/45 bg-orange-400/12 text-orange-300", icon: Medal },
+  ensemble: { chip: "border-sky-400/45 bg-sky-400/12 text-sky-300", icon: Users },
   autres: { chip: "border-border bg-surface-2 text-muted-foreground", icon: CircleHelp },
 };
 
