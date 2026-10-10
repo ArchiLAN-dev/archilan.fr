@@ -108,9 +108,12 @@ final class PushMessageFactory
             'session_started' => null !== $title ? sprintf('%s lance « %s »', $who, $title) : sprintf('%s lance une partie', $who),
             default => null !== $title ? sprintf('%s a atteint son objectif dans « %s »', $who, $title) : sprintf('%s a atteint son objectif', $who),
         };
+        $actorSlug = self::text($payload, 'actorSlug');
+        // Story 43.19: the same place as the bell - the event, the run, else the friend's profile.
         $url = match (true) {
             null !== $eventId => '/evenements/'.$eventId,
             null !== $runId => '/runs/'.$runId,
+            null !== $actorSlug => '/joueurs/'.$actorSlug,
             default => '/compte/amis',
         };
 

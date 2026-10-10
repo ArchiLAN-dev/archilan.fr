@@ -28,6 +28,27 @@ final class FriendSuggestionsTest extends FunctionalTestCase
         $this->gameId = $this->createGame('Game', 'game-slug')->getId();
     }
 
+    public function testOneEventSplitInTwoSessionsIsStillOneLan(): void
+    {
+        // Story 43.19: the threshold counts events, not sessions.
+        $me = $this->member('me');
+        $other = $this->member('other');
+        $event = $this->createEvent('Grosse LAN', $this->now, $this->now->modify('+3 days'), 20);
+        $mine = $this->createRegistration($event->getId(), $me->getId());
+        $theirs = $this->createRegistration($event->getId(), $other->getId());
+        foreach ([$this->now, $this->now->modify('+1 day')] as $at) {
+            $session = $this->session($event->getId(), $at);
+            $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $mine->getId(), $this->gameId, 'Me', 0));
+            $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $theirs->getId(), $this->gameId, 'Other', 0));
+        }
+        $this->entityManager->flush();
+
+        $this->loginAs($me);
+        $this->client->request('GET', '/api/v1/community/friend-suggestions?limit=10');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], array_column($this->data(), 'slug'));
+    }
+
     public function testOneRunOrTwoEventSessionsMakeASuggestion(): void
     {
         $me = $this->member('me');

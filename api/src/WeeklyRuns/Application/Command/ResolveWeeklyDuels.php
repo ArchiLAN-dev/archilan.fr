@@ -59,6 +59,9 @@ final readonly class ResolveWeeklyDuels
                 static fn (WeeklyDuelParticipant $p): string => $p->getUserId(),
                 array_filter($members, static fn (WeeklyDuelParticipant $p): bool => $p->isAccepted()),
             ));
+            // Story 43.19: a banned or suspended member (no listable card) can neither win nor be ranked.
+            $listable = [] === $accepted ? [] : $this->directory->cards($accepted);
+            $accepted = array_values(array_filter($accepted, static fn (string $userId): bool => isset($listable[$userId])));
             $ranked = \count($accepted) < 2 ? [] : WeeklyStanding::rank($this->entries->entriesOf($weeklyRunId, $accepted));
             $leaders = self::leaders($ranked);
             // Story 43.18: two best times alike at the goal crown nobody.

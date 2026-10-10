@@ -31,6 +31,27 @@ final readonly class DoctrineRunNudgeRepository implements RunNudgeRepositoryInt
         $this->entityManager->flush();
     }
 
+    public function claimNudge(string $runId, string $recipientId, string $senderId, \DateTimeImmutable $now, \DateTimeImmutable $cooldownStart): bool
+    {
+        $affected = $this->entityManager->getConnection()->createQueryBuilder()
+            ->update('personal_run_nudge')
+            ->set('last_sender_id', ':sender')
+            ->set('last_nudged_at', ':now')
+            ->set('updated_at', ':now')
+            ->where('personal_run_id = :run')
+            ->andWhere('recipient_id = :recipient')
+            ->andWhere('muted = false')
+            ->andWhere('(last_nudged_at IS NULL OR last_nudged_at <= :since)')
+            ->setParameter('sender', $senderId)
+            ->setParameter('now', $now->format(\DateTimeInterface::ATOM))
+            ->setParameter('run', $runId)
+            ->setParameter('recipient', $recipientId)
+            ->setParameter('since', $cooldownStart->format(\DateTimeInterface::ATOM))
+            ->executeStatement();
+
+        return 1 === $affected;
+    }
+
     public function deleteByRunId(string $runId): void
     {
         foreach ($this->findByRunId($runId) as $nudge) {

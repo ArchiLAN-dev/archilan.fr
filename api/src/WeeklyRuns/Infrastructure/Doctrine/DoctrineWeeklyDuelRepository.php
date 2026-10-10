@@ -54,14 +54,6 @@ final readonly class DoctrineWeeklyDuelRepository implements WeeklyDuelRepositor
         return $byDuel;
     }
 
-    public function countCreatedSince(string $creatorId, \DateTimeImmutable $since): int
-    {
-        return \count(array_filter(
-            $this->entityManager->getRepository(WeeklyDuel::class)->findBy(['creatorId' => $creatorId]),
-            static fn (WeeklyDuel $duel): bool => $duel->getCreatedAt() >= $since,
-        ));
-    }
-
     public function save(WeeklyDuel $duel): void
     {
         $this->entityManager->persist($duel);

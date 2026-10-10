@@ -32,9 +32,11 @@ final readonly class DbalSharedHistoryQuery implements SharedHistoryQueryInterfa
 
         $rows = $this->connection->fetchAllAssociative(
             "WITH players AS (
+                 -- Story 43.19: only the two members' slots, not every slot of the history.
                  SELECT DISTINCT slot.session_id, sp.{$userColumn} AS uid
                    FROM session_slot slot
                    JOIN {$players} sp ON sp.{$slotColumn} = slot.id
+                  WHERE sp.{$userColumn} IN (:userId, :otherId)
              )
              SELECT s.id AS session_id, r.id AS run_id, e.id AS event_id, COALESCE(r.title, e.title) AS title,
                     COALESCE(s.finished_at, s.started_at, s.created_at) AS played_at

@@ -32,7 +32,6 @@ use Psr\Clock\ClockInterface;
 final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInterface
 {
     private const string RUNNING = 'running';
-    private const string FINISHED = 'finished';
     private const string ACTIVE_WINDOW = '-30 minutes';
 
     private string $userTable;
@@ -87,7 +86,8 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
             ->fetchAllAssociative();
 
         $finished = [];
-        foreach ($this->bestSlotPerUser($rows) as $userId => $row) {
+        // Story 43.19: the latest session played, whatever slot it was.
+        foreach ($this->bestSlotPerUser($rows, latestFirst: true) as $userId => $row) {
             $finished[$userId] = [
                 'sessionId' => $row['sessionId'],
                 'game' => $row['game'],
@@ -177,16 +177,20 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
     }
 
     /**
-     * Every (member, slot) pair of a session finished since the given time (story 43.5), its end as activity.
+     * Every (member, slot) pair of a session no longer running that was played since the given time (story 43.5):
+     * its activity is the slot's last check, or the session's end, whichever is latest. Story 43.19: a
+     * session paused or stopped on idle counts as much as a finished one - a run of several weeks is rarely finished.
      */
     private function finishedSlots(?string $viewerId, \DateTimeImmutable $since): QueryBuilder
     {
-        $qb = $this->playerSlots($viewerId, 's.finished_at');
+        // Not the stop itself: a crash or a failed launch is no sign that anyone played.
+        $activeAt = 'GREATEST(slot.last_check_at, s.finished_at)';
+        $qb = $this->playerSlots($viewerId, $activeAt);
 
         return $qb
-            ->andWhere($qb->expr()->eq('s.status', ':status'))
-            ->andWhere($qb->expr()->gte('s.finished_at', ':since'))
-            ->setParameter('status', self::FINISHED)
+            ->andWhere($qb->expr()->neq('s.status', ':status'))
+            ->andWhere($activeAt.' >= :since')
+            ->setParameter('status', self::RUNNING)
             ->setParameter('since', $since, Types::DATETIMETZ_IMMUTABLE);
     }
 
@@ -252,13 +256,14 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
 
     /**
      * The slot shown for each member: a slot still played before one whose goal is reached (story 43.7), then own
-     * slots before co-played ones, then the most recent activity (story 30.45).
+     * slots before co-played ones, then the most recent activity (story 30.45). With $latestFirst (story 43.19), the
+     * most recent activity alone.
      *
      * @param list<array<string, mixed>> $rows
      *
      * @return array<string, array{userId: string, sessionId: string, game: string|null, owned: bool, activeAt: int, visibility: string, friend: bool, slotName: string|null, goalReached: bool, tracked: bool}>
      */
-    private function bestSlotPerUser(array $rows): array
+    private function bestSlotPerUser(array $rows, bool $latestFirst = false): array
     {
         $best = [];
         foreach ($rows as $row) {
@@ -283,7 +288,7 @@ final readonly class DbalCommunityPresenceQuery implements LivePresenceQueryInte
                 'tracked' => in_array($row['tracked'] ?? null, [1, '1', true], true),
             ];
             $current = $best[$userId] ?? null;
-            if (null === $current || self::shownBefore($candidate, $current)) {
+            if (null === $current || ($latestFirst ? $candidate['activeAt'] > $current['activeAt'] : self::shownBefore($candidate, $current))) {
                 $best[$userId] = $candidate;
             }
         }

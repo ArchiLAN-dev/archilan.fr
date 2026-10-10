@@ -74,7 +74,8 @@ final readonly class WeeklyDuelService
         if (\count($opponents) > self::MAX_OPPONENTS) {
             return ['outcome' => self::TOO_MANY, 'duelId' => null];
         }
-        if ($this->duels->countCreatedSince($creatorId, $run['startedAt']) >= self::MAX_PER_WEEK) {
+        // Story 43.19: the whole week counts, whatever weekly run of it the duels are on.
+        if ($this->context->duelsCreatedInWeek($creatorId, $run['weekYear'], $run['weekNumber']) >= self::MAX_PER_WEEK) {
             return ['outcome' => self::WEEK_LIMIT, 'duelId' => null];
         }
 

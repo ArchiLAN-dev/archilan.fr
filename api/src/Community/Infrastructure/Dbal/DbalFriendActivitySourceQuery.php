@@ -7,6 +7,7 @@ namespace App\Community\Infrastructure\Dbal;
 use App\Community\Application\Query\FriendActivitySourceQueryInterface;
 use App\Community\Domain\Entity\Notification;
 use App\Shared\Infrastructure\Dbal\DbalSlotPlayerSource;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalFriendActivitySourceQuery implements FriendActivitySourceQueryInterface
@@ -42,6 +43,24 @@ final readonly class DbalFriendActivitySourceQuery implements FriendActivitySour
         return is_string($title) ? $title : null;
     }
 
+    public function isRunOpenToFriends(string $sessionId): bool
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $open = $qb
+            ->select('1')
+            ->from('run', 'r')
+            ->join('r', 'session', 's', 's.event_id = r.id')
+            ->where($qb->expr()->eq('s.id', ':session'))
+            ->andWhere($qb->expr()->in('r.openness', ':open'))
+            ->setParameter('session', $sessionId)
+            ->setParameter('open', ['friends', 'members'], ArrayParameterType::STRING)
+            ->setMaxResults(1)
+            ->executeQuery()
+            ->fetchOne();
+
+        return false !== $open;
+    }
+
     public function alertActorsSince(string $recipientId, \DateTimeImmutable $since): array
     {
         $actors = [];
@@ -73,7 +92,9 @@ final readonly class DbalFriendActivitySourceQuery implements FriendActivitySour
             ->setParameter('type', Notification::TYPE_FRIEND_ACTIVITY)
             ->setParameter('since', $since->format(\DateTimeInterface::ATOM));
         if (null !== $actorId) {
-            $qb->andWhere("n.payload::jsonb ->> 'fromUserId' = :actor")->setParameter('actor', $actorId);
+            // Story 43.19: a grouped alert names every favourite it covers in `actorIds`, not only the first one.
+            $qb->andWhere("(n.payload::jsonb ->> 'fromUserId' = :actor OR jsonb_exists(COALESCE(n.payload::jsonb -> 'actorIds', '[]'::jsonb), :actor))")
+                ->setParameter('actor', $actorId);
         }
 
         return $qb->executeQuery()->fetchFirstColumn();

@@ -82,6 +82,18 @@ final class RecapExchangesTest extends FunctionalTestCase
         self::assertSame('friend', $unblock['senders'][0]['slug']);
     }
 
+    public function testAddingIsOfferedOnlyWithoutARelationship(): void
+    {
+        $stranger = $this->entityManager->getRepository(User::class)->findOneBy(['slug' => 'stranger']);
+        self::assertInstanceOf(User::class, $stranger);
+        self::assertSame(['friend' => false, 'stranger' => true], $this->canAdd());
+
+        // Story 43.19: a request already pending, or a block, takes the button away.
+        $this->entityManager->persist(Friendship::request($this->viewer->getId(), $stranger->getId(), new \DateTimeImmutable()));
+        $this->entityManager->flush();
+        self::assertSame(['friend' => false, 'stranger' => false], $this->canAdd());
+    }
+
     public function testSomeoneWhoDidNotPlayGetsNothing(): void
     {
         self::assertNull($this->exchanges($this->createUser('outsider@example.org', slug: 'outsider')));
@@ -92,6 +104,27 @@ final class RecapExchangesTest extends FunctionalTestCase
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────────
+
+    /** @return array<string, mixed> canAdd by slug */
+    private function canAdd(): array
+    {
+        $data = $this->exchanges($this->viewer);
+        self::assertIsArray($data);
+        self::assertIsArray($data['exchanges']);
+        $canAdd = [];
+        foreach ($data['exchanges'] as $row) {
+            self::assertIsArray($row);
+            self::assertIsArray($row['players']);
+            foreach ($row['players'] as $player) {
+                self::assertIsArray($player);
+                self::assertIsString($player['slug']);
+                $canAdd[$player['slug']] = $player['canAdd'] ?? null;
+            }
+        }
+        ksort($canAdd);
+
+        return $canAdd;
+    }
 
     private function exchanges(User $viewer): mixed
     {

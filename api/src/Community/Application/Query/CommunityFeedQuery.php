@@ -8,6 +8,7 @@ use App\Community\Application\Support\ProfileVisibility;
 use App\Community\Domain\Entity\ActivityEntry;
 use App\Community\Domain\Entity\Kudos;
 use App\Community\Domain\Repository\ActivityEntryRepositoryInterface;
+use App\Community\Domain\Repository\BlockRepositoryInterface;
 use App\Community\Domain\Repository\FriendshipRepositoryInterface;
 use App\Community\Domain\Repository\KudosRepositoryInterface;
 use App\Sessions\Application\Query\ViewableRecapsQuery;
@@ -29,6 +30,7 @@ final readonly class CommunityFeedQuery
         private KudosRepositoryInterface $kudos,
         private CommunityPresenceQueryInterface $presence,
         private ViewableRecapsQuery $viewableRecaps,
+        private BlockRepositoryInterface $blocks,
     ) {
     }
 
@@ -86,6 +88,17 @@ final readonly class CommunityFeedQuery
             }
         }
         $cards = [] === $userIds ? [] : $this->directory->cards(array_values(array_unique($userIds)));
+        // Story 43.19: the other member an entry names (new friend, duel runner-up) stays unnamed for a viewer they
+        // have a block with, either way.
+        $hiddenWith = [];
+        if (null !== $viewerId) {
+            foreach ($entries as $entry) {
+                $withUserId = $entry->getPayload()['withUserId'] ?? null;
+                if (is_string($withUserId) && $withUserId !== $viewerId && !array_key_exists($withUserId, $hiddenWith)) {
+                    $hiddenWith[$withUserId] = $this->blocks->existsEitherWay($viewerId, $withUserId);
+                }
+            }
+        }
 
         // "Currently playing" presence for the rendered actors (feed only; the profile-activity view has
         // no actor row).
@@ -135,7 +148,7 @@ final readonly class CommunityFeedQuery
             ];
 
             $withUserId = $payload['withUserId'] ?? null;
-            if (is_string($withUserId) && isset($cards[$withUserId])) {
+            if (is_string($withUserId) && isset($cards[$withUserId]) && !($hiddenWith[$withUserId] ?? false)) {
                 $item['withSlug'] = $cards[$withUserId]['slug'];
                 $item['withName'] = $cards[$withUserId]['displayName'];
             }

@@ -118,6 +118,40 @@ final class RunListingsTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(409);
     }
 
+    public function testTakingAListingDownAndBackUpKeepsItsAge(): void
+    {
+        $this->run->listForMembers('Annonce', null, null, new \DateTimeImmutable('-10 days'));
+        $this->entityManager->flush();
+        $listedAt = $this->run->getListedAt();
+
+        $this->list('Annonce', null);
+        $this->loginAs($this->owner);
+        $this->client->request('PUT', '/api/v1/runs/'.$this->run->getId().'/openness', content: '{"openness":"invite"}');
+        $this->list('Annonce remontée', null);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->entityManager->clear();
+        $run = $this->entityManager->getRepository(Run::class)->find($this->run->getId());
+        self::assertInstanceOf(Run::class, $run);
+        self::assertSame($listedAt?->format('Y-m-d H:i:s'), $run->getListedAt()?->format('Y-m-d H:i:s'), 'story 43.19: no fresh start by toggling');
+    }
+
+    public function testACancelledRunComesBackOnInvitation(): void
+    {
+        $this->list('Annonce', null);
+        $this->loginAs($this->owner);
+        $this->client->request('POST', '/api/v1/runs/'.$this->run->getId().'/archive');
+        self::assertResponseIsSuccessful();
+        $this->client->request('POST', '/api/v1/runs/'.$this->run->getId().'/unarchive');
+        self::assertResponseIsSuccessful();
+
+        $this->entityManager->clear();
+        $run = $this->entityManager->getRepository(Run::class)->find($this->run->getId());
+        self::assertInstanceOf(Run::class, $run);
+        self::assertSame(Run::OPEN_INVITE, $run->getOpenness());
+        self::assertSame([], $this->listingsOf($this->member('viewer')));
+    }
+
     public function testAListingNobodyJoinedFor14DaysExpires(): void
     {
         $this->run->listForMembers('Vieille annonce', null, null, new \DateTimeImmutable('-15 days'));

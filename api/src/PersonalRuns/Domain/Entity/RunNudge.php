@@ -47,6 +47,12 @@ final class RunNudge
         return !$this->muted && !$this->isCoolingDown($now);
     }
 
+    /** Story 43.19: a nudge sent at or before this instant no longer counts against the cap. */
+    public static function cooldownStart(\DateTimeImmutable $now): \DateTimeImmutable
+    {
+        return $now->modify('-24 hours');
+    }
+
     public function isCoolingDown(\DateTimeImmutable $now): bool
     {
         return null !== $this->lastNudgedAt && $this->lastNudgedAt->modify(self::COOLDOWN) > $now;

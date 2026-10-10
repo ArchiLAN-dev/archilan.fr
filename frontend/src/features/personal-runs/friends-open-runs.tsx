@@ -17,6 +17,7 @@ import {
   setRunOpenness,
   type FriendsOpenRun,
 } from "./friends-open-runs-api";
+import { RUN_LISTINGS_KEY } from "./run-listings-api";
 import type { RunOpenness } from "./types";
 
 /** « 2 / 4 places », or how many already joined when the owner set no limit. */
@@ -51,7 +52,11 @@ export function FriendsOpenRuns({ compact = false }: { compact?: boolean }) {
     setMessage(null);
     const result = await joinOpenRun(runId);
     setBusy(null);
-    await queryClient.invalidateQueries({ queryKey: FRIENDS_OPEN_RUNS_KEY });
+    // Story 43.19: a listed run is in both lists.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: FRIENDS_OPEN_RUNS_KEY }),
+      queryClient.invalidateQueries({ queryKey: RUN_LISTINGS_KEY }),
+    ]);
     if (!result.ok) {
       setMessage(result.message);
       return;

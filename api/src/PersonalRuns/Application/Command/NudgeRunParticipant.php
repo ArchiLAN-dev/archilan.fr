@@ -61,7 +61,8 @@ final readonly class NudgeRunParticipant
             return new NudgeRunParticipantResult(NudgeRunParticipantOutcome::NotIdle);
         }
 
-        $nudge = $this->nudges->find($runId, $recipientId) ?? RunNudge::open($runId, $recipientId, $now);
+        $existing = $this->nudges->find($runId, $recipientId);
+        $nudge = $existing ?? RunNudge::open($runId, $recipientId, $now);
         if ($nudge->isMuted()) {
             return new NudgeRunParticipantResult(NudgeRunParticipantOutcome::Muted);
         }
@@ -69,12 +70,19 @@ final readonly class NudgeRunParticipant
             return new NudgeRunParticipantResult(NudgeRunParticipantOutcome::AlreadyNudged, $nudge->getLastNudgedAt(), $nudge->hoursSinceNudge($now));
         }
 
-        $nudge->nudge($callerId, $now);
-        try {
-            $this->nudges->save($nudge);
-        } catch (UniqueConstraintViolationException) {
-            // Another player nudged them at the same instant: theirs is the one of the day.
-            return new NudgeRunParticipantResult(NudgeRunParticipantOutcome::AlreadyNudged, $now, 1);
+        if ($existing instanceof RunNudge) {
+            // Story 43.19: one conditional write, so two senders at the same instant cannot both go through.
+            if (!$this->nudges->claimNudge($runId, $recipientId, $callerId, $now, RunNudge::cooldownStart($now))) {
+                return new NudgeRunParticipantResult(NudgeRunParticipantOutcome::AlreadyNudged, $now, 1);
+            }
+        } else {
+            $nudge->nudge($callerId, $now);
+            try {
+                $this->nudges->save($nudge);
+            } catch (UniqueConstraintViolationException) {
+                // Another player nudged them at the same instant: theirs is the one of the day.
+                return new NudgeRunParticipantResult(NudgeRunParticipantOutcome::AlreadyNudged, $now, 1);
+            }
         }
 
         $sender = $this->users->findById($callerId);

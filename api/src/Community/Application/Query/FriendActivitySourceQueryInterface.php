@@ -27,6 +27,9 @@ interface FriendActivitySourceQueryInterface
     /** The title of a public event still to come, null for any other event. */
     public function upcomingPublicEventTitle(string $eventId, \DateTimeImmutable $now): ?string;
 
+    /** Story 43.19: whether the session belongs to a personal run its owner opened to friends (43.14) or to all (43.17). */
+    public function isRunOpenToFriends(string $sessionId): bool;
+
     /**
      * The friend activity alerts a member received since a moment: who each one named.
      *

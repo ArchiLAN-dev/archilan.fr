@@ -30,8 +30,6 @@ interface WeeklyDuelRepositoryInterface
      */
     public function participantsByDuel(array $duelIds): array;
 
-    public function countCreatedSince(string $creatorId, \DateTimeImmutable $since): int;
-
     public function save(WeeklyDuel $duel): void;
 
     public function saveParticipant(WeeklyDuelParticipant $participant): void;

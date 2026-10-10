@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Query;
 
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Domain\Repository\BlockRepositoryInterface;
 use App\Community\Domain\Repository\FriendshipRepositoryInterface;
 
 /**
@@ -25,6 +26,7 @@ final readonly class RecapExchangesQuery
     public function __construct(
         private RecapExchangesQueryInterface $exchanges,
         private FriendshipRepositoryInterface $friendships,
+        private BlockRepositoryInterface $blocks,
         private CommunityUserDirectoryQueryInterface $directory,
     ) {
     }
@@ -54,7 +56,15 @@ final readonly class RecapExchangesQuery
         $others = array_values(array_unique(array_merge([], ...array_column($playersBySlot, 'userIds'))));
         $cards = $this->directory->cards(array_values(array_filter($others, static fn (string $id): bool => $id !== $viewerId)));
 
-        $players = function (string $slotName) use ($playersBySlot, $viewerId, $cards, $friendIds): array {
+        // Story 43.19: « Ajouter » only for someone with no friendship row either way (pending, declined) and no block.
+        $canAdd = [];
+        foreach (array_keys($cards) as $userId) {
+            $canAdd[$userId] = !isset($friendIds[$userId])
+                && null === $this->friendships->findBetween($viewerId, $userId)
+                && !$this->blocks->existsEitherWay($viewerId, $userId);
+        }
+
+        $players = function (string $slotName) use ($playersBySlot, $viewerId, $cards, $friendIds, $canAdd): array {
             $list = [];
             foreach ($playersBySlot as $slot) {
                 if ($slot['slotName'] !== $slotName) {
@@ -62,7 +72,7 @@ final readonly class RecapExchangesQuery
                 }
                 foreach ($slot['userIds'] as $userId) {
                     if ($userId !== $viewerId && isset($cards[$userId])) {
-                        $list[] = [...$cards[$userId], 'isFriend' => isset($friendIds[$userId])];
+                        $list[] = [...$cards[$userId], 'isFriend' => isset($friendIds[$userId]), 'canAdd' => $canAdd[$userId] ?? false];
                     }
                 }
             }

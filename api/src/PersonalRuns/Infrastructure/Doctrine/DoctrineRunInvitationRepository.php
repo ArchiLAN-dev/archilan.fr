@@ -52,6 +52,16 @@ final readonly class DoctrineRunInvitationRepository implements RunInvitationRep
         $this->entityManager->persist($invitation);
     }
 
+    public function closePendingForRun(string $runId, \DateTimeImmutable $now): void
+    {
+        foreach ($this->findByRunId($runId) as $invitation) {
+            if ($invitation->isPending()) {
+                $invitation->close($now);
+            }
+        }
+        $this->entityManager->flush();
+    }
+
     public function deleteByRunId(string $runId): void
     {
         foreach ($this->entityManager->getRepository(RunInvitation::class)->findBy(['runId' => $runId]) as $invitation) {
