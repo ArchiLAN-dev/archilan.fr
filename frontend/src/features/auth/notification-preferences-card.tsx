@@ -21,6 +21,7 @@ const TYPE_LABELS: Record<string, { label: string; hint: string }> = {
   },
   run_invitation: { label: "Invitations dans une run", hint: "Un ami t'invite dans sa partie." },
   slot_unblocked: { label: "Sortie de BK", hint: "Ton slot a de nouveau des checks accessibles." },
+  run_nudge: { label: "Relances de mes co-joueurs", hint: "Un co-joueur attend ta prochaine session dans une partie." },
 };
 
 export const CHANNEL_LABELS: Record<NotificationChannel, string> = {

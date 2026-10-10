@@ -27,6 +27,7 @@ final readonly class NotificationPreferenceService
         Notification::TYPE_FRIEND_ACTIVITY => NotificationChannel::Bell,
         'run_invitation' => NotificationChannel::BellAndPush,
         'slot_unblocked' => NotificationChannel::BellAndPush,
+        'run_nudge' => NotificationChannel::BellAndPush,
     ];
 
     public function __construct(

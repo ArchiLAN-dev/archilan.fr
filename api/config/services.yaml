@@ -323,6 +323,7 @@ services:
     App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunParticipantRepository'
     App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunArchiveRepository'
     App\PersonalRuns\Domain\Repository\RunInvitationRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunInvitationRepository'
+    App\PersonalRuns\Domain\Repository\RunNudgeRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunNudgeRepository'
     App\PersonalRuns\Domain\Repository\YamlTemplateRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineYamlTemplateRepository'
 
     App\Community\Domain\Repository\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineCommunityProfileRepository'
@@ -387,6 +388,7 @@ services:
     App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRecentlyPlayedGamesQuery'
     App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalMyRunSlotsQuery'
     App\PersonalRuns\Application\Query\RunInviteFriendsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRunInviteFriendsQuery'
+    App\PersonalRuns\Application\Query\RunPlayerActivityQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRunPlayerActivityQuery'
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'

@@ -104,6 +104,14 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
         ...(run !== "" ? [{ text: " t'invite dans " }, strong(run)] : [{ text: " t'invite dans sa partie" }]),
       ]);
     }
+    case "run_nudge": {
+      // Story 43.12: a co-player waits for the member's next session.
+      const run = text(data, "runTitle");
+      return base("run", "Relance", { kind: "actors" }, [
+        strong(actorName(item)),
+        ...(run !== "" ? [{ text: " attend ta prochaine session dans " }, strong(run)] : [{ text: " attend ta prochaine session" }]),
+      ]);
+    }
     case "friend_activity":
       return base("social", "Favori", { kind: "actors" }, friendActivityTitle(data, actorName(item)));
     case "comment_received":
