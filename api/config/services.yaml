@@ -340,6 +340,7 @@ services:
     App\Community\Application\Query\LivePresenceQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityPresenceQuery'
     App\Community\Application\Query\CommunityPresenceQueryInterface: '@App\Community\Application\Query\CommunityPresenceQuery'
     App\Community\Application\Query\FriendSuggestionsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalFriendSuggestionsQuery'
+    App\Community\Application\Query\SocialPlayQueryInterface: '@App\Community\Infrastructure\Dbal\DbalSocialPlayQuery'
     App\Community\Application\Query\EventFriendsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalEventFriendsQuery'
     App\Community\Application\Query\FriendSessionContextQueryInterface: '@App\Community\Infrastructure\Dbal\DbalFriendSessionContextQuery'
     App\Community\Application\Query\FriendActivitySourceQueryInterface: '@App\Community\Infrastructure\Dbal\DbalFriendActivitySourceQuery'

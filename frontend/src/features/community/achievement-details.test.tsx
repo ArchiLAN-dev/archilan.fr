@@ -74,6 +74,10 @@ describe("condition phrasing", () => {
     expect(say({})).toBe("Recevoir 3 000 items d'autres joueurs (hors release et collect)");
     expect(say({ fact: "questsCompleted", value: 1 })).toBe("Réussir une quête de la semaine");
     expect(say({ fact: "questChestStreak", value: 4 })).toBe("Ouvrir le coffre des quêtes 4 semaines d'affilée");
+    // Story 43.16: playing with others.
+    expect(say({ fact: "distinctFriendsPlayedWith", value: 5 })).toBe("Jouer avec 5 amis différents");
+    expect(say({ fact: "maxFinishedWithSamePerson", value: 3 })).toBe("Terminer 3 parties avec la même personne");
+    expect(say({ fact: "weeklyDuelsWon", value: 1 })).toBe("Gagner un duel hebdo");
   });
 
   test("events and superlatives by their name, the count only when it says something", () => {

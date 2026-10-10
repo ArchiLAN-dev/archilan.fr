@@ -1,6 +1,6 @@
 # Story 43.16: Succès sociaux
 
-**Status:** draft
+**Status:** review
 **Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 
@@ -36,14 +36,36 @@ Ajouter un succès social = **ajouter des faits**, pas du code d'attribution. No
 
 ## Tasks / Subtasks
 
-- [ ] **Application/Infrastructure** : faits dans le fournisseur de métriques (réutiliser l'agrégat de
+- [x] **Application/Infrastructure** : faits dans le fournisseur de métriques (réutiliser l'agrégat de
       co-participations de 43.2).
-- [ ] **Domaine** : définitions par défaut (`DefaultAchievementDefinitions`).
-- [ ] **Front** : libellés des nouveaux faits dans l'éditeur de règles admin.
-- [ ] Tests (calcul des faits, attribution rétroactive) et gates.
+- [x] **Domaine** : définitions par défaut (`DefaultAchievementDefinitions`).
+- [x] **Front** : libellés des nouveaux faits dans l'éditeur de règles admin.
+- [x] Tests (calcul des faits, attribution rétroactive) et gates.
 
 ## Notes
 
 - `distinct_friends_played_with` dépend du graphe d'amis actuel : retirer un ami peut faire baisser le fait ; un
   succès déjà attribué n'est pas retiré (comportement existant à confirmer).
 - Idée écartée : « sortir un ami du BK » ; le fait dépend de 43.10, à ajouter une fois l'historique des BK en place.
+
+## Dev Notes
+
+- **Faits** (camelCase comme les autres clés du catalogue, et non le snake_case de la story) :
+  `distinctCoplayers`, `distinctFriendsPlayedWith`, `maxFinishedWithSamePerson`, `weeklyDuelsWon`, dans
+  `AchievementMetricCatalog` (libellés admin). Fournis par `SocialPlayMetricProvider` (tag
+  `community.achievement_metric_provider`) via `SocialPlayQueryInterface` / `DbalSocialPlayQuery` : même agrégat que
+  la 43.2 (joueurs des `session_slot`, propriétaires et co-joueurs, runs perso et événements ; les hebdos n'ont pas
+  de slot de session). « Terminée » = `session.finished_at` renseigné. `weeklyDuelsWon` compte `weekly_duel.winner_id`.
+- **Amis** : `distinctFriendsPlayedWith` lit les amitiés du jour ; retirer un ami peut faire baisser le fait, un
+  succès déjà attribué reste (attribution monotone, comportement existant).
+- **Définitions** : `Domain/Service/SocialAchievementDefinitions` (même modèle que les quêtes 41.20), semées par
+  `Version20261010160000` (idempotente, `ON CONFLICT DO NOTHING`) : « Les Goonies » (5 amis différents), « L'Arme
+  fatale » (3 parties terminées avec la même personne), « Il ne peut en rester qu'un » (1 duel hebdo gagné). Noms
+  à valider par Jean ; modifiables ensuite dans l'admin.
+- **Rétroactivité** : le recalcul horaire attribue sans notifier (comportement existant). Pour que la notification
+  `achievement_unlocked` parte sur l'historique, `community:achievements:recompute` gagne `--notify`, à lancer une
+  fois juste après la migration.
+- **Front** : famille « Jouer ensemble » (icône Users) dans l'éditeur de règles, phrasés des quatre faits.
+- **Tests** : `SocialAchievementsTest` (calcul des faits, attribution + notification, faits connus) ; tests front
+  des phrasés et de la famille.
+- **A déployer** : `Version20261010160000`, puis `php bin/console community:achievements:recompute --notify`.

@@ -10,6 +10,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
@@ -28,6 +29,8 @@ final class RecomputeAchievementsCommand extends Command
     protected function configure(): void
     {
         $this->addArgument('userId', InputArgument::OPTIONAL, 'Recompute a single user; omit to recompute all.');
+        // Story 43.16: run once right after seeding new achievements, so the members hear of what they already earned.
+        $this->addOption('notify', null, InputOption::VALUE_NONE, 'Notify each new grant (achievement_unlocked).');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -37,10 +40,11 @@ final class RecomputeAchievementsCommand extends Command
             ? [$userArgument]
             : $this->userIds->allUserIds();
 
+        // Bulk/backfill recompute must not spam every historical unlock as a notification, unless asked to.
+        $notify = true === $input->getOption('notify');
         $granted = 0;
         foreach ($userIds as $userId) {
-            // Bulk/backfill recompute must not spam every historical unlock as a notification.
-            $granted += $this->recompute->recomputeForUser($userId, notify: false);
+            $granted += $this->recompute->recomputeForUser($userId, notify: $notify);
         }
 
         $output->writeln(sprintf('Recomputed %d user(s), %d new grant(s).', count($userIds), $granted));
