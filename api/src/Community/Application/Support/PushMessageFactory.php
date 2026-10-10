@@ -14,7 +14,7 @@ final class PushMessageFactory
     private const string TITLE = 'ArchiLAN';
 
     /** @var list<string> */
-    private const array PUSHABLE_TYPES = ['slot_unblocked', 'run_invitation', 'friend_activity'];
+    private const array PUSHABLE_TYPES = ['slot_unblocked', 'run_invitation', 'friend_activity', 'run_nudge'];
 
     public static function isPushable(string $type): bool
     {
@@ -30,6 +30,7 @@ final class PushMessageFactory
             'slot_unblocked' => self::slotUnblocked($payload),
             'run_invitation' => self::runInvitation($payload),
             'friend_activity' => self::friendActivity($payload),
+            'run_nudge' => self::runNudge($payload),
             default => null,
         };
     }
@@ -118,6 +119,28 @@ final class PushMessageFactory
             $body,
             $url,
             sprintf('friend_activity-%s-%s', self::text($payload, 'fromUserId') ?? 'friend', self::text($payload, 'kind') ?? 'activity'),
+        );
+    }
+
+    /**
+     * Story 43.12: a co-player of a personal run waits for the member's next session; the push leads to the run.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private static function runNudge(array $payload): WebPushMessage
+    {
+        $who = self::text($payload, 'senderName') ?? 'Un co-joueur';
+        $runTitle = self::text($payload, 'runTitle');
+        $runId = self::text($payload, 'runId');
+        $body = null !== $runTitle
+            ? sprintf('%s attend ta prochaine session dans « %s »', $who, $runTitle)
+            : sprintf('%s attend ta prochaine session', $who);
+
+        return new WebPushMessage(
+            self::TITLE,
+            $body,
+            null !== $runId ? '/runs/'.$runId : '/compte/parties',
+            sprintf('run_nudge-%s', $runId ?? 'run'),
         );
     }
 

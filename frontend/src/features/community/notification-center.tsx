@@ -191,6 +191,11 @@ export function messageFor(item: NotificationItem): string {
       return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
         ? `${actorName(item)} t'invite dans « ${item.data.runTitle} »`
         : `${actorName(item)} t'invite dans sa partie`;
+    case "run_nudge":
+      // Story 43.12: a co-player waits for the member's next session.
+      return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
+        ? `${actorName(item)} attend ta prochaine session dans « ${item.data.runTitle} »`
+        : `${actorName(item)} attend ta prochaine session`;
     case "friend_activity":
       // Story 43.11b: a starred friend registered, launched a session or reached a goal.
       return friendActivityTitle(item.data, actorName(item))
@@ -323,6 +328,9 @@ export function hrefFor(item: NotificationItem): string {
   }
   if (item.type === "run_invitation") {
     return "/compte/parties";
+  }
+  if (item.type === "run_nudge") {
+    return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte/parties";
   }
   if (item.type === "friend_activity") {
     // Story 43.11b: the event or the run when the member may open it, else the friend's profile.

@@ -21,6 +21,7 @@ use App\PersonalRuns\Domain\Entity\RunArchive;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunInvitationRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunNudgeRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Entity\Session;
@@ -47,6 +48,7 @@ final readonly class PersonalRunDrafts
         private MyRunSlotsQueryInterface $mySlots,
         private RunJoiner $joiner,
         private RunInvitationRepositoryInterface $invitations,
+        private RunNudgeRepositoryInterface $nudges,
     ) {
     }
 
@@ -315,6 +317,8 @@ final readonly class PersonalRunDrafts
         $this->archives->deleteByRunId($run->getId());
         // Story 43.1: so do the invitations by name.
         $this->invitations->deleteByRunId($run->getId());
+        // Story 43.12: and the nudges.
+        $this->nudges->deleteByRunId($run->getId());
         $this->runs->delete($run);
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];

@@ -20,6 +20,7 @@ use App\PersonalRuns\Application\Support\RunJoiner;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunInvitationRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunNudgeRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
@@ -50,6 +51,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
             self::createStub(MyRunSlotsQueryInterface::class),
             new RunJoiner(self::createStub(RunParticipantRepositoryInterface::class)),
             self::createStub(RunInvitationRepositoryInterface::class),
+            self::createStub(RunNudgeRepositoryInterface::class),
         );
     }
 

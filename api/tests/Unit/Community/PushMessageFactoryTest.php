@@ -61,6 +61,19 @@ final class PushMessageFactoryTest extends TestCase
         self::assertSame('Un ami t\'invite dans sa partie', PushMessageFactory::forNotification('run_invitation', [])?->body);
     }
 
+    public function testARunNudgeSaysWhoWaitsAndLeadsToTheRun(): void
+    {
+        // Story 43.12.
+        self::assertTrue(PushMessageFactory::isPushable('run_nudge'));
+        $message = PushMessageFactory::forNotification('run_nudge', ['senderName' => 'Alice', 'runTitle' => 'Ma run', 'runId' => 'run-1']);
+
+        self::assertNotNull($message);
+        self::assertSame('Alice attend ta prochaine session dans « Ma run »', $message->body);
+        self::assertSame('/runs/run-1', $message->url);
+        self::assertSame('run_nudge-run-1', $message->tag);
+        self::assertSame('/compte/parties', PushMessageFactory::forNotification('run_nudge', [])?->url);
+    }
+
     public function testASingleCheckAndABarePayloadStayReadable(): void
     {
         $single = PushMessageFactory::forNotification('slot_unblocked', ['runId' => 'run-1', 'runTitle' => 'Ma run', 'slotName' => 'Alice_HK1', 'reachableNow' => 1]);
