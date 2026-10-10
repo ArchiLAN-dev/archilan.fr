@@ -10,8 +10,9 @@ use App\Community\Domain\AchievementRuleGroup;
 
 /**
  * The social achievements (story 43.16), on the facts of playing with others. Pop-culture names with a factual
- * subtitle, like the others. Seeded by migration Version20261010160000, which imports this class: keep its name and
- * namespace. Once seeded, the database is the source of truth and the admin form edits them.
+ * subtitle, like the others. Seeded (inactive) by migration Version20261010160000, which holds its own copy of this
+ * data (story 43.18): changing these definitions changes neither that migration nor the database. Activated by
+ * `community:achievements:recompute --notify --activate=...`; once seeded, the database is the source of truth.
  */
 final class SocialAchievementDefinitions
 {

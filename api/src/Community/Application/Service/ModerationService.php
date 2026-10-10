@@ -47,7 +47,7 @@ final readonly class ModerationService
      *         reporter: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null,
      *         comment: array{id: string, body: string, hidden: bool, createdAt: string, author: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null, profileSlug: string|null}|null,
      *         profile: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null,
-     *         runListing: array{runId: string, title: string, pitch: string|null, owner: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null}|null
+     *         runListing: array{runId: string, title: string, pitch: string|null, changedSince: bool, owner: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null}|null
      *     }>
      * }
      */
@@ -120,7 +120,7 @@ final readonly class ModerationService
      *     reporter: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null,
      *     comment: array{id: string, body: string, hidden: bool, createdAt: string, author: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null, profileSlug: string|null}|null,
      *     profile: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null,
-     *     runListing: array{runId: string, title: string, pitch: string|null, owner: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null}|null
+     *     runListing: array{runId: string, title: string, pitch: string|null, changedSince: bool, owner: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null}|null
      * }>
      */
     private function assemble(array $reports): array
@@ -220,16 +220,24 @@ final readonly class ModerationService
      * @param array<string, array{runId: string, title: string, pitch: string|null, ownerId: string}>                                                                                                                                                      $listings
      * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}> $cards
      *
-     * @return array{runId: string, title: string, pitch: string|null, owner: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null}|null
+     * @return array{runId: string, title: string, pitch: string|null, changedSince: bool, owner: array{slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}|null}|null
      */
     private function runListing(array $listings, array $cards, ContentReport $report): ?array
     {
         $listing = ContentReport::TARGET_RUN_LISTING === $report->getTargetType() ? ($listings[$report->getTargetId()] ?? null) : null;
 
-        return null === $listing ? null : [
+        if (null === $listing) {
+            return null;
+        }
+        // Story 43.18: what was reported, rather than what the owner left of it since.
+        $snapshot = $report->getTargetSnapshot();
+        $pitch = null !== $snapshot && \array_key_exists('pitch', $snapshot) ? $snapshot['pitch'] : $listing['pitch'];
+
+        return [
             'runId' => $listing['runId'],
-            'title' => $listing['title'],
-            'pitch' => $listing['pitch'],
+            'title' => $snapshot['title'] ?? $listing['title'],
+            'pitch' => $pitch,
+            'changedSince' => null !== $snapshot && $pitch !== $listing['pitch'],
             'owner' => $this->card($cards, $listing['ownerId']),
         ];
     }

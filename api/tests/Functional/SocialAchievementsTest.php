@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Community\Application\Command\RecomputeAchievements;
+use App\Community\Application\Message\RecomputeAchievementsForUserMessage;
 use App\Community\Application\Query\SocialPlayQueryInterface;
 use App\Community\Domain\AchievementMetricCatalog;
 use App\Community\Domain\Entity\AchievementDefinition;
@@ -18,6 +19,10 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\WeeklyRuns\Domain\Entity\WeeklyDuel;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
  * Story 43.16: achievements for playing with others, on facts read from the history.
@@ -86,6 +91,59 @@ final class SocialAchievementsTest extends FunctionalTestCase
         sort($keys);
         self::assertSame(['friends_played_5', 'weekly_duel_won'], $keys, 'two finished with f1 is not three');
         self::assertCount(2, $this->entityManager->getRepository(Notification::class)->findBy(['recipientId' => $this->me->getId(), 'type' => 'achievement_unlocked']));
+    }
+
+    public function testTheRecomputeCommandTurnsTheSeededAchievementsOnAndNotifies(): void
+    {
+        $definitions = self::getContainer()->get(AchievementDefinitionRepositoryInterface::class);
+        self::assertInstanceOf(AchievementDefinitionRepositoryInterface::class, $definitions);
+        foreach (SocialAchievementDefinitions::all() as $position => $definition) {
+            $seeded = AchievementDefinition::create($definition['key'], $definition['name'], $definition['description'], $definition['rule'], $position + 1, new \DateTimeImmutable());
+            $seeded->deactivate(new \DateTimeImmutable());
+            $definitions->save($seeded);
+        }
+        $duel = WeeklyDuel::open(bin2hex(random_bytes(8)), $this->me->getId(), new \DateTimeImmutable());
+        $duel->resolve($this->me->getId(), new \DateTimeImmutable());
+        $this->entityManager->persist($duel);
+        $this->entityManager->flush();
+
+        // Seeded inactive (story 43.18): the silent hourly pass grants nothing yet.
+        $recompute = self::getContainer()->get(RecomputeAchievements::class);
+        self::assertInstanceOf(RecomputeAchievements::class, $recompute);
+        self::assertSame(0, $recompute->recomputeForUser($this->me->getId(), notify: false));
+
+        $kernel = self::$kernel;
+        self::assertNotNull($kernel);
+        $tester = new CommandTester(new Application($kernel)->find('community:achievements:recompute'));
+        $tester->execute(['--notify' => true, '--activate' => 'friends_played_5,same_partner_3,weekly_duel_won']);
+        self::assertSame(Command::SUCCESS, $tester->getStatusCode());
+        self::assertStringContainsString('Activated 3 achievement(s).', $tester->getDisplay());
+
+        $notices = $this->entityManager->getRepository(Notification::class)->findBy(['recipientId' => $this->me->getId(), 'type' => 'achievement_unlocked']);
+        self::assertCount(1, $notices, 'the duel won, notified');
+    }
+
+    public function testAcceptingAFriendRecomputesBothMembersAchievements(): void
+    {
+        $alice = $this->member('alice');
+        $friendship = Friendship::request($alice->getId(), $this->me->getId(), new \DateTimeImmutable());
+        $this->entityManager->persist($friendship);
+        $this->entityManager->flush();
+
+        $this->loginAs($this->me);
+        $this->client->request('POST', '/api/v1/community/friendships/'.$friendship->getId().'/accept');
+        self::assertResponseIsSuccessful();
+
+        $transport = self::getContainer()->get('messenger.transport.async');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $recomputed = [];
+        foreach ($transport->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+            if ($message instanceof RecomputeAchievementsForUserMessage) {
+                $recomputed[] = $message->userId;
+            }
+        }
+        self::assertEqualsCanonicalizing([$this->me->getId(), $alice->getId()], $recomputed);
     }
 
     public function testEverySocialAchievementRestsOnAKnownFact(): void

@@ -6,6 +6,7 @@ namespace App\PersonalRuns\Infrastructure\Doctrine;
 
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineRunRepository implements RunRepositoryInterface
@@ -79,6 +80,33 @@ final readonly class DoctrineRunRepository implements RunRepositoryInterface
     {
         /* @var list<Run> */
         return $this->entityManager->getRepository(Run::class)->findBy(['openness' => Run::OPEN_MEMBERS, 'status' => Run::STATUS_DRAFT]);
+    }
+
+    public function findWithExclusiveLock(string $id): ?Run
+    {
+        $run = $this->entityManager->find(Run::class, $id, LockMode::PESSIMISTIC_WRITE);
+        if (!$run instanceof Run) {
+            return null;
+        }
+        // Already managed: find() hands back the cached copy, the refresh reads it again under the lock.
+        $this->entityManager->refresh($run, LockMode::PESSIMISTIC_WRITE);
+
+        return $run;
+    }
+
+    public function beginTransaction(): void
+    {
+        $this->entityManager->getConnection()->beginTransaction();
+    }
+
+    public function commit(): void
+    {
+        $this->entityManager->getConnection()->commit();
+    }
+
+    public function rollBack(): void
+    {
+        $this->entityManager->getConnection()->rollBack();
     }
 
     public function save(Run $run): void

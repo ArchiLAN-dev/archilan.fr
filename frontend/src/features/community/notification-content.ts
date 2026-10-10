@@ -84,6 +84,9 @@ export function weeklyDuelResultTitle(data: Record<string, unknown> | null | und
       return opponent !== "" && margin !== null
         ? [{ text: "Tu bats " }, strong(opponent), { text: ` de ${formatMargin(margin)}` }, ...onGame]
         : [{ text: "Tu remportes ton duel hebdo" }, ...onGame];
+    case "tie":
+      // Story 43.18: the best times alike at the goal crown nobody.
+      return [{ text: "Égalité avec " }, strong(opponent !== "" ? opponent : "un ami"), { text: " pour ton duel hebdo" }, ...onGame];
     case "lost":
       return [
         strong(opponent !== "" ? opponent : "Un ami"),

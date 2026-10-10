@@ -51,9 +51,20 @@ final class ContentReport
         private ?\DateTimeImmutable $resolvedAt = null,
         #[ORM\Column(name: 'resolved_by', type: 'string', length: 32, nullable: true)]
         private ?string $resolvedBy = null,
+        /**
+         * Story 43.18: the reported content as it read when reported, for content its author can change or take
+         * down (a run listing): the moderators judge what was reported, not what is left.
+         *
+         * @var array<string, string|null>|null
+         */
+        #[ORM\Column(name: 'target_snapshot', type: 'json', nullable: true)]
+        private ?array $targetSnapshot = null,
     ) {
     }
 
+    /**
+     * @param array<string, string|null>|null $targetSnapshot
+     */
     public static function create(
         string $reporterId,
         string $targetType,
@@ -63,8 +74,15 @@ final class ContentReport
         string $category = ReportCategory::OTHER,
         string $problem = ReportProblem::OTHER,
         ?string $comment = null,
+        ?array $targetSnapshot = null,
     ): self {
-        return new self(bin2hex(random_bytes(16)), $reporterId, $targetType, $targetId, $reason, $now, $category, $problem, $comment);
+        return new self(bin2hex(random_bytes(16)), $reporterId, $targetType, $targetId, $reason, $now, $category, $problem, $comment, null, null, $targetSnapshot);
+    }
+
+    /** @return array<string, string|null>|null */
+    public function getTargetSnapshot(): ?array
+    {
+        return $this->targetSnapshot;
     }
 
     public function resolve(string $resolvedBy, \DateTimeImmutable $now): void

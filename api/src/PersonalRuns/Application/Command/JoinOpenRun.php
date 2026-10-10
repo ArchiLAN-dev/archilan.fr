@@ -41,33 +41,68 @@ final readonly class JoinOpenRun
 
     public function join(string $runId, string $userId): JoinOpenRunOutcome
     {
-        $run = $this->runs->findById($runId);
+        // Story 43.18: the run stays locked from the seat count to the new participant, so two members arriving at
+        // once cannot both take the last seat. The owner hears of the arrival once it is committed.
+        $this->runs->beginTransaction();
+        try {
+            [$outcome, $run] = $this->joinLocked($runId, $userId);
+            $this->runs->commit();
+        } catch (\Throwable $e) {
+            $this->runs->rollBack();
+
+            throw $e;
+        }
+
+        if ($run instanceof Run) {
+            $member = $this->users->findById($userId);
+            $this->notifier->notify($run->getOwnerId(), self::NOTIFICATION_TYPE, [
+                'fromUserId' => $userId,
+                'joinerName' => $member instanceof User ? $member->getDisplayName() : null,
+                'runId' => $run->getId(),
+                'runTitle' => $run->getTitle(),
+            ]);
+        }
+
+        return $outcome;
+    }
+
+    /**
+     * @return array{0: JoinOpenRunOutcome, 1: Run|null} the outcome, and the run when the member just joined it
+     */
+    private function joinLocked(string $runId, string $userId): array
+    {
+        $run = $this->runs->findWithExclusiveLock($runId);
         if (!$run instanceof Run) {
-            return JoinOpenRunOutcome::NotFound;
+            return [JoinOpenRunOutcome::NotFound, null];
         }
         if ($run->isOwnedBy($userId) || $this->participants->findByRunAndUser($runId, $userId) instanceof RunParticipant) {
-            return JoinOpenRunOutcome::Joined;
+            return [JoinOpenRunOutcome::Joined, null];
         }
-        $member = $this->users->findById($userId);
+        $now = $this->clock->now();
         if ($run->isListed()) {
             if ($this->friends->isBlockedEitherWay($run->getOwnerId(), $userId)) {
-                return JoinOpenRunOutcome::NotFound;
+                return [JoinOpenRunOutcome::NotFound, null];
             }
-            if (!$member instanceof User || $member->isAccessBlocked($this->clock->now())) {
-                return JoinOpenRunOutcome::Sanctioned;
+            // A suspended owner's listing is hidden from the list; it cannot be joined from an old link either.
+            $owner = $this->users->findById($run->getOwnerId());
+            if (!$owner instanceof User || $owner->isAccessBlocked($now)) {
+                return [JoinOpenRunOutcome::NotFound, null];
+            }
+            $member = $this->users->findById($userId);
+            if (!$member instanceof User || $member->isAccessBlocked($now)) {
+                return [JoinOpenRunOutcome::Sanctioned, null];
             }
         } elseif (!$run->isOpenToFriends() || !$this->friends->canInvite($run->getOwnerId(), $userId)) {
-            return JoinOpenRunOutcome::NotFound;
+            return [JoinOpenRunOutcome::NotFound, null];
         }
         $joined = \count(array_filter(
             $this->participants->findByRunId($runId),
             static fn (RunParticipant $p): bool => !$run->isOwnedBy($p->getUserId()),
         ));
         if ($run->isFull($joined)) {
-            return JoinOpenRunOutcome::Full;
+            return [JoinOpenRunOutcome::Full, null];
         }
 
-        $now = $this->clock->now();
         $invitation = $this->invitations->findByRunAndInvitee($runId, $userId);
         if ($invitation instanceof RunInvitation && $invitation->isPending()) {
             $invitation->accept($now);
@@ -76,13 +111,6 @@ final readonly class JoinOpenRun
         // One flush: the participant, the accepted invitation and the listing's renewal land together.
         $this->joiner->join($run, $userId, $now);
 
-        $this->notifier->notify($run->getOwnerId(), self::NOTIFICATION_TYPE, [
-            'fromUserId' => $userId,
-            'joinerName' => $member instanceof User ? $member->getDisplayName() : null,
-            'runId' => $run->getId(),
-            'runTitle' => $run->getTitle(),
-        ]);
-
-        return JoinOpenRunOutcome::Joined;
+        return [JoinOpenRunOutcome::Joined, $run];
     }
 }

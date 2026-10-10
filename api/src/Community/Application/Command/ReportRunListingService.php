@@ -58,6 +58,8 @@ final readonly class ReportRunListingService
                 ReportCategory::OTHER,
                 $problem,
                 null === $trimmed || '' === $trimmed ? null : mb_substr($trimmed, 0, self::COMMENT_MAX),
+                // Story 43.18: the listing as reported, kept even if its owner edits or takes it down.
+                ['title' => $listing['title'], 'pitch' => $listing['pitch']],
             ));
         } catch (UniqueConstraintViolationException) {
             return 'ok';

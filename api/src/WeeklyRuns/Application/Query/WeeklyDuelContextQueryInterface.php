@@ -25,4 +25,11 @@ interface WeeklyDuelContextQueryInterface
      * @return list<array{0: string, 1: string}>
      */
     public function blocksAmong(array $userIds): array;
+
+    /**
+     * Story 43.18: the weekly runs finished before the given instant that still have a duel to settle.
+     *
+     * @return list<string>
+     */
+    public function finishedRunsWithOpenDuels(\DateTimeImmutable $finishedBefore): array;
 }

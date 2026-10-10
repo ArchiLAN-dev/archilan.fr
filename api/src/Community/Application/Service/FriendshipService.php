@@ -16,6 +16,7 @@ use App\Community\Domain\Repository\BlockRepositoryInterface;
 use App\Community\Domain\Repository\FriendFavoriteRepositoryInterface;
 use App\Community\Domain\Repository\FriendGroupRepositoryInterface;
 use App\Community\Domain\Repository\FriendshipRepositoryInterface;
+use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Clock\ClockInterface;
 
@@ -39,6 +40,7 @@ final readonly class FriendshipService
         private RecordActivity $recordActivity,
         private Notifier $notifier,
         private ClockInterface $clock,
+        private AchievementRecomputeTriggerInterface $achievements,
     ) {
     }
 
@@ -107,6 +109,8 @@ final readonly class FriendshipService
             Notification::TYPE_FRIEND_REQUEST_ACCEPTED,
             ['fromUserId' => $userId],
         );
+        // Story 43.18: a new friend may complete a social achievement (story 43.16), notified now.
+        $this->achievements->recomputeForUsers([$userId, $friendship->otherParty($userId)]);
 
         return 'ok';
     }
