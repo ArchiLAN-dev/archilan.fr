@@ -14,6 +14,7 @@ use App\Community\Domain\Entity\Friendship;
 use App\Community\Domain\Entity\Notification;
 use App\Community\Domain\Repository\BlockRepositoryInterface;
 use App\Community\Domain\Repository\FriendFavoriteRepositoryInterface;
+use App\Community\Domain\Repository\FriendGroupRepositoryInterface;
 use App\Community\Domain\Repository\FriendshipRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Clock\ClockInterface;
@@ -24,7 +25,8 @@ use Psr\Clock\ClockInterface;
  * re-interaction. Cohesive read+write service in the local PersonalRuns style.
  *
  * Favorites (story 43.11a): a member stars some of their friends, who go to the top of their lists. The star is the
- * starrer's alone: it only appears in what is read for them, and goes away with the friendship.
+ * starrer's alone: it only appears in what is read for them, and goes away with the friendship. So does a place in
+ * the other's friend groups (story 43.13).
  */
 final readonly class FriendshipService
 {
@@ -32,6 +34,7 @@ final readonly class FriendshipService
         private FriendshipRepositoryInterface $friendships,
         private BlockRepositoryInterface $blocks,
         private FriendFavoriteRepositoryInterface $favorites,
+        private FriendGroupRepositoryInterface $groups,
         private CommunityUserDirectoryQueryInterface $directory,
         private RecordActivity $recordActivity,
         private Notifier $notifier,
@@ -128,6 +131,8 @@ final readonly class FriendshipService
         if ($friendship instanceof Friendship && $friendship->involves($userId)) {
             $this->friendships->remove($friendship);
             $this->favorites->removeBetween($userId, $targetUserId);
+            // Story 43.13: out of each other's groups too.
+            $this->groups->removeBetween($userId, $targetUserId);
         }
     }
 
@@ -180,6 +185,7 @@ final readonly class FriendshipService
             $this->friendships->remove($friendship);
         }
         $this->favorites->removeBetween($userId, $targetUserId);
+        $this->groups->removeBetween($userId, $targetUserId);
 
         if (null === $this->blocks->find($userId, $targetUserId)) {
             try {
