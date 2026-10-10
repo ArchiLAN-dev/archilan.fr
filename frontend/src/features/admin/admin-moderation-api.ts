@@ -33,7 +33,14 @@ export type ModerationReport = {
   runListing?: ModerationRunListing | null;
 };
 
-export type ModerationRunListing = { runId: string; title: string; pitch: string | null; owner: ModerationActor | null };
+export type ModerationRunListing = {
+  runId: string;
+  title: string;
+  pitch: string | null;
+  /** Story 43.18: the listing changed or was taken down since it was reported (absent from an older API). */
+  changedSince?: boolean;
+  owner: ModerationActor | null;
+};
 
 /** An account whose unresolved profile reports cross the escalation threshold (story 30.28). */
 export type FlaggedAccount = {

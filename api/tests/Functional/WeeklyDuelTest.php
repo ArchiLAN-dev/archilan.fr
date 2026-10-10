@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Community\Application\Message\RecomputeAchievementsForUserMessage;
 use App\Community\Domain\Entity\ActivityEntry;
 use App\Community\Domain\Entity\Block;
 use App\Community\Domain\Entity\Friendship;
 use App\Community\Domain\Entity\Notification;
 use App\Identity\Domain\Entity\User;
+use App\WeeklyRuns\Application\Handler\ResolveWeeklyDuelsHandler;
 use App\WeeklyRuns\Application\Handler\StopWeeklyRunsMessageHandler;
+use App\WeeklyRuns\Application\Message\ResolveWeeklyDuelsMessage;
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
 use App\WeeklyRuns\Domain\Entity\WeeklyDuel;
 use App\WeeklyRuns\Domain\Entity\WeeklyDuelParticipant;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use App\WeeklyRuns\Domain\Entity\WeeklyRun;
 use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
  * Story 43.15: duels between friends on a weekly run.
@@ -133,6 +137,79 @@ final class WeeklyDuelTest extends FunctionalTestCase
         self::assertSame([], $this->duelsOf($this->viewer), 'a resolved duel leaves the page');
     }
 
+    public function testTheWinnersAchievementsAreRecomputedWithNotification(): void
+    {
+        $alice = $this->friend('alice');
+        $this->duel([$alice]);
+        $this->entry($alice, 600);
+        $this->entry($this->viewer, 900);
+        $this->entityManager->flush();
+
+        $this->endTheWeek();
+
+        $transport = self::getContainer()->get('messenger.transport.async');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $recomputed = [];
+        foreach ($transport->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+            if ($message instanceof RecomputeAchievementsForUserMessage) {
+                $recomputed[] = $message->userId;
+            }
+        }
+        self::assertSame([$alice->getId()], $recomputed);
+    }
+
+    public function testADuelWaitsForTheGracePeriodThenIsCaughtUp(): void
+    {
+        $alice = $this->friend('alice');
+        $duel = $this->duel([$alice]);
+        $this->entry($alice, 600);
+        $this->entityManager->flush();
+
+        $this->endTheWeek(graceOver: false);
+        $pending = $this->entityManager->getRepository(WeeklyDuel::class)->find($duel->getId());
+        self::assertInstanceOf(WeeklyDuel::class, $pending);
+        self::assertFalse($pending->isResolved(), 'a late goal webhook may still come in');
+
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE weekly_runs SET finished_at = :at WHERE id = :id',
+            ['at' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM), 'id' => $this->run->getId()],
+        );
+        $resolve = self::getContainer()->get(ResolveWeeklyDuelsHandler::class);
+        self::assertInstanceOf(ResolveWeeklyDuelsHandler::class, $resolve);
+        $resolve(new ResolveWeeklyDuelsMessage());
+
+        $this->entityManager->clear();
+        $resolved = $this->entityManager->getRepository(WeeklyDuel::class)->find($duel->getId());
+        self::assertInstanceOf(WeeklyDuel::class, $resolved);
+        self::assertSame($alice->getId(), $resolved->getWinnerId());
+    }
+
+    public function testTiedBestTimesCrownNobody(): void
+    {
+        $alice = $this->friend('alice');
+        $bob = $this->friend('bob');
+        $duel = $this->duel([$alice, $bob]);
+        $this->entry($this->viewer, 900);
+        $this->entry($alice, 900);
+        $this->entry($bob, 1200);
+        $this->entityManager->flush();
+
+        $this->endTheWeek();
+
+        $resolved = $this->entityManager->getRepository(WeeklyDuel::class)->find($duel->getId());
+        self::assertInstanceOf(WeeklyDuel::class, $resolved);
+        self::assertTrue($resolved->isResolved());
+        self::assertNull($resolved->getWinnerId());
+        self::assertSame('tie', $this->duelResult($alice)['outcome'] ?? null);
+        self::assertSame('Viewer', $this->duelResult($alice)['opponentName'] ?? null);
+        self::assertSame('tie', $this->duelResult($this->viewer)['outcome'] ?? null);
+        $bobResult = $this->duelResult($bob);
+        self::assertSame('lost', $bobResult['outcome'] ?? null);
+        self::assertSame(300, $bobResult['marginSeconds'] ?? null);
+        self::assertSame([], $this->entityManager->getRepository(ActivityEntry::class)->findBy(['type' => ActivityEntry::TYPE_WEEKLY_DUEL]));
+    }
+
     public function testNobodyAtTheGoalMeansNoWinner(): void
     {
         $alice = $this->friend('alice');
@@ -241,11 +318,24 @@ final class WeeklyDuelTest extends FunctionalTestCase
         $this->entityManager->persist($entry);
     }
 
-    private function endTheWeek(): void
+    /**
+     * Stops the weekly run, then settles its duels (story 43.18): by default as the scheduled pass would, once the
+     * grace period is over.
+     */
+    private function endTheWeek(bool $graceOver = true): void
     {
-        $handler = self::getContainer()->get(StopWeeklyRunsMessageHandler::class);
-        self::assertInstanceOf(StopWeeklyRunsMessageHandler::class, $handler);
-        $handler(new StopWeeklyRunsMessage());
+        $stop = self::getContainer()->get(StopWeeklyRunsMessageHandler::class);
+        self::assertInstanceOf(StopWeeklyRunsMessageHandler::class, $stop);
+        $stop(new StopWeeklyRunsMessage());
+        if ($graceOver) {
+            $this->entityManager->getConnection()->executeStatement(
+                'UPDATE weekly_runs SET finished_at = :at WHERE id = :id',
+                ['at' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM), 'id' => $this->run->getId()],
+            );
+        }
+        $resolve = self::getContainer()->get(ResolveWeeklyDuelsHandler::class);
+        self::assertInstanceOf(ResolveWeeklyDuelsHandler::class, $resolve);
+        $resolve(new ResolveWeeklyDuelsMessage());
     }
 
     /** @return list<mixed> */

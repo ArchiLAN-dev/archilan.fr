@@ -4,19 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\WeeklyRuns;
 
-use App\Community\Application\Command\RecordActivity;
-use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
-use App\Community\Application\Support\Notifier;
-use App\Community\Domain\Repository\ActivityEntryRepositoryInterface;
-use App\WeeklyRuns\Application\Command\ResolveWeeklyDuels;
 use App\WeeklyRuns\Application\Handler\StopWeeklyRunsMessageHandler;
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
 use App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface;
-use App\WeeklyRuns\Application\Query\WeeklyDuelContextQueryInterface;
-use App\WeeklyRuns\Application\Query\WeeklyRunFriendEntriesQueryInterface;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use App\WeeklyRuns\Domain\Entity\WeeklyRun;
-use App\WeeklyRuns\Domain\Repository\WeeklyDuelRepositoryInterface;
 use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface;
 use PHPUnit\Framework\TestCase;
@@ -156,17 +148,6 @@ final class StopWeeklyRunsMessageHandlerTest extends TestCase
             $gateway,
             new NullLogger(),
             self::$clock,
-            // Story 43.15: no duel on these weekly runs.
-            new ResolveWeeklyDuels(
-                self::createStub(WeeklyDuelRepositoryInterface::class),
-                self::createStub(WeeklyDuelContextQueryInterface::class),
-                self::createStub(WeeklyRunFriendEntriesQueryInterface::class),
-                self::createStub(CommunityUserDirectoryQueryInterface::class),
-                self::createStub(Notifier::class),
-                new RecordActivity(self::createStub(ActivityEntryRepositoryInterface::class)),
-                new NullLogger(),
-                self::$clock,
-            ),
         );
     }
 }

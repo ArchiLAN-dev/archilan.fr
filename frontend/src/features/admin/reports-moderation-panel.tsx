@@ -252,6 +252,9 @@ function ReportRow({
         <blockquote className="grid gap-1 rounded-lg border border-border bg-background/40 px-3 py-2 text-sm text-foreground">
           <p className="font-medium">Annonce « {report.runListing.title} »</p>
           <p className="whitespace-pre-line">{report.runListing.pitch ?? "(annonce retirée depuis)"}</p>
+          {report.runListing.changedSince === true ? (
+            <p className="text-xs font-semibold text-amber-400">Texte au moment du signalement : l&apos;annonce a été modifiée ou retirée depuis.</p>
+          ) : null}
           {report.runListing.owner ? (
             <footer className="text-xs text-muted-foreground">
               par{" "}

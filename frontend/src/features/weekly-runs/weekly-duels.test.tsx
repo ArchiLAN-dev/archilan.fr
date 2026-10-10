@@ -47,6 +47,7 @@ describe("weekly duels", () => {
   it("tells the result from the member's side", () => {
     expect(text(weeklyDuelResultTitle({ outcome: "won", opponentName: "Alice", marginSeconds: 720, gameName: "Hollow Knight" }))).toBe("Tu bats Alice de 12 min sur Hollow Knight");
     expect(text(weeklyDuelResultTitle({ outcome: "lost", opponentName: "Alice", marginSeconds: 90, gameName: "" }))).toBe("Alice remporte le duel hebdo (2 min devant toi)");
+    expect(text(weeklyDuelResultTitle({ outcome: "tie", opponentName: "Alice", gameName: "Celeste" }))).toBe("Égalité avec Alice pour ton duel hebdo sur Celeste");
     expect(text(weeklyDuelResultTitle({ outcome: "none", gameName: "" }))).toBe("Personne n'a atteint l'objectif : pas de gagnant pour ce duel");
   });
 

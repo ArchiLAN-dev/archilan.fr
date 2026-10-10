@@ -40,6 +40,17 @@ interface RunRepositoryInterface
      */
     public function findListed(): array;
 
+    /**
+     * Story 43.18: the run, locked until the transaction ends, so two members cannot take its last seat at once.
+     */
+    public function findWithExclusiveLock(string $id): ?Run;
+
+    public function beginTransaction(): void;
+
+    public function commit(): void;
+
+    public function rollBack(): void;
+
     public function save(Run $run): void;
 
     public function delete(Run $run): void;

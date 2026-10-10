@@ -164,7 +164,35 @@ final class RunListingsTest extends FunctionalTestCase
         self::assertInstanceOf(ModerationService::class, $moderation);
         $queue = $moderation->list(ReportQueryFilters::fromRaw(null, null, ContentReport::TARGET_RUN_LISTING, null, null, 20));
         self::assertCount(1, $queue['reports']);
-        self::assertSame('Venez jouer', $queue['reports'][0]['runListing']['pitch'] ?? null);
+        $listing = $queue['reports'][0]['runListing'] ?? null;
+        self::assertNotNull($listing);
+        self::assertSame('Venez jouer', $listing['pitch']);
+        self::assertFalse($listing['changedSince']);
+
+        // Story 43.18: the owner takes the listing down; the moderators still read what was reported.
+        $this->loginAs($this->owner);
+        $this->client->request('PUT', '/api/v1/runs/'.$this->run->getId().'/openness', content: '{"openness":"invite"}');
+        self::assertResponseStatusCodeSame(200);
+        $queue = $moderation->list(ReportQueryFilters::fromRaw(null, null, ContentReport::TARGET_RUN_LISTING, null, null, 20));
+        $listing = $queue['reports'][0]['runListing'] ?? null;
+        self::assertNotNull($listing);
+        self::assertSame('Venez jouer', $listing['pitch']);
+        self::assertTrue($listing['changedSince']);
+    }
+
+    public function testTheLastSeatGoesToOneMemberOnly(): void
+    {
+        $first = $this->member('first');
+        $second = $this->member('second');
+        $this->list('Une seule place', 1);
+
+        $this->loginAs($first);
+        $this->join();
+        self::assertResponseStatusCodeSame(200);
+        $this->loginAs($second);
+        $this->join();
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame(1, $this->entityManager->getRepository(RunParticipant::class)->count(['runId' => $this->run->getId()]));
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────────

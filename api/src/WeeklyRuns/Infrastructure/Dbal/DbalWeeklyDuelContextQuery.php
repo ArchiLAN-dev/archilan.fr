@@ -48,6 +48,22 @@ final readonly class DbalWeeklyDuelContextQuery implements WeeklyDuelContextQuer
         return $runs;
     }
 
+    public function finishedRunsWithOpenDuels(\DateTimeImmutable $finishedBefore): array
+    {
+        $ids = $this->connection->createQueryBuilder()
+            ->select('DISTINCT wr.id')
+            ->from('weekly_runs', 'wr')
+            ->join('wr', 'weekly_duel', 'd', 'd.weekly_run_id = wr.id AND d.resolved_at IS NULL')
+            ->where('wr.status = :finished')
+            ->andWhere('wr.finished_at <= :before')
+            ->setParameter('finished', WeeklyRun::STATUS_FINISHED)
+            ->setParameter('before', $finishedBefore->format(\DateTimeInterface::ATOM))
+            ->executeQuery()
+            ->fetchFirstColumn();
+
+        return array_values(array_filter($ids, is_string(...)));
+    }
+
     public function blocksAmong(array $userIds): array
     {
         if (\count($userIds) < 2) {
