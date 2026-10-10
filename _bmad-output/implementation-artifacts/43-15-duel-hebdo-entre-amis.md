@@ -1,6 +1,6 @@
 # Story 43.15: Duel hebdo entre amis
 
-**Status:** draft
+**Status:** review
 **Epic:** 43 - Des amis qui servent à jouer
 **Date:** 2026-10-02
 **Dépend de:** 43.8 (bloc « Tes amis cette semaine »)
@@ -33,13 +33,47 @@ Inspiré des *Friend Quests* Duolingo et des défis de clubs Strava. Les hebdos 
 
 ## Tasks / Subtasks
 
-- [ ] **Domaine/Migration** : `WeeklyDuel` (hebdo, créateur, participants et réponses, résultat).
-- [ ] **Application** : création, réponse, résolution branchée sur la fin de l'hebdo.
-- [ ] **Community** : nouveau type `ActivityEntry` `weekly_duel` et son rendu dans le fil.
-- [ ] **Front** : bouton « Défier », mini-classement, résultat, `messageFor` / `hrefFor`.
-- [ ] Tests (gagnant, égalité, aucun objectif, refus, blocage, plafond) et gates.
+- [x] **Domaine/Migration** : `WeeklyDuel` (hebdo, créateur, participants et réponses, résultat).
+- [x] **Application** : création, réponse, résolution branchée sur la fin de l'hebdo.
+- [x] **Community** : nouveau type `ActivityEntry` `weekly_duel` et son rendu dans le fil.
+- [x] **Front** : bouton « Défier », mini-classement, résultat, `messageFor` / `hrefFor`.
+- [x] Tests (gagnant, égalité, aucun objectif, refus, blocage, plafond) et gates.
 
 ## Notes
 
 - Variante coopérative écartée de cette story : « objectif commun de *N* checks à deux sur la semaine ».
   Agréger les checks de plusieurs parties est coûteux ; à reprendre en story séparée si les duels prennent.
+
+## Dev Notes
+
+- **Domaine** (WeeklyRuns) : `WeeklyDuel` (`weekly_duel` : hebdo, créateur, `resolved_at`, `winner_id` ;
+  `MAX_OPPONENTS` = 5, `MAX_PER_WEEK` = 3) et `WeeklyDuelParticipant` (`weekly_duel_participant` : statut
+  pending / accepted / declined / cancelled, unique (duel, membre)). Le créateur a sa ligne, acceptée d'office.
+  Migration `Version20261010150000`.
+- **Classement** : le calcul de la 43.8 (meilleure tentative, objectif avant lancée avant inscrit, temps) est
+  extrait dans `Application/Support/WeeklyStanding`, réutilisé par `WeeklyRunFriendsQuery` et les duels. Un membre
+  qui a accepté sans s'inscrire apparaît « Pas inscrit » ; un défié sans réponse, « Pas encore répondu ».
+- **Application** :
+  - `WeeklyDuelService` (facade) : `challenge` (amis acceptés seulement via `FriendCircleQuery`, les autres sont
+    écartés ; 5 max ; hebdo active), `accept` / `decline`, `forViewer` (duels non résolus d'hebdos actives).
+    Notification `weekly_duel` aux défiés après l'enregistrement.
+  - `ResolveWeeklyDuels::forRun`, appelé par `StopWeeklyRunsMessageHandler` après le `flush` de l'hebdo terminée
+    (erreur journalisée, ne bloque pas l'arrêt). Gagnant = premier du classement s'il a atteint l'objectif, sinon
+    aucun. Après l'enregistrement : `weekly_duel_result` à chaque membre ayant accepté (`outcome` won / lost / none,
+    `opponentName`, `marginSeconds`), et une entrée d'activité `weekly_duel` (acteur = gagnant, `withUserId` =
+    deuxième) visible des amis du gagnant. Un duel que personne n'a accepté se ferme sans bruit ; sans gagnant,
+    pas d'entrée d'activité.
+- **Plafond hebdomadaire** : compté sur les duels créés depuis le début de l'hebdo concernée (`started_at`),
+  toutes hebdos de la semaine confondues.
+- **Blocage** (`WeeklyDuelBlockRule`) : appliqué à la lecture, à la réponse et à la résolution (pas de hook dans
+  `FriendshipService::block`, pour ne pas faire dépendre Community de WeeklyRuns). Si le créateur est concerné, l'autre
+  quitte le duel ; sinon le membre bloqué le quitte, le bloqueur garde sa place.
+- **Routes** : `GET /api/v1/weekly-duels[?weeklyRun=]`, `POST /api/v1/weekly-runs/{id}/duels` `{userIds}`
+  (201 ; 422 aucun ami / trop d'amis ; 429 plafond ; 409 hebdo finie), `POST /api/v1/weekly-duels/{id}/accept|decline`.
+- **Front** : `weekly-duels-api.ts`, `weekly-duels.tsx` (`WeeklyDuels`, `ChallengeFriendsButton`) sur la page de
+  l'hebdo (sous « Tes amis cette semaine », hebdo active) et sur `/compte` ; cloche (`weekly_duel`,
+  `weekly_duel_result`, lien `/runs-hebdo`) ; fil d'activité (« a gagné un duel hebdo sur X contre Y de 12 min »).
+  `formatMargin` et `weeklyDuelResultTitle` dans `notification-content.ts`.
+- **Tests** : `WeeklyDuelTest` (5 : acceptation + classement, gagnant, aucun objectif, blocage, plafonds),
+  `weekly-duels.test.tsx` (5) ; `StopWeeklyRunsMessageHandlerTest` reçoit le résolveur.
+- **A déployer** : la migration `Version20261010150000`.

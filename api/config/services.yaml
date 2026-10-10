@@ -111,6 +111,8 @@ services:
     App\WeeklyRuns\Application\Query\AdminCurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminCurrentWeeklyRunsQuery'
     App\WeeklyRuns\Application\Query\WeeklyRunLeaderboardQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalWeeklyRunLeaderboardQuery'
     App\WeeklyRuns\Application\Query\WeeklyRunFriendEntriesQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalWeeklyRunFriendEntriesQuery'
+    App\WeeklyRuns\Application\Query\WeeklyDuelContextQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalWeeklyDuelContextQuery'
+    App\WeeklyRuns\Domain\Repository\WeeklyDuelRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyDuelRepository'
     App\WeeklyRuns\Application\Query\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminWeeklyTemplateListQuery'
     App\WeeklyRuns\Application\Query\AdminWeeklyRunGameListQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminWeeklyRunGameListQuery'
     App\WeeklyRuns\Application\Query\AdminTemplateRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminTemplateRunsQuery'

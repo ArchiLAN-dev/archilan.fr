@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application\Handler;
 
+use App\WeeklyRuns\Application\Command\ResolveWeeklyDuels;
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
 use App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface;
 use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
@@ -21,6 +22,7 @@ final readonly class StopWeeklyRunsMessageHandler
         private WeeklyRunnerGatewayInterface $gateway,
         private LoggerInterface $logger,
         private ClockInterface $clock,
+        private ResolveWeeklyDuels $resolveDuels,
     ) {
     }
 
@@ -51,6 +53,13 @@ final readonly class StopWeeklyRunsMessageHandler
 
             $run->finish($now);
             $this->runs->flush();
+
+            // Story 43.15: the duels on this weekly run are settled once it is saved as finished.
+            try {
+                $this->resolveDuels->forRun($run->getId());
+            } catch (\Throwable $e) {
+                $this->logger->error('weekly_duel.resolve_failed', ['weeklyRunId' => $run->getId(), 'error' => $e->getMessage()]);
+            }
         }
     }
 }
