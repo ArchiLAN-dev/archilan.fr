@@ -191,6 +191,11 @@ export function messageFor(item: NotificationItem): string {
       return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
         ? `${actorName(item)} t'invite dans « ${item.data.runTitle} »`
         : `${actorName(item)} t'invite dans sa partie`;
+    case "run_joined":
+      // Story 43.14: a friend joined the member's run opened to friends.
+      return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
+        ? `${actorName(item)} a rejoint « ${item.data.runTitle} »`
+        : `${actorName(item)} a rejoint ta partie`;
     case "run_nudge":
       // Story 43.12: a co-player waits for the member's next session.
       return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
@@ -329,7 +334,7 @@ export function hrefFor(item: NotificationItem): string {
   if (item.type === "run_invitation") {
     return "/compte/parties";
   }
-  if (item.type === "run_nudge") {
+  if (item.type === "run_nudge" || item.type === "run_joined") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte/parties";
   }
   if (item.type === "friend_activity") {

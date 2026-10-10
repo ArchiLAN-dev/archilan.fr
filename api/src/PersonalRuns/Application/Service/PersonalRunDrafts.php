@@ -545,6 +545,9 @@ final readonly class PersonalRunDrafts
             'participants' => $participants,
             'sessionId' => $sessionId,
             'recapPublic' => $run->isRecapPublic(),
+            // Story 43.14: who may join without a link or a name.
+            'openness' => $run->getOpenness(),
+            'seatsWanted' => $run->getSeatsWanted(),
             'lastActivityAt' => $lastActivityAt,
             'pausedWithoutSave' => $pausedWithoutSave,
             'validationErrors' => $validationErrors,
