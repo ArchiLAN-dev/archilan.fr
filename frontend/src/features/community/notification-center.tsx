@@ -13,7 +13,7 @@ import {
   markNotificationRead,
   type NotificationItem,
 } from "./notifications-api";
-import { friendActivityTitle, sectionsOf, timeLabel } from "./notification-content";
+import { friendActivityTitle, sectionsOf, timeLabel, weeklyDuelResultTitle } from "./notification-content";
 import { NotificationRow } from "./notification-row";
 
 const QUERY_KEY = ["community-notifications"] as const;
@@ -196,6 +196,13 @@ export function messageFor(item: NotificationItem): string {
       return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
         ? `${actorName(item)} a rejoint « ${item.data.runTitle} »`
         : `${actorName(item)} a rejoint ta partie`;
+    case "weekly_duel":
+      // Story 43.15: answered on the weekly run's page or on « Mon compte ».
+      return hasStringProp(item.data, "gameName") && item.data.gameName !== ""
+        ? `${actorName(item)} te défie sur l'hebdo ${item.data.gameName}`
+        : `${actorName(item)} te défie sur l'hebdo`;
+    case "weekly_duel_result":
+      return weeklyDuelResultTitle(item.data).map((segment) => segment.text).join("");
     case "run_nudge":
       // Story 43.12: a co-player waits for the member's next session.
       return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
@@ -330,6 +337,9 @@ export function hrefFor(item: NotificationItem): string {
   }
   if (item.type === "generation_failed") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte";
+  }
+  if (item.type === "weekly_duel" || item.type === "weekly_duel_result") {
+    return "/runs-hebdo";
   }
   if (item.type === "run_invitation") {
     return "/compte/parties";

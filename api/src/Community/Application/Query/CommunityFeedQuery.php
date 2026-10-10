@@ -129,6 +129,9 @@ final readonly class CommunityFeedQuery
                 'kudosTargetId' => $canKudos ? $entry->getId() : null,
                 'kudosCount' => $canKudos ? ($kudosCounts[$entry->getId()] ?? 0) : 0,
                 'viewerHasKudos' => $canKudos && isset($kudosGiven[$entry->getId()]),
+                // Story 43.15: a won weekly duel, by how much over the runner-up and among how many.
+                'marginSeconds' => is_int($payload['marginSeconds'] ?? null) ? $payload['marginSeconds'] : null,
+                'players' => is_int($payload['players'] ?? null) ? $payload['players'] : null,
             ];
 
             $withUserId = $payload['withUserId'] ?? null;

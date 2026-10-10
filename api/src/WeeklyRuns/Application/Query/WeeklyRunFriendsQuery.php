@@ -6,6 +6,7 @@ namespace App\WeeklyRuns\Application\Query;
 
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Query\FriendCircleQuery;
+use App\WeeklyRuns\Application\Support\WeeklyStanding;
 
 /**
  * « Tes amis cette semaine » (story 43.8): the viewer and their friends who took part in a weekly run, with where
@@ -14,8 +15,6 @@ use App\Community\Application\Query\FriendCircleQuery;
  */
 final readonly class WeeklyRunFriendsQuery
 {
-    private const array STATUS_ORDER = ['goal' => 0, 'launched' => 1, 'registered' => 2];
-
     public function __construct(
         private FriendCircleQuery $friendCircle,
         private WeeklyRunFriendEntriesQueryInterface $entries,
@@ -28,19 +27,7 @@ final readonly class WeeklyRunFriendsQuery
      */
     public function forViewer(string $weeklyRunId, string $viewerId): array
     {
-        $best = [];
-        foreach ($this->entries->entriesOf($weeklyRunId, $this->friendCircle->memberIds($viewerId)) as $entry) {
-            $candidate = [
-                'status' => null !== $entry['goalReachedAt'] ? 'goal' : (null !== $entry['launchedAt'] ? 'launched' : 'registered'),
-                'completionTimeSeconds' => null !== $entry['goalReachedAt'] ? $entry['completionTimeSeconds'] : null,
-            ];
-            $current = $best[$entry['userId']] ?? null;
-            if (null === $current || self::compare($candidate, $current) < 0) {
-                $best[$entry['userId']] = $candidate;
-            }
-        }
-        uasort($best, self::compare(...));
-
+        $best = WeeklyStanding::rank($this->entries->entriesOf($weeklyRunId, $this->friendCircle->memberIds($viewerId)));
         $cards = $this->directory->cards(array_keys($best));
         $rows = [];
         foreach ($best as $userId => $standing) {
@@ -51,15 +38,5 @@ final readonly class WeeklyRunFriendsQuery
         }
 
         return $rows;
-    }
-
-    /**
-     * @param array{status: string, completionTimeSeconds: int|null} $a
-     * @param array{status: string, completionTimeSeconds: int|null} $b
-     */
-    private static function compare(array $a, array $b): int
-    {
-        return (self::STATUS_ORDER[$a['status']] ?? 3) <=> (self::STATUS_ORDER[$b['status']] ?? 3)
-            ?: ($a['completionTimeSeconds'] ?? PHP_INT_MAX) <=> ($b['completionTimeSeconds'] ?? PHP_INT_MAX);
     }
 }

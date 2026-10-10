@@ -11,6 +11,7 @@ import { getAccountMembership } from "@/features/payments/membership-api";
 import { slugify } from "@/features/weekly-runs/slugify";
 import { MembershipNotice } from "./weekly-runs-client-page";
 import { WeeklyRunFriends } from "./weekly-run-friends";
+import { ChallengeFriendsButton, WeeklyDuels } from "./weekly-duels";
 import {
   fetchCurrentWeeklyRuns,
   fetchWeeklyEntryPatches,
@@ -363,6 +364,13 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
           myUserId={myUserId}
         />
         <WeeklyRunFriends weeklyRunId={run.weeklyRunId} />
+        {/* Story 43.15: duels between friends, until the weekly run ends. */}
+        {isActive ? (
+          <div className="grid gap-3">
+            <WeeklyDuels weeklyRunId={run.weeklyRunId} />
+            <ChallengeFriendsButton weeklyRunId={run.weeklyRunId} />
+          </div>
+        ) : null}
       </div>
 
       {/* Live participant streams (story 7.7) - public, only while the run is active and someone is live */}

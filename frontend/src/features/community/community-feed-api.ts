@@ -23,7 +23,7 @@ export type ActivityActor = {
 };
 
 export type ActivityItem = {
-  type: "run_finished" | "friendship";
+  type: "run_finished" | "friendship" | "weekly_duel";
   occurredAt: string;
   game: string | null;
   event: string | null;
@@ -41,6 +41,9 @@ export type ActivityItem = {
   kudosTargetId: string | null;
   kudosCount: number;
   viewerHasKudos: boolean;
+  /** Story 43.15: a won weekly duel, by how much over the runner-up and among how many (absent from an older API). */
+  marginSeconds?: number | null;
+  players?: number | null;
 };
 
 function isActor(v: unknown): v is ActivityActor {
@@ -56,7 +59,7 @@ function isActor(v: unknown): v is ActivityActor {
 
 function isActivityItem(v: unknown): v is ActivityItem {
   if (typeof v !== "object" || v === null) return false;
-  if (!hasStringProp(v, "type") || (v.type !== "run_finished" && v.type !== "friendship")) return false;
+  if (!hasStringProp(v, "type") || (v.type !== "run_finished" && v.type !== "friendship" && v.type !== "weekly_duel")) return false;
   if (!hasStringProp(v, "occurredAt")) return false;
   for (const key of ["game", "event", "sessionId", "withSlug", "withName"] as const) {
     if (!hasNullableStringProp(v, key)) return false;
