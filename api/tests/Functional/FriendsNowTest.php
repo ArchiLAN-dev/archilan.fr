@@ -79,6 +79,23 @@ final class FriendsNowTest extends FunctionalTestCase
         self::assertArrayNotHasKey('runId', $recent[0], 'no link for a past session');
     }
 
+    public function testAFriendWhoPlayedARunNowPausedIsRecent(): void
+    {
+        // Story 43.19: a run of several weeks is rarely finished; its session goes idle between evenings.
+        $friend = $this->friend('paused');
+        $run = $this->personalRun($friend, 'Run longue');
+        $session = Session::createRunning(bin2hex(random_bytes(16)), $run->getId(), 'bridge.local', 38281, 'secret', 5000, new \DateTimeImmutable('-6 hours'));
+        $session->transition(Session::STATUS_IDLE, new \DateTimeImmutable('-2 hours'));
+        $this->entityManager->persist($session);
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $friend->getId(), $this->gameId(), 'paused', 0);
+        $slot->recordCheckActivity(new \DateTimeImmutable('-3 hours'));
+        $this->entityManager->persist($slot);
+        $this->entityManager->flush();
+
+        $recent = $this->rows($this->friendsNow()['recent']);
+        self::assertSame(['paused'], array_column($recent, 'slug'));
+    }
+
     public function testStarredFriendsComeFirst(): void
     {
         $this->finishedEvent($this->friend('newest'), new \DateTimeImmutable('-1 hour'));

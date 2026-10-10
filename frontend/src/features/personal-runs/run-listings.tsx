@@ -12,7 +12,7 @@ import { REPORT_PROBLEMS } from "@/features/community/community-report-api";
 import { FriendIdentity } from "@/features/community/friend-identity";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { seatsLabel } from "./friends-open-runs";
-import { joinOpenRun } from "./friends-open-runs-api";
+import { FRIENDS_OPEN_RUNS_KEY, joinOpenRun } from "./friends-open-runs-api";
 import { fetchRunListings, reportRunListing, RUN_LISTINGS_KEY, type ListingReportResult, type RunListing } from "./run-listings-api";
 
 const DATE = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
@@ -94,7 +94,11 @@ function ListingCard({ listing }: { listing: RunListing }) {
     setMessage(null);
     const result = await joinOpenRun(listing.runId);
     setBusy(false);
-    await queryClient.invalidateQueries({ queryKey: RUN_LISTINGS_KEY });
+    // Story 43.19: a listed run is in « Parties de tes amis » as well.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: RUN_LISTINGS_KEY }),
+      queryClient.invalidateQueries({ queryKey: FRIENDS_OPEN_RUNS_KEY }),
+    ]);
     if (!result.ok) {
       setMessage(result.message);
       return;

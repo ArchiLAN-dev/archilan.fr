@@ -11,6 +11,8 @@ use Doctrine\DBAL\Connection;
 
 final readonly class DbalRunListingsQuery implements RunListingsQueryInterface
 {
+    private const int LIMIT = 100;
+
     public function __construct(private Connection $connection)
     {
     }
@@ -28,6 +30,8 @@ final readonly class DbalRunListingsQuery implements RunListingsQueryInterface
             ->andWhere('NOT EXISTS (SELECT 1 FROM run_participant v WHERE v.personal_run_id = r.id AND v.user_id = :viewer)')
             ->andWhere('NOT EXISTS (SELECT 1 FROM community_block b WHERE (b.blocker_id = r.owner_id AND b.blocked_id = :viewer) OR (b.blocker_id = :viewer AND b.blocked_id = r.owner_id))')
             ->orderBy('r.listed_at', 'DESC')
+            // Story 43.19: a page, not the whole table.
+            ->setMaxResults(self::LIMIT)
             ->setParameter('members', Run::OPEN_MEMBERS)
             ->setParameter('draft', Run::STATUS_DRAFT)
             ->setParameter('viewer', $viewerId)

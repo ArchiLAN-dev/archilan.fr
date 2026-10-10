@@ -224,6 +224,8 @@ final readonly class PersonalRunDrafts
 
         $run->cancel($this->clock->now());
         $this->runs->flush();
+        // Story 43.19: nobody can answer an invitation into a cancelled run any more.
+        $this->invitations->closePendingForRun($run->getId(), $this->clock->now());
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
     }
@@ -254,6 +256,8 @@ final readonly class PersonalRunDrafts
 
         $run->cancel($this->clock->now());
         $this->runs->flush();
+        // Story 43.19: nobody can answer an invitation into a cancelled run any more.
+        $this->invitations->closePendingForRun($run->getId(), $this->clock->now());
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
     }

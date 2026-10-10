@@ -57,9 +57,20 @@ final readonly class AnswerRunInvitation
             return new AnswerRunInvitationResult(AnswerRunInvitationOutcome::NoLongerFriends, $runId);
         }
 
-        $invitation->accept($now);
-        // One flush: the participant and the accepted invitation land together.
-        $this->joiner->join($run, $userId, $now);
+        // Story 43.19: the run is locked while the member joins, so a double accept (two tabs) waits for the first
+        // and then finds the participant already there instead of failing on the unique key.
+        $this->runs->beginTransaction();
+        try {
+            $this->runs->findWithExclusiveLock($runId);
+            $invitation->accept($now);
+            // One flush: the participant and the accepted invitation land together.
+            $this->joiner->join($run, $userId, $now);
+            $this->runs->commit();
+        } catch (\Throwable $e) {
+            $this->runs->rollBack();
+
+            throw $e;
+        }
 
         return new AnswerRunInvitationResult(AnswerRunInvitationOutcome::Joined, $runId);
     }

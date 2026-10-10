@@ -94,7 +94,46 @@ final class FriendActivityTest extends FunctionalTestCase
         $this->entityManager->flush();
         $this->handle(FriendActivityJob::sessionStarted($runSession->getId()));
 
-        self::assertSame([], $this->alerts($this->viewer), 'a personal run waits for the runs open to friends');
+        self::assertSame([], $this->alerts($this->viewer), 'a personal run on invitation only is not announced');
+
+        // Story 43.19: a run its owner opened to friends is (43.11b AC1, with 43.14).
+        $run->openTo(Run::OPEN_FRIENDS, null, new \DateTimeImmutable());
+        $this->entityManager->flush();
+        $this->handle(FriendActivityJob::sessionStarted($runSession->getId()));
+
+        $alerts = $this->alerts($this->viewer);
+        self::assertCount(1, $alerts);
+        // The run's title and link stay for its players, as presence does (43.5).
+        self::assertSame(['session_started', null], [$alerts[0]->getPayload()['kind'], $alerts[0]->getPayload()['runId']]);
+    }
+
+    public function testAGroupedAlertCountsForEveryFavouriteItNames(): void
+    {
+        $bob = $this->createUser('bob@example.org', displayName: 'Bob', slug: 'bob');
+        $this->star($this->viewer, $bob);
+        $event = $this->createEvent('LAN à deux', new \DateTimeImmutable('-1 hour'), new \DateTimeImmutable('+1 day'), published: true);
+        $session = $this->eventSession($event, [$this->alice, $bob]);
+
+        $this->handle(FriendActivityJob::sessionStarted($session->getId()));
+        $alerts = $this->alerts($this->viewer);
+        self::assertCount(1, $alerts);
+        self::assertSame(1, $alerts[0]->getPayload()['others']);
+
+        // Story 43.19: Bob was in that alert; his goal ten minutes later stays within the hourly cap.
+        $this->handle(FriendActivityJob::goalReached($session->getId(), $bob->getDisplayName()));
+        self::assertCount(1, $this->alerts($this->viewer));
+    }
+
+    public function testAStarLeftBehindByAnEndedFriendshipSendsNothing(): void
+    {
+        foreach ($this->entityManager->getRepository(Friendship::class)->findAll() as $friendship) {
+            $this->entityManager->remove($friendship);
+        }
+        $this->entityManager->flush();
+
+        $this->handle(FriendActivityJob::registered($this->upcomingEvent('LAN')->getId(), $this->alice->getId()));
+
+        self::assertSame([], $this->alerts($this->viewer), 'story 43.19');
     }
 
     public function testAGoalIsAnnouncedFromTheGoalCallback(): void

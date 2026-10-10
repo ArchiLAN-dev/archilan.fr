@@ -133,10 +133,28 @@ final readonly class FriendshipService
     {
         $friendship = $this->friendships->findBetween($userId, $targetUserId);
         if ($friendship instanceof Friendship && $friendship->involves($userId)) {
-            $this->friendships->remove($friendship);
+            $this->endFriendship($friendship, $userId, $targetUserId);
+        }
+    }
+
+    /**
+     * The friendship goes, and with it the favourites (story 43.11a) and the places in each other's groups (story
+     * 43.13) - all or nothing (story 43.19), so no star outlives the friendship it stood on.
+     */
+    private function endFriendship(?Friendship $friendship, string $userId, string $targetUserId): void
+    {
+        $this->friendships->beginTransaction();
+        try {
+            if ($friendship instanceof Friendship) {
+                $this->friendships->remove($friendship);
+            }
             $this->favorites->removeBetween($userId, $targetUserId);
-            // Story 43.13: out of each other's groups too.
             $this->groups->removeBetween($userId, $targetUserId);
+            $this->friendships->commit();
+        } catch (\Throwable $e) {
+            $this->friendships->rollBack();
+
+            throw $e;
         }
     }
 
@@ -184,12 +202,7 @@ final readonly class FriendshipService
         }
 
         // Block retracts any existing/pending friendship.
-        $friendship = $this->friendships->findBetween($userId, $targetUserId);
-        if ($friendship instanceof Friendship) {
-            $this->friendships->remove($friendship);
-        }
-        $this->favorites->removeBetween($userId, $targetUserId);
-        $this->groups->removeBetween($userId, $targetUserId);
+        $this->endFriendship($this->friendships->findBetween($userId, $targetUserId), $userId, $targetUserId);
 
         if (null === $this->blocks->find($userId, $targetUserId)) {
             try {

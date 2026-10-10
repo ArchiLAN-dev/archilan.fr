@@ -797,6 +797,8 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               {run.status === "draft" ? (
                 <div className="mt-3">
                   <RunOpennessSetting
+                    // Story 43.19: starts over from the server when the openness changes there (an expired listing).
+                    key={`${run.openness ?? "invite"}-${run.listedAt ?? ""}`}
                     openness={run.openness ?? "invite"}
                     pitch={run.pitch ?? null}
                     plannedFor={run.plannedFor ?? null}

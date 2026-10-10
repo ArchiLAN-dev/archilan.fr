@@ -135,6 +135,18 @@ final class RunInvitationTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(409, 'an ended run takes no one in');
     }
 
+    public function testCancellingTheRunClosesItsPendingInvitations(): void
+    {
+        $friend = $this->friendOfOwner('friend');
+        $this->loginAs($this->owner);
+        $this->invite([$friend->getId()]);
+
+        $this->client->request('POST', '/api/v1/runs/'.$this->run->getId().'/archive');
+        self::assertResponseIsSuccessful();
+
+        self::assertSame(RunInvitation::CLOSED, $this->invitationOf($friend)->getStatus(), 'story 43.19');
+    }
+
     public function testOnlyTheOwnerInvitesAndADayHasACap(): void
     {
         $friend = $this->friendOfOwner('friend');

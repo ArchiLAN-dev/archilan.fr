@@ -76,6 +76,19 @@ final readonly class DoctrineRunRepository implements RunRepositoryInterface
         return $this->entityManager->getRepository(Run::class)->findBy(['status' => $statuses]);
     }
 
+    public function findByIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+        $runs = [];
+        foreach ($this->entityManager->getRepository(Run::class)->findBy(['id' => $ids]) as $run) {
+            $runs[$run->getId()] = $run;
+        }
+
+        return $runs;
+    }
+
     public function findListed(): array
     {
         /* @var list<Run> */

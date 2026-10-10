@@ -46,7 +46,8 @@ final readonly class RunInvitationsQuery
             }
             $rows[] = [
                 'invitationId' => $invitation->getId(),
-                'status' => $invitation->getStatus(),
+                // Story 43.19: a finished run takes no one: what still waits for an answer reads as closed.
+                'status' => $invitation->isPending() && $run->isTerminal() ? RunInvitation::CLOSED : $invitation->getStatus(),
                 'invitedAt' => $invitation->getInvitedAt()->format(\DATE_ATOM),
                 'respondedAt' => $invitation->getRespondedAt()?->format(\DATE_ATOM),
                 'invitee' => $card,
@@ -66,9 +67,11 @@ final readonly class RunInvitationsQuery
         $invitations = $this->invitations->findPendingForInvitee($userId);
         $cards = $this->directory->cards(array_map(static fn (RunInvitation $i): string => $i->getInviterId(), $invitations));
 
+        // Story 43.19: the runs in one query, not one per invitation.
+        $runs = $this->runs->findByIds(array_values(array_unique(array_map(static fn (RunInvitation $i): string => $i->getRunId(), $invitations))));
         $rows = [];
         foreach ($invitations as $invitation) {
-            $run = $this->runs->findById($invitation->getRunId());
+            $run = $runs[$invitation->getRunId()] ?? null;
             if (!$run instanceof Run || $run->isTerminal()) {
                 continue;
             }

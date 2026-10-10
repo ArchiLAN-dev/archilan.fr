@@ -104,7 +104,7 @@ export function RecapExchanges({ sessionId }: { sessionId: string }) {
               <span className="truncate text-xs text-muted-foreground">{exchangeLine(exchange)}</span>
             </span>
             {exchange.players
-              .filter((player) => !player.isFriend && !requested.has(player.userId))
+              .filter((player) => !player.isFriend && player.canAdd !== false && !requested.has(player.userId))
               .slice(0, 1)
               .map((player) => (
                 <button

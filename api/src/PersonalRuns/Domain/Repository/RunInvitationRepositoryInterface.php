@@ -25,5 +25,8 @@ interface RunInvitationRepositoryInterface
 
     public function deleteByRunId(string $runId): void;
 
+    /** Story 43.19: closes the run's invitations still waiting for an answer (flushed). */
+    public function closePendingForRun(string $runId, \DateTimeImmutable $now): void;
+
     public function flush(): void;
 }

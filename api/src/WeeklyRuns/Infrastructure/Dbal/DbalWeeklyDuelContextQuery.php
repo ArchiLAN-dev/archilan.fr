@@ -21,7 +21,7 @@ final readonly class DbalWeeklyDuelContextQuery implements WeeklyDuelContextQuer
             return [];
         }
         $rows = $this->connection->createQueryBuilder()
-            ->select('wr.id', 'wr.status', 'wr.started_at', 'g.name AS game_name')
+            ->select('wr.id', 'wr.status', 'wr.started_at', 'wr.week_year', 'wr.week_number', 'g.name AS game_name')
             ->from('weekly_runs', 'wr')
             ->leftJoin('wr', 'weekly_templates', 'wt', 'wt.id = wr.template_id')
             ->leftJoin('wt', 'game', 'g', 'g.id = wt.game_id')
@@ -42,10 +42,30 @@ final readonly class DbalWeeklyDuelContextQuery implements WeeklyDuelContextQuer
                 'gameName' => is_string($gameName) ? $gameName : null,
                 'active' => WeeklyRun::STATUS_ACTIVE === ($row['status'] ?? null),
                 'startedAt' => new \DateTimeImmutable($startedAt),
+                'weekYear' => is_numeric($row['week_year'] ?? null) ? (int) $row['week_year'] : 0,
+                'weekNumber' => is_numeric($row['week_number'] ?? null) ? (int) $row['week_number'] : 0,
             ];
         }
 
         return $runs;
+    }
+
+    public function duelsCreatedInWeek(string $creatorId, int $weekYear, int $weekNumber): int
+    {
+        $count = $this->connection->createQueryBuilder()
+            ->select('COUNT(*)')
+            ->from('weekly_duel', 'd')
+            ->join('d', 'weekly_runs', 'wr', 'wr.id = d.weekly_run_id')
+            ->where('d.creator_id = :creator')
+            ->andWhere('wr.week_year = :year')
+            ->andWhere('wr.week_number = :week')
+            ->setParameter('creator', $creatorId)
+            ->setParameter('year', $weekYear)
+            ->setParameter('week', $weekNumber)
+            ->executeQuery()
+            ->fetchOne();
+
+        return is_numeric($count) ? (int) $count : 0;
     }
 
     public function finishedRunsWithOpenDuels(\DateTimeImmutable $finishedBefore): array

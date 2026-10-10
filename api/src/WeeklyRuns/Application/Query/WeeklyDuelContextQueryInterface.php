@@ -13,7 +13,7 @@ interface WeeklyDuelContextQueryInterface
     /**
      * @param list<string> $weeklyRunIds
      *
-     * @return array<string, array{gameName: string|null, active: bool, startedAt: \DateTimeImmutable}> keyed by weekly run id
+     * @return array<string, array{gameName: string|null, active: bool, startedAt: \DateTimeImmutable, weekYear: int, weekNumber: int}> keyed by weekly run id
      */
     public function runs(array $weeklyRunIds): array;
 
@@ -25,6 +25,11 @@ interface WeeklyDuelContextQueryInterface
      * @return list<array{0: string, 1: string}>
      */
     public function blocksAmong(array $userIds): array;
+
+    /**
+     * Story 43.19: the duels a member created on the weekly runs of a given week, whatever the template.
+     */
+    public function duelsCreatedInWeek(string $creatorId, int $weekYear, int $weekNumber): int;
 
     /**
      * Story 43.18: the weekly runs finished before the given instant that still have a duel to settle.

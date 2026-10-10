@@ -4,7 +4,8 @@ import { hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
 import type { FriendCard } from "@/features/community/community-friends-api";
 
 /** Story 43.10: a player of another slot, and whether they are the viewer's friend. */
-export type ExchangePlayer = FriendCard & { isFriend: boolean };
+/** Story 43.19: `canAdd` is false when a request is pending, was declined, or a block stands (absent from an older API). */
+export type ExchangePlayer = FriendCard & { isFriend: boolean; canAdd?: boolean };
 
 /** What the viewer's slots exchanged with one other slot of the session. */
 export type SlotExchange = {

@@ -9,8 +9,9 @@ use App\Shared\Infrastructure\Dbal\DbalSlotPlayerSource;
 use Doctrine\DBAL\Connection;
 
 /**
- * One aggregated read over the sessions' players, as {@see DbalFriendSuggestionsQuery} does (story 43.2), then the
- * weekly duels won.
+ * One aggregated read over the players of the user's sessions, as {@see DbalFriendSuggestionsQuery} does (story
+ * 43.2), then the weekly duels won. Story 43.19: starts from the user's own sessions, and an unassigned slot of an
+ * imported seed is nobody.
  */
 final readonly class DbalSocialPlayQuery implements SocialPlayQueryInterface
 {
@@ -25,16 +26,22 @@ final readonly class DbalSocialPlayQuery implements SocialPlayQueryInterface
         $userColumn = DbalSlotPlayerSource::USER_COLUMN;
 
         $row = $this->connection->fetchAssociative(
-            "WITH players AS (
+            "WITH my_sessions AS (
+                 SELECT DISTINCT slot.session_id
+                   FROM session_slot slot
+                   JOIN {$players} sp ON sp.{$slotColumn} = slot.id
+                  WHERE sp.{$userColumn} = :userId
+             ), players AS (
                  SELECT DISTINCT slot.session_id, sp.{$userColumn} AS uid
                    FROM session_slot slot
                    JOIN {$players} sp ON sp.{$slotColumn} = slot.id
+                  WHERE slot.session_id IN (SELECT session_id FROM my_sessions)
              ), shared AS (
                  SELECT p.uid, p.session_id, s.finished_at
                    FROM players p
-                   JOIN players me ON me.session_id = p.session_id AND me.uid = :userId
                    JOIN session s ON s.id = p.session_id
                   WHERE p.uid <> :userId
+                    AND p.uid <> ''
                     AND (s.event_id IS NOT NULL OR EXISTS (SELECT 1 FROM run r WHERE r.session_id = s.id))
              ), per_person AS (
                  SELECT uid, COUNT(finished_at) AS finished FROM shared GROUP BY uid

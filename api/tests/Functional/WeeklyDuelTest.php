@@ -259,6 +259,22 @@ final class WeeklyDuelTest extends FunctionalTestCase
         }
         $this->challenge([$friends[0]->getId()]);
         self::assertResponseStatusCodeSame(429);
+
+        // Story 43.19: a weekly run of the same week generated later does not reset the count.
+        $other = new WeeklyRun(
+            id: bin2hex(random_bytes(8)),
+            templateId: $this->run->getTemplateId(),
+            weekYear: $this->run->getWeekYear(),
+            weekNumber: $this->run->getWeekNumber(),
+            seed: 'archilan-weekly-2026-41-b',
+            status: WeeklyRun::STATUS_ACTIVE,
+            startedAt: new \DateTimeImmutable(),
+            createdAt: new \DateTimeImmutable(),
+        );
+        $this->entityManager->persist($other);
+        $this->entityManager->flush();
+        $this->client->request('POST', '/api/v1/weekly-runs/'.$other->getId().'/duels', content: json_encode(['userIds' => [$friends[0]->getId()]], \JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(429);
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────────

@@ -150,13 +150,16 @@ final class Run
 
         $this->openness = $openness;
         $this->seatsWanted = self::OPEN_FRIENDS === $openness ? $seatsWanted : null;
-        $this->clearListing();
+        // Story 43.19: the listing's age stays, so taking it down and back up does not make it new again.
+        $this->pitch = null;
+        $this->plannedFor = null;
         $this->updatedAt = $now;
     }
 
     /**
      * Lists the draft run for every member (story 43.17), with a short message, the seats wanted and an optional
-     * date. Editing a listing keeps its age: only an arrival renews it.
+     * date. Editing a listing keeps its age: only an arrival renews it. Story 43.19: so does taking it down and back
+     * up, as long as it had not expired; an expired listing put back up starts afresh.
      */
     public function listForMembers(string $pitch, ?int $seatsWanted, ?\DateTimeImmutable $plannedFor, \DateTimeImmutable $now): void
     {
@@ -167,7 +170,7 @@ final class Run
         }
         self::assertSeats($seatsWanted);
 
-        if (self::OPEN_MEMBERS !== $this->openness) {
+        if (null === $this->listedAt || $this->lastSignOfLife() <= $now->modify(self::LISTING_LIFETIME)) {
             $this->listedAt = $now;
             $this->lastArrivalAt = null;
         }
@@ -192,9 +195,16 @@ final class Run
         if (!$this->isListed() || null === $this->listedAt) {
             return false;
         }
-        $lastSign = null !== $this->lastArrivalAt && $this->lastArrivalAt > $this->listedAt ? $this->lastArrivalAt : $this->listedAt;
 
-        return $lastSign <= $now->modify(self::LISTING_LIFETIME);
+        return $this->lastSignOfLife() <= $now->modify(self::LISTING_LIFETIME);
+    }
+
+    /** When the listing went up or was last joined, whichever is later. */
+    private function lastSignOfLife(): \DateTimeImmutable
+    {
+        $listedAt = $this->listedAt ?? $this->updatedAt;
+
+        return null !== $this->lastArrivalAt && $this->lastArrivalAt > $listedAt ? $this->lastArrivalAt : $listedAt;
     }
 
     /** Takes the listing down: the run goes back to invitations only. */
@@ -374,6 +384,10 @@ final class Run
         }
 
         $this->status = self::STATUS_CANCELLED;
+        // Story 43.19: a cancelled run takes no player any more; restored, it starts again on invitation.
+        $this->openness = self::OPEN_INVITE;
+        $this->seatsWanted = null;
+        $this->clearListing();
         $this->updatedAt = $now;
     }
 

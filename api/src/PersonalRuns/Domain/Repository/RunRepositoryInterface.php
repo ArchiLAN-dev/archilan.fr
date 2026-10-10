@@ -24,6 +24,15 @@ interface RunRepositoryInterface
 
     public function findByInviteToken(string $inviteToken): ?Run;
 
+    /**
+     * Story 43.19: several runs in one query.
+     *
+     * @param list<string> $ids
+     *
+     * @return array<string, Run> keyed by id
+     */
+    public function findByIds(array $ids): array;
+
     public function findBySessionId(string $sessionId): ?Run;
 
     /**

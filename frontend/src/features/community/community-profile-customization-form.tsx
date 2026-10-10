@@ -64,14 +64,14 @@ const AUDIENCE_HINTS: Record<string, string> = {
 
 const PRESENCE_LABELS: Record<string, string> = {
   everyone: "Tout le monde",
-  members: "Membres",
+  members: "Adhérents",
   friends: "Amis",
   nobody: "Personne",
 };
 
 const PRESENCE_HINTS: Record<string, string> = {
   everyone: "Tout le monde voit « En jeu » sur ton profil, dans l'annuaire et sur le fil, même les visiteurs.",
-  members: "Seuls les membres connectés et tes amis voient quand tu joues.",
+  members: "Seuls les adhérents de l'association et tes amis voient quand tu joues.",
   friends: "Seuls tes amis voient quand tu joues.",
   nobody: "Personne ne voit quand tu joues, pas même tes amis. Toi, tu le vois toujours.",
 };

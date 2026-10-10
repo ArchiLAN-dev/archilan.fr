@@ -13,6 +13,7 @@ use App\Community\Domain\Entity\Notification;
 use App\Community\Domain\Enum\PresenceVisibility;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\Repository\FriendFavoriteRepositoryInterface;
+use App\Community\Domain\Repository\FriendshipRepositoryInterface;
 use App\Community\Domain\Service\AudiencePolicy;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -43,6 +44,7 @@ final readonly class FriendActivityJobHandler
         private FriendSessionContextQueryInterface $sessions,
         private Notifier $notifier,
         private ClockInterface $clock,
+        private FriendshipRepositoryInterface $friendships,
     ) {
     }
 
@@ -81,7 +83,8 @@ final readonly class FriendActivityJobHandler
                 continue;
             }
             foreach ($this->favorites->starredBy($actorId) as $recipientId) {
-                if (!in_array($recipientId, $participants, true)) {
+                // Story 43.19: a star left behind by an ended friendship never sends an alert.
+                if (!in_array($recipientId, $participants, true) && $this->friendships->areFriends($recipientId, $actorId)) {
                     $actorsByRecipient[$recipientId][] = $actorId;
                 }
             }
@@ -105,7 +108,9 @@ final readonly class FriendActivityJobHandler
             } else {
                 $context = $this->sessions->forViewer([$job->contextId], $recipientId)[$job->contextId] ?? null;
                 // No context: a weekly run, which presence never shows either.
-                if (null === $context || (FriendActivityJob::SESSION_STARTED === $job->kind && 'event' !== $context['kind'])) {
+                // Story 43.19: a personal run is announced when it was open to friends (43.11b AC1, with 43.14).
+                if (null === $context || (FriendActivityJob::SESSION_STARTED === $job->kind && 'event' !== $context['kind']
+                    && !$this->source->isRunOpenToFriends($job->contextId))) {
                     continue;
                 }
                 $where = ['title' => $context['title'], 'eventId' => $context['eventId'], 'runId' => $context['runId']];
@@ -116,9 +121,13 @@ final readonly class FriendActivityJobHandler
             $this->notifier->notify($recipientId, Notification::TYPE_FRIEND_ACTIVITY, [
                 'fromUserId' => $actorId,
                 'actorName' => $card['displayName'] ?? $card['slug'],
+                // Story 43.19: the push leads to the friend's profile when there is no event or run to open.
+                'actorSlug' => $card['slug'],
                 'kind' => $job->kind,
                 ...$where,
                 'others' => count($fresh) - 1,
+                // Story 43.19: every favourite this alert covers, for the per-favourite hourly cap.
+                'actorIds' => $fresh,
             ]);
         }
     }

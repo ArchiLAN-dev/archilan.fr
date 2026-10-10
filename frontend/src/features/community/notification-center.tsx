@@ -343,7 +343,11 @@ export function hrefFor(item: NotificationItem): string {
   if (item.type === "generation_failed") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte";
   }
-  if (item.type === "weekly_duel" || item.type === "weekly_duel_result") {
+  if (item.type === "weekly_duel") {
+    // Story 43.19: « Mon compte » lists the open duels, with the answer buttons.
+    return "/compte";
+  }
+  if (item.type === "weekly_duel_result") {
     return "/runs-hebdo";
   }
   if (item.type === "run_invitation") {
