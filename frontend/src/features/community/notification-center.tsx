@@ -201,6 +201,11 @@ export function messageFor(item: NotificationItem): string {
       return hasStringProp(item.data, "gameName") && item.data.gameName !== ""
         ? `${actorName(item)} te défie sur l'hebdo ${item.data.gameName}`
         : `${actorName(item)} te défie sur l'hebdo`;
+    case "run_listing_expired":
+      // Story 43.17: the run went back to invitations only.
+      return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
+        ? `Ton annonce pour « ${item.data.runTitle} » a expiré`
+        : "Ton annonce a expiré";
     case "weekly_duel_result":
       return weeklyDuelResultTitle(item.data).map((segment) => segment.text).join("");
     case "run_nudge":
@@ -344,7 +349,7 @@ export function hrefFor(item: NotificationItem): string {
   if (item.type === "run_invitation") {
     return "/compte/parties";
   }
-  if (item.type === "run_nudge" || item.type === "run_joined") {
+  if (item.type === "run_nudge" || item.type === "run_joined" || item.type === "run_listing_expired") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte/parties";
   }
   if (item.type === "friend_activity") {

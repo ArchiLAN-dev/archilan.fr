@@ -18,6 +18,7 @@ use App\Identity\Application\Message\CleanupRefreshTokensMessage;
 use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
+use App\PersonalRuns\Application\Message\ExpireRunListingsMessage;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
 use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
@@ -92,6 +93,8 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Backstop côté run : tourne juste après le watchdog session, pour avancer une run dont
                 // le webhook de cycle de vie s'est perdu une fois la session résolue (story 17.14).
                 RecurringMessage::every('2 minutes', new ReconcileStuckRunsMessage()),
+                // Story 43.17: the run listings nobody joined for 14 days go back to invitations only.
+                RecurringMessage::cron('10 * * * *', new ExpireRunListingsMessage()),
             )
             ->add(
                 // Story 38.5: the apworld version tracker only ever ran by hand. Nightly, before the

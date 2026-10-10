@@ -31,17 +31,22 @@ final readonly class DbalRunInviteFriendsQuery implements RunInviteFriendsQueryI
             return false;
         }
 
+        return !$this->isBlockedEitherWay($inviterId, $inviteeId);
+    }
+
+    public function isBlockedEitherWay(string $a, string $b): bool
+    {
         $qb = $this->connection->createQueryBuilder();
         $blocked = $qb
             ->select('1')
             ->from('community_block', 'b')
             ->where('(b.blocker_id = :a AND b.blocked_id = :b) OR (b.blocker_id = :b AND b.blocked_id = :a)')
-            ->setParameter('a', $inviterId)
-            ->setParameter('b', $inviteeId)
+            ->setParameter('a', $a)
+            ->setParameter('b', $b)
             ->setMaxResults(1)
             ->executeQuery()
             ->fetchOne();
 
-        return false === $blocked;
+        return false !== $blocked;
     }
 }

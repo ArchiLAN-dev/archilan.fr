@@ -14,4 +14,7 @@ enum JoinOpenRunOutcome
 
     /** Every seat offered is taken. */
     case Full;
+
+    /** Story 43.17: a suspended member cannot join a listing. */
+    case Sanctioned;
 }

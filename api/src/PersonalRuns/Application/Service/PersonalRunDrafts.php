@@ -548,6 +548,10 @@ final readonly class PersonalRunDrafts
             // Story 43.14: who may join without a link or a name.
             'openness' => $run->getOpenness(),
             'seatsWanted' => $run->getSeatsWanted(),
+            // Story 43.17: the listing for every member, while there is one.
+            'pitch' => $run->getPitch(),
+            'plannedFor' => $run->getPlannedFor()?->format(\DateTimeInterface::ATOM),
+            'listedAt' => $run->getListedAt()?->format(\DateTimeInterface::ATOM),
             'lastActivityAt' => $lastActivityAt,
             'pausedWithoutSave' => $pausedWithoutSave,
             'validationErrors' => $validationErrors,

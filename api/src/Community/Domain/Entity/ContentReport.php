@@ -21,6 +21,8 @@ final class ContentReport
 {
     public const string TARGET_COMMENT = 'comment';
     public const string TARGET_PROFILE = 'profile';
+    /** Story 43.17: a personal run listed for every member, its message. */
+    public const string TARGET_RUN_LISTING = 'run_listing';
 
     public function __construct(
         #[ORM\Id]

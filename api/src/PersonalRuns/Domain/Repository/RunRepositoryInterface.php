@@ -33,6 +33,13 @@ interface RunRepositoryInterface
      */
     public function findByStatuses(array $statuses): array;
 
+    /**
+     * Story 43.17: the draft runs listed for every member.
+     *
+     * @return list<Run>
+     */
+    public function findListed(): array;
+
     public function save(Run $run): void;
 
     public function delete(Run $run): void;

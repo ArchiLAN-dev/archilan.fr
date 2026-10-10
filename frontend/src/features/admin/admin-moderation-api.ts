@@ -29,7 +29,11 @@ export type ModerationReport = {
   reporter: ModerationActor | null;
   comment: ModerationComment | null;
   profile: ModerationActor | null;
+  /** Story 43.17: a reported run listing, as it stands now (absent from an older API). */
+  runListing?: ModerationRunListing | null;
 };
+
+export type ModerationRunListing = { runId: string; title: string; pitch: string | null; owner: ModerationActor | null };
 
 /** An account whose unresolved profile reports cross the escalation threshold (story 30.28). */
 export type FlaggedAccount = {
@@ -58,7 +62,7 @@ export type ModerationQueue = {
 
 export type ReportStatus = "pending" | "resolved" | "all";
 export type ReportCommentState = "any" | "hidden" | "visible";
-export type ReportTargetType = "any" | "comment" | "profile";
+export type ReportTargetType = "any" | "comment" | "profile" | "run_listing";
 export type ReportProblem = "any" | "nudity" | "violence" | "hate" | "harassment" | "spam" | "other";
 export type ReportSort = "recent" | "oldest" | "severity";
 
@@ -131,7 +135,14 @@ function isReport(v: unknown): v is ModerationReport {
   if (!hasNullableStringProp(v, "note") || !hasNumberProp(v, "severity") || !hasBooleanProp(v, "uncategorized")) return false;
   if (!("reporter" in v) || !isNullableActor(v.reporter)) return false;
   if (!("comment" in v) || (v.comment !== null && !isComment(v.comment))) return false;
-  return "profile" in v && isNullableActor(v.profile);
+  if (!("profile" in v) || !isNullableActor(v.profile)) return false;
+  return !("runListing" in v) || v.runListing === null || v.runListing === undefined || isRunListing(v.runListing);
+}
+
+function isRunListing(v: unknown): v is ModerationRunListing {
+  if (typeof v !== "object" || v === null) return false;
+  if (!hasStringProp(v, "runId") || !hasStringProp(v, "title") || !hasNullableStringProp(v, "pitch")) return false;
+  return "owner" in v && isNullableActor(v.owner);
 }
 
 function isFlaggedAccount(v: unknown): v is FlaggedAccount {

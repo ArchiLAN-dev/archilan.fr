@@ -152,6 +152,15 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
         ...(game !== "" ? [{ text: " te défie sur l'hebdo " }, strong(game)] : [{ text: " te défie sur l'hebdo" }]),
       ]);
     }
+    case "run_listing_expired": {
+      // Story 43.17: nobody joined the listing for 14 days.
+      const run = text(data, "runTitle");
+      return base("run", "Annonce", icon("bell"), [
+        { text: "Ton annonce pour " },
+        strong(run !== "" ? run : "ta partie"),
+        { text: " a expiré : personne ne l'a rejointe en 14 jours" },
+      ]);
+    }
     case "weekly_duel_result":
       return base("run", "Duel", icon("trophy"), weeklyDuelResultTitle(data));
     case "run_nudge": {

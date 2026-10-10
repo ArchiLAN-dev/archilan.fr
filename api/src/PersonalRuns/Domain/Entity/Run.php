@@ -98,12 +98,24 @@ final class Run
          */
         #[ORM\Column(name: 'imported_slots', type: Types::JSON, nullable: true)]
         private ?array $importedSlots = null,
-        /** Who may join without a link or a name (story 43.14): OPEN_INVITE (default) or OPEN_FRIENDS. */
+        /** Who may join without a link or a name (stories 43.14, 43.17): OPEN_INVITE (default), OPEN_FRIENDS or OPEN_MEMBERS. */
         #[ORM\Column(name: 'openness', type: 'string', length: 16, options: ['default' => self::OPEN_INVITE])]
         private string $openness = self::OPEN_INVITE,
-        /** The seats offered to friends, the owner aside; null leaves them unbounded. */
+        /** The seats offered, the owner aside; null leaves them unbounded. */
         #[ORM\Column(name: 'seats_wanted', type: 'smallint', nullable: true)]
         private ?int $seatsWanted = null,
+        /** Story 43.17: the listing's short message, while the run is open to every member. */
+        #[ORM\Column(name: 'pitch', type: 'string', length: 280, nullable: true)]
+        private ?string $pitch = null,
+        /** Story 43.17: when the owner plans to play, if they said. */
+        #[ORM\Column(name: 'planned_for', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $plannedFor = null,
+        /** Story 43.17: when the listing went up. */
+        #[ORM\Column(name: 'listed_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $listedAt = null,
+        /** Story 43.17: the latest member to join from the listing, which keeps it alive. */
+        #[ORM\Column(name: 'last_arrival_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $lastArrivalAt = null,
     ) {
     }
 
@@ -113,36 +125,100 @@ final class Run
     /** Story 43.14: the owner's friends find the run and join it themselves. */
     public const string OPEN_FRIENDS = 'friends';
 
+    /** Story 43.17: a listing every member sees; the friends may join as well. */
+    public const string OPEN_MEMBERS = 'members';
+
     public const int MAX_SEATS_WANTED = 30;
+
+    public const int MAX_PITCH_LENGTH = 280;
+
+    /** Story 43.17: a listing nobody joined for this long is taken down. */
+    public const string LISTING_LIFETIME = '-14 days';
 
     /**
      * Opens the draft run to the owner's friends, or back to invitations only (story 43.14). Only a draft takes
-     * players this way: past the launch the slots are frozen.
+     * players this way: past the launch the slots are frozen. A listing to every member goes through
+     * {@see listForMembers}, which needs a message.
      */
     public function openTo(string $openness, ?int $seatsWanted, \DateTimeImmutable $now): void
     {
-        if (self::STATUS_DRAFT !== $this->status) {
-            throw new \DomainException('Only a draft run can be opened to friends.');
-        }
+        $this->assertDraft();
         if (!in_array($openness, [self::OPEN_INVITE, self::OPEN_FRIENDS], true)) {
             throw new \InvalidArgumentException('Unknown openness.');
         }
-        if (null !== $seatsWanted && ($seatsWanted < 1 || $seatsWanted > self::MAX_SEATS_WANTED)) {
-            throw new \InvalidArgumentException('Seats out of range.');
-        }
+        self::assertSeats($seatsWanted);
 
         $this->openness = $openness;
         $this->seatsWanted = self::OPEN_FRIENDS === $openness ? $seatsWanted : null;
+        $this->clearListing();
         $this->updatedAt = $now;
     }
 
-    /** Whether the owner's friends may join right now: open to them and still a draft. */
-    public function isOpenToFriends(): bool
+    /**
+     * Lists the draft run for every member (story 43.17), with a short message, the seats wanted and an optional
+     * date. Editing a listing keeps its age: only an arrival renews it.
+     */
+    public function listForMembers(string $pitch, ?int $seatsWanted, ?\DateTimeImmutable $plannedFor, \DateTimeImmutable $now): void
     {
-        return self::OPEN_FRIENDS === $this->openness && self::STATUS_DRAFT === $this->status;
+        $this->assertDraft();
+        $pitch = trim($pitch);
+        if ('' === $pitch || mb_strlen($pitch) > self::MAX_PITCH_LENGTH) {
+            throw new \InvalidArgumentException('A listing needs a message of at most 280 characters.');
+        }
+        self::assertSeats($seatsWanted);
+
+        if (self::OPEN_MEMBERS !== $this->openness) {
+            $this->listedAt = $now;
+            $this->lastArrivalAt = null;
+        }
+        $this->openness = self::OPEN_MEMBERS;
+        $this->seatsWanted = $seatsWanted;
+        $this->pitch = $pitch;
+        $this->plannedFor = $plannedFor;
+        $this->updatedAt = $now;
     }
 
-    /** Whether the run has no seat left for a friend, given how many members joined (the owner aside). */
+    /** A member joined from the listing (story 43.17): the listing lives on. */
+    public function recordArrival(\DateTimeImmutable $now): void
+    {
+        if (self::OPEN_MEMBERS === $this->openness) {
+            $this->lastArrivalAt = $now;
+        }
+    }
+
+    /** Whether the listing went LISTING_LIFETIME without an arrival. */
+    public function isListingExpired(\DateTimeImmutable $now): bool
+    {
+        if (!$this->isListed() || null === $this->listedAt) {
+            return false;
+        }
+        $lastSign = null !== $this->lastArrivalAt && $this->lastArrivalAt > $this->listedAt ? $this->lastArrivalAt : $this->listedAt;
+
+        return $lastSign <= $now->modify(self::LISTING_LIFETIME);
+    }
+
+    /** Takes the listing down: the run goes back to invitations only. */
+    public function expireListing(\DateTimeImmutable $now): void
+    {
+        $this->openness = self::OPEN_INVITE;
+        $this->seatsWanted = null;
+        $this->clearListing();
+        $this->updatedAt = $now;
+    }
+
+    /** Whether the owner's friends may join right now: open to them (or to every member) and still a draft. */
+    public function isOpenToFriends(): bool
+    {
+        return in_array($this->openness, [self::OPEN_FRIENDS, self::OPEN_MEMBERS], true) && self::STATUS_DRAFT === $this->status;
+    }
+
+    /** Story 43.17: whether every member may join right now, from the listing. */
+    public function isListed(): bool
+    {
+        return self::OPEN_MEMBERS === $this->openness && self::STATUS_DRAFT === $this->status;
+    }
+
+    /** Whether the run has no seat left, given how many members joined (the owner aside). */
     public function isFull(int $participants): bool
     {
         return null !== $this->seatsWanted && $participants >= $this->seatsWanted;
@@ -156,6 +232,43 @@ final class Run
     public function getSeatsWanted(): ?int
     {
         return $this->seatsWanted;
+    }
+
+    public function getPitch(): ?string
+    {
+        return $this->pitch;
+    }
+
+    public function getPlannedFor(): ?\DateTimeImmutable
+    {
+        return $this->plannedFor;
+    }
+
+    public function getListedAt(): ?\DateTimeImmutable
+    {
+        return $this->listedAt;
+    }
+
+    private function assertDraft(): void
+    {
+        if (self::STATUS_DRAFT !== $this->status) {
+            throw new \DomainException('Only a draft run can be opened.');
+        }
+    }
+
+    private static function assertSeats(?int $seatsWanted): void
+    {
+        if (null !== $seatsWanted && ($seatsWanted < 1 || $seatsWanted > self::MAX_SEATS_WANTED)) {
+            throw new \InvalidArgumentException('Seats out of range.');
+        }
+    }
+
+    private function clearListing(): void
+    {
+        $this->pitch = null;
+        $this->plannedFor = null;
+        $this->listedAt = null;
+        $this->lastArrivalAt = null;
     }
 
     public static function create(string $ownerId, string $title, \DateTimeImmutable $now): self

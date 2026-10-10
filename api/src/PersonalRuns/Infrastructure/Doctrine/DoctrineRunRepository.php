@@ -75,6 +75,12 @@ final readonly class DoctrineRunRepository implements RunRepositoryInterface
         return $this->entityManager->getRepository(Run::class)->findBy(['status' => $statuses]);
     }
 
+    public function findListed(): array
+    {
+        /* @var list<Run> */
+        return $this->entityManager->getRepository(Run::class)->findBy(['openness' => Run::OPEN_MEMBERS, 'status' => Run::STATUS_DRAFT]);
+    }
+
     public function save(Run $run): void
     {
         $this->entityManager->persist($run);
