@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application\Query;
 
 use App\Community\Domain\Repository\FriendFavoriteRepositoryInterface;
+use App\Community\Domain\Repository\FriendGroupRepositoryInterface;
 use App\Community\Domain\Repository\FriendshipRepositoryInterface;
 use App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface;
 use App\Streaming\Application\Support\LiveTwitchLogins;
@@ -42,6 +43,7 @@ final readonly class CommunityDirectory
         private FriendshipRepositoryInterface $friendships,
         private CommunityLevelQuery $levels,
         private FriendFavoriteRepositoryInterface $favorites,
+        private FriendGroupRepositoryInterface $groups,
     ) {
     }
 
@@ -58,6 +60,7 @@ final readonly class CommunityDirectory
         ?string $viewerId,
         int $page,
         int $perPage,
+        ?string $groupId = null,
     ): array {
         $perPage = $perPage <= 0 ? self::DEFAULT_PER_PAGE : min($perPage, self::MAX_PER_PAGE);
         $page = max(1, $page);
@@ -72,6 +75,10 @@ final readonly class CommunityDirectory
             $candidateIds = null === $viewerId
                 ? []
                 : array_values(array_intersect($candidateIds, $this->friendIds($viewerId)));
+            if (null !== $groupId && null !== $viewerId) {
+                // Story 43.13: one of the viewer's groups; another member's group is just empty.
+                $candidateIds = array_values(array_intersect($candidateIds, $this->groups->membersByGroup($viewerId)[$groupId] ?? []));
+            }
         }
 
         if ([] === $candidateIds) {

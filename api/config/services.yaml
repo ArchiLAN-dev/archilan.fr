@@ -357,6 +357,7 @@ services:
     App\Community\Domain\Repository\BlockRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineBlockRepository'
     App\Community\Domain\Repository\FriendSuggestionDismissalRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendSuggestionDismissalRepository'
     App\Community\Domain\Repository\FriendFavoriteRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendFavoriteRepository'
+    App\Community\Domain\Repository\FriendGroupRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendGroupRepository'
     App\Community\Domain\Repository\NotificationPreferenceRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineNotificationPreferenceRepository'
     App\Community\Domain\Repository\FriendLinkRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendLinkRepository'
     App\Community\Domain\Repository\ActivityEntryRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineActivityEntryRepository'

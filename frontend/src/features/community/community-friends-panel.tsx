@@ -13,6 +13,7 @@ import {
   type IncomingRequest,
 } from "./community-friends-api";
 import { FavoriteFriendButton } from "./favorite-friend-button";
+import { FriendGroupsPanel } from "./friend-groups-panel";
 import { FriendIdentity } from "./friend-identity";
 import { MyFriendLink } from "./friend-link";
 import { FriendSuggestions } from "./friend-suggestions";
@@ -111,6 +112,9 @@ export function CommunityFriendsPanel() {
           </ul>
         )}
       </section>
+
+      {/* Story 43.13: private groups of friends. */}
+      <FriendGroupsPanel friends={data.friends} />
 
       {data.outgoing.length > 0 ? (
         <section className="grid gap-3">

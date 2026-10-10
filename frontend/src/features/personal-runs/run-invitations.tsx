@@ -8,6 +8,8 @@ import { Check, Mail, Search, UserPlus, X } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { fetchFriends, type FriendCard } from "@/features/community/community-friends-api";
 import { FriendIdentity } from "@/features/community/friend-identity";
+import type { FriendGroup } from "@/features/community/friend-groups-api";
+import { useFriendGroups } from "@/features/community/friend-groups-panel";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   answerRunInvitation,
@@ -34,6 +36,20 @@ export function matchesSearch(friend: FriendCard, search: string): boolean {
   const term = search.trim().toLowerCase();
   if (term === "") return true;
   return (friend.displayName ?? "").toLowerCase().includes(term) || friend.slug.toLowerCase().includes(term);
+}
+
+/**
+ * Story 43.13: the friends of a group who can be invited, and how many of its members are left out (already in the
+ * run or invited, or no longer a friend).
+ */
+export function groupPick(group: FriendGroup, friends: FriendCard[], participantIds: ReadonlySet<string>, invitations: RunInvitation[]): { pick: string[]; skipped: number } {
+  const friendsById = new Map(friends.map((friend) => [friend.userId, friend]));
+  const pick: string[] = [];
+  for (const id of group.memberIds) {
+    const friend = friendsById.get(id);
+    if (friend !== undefined && unavailableReason(friend, participantIds, invitations) === null) pick.push(id);
+  }
+  return { pick, skipped: group.memberIds.length - pick.length };
 }
 
 /**
@@ -66,6 +82,8 @@ function InviteFriendsForm({ runId, participantIds, onDone }: { runId: string; p
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [groupNote, setGroupNote] = useState<string | null>(null);
+  const groupsQuery = useFriendGroups();
   const friendsQuery = useQuery({ queryKey: ["community-friends"], queryFn: fetchFriends, staleTime: DEFAULT_STALE_TIME, retry: false });
   const invitationsQuery = useQuery({ queryKey: runInvitationsKey(runId), queryFn: () => fetchRunInvitations(runId), staleTime: DEFAULT_STALE_TIME, retry: false });
 
@@ -81,6 +99,13 @@ function InviteFriendsForm({ runId, participantIds, onDone }: { runId: string; p
       else next.add(userId);
       return next;
     });
+  }
+
+  function pickGroup(group: FriendGroup) {
+    const { pick, skipped } = groupPick(group, friends, participants, invitations);
+    setPicked((prev) => new Set([...prev, ...pick]));
+    const count = `${pick.length} ${pick.length > 1 ? "amis cochés" : "ami coché"}`;
+    setGroupNote(skipped > 0 ? `${group.name} : ${count}, ${skipped} ${skipped > 1 ? "ignorés" : "ignoré"} (déjà dans la partie ou invités, ou plus amis).` : `${group.name} : ${count}.`);
   }
 
   async function handleSend() {
@@ -122,6 +147,24 @@ function InviteFriendsForm({ runId, participantIds, onDone }: { runId: string; p
           value={search}
         />
       </label>
+      {(groupsQuery.data ?? []).length > 0 ? (
+        <div className="grid gap-1.5">
+          <p className="text-xs text-muted-foreground">Cocher un groupe d&apos;un coup :</p>
+          <div className="flex flex-wrap gap-1.5">
+            {(groupsQuery.data ?? []).map((group) => (
+              <button
+                className="inline-flex min-h-8 items-center gap-1 rounded-full border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent hover:text-accent-text"
+                key={group.id}
+                onClick={() => pickGroup(group)}
+                type="button"
+              >
+                {group.name} <span className="font-normal text-muted-foreground">({group.memberIds.length})</span>
+              </button>
+            ))}
+          </div>
+          {groupNote !== null ? <p className="text-xs text-muted-foreground" role="status">{groupNote}</p> : null}
+        </div>
+      ) : null}
       <ul className="grid max-h-80 gap-1 overflow-y-auto" role="list">
         {shown.map((friend) => {
           const reason = unavailableReason(friend, participants, invitations);
