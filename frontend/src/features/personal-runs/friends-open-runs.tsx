@@ -12,6 +12,7 @@ import {
   fetchFriendsOpenRuns,
   FRIENDS_OPEN_RUNS_KEY,
   joinOpenRun,
+  MAX_PITCH_LENGTH,
   MAX_SEATS_WANTED,
   setRunOpenness,
   type FriendsOpenRun,
@@ -93,44 +94,73 @@ export function FriendsOpenRuns({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/** `2026-11-02T20:00` for a datetime-local field, from an ISO date (local time, as the owner reads it). */
+export function toLocalInput(iso: string | null): string {
+  if (iso === null) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 /**
- * The owner opens their draft run to all their friends, with an optional number of seats (story 43.14). Back
- * on invitation, the run leaves the friends' lists; the link and the invitations by name keep working either way.
+ * The owner opens their draft run to all their friends, with an optional number of seats (story 43.14), or lists it
+ * for every member with a short message and an optional date (story 43.17). Back on invitation, the run leaves the
+ * lists; the link and the invitations by name keep working either way.
  */
 export function RunOpennessSetting({
   runId,
   openness,
   seatsWanted,
+  pitch = null,
+  plannedFor = null,
 }: {
   runId: string;
   openness: RunOpenness;
   seatsWanted: number | null;
+  pitch?: string | null;
+  plannedFor?: string | null;
 }) {
   const queryClient = useQueryClient();
+  const [choice, setChoice] = useState<RunOpenness>(openness);
   const [seats, setSeats] = useState(seatsWanted === null ? "" : String(seatsWanted));
+  const [message, setMessage] = useState(pitch ?? "");
+  const [date, setDate] = useState(toLocalInput(plannedFor));
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function save(next: RunOpenness, nextSeats: string) {
-    const parsed = nextSeats.trim() === "" ? null : Number.parseInt(nextSeats, 10);
-    if (parsed !== null && (Number.isNaN(parsed) || parsed < 1 || parsed > MAX_SEATS_WANTED)) {
-      setMessage(`Entre 1 et ${MAX_SEATS_WANTED} places, ou vide pour ne pas limiter.`);
+  async function save(next: RunOpenness) {
+    const parsed = seats.trim() === "" ? null : Number.parseInt(seats, 10);
+    if (next !== "invite" && parsed !== null && (Number.isNaN(parsed) || parsed < 1 || parsed > MAX_SEATS_WANTED)) {
+      setError(`Entre 1 et ${MAX_SEATS_WANTED} places, ou vide pour ne pas limiter.`);
+      return;
+    }
+    if (next === "members" && message.trim() === "") {
+      setError("Une annonce a besoin d'un message.");
       return;
     }
     setBusy(true);
-    const result = await setRunOpenness(runId, next, next === "friends" ? parsed : null);
+    const listing = next === "members" ? { pitch: message, plannedFor: date === "" ? null : new Date(date).toISOString() } : null;
+    const result = await setRunOpenness(runId, next, next === "invite" ? null : parsed, listing);
     setBusy(false);
     if (!result.ok) {
-      setMessage(result.message);
+      setError(result.message);
       return;
     }
-    setMessage(null);
+    setError(null);
     await queryClient.invalidateQueries({ queryKey: ["personal-run", runId] });
   }
 
-  const choice = (value: RunOpenness, label: string) => (
+  function pick(next: RunOpenness) {
+    setChoice(next);
+    setError(null);
+    // A listing waits for its message; the other choices apply at once.
+    if (next !== "members") void save(next);
+  }
+
+  const option = (value: RunOpenness, label: string) => (
     <label className="inline-flex items-center gap-1.5 text-sm text-foreground">
-      <input checked={openness === value} disabled={busy} name={`openness-${runId}`} onChange={() => void save(value, seats)} type="radio" value={value} />
+      <input checked={choice === value} disabled={busy} name={`openness-${runId}`} onChange={() => pick(value)} type="radio" value={value} />
       {label}
     </label>
   );
@@ -142,44 +172,74 @@ export function RunOpennessSetting({
         Ouverture
       </legend>
       <div className="flex flex-wrap items-center gap-4">
-        {choice("invite", "Sur invitation")}
-        {choice("friends", "Tous mes amis")}
+        {option("invite", "Sur invitation")}
+        {option("friends", "Tous mes amis")}
+        {option("members", "Tous les membres (annonce)")}
       </div>
-      {openness === "friends" ? (
+      {choice !== "invite" ? (
         <form
-          className="flex flex-wrap items-center gap-2"
+          className="grid gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            void save("friends", seats);
+            void save(choice);
           }}
         >
-          <label className="text-xs text-muted-foreground" htmlFor={`seats-${runId}`}>
-            Places pour tes amis
-          </label>
-          <input
-            className="min-h-8 w-20 rounded border border-border bg-background px-2 text-sm text-foreground"
-            id={`seats-${runId}`}
-            inputMode="numeric"
-            max={MAX_SEATS_WANTED}
-            min={1}
-            onChange={(e) => setSeats(e.target.value)}
-            placeholder="Illimité"
-            type="number"
-            value={seats}
-          />
-          <button className="rounded border border-border px-2 py-1 text-xs font-semibold text-foreground hover:border-accent disabled:opacity-50" disabled={busy} type="submit">
-            Enregistrer
-          </button>
+          {choice === "members" ? (
+            <>
+              <label className="grid gap-1 text-xs text-muted-foreground" htmlFor={`pitch-${runId}`}>
+                Ton annonce ({message.length} / {MAX_PITCH_LENGTH})
+                <textarea
+                  className="min-h-16 rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                  id={`pitch-${runId}`}
+                  maxLength={MAX_PITCH_LENGTH}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="On cherche deux joueurs pour un async tranquille, rythme libre."
+                  value={message}
+                />
+              </label>
+              <label className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" htmlFor={`planned-${runId}`}>
+                Date prévue (facultatif)
+                <input
+                  className="min-h-8 rounded border border-border bg-background px-2 text-sm text-foreground"
+                  id={`planned-${runId}`}
+                  onChange={(e) => setDate(e.target.value)}
+                  type="datetime-local"
+                  value={date}
+                />
+              </label>
+            </>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs text-muted-foreground" htmlFor={`seats-${runId}`}>
+              {choice === "members" ? "Places voulues" : "Places pour tes amis"}
+            </label>
+            <input
+              className="min-h-8 w-20 rounded border border-border bg-background px-2 text-sm text-foreground"
+              id={`seats-${runId}`}
+              inputMode="numeric"
+              max={MAX_SEATS_WANTED}
+              min={1}
+              onChange={(e) => setSeats(e.target.value)}
+              placeholder="Illimité"
+              type="number"
+              value={seats}
+            />
+            <button className="rounded border border-border px-2 py-1 text-xs font-semibold text-foreground hover:border-accent disabled:opacity-50" disabled={busy} type="submit">
+              {choice === "members" && openness !== "members" ? "Publier l'annonce" : "Enregistrer"}
+            </button>
+          </div>
         </form>
       ) : null}
       <p className="text-xs text-muted-foreground">
-        {openness === "friends"
-          ? "Tes amis voient la partie dans « Parties de tes amis » et la rejoignent sans invitation, tant qu'elle n'est pas lancée."
-          : "Seuls le lien et tes invitations par nom font entrer quelqu'un."}
+        {choice === "members"
+          ? "Tous les membres voient l'annonce dans « Parties qui cherchent des joueurs » (les jeux choisis y figurent). Sans arrivée pendant 14 jours, elle expire."
+          : choice === "friends"
+            ? "Tes amis voient la partie dans « Parties de tes amis » et la rejoignent sans invitation, tant qu'elle n'est pas lancée."
+            : "Seuls le lien et tes invitations par nom font entrer quelqu'un."}
       </p>
-      {message !== null ? (
+      {error !== null ? (
         <p className="text-sm text-danger" role="alert">
-          {message}
+          {error}
         </p>
       ) : null}
     </fieldset>

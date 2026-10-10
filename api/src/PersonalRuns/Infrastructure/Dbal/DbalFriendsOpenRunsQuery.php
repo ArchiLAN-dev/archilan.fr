@@ -22,7 +22,7 @@ final readonly class DbalFriendsOpenRunsQuery implements FriendsOpenRunsQueryInt
             ->addSelect('(SELECT COUNT(*) FROM run_participant c WHERE c.personal_run_id = r.id AND c.user_id <> r.owner_id) AS joined')
             ->from('run', 'r')
             ->join('r', 'community_friendship', 'f', '(f.requester_id = r.owner_id AND f.addressee_id = :viewer) OR (f.addressee_id = r.owner_id AND f.requester_id = :viewer)')
-            ->where('r.openness = :friends')
+            ->where('r.openness IN (:friends, :members)')
             ->andWhere('r.status = :draft')
             ->andWhere('f.status = :accepted')
             ->andWhere('r.owner_id <> :viewer')
@@ -31,6 +31,8 @@ final readonly class DbalFriendsOpenRunsQuery implements FriendsOpenRunsQueryInt
             ->orderBy('r.created_at', 'DESC')
             ->setParameter('viewer', $viewerId)
             ->setParameter('friends', Run::OPEN_FRIENDS)
+            // Story 43.17: a run listed for every member is open to the owner's friends as well.
+            ->setParameter('members', Run::OPEN_MEMBERS)
             ->setParameter('draft', Run::STATUS_DRAFT)
             ->setParameter('accepted', 'accepted')
             ->executeQuery()

@@ -16,6 +16,9 @@ enum SetRunOpennessOutcome
     /** The run left draft: its players are set. */
     case Locked;
 
-    /** Unknown openness, or a number of seats out of range. */
+    /** Unknown openness, a number of seats out of range, or a listing without a fitting message. */
     case Invalid;
+
+    /** Story 43.17: a suspended member cannot list a run. */
+    case Sanctioned;
 }

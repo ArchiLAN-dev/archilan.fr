@@ -18,6 +18,9 @@ export const FRIENDS_OPEN_RUNS_KEY = ["friends-open-runs"] as const;
 
 export const MAX_SEATS_WANTED = 30;
 
+/** Story 43.17: the longest message of a listing. */
+export const MAX_PITCH_LENGTH = 280;
+
 function isCard(v: unknown): v is FriendCard {
   return typeof v === "object" && v !== null && hasStringProp(v, "userId") && hasStringProp(v, "slug") && hasNullableStringProp(v, "displayName") && hasNullableStringProp(v, "avatarUrl");
 }
@@ -67,13 +70,16 @@ export async function joinOpenRun(runId: string): Promise<JoinOpenRunResult> {
 
 export type SetOpennessResult = { ok: true } | { ok: false; message: string };
 
-export async function setRunOpenness(runId: string, openness: RunOpenness, seatsWanted: number | null): Promise<SetOpennessResult> {
+/** Story 43.17: what a listing for every member says. */
+export type RunListingInput = { pitch: string; plannedFor: string | null };
+
+export async function setRunOpenness(runId: string, openness: RunOpenness, seatsWanted: number | null, listing: RunListingInput | null = null): Promise<SetOpennessResult> {
   const failed = { ok: false as const, message: "Réglage non enregistré, réessaie." };
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/runs/${encodeURIComponent(runId)}/openness`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ openness, seatsWanted }),
+      body: JSON.stringify({ openness, seatsWanted, ...(listing === null ? {} : { pitch: listing.pitch, plannedFor: listing.plannedFor }) }),
     });
     if (res.ok) return { ok: true };
     return { ok: false, message: errorMessageOf(await res.json()) ?? failed.message };

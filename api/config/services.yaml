@@ -351,6 +351,7 @@ services:
     App\Identity\Domain\Repository\AdminUserActionAuditRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrineAdminUserActionAuditRepository'
     App\Community\Application\Query\AdminReportsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAdminReportsQuery'
     App\Community\Application\Query\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAccountReportScoreQuery'
+    App\Community\Application\Query\RunListingReportQueryInterface: '@App\Community\Infrastructure\Dbal\DbalRunListingReportQuery'
     App\Community\Application\Query\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityAdminIdsQuery'
     App\Sessions\Application\Port\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\Adapter\MessengerAchievementRecomputeTrigger'
     App\Community\Domain\Repository\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementGrantRepository'
@@ -393,6 +394,7 @@ services:
     App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalMyRunSlotsQuery'
     App\PersonalRuns\Application\Query\RunInviteFriendsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRunInviteFriendsQuery'
     App\PersonalRuns\Application\Query\RunPlayerActivityQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRunPlayerActivityQuery'
+    App\PersonalRuns\Application\Query\RunListingsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRunListingsQuery'
     App\PersonalRuns\Application\Query\FriendsOpenRunsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalFriendsOpenRunsQuery'
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'

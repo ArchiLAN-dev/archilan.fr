@@ -6,6 +6,7 @@ import type { PublicEvent } from "@/features/events/event-types";
 import { CommunityHubStats } from "./community-hub-stats";
 import { CommunityMembersPreview } from "./community-members-preview";
 import { FriendsNowCard } from "./friends-now-card";
+import { RunListingsLink } from "@/features/personal-runs/run-listings";
 import { LeaderboardClient } from "./leaderboard-client";
 import { MemberAvatar } from "./member-avatar";
 import type { CommunityStats, LeaderboardResponse } from "./community-api";
@@ -61,6 +62,10 @@ export function CommunityHub({
           memberCount={overview?.memberCount ?? null}
         />
         <FriendsNowCard />
+        {/* Story 43.17: the runs listed for every member. */}
+        <div>
+          <RunListingsLink />
+        </div>
       </section>
 
       {playing.length > 0 ? (

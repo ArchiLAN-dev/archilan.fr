@@ -18,9 +18,10 @@ use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use Psr\Clock\ClockInterface;
 
 /**
- * A friend joins a draft run its owner opened to friends (story 43.14), with the invite link's logic
- * ({@see RunJoiner}). A pending invitation by name for the same run counts as accepted. The owner hears of each
- * arrival in the bell, once the participant is saved.
+ * A friend joins a draft run its owner opened to friends (story 43.14), or any member a run listed for every member
+ * (story 43.17), with the invite link's logic ({@see RunJoiner}). A block either way keeps the run hidden; a
+ * suspended member cannot join a listing. A pending invitation by name for the same run counts as accepted. The
+ * owner hears of each arrival in the bell, once the participant is saved.
  */
 final readonly class JoinOpenRun
 {
@@ -47,7 +48,15 @@ final readonly class JoinOpenRun
         if ($run->isOwnedBy($userId) || $this->participants->findByRunAndUser($runId, $userId) instanceof RunParticipant) {
             return JoinOpenRunOutcome::Joined;
         }
-        if (!$run->isOpenToFriends() || !$this->friends->canInvite($run->getOwnerId(), $userId)) {
+        $member = $this->users->findById($userId);
+        if ($run->isListed()) {
+            if ($this->friends->isBlockedEitherWay($run->getOwnerId(), $userId)) {
+                return JoinOpenRunOutcome::NotFound;
+            }
+            if (!$member instanceof User || $member->isAccessBlocked($this->clock->now())) {
+                return JoinOpenRunOutcome::Sanctioned;
+            }
+        } elseif (!$run->isOpenToFriends() || !$this->friends->canInvite($run->getOwnerId(), $userId)) {
             return JoinOpenRunOutcome::NotFound;
         }
         $joined = \count(array_filter(
@@ -63,10 +72,10 @@ final readonly class JoinOpenRun
         if ($invitation instanceof RunInvitation && $invitation->isPending()) {
             $invitation->accept($now);
         }
-        // One flush: the participant and the accepted invitation land together.
+        $run->recordArrival($now);
+        // One flush: the participant, the accepted invitation and the listing's renewal land together.
         $this->joiner->join($run, $userId, $now);
 
-        $member = $this->users->findById($userId);
         $this->notifier->notify($run->getOwnerId(), self::NOTIFICATION_TYPE, [
             'fromUserId' => $userId,
             'joinerName' => $member instanceof User ? $member->getDisplayName() : null,

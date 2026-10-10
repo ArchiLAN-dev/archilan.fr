@@ -796,7 +796,13 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               {/* Story 43.14: a draft opened to all the owner's friends, who join it themselves. */}
               {run.status === "draft" ? (
                 <div className="mt-3">
-                  <RunOpennessSetting openness={run.openness ?? "invite"} runId={run.id} seatsWanted={run.seatsWanted ?? null} />
+                  <RunOpennessSetting
+                    openness={run.openness ?? "invite"}
+                    pitch={run.pitch ?? null}
+                    plannedFor={run.plannedFor ?? null}
+                    runId={run.id}
+                    seatsWanted={run.seatsWanted ?? null}
+                  />
                 </div>
               ) : null}
             </div>

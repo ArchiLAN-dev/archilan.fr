@@ -195,7 +195,7 @@ function ReportRow({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="inline-flex flex-wrap items-center gap-2 text-sm">
           <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-400">
-            {report.targetType === "comment" ? "Commentaire" : "Profil"}
+            {report.targetType === "comment" ? "Commentaire" : report.targetType === "run_listing" ? "Annonce" : "Profil"}
           </span>
           <SeverityChip severity={report.severity} uncategorized={report.uncategorized} />
           <span className="text-muted-foreground">
@@ -247,6 +247,19 @@ function ReportRow({
             ) : null}
             {comment.hidden ? <span className="ml-1 font-semibold text-amber-400">(masqué)</span> : null}
           </footer>
+        </blockquote>
+      ) : report.runListing ? (
+        <blockquote className="grid gap-1 rounded-lg border border-border bg-background/40 px-3 py-2 text-sm text-foreground">
+          <p className="font-medium">Annonce « {report.runListing.title} »</p>
+          <p className="whitespace-pre-line">{report.runListing.pitch ?? "(annonce retirée depuis)"}</p>
+          {report.runListing.owner ? (
+            <footer className="text-xs text-muted-foreground">
+              par{" "}
+              <Link className="hover:text-accent-text" href={`/joueurs/${report.runListing.owner.slug}`}>
+                {report.runListing.owner.displayName ?? report.runListing.owner.slug}
+              </Link>
+            </footer>
+          ) : null}
         </blockquote>
       ) : report.profile ? (
         <p className="text-sm text-foreground">

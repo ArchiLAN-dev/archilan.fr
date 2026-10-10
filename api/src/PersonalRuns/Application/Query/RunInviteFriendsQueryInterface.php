@@ -14,4 +14,7 @@ interface RunInviteFriendsQueryInterface
      * Whether the inviter may invite the invitee by name: an accepted friendship, and no block either way.
      */
     public function canInvite(string $inviterId, string $inviteeId): bool;
+
+    /** Story 43.17: whether either member blocked the other. */
+    public function isBlockedEitherWay(string $a, string $b): bool;
 }
