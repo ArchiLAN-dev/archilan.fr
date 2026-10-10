@@ -14,6 +14,7 @@ import { replaceLocationParam, useLocationParam } from "@/lib/use-location-param
 import { fetchMyRuns, setRunArchivedForMe } from "./personal-runs-api";
 import { PersonalRunCard } from "./personal-run-card";
 import { MyRunInvitations } from "./run-invitations";
+import { FriendsOpenRuns } from "./friends-open-runs";
 import { sendRunInvitations } from "./run-invitations-api";
 import type { PersonalRun, PersonalRunStatus } from "./types";
 
@@ -264,6 +265,8 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
 
       {/* Story 43.1: invitations by name, answered first. */}
       <MyRunInvitations />
+      {/* Story 43.14: the drafts friends opened to the member. */}
+      <FriendsOpenRuns />
 
       {formOpen && (
         <section className="rounded-lg border border-border bg-surface p-6">

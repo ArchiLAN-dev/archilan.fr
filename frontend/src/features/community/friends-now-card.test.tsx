@@ -7,6 +7,10 @@ import { FRIENDS_NOW_KEY, FriendsNowCard, sessionHref } from "./friends-now-card
 import { timeLabel } from "./notification-content";
 
 let mockUser: Partial<AuthUser> | null = null;
+// Story 43.14: the card carries « Parties de tes amis », whose join button navigates.
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: () => undefined }),
+}));
 jest.mock("../auth/auth-context", () => ({
   useAuth: () => ({ user: mockUser, loading: false, setUser: () => undefined }),
 }));

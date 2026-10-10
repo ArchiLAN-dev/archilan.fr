@@ -98,7 +98,64 @@ final class Run
          */
         #[ORM\Column(name: 'imported_slots', type: Types::JSON, nullable: true)]
         private ?array $importedSlots = null,
+        /** Who may join without a link or a name (story 43.14): OPEN_INVITE (default) or OPEN_FRIENDS. */
+        #[ORM\Column(name: 'openness', type: 'string', length: 16, options: ['default' => self::OPEN_INVITE])]
+        private string $openness = self::OPEN_INVITE,
+        /** The seats offered to friends, the owner aside; null leaves them unbounded. */
+        #[ORM\Column(name: 'seats_wanted', type: 'smallint', nullable: true)]
+        private ?int $seatsWanted = null,
     ) {
+    }
+
+    /** Story 43.14: only the link and invitations by name let a member in. */
+    public const string OPEN_INVITE = 'invite';
+
+    /** Story 43.14: the owner's friends find the run and join it themselves. */
+    public const string OPEN_FRIENDS = 'friends';
+
+    public const int MAX_SEATS_WANTED = 30;
+
+    /**
+     * Opens the draft run to the owner's friends, or back to invitations only (story 43.14). Only a draft takes
+     * players this way: past the launch the slots are frozen.
+     */
+    public function openTo(string $openness, ?int $seatsWanted, \DateTimeImmutable $now): void
+    {
+        if (self::STATUS_DRAFT !== $this->status) {
+            throw new \DomainException('Only a draft run can be opened to friends.');
+        }
+        if (!in_array($openness, [self::OPEN_INVITE, self::OPEN_FRIENDS], true)) {
+            throw new \InvalidArgumentException('Unknown openness.');
+        }
+        if (null !== $seatsWanted && ($seatsWanted < 1 || $seatsWanted > self::MAX_SEATS_WANTED)) {
+            throw new \InvalidArgumentException('Seats out of range.');
+        }
+
+        $this->openness = $openness;
+        $this->seatsWanted = self::OPEN_FRIENDS === $openness ? $seatsWanted : null;
+        $this->updatedAt = $now;
+    }
+
+    /** Whether the owner's friends may join right now: open to them and still a draft. */
+    public function isOpenToFriends(): bool
+    {
+        return self::OPEN_FRIENDS === $this->openness && self::STATUS_DRAFT === $this->status;
+    }
+
+    /** Whether the run has no seat left for a friend, given how many members joined (the owner aside). */
+    public function isFull(int $participants): bool
+    {
+        return null !== $this->seatsWanted && $participants >= $this->seatsWanted;
+    }
+
+    public function getOpenness(): string
+    {
+        return $this->openness;
+    }
+
+    public function getSeatsWanted(): ?int
+    {
+        return $this->seatsWanted;
     }
 
     public static function create(string $ownerId, string $title, \DateTimeImmutable $now): self

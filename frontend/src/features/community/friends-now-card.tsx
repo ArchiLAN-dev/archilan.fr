@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/features/auth/auth-context";
+import { FriendsOpenRuns } from "@/features/personal-runs/friends-open-runs";
 import { FriendIdentity } from "./friend-identity";
 import { FriendSuggestions } from "./friend-suggestions";
 import { fetchFriendsNow, type FriendPlaying, type FriendRecent } from "./community-friends-api";
@@ -68,6 +69,8 @@ export function FriendsNowCard() {
           ))}
         </ul>
       )}
+      {/* Story 43.14: the drafts friends opened to the member, joined from here too. */}
+      {data.hasFriends ? <FriendsOpenRuns compact /> : null}
     </section>
   );
 }

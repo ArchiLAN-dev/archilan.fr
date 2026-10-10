@@ -36,6 +36,7 @@ import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
 import { ConnectionDetails } from "./connection-details";
 import { InviteFriendsButton, RunInvitationsList } from "./run-invitations";
+import { RunOpennessSetting } from "./friends-open-runs";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { RunNudgeButton, RunNudgeMute, useRunNudges } from "./run-nudges";
 import type { RunNudges } from "./run-nudges-api";
@@ -792,6 +793,12 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               <div className="mt-3">
                 <InviteFriendsButton participantIds={run.participants.map((p) => p.userId)} runId={run.id} />
               </div>
+              {/* Story 43.14: a draft opened to all the owner's friends, who join it themselves. */}
+              {run.status === "draft" ? (
+                <div className="mt-3">
+                  <RunOpennessSetting openness={run.openness ?? "invite"} runId={run.id} seatsWanted={run.seatsWanted ?? null} />
+                </div>
+              ) : null}
             </div>
           )}
         </header>

@@ -390,6 +390,7 @@ services:
     App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalMyRunSlotsQuery'
     App\PersonalRuns\Application\Query\RunInviteFriendsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRunInviteFriendsQuery'
     App\PersonalRuns\Application\Query\RunPlayerActivityQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRunPlayerActivityQuery'
+    App\PersonalRuns\Application\Query\FriendsOpenRunsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalFriendsOpenRunsQuery'
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
