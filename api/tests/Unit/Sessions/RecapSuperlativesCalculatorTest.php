@@ -12,6 +12,8 @@ use PHPUnit\Framework\TestCase;
 
 final class RecapSuperlativesCalculatorTest extends TestCase
 {
+    private const int PLAYERS = 4;
+
     public function testAwardsEachSuperlativeToTheRightSlot(): void
     {
         // Alice spreads to 3 slots (biggest hub) but sends few; Bob dumps 10 on
@@ -34,7 +36,7 @@ final class RecapSuperlativesCalculatorTest extends TestCase
             'Eve' => null,
         ];
 
-        $byKey = $this->indexByKey(new RecapSuperlativesCalculator()->calculate($graph, $goals));
+        $byKey = $this->indexByKey(new RecapSuperlativesCalculator()->calculate($graph, $goals, self::PLAYERS));
 
         self::assertSame('Bob', $byKey['most_generous']->slotName);
         self::assertSame(10, $byKey['most_generous']->value);
@@ -55,7 +57,7 @@ final class RecapSuperlativesCalculatorTest extends TestCase
         );
         $goals = ['Alice' => null, 'Bob' => null];
 
-        $keys = array_keys($this->indexByKey(new RecapSuperlativesCalculator()->calculate($graph, $goals)));
+        $keys = array_keys($this->indexByKey(new RecapSuperlativesCalculator()->calculate($graph, $goals, self::PLAYERS)));
         sort($keys);
 
         self::assertSame(['biggest_hub', 'most_generous'], $keys);
@@ -66,7 +68,7 @@ final class RecapSuperlativesCalculatorTest extends TestCase
         $graph = new RecapGraph(nodes: [], edges: [], localItemCounts: ['Alice' => 5]);
         $goals = ['Alice' => new \DateTimeImmutable('2026-01-01T10:00:00+00:00')];
 
-        $keys = array_keys($this->indexByKey(new RecapSuperlativesCalculator()->calculate($graph, $goals)));
+        $keys = array_keys($this->indexByKey(new RecapSuperlativesCalculator()->calculate($graph, $goals, self::PLAYERS)));
         sort($keys);
 
         self::assertSame(['first_to_goal', 'longest_road'], $keys);
@@ -76,7 +78,27 @@ final class RecapSuperlativesCalculatorTest extends TestCase
     {
         $graph = new RecapGraph(nodes: [], edges: [], localItemCounts: []);
 
-        self::assertSame([], new RecapSuperlativesCalculator()->calculate($graph, []));
+        self::assertSame([], new RecapSuperlativesCalculator()->calculate($graph, [], self::PLAYERS));
+    }
+
+    public function testASinglePlayerGetsNoSuperlative(): void
+    {
+        // Story 32.23: alone, one would be first and last to goal at once.
+        $graph = new RecapGraph(nodes: [], edges: [], localItemCounts: ['Alice' => 5]);
+        $goals = ['Alice' => new \DateTimeImmutable('2026-01-01T10:00:00+00:00')];
+
+        self::assertSame([], new RecapSuperlativesCalculator()->calculate($graph, $goals, 1));
+    }
+
+    public function testTwoPlayersWhereOnlyOneFinishesKeepTheTimeBasedSuperlatives(): void
+    {
+        $graph = new RecapGraph(nodes: [], edges: [], localItemCounts: []);
+        $goals = ['Alice' => new \DateTimeImmutable('2026-01-01T10:00:00+00:00'), 'Bob' => null];
+
+        $byKey = $this->indexByKey(new RecapSuperlativesCalculator()->calculate($graph, $goals, 2));
+
+        self::assertSame('Alice', $byKey['first_to_goal']->slotName);
+        self::assertSame('Alice', $byKey['longest_road']->slotName);
     }
 
     public function testTiesAreBrokenByFirstInsertion(): void
@@ -90,7 +112,7 @@ final class RecapSuperlativesCalculatorTest extends TestCase
             localItemCounts: [],
         );
 
-        $byKey = $this->indexByKey(new RecapSuperlativesCalculator()->calculate($graph, []));
+        $byKey = $this->indexByKey(new RecapSuperlativesCalculator()->calculate($graph, [], self::PLAYERS));
 
         self::assertSame('Alice', $byKey['most_generous']->slotName);
     }

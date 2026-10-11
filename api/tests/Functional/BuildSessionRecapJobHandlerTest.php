@@ -13,10 +13,12 @@ use App\Sessions\Application\Support\RecapSuperlativesCalculator;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionFeedEvent;
 use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Entity\SlotCoPlayer;
 use App\Sessions\Domain\Repository\SessionFeedEventRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 
@@ -145,6 +147,41 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         self::assertSame($expected, $notified);
     }
 
+    public function testOneMemberOnEverySlotGetsNoSuperlative(): void
+    {
+        // Story 32.23: a superlative ranks players, and three slots of one member are one player.
+        $this->seedThreePlayerSession(oneMember: true);
+        $this->seedFeed();
+
+        $this->runHandler();
+
+        $recap = $this->recaps()->findBySessionId('sess-recap');
+        self::assertNotNull($recap);
+        self::assertCount(3, $recap->getEdges(), 'the exchange graph is still built');
+        self::assertSame([], $recap->getSuperlatives());
+    }
+
+    public function testACoPlayerMakesTheSecondPlayerAndIsRecomputed(): void
+    {
+        $this->seedThreePlayerSession(oneMember: true);
+        $this->seedFeed();
+        $friend = $this->createUser('friend@example.org', displayName: 'Friend');
+        $this->entityManager->persist(SlotCoPlayer::create(bin2hex(random_bytes(16)), 'slot-p2', $friend->getId(), new \DateTimeImmutable('2026-05-01T10:00:00+00:00')));
+        $this->entityManager->flush();
+
+        $this->runHandler();
+
+        $recap = $this->recaps()->findBySessionId('sess-recap');
+        self::assertNotNull($recap);
+        self::assertNotSame([], $recap->getSuperlatives());
+
+        $notified = $this->recomputeCalls[0] ?? [];
+        sort($notified);
+        $expected = [...$this->seededUserIds, $friend->getId()];
+        sort($expected);
+        self::assertSame($expected, $notified);
+    }
+
     public function testNoRecomputeWhenTheBuildAbortsEarly(): void
     {
         $this->seedThreePlayerSession();
@@ -154,7 +191,10 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         self::assertSame([], $this->recomputeCalls);
     }
 
-    private function seedThreePlayerSession(): void
+    /**
+     * @param bool $oneMember every slot owned by the same member (story 32.23)
+     */
+    private function seedThreePlayerSession(bool $oneMember = false): void
     {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
         $event = $this->createEvent('ArchiLAN Recap', $now, $now->modify('+2 days'));
@@ -180,11 +220,14 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
             'Player3' => '2026-05-01T11:05:00+00:00',
         ];
         $order = 0;
+        $reg = null;
         foreach ($goals as $slotName => $goalAt) {
             ++$order;
-            $user = $this->createUser(strtolower($slotName).'@example.org', displayName: $slotName);
-            $this->seededUserIds[] = $user->getId();
-            $reg = $this->createRegistration($event->getId(), $user->getId());
+            if (!$oneMember || null === $reg) {
+                $user = $this->createUser(strtolower($slotName).'@example.org', displayName: $slotName);
+                $this->seededUserIds[] = $user->getId();
+                $reg = $this->createRegistration($event->getId(), $user->getId());
+            }
             $slot = SessionSlot::create(
                 bin2hex(random_bytes(16)),
                 $session->getId(),
@@ -265,6 +308,8 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         self::assertInstanceOf(RegistrationRepositoryInterface::class, $registrations);
         $feedEvents = self::getContainer()->get(SessionFeedEventRepositoryInterface::class);
         self::assertInstanceOf(SessionFeedEventRepositoryInterface::class, $feedEvents);
+        $coPlayers = self::getContainer()->get(SlotCoPlayerRepositoryInterface::class);
+        self::assertInstanceOf(SlotCoPlayerRepositoryInterface::class, $coPlayers);
 
         $spy = $this->recomputeSpy();
         $handler = new BuildSessionRecapJobHandler(
@@ -275,6 +320,7 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
             new RecapSuperlativesCalculator(),
             $this->recaps(),
             $registrations,
+            $coPlayers,
             $spy,
             new MockClock(new \DateTimeImmutable($clockNow)),
             new NullLogger(),
