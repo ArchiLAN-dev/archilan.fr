@@ -64,12 +64,16 @@ final readonly class AnswerRunInvitation
             $this->runs->findWithExclusiveLock($runId);
             $invitation->accept($now);
             // One flush: the participant and the accepted invitation land together.
-            $this->joiner->join($run, $userId, $now);
+            $joined = $this->joiner->join($run, $userId, $now);
             $this->runs->commit();
         } catch (\Throwable $e) {
             $this->runs->rollBack();
 
             throw $e;
+        }
+        // Story 43.28: the owner hears of the arrival once it is committed.
+        if ($joined) {
+            $this->joiner->announce($run, $userId);
         }
 
         return new AnswerRunInvitationResult(AnswerRunInvitationOutcome::Joined, $runId);

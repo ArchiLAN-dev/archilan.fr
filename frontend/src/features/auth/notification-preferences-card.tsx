@@ -22,6 +22,10 @@ const TYPE_LABELS: Record<string, { label: string; hint: string }> = {
   run_invitation: { label: "Invitations dans une run", hint: "Un ami t'invite dans sa partie." },
   slot_unblocked: { label: "Sortie de BK", hint: "Ton slot a de nouveau des checks accessibles." },
   run_nudge: { label: "Relances de mes co-joueurs", hint: "Un co-joueur attend ta prochaine session dans une partie." },
+  run_started: { label: "Partie lancée", hint: "Le serveur d'une partie où tu joues est prêt." },
+  run_joined: { label: "Arrivées dans mes parties", hint: "Quelqu'un rejoint une partie que tu as créée." },
+  run_games_chosen: { label: "Jeux choisis dans mes parties", hint: "Un joueur de ta partie a choisi ou changé ses jeux." },
+  run_recap_ready: { label: "Récap prêt", hint: "Une partie où tu as joué est terminée et son récap est prêt." },
 };
 
 export const CHANNEL_LABELS: Record<NotificationChannel, string> = {

@@ -322,6 +322,7 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
             $registrations,
             $coPlayers,
             $spy,
+            new \Symfony\Component\Messenger\MessageBus(),
             new MockClock(new \DateTimeImmutable($clockNow)),
             new NullLogger(),
         );

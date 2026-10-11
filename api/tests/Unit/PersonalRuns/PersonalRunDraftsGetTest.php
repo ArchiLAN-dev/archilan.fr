@@ -121,7 +121,7 @@ final class PersonalRunDraftsGetTest extends TestCase
             new AdminRunActionTrace(self::createStub(AdminUserActionAuditRepositoryInterface::class), new MockClock()),
             self::createStub(RunArchiveRepositoryInterface::class),
             self::createStub(MyRunSlotsQueryInterface::class),
-            new RunJoiner(self::createStub(RunParticipantRepositoryInterface::class)),
+            new RunJoiner(self::createStub(RunParticipantRepositoryInterface::class), self::createStub(\App\Community\Application\Support\Notifier::class), self::createStub(UserRepositoryInterface::class)),
             self::createStub(RunInvitationRepositoryInterface::class),
             self::createStub(RunNudgeRepositoryInterface::class),
         );
