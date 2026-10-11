@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { AuthUser } from "../auth/auth-context";
 import type { FriendCard } from "@/features/community/community-friends-api";
 import { RunOpennessSetting } from "./friends-open-runs";
-import { RUN_LISTINGS_KEY, type RunListing } from "./run-listings-api";
-import { friendsInLabel, plannedLabel, RunListingsBoard, RunListingsSpotlight } from "./run-listings";
+import type { RunListing } from "./run-listings-api";
+import { friendsInLabel, plannedLabel, RunListingsBoard, runListingsKey, RunListingsSpotlight } from "./run-listings";
 
 let mockUser: Partial<AuthUser> | null = { id: "me" };
 jest.mock("../auth/auth-context", () => ({
@@ -21,7 +21,7 @@ function card(slug: string): FriendCard {
 
 function render(node: React.ReactNode, listings: RunListing[] | undefined = undefined): string {
   const client = new QueryClient();
-  if (listings !== undefined) client.setQueryData(RUN_LISTINGS_KEY, listings);
+  if (listings !== undefined) client.setQueryData(runListingsKey(mockUser?.id ?? null), listings);
   return renderToStaticMarkup(<QueryClientProvider client={client}>{node}</QueryClientProvider>);
 }
 
@@ -74,9 +74,13 @@ describe("run listings", () => {
     expect(render(<RunListingsBoard />, [listing])).not.toContain("Ta partie");
   });
 
-  it("asks a visitor to sign in", () => {
+  it("shows a visitor the listings, to sign in before joining (story 43.24)", () => {
     mockUser = null;
-    expect(render(<RunListingsBoard />)).toContain("Connecte-toi");
+    const html = render(<RunListingsBoard />, [listing]);
+    expect(html).toContain("« La giga async »");
+    expect(html).toContain("Se connecter pour rejoindre");
+    expect(html).toContain('href="/connexion?returnTo=/communaute/parties"');
+    expect(html).not.toContain("Signaler");
     mockUser = { id: "me" };
   });
 
@@ -106,10 +110,11 @@ describe("run listings spotlight", () => {
     expect(html).toContain('href="/communaute/parties"');
   });
 
-  it("invites to publish one when there is none, and a visitor to sign in", () => {
+  it("invites a member to publish one when there is none; a visitor sees the listings", () => {
     expect(render(<RunListingsSpotlight />, [])).toContain("Publie la tienne");
     mockUser = null;
-    expect(render(<RunListingsSpotlight />)).toContain("Connecte-toi");
+    expect(render(<RunListingsSpotlight />, [])).not.toContain("Publie la tienne");
+    expect(render(<RunListingsSpotlight />, more)).toContain("« Seconde »");
     mockUser = { id: "me" };
   });
 });

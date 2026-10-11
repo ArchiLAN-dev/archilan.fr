@@ -11,12 +11,12 @@ interface RunListingsQueryInterface
 {
     /**
      * Listed draft runs the viewer may see: their own (story 43.23), or no block either way with the owner and not
-     * joined yet.
+     * joined yet. A visitor (null, story 43.24) sees them all.
      * `participantIds` are the members in the run, the owner aside. The latest listing first.
      *
      * @return list<array{runId: string, title: string, ownerId: string, pitch: string, plannedFor: \DateTimeImmutable|null, listedAt: \DateTimeImmutable, seatsWanted: int|null, participantIds: list<string>, gameIds: list<string>}>
      */
-    public function listingsFor(string $viewerId): array;
+    public function listingsFor(?string $viewerId): array;
 
     /**
      * @param list<string> $gameIds

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { RunListingsBoard } from "@/features/personal-runs/run-listings";
 
-// Story 43.17: signed-in members only, so kept out of the index.
+// Story 43.24: open to visitors, but short-lived member content: kept out of the index.
 export const metadata: Metadata = {
   title: "Parties qui cherchent des joueurs",
   description: "Les parties Archipelago des membres ArchiLAN qui cherchent encore des joueurs.",

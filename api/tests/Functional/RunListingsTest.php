@@ -82,6 +82,28 @@ final class RunListingsTest extends FunctionalTestCase
         self::assertFalse($theirs[0]['isMine']);
     }
 
+    public function testAVisitorSeesTheListingsButMustSignInToJoin(): void
+    {
+        $this->list('Ouverte a tous', 2);
+        self::assertResponseStatusCodeSame(200);
+
+        // Story 43.24: no account needed to look.
+        $this->client->getCookieJar()->clear();
+        $this->client->request('GET', '/api/v1/run-listings');
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertCount(1, $data);
+        self::assertIsArray($data[0]);
+        self::assertSame('Ouverte a tous', $data[0]['pitch']);
+        self::assertFalse($data[0]['isMine']);
+        self::assertFalse($data[0]['isOwnerFriend']);
+        self::assertSame([], $data[0]['friendsIn']);
+
+        $this->join();
+        self::assertResponseStatusCodeSame(401);
+    }
+
     public function testAListingNeedsAShortMessageAndAnAccountInGoodStanding(): void
     {
         $this->list('   ', null);
