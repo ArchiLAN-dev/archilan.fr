@@ -71,7 +71,8 @@ describe("run listings", () => {
   it("offers the owner a listing for every member, with its message", () => {
     const html = render(<RunOpennessSetting openness="members" pitch="Venez !" plannedFor={null} runId="r1" seatsWanted={2} />);
 
-    expect(html).toContain("Tous les membres (annonce)");
+    expect(html).toContain("Tous les membres");
+    expect(html).toContain("Annonce en ligne");
     expect(html).toContain("Venez !");
     expect(html).toContain("Places voulues");
     expect(html).toContain("Date prévue");

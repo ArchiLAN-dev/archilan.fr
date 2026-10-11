@@ -42,9 +42,10 @@ export function qrPath(value: string): { size: number; d: string } {
   return { size, d };
 }
 
-const QUIET_ZONE = 2;
+// The 4-module margin of the QR spec: the code also sits on the dark site background.
+const QUIET_ZONE = 4;
 
-/** Black on white whatever the theme: a phone camera reads contrast, not tokens. */
+/** Black on white whatever the theme: a phone camera reads contrast, not tokens. Only the code is white. */
 function QrCodeSvg({ value, className }: { value: string; className?: string }) {
   const { size, d } = qrPath(value);
   const box = size + QUIET_ZONE * 2;
@@ -157,11 +158,11 @@ export function MyFriendLink() {
         <RadixDialog.Portal>
           <RadixDialog.Content
             aria-describedby={undefined}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-white p-6 focus:outline-none"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background p-6 focus:outline-none"
           >
-            <RadixDialog.Title className="font-heading text-xl font-bold text-black">Scanne pour m&apos;ajouter en ami</RadixDialog.Title>
-            <QrCodeSvg className="aspect-square w-full max-w-[min(80vw,70vh)]" value={url} />
-            <RadixDialog.Close className="inline-flex items-center gap-1.5 rounded-lg border border-black/20 px-4 py-2 text-sm font-semibold text-black">
+            <RadixDialog.Title className="font-heading text-xl font-bold text-foreground">Scanne pour m&apos;ajouter en ami</RadixDialog.Title>
+            <QrCodeSvg className="aspect-square w-full max-w-[min(80vw,60vh)]" value={url} />
+            <RadixDialog.Close className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface">
               <X aria-hidden className="size-4" />
               Fermer
             </RadixDialog.Close>

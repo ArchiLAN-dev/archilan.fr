@@ -8,6 +8,7 @@ import type {
   ProfilePresence,
   RunHistoryEntry,
 } from "./player-profile-api";
+import { formatDate } from "./player-profile-api";
 import { MemberAvatar } from "@/features/community/member-avatar";
 import { ProfileRelationshipActions } from "@/features/community/profile-relationship-actions";
 import { ProfileActivity } from "@/features/community/community-activity";
@@ -20,7 +21,7 @@ import { Markdown } from "@/components/markdown/markdown";
 import { TitledName } from "@/features/community/titled-name";
 import { PRESENCE_TONE_CLASSES, presenceLabel, presenceTone } from "@/features/community/rich-presence";
 import { ProfileTitleBadge } from "@/features/community/profile-title-badge";
-import { formatDate, PlayerRunHistory } from "./player-run-history";
+import { PlayerRunHistory } from "./player-run-history";
 
 export function PlayerProfilePage({
   profile,

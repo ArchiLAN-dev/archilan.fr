@@ -473,3 +473,8 @@ export const getPublicProfileSlugs = cache(async (): Promise<PublicProfileSlug[]
     return [];
   }
 });
+
+// A plain module, not the client history component: the server-rendered profile page formats dates too.
+export function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(new Date(iso));
+}
