@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, Flag, LogIn, Megaphone } from "lucide-react";
+import { ArrowRight, CalendarClock, Flag, LogIn, Megaphone } from "lucide-react";
 
 import { Dialog } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/auth-context";
@@ -38,13 +38,7 @@ export function friendsInLabel(friends: RunListing["friendsIn"]): string | null 
  */
 export function RunListingsBoard() {
   const { user, loading } = useAuth();
-  const { data, isLoading } = useQuery({
-    queryKey: RUN_LISTINGS_KEY,
-    queryFn: fetchRunListings,
-    enabled: user !== null,
-    staleTime: DEFAULT_STALE_TIME,
-    retry: false,
-  });
+  const { data, isLoading } = useRunListings(user !== null);
 
   if (loading) return null;
   if (user === null) {
@@ -223,15 +217,71 @@ function ListingReportForm({ runId, onDone }: { runId: string; onDone: () => voi
   );
 }
 
-/** The way in from « Communauté » (story 43.17). */
-export function RunListingsLink() {
+function useRunListings(enabled: boolean) {
+  return useQuery({ queryKey: RUN_LISTINGS_KEY, queryFn: fetchRunListings, enabled, staleTime: DEFAULT_STALE_TIME, retry: false });
+}
+
+/** Story 43.21: the number of runs listed, beside « Parties ouvertes » in the site header. Nothing at zero. */
+export function RunListingsCount() {
+  const { user, loading } = useAuth();
+  const { data } = useRunListings(user !== null && !loading);
+  const count = data?.length ?? 0;
+  if (count === 0) return null;
   return (
-    <Link
-      className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:border-accent"
-      href="/communaute/parties"
-    >
-      <Megaphone aria-hidden className="size-4 text-accent-text" />
-      Parties qui cherchent des joueurs
-    </Link>
+    <span className="ml-1.5 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent-text">
+      {count}
+      <span className="sr-only"> {count > 1 ? "annonces" : "annonce"}</span>
+    </span>
+  );
+}
+
+const SPOTLIGHT_SIZE = 2;
+
+/** Story 43.21: the latest listings, put forward on « Communauté », and the way to all of them. */
+export function RunListingsSpotlight() {
+  const { user, loading } = useAuth();
+  const { data } = useRunListings(user !== null && !loading);
+  if (loading) return null;
+  return <RunListingsSpotlightView listings={user === null ? null : (data ?? [])} signedIn={user !== null} />;
+}
+
+function RunListingsSpotlightView({ listings, signedIn }: { listings: RunListing[] | null; signedIn: boolean }) {
+  const count = listings?.length ?? 0;
+  return (
+    <section aria-labelledby="run-listings-spotlight" className="grid gap-3 rounded-xl border-2 border-accent bg-accent/10 p-4 shadow-[0_0_24px_-8px_var(--color-accent)]">
+      <div className="flex flex-wrap items-center gap-3">
+        <Megaphone aria-hidden className="size-5 text-accent-text" />
+        <h2 className="font-heading text-lg font-semibold text-foreground" id="run-listings-spotlight">
+          Parties qui cherchent des joueurs
+        </h2>
+        {count > 0 ? <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent-text">{count}</span> : null}
+        <Link className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-accent-text hover:underline" href="/communaute/parties">
+          {count > SPOTLIGHT_SIZE ? `Voir les ${count} annonces` : "Voir les annonces"}
+          <ArrowRight aria-hidden className="size-4" />
+        </Link>
+      </div>
+      {!signedIn ? (
+        <p className="text-sm text-muted-foreground">
+          <Link className="font-medium text-accent-text hover:underline" href="/connexion?returnTo=/communaute">
+            Connecte-toi
+          </Link>{" "}
+          pour voir les parties qui cherchent des joueurs et en rejoindre une.
+        </p>
+      ) : count === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Aucune partie ne cherche de joueurs pour l&apos;instant. Publie la tienne depuis{" "}
+          <Link className="font-medium text-accent-text hover:underline" href="/compte/parties">
+            Mes parties
+          </Link>{" "}
+          : réglage « Ouverture », « Tous les membres ».
+        </p>
+      ) : (
+        <ul className="grid gap-3 md:grid-cols-2" role="list">
+          {(listings ?? []).slice(0, SPOTLIGHT_SIZE).map((listing) => (
+            <ListingCard key={listing.runId} listing={listing} />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

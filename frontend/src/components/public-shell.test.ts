@@ -21,4 +21,10 @@ describe("isActive", () => {
   it("leaves other sections alone", () => {
     expect(isActive("/jeux", "/communaute", ["/joueurs"])).toBe(false);
   });
+
+  it("leaves Communauté unlit on the run listings, which have their own entry", () => {
+    expect(isActive("/communaute/parties", "/communaute", ["/joueurs"], ["/communaute/parties"])).toBe(false);
+    expect(isActive("/communaute/succes", "/communaute", ["/joueurs"], ["/communaute/parties"])).toBe(true);
+    expect(isActive("/communaute/parties", "/communaute/parties")).toBe(true);
+  });
 });
