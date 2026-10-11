@@ -10,7 +10,8 @@ namespace App\PersonalRuns\Application\Query;
 interface RunListingsQueryInterface
 {
     /**
-     * Listed draft runs the viewer may see: not their own, no block either way with the owner, not joined yet.
+     * Listed draft runs the viewer may see: their own (story 43.23), or no block either way with the owner and not
+     * joined yet.
      * `participantIds` are the members in the run, the owner aside. The latest listing first.
      *
      * @return list<array{runId: string, title: string, ownerId: string, pitch: string, plannedFor: \DateTimeImmutable|null, listedAt: \DateTimeImmutable, seatsWanted: int|null, participantIds: list<string>, gameIds: list<string>}>

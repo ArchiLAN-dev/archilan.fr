@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CalendarClock, Flag, LogIn, Megaphone } from "lucide-react";
+import { ArrowRight, CalendarClock, Flag, LogIn, Megaphone, Settings2 } from "lucide-react";
 
 import { Dialog } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/auth-context";
@@ -82,6 +82,7 @@ function ListingCard({ listing }: { listing: RunListing }) {
   const [reporting, setReporting] = useState(false);
   const planned = plannedLabel(listing.plannedFor);
   const friendsIn = friendsInLabel(listing.friendsIn);
+  const mine = listing.isMine === true;
 
   async function join() {
     setBusy(true);
@@ -101,9 +102,11 @@ function ListingCard({ listing }: { listing: RunListing }) {
   }
 
   return (
-    <li className="grid gap-2 rounded-lg border border-border bg-surface px-4 py-3">
+    <li className={`grid gap-2 rounded-lg border bg-surface px-4 py-3 ${mine ? "border-accent/60" : "border-border"}`}>
       <div className="flex flex-wrap items-center gap-3">
         <FriendIdentity card={listing.owner} link />
+        {/* Story 43.23: the viewer's own listing, as the others see it. */}
+        {mine ? <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">Ta partie</span> : null}
         {listing.isOwnerFriend ? <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent-text">Ami</span> : null}
         <span className="ml-auto text-xs text-muted-foreground">{seatsLabel(listing)}</span>
       </div>
@@ -117,25 +120,38 @@ function ListingCard({ listing }: { listing: RunListing }) {
         </p>
       ) : null}
       {friendsIn !== null ? <p className="text-xs font-medium text-accent-text">{friendsIn}</p> : null}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover disabled:opacity-50"
-          disabled={busy}
-          onClick={() => void join()}
-          type="button"
-        >
-          <LogIn aria-hidden className="size-3.5" />
-          Rejoindre
-        </button>
-        <button
-          className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => setReporting(true)}
-          type="button"
-        >
-          <Flag aria-hidden className="size-3.5" />
-          Signaler
-        </button>
-      </div>
+      {mine ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            className="inline-flex items-center gap-1.5 rounded-full border border-accent px-3 py-1.5 text-xs font-semibold text-accent-text hover:bg-accent/15"
+            href={`/runs/${listing.runId}`}
+          >
+            <Settings2 aria-hidden className="size-3.5" />
+            Gérer ma partie
+          </Link>
+          <span className="text-xs text-muted-foreground">Les autres membres la voient ainsi.</span>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover disabled:opacity-50"
+            disabled={busy}
+            onClick={() => void join()}
+            type="button"
+          >
+            <LogIn aria-hidden className="size-3.5" />
+            Rejoindre
+          </button>
+          <button
+            className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setReporting(true)}
+            type="button"
+          >
+            <Flag aria-hidden className="size-3.5" />
+            Signaler
+          </button>
+        </div>
+      )}
       {message !== null ? (
         <p className="text-sm text-danger" role="alert">
           {message}

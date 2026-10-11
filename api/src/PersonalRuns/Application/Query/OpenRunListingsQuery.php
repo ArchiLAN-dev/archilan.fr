@@ -10,7 +10,7 @@ use App\Community\Application\Query\FriendCircleQuery;
 /**
  * « Parties qui cherchent des joueurs » (story 43.17): the runs listed for every member with a seat left, the latest
  * first, each with its games and the viewer's friends already in it. A run whose owner has no listable card (banned,
- * suspended) is left out.
+ * suspended) is left out. Story 43.23: the viewer's own listing is in, flagged `isMine`.
  */
 final readonly class OpenRunListingsQuery
 {
@@ -73,6 +73,7 @@ final readonly class OpenRunListingsQuery
                 'games' => array_values(array_filter(array_map(static fn (string $id): ?string => $games[$id] ?? null, $listing['gameIds']), is_string(...))),
                 'owner' => $owner,
                 'isOwnerFriend' => isset($friends[$listing['ownerId']]),
+                'isMine' => $listing['ownerId'] === $viewerId,
                 'friendsIn' => $friendsIn,
             ];
         }
