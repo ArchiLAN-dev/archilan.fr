@@ -169,7 +169,7 @@ final class FriendActivityTest extends FunctionalTestCase
         $this->client->request('GET', '/api/v1/community/notification-preferences');
         self::assertResponseIsSuccessful();
         self::assertSame(
-            [['type' => 'friend_activity', 'channel' => 'bell'], ['type' => 'run_invitation', 'channel' => 'bell_push'], ['type' => 'slot_unblocked', 'channel' => 'bell_push'], ['type' => 'run_nudge', 'channel' => 'bell_push'], ['type' => 'run_started', 'channel' => 'bell_push'], ['type' => 'run_joined', 'channel' => 'bell'], ['type' => 'run_games_chosen', 'channel' => 'bell'], ['type' => 'run_recap_ready', 'channel' => 'bell']],
+            [['type' => 'friend_activity', 'channel' => 'bell', 'discord' => null], ['type' => 'run_invitation', 'channel' => 'bell_push', 'discord' => null], ['type' => 'slot_unblocked', 'channel' => 'bell_push', 'discord' => null], ['type' => 'run_nudge', 'channel' => 'bell_push', 'discord' => null], ['type' => 'run_started', 'channel' => 'bell_push', 'discord' => null], ['type' => 'run_joined', 'channel' => 'bell', 'discord' => null], ['type' => 'run_games_chosen', 'channel' => 'bell', 'discord' => null], ['type' => 'run_recap_ready', 'channel' => 'bell', 'discord' => null]],
             $this->decodedJsonResponse()['data'] ?? null,
         );
 

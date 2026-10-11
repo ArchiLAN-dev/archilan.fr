@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
+use App\Community\Application\Message\SendDiscordNotificationJob;
 use App\Community\Application\Message\SendWebPushJob;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Support\NotificationDetails;
@@ -64,6 +65,11 @@ final readonly class NotificationService implements Notifier
             // Story 40.2: a few types also go to the recipient's devices, as a browser push.
             if ($channel->reachesDevices() && PushMessageFactory::isPushable($type)) {
                 $this->messageBus->dispatch(new SendWebPushJob($notification->getId()));
+            }
+
+            // Story 40.6: and to the member's Discord direct messages, when they kept it on.
+            if ($this->preferences->discordFor($recipientId, $type)) {
+                $this->messageBus->dispatch(new SendDiscordNotificationJob($notification->getId()));
             }
         } catch (\Throwable $e) {
             $this->logger->error('community.notification_emit_failed', [
