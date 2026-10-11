@@ -28,6 +28,11 @@ final readonly class NotificationPreferenceService
         'run_invitation' => NotificationChannel::BellAndPush,
         'slot_unblocked' => NotificationChannel::BellAndPush,
         'run_nudge' => NotificationChannel::BellAndPush,
+        // Story 43.28: the moments of a personal run.
+        'run_started' => NotificationChannel::BellAndPush,
+        'run_joined' => NotificationChannel::Bell,
+        'run_games_chosen' => NotificationChannel::Bell,
+        'run_recap_ready' => NotificationChannel::Bell,
     ];
 
     public function __construct(

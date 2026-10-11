@@ -14,7 +14,11 @@ final class PushMessageFactory
     private const string TITLE = 'ArchiLAN';
 
     /** @var list<string> */
-    private const array PUSHABLE_TYPES = ['slot_unblocked', 'run_invitation', 'friend_activity', 'run_nudge'];
+    private const array PUSHABLE_TYPES = [
+        'slot_unblocked', 'run_invitation', 'friend_activity', 'run_nudge',
+        // Story 43.28: the moments of a personal run (pushed by default only when it starts, see the preferences).
+        'run_joined', 'run_games_chosen', 'run_started', 'run_recap_ready',
+    ];
 
     public static function isPushable(string $type): bool
     {
@@ -31,6 +35,7 @@ final class PushMessageFactory
             'run_invitation' => self::runInvitation($payload),
             'friend_activity' => self::friendActivity($payload),
             'run_nudge' => self::runNudge($payload),
+            'run_joined', 'run_games_chosen', 'run_started', 'run_recap_ready' => self::runMoment($type, $payload),
             default => null,
         };
     }
@@ -145,6 +150,47 @@ final class PushMessageFactory
             null !== $runId ? '/runs/'.$runId : '/compte/parties',
             sprintf('run_nudge-%s', $runId ?? 'run'),
         );
+    }
+
+    /**
+     * Story 43.28: a player joined the member's run or chose their games, the run started, its recap is ready. The
+     * push leads to the run, where the recap shows once it is over.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private static function runMoment(string $type, array $payload): WebPushMessage
+    {
+        $runId = self::text($payload, 'runId');
+        $run = self::text($payload, 'runTitle');
+        $quoted = null !== $run ? sprintf('« %s »', $run) : null;
+        $body = match ($type) {
+            'run_joined' => sprintf('%s a rejoint %s', self::text($payload, 'joinerName') ?? 'Un joueur', $quoted ?? 'ta partie'),
+            'run_games_chosen' => self::gamesChosen($payload, $quoted),
+            'run_started' => null !== $quoted ? sprintf('%s est lancée : à toi de jouer', $quoted) : 'Ta partie est lancée : à toi de jouer',
+            default => null !== $quoted ? sprintf('Le récap de %s est prêt', $quoted) : 'Le récap de ta partie est prêt',
+        };
+
+        return new WebPushMessage(
+            self::TITLE,
+            $body,
+            null !== $runId ? '/runs/'.$runId : '/compte/parties',
+            sprintf('%s-%s-%s', $type, $runId ?? 'run', self::text($payload, 'fromUserId') ?? 'all'),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private static function gamesChosen(array $payload, ?string $quoted): string
+    {
+        $who = self::text($payload, 'playerName') ?? 'Un joueur';
+        $games = $payload['games'] ?? null;
+        $names = is_array($games) ? array_values(array_filter($games, is_string(...))) : [];
+        $where = null !== $quoted ? ' dans '.$quoted : '';
+
+        return [] === $names
+            ? sprintf('%s a choisi ses jeux%s', $who, $where)
+            : sprintf('%s jouera %s%s', $who, implode(', ', $names), $where);
     }
 
     /**

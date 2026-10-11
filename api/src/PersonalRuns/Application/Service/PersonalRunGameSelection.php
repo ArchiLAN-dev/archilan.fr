@@ -11,6 +11,8 @@ use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Application\Handler\NotifyRunGamesChosenJobHandler;
+use App\PersonalRuns\Application\Message\NotifyRunGamesChosenJob;
 use App\PersonalRuns\Application\Message\RunSlotPreflightJob;
 use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface;
@@ -23,6 +25,7 @@ use App\Shared\Domain\ValueObject\SlotName;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
@@ -326,6 +329,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         }
 
         $slotIdsBefore = array_map(static fn (array $slot): string => $slot['slotId'], $participant->getGameSlots());
+        $gameIdsBefore = NotifyRunGamesChosenJobHandler::gameIdsOf($participant);
 
         $newSlots = $this->diffSlots($participant->getGameSlots(), $gameIds, $gamesById);
         $participant->replaceSlots($newSlots);
@@ -338,6 +342,15 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         $this->coPlayers->forget(array_values(array_diff($slotIdsBefore, $slotIdsAfter)));
 
         $this->logger->info('personal_run.game_selection_saved', ['runId' => $runId, 'userId' => $userId]);
+
+        // Story 43.28: the owner hears which games a player settled on, once they stop changing them.
+        $gameIdsAfter = NotifyRunGamesChosenJobHandler::gameIdsOf($participant);
+        if (!$run->isOwnedBy($userId) && [] !== $gameIdsAfter && $gameIdsAfter !== $gameIdsBefore) {
+            $this->messageBus->dispatch(
+                new NotifyRunGamesChosenJob($runId, $userId, $gameIdsAfter),
+                [new DelayStamp(NotifyRunGamesChosenJob::SETTLE_MS)],
+            );
+        }
 
         return $this->resultWithErrors(found: true, slots: $participant->getGameSlots());
     }

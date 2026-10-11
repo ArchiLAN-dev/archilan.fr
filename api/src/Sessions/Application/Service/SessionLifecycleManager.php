@@ -13,6 +13,7 @@ use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\GameSelection\Application\Query\ServedApworldsQueryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Application\Message\NotifyRunPlayersJob;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
@@ -204,6 +205,8 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         if ($shouldNotify) {
             $this->dispatchRunningNotifications($session);
             $this->dispatchFriendActivity($session);
+            // Story 43.28: the players of a personal run hear that its server is up (ignored for an event).
+            $this->messageBus->dispatch(NotifyRunPlayersJob::started($session->getId()));
         }
 
         return ['found' => true, 'session' => $session->payload()];

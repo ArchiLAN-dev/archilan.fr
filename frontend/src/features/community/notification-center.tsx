@@ -180,6 +180,19 @@ function actorName(item: NotificationItem): string {
   return item.actor?.displayName ?? item.actor?.slug ?? "Quelqu'un";
 }
 
+/** Story 43.28: the moments of a personal run, as one plain sentence. */
+function runMomentMessage(item: NotificationItem): string {
+  const run = hasStringProp(item.data, "runTitle") && item.data.runTitle !== "" ? `« ${item.data.runTitle} »` : null;
+  switch (item.type) {
+    case "run_games_chosen":
+      return `${actorName(item)} a choisi ses jeux${run !== null ? ` dans ${run}` : ""}`;
+    case "run_started":
+      return `${run ?? "Ta partie"} est lancée : à toi de jouer`;
+    default:
+      return `Le récap de ${run ?? "ta partie"} est prêt`;
+  }
+}
+
 export function messageFor(item: NotificationItem): string {
   switch (item.type) {
     case "friend_request_received":
@@ -192,10 +205,14 @@ export function messageFor(item: NotificationItem): string {
         ? `${actorName(item)} t'invite dans « ${item.data.runTitle} »`
         : `${actorName(item)} t'invite dans sa partie`;
     case "run_joined":
-      // Story 43.14: a friend joined the member's run opened to friends.
+      // Story 43.14, 43.28: a member joined the member's run, by any road.
       return hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
         ? `${actorName(item)} a rejoint « ${item.data.runTitle} »`
         : `${actorName(item)} a rejoint ta partie`;
+    case "run_games_chosen":
+    case "run_started":
+    case "run_recap_ready":
+      return runMomentMessage(item);
     case "weekly_duel":
       // Story 43.15: answered on the weekly run's page or on « Mon compte ».
       return hasStringProp(item.data, "gameName") && item.data.gameName !== ""
@@ -353,7 +370,14 @@ export function hrefFor(item: NotificationItem): string {
   if (item.type === "run_invitation") {
     return "/compte/parties";
   }
-  if (item.type === "run_nudge" || item.type === "run_joined" || item.type === "run_listing_expired") {
+  if (
+    item.type === "run_nudge"
+    || item.type === "run_joined"
+    || item.type === "run_listing_expired"
+    || item.type === "run_games_chosen"
+    || item.type === "run_started"
+    || item.type === "run_recap_ready"
+  ) {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte/parties";
   }
   if (item.type === "friend_activity") {
