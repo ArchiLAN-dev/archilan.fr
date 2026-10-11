@@ -7,6 +7,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   chooseNotificationChannel,
+  chooseNotificationDiscord,
   fetchNotificationPreferences,
   NOTIFICATION_CHANNELS,
   type NotificationChannel,
@@ -22,6 +23,10 @@ const TYPE_LABELS: Record<string, { label: string; hint: string }> = {
   run_invitation: { label: "Invitations dans une run", hint: "Un ami t'invite dans sa partie." },
   slot_unblocked: { label: "Sortie de BK", hint: "Ton slot a de nouveau des checks accessibles." },
   run_nudge: { label: "Relances de mes co-joueurs", hint: "Un co-joueur attend ta prochaine session dans une partie." },
+  run_started: { label: "Partie lancée", hint: "Le serveur d'une partie où tu joues est prêt." },
+  run_joined: { label: "Arrivées dans mes parties", hint: "Quelqu'un rejoint une partie que tu as créée." },
+  run_games_chosen: { label: "Jeux choisis dans mes parties", hint: "Un joueur de ta partie a choisi ou changé ses jeux." },
+  run_recap_ready: { label: "Récap prêt", hint: "Une partie où tu as joué est terminée et son récap est prêt." },
 };
 
 export const CHANNEL_LABELS: Record<NotificationChannel, string> = {
@@ -48,6 +53,12 @@ export function NotificationPreferencesCard() {
 
   async function choose(type: string, channel: NotificationChannel) {
     const next = await chooseNotificationChannel(type, channel);
+    setFailed(next === null);
+    if (next !== null) queryClient.setQueryData(NOTIFICATION_PREFERENCES_KEY, next);
+  }
+
+  async function chooseDiscord(type: string, discord: boolean) {
+    const next = await chooseNotificationDiscord(type, discord);
     setFailed(next === null);
     if (next !== null) queryClient.setQueryData(NOTIFICATION_PREFERENCES_KEY, next);
   }
@@ -87,6 +98,20 @@ export function NotificationPreferencesCard() {
                   </button>
                 ))}
               </span>
+              {/* Story 40.6: offered once the member's Discord is linked, and only for what reaches the bell. */}
+              {preference.discord !== null && preference.channel !== "none" ? (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground sm:col-span-2">
+                  <input
+                    checked={preference.discord}
+                    className="size-4 accent-[var(--color-accent)]"
+                    onChange={(event) => {
+                      void chooseDiscord(preference.type, event.target.checked);
+                    }}
+                    type="checkbox"
+                  />
+                  Aussi en message privé sur Discord
+                </label>
+              ) : null}
             </li>
           );
         })}

@@ -140,11 +140,41 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
       ]);
     }
     case "run_joined": {
-      // Story 43.14: a friend joined the member's run opened to friends.
+      // Story 43.14, 43.28: a member joined the member's run, by any road.
       const run = text(data, "runTitle");
       return base("run", "Partie", { kind: "actors" }, [
         strong(actorName(item)),
         ...(run !== "" ? [{ text: " a rejoint " }, strong(run)] : [{ text: " a rejoint ta partie" }]),
+      ]);
+    }
+    case "run_games_chosen": {
+      // Story 43.28: a player settled on their games in the member's run.
+      const run = text(data, "runTitle");
+      const games = data && Array.isArray(data.games) ? data.games.filter((g): g is string => typeof g === "string" && g !== "") : [];
+      return {
+        ...base("run", "Partie", { kind: "actors" }, [
+          strong(actorName(item)),
+          { text: " a choisi ses jeux" },
+          ...(run !== "" ? [{ text: " dans " }, strong(run)] : []),
+        ]),
+        detail: games.length > 0 ? games.join(", ") : null,
+      };
+    }
+    case "run_started": {
+      // Story 43.28: the run's server is up for the first time.
+      const run = text(data, "runTitle");
+      return base("run", "Partie", icon("bell"), [
+        ...(run !== "" ? [strong(run)] : [{ text: "Ta partie" }]),
+        { text: " est lancée : à toi de jouer" },
+      ]);
+    }
+    case "run_recap_ready": {
+      // Story 43.28: the run is over and its recap is built.
+      const run = text(data, "runTitle");
+      return base("run", "Récap", icon("trophy"), [
+        { text: "Le récap de " },
+        ...(run !== "" ? [strong(run)] : [{ text: "ta partie" }]),
+        { text: " est prêt" },
       ]);
     }
     case "weekly_duel": {

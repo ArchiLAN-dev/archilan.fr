@@ -371,7 +371,10 @@ final readonly class PersonalRunDrafts
         }
 
         // Story 43.1: the same joining as an invitation by name.
-        $this->joiner->join($run, $callerId, $this->clock->now());
+        if ($this->joiner->join($run, $callerId, $this->clock->now())) {
+            // Story 43.28: the owner hears of an arrival by the link too.
+            $this->joiner->announce($run, $callerId);
+        }
 
         $participants = $this->getParticipants($run->getId(), $callerId);
 

@@ -388,6 +388,8 @@ services:
     App\Community\Domain\Repository\ModerationCaseMessageRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineModerationCaseMessageRepository'
     App\Community\Application\Port\ModerationForumInterface: '@App\Community\Infrastructure\Adapter\DiscordModerationForum'
     App\Community\Application\Port\MemberDirectMessageInterface: '@App\Community\Infrastructure\Adapter\DiscordMemberDirectMessages'
+    # Story 40.6: notifications as the bot's direct messages (switched on by DISCORD_NOTIFICATION_DMS).
+    App\Community\Application\Port\NotificationDirectMessageInterface: '@App\Community\Infrastructure\Adapter\DiscordNotificationDirectMessages'
     App\Community\Application\Port\DiscordServerSanctionsInterface: '@App\Community\Infrastructure\Adapter\DiscordServerSanctions'
     App\Community\Domain\Repository\DiscordBanNoticeRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineDiscordBanNoticeRepository'
     App\Community\Domain\Repository\DiscordBanBaselineRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineDiscordBanBaselineRepository'

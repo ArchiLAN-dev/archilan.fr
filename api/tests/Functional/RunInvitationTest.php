@@ -88,6 +88,8 @@ final class RunInvitationTest extends FunctionalTestCase
         self::assertCount(1, $rows);
         self::assertIsArray($rows[0]);
         self::assertSame('accepted', $rows[0]['status']);
+        // Story 43.28: the owner hears of an arrival by invitation too.
+        self::assertCount(1, $this->entityManager->getRepository(Notification::class)->findBy(['recipientId' => $this->owner->getId(), 'type' => 'run_joined']));
     }
 
     public function testADeclinedInvitationIsNotSentAgainTheSameDay(): void

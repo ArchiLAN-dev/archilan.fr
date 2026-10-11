@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Command;
 
-use App\Community\Application\Support\Notifier;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Application\Message\SyncRunListingsToDiscordMessage;
@@ -27,7 +26,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 final readonly class JoinOpenRun
 {
-    public const string NOTIFICATION_TYPE = 'run_joined';
+    public const string NOTIFICATION_TYPE = RunJoiner::NOTIFICATION_TYPE;
 
     public function __construct(
         private RunRepositoryInterface $runs,
@@ -36,7 +35,6 @@ final readonly class JoinOpenRun
         private RunInviteFriendsQueryInterface $friends,
         private RunJoiner $joiner,
         private UserRepositoryInterface $users,
-        private Notifier $notifier,
         private ClockInterface $clock,
         private MessageBusInterface $messageBus,
     ) {
@@ -57,13 +55,7 @@ final readonly class JoinOpenRun
         }
 
         if ($run instanceof Run) {
-            $member = $this->users->findById($userId);
-            $this->notifier->notify($run->getOwnerId(), self::NOTIFICATION_TYPE, [
-                'fromUserId' => $userId,
-                'joinerName' => $member instanceof User ? $member->getDisplayName() : null,
-                'runId' => $run->getId(),
-                'runTitle' => $run->getTitle(),
-            ]);
+            $this->joiner->announce($run, $userId);
             // Story 43.27: one seat fewer on the Discord message, or the listing gone once full.
             $this->messageBus->dispatch(new SyncRunListingsToDiscordMessage());
         }

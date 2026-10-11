@@ -88,9 +88,14 @@ framework:
             'App\Sessions\Application\Message\NotifySlotUnblockedJob': async
             # Story 40.2: a pushable notification goes to the recipient's devices.
             'App\Community\Application\Message\SendWebPushJob': async
+            # Story 40.6: the same notification as a Discord direct message.
+            'App\Community\Application\Message\SendDiscordNotificationJob': async
             'App\Community\Application\Message\FriendActivityJob': async
             # Story 43.27: the Discord channel of the run listings, off the request.
             'App\PersonalRuns\Application\Message\SyncRunListingsToDiscordMessage': async
+            # Story 43.28: the moments of a personal run, told to its players off the request.
+            'App\PersonalRuns\Application\Message\NotifyRunGamesChosenJob': async
+            'App\PersonalRuns\Application\Message\NotifyRunPlayersJob': async
             'App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob': async
             'App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob': async
             'App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob': async

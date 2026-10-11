@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Handler;
 
+use App\PersonalRuns\Application\Message\NotifyRunPlayersJob;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Application\Message\BuildSessionRecapJob;
@@ -21,6 +22,7 @@ use App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Builds the {@see SessionRecap} projection from the session's live feed (story 9.48).
@@ -47,6 +49,7 @@ final readonly class BuildSessionRecapJobHandler
         private RegistrationRepositoryInterface $registrations,
         private SlotCoPlayerRepositoryInterface $coPlayers,
         private AchievementRecomputeTriggerInterface $achievementRecomputeTrigger,
+        private MessageBusInterface $messageBus,
         private ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
@@ -138,6 +141,8 @@ final readonly class BuildSessionRecapJobHandler
         $existing = $this->recaps->findBySessionId($job->sessionId);
         if (null === $existing) {
             $this->recaps->save(new SessionRecap($job->sessionId, $now, $nodes, $edges, $localItems, $superlatives));
+            // Story 43.28: the players of a personal run hear that its recap is ready - once, not on a rebuild.
+            $this->messageBus->dispatch(NotifyRunPlayersJob::recapReady($job->sessionId));
         } else {
             $existing->rebuild($now, $nodes, $edges, $localItems, $superlatives);
             $this->recaps->save($existing);
