@@ -16,6 +16,8 @@ export type RunListing = {
   owner: FriendCard;
   isOwnerFriend: boolean;
   friendsIn: FriendCard[];
+  /** Story 43.23: the viewer's own listing. Absent on an older API payload. */
+  isMine?: boolean;
 };
 
 export const RUN_LISTINGS_KEY = ["run-listings"] as const;

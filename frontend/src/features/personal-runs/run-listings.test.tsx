@@ -62,6 +62,18 @@ describe("run listings", () => {
     expect(html).toContain("Signaler");
   });
 
+  it("flags the viewer's own listing, to manage rather than join or report (story 43.23)", () => {
+    mockUser = { id: "me" };
+    const html = render(<RunListingsBoard />, [{ ...listing, isMine: true }]);
+
+    expect(html).toContain("Ta partie");
+    expect(html).toContain("Gérer ma partie");
+    expect(html).toContain('href="/runs/r1"');
+    expect(html).not.toContain("Rejoindre");
+    expect(html).not.toContain("Signaler");
+    expect(render(<RunListingsBoard />, [listing])).not.toContain("Ta partie");
+  });
+
   it("asks a visitor to sign in", () => {
     mockUser = null;
     expect(render(<RunListingsBoard />)).toContain("Connecte-toi");

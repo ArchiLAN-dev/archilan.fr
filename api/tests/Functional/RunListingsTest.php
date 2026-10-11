@@ -65,6 +65,23 @@ final class RunListingsTest extends FunctionalTestCase
         self::assertCount(1, $this->entityManager->getRepository(Notification::class)->findBy(['recipientId' => $this->owner->getId(), 'type' => 'run_joined']));
     }
 
+    public function testTheOwnerSeesTheirOwnListingFlaggedAsTheirs(): void
+    {
+        $stranger = $this->member('stranger');
+        $this->list('Ma partie du samedi', 2);
+        self::assertResponseStatusCodeSame(200);
+
+        $mine = $this->listingsOf($this->owner);
+        self::assertCount(1, $mine, 'story 43.23: the owner sees their own listing');
+        self::assertIsArray($mine[0]);
+        self::assertTrue($mine[0]['isMine']);
+
+        $theirs = $this->listingsOf($stranger);
+        self::assertCount(1, $theirs);
+        self::assertIsArray($theirs[0]);
+        self::assertFalse($theirs[0]['isMine']);
+    }
+
     public function testAListingNeedsAShortMessageAndAnAccountInGoodStanding(): void
     {
         $this->list('   ', null);

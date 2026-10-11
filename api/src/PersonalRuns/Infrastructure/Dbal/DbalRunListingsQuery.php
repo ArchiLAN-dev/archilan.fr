@@ -25,9 +25,9 @@ final readonly class DbalRunListingsQuery implements RunListingsQueryInterface
             ->from('run', 'r')
             ->where('r.openness = :members')
             ->andWhere('r.status = :draft')
-            ->andWhere('r.owner_id <> :viewer')
             ->andWhere('r.pitch IS NOT NULL AND r.listed_at IS NOT NULL')
-            ->andWhere('NOT EXISTS (SELECT 1 FROM run_participant v WHERE v.personal_run_id = r.id AND v.user_id = :viewer)')
+            // Story 43.23: the viewer's own listing stays, a run they joined does not.
+            ->andWhere('(r.owner_id = :viewer OR NOT EXISTS (SELECT 1 FROM run_participant v WHERE v.personal_run_id = r.id AND v.user_id = :viewer))')
             ->andWhere('NOT EXISTS (SELECT 1 FROM community_block b WHERE (b.blocker_id = r.owner_id AND b.blocked_id = :viewer) OR (b.blocker_id = :viewer AND b.blocked_id = r.owner_id))')
             ->orderBy('r.listed_at', 'DESC')
             // Story 43.19: a page, not the whole table.
