@@ -8,8 +8,8 @@ projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [0.40.0] - 2026-10-11
 
 Les annonces de parties qui cherchent des joueurs sortent de l'ombre : mises en avant sur Communauté, visibles sans
-compte, signalées par un badge dans le menu, avec une carte plus lisible. Les succès de superlatifs demandent
-désormais deux joueurs et comptent aussi les parties perso.
+compte, signalées par un badge dans le menu, avec une carte plus lisible, et postées sur Discord par le bot. Les
+succès de superlatifs demandent désormais deux joueurs et comptent aussi les parties perso.
 
 ### Ajouté
 
@@ -20,6 +20,8 @@ désormais deux joueurs et comptent aussi les parties perso.
 - **Annonces visibles sans compte** (43.24) : un visiteur voit les annonces et peut se connecter pour en rejoindre
   une ; la page reste hors de l'index des moteurs.
 - **Badge sur « Communauté »** (43.26) : une pastille verte donne le nombre de parties que l'on peut rejoindre.
+- **Annonces sur Discord** (43.27) : le bot tient un message par annonce dans le salon dédié, mis à jour quand
+  l'annonce change et supprimé quand elle n'est plus en ligne ; le rôle dédié est mentionné une fois par partie.
 - **Superlatifs des parties perso** (32.23) : une partie perso terminée à plusieurs compte pour les succès de
   superlatifs, au propriétaire du slot gagnant comme à ses co-joueurs.
 
@@ -34,7 +36,11 @@ désormais deux joueurs et comptent aussi les parties perso.
 
 ### Déploiement
 
-- Aucune migration. L'API et le front partent ensemble (`GET /run-listings` répond désormais sans session).
+- Une migration : `Version20261011100000`. L'API et le front partent ensemble (`GET /run-listings` répond désormais
+  sans session).
+- Annonces sur Discord, coupées par défaut : renseigner `DISCORD_RUN_LISTINGS_CHANNEL_ID` et
+  `DISCORD_RUN_LISTINGS_ROLE_ID`. Le bot doit pouvoir, dans ce salon, envoyer des messages, intégrer des liens et
+  mentionner le rôle. Nouvelle tâche planifiée au worker, toutes les 5 minutes.
 - Les superlatifs déjà gagnés en partie perso à plusieurs deviennent des succès au prochain recalcul horaire, sans
   notification ; `php bin/console community:achievements:recompute` pour le faire tout de suite. Les succès déjà
   gagnés en solo restent acquis.
