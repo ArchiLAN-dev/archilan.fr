@@ -5,7 +5,7 @@ import type { AuthUser } from "../auth/auth-context";
 import type { FriendCard } from "@/features/community/community-friends-api";
 import { RunOpennessSetting } from "./friends-open-runs";
 import { RUN_LISTINGS_KEY, type RunListing } from "./run-listings-api";
-import { friendsInLabel, plannedLabel, RunListingsBoard } from "./run-listings";
+import { friendsInLabel, plannedLabel, RunListingsBoard, RunListingsSpotlight } from "./run-listings";
 
 let mockUser: Partial<AuthUser> | null = { id: "me" };
 jest.mock("../auth/auth-context", () => ({
@@ -75,5 +75,28 @@ describe("run listings", () => {
     expect(html).toContain("Venez !");
     expect(html).toContain("Places voulues");
     expect(html).toContain("Date prévue");
+  });
+});
+
+/** Story 43.21: the listings put forward. */
+describe("run listings spotlight", () => {
+  const more = [listing, { ...listing, runId: "r2", title: "Seconde" }, { ...listing, runId: "r3", title: "Troisième" }];
+
+  it("shows the two latest listings on « Communauté » and the way to all of them", () => {
+    mockUser = { id: "me" };
+    const html = render(<RunListingsSpotlight />, more);
+    expect(html).toContain("Parties qui cherchent des joueurs");
+    expect(html).toContain("« La giga async »");
+    expect(html).toContain("« Seconde »");
+    expect(html).not.toContain("Troisième");
+    expect(html).toContain("Voir les 3 annonces");
+    expect(html).toContain('href="/communaute/parties"');
+  });
+
+  it("invites to publish one when there is none, and a visitor to sign in", () => {
+    expect(render(<RunListingsSpotlight />, [])).toContain("Publie la tienne");
+    mockUser = null;
+    expect(render(<RunListingsSpotlight />)).toContain("Connecte-toi");
+    mockUser = { id: "me" };
   });
 });
