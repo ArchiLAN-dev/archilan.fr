@@ -6,7 +6,8 @@ namespace App\Community\Application\Query;
 
 /**
  * Counts the recap superlatives a player won across finished sessions of public events
- * (story 32.4). Feeds the `superlative:{key}` achievement facts.
+ * (story 32.4) and of personal runs, played by at least two members (story 32.23). Feeds the
+ * `superlative:{key}` achievement facts.
  */
 interface RecapSuperlativesQueryInterface
 {

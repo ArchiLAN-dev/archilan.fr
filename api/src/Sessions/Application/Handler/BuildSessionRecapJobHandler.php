@@ -17,6 +17,7 @@ use App\Sessions\Domain\Repository\SessionFeedEventRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -44,6 +45,7 @@ final readonly class BuildSessionRecapJobHandler
         private RecapSuperlativesCalculator $superlatives,
         private SessionRecapRepositoryInterface $recaps,
         private RegistrationRepositoryInterface $registrations,
+        private SlotCoPlayerRepositoryInterface $coPlayers,
         private AchievementRecomputeTriggerInterface $achievementRecomputeTrigger,
         private ClockInterface $clock,
         private LoggerInterface $logger,
@@ -76,8 +78,10 @@ final readonly class BuildSessionRecapJobHandler
             $goalByName[$slot->getSlotName()] = $slot->getGoalReachedAt();
         }
 
+        $userIds = $this->resolveParticipantUserIds($slots);
+
         $graph = $this->readGraph($session);
-        $rawSuperlatives = $this->superlatives->calculate($graph, $goalByName);
+        $rawSuperlatives = $this->superlatives->calculate($graph, $goalByName, \count($userIds));
 
         $nodes = [];
         foreach ($graph->nodes as $node) {
@@ -148,7 +152,6 @@ final readonly class BuildSessionRecapJobHandler
 
         // Story 32.4: the storeArchive recompute (30.26) runs before this build, so the superlative
         // facts only become visible if the participants are re-evaluated once the projection exists.
-        $userIds = $this->resolveParticipantUserIds($slots);
         $this->achievementRecomputeTrigger->recomputeForUsers($userIds);
         $this->logger->info('session.recap.achievements_recompute_triggered', [
             'sessionId' => $job->sessionId,
@@ -157,9 +160,11 @@ final readonly class BuildSessionRecapJobHandler
     }
 
     /**
-     * An event slot points at a registration row (registration.user_id is the player); a
-     * personal-run slot stores the user id directly - mirror of
-     * SessionLifecycleManager::resolveParticipantUserIds.
+     * The distinct members who played the session. An event slot points at a registration row
+     * (registration.user_id is the player); a personal-run slot stores the user id directly - mirror
+     * of SessionLifecycleManager::resolveParticipantUserIds. Co-players (story 16.17) are players
+     * too: they count towards the superlatives' two-player minimum and win them with the owner
+     * (story 32.23).
      *
      * @param list<\App\Sessions\Domain\Entity\SessionSlot> $slots
      *
@@ -171,6 +176,17 @@ final readonly class BuildSessionRecapJobHandler
         foreach ($slots as $slot) {
             $registration = $this->registrations->findById($slot->getRegistrationId());
             $userIds[$registration instanceof Registration ? $registration->getUserId() : $slot->getRegistrationId()] = true;
+        }
+
+        $gameSlotIds = [];
+        foreach ($slots as $slot) {
+            $gameSlotId = $slot->getSlotId();
+            if (null !== $gameSlotId) {
+                $gameSlotIds[$gameSlotId] = true;
+            }
+        }
+        foreach ($this->coPlayers->findBySlotIds(array_keys($gameSlotIds)) as $coPlayer) {
+            $userIds[$coPlayer->getUserId()] = true;
         }
 
         return array_keys($userIds);

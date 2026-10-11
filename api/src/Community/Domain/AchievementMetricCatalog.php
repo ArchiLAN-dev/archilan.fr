@@ -33,8 +33,9 @@ final class AchievementMetricCatalog
     // The id part is opaque to the rule engine; the admin layer checks it is a real event (story 30.32).
     public const string EVENT_GOAL_PREFIX = 'event_goal:';
 
-    // Recap-superlative facts: `superlative:{key}` = times the player won that superlative in a public
-    // session recap (story 32.4). Unlike event_goal this is a CLOSED enumeration - the keys mirror
+    // Recap-superlative facts: `superlative:{key}` = times the player won that superlative in the recap
+    // of a public event session (story 32.4) or of a personal run, played by two members or more
+    // (story 32.23). Unlike event_goal this is a CLOSED enumeration - the keys mirror
     // Sessions' RecapSuperlativesCalculator (duplicated on purpose: Community never imports Sessions),
     // and each key is a concrete facts() entry so the admin form and validation need no special case.
     public const string SUPERLATIVE_PREFIX = 'superlative:';
