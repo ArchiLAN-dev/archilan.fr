@@ -15,6 +15,11 @@ describe("favorite friends (story 43.11a)", () => {
     expect(renderToStaticMarkup(<FriendIdentity card={card} />)).not.toContain("Favori");
   });
 
+  it("leaves the star to the button on the friends list, so a favorite shows one star", () => {
+    const card = { userId: "u-1", slug: "alice", displayName: "Alice", avatarUrl: null, isFavorite: true };
+    expect(renderToStaticMarkup(<FriendIdentity card={card} showFavorite={false} />)).not.toContain("Favori");
+  });
+
   it("says what the star will do", () => {
     const off = renderToStaticMarkup(<FavoriteFriendButton favorite={false} name="Alice" onChange={() => undefined} slug="alice" />);
     expect(off).toContain("Mettre en favori");

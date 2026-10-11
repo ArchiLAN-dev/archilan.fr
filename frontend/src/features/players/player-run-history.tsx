@@ -6,7 +6,12 @@ import Link from "next/link";
 
 import { useAuth } from "@/features/auth/auth-context";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import { fetchOwnPlayerHistory, type PlayerHistory, type RunHistoryEntry } from "./player-profile-api";
+import {
+  fetchOwnPlayerHistory,
+  formatDate,
+  type PlayerHistory,
+  type RunHistoryEntry,
+} from "./player-profile-api";
 
 /**
  * The run history of a profile. The server render is anonymous, so it holds only what visitors see (story
@@ -151,8 +156,4 @@ function StatusBadge({ entry }: { entry: RunHistoryEntry }) {
       Incomplet
     </span>
   );
-}
-
-export function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(new Date(iso));
 }
