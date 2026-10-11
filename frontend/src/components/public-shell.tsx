@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { UserMenu } from "@/features/auth/user-menu";
 import { NotificationCenter } from "@/features/community/notification-center";
 import { ShopBalance } from "@/features/wallet/shop-balance";
+import { RunListingsBadge } from "@/features/personal-runs/run-listings";
 import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -261,7 +262,7 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
             {/* Événements left the desktop bar (the home hero and the footer lead there); the phone menu keeps it. */}
             <NavLink href="/runs-hebdo" label="Runs hebdos" />
             <NavLink href="/jeux" label="Jeux" />
-            <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" />
+            <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" suffix={<RunListingsBadge />} />
             <NavLink href="/boutique" label="Boutique" suffix={<ShopBalance />} />
             <LiveTwitchBadge />
           </div>
@@ -305,7 +306,7 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
               <NavLink href="/evenements" label="Événements" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/runs-hebdo" label="Runs hebdos" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
-              <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" onNavigate={() => setMenuState({ open: false, pathname })} />
+              <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" suffix={<RunListingsBadge />} onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/boutique" label="Boutique" onNavigate={() => setMenuState({ open: false, pathname })} suffix={<ShopBalance />} />
               <LiveTwitchBadge onNavigate={() => setMenuState({ open: false, pathname })} />
             </div>

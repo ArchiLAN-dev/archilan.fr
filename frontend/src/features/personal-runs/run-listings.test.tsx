@@ -5,7 +5,7 @@ import type { AuthUser } from "../auth/auth-context";
 import type { FriendCard } from "@/features/community/community-friends-api";
 import { RunOpennessSetting } from "./friends-open-runs";
 import type { RunListing } from "./run-listings-api";
-import { friendsInLabel, plannedLabel, RunListingsBoard, runListingsKey, RunListingsSpotlight, seatsLeftLabel } from "./run-listings";
+import { friendsInLabel, plannedLabel, RunListingsBoard, runListingsKey, RunListingsBadge, RunListingsSpotlight, joinableCount, seatsLeftLabel } from "./run-listings";
 
 let mockUser: Partial<AuthUser> | null = { id: "me" };
 jest.mock("../auth/auth-context", () => ({
@@ -123,6 +123,19 @@ describe("run listings spotlight", () => {
     mockUser = null;
     expect(render(<RunListingsSpotlight />, [])).not.toContain("Publie la tienne");
     expect(render(<RunListingsSpotlight />, more)).toContain(">Seconde<");
+    mockUser = { id: "me" };
+  });
+});
+
+/** Story 43.26: the badge beside « Communauté ». */
+describe("run listings badge", () => {
+  it("counts what the viewer could join, their own left out, nothing at zero", () => {
+    expect(joinableCount([listing, { ...listing, runId: "r2", isMine: true }])).toBe(1);
+    mockUser = { id: "me" };
+    expect(render(<RunListingsBadge />, [listing, { ...listing, runId: "r2" }])).toContain("2 parties cherchent des joueurs");
+    expect(render(<RunListingsBadge />, [{ ...listing, isMine: true }])).toBe("");
+    mockUser = null;
+    expect(render(<RunListingsBadge />, [listing])).toContain("1 partie cherche des joueurs");
     mockUser = { id: "me" };
   });
 });
