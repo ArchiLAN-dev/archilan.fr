@@ -89,6 +89,8 @@ framework:
             # Story 40.2: a pushable notification goes to the recipient's devices.
             'App\Community\Application\Message\SendWebPushJob': async
             'App\Community\Application\Message\FriendActivityJob': async
+            # Story 43.27: the Discord channel of the run listings, off the request.
+            'App\PersonalRuns\Application\Message\SyncRunListingsToDiscordMessage': async
             'App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob': async
             'App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob': async
             'App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob': async

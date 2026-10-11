@@ -7,6 +7,7 @@ namespace App\PersonalRuns\Application\Command;
 use App\Community\Application\Support\Notifier;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Application\Message\SyncRunListingsToDiscordMessage;
 use App\PersonalRuns\Application\Query\RunInviteFriendsQueryInterface;
 use App\PersonalRuns\Application\Support\RunJoiner;
 use App\PersonalRuns\Domain\Entity\Run;
@@ -16,6 +17,7 @@ use App\PersonalRuns\Domain\Repository\RunInvitationRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * A friend joins a draft run its owner opened to friends (story 43.14), or any member a run listed for every member
@@ -36,6 +38,7 @@ final readonly class JoinOpenRun
         private UserRepositoryInterface $users,
         private Notifier $notifier,
         private ClockInterface $clock,
+        private MessageBusInterface $messageBus,
     ) {
     }
 
@@ -61,6 +64,8 @@ final readonly class JoinOpenRun
                 'runId' => $run->getId(),
                 'runTitle' => $run->getTitle(),
             ]);
+            // Story 43.27: one seat fewer on the Discord message, or the listing gone once full.
+            $this->messageBus->dispatch(new SyncRunListingsToDiscordMessage());
         }
 
         return $outcome;

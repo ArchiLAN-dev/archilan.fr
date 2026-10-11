@@ -6,9 +6,11 @@ namespace App\PersonalRuns\Application\Command;
 
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Application\Message\SyncRunListingsToDiscordMessage;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * The owner opens their draft run to friends, with an optional number of seats, or takes it back to invitations
@@ -29,6 +31,7 @@ final readonly class SetRunOpenness
         private RunRepositoryInterface $runs,
         private UserRepositoryInterface $users,
         private ClockInterface $clock,
+        private MessageBusInterface $messageBus,
     ) {
     }
 
@@ -66,6 +69,8 @@ final readonly class SetRunOpenness
             return SetRunOpennessOutcome::Invalid;
         }
         $this->runs->flush();
+        // Story 43.27: the Discord channel hears of a listing published, changed or taken back at once.
+        $this->messageBus->dispatch(new SyncRunListingsToDiscordMessage());
 
         return SetRunOpennessOutcome::Updated;
     }

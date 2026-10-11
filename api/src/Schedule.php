@@ -20,6 +20,7 @@ use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\PersonalRuns\Application\Message\ExpireRunListingsMessage;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
+use App\PersonalRuns\Application\Message\SyncRunListingsToDiscordMessage;
 use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\Wallet\Application\Message\AwardWeeklyQuestsMessage;
@@ -96,6 +97,8 @@ final readonly class Schedule implements ScheduleProviderInterface
                 RecurringMessage::every('2 minutes', new ReconcileStuckRunsMessage()),
                 // Story 43.17: the run listings nobody joined for 14 days go back to invitations only.
                 RecurringMessage::cron('10 * * * *', new ExpireRunListingsMessage()),
+                // Story 43.27: the Discord channel follows the listings page (a listing leaves it by many roads).
+                RecurringMessage::every('5 minutes', new SyncRunListingsToDiscordMessage()),
                 // Story 43.18: the duels of the weekly runs that ended, a quarter of an hour after the end.
                 RecurringMessage::every('15 minutes', new ResolveWeeklyDuelsMessage()),
             )
