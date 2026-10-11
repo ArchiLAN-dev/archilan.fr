@@ -7,6 +7,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   chooseNotificationChannel,
+  chooseNotificationDiscord,
   fetchNotificationPreferences,
   NOTIFICATION_CHANNELS,
   type NotificationChannel,
@@ -56,6 +57,12 @@ export function NotificationPreferencesCard() {
     if (next !== null) queryClient.setQueryData(NOTIFICATION_PREFERENCES_KEY, next);
   }
 
+  async function chooseDiscord(type: string, discord: boolean) {
+    const next = await chooseNotificationDiscord(type, discord);
+    setFailed(next === null);
+    if (next !== null) queryClient.setQueryData(NOTIFICATION_PREFERENCES_KEY, next);
+  }
+
   return (
     <section aria-labelledby="notification-preferences" className="card-glow grid gap-4 rounded-lg border border-border p-6">
       <h2 className="flex items-center gap-2 font-heading text-xl font-semibold text-foreground" id="notification-preferences">
@@ -91,6 +98,20 @@ export function NotificationPreferencesCard() {
                   </button>
                 ))}
               </span>
+              {/* Story 40.6: offered once the member's Discord is linked, and only for what reaches the bell. */}
+              {preference.discord !== null && preference.channel !== "none" ? (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground sm:col-span-2">
+                  <input
+                    checked={preference.discord}
+                    className="size-4 accent-[var(--color-accent)]"
+                    onChange={(event) => {
+                      void chooseDiscord(preference.type, event.target.checked);
+                    }}
+                    type="checkbox"
+                  />
+                  Aussi en message privé sur Discord
+                </label>
+              ) : null}
             </li>
           );
         })}

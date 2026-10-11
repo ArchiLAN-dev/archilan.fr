@@ -45,9 +45,10 @@ final readonly class NotificationPreferenceController
         } catch (\JsonException) {
             $payload = null;
         }
-        $channel = is_array($payload) && is_string($payload['channel'] ?? null) ? $payload['channel'] : '';
-
-        $settings = $this->preferences->choose($user->getId(), $type, $channel);
+        // Story 40.6: a choice is a channel, or whether it also goes to Discord.
+        $settings = is_array($payload) && is_bool($payload['discord'] ?? null)
+            ? $this->preferences->chooseDiscord($user->getId(), $type, $payload['discord'])
+            : $this->preferences->choose($user->getId(), $type, is_array($payload) && is_string($payload['channel'] ?? null) ? $payload['channel'] : '');
         if (null === $settings) {
             return $this->apiAccessGuard->errorResponse('invalid_preference', 'Réglage inconnu.', 422);
         }
