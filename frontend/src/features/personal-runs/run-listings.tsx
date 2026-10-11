@@ -318,6 +318,26 @@ function useRunListings() {
   return useQuery({ queryKey: runListingsKey(user?.id ?? null), queryFn: fetchRunListings, enabled: !loading, staleTime: DEFAULT_STALE_TIME, retry: false });
 }
 
+/** Story 43.26: the listings the viewer could join (their own left out). */
+export function joinableCount(listings: RunListing[]): number {
+  return listings.filter((listing) => listing.isMine !== true).length;
+}
+
+/** Story 43.26: that count beside « Communauté » in the site header, visitors included. Nothing at zero. */
+export function RunListingsBadge() {
+  const { data } = useRunListings();
+  const count = data ? joinableCount(data) : 0;
+  if (count === 0) return null;
+  const label = `${count} partie${count > 1 ? "s" : ""} cherche${count > 1 ? "nt" : ""} des joueurs`;
+  return (
+    <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success" title={label}>
+      <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-success" />
+      {count}
+      <span className="sr-only"> {label}</span>
+    </span>
+  );
+}
+
 const SPOTLIGHT_SIZE = 2;
 
 /** Story 43.21: the latest listings, put forward on « Communauté », and the way to all of them. */
