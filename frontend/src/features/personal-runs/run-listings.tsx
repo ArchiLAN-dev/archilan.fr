@@ -4,14 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CalendarClock, Flag, LogIn, Megaphone, Settings2 } from "lucide-react";
+import { ArrowRight, CalendarClock, Flag, LogIn, Megaphone, Settings2, Users } from "lucide-react";
+
+import { buttonVariants } from "@/components/ui/button";
 
 import { Dialog } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/auth-context";
 import { REPORT_PROBLEMS } from "@/features/community/community-report-api";
-import { FriendIdentity } from "@/features/community/friend-identity";
+import { MemberAvatar } from "@/features/community/member-avatar";
+import { TitledName } from "@/features/community/titled-name";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import { seatsLabel } from "./friends-open-runs";
 import { FRIENDS_OPEN_RUNS_KEY, joinOpenRun } from "./friends-open-runs-api";
 import { fetchRunListings, reportRunListing, RUN_LISTINGS_KEY, type ListingReportResult, type RunListing } from "./run-listings-api";
 
@@ -56,11 +58,43 @@ export function RunListingsBoard() {
   }
 
   return (
-    <ul className="grid gap-3" role="list">
+    <ul className="grid gap-4 md:grid-cols-2" role="list">
       {data.map((listing) => (
         <ListingCard key={listing.runId} listing={listing} />
       ))}
     </ul>
+  );
+}
+
+const MAX_GAMES = 5;
+/** Up to this many seats wanted, they show as dots. */
+const MAX_SEAT_DOTS = 8;
+
+/** Story 43.25: what is left to take, rather than what is taken. */
+export function seatsLeftLabel({ seatsWanted, joined }: Pick<RunListing, "seatsWanted" | "joined">): string {
+  if (seatsWanted === null) {
+    return joined === 0 ? "Places illimitées" : `${joined} inscrit${joined > 1 ? "s" : ""} · places illimitées`;
+  }
+  const left = Math.max(seatsWanted - joined, 0);
+  return `${left} place${left > 1 ? "s" : ""} libre${left > 1 ? "s" : ""} sur ${seatsWanted}`;
+}
+
+function SeatsChip({ listing }: { listing: RunListing }) {
+  const { seatsWanted, joined } = listing;
+  const dots = seatsWanted !== null && seatsWanted <= MAX_SEAT_DOTS;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/40 px-2.5 py-1 text-foreground">
+      {dots ? (
+        <span aria-hidden className="flex gap-0.5">
+          {Array.from({ length: seatsWanted }, (_, seat) => (
+            <span className={`size-2 rounded-full ${seat < joined ? "bg-accent" : "border border-accent-text/60"}`} key={seat} />
+          ))}
+        </span>
+      ) : (
+        <Users aria-hidden className="size-3.5 text-accent-text" />
+      )}
+      {seatsLeftLabel(listing)}
+    </span>
   );
 }
 
@@ -92,68 +126,107 @@ function ListingCard({ listing }: { listing: RunListing }) {
     router.push(`/runs/${listing.runId}`);
   }
 
+  const name = listing.owner.displayName ?? listing.owner.slug;
+  const shownGames = listing.games.slice(0, MAX_GAMES);
+
+  // Story 43.25: the title leads, then who hosts; the facts (date, seats, games) as chips; the action at the bottom.
   return (
-    <li className={`grid gap-2 rounded-lg border bg-surface px-4 py-3 ${mine ? "border-accent/60" : "border-border"}`}>
-      <div className="flex flex-wrap items-center gap-3">
-        <FriendIdentity card={listing.owner} link />
+    <li
+      className={`flex flex-col gap-3 rounded-xl border bg-surface p-4 transition-colors ${mine ? "border-accent" : "border-border hover:border-accent/60"}`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="grid min-w-0 flex-1 gap-1.5">
+          <h3 className="font-heading text-lg font-semibold leading-tight text-foreground">{listing.title}</h3>
+          {/* Room around the avatar: a cosmetic frame spills past its box. */}
+          <Link className="mt-1 inline-flex w-fit items-center gap-2.5 py-1.5 pl-1 text-xs text-muted-foreground hover:text-foreground" href={`/joueurs/${listing.owner.slug}`}>
+            <MemberAvatar
+              avatarAnimatedUrl={listing.owner.avatarAnimatedUrl}
+              avatarUrl={listing.owner.avatarUrl}
+              frame={listing.owner.avatarFrame}
+              framing={listing.owner.avatarFraming}
+              name={name}
+              size={24}
+            />
+            <span>
+              par{" "}
+              <TitledName style={listing.owner.nameStyle} variant="card">
+                {name}
+              </TitledName>
+            </span>
+          </Link>
+        </div>
         {/* Story 43.23: the viewer's own listing, as the others see it. */}
-        {mine ? <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">Ta partie</span> : null}
-        {listing.isOwnerFriend ? <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent-text">Ami</span> : null}
-        <span className="ml-auto text-xs text-muted-foreground">{seatsLabel(listing)}</span>
+        {mine ? (
+          <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white">Ta partie</span>
+        ) : listing.isOwnerFriend ? (
+          <span className="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent-text">Ami</span>
+        ) : null}
       </div>
-      <p className="font-semibold text-foreground">« {listing.title} »</p>
-      <p className="whitespace-pre-line text-sm text-foreground">{listing.pitch}</p>
-      {listing.games.length > 0 ? <p className="text-xs text-muted-foreground">Jeux : {listing.games.join(", ")}</p> : null}
-      {planned !== null ? (
-        <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-          <CalendarClock aria-hidden className="size-3.5" />
-          {planned}
+
+      <p className="line-clamp-4 whitespace-pre-line text-sm text-foreground">{listing.pitch}</p>
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        {planned !== null ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/40 px-2.5 py-1 text-foreground">
+            <CalendarClock aria-hidden className="size-3.5 text-accent-text" />
+            {planned.replace(/^Prévue le /, "")}
+          </span>
+        ) : null}
+        <SeatsChip listing={listing} />
+      </div>
+
+      {shownGames.length > 0 ? (
+        <ul aria-label="Jeux" className="flex flex-wrap gap-1.5" role="list">
+          {shownGames.map((game) => (
+            <li className="rounded-md bg-accent/10 px-2 py-0.5 text-xs text-accent-text" key={game}>
+              {game}
+            </li>
+          ))}
+          {listing.games.length > MAX_GAMES ? (
+            <li className="rounded-md px-1 py-0.5 text-xs text-muted-foreground">+{listing.games.length - MAX_GAMES}</li>
+          ) : null}
+        </ul>
+      ) : null}
+
+      {friendsIn !== null ? (
+        <p className="inline-flex items-center gap-1.5 text-xs font-medium text-accent-text">
+          <Users aria-hidden className="size-3.5" />
+          {friendsIn}
         </p>
       ) : null}
-      {friendsIn !== null ? <p className="text-xs font-medium text-accent-text">{friendsIn}</p> : null}
-      {mine ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            className="inline-flex items-center gap-1.5 rounded-full border border-accent px-3 py-1.5 text-xs font-semibold text-accent-text hover:bg-accent/15"
-            href={`/runs/${listing.runId}`}
-          >
-            <Settings2 aria-hidden className="size-3.5" />
-            Gérer ma partie
-          </Link>
-          <span className="text-xs text-muted-foreground">Les autres membres la voient ainsi.</span>
-        </div>
-      ) : user === null ? (
-        // Story 43.24: a visitor signs in, then comes back to the listings.
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover"
-            href="/connexion?returnTo=/communaute/parties"
-          >
-            <LogIn aria-hidden className="size-3.5" />
+
+      <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        {mine ? (
+          <>
+            <Link className={buttonVariants({ variant: "secondary" })} href={`/runs/${listing.runId}`}>
+              <Settings2 aria-hidden className="size-4" />
+              Gérer ma partie
+            </Link>
+            <span className="text-xs text-muted-foreground">Les autres membres la voient ainsi.</span>
+          </>
+        ) : user === null ? (
+          // Story 43.24: a visitor signs in, then comes back to the listings.
+          <Link className={buttonVariants({ variant: "primary" })} href="/connexion?returnTo=/communaute/parties">
+            <LogIn aria-hidden className="size-4" />
             Se connecter pour rejoindre
           </Link>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover disabled:opacity-50"
-            disabled={busy}
-            onClick={() => void join()}
-            type="button"
-          >
-            <LogIn aria-hidden className="size-3.5" />
-            Rejoindre
-          </button>
-          <button
-            className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setReporting(true)}
-            type="button"
-          >
-            <Flag aria-hidden className="size-3.5" />
-            Signaler
-          </button>
-        </div>
-      )}
+        ) : (
+          <>
+            <button className={buttonVariants({ variant: "primary" })} disabled={busy} onClick={() => void join()} type="button">
+              <LogIn aria-hidden className="size-4" />
+              Rejoindre
+            </button>
+            <button
+              className="ml-auto inline-flex min-h-9 items-center gap-1 px-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setReporting(true)}
+              type="button"
+            >
+              <Flag aria-hidden className="size-3.5" />
+              Signaler
+            </button>
+          </>
+        )}
+      </div>
       {message !== null ? (
         <p className="text-sm text-danger" role="alert">
           {message}
@@ -283,7 +356,7 @@ function RunListingsSpotlightView({ listings, signedIn }: { listings: RunListing
           <p className="text-sm text-muted-foreground">Aucune partie ne cherche de joueurs pour l&apos;instant.</p>
         )
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2" role="list">
+        <ul className="grid gap-4 md:grid-cols-2" role="list">
           {listings.slice(0, SPOTLIGHT_SIZE).map((listing) => (
             <ListingCard key={listing.runId} listing={listing} />
           ))}
