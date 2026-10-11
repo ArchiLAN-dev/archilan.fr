@@ -17,26 +17,29 @@ final readonly class DbalRunListingsQuery implements RunListingsQueryInterface
     {
     }
 
-    public function listingsFor(string $viewerId): array
+    public function listingsFor(?string $viewerId): array
     {
-        $rows = $this->connection->createQueryBuilder()
+        $qb = $this->connection->createQueryBuilder()
             ->select('r.id', 'r.title', 'r.owner_id', 'r.pitch', 'r.planned_for', 'r.listed_at', 'r.seats_wanted', 'r.game_selection_config')
             ->addSelect("(SELECT string_agg(p.user_id, ',') FROM run_participant p WHERE p.personal_run_id = r.id AND p.user_id <> r.owner_id) AS participant_ids")
             ->from('run', 'r')
             ->where('r.openness = :members')
             ->andWhere('r.status = :draft')
             ->andWhere('r.pitch IS NOT NULL AND r.listed_at IS NOT NULL')
-            // Story 43.23: the viewer's own listing stays, a run they joined does not.
-            ->andWhere('(r.owner_id = :viewer OR NOT EXISTS (SELECT 1 FROM run_participant v WHERE v.personal_run_id = r.id AND v.user_id = :viewer))')
-            ->andWhere('NOT EXISTS (SELECT 1 FROM community_block b WHERE (b.blocker_id = r.owner_id AND b.blocked_id = :viewer) OR (b.blocker_id = :viewer AND b.blocked_id = r.owner_id))')
             ->orderBy('r.listed_at', 'DESC')
             // Story 43.19: a page, not the whole table.
             ->setMaxResults(self::LIMIT)
             ->setParameter('members', Run::OPEN_MEMBERS)
-            ->setParameter('draft', Run::STATUS_DRAFT)
-            ->setParameter('viewer', $viewerId)
-            ->executeQuery()
-            ->fetchAllAssociative();
+            ->setParameter('draft', Run::STATUS_DRAFT);
+        // Story 43.24: a visitor sees every listing; a member's own blocks and runs apply.
+        if (null !== $viewerId) {
+            $qb
+                // Story 43.23: the viewer's own listing stays, a run they joined does not.
+                ->andWhere('(r.owner_id = :viewer OR NOT EXISTS (SELECT 1 FROM run_participant v WHERE v.personal_run_id = r.id AND v.user_id = :viewer))')
+                ->andWhere('NOT EXISTS (SELECT 1 FROM community_block b WHERE (b.blocker_id = r.owner_id AND b.blocked_id = :viewer) OR (b.blocker_id = :viewer AND b.blocked_id = r.owner_id))')
+                ->setParameter('viewer', $viewerId);
+        }
+        $rows = $qb->executeQuery()->fetchAllAssociative();
 
         $listings = [];
         foreach ($rows as $row) {

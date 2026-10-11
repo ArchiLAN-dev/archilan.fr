@@ -34,23 +34,13 @@ export function friendsInLabel(friends: RunListing["friendsIn"]): string | null 
 
 /**
  * « Parties qui cherchent des joueurs » (story 43.17): the runs listed for every member, the latest first, the
- * viewer's friends already in them put forward. Signed-in members only.
+ * viewer's friends already in them put forward. Story 43.24: visitors see them too, and sign in to join.
  */
 export function RunListingsBoard() {
-  const { user, loading } = useAuth();
-  const { data, isLoading } = useRunListings(user !== null);
+  const { loading } = useAuth();
+  const { data, isLoading } = useRunListings();
 
   if (loading) return null;
-  if (user === null) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        <Link className="font-medium text-accent-text hover:underline" href="/connexion">
-          Connecte-toi
-        </Link>{" "}
-        pour voir les parties qui cherchent des joueurs.
-      </p>
-    );
-  }
   if (isLoading) return <p className="text-sm text-muted-foreground">Chargement des annonces…</p>;
   if (!data) return <p className="text-sm text-muted-foreground">Impossible de charger les annonces.</p>;
   if (data.length === 0) {
@@ -76,6 +66,7 @@ export function RunListingsBoard() {
 
 function ListingCard({ listing }: { listing: RunListing }) {
   const router = useRouter();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -130,6 +121,17 @@ function ListingCard({ listing }: { listing: RunListing }) {
             Gérer ma partie
           </Link>
           <span className="text-xs text-muted-foreground">Les autres membres la voient ainsi.</span>
+        </div>
+      ) : user === null ? (
+        // Story 43.24: a visitor signs in, then comes back to the listings.
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover"
+            href="/connexion?returnTo=/communaute/parties"
+          >
+            <LogIn aria-hidden className="size-3.5" />
+            Se connecter pour rejoindre
+          </Link>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
@@ -233,8 +235,14 @@ function ListingReportForm({ runId, onDone }: { runId: string; onDone: () => voi
   );
 }
 
-function useRunListings(enabled: boolean) {
-  return useQuery({ queryKey: RUN_LISTINGS_KEY, queryFn: fetchRunListings, enabled, staleTime: DEFAULT_STALE_TIME, retry: false });
+/** Story 43.24: per viewer (a visitor included), so signing in does not show a visitor's list. */
+export function runListingsKey(userId: string | null) {
+  return [...RUN_LISTINGS_KEY, userId ?? "visitor"] as const;
+}
+
+function useRunListings() {
+  const { user, loading } = useAuth();
+  return useQuery({ queryKey: runListingsKey(user?.id ?? null), queryFn: fetchRunListings, enabled: !loading, staleTime: DEFAULT_STALE_TIME, retry: false });
 }
 
 const SPOTLIGHT_SIZE = 2;
@@ -242,13 +250,13 @@ const SPOTLIGHT_SIZE = 2;
 /** Story 43.21: the latest listings, put forward on « Communauté », and the way to all of them. */
 export function RunListingsSpotlight() {
   const { user, loading } = useAuth();
-  const { data } = useRunListings(user !== null && !loading);
+  const { data } = useRunListings();
   if (loading) return null;
-  return <RunListingsSpotlightView listings={user === null ? null : (data ?? [])} signedIn={user !== null} />;
+  return <RunListingsSpotlightView listings={data ?? []} signedIn={user !== null} />;
 }
 
-function RunListingsSpotlightView({ listings, signedIn }: { listings: RunListing[] | null; signedIn: boolean }) {
-  const count = listings?.length ?? 0;
+function RunListingsSpotlightView({ listings, signedIn }: { listings: RunListing[]; signedIn: boolean }) {
+  const count = listings.length;
   return (
     <section aria-labelledby="run-listings-spotlight" className="grid gap-3 rounded-xl border-2 border-accent bg-accent/10 p-4 shadow-[0_0_24px_-8px_var(--color-accent)]">
       <div className="flex flex-wrap items-center gap-3">
@@ -262,24 +270,21 @@ function RunListingsSpotlightView({ listings, signedIn }: { listings: RunListing
           <ArrowRight aria-hidden className="size-4" />
         </Link>
       </div>
-      {!signedIn ? (
-        <p className="text-sm text-muted-foreground">
-          <Link className="font-medium text-accent-text hover:underline" href="/connexion?returnTo=/communaute">
-            Connecte-toi
-          </Link>{" "}
-          pour voir les parties qui cherchent des joueurs et en rejoindre une.
-        </p>
-      ) : count === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Aucune partie ne cherche de joueurs pour l&apos;instant. Publie la tienne depuis{" "}
-          <Link className="font-medium text-accent-text hover:underline" href="/compte/parties">
-            Mes parties
-          </Link>{" "}
-          : réglage « Ouverture », « Tous les membres ».
-        </p>
+      {count === 0 ? (
+        signedIn ? (
+          <p className="text-sm text-muted-foreground">
+            Aucune partie ne cherche de joueurs pour l&apos;instant. Publie la tienne depuis{" "}
+            <Link className="font-medium text-accent-text hover:underline" href="/compte/parties">
+              Mes parties
+            </Link>{" "}
+            : réglage « Ouverture », « Tous les membres ».
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Aucune partie ne cherche de joueurs pour l&apos;instant.</p>
+        )
       ) : (
         <ul className="grid gap-3 md:grid-cols-2" role="list">
-          {(listings ?? []).slice(0, SPOTLIGHT_SIZE).map((listing) => (
+          {listings.slice(0, SPOTLIGHT_SIZE).map((listing) => (
             <ListingCard key={listing.runId} listing={listing} />
           ))}
         </ul>
