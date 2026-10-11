@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Lock, LogIn, Megaphone, Minus, Plus, Users, type LucideIcon } from "lucide-react";
@@ -322,9 +323,15 @@ export function RunOpennessSetting({
         ) : (
           <>
             <Check aria-hidden className="mt-px size-3.5 shrink-0 text-[color:var(--color-success)]" />
-            {choice === "members"
-              ? "Annonce en ligne dans « Parties qui cherchent des joueurs », avec les jeux choisis. Sans arrivée pendant 14 jours, elle expire."
-              : choice === "friends"
+            {choice === "members" ? (
+              <span>
+                Annonce en ligne dans{" "}
+                <Link className="font-semibold text-accent-text hover:text-accent-text-hover" href="/communaute/parties">
+                  Parties qui cherchent des joueurs
+                </Link>
+                , avec les jeux choisis. Sans arrivée pendant 14 jours, elle expire.
+              </span>
+            ) : choice === "friends"
                 ? "Visible de tes amis dans « Parties de tes amis » : ils la rejoignent sans invitation tant qu'elle n'est pas lancée."
                 : "Seuls ton lien et tes invitations font entrer quelqu'un."}
           </>

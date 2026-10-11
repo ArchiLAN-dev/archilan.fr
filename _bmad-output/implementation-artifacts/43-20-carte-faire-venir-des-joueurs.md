@@ -29,7 +29,10 @@ Retour de Jean en testant la release v0.39.0 : en tête de la page d'une run, le
 5. Le lien d'invitation devient une ligne de la carte ; Discord passe en lien discret.
 6. Comportement inchangé : mêmes appels API, « Sur invitation » et « Mes amis » s'appliquent tout de suite,
    l'annonce attend son message.
-7. `pnpm gates` passe.
+7. La carte est repliée par défaut : titre, ouverture actuelle (« Ouverte à tes amis · 3 places ») et bouton
+   « Inviter des amis » restent visibles ; réglages et lien se déplient.
+8. Une annonce en ligne mène à « Parties qui cherchent des joueurs » (`/communaute/parties`) par un lien.
+9. `pnpm gates` passe.
 
 ## Tasks / Subtasks
 
@@ -41,3 +44,5 @@ Retour de Jean en testant la release v0.39.0 : en tête de la page d'une run, le
 ## Dev Notes
 
 - Front seul, pas d'API ni de migration.
+- Repli : `RunRecruitPanel` (bouton `aria-expanded`), résumé `recruitSummary` ; replier démonte le réglage, une
+  saisie non enregistrée est donc perdue.
