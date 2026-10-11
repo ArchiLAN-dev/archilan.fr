@@ -58,7 +58,7 @@ final readonly class ReportQueryFilters
         return new self(
             in_array($status, [self::STATUS_PENDING, self::STATUS_RESOLVED, self::STATUS_ALL], true) ? $status : self::STATUS_PENDING,
             in_array($commentState, [self::COMMENT_HIDDEN, self::COMMENT_VISIBLE], true) ? $commentState : self::COMMENT_ANY,
-            in_array($targetType, [ContentReport::TARGET_COMMENT, ContentReport::TARGET_PROFILE], true) ? $targetType : self::TARGET_ANY,
+            in_array($targetType, [ContentReport::TARGET_COMMENT, ContentReport::TARGET_PROFILE, ContentReport::TARGET_RUN_LISTING], true) ? $targetType : self::TARGET_ANY,
             in_array($sort, [self::SORT_OLDEST, self::SORT_SEVERITY], true) ? $sort : self::SORT_RECENT,
             trim($search ?? ''),
             max(1, min(self::MAX_LIMIT, $limit)),

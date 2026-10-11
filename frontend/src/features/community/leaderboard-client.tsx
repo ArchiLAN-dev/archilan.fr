@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { replaceLocationParam, useLocationParam } from "@/lib/use-location-param";
+import { useAuth } from "@/features/auth/auth-context";
 import { SESSION_STALE_TIME } from "@/lib/query-client";
 import type { PublicEvent } from "@/features/events/event-types";
 import {
@@ -25,6 +27,9 @@ const TABS: { axis: LeaderboardAxis; label: string }[] = [
 
 const PAGE_SIZE = 20;
 
+/** Story 43.8: « Mes amis », kept in the URL. */
+const FRIENDS_PARAM = "amis";
+
 type Props = {
   initialData: LeaderboardResponse | null;
   initialDataFetchedAt: number;
@@ -36,19 +41,27 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
   const [eventId, setEventId] = useState<string>("");
   const [limit, setLimit] = useState(PAGE_SIZE);
 
+  const { user } = useAuth();
+  // Read from the location: `useSearchParams` would take the prerendered /communaute out of prerendering.
+  const friendsParam = useLocationParam(FRIENDS_PARAM);
+  const friendsOnly = user !== null && friendsParam === "1";
+
   const activeEventId = eventId !== "" ? eventId : undefined;
+  const isInitial = axis === "goals" && limit === PAGE_SIZE && !activeEventId && !friendsOnly;
 
   const { data, isPending } = useQuery({
-    queryKey: ["leaderboard", axis, limit, activeEventId ?? null],
-    queryFn: () => fetchLeaderboard(axis, limit, activeEventId),
+    queryKey: ["leaderboard", axis, limit, activeEventId ?? null, friendsOnly],
+    queryFn: () => fetchLeaderboard(axis, limit, activeEventId, friendsOnly),
     placeholderData: keepPreviousData,
-    initialData:
-      axis === "goals" && limit === PAGE_SIZE && !activeEventId && initialData !== null
-        ? initialData
-        : undefined,
-    initialDataUpdatedAt: axis === "goals" && limit === PAGE_SIZE && !activeEventId ? initialDataFetchedAt : undefined,
+    initialData: isInitial && initialData !== null ? initialData : undefined,
+    initialDataUpdatedAt: isInitial ? initialDataFetchedAt : undefined,
     staleTime: SESSION_STALE_TIME,
   });
+
+  function handleFriendsToggle() {
+    replaceLocationParam(FRIENDS_PARAM, friendsOnly ? null : "1");
+    setLimit(PAGE_SIZE);
+  }
 
   function handleAxisChange(next: LeaderboardAxis) {
     setAxis(next);
@@ -87,26 +100,43 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
           ))}
         </div>
 
-        {events.length > 0 ? (
-          <div className="shrink-0">
-            <label className="sr-only" htmlFor="event-filter">
-              Filtrer par événement
-            </label>
-            <select
-              className="min-h-10 rounded border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-              id="event-filter"
-              value={eventId}
-              onChange={handleEventChange}
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          {user !== null ? (
+            <button
+              aria-pressed={friendsOnly}
+              className={[
+                "inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-semibold transition-colors",
+                friendsOnly
+                  ? "border-accent bg-accent/15 text-foreground"
+                  : "border-border bg-surface text-muted-foreground hover:text-foreground",
+              ].join(" ")}
+              onClick={handleFriendsToggle}
+              type="button"
             >
-              <option value="">Tous les événements</option>
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
+              Mes amis
+            </button>
+          ) : null}
+          {events.length > 0 ? (
+            <div className="shrink-0">
+              <label className="sr-only" htmlFor="event-filter">
+                Filtrer par événement
+              </label>
+              <select
+                className="min-h-10 rounded border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                id="event-filter"
+                value={eventId}
+                onChange={handleEventChange}
+              >
+                <option value="">Tous les événements</option>
+                {events.map((event) => (
+                  <option key={event.id} value={event.id}>
+                    {event.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {isPending && entries.length === 0 ? (
@@ -115,7 +145,9 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
         </div>
       ) : entries.length === 0 ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-muted-foreground">Aucun résultat pour cet axe.</p>
+          <p className="text-muted-foreground">
+            {friendsOnly ? "Ni toi ni tes amis n'apparaissent encore sur cet axe." : "Aucun résultat pour cet axe."}
+          </p>
         </div>
       ) : (
         <div className="grid gap-2">

@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Gamepad2, Users } from "lucide-react";
+import { Gamepad2, Swords, Users } from "lucide-react";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 
-import { fetchFriendsFeed, fetchProfileActivity, type ActivityItem } from "./community-feed-api";
+import { fetchFriendsFeed, fetchProfileActivity, type ActivityActor, type ActivityItem } from "./community-feed-api";
 import { KudosButton } from "./kudos-button";
+import { formatMargin } from "./notification-content";
+import { PRESENCE_TONE_CLASSES, presenceLabel, presenceTone } from "./rich-presence";
 
 /** One actor's recent activity, on their public profile (audience-gated server-side). */
 export function ProfileActivity({ slug }: { slug: string }) {
@@ -72,7 +74,7 @@ function ActivityRow({ item, showActor }: { item: ActivityItem; showActor: boole
   return (
     <li className="flex items-start gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
       <span aria-hidden className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent-text">
-        {item.type === "friendship" ? <Users className="size-3.5" /> : <Gamepad2 className="size-3.5" />}
+        {item.type === "friendship" ? <Users className="size-3.5" /> : item.type === "weekly_duel" ? <Swords className="size-3.5" /> : <Gamepad2 className="size-3.5" />}
       </span>
       <div className="min-w-0 flex-1 text-sm">
         <p className="text-foreground">
@@ -81,13 +83,7 @@ function ActivityRow({ item, showActor }: { item: ActivityItem; showActor: boole
               <Link className="font-semibold hover:text-accent-text" href={`/joueurs/${item.actor.slug}`}>
                 {item.actor.displayName ?? item.actor.slug}
               </Link>
-              {item.actor.playing ? (
-                <span
-                  aria-label="En jeu"
-                  className="ml-1 inline-block size-1.5 animate-pulse rounded-full bg-emerald-400 align-middle"
-                  title="En jeu"
-                />
-              ) : null}
+              {item.actor.playing ? <PresenceDot actor={item.actor} /> : null}
             </>
           ) : null}{" "}
           <ActivityText item={item} />
@@ -110,7 +106,37 @@ function ActivityRow({ item, showActor }: { item: ActivityItem; showActor: boole
   );
 }
 
+/** The actor's « en jeu » dot (story 43.7: red in BK, green on a goal), its label on hover. */
+function PresenceDot({ actor }: { actor: ActivityActor }) {
+  const label = presenceLabel({ game: null, slotState: actor.slotState, progressPercent: actor.progressPercent });
+  return (
+    <span
+      aria-label={label}
+      className={`ml-1 inline-block size-1.5 rounded-full align-middle ${PRESENCE_TONE_CLASSES[presenceTone(actor)].dot}`}
+      title={label}
+    />
+  );
+}
+
 function ActivityText({ item }: { item: ActivityItem }) {
+  if (item.type === "weekly_duel") {
+    // Story 43.15: the actor won a weekly duel between friends.
+    return (
+      <span className="text-muted-foreground">
+        a gagné un duel hebdo{item.game ? <> sur <span className="font-medium text-foreground">{item.game}</span></> : null}
+        {item.withSlug ? (
+          <>
+            {" "}contre{" "}
+            <Link className="font-medium text-foreground hover:text-accent-text" href={`/joueurs/${item.withSlug}`}>
+              {item.withName ?? item.withSlug}
+            </Link>
+          </>
+        ) : null}
+        {typeof item.marginSeconds === "number" ? ` de ${formatMargin(item.marginSeconds)}` : null}
+      </span>
+    );
+  }
+
   if (item.type === "friendship") {
     return (
       <span className="text-muted-foreground">

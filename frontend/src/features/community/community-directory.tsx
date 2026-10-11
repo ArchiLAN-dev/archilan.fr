@@ -8,6 +8,7 @@ import { Loader2, Search } from "lucide-react";
 import { Switch } from "@/components/switch";
 import { useAuth } from "@/features/auth/auth-context";
 import { fetchDirectory, type DirectorySort } from "./community-directory-api";
+import { useFriendGroups } from "./friend-groups-panel";
 import { MemberCard } from "./member-card";
 
 const STALE_TIME = 20_000;
@@ -34,6 +35,8 @@ export function CommunityDirectory({ initialSearch = "" }: Props) {
   const { user } = useAuth();
   const [sort, setSort] = useState<DirectorySort>("xp");
   const [friendsOnly, setFriendsOnly] = useState(false);
+  const [group, setGroup] = useState<string | null>(null);
+  const { data: groups } = useFriendGroups(user !== null && friendsOnly);
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(1);
@@ -44,8 +47,8 @@ export function CommunityDirectory({ initialSearch = "" }: Props) {
   }, []);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["community-directory", sort, search, friendsOnly, page],
-    queryFn: () => fetchDirectory({ sort, search, friendsOnly, page }),
+    queryKey: ["community-directory", sort, search, friendsOnly, group, page],
+    queryFn: () => fetchDirectory({ sort, search, friendsOnly, page, group }),
     placeholderData: keepPreviousData,
     staleTime: STALE_TIME,
   });
@@ -123,6 +126,7 @@ export function CommunityDirectory({ initialSearch = "" }: Props) {
                 checked={friendsOnly}
                 onChange={(checked) => {
                   setFriendsOnly(checked);
+                  if (!checked) setGroup(null);
                   setPage(1);
                 }}
               />
@@ -130,6 +134,30 @@ export function CommunityDirectory({ initialSearch = "" }: Props) {
                 Mes amis uniquement
               </span>
             </span>
+          ) : null}
+
+          {friendsOnly && groups !== undefined && groups !== null && groups.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground" htmlFor="directory-group">
+                Groupe :
+              </label>
+              <select
+                className="min-h-9 rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-accent focus:outline-none"
+                id="directory-group"
+                onChange={(e) => {
+                  setGroup(e.target.value === "" ? null : e.target.value);
+                  setPage(1);
+                }}
+                value={group ?? ""}
+              >
+                <option value="">Tous mes amis</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : null}
 
           <p className="text-xs text-muted-foreground">

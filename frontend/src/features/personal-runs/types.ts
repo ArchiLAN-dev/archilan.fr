@@ -147,6 +147,13 @@ export type PersonalRun = {
   sessionId: string | null;
   // Whether the finished run's recap is publicly shareable (story 32.5). Falsy on an older API payload.
   recapPublic: boolean;
+  // Story 43.14: who may join without a link or a name. Absent on an older API payload (on invitation).
+  openness?: RunOpenness;
+  seatsWanted?: number | null;
+  // Story 43.17: the listing for every member, while there is one (absent on an older API payload).
+  pitch?: string | null;
+  plannedFor?: string | null;
+  listedAt?: string | null;
   lastActivityAt: string | null;
   pausedWithoutSave: boolean;
   validationErrors: ValidationSlotError[] | null;
@@ -178,3 +185,6 @@ export type AvailableGame = {
   coverImageAlt: string;
   availability: string;
 };
+
+/** Story 43.14: a draft run open to invitations only, or to all the owner's friends; 43.17: listed for every member. */
+export type RunOpenness = "invite" | "friends" | "members";

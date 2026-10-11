@@ -15,6 +15,8 @@ final readonly class NotifySlotUnblockedJob
         public string $sessionId,
         public string $slotName,
         public int $reachableNow,
+        /** Story 40.5: the Archipelago slot number, for the slot's progression page; null on a job queued before. */
+        public ?string $slotIndex = null,
     ) {
     }
 }

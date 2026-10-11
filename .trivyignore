@@ -24,3 +24,8 @@
 # FrankenPHP 1.13.0 (2026-10-04) les met a jour, et un scan Trivy de
 # `dunglas/frankenphp:1.13.0-php8-alpine` (HIGH/CRITICAL, corrigeables) ne trouve plus rien, ni dans
 # le binaire ni dans Alpine, alors que le meme scan de la 1.12.7 trouvait exactement ces sept-la.
+#
+# 2026-10-10 : FrankenPHP 1.13.0 se fait rattraper par CVE-2026-78669 (golang.org/x/net 0.59.0, HIGH)
+# et des CVE de la stdlib Go 1.27.1 compilees dans le binaire ; la publication api-web echouait sur
+# develop depuis la #804. Passage a FrankenPHP 1.13.1 (2026-10-10) : le meme scan Trivy de
+# `dunglas/frankenphp:1.13.1-php8-alpine` ne trouve plus rien, toujours sans exclusion.

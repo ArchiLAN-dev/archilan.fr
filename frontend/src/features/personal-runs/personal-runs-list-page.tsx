@@ -9,8 +9,13 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { fetchFriends } from "@/features/community/community-friends-api";
+import { replaceLocationParam, useLocationParam } from "@/lib/use-location-param";
 import { fetchMyRuns, setRunArchivedForMe } from "./personal-runs-api";
 import { PersonalRunCard } from "./personal-run-card";
+import { MyRunInvitations } from "./run-invitations";
+import { FriendsOpenRuns } from "./friends-open-runs";
+import { sendRunInvitations } from "./run-invitations-api";
 import type { PersonalRun, PersonalRunStatus } from "./types";
 
 // Statuses that should appear in the collapsed "Annulées" section
@@ -26,6 +31,9 @@ const STATUS_ORDER: PersonalRunStatus[] = [
   "draft",
   "completed",
 ];
+
+/** Story 43.9: the friend to invite into the run about to be created. */
+const INVITE_PARAM = "inviter";
 
 const GROUP_LABELS: Partial<Record<PersonalRunStatus, string>> = {
   active: "En cours",
@@ -51,6 +59,26 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const formId = useId();
+
+  // Story 43.9: « Relancer une partie ensemble » opens the form with this friend picked; the invitation (43.1) is only
+  // sent once the run is created. Someone who is not (or no longer) a friend is ignored.
+  const inviteeId = useLocationParam(INVITE_PARAM);
+  const friendsQuery = useQuery({
+    queryKey: ["community-friends"],
+    queryFn: fetchFriends,
+    enabled: inviteeId !== null && user !== null,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const invitee = inviteeId === null ? null : (friendsQuery.data?.friends.find((friend) => friend.userId === inviteeId) ?? null);
+  const formOpen = showForm || invitee !== null;
+
+  function closeForm() {
+    setShowForm(false);
+    setTitle("");
+    setTitleError(null);
+    if (inviteeId !== null) replaceLocationParam(INVITE_PARAM, null);
+  }
 
   // fetchMyRuns never throws (failures are encoded as null), so the query never errors and - like
   // the old effect - never retries.
@@ -128,6 +156,10 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
       }
 
       const payload = (await res.json()) as { data: PersonalRun };
+      if (invitee !== null) {
+        // Best effort: the run exists either way, and the owner can still invite from its page.
+        await sendRunInvitations(payload.data.id, [invitee.userId]);
+      }
       // Mark the cached list stale so the next visit to /runs refetches it (the old effect refetched
       // on every mount).
       void queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
@@ -198,7 +230,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
           <h2 className="font-heading text-xl font-bold text-foreground">Mes parties</h2>
           <button
             className="inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-            onClick={() => setShowForm((v) => !v)}
+            onClick={() => (formOpen ? closeForm() : setShowForm(true))}
             type="button"
           >
             <Plus aria-hidden className="size-4" />
@@ -221,7 +253,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
             </div>
             <button
               className="inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-              onClick={() => setShowForm((v) => !v)}
+              onClick={() => (formOpen ? closeForm() : setShowForm(true))}
               type="button"
             >
               <Plus aria-hidden className="size-4" />
@@ -231,7 +263,12 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
         </section>
       )}
 
-      {showForm && (
+      {/* Story 43.1: invitations by name, answered first. */}
+      <MyRunInvitations />
+      {/* Story 43.14: the drafts friends opened to the member. */}
+      <FriendsOpenRuns />
+
+      {formOpen && (
         <section className="rounded-lg border border-border bg-surface p-6">
           <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
             Nouvelle partie
@@ -258,10 +295,25 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
                 )}
                 <p className="text-xs text-muted-foreground">{title.length}/80 caractères</p>
               </label>
+              {invitee !== null ? (
+                <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <span>
+                    <span className="font-medium text-foreground">{invitee.displayName ?? invitee.slug}</span> sera invité
+                    dès la création de la partie.
+                  </span>
+                  <button
+                    className="text-xs font-medium text-accent-text hover:underline"
+                    onClick={() => replaceLocationParam(INVITE_PARAM, null)}
+                    type="button"
+                  >
+                    Ne pas inviter
+                  </button>
+                </p>
+              ) : null}
               <div className="flex justify-end gap-3">
                 <button
                   className="rounded border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                  onClick={() => { setShowForm(false); setTitle(""); setTitleError(null); }}
+                  onClick={closeForm}
                   type="button"
                 >
                   Annuler

@@ -66,6 +66,23 @@ final readonly class CommunityFriendshipController
         });
     }
 
+    /** Story 43.11a: star a friend, never visible to them. */
+    #[Route('/api/v1/community/profiles/{slug}/favorite', name: 'api_community_favorite', methods: ['POST'])]
+    public function favorite(Request $request, string $slug): JsonResponse
+    {
+        return $this->actOnTarget($request, $slug, fn (string $uid, string $tid): string => $this->friendships->favorite($uid, $tid));
+    }
+
+    #[Route('/api/v1/community/profiles/{slug}/favorite', name: 'api_community_unfavorite', methods: ['DELETE'])]
+    public function unfavorite(Request $request, string $slug): JsonResponse
+    {
+        return $this->actOnTarget($request, $slug, function (string $uid, string $tid): string {
+            $this->friendships->unfavorite($uid, $tid);
+
+            return 'ok';
+        });
+    }
+
     #[Route('/api/v1/community/profiles/{slug}/block', name: 'api_community_block', methods: ['POST'])]
     public function block(Request $request, string $slug): JsonResponse
     {
@@ -115,6 +132,12 @@ final readonly class CommunityFriendshipController
         }
         if ('self' === $status) {
             return $this->apiAccessGuard->errorResponse('self', 'Action impossible sur soi-même.', 422);
+        }
+        if ('not_friend' === $status) {
+            return $this->apiAccessGuard->errorResponse('not_friend', 'Seul un ami peut être mis en favori.', 422);
+        }
+        if ('limit' === $status) {
+            return $this->apiAccessGuard->errorResponse('favorite_limit', 'Nombre maximal de favoris atteint.', 422);
         }
 
         return new JsonResponse(['data' => $this->friendships->relationship($user->getId(), $targetId)]);

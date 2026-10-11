@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Check, Copy, Link, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { DiscordJoinButton } from "@/features/discord/discord-promo";
+import { FaDiscord } from "react-icons/fa";
+import { externalLinks } from "@/lib/external-links";
 
 export function InviteLinkPanel({
   runId,
@@ -52,19 +53,20 @@ export function InviteLinkPanel({
     }
   }
 
+  // Story 43.20: a row of the « Faire venir des joueurs » card rather than a card of its own.
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Link aria-hidden className="size-4 text-accent-text" />
-        <h3 className="text-sm font-semibold text-foreground">Lien d&apos;invitation</h3>
-      </div>
+    <div className="grid gap-2">
+      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Link aria-hidden className="size-3.5" />
+        Lien d&apos;invitation
+      </p>
       <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate rounded border border-border bg-background px-3 py-2 font-mono text-sm text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm text-muted-foreground">
           {maskedUrl}
         </span>
         <button
           aria-label="Copier le lien d'invitation"
-          className="shrink-0 rounded border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
+          className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-foreground transition-colors hover:border-accent"
           onClick={() => void handleCopy()}
           type="button"
         >
@@ -73,10 +75,11 @@ export function InviteLinkPanel({
           ) : (
             <Copy aria-hidden className="size-4" />
           )}
+          <span className="hidden sm:inline">{copied ? "Copié" : "Copier"}</span>
         </button>
         <button
           aria-label="Régénérer le lien"
-          className="shrink-0 rounded border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground disabled:opacity-50"
+          className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground disabled:opacity-50"
           disabled={regenerating}
           onClick={() => void handleRegenerate()}
           title="Régénérer le lien d'invitation (l'ancien sera invalidé)"
@@ -88,12 +91,21 @@ export function InviteLinkPanel({
           />
         </button>
       </div>
-      {error && <p className="mt-2 text-xs text-[color:var(--color-danger)]">{error}</p>}
+      {error && <p className="text-xs text-[color:var(--color-danger)]">{error}</p>}
       {/* Story 30.50: where players looking for a game are. */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-        <p className="text-sm text-muted-foreground">Il te manque des joueurs ? Partage ce lien sur le Discord.</p>
-        <DiscordJoinButton>Trouver des co-joueurs</DiscordJoinButton>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Pour quelqu&apos;un qui n&apos;est pas dans tes amis.{" "}
+        <a
+          className="inline-flex items-center gap-1 font-semibold text-accent-text hover:text-accent-text-hover"
+          href={externalLinks.archilanDiscord}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <FaDiscord aria-hidden className="size-3.5" />
+          Partage-le sur le Discord
+          <span className="sr-only"> (nouvel onglet)</span>
+        </a>
+      </p>
     </div>
   );
 }

@@ -113,8 +113,14 @@ describe("slot unblocked notification (story 40.1)", () => {
     );
   });
 
-  it("leads to the run", () => {
+  it("leads to the run when the notice predates the slot number", () => {
     expect(hrefFor(unblocked)).toBe("/runs/run-1");
+  });
+
+  it("leads to the progression of the unblocked slot (story 40.5)", () => {
+    expect(hrefFor(item("slot_unblocked", { runId: "run-1", runTitle: "Ma run", slotName: "Alice_HK1", reachableNow: 3, slotIndex: "4" }))).toBe(
+      "/runs/run-1/progression/4",
+    );
   });
 
   it("stays readable with a bare payload", () => {
@@ -122,6 +128,15 @@ describe("slot unblocked notification (story 40.1)", () => {
 
     expect(messageFor(bare)).toBe("Tu n'es plus bloqué dans ta partie");
     expect(hrefFor(bare)).toBe("/compte/parties");
+  });
+});
+
+describe("run invitation notification (story 43.1)", () => {
+  it("says who invites into which run, and leads to my runs", () => {
+    const invitation = item("run_invitation", { runId: "run-1", runTitle: "Ma run", invitationId: "i-1" });
+
+    expect(messageFor(invitation)).toContain("t'invite dans « Ma run »");
+    expect(hrefFor(invitation)).toBe("/compte/parties");
   });
 });
 

@@ -14,7 +14,7 @@ interface WeeklyQuestsQueryInterface
      *
      * - goals: goals reached by a slot the member plays (owner or co-player), in a session or a weekly attempt;
      * - checks: checks of the session feed made by a slot the member plays;
-     * - weeklies: weekly attempts launched with at least a check or the goal;
+     * - weeklies: weekly attempts whose goal is reached in the week (story 41.33);
      * - newPartners: other members who made a check in a same session as the member this week, and with whom the
      *   member had never both made a check in a same session before the week (story 41.6);
      * - sessions: sessions where the member made a check;

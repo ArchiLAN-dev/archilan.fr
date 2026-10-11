@@ -10,6 +10,7 @@ use App\Community\Application\Support\ProfileBannerCatalog;
 use App\Community\Application\Support\ProfileTitleCatalog;
 use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Enum\NameColor;
+use App\Community\Domain\Enum\PresenceVisibility;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Community\Domain\ValueObject\Audience;
 use App\Community\Domain\ValueObject\BannerOverlay;
@@ -102,6 +103,15 @@ final readonly class UpdateCommunityProfile
             $errors->add('audience', 'Audience invalide.');
         }
 
+        // Story 43.6: like the audience, an omitted presence visibility keeps what the profile holds.
+        $presenceVisibility = null;
+        if (null !== ($input['presenceVisibility'] ?? null)) {
+            $presenceVisibility = is_string($input['presenceVisibility']) ? PresenceVisibility::tryFrom($input['presenceVisibility']) : null;
+            if (null === $presenceVisibility) {
+                $errors->add('presenceVisibility', 'Visibilité invalide.');
+            }
+        }
+
         $avatarFrame = is_string($input['avatarFrame'] ?? null) && '' !== $input['avatarFrame'] ? $input['avatarFrame'] : null;
         if (null !== $avatarFrame && !$this->frames->isValid($avatarFrame)) {
             $errors->add('avatarFrame', 'Cadre invalide.');
@@ -184,6 +194,9 @@ final readonly class UpdateCommunityProfile
         }
         if ($colorGiven) {
             $profile->wearNameColor($nameColor, $now);
+        }
+        if (null !== $presenceVisibility) {
+            $profile->choosePresenceVisibility($presenceVisibility, $now);
         }
         $this->profiles->flush();
     }

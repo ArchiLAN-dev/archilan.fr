@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Community\Domain\Entity\Block;
 use App\Identity\Domain\Entity\User;
 
 final class CommunityFeedTest extends FunctionalTestCase
@@ -52,6 +53,29 @@ final class CommunityFeedTest extends FunctionalTestCase
         $this->client->jsonRequest('GET', '/api/v1/community/profiles/bob/activity');
         self::assertResponseIsSuccessful();
         self::assertNotEmpty($this->items());
+    }
+
+    public function testAnEntryDoesNotNameSomeoneTheViewerHasABlockWith(): void
+    {
+        $alice = $this->createUser('alice@example.org', slug: 'alice');
+        $bob = $this->createUser('bob@example.org', slug: 'bob');
+        $carol = $this->createUser('carol@example.org', slug: 'carol');
+        $this->becomeFriends($carol, $bob);
+        $this->becomeFriends($alice, $bob);
+        // Story 43.19: Carol blocked Alice; Bob's « devenu ami avec Alice » reaches Carol without Alice's name.
+        $this->entityManager->persist(Block::create($carol->getId(), $alice->getId(), new \DateTimeImmutable()));
+        $this->entityManager->flush();
+
+        $this->loginAs($carol);
+        $this->client->jsonRequest('GET', '/api/v1/community/feed');
+        self::assertResponseIsSuccessful();
+        $named = [];
+        foreach ($this->items() as $item) {
+            self::assertIsArray($item);
+            $named[] = $item['withSlug'];
+        }
+        self::assertNotContains('alice', $named);
+        self::assertContains('carol', $named, 'her own friendship with Bob is still named');
     }
 
     public function testFeedRequiresAuthentication(): void

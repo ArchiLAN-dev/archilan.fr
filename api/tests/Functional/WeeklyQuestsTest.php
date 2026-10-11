@@ -185,10 +185,32 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $this->settings()->changeChestReward(0);
         $this->entityManager->flush();
 
-        self::assertSame(3, $this->award()->awardWeek($week));
-        self::assertSame(30 + 20, $this->paid($alice));
+        self::assertSame(2, $this->award()->awardWeek($week));
+        self::assertSame(20, $this->paid($alice), 'her checks count, her unfinished weekly does not (story 41.33)');
         self::assertSame(20, $this->paid($bob));
         self::assertSame(2, $this->award()->announce($week->next()), 'a weekly with a check makes an active member for the next week');
+    }
+
+    public function testAWeeklyCountsInTheWeekItsGoalIsReached(): void
+    {
+        // Story 41.33: a weekly counts once finished, in the week of its goal, whatever the week it was launched.
+        $this->quest('weekly', 'Faire une hebdo', 30, [new QuestObjective(QuestMetric::Weeklies, 1)]);
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob');
+        $week = QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK));
+        // Alice launched hers on the last Sunday of the week before and finished it this week.
+        $this->weeklyEntry($alice, checks: 8, goal: true, launchedAt: $week->start->modify('-2 hours'), goalReachedAt: new \DateTimeImmutable(self::IN_THE_WEEK));
+        // Bob launched his this week and finishes it next week.
+        $this->weeklyEntry($bob, checks: 5, goal: true, goalReachedAt: $week->end->modify('+1 day'));
+        $this->settings()->changeChestReward(0);
+        $this->entityManager->flush();
+
+        self::assertSame(0, $this->award()->awardWeek($week->previous()), 'not the week it was launched');
+        self::assertSame(1, $this->award()->awardWeek($week));
+        self::assertSame(30, $this->paid($alice));
+        self::assertSame(0, $this->paid($bob), 'not finished this week');
+        self::assertSame(1, $this->award()->awardWeek($week->next()));
+        self::assertSame(30, $this->paid($bob));
     }
 
     public function testTheDiscordJobTellsTheWeeksQuestsInWords(): void
@@ -358,7 +380,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         ));
     }
 
-    private function weeklyEntry(User $user, int $checks, bool $goal, ?string $sessionId = null, ?\DateTimeImmutable $launchedAt = null): void
+    private function weeklyEntry(User $user, int $checks, bool $goal, ?string $sessionId = null, ?\DateTimeImmutable $launchedAt = null, ?\DateTimeImmutable $goalReachedAt = null): void
     {
         $at = $launchedAt ?? new \DateTimeImmutable(self::IN_THE_WEEK);
         $this->entityManager->persist(new WeeklyEntry(
@@ -370,7 +392,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
             $at,
             externalSessionId: $sessionId,
             launchedAt: $at,
-            goalReachedAt: $goal ? $at->modify('+1 hour') : null,
+            goalReachedAt: $goal ? ($goalReachedAt ?? $at->modify('+1 hour')) : null,
             // As in production, the total is only known once the goal is reached (story 41.19).
             checksTotal: $goal ? $checks : null,
         ));

@@ -15,10 +15,13 @@ use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
+use App\PersonalRuns\Application\Support\RunJoiner;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunArchive;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunInvitationRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunNudgeRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Entity\Session;
@@ -43,6 +46,9 @@ final readonly class PersonalRunDrafts
         private AdminRunActionTrace $trace,
         private RunArchiveRepositoryInterface $archives,
         private MyRunSlotsQueryInterface $mySlots,
+        private RunJoiner $joiner,
+        private RunInvitationRepositoryInterface $invitations,
+        private RunNudgeRepositoryInterface $nudges,
     ) {
     }
 
@@ -130,7 +136,7 @@ final readonly class PersonalRunDrafts
             'found' => true,
             'authorized' => true,
             // Renommage réservé au propriétaire (garde ci-dessus), donc jamais un participant.
-            'run' => $this->payload($run, $callerId, $this->getParticipants($run->getId()), false),
+            'run' => $this->payload($run, $callerId, $this->getParticipants($run->getId(), $callerId), false),
             'errors' => [],
         ];
     }
@@ -169,7 +175,7 @@ final readonly class PersonalRunDrafts
             return ['found' => false, 'authorized' => false, 'payload' => null];
         }
 
-        $participants = $this->getParticipants($run->getId());
+        $participants = $this->getParticipants($run->getId(), $callerId);
         $isOwner = $run->isOwnedBy($callerId);
         $isParticipant = in_array($callerId, array_column($participants, 'userId'), true);
 
@@ -218,6 +224,8 @@ final readonly class PersonalRunDrafts
 
         $run->cancel($this->clock->now());
         $this->runs->flush();
+        // Story 43.19: nobody can answer an invitation into a cancelled run any more.
+        $this->invitations->closePendingForRun($run->getId(), $this->clock->now());
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
     }
@@ -248,6 +256,8 @@ final readonly class PersonalRunDrafts
 
         $run->cancel($this->clock->now());
         $this->runs->flush();
+        // Story 43.19: nobody can answer an invitation into a cancelled run any more.
+        $this->invitations->closePendingForRun($run->getId(), $this->clock->now());
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
     }
@@ -309,6 +319,10 @@ final readonly class PersonalRunDrafts
         $this->participants->deleteByRunId($run->getId());
         // Story 16.21 : les archives personnelles partent avec la partie, rien ne les rattache plus à rien.
         $this->archives->deleteByRunId($run->getId());
+        // Story 43.1: so do the invitations by name.
+        $this->invitations->deleteByRunId($run->getId());
+        // Story 43.12: and the nudges.
+        $this->nudges->deleteByRunId($run->getId());
         $this->runs->delete($run);
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
@@ -356,16 +370,10 @@ final readonly class PersonalRunDrafts
             return ['status' => 'not_found', 'payload' => null];
         }
 
-        if (!$run->isOwnedBy($callerId)) {
-            $existing = $this->participants->findByRunAndUser($run->getId(), $callerId);
+        // Story 43.1: the same joining as an invitation by name.
+        $this->joiner->join($run, $callerId, $this->clock->now());
 
-            if (!$existing instanceof RunParticipant) {
-                $participant = RunParticipant::create($run->getId(), $callerId, $this->clock->now());
-                $this->participants->save($participant);
-            }
-        }
-
-        $participants = $this->getParticipants($run->getId());
+        $participants = $this->getParticipants($run->getId(), $callerId);
 
         // Qui rejoint par lien est participant, sauf si c'est le propriétaire qui suit son propre lien.
         return [
@@ -400,7 +408,7 @@ final readonly class PersonalRunDrafts
     /**
      * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}>
      */
-    private function getParticipants(string $runId): array
+    private function getParticipants(string $runId, string $viewerId): array
     {
         $participants = $this->participants->findByRunId($runId);
 
@@ -426,7 +434,7 @@ final readonly class PersonalRunDrafts
         // profile: Adhérent (live membership, never the stale ROLE_MEMBER), niveau, En jeu (story 30.37).
         $memberIds = array_fill_keys($this->memberships->activeMemberIds($userIds), true);
         $levels = $this->levels->levelForMany($userIds);
-        $playing = $this->presence->playing($userIds);
+        $playing = $this->presence->playing($userIds, $viewerId);
 
         return array_map(function (RunParticipant $p) use ($usersById, $cards, $memberIds, $levels, $playing): array {
             $user = $usersById[$p->getUserId()] ?? null;
@@ -541,6 +549,13 @@ final readonly class PersonalRunDrafts
             'participants' => $participants,
             'sessionId' => $sessionId,
             'recapPublic' => $run->isRecapPublic(),
+            // Story 43.14: who may join without a link or a name.
+            'openness' => $run->getOpenness(),
+            'seatsWanted' => $run->getSeatsWanted(),
+            // Story 43.17: the listing for every member, while there is one.
+            'pitch' => $run->getPitch(),
+            'plannedFor' => $run->getPlannedFor()?->format(\DateTimeInterface::ATOM),
+            'listedAt' => $run->getListedAt()?->format(\DateTimeInterface::ATOM),
             'lastActivityAt' => $lastActivityAt,
             'pausedWithoutSave' => $pausedWithoutSave,
             'validationErrors' => $validationErrors,

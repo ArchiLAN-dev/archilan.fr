@@ -13,7 +13,8 @@ export type RelationshipState =
   | "blocked"
   | "self";
 
-export type Relationship = { state: RelationshipState; friendshipId: string | null };
+/** `favorite`: the viewer starred this friend (story 43.11a), never shown to the friend. */
+export type Relationship = { state: RelationshipState; friendshipId: string | null; favorite?: boolean };
 
 export type FriendCard = {
   userId: string;
@@ -28,6 +29,8 @@ export type FriendCard = {
   avatarFraming?: ImageFraming | null;
   // Story 30.44: legendary admin, epic member (null = a plain name).
   nameStyle?: NameStyle | null;
+  // Story 43.11a: in the viewer's own lists, a friend they starred.
+  isFavorite?: boolean;
 };
 
 export type IncomingRequest = FriendCard & { friendshipId: string };
@@ -86,6 +89,9 @@ export const sendFriendRequest = (slug: string) => relationshipAction(slug, "fri
 export const removeFriendship = (slug: string) => relationshipAction(slug, "friendship", "DELETE");
 export const blockUser = (slug: string) => relationshipAction(slug, "block", "POST");
 export const unblockUser = (slug: string) => relationshipAction(slug, "block", "DELETE");
+/** Story 43.11a: null on failure, past the limit of 15 too. */
+export const favoriteFriend = (slug: string) => relationshipAction(slug, "favorite", "POST");
+export const unfavoriteFriend = (slug: string) => relationshipAction(slug, "favorite", "DELETE");
 
 async function respondToRequest(friendshipId: string, action: "accept" | "decline"): Promise<boolean> {
   try {
@@ -112,6 +118,226 @@ export async function fetchFriends(): Promise<FriendsData | null> {
     if (!("incoming" in data) || !Array.isArray(data.incoming)) return null;
     if (!data.incoming.every((r) => isFriendCard(r) && hasStringProp(r, "friendshipId"))) return null;
     return { friends: data.friends, incoming: data.incoming, outgoing: data.outgoing };
+  } catch {
+    return null;
+  }
+}
+
+/** Story 43.2: a member played with, and how much. */
+export type FriendSuggestion = FriendCard & {
+  sessionsTogether: number;
+  lastTitle: string | null;
+  lastPlayedAt: string | null;
+};
+
+function isFriendSuggestion(v: unknown): v is FriendSuggestion {
+  return (
+    isFriendCard(v) &&
+    "sessionsTogether" in v &&
+    typeof v.sessionsTogether === "number" &&
+    hasNullableStringProp(v, "lastTitle") &&
+    hasNullableStringProp(v, "lastPlayedAt")
+  );
+}
+
+/**
+ * « Tu as joué avec » (story 43.2). With a session, only the members played with in it. Null on failure.
+ */
+export async function fetchFriendSuggestions(options: { sessionId?: string; limit?: number } = {}): Promise<FriendSuggestion[] | null> {
+  const params = new URLSearchParams();
+  if (options.sessionId !== undefined) params.set("sessionId", options.sessionId);
+  if (options.limit !== undefined) params.set("limit", String(options.limit));
+  const query = params.toString();
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-suggestions${query === "" ? "" : `?${query}`}`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return Array.isArray(data) && data.every(isFriendSuggestion) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** « Ignorer »: never suggested again (story 43.2). */
+export async function dismissFriendSuggestion(slug: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-suggestions/${encodeURIComponent(slug)}/ignore`, {
+      method: "POST",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function codeOf(json: unknown): string | null {
+  const data = dataOf(json);
+  return typeof data === "object" && data !== null && hasStringProp(data, "code") ? data.code : null;
+}
+
+/** Story 43.3: the code of « Mon lien d'ami » (`/ami/{code}`), made on first ask. Null on failure. */
+export async function fetchMyFriendLinkCode(): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-link`);
+    return res.ok ? codeOf(await res.json()) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A new code: the old link stops working. Null on failure. */
+export async function regenerateFriendLink(): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-link/regenerate`, { method: "POST" });
+    return res.ok ? codeOf(await res.json()) : null;
+  } catch {
+    return null;
+  }
+}
+
+export type FriendLinkView = { member: FriendCard; relationship: Relationship };
+
+export type FriendLinkResult = { kind: "ok"; view: FriendLinkView } | { kind: "invalid" } | { kind: "error" };
+
+/** The member a scanned link points to. An unknown, regenerated or blocked link is `invalid`, all alike. */
+export async function fetchFriendLink(code: string): Promise<FriendLinkResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-link/${encodeURIComponent(code)}`);
+    if (res.status === 404) return { kind: "invalid" };
+    if (!res.ok) return { kind: "error" };
+    const data = dataOf(await res.json());
+    if (typeof data !== "object" || data === null) return { kind: "error" };
+    if (!("member" in data) || !isFriendCard(data.member)) return { kind: "error" };
+    if (!("relationship" in data) || !isRelationship(data.relationship)) return { kind: "error" };
+    return { kind: "ok", view: { member: data.member, relationship: data.relationship } };
+  } catch {
+    return { kind: "error" };
+  }
+}
+
+/** « Ajouter en ami » from the link. Null on failure. */
+export async function addFriendFromLink(code: string): Promise<Relationship | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friend-link/${encodeURIComponent(code)}/add`, { method: "POST" });
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return isRelationship(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Story 43.4: the viewer's friends registered to an event. Null on failure. */
+export async function fetchEventFriends(eventId: string): Promise<FriendCard[] | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/friends`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return Array.isArray(data) && data.every(isFriendCard) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The same for a list of events in one call, keyed by event id; an event without a friend is absent. */
+export async function fetchEventFriendsBatch(eventIds: string[]): Promise<Record<string, FriendCard[]> | null> {
+  if (eventIds.length === 0) return {};
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/event-friends?ids=${eventIds.map(encodeURIComponent).join(",")}`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
+    const byEvent: Record<string, FriendCard[]> = {};
+    for (const [eventId, cards] of Object.entries(data)) {
+      if (!Array.isArray(cards) || !cards.every(isFriendCard)) return null;
+      byEvent[eventId] = cards;
+    }
+    return byEvent;
+  } catch {
+    return null;
+  }
+}
+
+/** Story 43.5: a friend playing now. Title and page only when the viewer may open the session. */
+export type FriendPlaying = FriendCard & {
+  game: string | null;
+  /** Story 43.7: playing, bk, goal or unknown; the progress while playing. */
+  slotState: string;
+  progressPercent: number | null;
+  kind: "event" | "run" | null;
+  title: string | null;
+  eventId: string | null;
+  runId: string | null;
+};
+
+/** A friend whose last session ended less than a day ago. */
+export type FriendRecent = FriendCard & { game: string | null; finishedAt: string };
+
+export type FriendsNow = { hasFriends: boolean; playing: FriendPlaying[]; recent: FriendRecent[] };
+
+function isFriendPlaying(v: unknown): v is FriendPlaying {
+  if (!isFriendCard(v) || !hasNullableStringProp(v, "game") || !hasNullableStringProp(v, "title")) return false;
+  if (!hasStringProp(v, "slotState") || !("progressPercent" in v)) return false;
+  if (v.progressPercent !== null && typeof v.progressPercent !== "number") return false;
+  if (!hasNullableStringProp(v, "eventId") || !hasNullableStringProp(v, "runId")) return false;
+  return "kind" in v && (v.kind === "event" || v.kind === "run" || v.kind === null);
+}
+
+function isFriendRecent(v: unknown): v is FriendRecent {
+  return isFriendCard(v) && hasNullableStringProp(v, "game") && hasStringProp(v, "finishedAt");
+}
+
+/** « Mes amis en ce moment » (story 43.5). Null on failure. */
+export async function fetchFriendsNow(): Promise<FriendsNow | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/friends/now`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    if (typeof data !== "object" || data === null) return null;
+    if (!("hasFriends" in data) || typeof data.hasFriends !== "boolean") return null;
+    if (!("playing" in data) || !Array.isArray(data.playing) || !data.playing.every(isFriendPlaying)) return null;
+    if (!("recent" in data) || !Array.isArray(data.recent) || !data.recent.every(isFriendRecent)) return null;
+    return { hasFriends: data.hasFriends, playing: data.playing, recent: data.recent };
+  } catch {
+    return null;
+  }
+}
+
+/** Story 43.9: one of the latest sessions played together. `recap`: the viewer may open its recap. */
+export type SharedSession = { sessionId: string; kind: "run" | "event"; title: string | null; playedAt: string; recap: boolean };
+
+export type SharedHistory = {
+  userId: string;
+  isFriend: boolean;
+  count: number;
+  firstAt: string;
+  lastAt: string;
+  latest: SharedSession[];
+  items: { sent: number; received: number; since: string | null };
+};
+
+function isSharedSession(v: unknown): v is SharedSession {
+  if (typeof v !== "object" || v === null || !hasStringProp(v, "sessionId") || !hasStringProp(v, "playedAt")) return false;
+  if (!hasNullableStringProp(v, "title") || !("kind" in v) || (v.kind !== "run" && v.kind !== "event")) return false;
+  return "recap" in v && typeof v.recap === "boolean";
+}
+
+function isSharedHistory(v: unknown): v is SharedHistory {
+  if (typeof v !== "object" || v === null || !hasStringProp(v, "userId") || !hasStringProp(v, "firstAt") || !hasStringProp(v, "lastAt")) return false;
+  if (!("isFriend" in v) || typeof v.isFriend !== "boolean" || !("count" in v) || typeof v.count !== "number") return false;
+  if (!("latest" in v) || !Array.isArray(v.latest) || !v.latest.every(isSharedSession)) return false;
+  if (!("items" in v) || typeof v.items !== "object" || v.items === null) return false;
+  const items = v.items;
+  return "sent" in items && typeof items.sent === "number" && "received" in items && typeof items.received === "number" && hasNullableStringProp(items, "since");
+}
+
+/** « Vous avez joué ensemble » (story 43.9): null when nothing was played together, and on failure. */
+export async function fetchSharedHistory(slug: string): Promise<SharedHistory | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/profiles/${encodeURIComponent(slug)}/shared-history`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return isSharedHistory(data) ? data : null;
   } catch {
     return null;
   }

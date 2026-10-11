@@ -9,10 +9,14 @@ use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Entity\ActivityEntry;
 use App\Community\Domain\Entity\Block;
+use App\Community\Domain\Entity\FriendFavorite;
 use App\Community\Domain\Entity\Friendship;
 use App\Community\Domain\Entity\Notification;
 use App\Community\Domain\Repository\BlockRepositoryInterface;
+use App\Community\Domain\Repository\FriendFavoriteRepositoryInterface;
+use App\Community\Domain\Repository\FriendGroupRepositoryInterface;
 use App\Community\Domain\Repository\FriendshipRepositoryInterface;
+use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Clock\ClockInterface;
 
@@ -20,16 +24,23 @@ use Psr\Clock\ClockInterface;
  * Friendships + blocks (story 30.7): request/accept/decline/remove, block/unblock, and the relationship
  * + friends-list reads. Block is the strongest action - it retracts any friendship and prevents
  * re-interaction. Cohesive read+write service in the local PersonalRuns style.
+ *
+ * Favorites (story 43.11a): a member stars some of their friends, who go to the top of their lists. The star is the
+ * starrer's alone: it only appears in what is read for them, and goes away with the friendship. So does a place in
+ * the other's friend groups (story 43.13).
  */
 final readonly class FriendshipService
 {
     public function __construct(
         private FriendshipRepositoryInterface $friendships,
         private BlockRepositoryInterface $blocks,
+        private FriendFavoriteRepositoryInterface $favorites,
+        private FriendGroupRepositoryInterface $groups,
         private CommunityUserDirectoryQueryInterface $directory,
         private RecordActivity $recordActivity,
         private Notifier $notifier,
         private ClockInterface $clock,
+        private AchievementRecomputeTriggerInterface $achievements,
     ) {
     }
 
@@ -98,6 +109,8 @@ final readonly class FriendshipService
             Notification::TYPE_FRIEND_REQUEST_ACCEPTED,
             ['fromUserId' => $userId],
         );
+        // Story 43.18: a new friend may complete a social achievement (story 43.16), notified now.
+        $this->achievements->recomputeForUsers([$userId, $friendship->otherParty($userId)]);
 
         return 'ok';
     }
@@ -120,7 +133,65 @@ final readonly class FriendshipService
     {
         $friendship = $this->friendships->findBetween($userId, $targetUserId);
         if ($friendship instanceof Friendship && $friendship->involves($userId)) {
-            $this->friendships->remove($friendship);
+            $this->endFriendship($friendship, $userId, $targetUserId);
+        }
+    }
+
+    /**
+     * The friendship goes, and with it the favourites (story 43.11a) and the places in each other's groups (story
+     * 43.13) - all or nothing (story 43.19), so no star outlives the friendship it stood on.
+     */
+    private function endFriendship(?Friendship $friendship, string $userId, string $targetUserId): void
+    {
+        $this->friendships->beginTransaction();
+        try {
+            if ($friendship instanceof Friendship) {
+                $this->friendships->remove($friendship);
+            }
+            $this->favorites->removeBetween($userId, $targetUserId);
+            $this->groups->removeBetween($userId, $targetUserId);
+            $this->friendships->commit();
+        } catch (\Throwable $e) {
+            $this->friendships->rollBack();
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Star a friend - idempotent. `not_friend` for anyone else, `limit` past the maximum.
+     */
+    public function favorite(string $userId, string $targetUserId): string
+    {
+        if ($userId === $targetUserId) {
+            return 'self';
+        }
+        $friendship = $this->friendships->findBetween($userId, $targetUserId);
+        if (!$friendship instanceof Friendship || !$friendship->isAccepted()) {
+            return 'not_friend';
+        }
+        if (null !== $this->favorites->find($userId, $targetUserId)) {
+            return 'ok';
+        }
+        if ($this->favorites->count($userId) >= FriendFavorite::MAX_PER_USER) {
+            return 'limit';
+        }
+
+        try {
+            $this->favorites->save(FriendFavorite::create($userId, $targetUserId, $this->clock->now()));
+        } catch (UniqueConstraintViolationException) {
+            // A concurrent star - idempotent.
+        }
+
+        return 'ok';
+    }
+
+    /** Take the star away - idempotent. */
+    public function unfavorite(string $userId, string $targetUserId): void
+    {
+        $favorite = $this->favorites->find($userId, $targetUserId);
+        if ($favorite instanceof FriendFavorite) {
+            $this->favorites->remove($favorite);
         }
     }
 
@@ -131,10 +202,7 @@ final readonly class FriendshipService
         }
 
         // Block retracts any existing/pending friendship.
-        $friendship = $this->friendships->findBetween($userId, $targetUserId);
-        if ($friendship instanceof Friendship) {
-            $this->friendships->remove($friendship);
-        }
+        $this->endFriendship($this->friendships->findBetween($userId, $targetUserId), $userId, $targetUserId);
 
         if (null === $this->blocks->find($userId, $targetUserId)) {
             try {
@@ -168,39 +236,45 @@ final readonly class FriendshipService
     }
 
     /**
-     * @return array{state: string, friendshipId: string|null}
+     * `favorite`: the viewer starred this friend (story 43.11a); always false outside a friendship.
+     *
+     * @return array{state: string, friendshipId: string|null, favorite: bool}
      */
     public function relationship(string $userId, string $targetUserId): array
     {
         if ($userId === $targetUserId) {
-            return ['state' => 'self', 'friendshipId' => null];
+            return ['state' => 'self', 'friendshipId' => null, 'favorite' => false];
         }
         if (null !== $this->blocks->find($userId, $targetUserId)) {
-            return ['state' => 'blocking', 'friendshipId' => null];
+            return ['state' => 'blocking', 'friendshipId' => null, 'favorite' => false];
         }
         if (null !== $this->blocks->find($targetUserId, $userId)) {
-            return ['state' => 'blocked', 'friendshipId' => null];
+            return ['state' => 'blocked', 'friendshipId' => null, 'favorite' => false];
         }
 
         $friendship = $this->friendships->findBetween($userId, $targetUserId);
         if (!$friendship instanceof Friendship) {
-            return ['state' => 'none', 'friendshipId' => null];
+            return ['state' => 'none', 'friendshipId' => null, 'favorite' => false];
         }
         if ($friendship->isAccepted()) {
-            return ['state' => 'friends', 'friendshipId' => $friendship->getId()];
+            return [
+                'state' => 'friends',
+                'friendshipId' => $friendship->getId(),
+                'favorite' => null !== $this->favorites->find($userId, $targetUserId),
+            ];
         }
         if ($friendship->isPending()) {
             return $friendship->isAddressee($userId)
-                ? ['state' => 'incoming', 'friendshipId' => $friendship->getId()]
-                : ['state' => 'outgoing', 'friendshipId' => $friendship->getId()];
+                ? ['state' => 'incoming', 'friendshipId' => $friendship->getId(), 'favorite' => false]
+                : ['state' => 'outgoing', 'friendshipId' => $friendship->getId(), 'favorite' => false];
         }
 
-        return ['state' => 'none', 'friendshipId' => null];
+        return ['state' => 'none', 'friendshipId' => null, 'favorite' => false];
     }
 
     /**
      * @return array{
-     *     friends: list<array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}>,
+     *     friends: list<array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, isFavorite: bool}>,
      *     incoming: list<array{friendshipId: string, userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}>,
      *     outgoing: list<array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null}>
      * }
@@ -223,13 +297,22 @@ final readonly class FriendshipService
         }
         $cards = $this->directory->cards(array_values(array_unique($ids)));
 
+        // Starred friends first (story 43.11a), the existing order kept within each group.
+        $favoriteIds = $this->favorites->favoriteIds($userId);
+        $starred = [];
         $friends = [];
         foreach ($accepted as $f) {
             $card = $cards[$f->otherParty($userId)] ?? null;
-            if (null !== $card) {
-                $friends[] = $card;
+            if (null === $card) {
+                continue;
+            }
+            if (isset($favoriteIds[$card['userId']])) {
+                $starred[] = [...$card, 'isFavorite' => true];
+            } else {
+                $friends[] = [...$card, 'isFavorite' => false];
             }
         }
+        $friends = [...$starred, ...$friends];
 
         $incomingList = [];
         foreach ($incoming as $f) {

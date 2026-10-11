@@ -62,6 +62,8 @@ export type MyCommunityProfile = {
   socialLinks: EditableSocialLink[];
   favoriteGames: EditableFavoriteGame[];
   audience: string;
+  /** Story 43.6: who sees that the member is playing (absent from an older API: the default applies). */
+  presenceVisibility?: string;
   showcaseLayout: string[];
 };
 
@@ -81,6 +83,7 @@ export type UpdateCommunityProfileInput = {
   nameColor: string | null;
   avatarFrame: string | null;
   audience: string;
+  presenceVisibility: string;
   socialLinks: EditableSocialLink[];
   favoriteGameIds: string[];
   showcaseLayout: string[];
@@ -245,6 +248,11 @@ export const AUDIENCES = ["public", "members", "friends"] as const;
  * account actually has.
  */
 export const DEFAULT_AUDIENCE: (typeof AUDIENCES)[number] = "public";
+
+/** Story 43.6: « Qui voit quand je joue », mirroring `PresenceVisibility` on the API side. */
+export const PRESENCE_VISIBILITIES = ["everyone", "members", "friends", "nobody"] as const;
+
+export const DEFAULT_PRESENCE_VISIBILITY: (typeof PRESENCE_VISIBILITIES)[number] = "everyone";
 
 export const SHOWCASE_WIDGETS = ["favorite_games", "best_runs", "most_played"] as const;
 

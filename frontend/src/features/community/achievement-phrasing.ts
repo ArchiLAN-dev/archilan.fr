@@ -18,6 +18,11 @@ const PHRASINGS: Record<string, Phrasing> = {
   questsCompleted: { verb: "Réussir", a: "une", one: "quête de la semaine", many: "quêtes de la semaine" },
   questChestStreak: { verb: "Ouvrir le coffre des quêtes", a: "une", one: "semaine d'affilée", many: "semaines d'affilée" },
   superlatives: { verb: "Remporter", a: "un", one: "superlatif de récap", many: "superlatifs de récap" },
+  // Story 43.16: playing with others.
+  distinctCoplayers: { verb: "Jouer avec", a: "un", one: "joueur différent", many: "joueurs différents" },
+  distinctFriendsPlayedWith: { verb: "Jouer avec", a: "un", one: "ami différent", many: "amis différents" },
+  maxFinishedWithSamePerson: { verb: "Terminer", a: "une", one: "partie", many: "parties", after: "avec la même personne" },
+  weeklyDuelsWon: { verb: "Gagner", a: "un", one: "duel hebdo", many: "duels hebdo" },
 };
 
 /** « 3 000 », « plus de 10 », « entre 500 et 2 000 »: the count a condition asks for. */

@@ -38,12 +38,16 @@ final readonly class LeaderboardController
         $offset = ($page - 1) * $limit;
         $eventId = $request->query->has('eventId') ? (string) $request->query->get('eventId') : null;
 
+        // Story 43.8: the viewer and their friends only; empty for an anonymous visitor.
+        $friendsOnly = $request->query->getBoolean('friendsOnly');
+        $viewerId = $friendsOnly ? $this->apiAccessGuard->optionalUser($request)?->getId() : null;
+
         $unit = self::UNITS[$axis];
 
         if ('speed' === $axis) {
-            [$entries, $total] = $this->leaderboardQuery->computeSpeedPage($eventId, $limit, $offset);
+            [$entries, $total] = $this->leaderboardQuery->computeSpeedPage($eventId, $limit, $offset, $friendsOnly, $viewerId);
         } else {
-            [$entries, $total] = $this->leaderboardQuery->computeAggregatePage($axis, $eventId, $limit, $offset);
+            [$entries, $total] = $this->leaderboardQuery->computeAggregatePage($axis, $eventId, $limit, $offset, $friendsOnly, $viewerId);
         }
 
         $data = [];
@@ -68,7 +72,8 @@ final readonly class LeaderboardController
                 'data' => $data,
                 'meta' => ['axis' => $axis, 'page' => $page, 'total' => $total],
             ],
-            headers: ['Cache-Control' => 'public, max-age=60'],
+            // A friends board is the viewer's own: never in a shared cache.
+            headers: ['Cache-Control' => $friendsOnly ? 'private, no-store' : 'public, max-age=60'],
         );
     }
 }

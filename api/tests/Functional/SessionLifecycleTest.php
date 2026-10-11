@@ -685,10 +685,13 @@ final class SessionLifecycleTest extends FunctionalTestCase
 
         /** @var InMemoryTransport $transport */
         $transport = self::getContainer()->get('messenger.transport.async');
-        $sent = $transport->getSent();
+        // Only the participant messages: the launch also tells the players' starred friends (story 43.11b).
+        $sent = array_values(array_filter(
+            array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof SessionRunningMessage,
+        ));
         self::assertCount(1, $sent);
-        /** @var SessionRunningMessage $message */
-        $message = $sent[0]->getMessage();
+        $message = $sent[0];
         self::assertInstanceOf(SessionRunningMessage::class, $message);
         self::assertSame($sessionId, $message->sessionId);
         self::assertSame($registration->getId(), $message->registrationId);

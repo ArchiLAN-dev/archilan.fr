@@ -47,6 +47,7 @@ export const REPORT_TARGET_OPTIONS: Option<ReportTargetType>[] = [
   { value: "any", label: "Tous" },
   { value: "comment", label: "Commentaires" },
   { value: "profile", label: "Profils" },
+  { value: "run_listing", label: "Annonces" },
 ];
 
 export const REPORT_PROBLEM_OPTIONS: Option<ReportProblem>[] = [

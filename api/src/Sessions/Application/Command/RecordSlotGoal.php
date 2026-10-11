@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Command;
 
+use App\Community\Application\Message\FriendActivityJob;
 use App\Events\Domain\Entity\Event;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\WeeklyRuns\Application\Command\RecordWeeklyGoal;
 use App\WeeklyRuns\Application\Command\WeeklyGoalResult;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Handles the generic slot-goal callback fired by the bridge when a slot reaches its goal, dispatching
@@ -30,6 +32,7 @@ final readonly class RecordSlotGoal
         private RecordWeeklyGoal $recordWeeklyGoal,
         private SessionSlotRepositoryInterface $slots,
         private LoggerInterface $logger,
+        private MessageBusInterface $messageBus,
     ) {
     }
 
@@ -73,6 +76,13 @@ final readonly class RecordSlotGoal
         $slot->recordProgress($checksTotal, $itemsTotal);
         $slot->recordGoal($goalReachedAt);
         $this->slots->flush();
+
+        // Story 43.11b: the friends who starred the slot's players hear of it. Best-effort, after the commit.
+        try {
+            $this->messageBus->dispatch(FriendActivityJob::goalReached($sessionId, $slotName));
+        } catch (\Throwable $e) {
+            $this->logger->warning('friend_activity.dispatch_failed', ['sessionId' => $sessionId, 'error' => $e->getMessage()]);
+        }
 
         return null;
     }

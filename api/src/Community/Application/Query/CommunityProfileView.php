@@ -16,6 +16,7 @@ use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Entity\Kudos;
 use App\Community\Domain\Enum\NameColor;
 use App\Community\Domain\Enum\NameStyle;
+use App\Community\Domain\Enum\PresenceVisibility;
 use App\Community\Domain\Repository\AchievementCollectionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
@@ -91,7 +92,7 @@ final readonly class CommunityProfileView
      *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null, collectionId: string|null}>,
      *     achievementStats: array{unlocked: int, total: int},
      *     collections: list<CollectionProgress>,
-     *     presence: array{playing: bool, sessionId: string|null, game: string|null},
+     *     presence: array{playing: bool, sessionId: string|null, game: string|null, slotState: string|null, progressPercent: int|null},
      *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, avatarFrame: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, showcaseLayout: list<string>}|null
      * }|null
      */
@@ -121,11 +122,14 @@ final readonly class CommunityProfileView
         // Level/XP from the shared query so every surface (profile, run participant detail…) agrees.
         $level = $this->levels->levelFor($model['userId']);
 
-        $live = $this->presence->playing([$model['userId']])[$model['userId']] ?? null;
+        $live = $this->presence->playing([$model['userId']], $viewerId)[$model['userId']] ?? null;
         $presence = [
             'playing' => null !== $live,
             'sessionId' => $live['sessionId'] ?? null,
             'game' => $live['game'] ?? null,
+            // Story 43.7: rich presence.
+            'slotState' => $live['slotState'] ?? null,
+            'progressPercent' => $live['progressPercent'] ?? null,
         ];
 
         // Public recognition badges (always visible, never audience-gated). Member status is a *live*
@@ -372,7 +376,7 @@ final readonly class CommunityProfileView
      *
      * Story 30.40: the images are those the owner's status allows, and the upload rights say what they may send.
      *
-     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, legendaryFramesAllowed: bool, memberFramesAllowed: bool, ownedFrames: list<string>, ownedBanners: list<string>, title: string|null, ownedTitles: list<string>, nameColor: string|null, ownedColors: list<string>, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, titledName: bool, titledNameStyle: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, bannerImageUrl: string|null, bannerImageStillUrl: string|null, bannerOverlay: int, bannerFraming: array{x: int, y: int, zoom: int}, hasCustomBanner: bool, bannerUpload: array{image: bool, gif: bool}, avatarFrame: string|null, legendaryFramesAllowed: bool, memberFramesAllowed: bool, ownedFrames: list<string>, ownedBanners: list<string>, title: string|null, ownedTitles: list<string>, nameColor: string|null, ownedColors: list<string>, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}, hasCustomAvatar: bool, avatarGifAllowed: bool, titledName: bool, titledNameStyle: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, presenceVisibility: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId, bool $isAdmin): array
     {
@@ -418,6 +422,8 @@ final readonly class CommunityProfileView
             // The owner's own settings form: with no row yet, show what a first save will actually
             // produce, which is the entity default - not the stricter value the read gate applies.
             'audience' => $profile?->getAudience() ?? Audience::DEFAULT,
+            // Story 43.6: who sees that the member is playing.
+            'presenceVisibility' => ($profile?->getPresenceVisibility() ?? PresenceVisibility::DEFAULT)->value,
             'showcaseLayout' => $this->validShowcase($profile?->getShowcaseLayout() ?? []),
         ];
     }

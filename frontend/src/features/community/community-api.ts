@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import type { ImageFraming } from "@/features/community/image-framing";
@@ -74,13 +75,15 @@ export async function fetchLeaderboard(
   axis: LeaderboardAxis,
   limit: number,
   eventId?: string,
+  friendsOnly = false,
 ): Promise<LeaderboardResponse | null> {
   try {
     const params = new URLSearchParams({ axis, limit: String(limit) });
     if (eventId) params.set("eventId", eventId);
-    const response = await fetch(`${env.apiBaseUrl}/leaderboard?${params.toString()}`, {
-      cache: "no-store",
-    });
+    // Story 43.8: the viewer and their friends, which needs the session cookie.
+    if (friendsOnly) params.set("friendsOnly", "1");
+    const url = `${env.apiBaseUrl}/leaderboard?${params.toString()}`;
+    const response = friendsOnly ? await apiFetch(url) : await fetch(url, { cache: "no-store" });
     if (!response.ok) return null;
     const payload: unknown = await response.json();
     if (!isLeaderboardResponse(payload)) return null;

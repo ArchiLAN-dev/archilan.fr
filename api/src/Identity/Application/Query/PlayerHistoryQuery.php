@@ -31,7 +31,13 @@ final readonly class PlayerHistoryQuery
         }
 
         $offset = ($page - 1) * $limit;
-        $allRows = $this->historyQuery->fetchForUser($user->getId());
+        // Story 32.22: a visitor sees only what is public; the player sees all of it. Filtered before the
+        // pagination, so a page is full and the total is what the viewer sees.
+        $isSelf = $viewerId === $user->getId();
+        $allRows = array_values(array_filter(
+            $this->historyQuery->fetchForUser($user->getId()),
+            static fn (array $row): bool => $isSelf || self::isPublic($row),
+        ));
 
         usort($allRows, static function (array $a, array $b): int {
             $aAt = is_string($a['finished_at'] ?? null) ? $a['finished_at'] : '';
@@ -70,6 +76,7 @@ final readonly class PlayerHistoryQuery
                 'wasReleased' => $wasReleased,
                 'isInvalidated' => $isInvalidated,
                 'isWeekly' => (bool) ($row['is_weekly'] ?? false),
+                'isPrivate' => !self::isPublic($row),
                 'recapAccessible' => is_string($row['session_id'] ?? null)
                     && ($recapViewable[$row['session_id']] ?? false),
             ];
@@ -83,5 +90,11 @@ final readonly class PlayerHistoryQuery
                 'total' => $total,
             ],
         ];
+    }
+
+    /** @param array<string, mixed> $row */
+    private static function isPublic(array $row): bool
+    {
+        return true === filter_var($row['is_public'] ?? false, \FILTER_VALIDATE_BOOLEAN);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
+use App\Sessions\Application\Query\RecapExchangesQuery;
 use App\Sessions\Application\Query\SessionRecapQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,6 +16,7 @@ final readonly class SessionRecapController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private SessionRecapQuery $sessionRecapQuery,
+        private RecapExchangesQuery $recapExchanges,
     ) {
     }
 
@@ -34,5 +36,17 @@ final readonly class SessionRecapController
         }
 
         return new JsonResponse(['data' => $result]);
+    }
+
+    /** « Entre nous » (story 43.10): null for someone who did not play the session. */
+    #[Route('/api/v1/parties/{sessionId}/recap/exchanges', methods: ['GET'])]
+    public function exchanges(Request $request, string $sessionId): JsonResponse
+    {
+        $user = $this->apiAccessGuard->requireUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        return new JsonResponse(['data' => $this->recapExchanges->forViewer($sessionId, $user->getId())]);
     }
 }

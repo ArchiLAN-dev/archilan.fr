@@ -40,6 +40,7 @@ describe("achievement rules", () => {
     expect(familyOf("itemsFromOthers")).toBe("progression");
     expect(familyOf("event_goal:lan3")).toBe("objectifs");
     expect(familyOf("superlative:most_generous")).toBe("recaps");
+    expect(familyOf("weeklyDuelsWon")).toBe("ensemble");
     expect(familyOf("unknown")).toBe("autres");
     expect(factsByFamily(options).map((g) => g.family)).toEqual(["parties", "progression", "objectifs", "quetes", "recaps"]);
   });

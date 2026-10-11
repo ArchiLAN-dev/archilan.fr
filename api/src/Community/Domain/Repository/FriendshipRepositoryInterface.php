@@ -34,4 +34,11 @@ interface FriendshipRepositoryInterface
     public function remove(Friendship $friendship): void;
 
     public function flush(): void;
+
+    /** Story 43.19: one unit of work for a friendship ended and what goes with it (favourites, groups). */
+    public function beginTransaction(): void;
+
+    public function commit(): void;
+
+    public function rollBack(): void;
 }

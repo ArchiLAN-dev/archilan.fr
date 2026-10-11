@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Entity\Game;
+use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
@@ -364,7 +365,89 @@ final class PlayerProfileTest extends FunctionalTestCase
         self::assertGreaterThan($item1['finishedAt'], $item0['finishedAt']);
     }
 
+    public function testAVisitorSeesOnlyThePublicRunsAndThePlayerSeesAll(): void
+    {
+        // Story 32.22: a private run shows on the profile only once its recap is published.
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $dana = $this->createUser('dana@example.org', ['ROLE_USER'], 'Dana', 'dana');
+        $visitor = $this->createUser('vic@example.org', ['ROLE_USER'], 'Vic', 'vic');
+        $game = $this->createGame('Game', 'game-slug');
+
+        $published = $this->finishedPrivateRun('Publiée', $dana, $game->getId(), $now, publish: true);
+        $this->finishedPrivateRun('Secrète', $dana, $game->getId(), $now->modify('+1 day'), publish: false);
+        $publicEvent = $this->createEvent('LAN publique', $now, $now->modify('+3 days'), 20);
+        $hiddenEvent = $this->createEvent('LAN privée', $now, $now->modify('+3 days'), 20, isPublic: false);
+        foreach ([$publicEvent, $hiddenEvent] as $event) {
+            $registration = $this->createRegistration($event->getId(), $dana->getId());
+            $session = $this->makeFinishedSession($event->getId(), $now);
+            $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $registration->getId(), $game->getId(), 'Dana', 0));
+        }
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/players/dana/history?limit=1');
+        self::assertResponseStatusCodeSame(200);
+        $anonymous = $this->decodedJsonResponse();
+        $meta = $anonymous['meta'];
+        self::assertIsArray($meta);
+        self::assertSame(2, $meta['total'], 'counted after the filter');
+
+        $this->loginAs($visitor);
+        self::assertSame(['LAN publique', 'Publiée'], $this->historyNames());
+
+        $this->loginAs($dana);
+        self::assertSame(['LAN privée', 'LAN publique', 'Publiée', 'Secrète'], $this->historyNames());
+        $private = [];
+        $rows = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($rows);
+        foreach ($rows as $row) {
+            self::assertIsArray($row);
+            self::assertIsString($row['eventName']);
+            $private[$row['eventName']] = $row['isPrivate'];
+        }
+        self::assertSame(['LAN privée' => true, 'LAN publique' => false, 'Publiée' => false, 'Secrète' => true], $this->sorted($private));
+        self::assertNotNull($published->getSessionId());
+    }
+
     // ─── helpers ────────────────────────────────────────────────────────────────
+
+    /** @return list<mixed> the event names of the history the client sees, sorted */
+    private function historyNames(): array
+    {
+        $this->client->request('GET', '/api/v1/players/dana/history?limit=100');
+        self::assertResponseStatusCodeSame(200);
+        $rows = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($rows);
+        $names = array_map(static fn (mixed $row): mixed => is_array($row) ? $row['eventName'] : null, $rows);
+        sort($names);
+
+        return $names;
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     *
+     * @return array<string, mixed>
+     */
+    private function sorted(array $values): array
+    {
+        ksort($values);
+
+        return $values;
+    }
+
+    private function finishedPrivateRun(string $title, User $player, string $gameId, \DateTimeImmutable $at, bool $publish): Run
+    {
+        $run = Run::create($player->getId(), $title, $at);
+        $session = $this->makeFinishedSession($run->getId(), $at);
+        $run->attachSession($session->getId());
+        if ($publish) {
+            $run->publishRecap($at);
+        }
+        $this->entityManager->persist($run);
+        $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $player->getId(), $gameId, $player->getDisplayName(), 0));
+
+        return $run;
+    }
 
     private function makeFinishedSession(string $eventId, \DateTimeImmutable $now): Session
     {

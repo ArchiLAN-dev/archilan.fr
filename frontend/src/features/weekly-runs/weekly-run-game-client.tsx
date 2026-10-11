@@ -10,6 +10,8 @@ import { useAuth } from "@/features/auth/auth-context";
 import { getAccountMembership } from "@/features/payments/membership-api";
 import { slugify } from "@/features/weekly-runs/slugify";
 import { MembershipNotice } from "./weekly-runs-client-page";
+import { WeeklyRunFriends } from "./weekly-run-friends";
+import { ChallengeFriendsButton, WeeklyDuels } from "./weekly-duels";
 import {
   fetchCurrentWeeklyRuns,
   fetchWeeklyEntryPatches,
@@ -25,6 +27,7 @@ import { env } from "@/lib/env";
 import { YamlOptionsView, parseGameOptions } from "@/components/yaml/yaml-options-view";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import { ServerPausedNote } from "@/components/run-notes";
+import { ConnectionFields } from "@/components/connection-fields";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -34,27 +37,6 @@ function formatTime(seconds: number): string {
   const s = seconds % 60;
   if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
   return `${m}m ${String(s).padStart(2, "0")}s`;
-}
-
-// ── CopyButton ────────────────────────────────────────────────────────────────
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  function handleCopy() {
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => undefined);
-  }
-  return (
-    <button
-      className="ml-2 rounded border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-      onClick={handleCopy}
-      type="button"
-    >
-      {copied ? "Copié !" : "Copier"}
-    </button>
-  );
 }
 
 // ── YAML options viewer ───────────────────────────────────────────────────────
@@ -375,12 +357,20 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
       </div>
 
       {/* Leaderboard */}
-      <div className="px-5 py-4">
+      <div className="grid gap-5 px-5 py-4">
         <DualLeaderboard
           leaderboard={run.leaderboard}
           myEntryId={myEntryId}
           myUserId={myUserId}
         />
+        <WeeklyRunFriends weeklyRunId={run.weeklyRunId} />
+        {/* Story 43.15: duels between friends, until the weekly run ends. */}
+        {isActive ? (
+          <div className="grid gap-3">
+            <WeeklyDuels weeklyRunId={run.weeklyRunId} />
+            <ChallengeFriendsButton weeklyRunId={run.weeklyRunId} />
+          </div>
+        ) : null}
       </div>
 
       {/* Live participant streams (story 7.7) - public, only while the run is active and someone is live */}
@@ -463,25 +453,14 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
                 {isRunning && (
                   <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
                     <p className="mb-3 text-sm font-semibold text-emerald-400">Serveur prêt</p>
-                    <div className="flex flex-col gap-2 font-mono text-sm">
-                      <div className="flex items-center">
-                        <span className="w-20 text-muted-foreground">Host</span>
-                        <span className="text-foreground">{myEntry.connectionInfo.host}</span>
-                        <CopyButton value={myEntry.connectionInfo.host} />
-                      </div>
-                      <div className="flex items-center">
-                        <span className="w-20 text-muted-foreground">Port</span>
-                        <span className="text-foreground">{myEntry.connectionInfo.port}</span>
-                        <CopyButton value={String(myEntry.connectionInfo.port)} />
-                      </div>
-                      {myEntry.connectionInfo.password && (
-                        <div className="flex items-center">
-                          <span className="w-20 text-muted-foreground">Password</span>
-                          <span className="text-foreground">{myEntry.connectionInfo.password}</span>
-                          <CopyButton value={myEntry.connectionInfo.password} />
-                        </div>
-                      )}
-                    </div>
+                    {/* Story 17.30: the same fields as the weekly card, slot name first (story 17.29). */}
+                    <ConnectionFields
+                      host={myEntry.connectionInfo.host}
+                      password={myEntry.connectionInfo.password}
+                      port={myEntry.connectionInfo.port}
+                      slots={myEntry.slotName ? [{ name: myEntry.slotName, game: null }] : []}
+                      uri={myEntry.connectionInfo.uri ?? null}
+                    />
                   </div>
                 )}
 

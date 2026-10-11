@@ -7,6 +7,7 @@ namespace App\Sessions\Application\Service;
 use App\Communications\Application\Message\SessionPausedWithoutSaveMessage;
 use App\Communications\Application\Message\SessionRestartFailedMessage;
 use App\Communications\Application\Message\SessionRunningMessage;
+use App\Community\Application\Message\FriendActivityJob;
 use App\Content\Domain\Entity\Post;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
@@ -202,6 +203,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
 
         if ($shouldNotify) {
             $this->dispatchRunningNotifications($session);
+            $this->dispatchFriendActivity($session);
         }
 
         return ['found' => true, 'session' => $session->payload()];
@@ -641,6 +643,16 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $this->publish($session);
 
         return $to;
+    }
+
+    /** Story 43.11b: the first launch of a session, told to the friends who starred its players. Best-effort. */
+    private function dispatchFriendActivity(Session $session): void
+    {
+        try {
+            $this->messageBus->dispatch(FriendActivityJob::sessionStarted($session->getId()));
+        } catch (\Throwable $e) {
+            $this->logger->warning('friend_activity.dispatch_failed', ['sessionId' => $session->getId(), 'error' => $e->getMessage()]);
+        }
     }
 
     private function dispatchRunningNotifications(Session $session): void

@@ -53,7 +53,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         return 'sp.'.DbalSlotPlayerSource::USER_COLUMN;
     }
 
-    public function computeAggregatePage(string $axis, ?string $eventId, int $limit, int $offset): array
+    public function computeAggregatePage(string $axis, ?string $eventId, int $limit, int $offset, ?array $userIds = null): array
     {
         $selectValue = 'goals' === $axis ? 'COUNT(slot.id)' : 'COALESCE(SUM(slot.checks_done), 0)';
         $axisFilter = 'goals' === $axis
@@ -102,6 +102,10 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             }
             $value = is_numeric($row['value'] ?? null) ? (int) $row['value'] : 0;
             $totals[$userId] = ($totals[$userId] ?? 0) + $value;
+        }
+        if (null !== $userIds) {
+            // Story 43.8: the ranks are those within the given members.
+            $totals = array_intersect_key($totals, array_flip($userIds));
         }
 
         $userIds = array_keys($totals);
@@ -199,7 +203,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         return $this->avatarUrls->resolveForRow($userRow);
     }
 
-    public function computeSpeedPage(?string $eventId, int $limit, int $offset): array
+    public function computeSpeedPage(?string $eventId, int $limit, int $offset, ?array $userIds = null): array
     {
         $eventQb = $this->connection->createQueryBuilder();
         $eventQb->select(
@@ -265,6 +269,9 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             if (!isset($scores[$userId]) || $seconds < $scores[$userId]) {
                 $scores[$userId] = $seconds;
             }
+        }
+        if (null !== $userIds) {
+            $scores = array_intersect_key($scores, array_flip($userIds));
         }
 
         $userIds = array_keys($scores);

@@ -35,6 +35,7 @@ final readonly class CommunityDirectoryController
             $viewerId,
             $request->query->getInt('page', 1),
             $request->query->getInt('perPage', 0),
+            '' === $request->query->getString('group') ? null : $request->query->getString('group'),
         );
 
         return new JsonResponse([
