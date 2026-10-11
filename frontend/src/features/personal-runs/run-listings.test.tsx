@@ -5,7 +5,7 @@ import type { AuthUser } from "../auth/auth-context";
 import type { FriendCard } from "@/features/community/community-friends-api";
 import { RunOpennessSetting } from "./friends-open-runs";
 import { RUN_LISTINGS_KEY, type RunListing } from "./run-listings-api";
-import { friendsInLabel, plannedLabel, RunListingsBoard, RunListingsCount, RunListingsSpotlight } from "./run-listings";
+import { friendsInLabel, plannedLabel, RunListingsBoard, RunListingsSpotlight } from "./run-listings";
 
 let mockUser: Partial<AuthUser> | null = { id: "me" };
 jest.mock("../auth/auth-context", () => ({
@@ -98,10 +98,5 @@ describe("run listings spotlight", () => {
     mockUser = null;
     expect(render(<RunListingsSpotlight />)).toContain("Connecte-toi");
     mockUser = { id: "me" };
-  });
-
-  it("counts the listings in the header, nothing at zero", () => {
-    expect(render(<RunListingsCount />, more)).toContain(">3<");
-    expect(render(<RunListingsCount />, [])).toBe("");
   });
 });

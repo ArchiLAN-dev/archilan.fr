@@ -14,7 +14,6 @@ import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { UserMenu } from "@/features/auth/user-menu";
 import { NotificationCenter } from "@/features/community/notification-center";
 import { ShopBalance } from "@/features/wallet/shop-balance";
-import { RunListingsCount } from "@/features/personal-runs/run-listings";
 import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -32,41 +31,35 @@ const legalLinks = [
 /** Routes that belong to the "Communauté" section without sitting under /communaute. */
 const COMMUNITY_PATHS = ["/joueurs"] as const;
 
-/** Story 43.21: the run listings sit under /communaute but have their own entry. */
-const LISTINGS_PATH = "/communaute/parties";
-const COMMUNITY_EXCEPT = [LISTINGS_PATH] as const;
-
 /**
  * Whether a nav entry owns the current path. `alsoMatch` covers the section's other routes: a section
  * is not always a single URL prefix - "Communauté" lands on /communaute but /joueurs (the members
  * directory and every player profile) belongs to it just as much, and would otherwise leave the whole
  * nav bar unlit.
  */
-export function isActive(pathname: string, href: string, alsoMatch: readonly string[] = [], except: readonly string[] = []) {
-  const under = (path: string) => path.startsWith("/") && (pathname === path || pathname.startsWith(`${path}/`));
-  return [href, ...alsoMatch].some(under) && !except.some(under);
+export function isActive(pathname: string, href: string, alsoMatch: readonly string[] = []) {
+  return [href, ...alsoMatch].some(
+    (path) => path.startsWith("/") && (pathname === path || pathname.startsWith(`${path}/`)),
+  );
 }
 
 function NavLink({
   href,
   label,
   alsoMatch,
-  except,
   onNavigate,
   suffix,
 }: {
   href: string;
   label: string;
   alsoMatch?: readonly string[];
-  /** Story 43.21: routes under the entry that belong to another one. */
-  except?: readonly string[];
   onNavigate?: () => void;
   /** Story 41.12: shown after the label (the pelle balance beside « Boutique »). */
   suffix?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const external = href.startsWith("http://") || href.startsWith("https://");
-  const active = isActive(pathname, href, alsoMatch, except);
+  const active = isActive(pathname, href, alsoMatch);
   const className = [
     "inline-flex min-h-11 items-center border-b-2 px-1 text-sm font-medium transition-all duration-200",
     active
@@ -132,13 +125,6 @@ function AuthNavDesktop() {
       </Link>
     </div>
   );
-}
-
-/** Story 43.21: the runs looking for players, one click away for a signed-in member, with how many there are. */
-function ListingsNavLink({ onNavigate }: { onNavigate?: () => void }) {
-  const { user, loading } = useAuth();
-  if (loading || !user) return null;
-  return <NavLink href={LISTINGS_PATH} label="Parties ouvertes" onNavigate={onNavigate} suffix={<RunListingsCount />} />;
 }
 
 function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
@@ -274,9 +260,8 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
           <div className="hidden items-center gap-4 lg:flex xl:gap-6">
             {/* Événements left the desktop bar (the home hero and the footer lead there); the phone menu keeps it. */}
             <NavLink href="/runs-hebdo" label="Runs hebdos" />
-            <ListingsNavLink />
             <NavLink href="/jeux" label="Jeux" />
-            <NavLink alsoMatch={COMMUNITY_PATHS} except={COMMUNITY_EXCEPT} href="/communaute" label="Communauté" />
+            <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" />
             <NavLink href="/boutique" label="Boutique" suffix={<ShopBalance />} />
             <LiveTwitchBadge />
           </div>
@@ -317,11 +302,10 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
         >
           <nav aria-label="Navigation mobile" className="flex h-full flex-col">
             <div className="flex flex-col gap-3">
-              <ListingsNavLink onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/evenements" label="Événements" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/runs-hebdo" label="Runs hebdos" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
-              <NavLink alsoMatch={COMMUNITY_PATHS} except={COMMUNITY_EXCEPT} href="/communaute" label="Communauté" onNavigate={() => setMenuState({ open: false, pathname })} />
+              <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/boutique" label="Boutique" onNavigate={() => setMenuState({ open: false, pathname })} suffix={<ShopBalance />} />
               <LiveTwitchBadge onNavigate={() => setMenuState({ open: false, pathname })} />
             </div>

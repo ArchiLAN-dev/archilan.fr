@@ -221,20 +221,6 @@ function useRunListings(enabled: boolean) {
   return useQuery({ queryKey: RUN_LISTINGS_KEY, queryFn: fetchRunListings, enabled, staleTime: DEFAULT_STALE_TIME, retry: false });
 }
 
-/** Story 43.21: the number of runs listed, beside « Parties ouvertes » in the site header. Nothing at zero. */
-export function RunListingsCount() {
-  const { user, loading } = useAuth();
-  const { data } = useRunListings(user !== null && !loading);
-  const count = data?.length ?? 0;
-  if (count === 0) return null;
-  return (
-    <span className="ml-1.5 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent-text">
-      {count}
-      <span className="sr-only"> {count > 1 ? "annonces" : "annonce"}</span>
-    </span>
-  );
-}
-
 const SPOTLIGHT_SIZE = 2;
 
 /** Story 43.21: the latest listings, put forward on « Communauté », and the way to all of them. */
