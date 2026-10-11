@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { UserMenu } from "@/features/auth/user-menu";
 import { NotificationCenter } from "@/features/community/notification-center";
 import { ShopBalance } from "@/features/wallet/shop-balance";
+import { MyRunsCount } from "@/features/personal-runs/my-runs-count";
 import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -30,6 +31,9 @@ const legalLinks = [
 
 /** Routes that belong to the "Communauté" section without sitting under /communaute. */
 const COMMUNITY_PATHS = ["/joueurs"] as const;
+
+/** Story 43.21: the runs list also sits in the member's space. */
+const MY_RUNS_PATHS = ["/compte/parties"] as const;
 
 /**
  * Whether a nav entry owns the current path. `alsoMatch` covers the section's other routes: a section
@@ -127,6 +131,13 @@ function AuthNavDesktop() {
   );
 }
 
+/** Story 43.21: « Mes parties », first in the header for a signed-in member, with the count of runs still going. */
+function MyRunsNavLink({ onNavigate }: { onNavigate?: () => void }) {
+  const { user, loading } = useAuth();
+  if (loading || !user) return null;
+  return <NavLink alsoMatch={MY_RUNS_PATHS} href="/runs" label="Mes parties" onNavigate={onNavigate} suffix={<MyRunsCount />} />;
+}
+
 function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
   const { user, loading, setUser } = useAuth();
   const router = useRouter();
@@ -146,13 +157,6 @@ function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
     const isAdmin = user.roles.includes("ROLE_ADMIN");
     return (
       <>
-        <Link
-          className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
-          href="/compte/parties"
-          onClick={onNavigate}
-        >
-          Mes parties
-        </Link>
         {user.slug ? (
           <Link
             className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
@@ -259,6 +263,7 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
 
           <div className="hidden items-center gap-4 lg:flex xl:gap-6">
             {/* Événements left the desktop bar (the home hero and the footer lead there); the phone menu keeps it. */}
+            <MyRunsNavLink />
             <NavLink href="/runs-hebdo" label="Runs hebdos" />
             <NavLink href="/jeux" label="Jeux" />
             <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" />
@@ -302,6 +307,7 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
         >
           <nav aria-label="Navigation mobile" className="flex h-full flex-col">
             <div className="flex flex-col gap-3">
+              <MyRunsNavLink onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/evenements" label="Événements" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/runs-hebdo" label="Runs hebdos" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
