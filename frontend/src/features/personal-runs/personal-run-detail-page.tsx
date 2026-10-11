@@ -35,7 +35,8 @@ import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
 import { ConnectionDetails } from "./connection-details";
-import { InviteFriendsButton, RunInvitationsList } from "./run-invitations";
+import { RunInvitationsList } from "./run-invitations";
+import { RunRecruitPanel } from "./run-recruit-panel";
 import { RunOpennessSetting } from "./friends-open-runs";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { RunNudgeButton, RunNudgeMute, useRunNudges } from "./run-nudges";
@@ -774,39 +775,42 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
           {run.isOwner && run.inviteToken !== null && (
             <div className="mt-4">
-              <InviteLinkPanel
-                inviteToken={run.inviteToken}
-                onTokenRegenerated={(newToken) => {
-                  // Write the regenerated token straight into the cache (same in-place update as the
-                  // old setState) - no refetch needed.
-                  queryClient.setQueryData<PersonalRunResult>(
-                    ["personal-run", runId],
-                    (prev) =>
-                      prev?.kind === "ready"
-                        ? { kind: "ready", run: { ...prev.run, inviteToken: newToken } }
-                        : prev,
-                  );
-                }}
+              {/* Story 43.20: invitations by name, openness and link in one card. */}
+              <RunRecruitPanel
+                link={
+                  <InviteLinkPanel
+                    inviteToken={run.inviteToken}
+                    onTokenRegenerated={(newToken) => {
+                      // Write the regenerated token straight into the cache (same in-place update as the
+                      // old setState) - no refetch needed.
+                      queryClient.setQueryData<PersonalRunResult>(
+                        ["personal-run", runId],
+                        (prev) =>
+                          prev?.kind === "ready"
+                            ? { kind: "ready", run: { ...prev.run, inviteToken: newToken } }
+                            : prev,
+                      );
+                    }}
+                    runId={run.id}
+                  />
+                }
+                openness={
+                  // Story 43.14: a draft opened to all the owner's friends, who join it themselves.
+                  run.status === "draft" ? (
+                    <RunOpennessSetting
+                      // Story 43.19: starts over from the server when the openness changes there (an expired listing).
+                      key={`${run.openness ?? "invite"}-${run.listedAt ?? ""}`}
+                      openness={run.openness ?? "invite"}
+                      pitch={run.pitch ?? null}
+                      plannedFor={run.plannedFor ?? null}
+                      runId={run.id}
+                      seatsWanted={run.seatsWanted ?? null}
+                    />
+                  ) : null
+                }
+                participantIds={run.participants.map((p) => p.userId)}
                 runId={run.id}
               />
-              {/* Story 43.1: friends invited by name, next to the link. */}
-              <div className="mt-3">
-                <InviteFriendsButton participantIds={run.participants.map((p) => p.userId)} runId={run.id} />
-              </div>
-              {/* Story 43.14: a draft opened to all the owner's friends, who join it themselves. */}
-              {run.status === "draft" ? (
-                <div className="mt-3">
-                  <RunOpennessSetting
-                    // Story 43.19: starts over from the server when the openness changes there (an expired listing).
-                    key={`${run.openness ?? "invite"}-${run.listedAt ?? ""}`}
-                    openness={run.openness ?? "invite"}
-                    pitch={run.pitch ?? null}
-                    plannedFor={run.plannedFor ?? null}
-                    runId={run.id}
-                    seatsWanted={run.seatsWanted ?? null}
-                  />
-                </div>
-              ) : null}
             </div>
           )}
         </header>

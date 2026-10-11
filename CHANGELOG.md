@@ -38,6 +38,8 @@ déblocage, historique public, nom du slot d'une hebdo) et FrankenPHP 1.13.1.
 - **Annonces « cherche joueurs »** (43.17) : une run perso peut s'ouvrir à tous les membres, avec un message ; page
   `/communaute/parties`, expiration après 14 jours sans arrivée, signalement à la modération (le texte signalé est
   conservé).
+- **Une seule carte « Faire venir des joueurs »** (43.20) : sur la page d'une run, l'invitation d'amis, le réglage
+  « Qui peut rejoindre ? » (tuiles, places réglables avec - et +) et le lien d'invitation sont regroupés.
 
 ### Modifié
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Mail, Search, UserPlus, X } from "lucide-react";
 
+import { buttonVariants } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { fetchFriends, type FriendCard } from "@/features/community/community-friends-api";
 import { FriendIdentity } from "@/features/community/friend-identity";
@@ -61,9 +62,7 @@ export function InviteFriendsButton({ runId, participantIds }: { runId: string; 
 
   return (
     <>
-      <button
-        className="inline-flex items-center gap-2 rounded border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-foreground transition-colors hover:border-accent"
-        onClick={() => setOpen(true)}
+      <button className={buttonVariants({ variant: "primary" })} onClick={() => setOpen(true)}
         type="button"
       >
         <UserPlus aria-hidden className="size-4" />

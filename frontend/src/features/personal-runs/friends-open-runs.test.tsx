@@ -52,11 +52,15 @@ describe("runs open to friends", () => {
   it("offers the owner the seats only once open to friends", () => {
     const closed = render(<RunOpennessSetting openness="invite" runId="r1" seatsWanted={null} />);
     expect(closed).toContain("Sur invitation");
-    expect(closed).toContain("Tous mes amis");
+    expect(closed).toContain("Mes amis");
+    expect(closed).toContain("Qui peut rejoindre ?");
     expect(closed).not.toContain("Places pour tes amis");
 
     const open = render(<RunOpennessSetting openness="friends" runId="r1" seatsWanted={3} />);
     expect(open).toContain("Places pour tes amis");
     expect(open).toContain('value="3"');
+    // Nothing changed yet: no save button, the state says where the run is visible.
+    expect(open).not.toContain("Enregistrer");
+    expect(open).toContain("Visible de tes amis");
   });
 });
