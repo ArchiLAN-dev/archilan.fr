@@ -326,6 +326,15 @@ services:
     App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunArchiveRepository'
     App\PersonalRuns\Domain\Repository\RunInvitationRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunInvitationRepository'
     App\PersonalRuns\Domain\Repository\RunNudgeRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunNudgeRepository'
+    App\PersonalRuns\Domain\Repository\RunListingPostRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunListingPostRepository'
+    # Story 43.27: the run listings on Discord, one message each in a channel (no channel or no bot = nowhere).
+    App\PersonalRuns\Application\Port\RunListingChannelInterface:
+        factory: ['App\PersonalRuns\Infrastructure\Adapter\RunListingChannelFactory', 'create']
+        arguments:
+            $httpClient: '@http_client'
+            $botToken: '%env(default:default_empty_string:DISCORD_BOT_TOKEN)%'
+            $channelId: '%env(default:default_empty_string:DISCORD_RUN_LISTINGS_CHANNEL_ID)%'
+            $roleId: '%env(default:default_empty_string:DISCORD_RUN_LISTINGS_ROLE_ID)%'
     App\PersonalRuns\Domain\Repository\YamlTemplateRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineYamlTemplateRepository'
 
     App\Community\Domain\Repository\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineCommunityProfileRepository'
