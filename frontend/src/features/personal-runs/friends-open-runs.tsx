@@ -117,6 +117,28 @@ const OPENNESS_CHOICES: { value: RunOpenness; title: string; hint: string; icon:
   { value: "members", title: "Tous les membres", hint: "Une annonce visible de tous.", icon: Megaphone },
 ];
 
+/** Story 43.22: where the run stands, or what is left to do. */
+function OpennessStatus({ busy, dirty, publishing, choice }: { busy: boolean; dirty: boolean; publishing: boolean; choice: RunOpenness }) {
+  if (busy) return <p className="text-xs text-muted-foreground" role="status">Enregistrement…</p>;
+  if (dirty) {
+    return (
+      <p className="text-xs font-medium text-warning" role="status">
+        {publishing ? "Écris ton annonce puis publie-la." : "Modifications non enregistrées."}
+      </p>
+    );
+  }
+  return (
+    <p className="flex items-start gap-1.5 text-xs text-muted-foreground" role="status">
+      <Check aria-hidden className="mt-px size-3.5 shrink-0 text-success" />
+      {choice === "members"
+        ? "Annonce en ligne."
+        : choice === "friends"
+          ? "Visible de tes amis dans « Parties de tes amis » : ils la rejoignent sans invitation tant qu'elle n'est pas lancée."
+          : "Seuls ton lien et tes invitations font entrer quelqu'un."}
+    </p>
+  );
+}
+
 /**
  * The owner opens their draft run to all their friends, with an optional number of seats (story 43.14), or lists it
  * for every member with a short message and an optional date (story 43.17). Back on invitation, the run leaves the
@@ -201,7 +223,7 @@ export function RunOpennessSetting({
   return (
     <div className="grid gap-3">
       <fieldset className="grid gap-2">
-        <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Qui peut rejoindre ?</legend>
+        <legend className="mb-2 text-sm font-semibold text-foreground">Qui peut rejoindre ?</legend>
         <div className="grid gap-2 sm:grid-cols-3">
           {OPENNESS_CHOICES.map(({ value, title, hint, icon: Icon }) => {
             const selected = choice === value;
@@ -237,32 +259,45 @@ export function RunOpennessSetting({
 
       {choice !== "invite" ? (
         <form
-          className="grid gap-3 rounded-lg border border-border bg-background/40 p-3"
+          className="grid gap-4 rounded-lg border border-border bg-background/40 p-3"
           onSubmit={(e) => {
             e.preventDefault();
             void save(choice);
           }}
         >
           {choice === "members" ? (
-            <>
-              <label className="grid gap-1 text-xs font-medium text-muted-foreground" htmlFor={`pitch-${runId}`}>
-                <span className="flex justify-between gap-2">
-                  Ton annonce
-                  <span className="tabular-nums">
-                    {message.length} / {MAX_PITCH_LENGTH}
-                  </span>
+            <div className="grid gap-1">
+              <label className="flex justify-between gap-2 text-xs font-medium text-muted-foreground" htmlFor={`pitch-${runId}`}>
+                Ton annonce
+                <span className="tabular-nums">
+                  {message.length} / {MAX_PITCH_LENGTH}
                 </span>
-                <textarea
-                  className="min-h-20 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                  id={`pitch-${runId}`}
-                  maxLength={MAX_PITCH_LENGTH}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="On cherche deux joueurs pour un async tranquille, rythme libre."
-                  value={message}
-                />
               </label>
-              <label className="grid gap-1 text-xs font-medium text-muted-foreground sm:max-w-xs" htmlFor={`planned-${runId}`}>
-                Date prévue (facultatif)
+              <textarea
+                className="min-h-20 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                id={`pitch-${runId}`}
+                maxLength={MAX_PITCH_LENGTH}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="On cherche deux joueurs pour un async tranquille, rythme libre."
+                value={message}
+              />
+              <p className="text-xs text-muted-foreground">
+                Visible de tous dans{" "}
+                <Link className="font-medium text-accent-text hover:text-accent-text-hover" href="/communaute/parties">
+                  Parties qui cherchent des joueurs
+                </Link>
+                , avec les jeux choisis. Elle expire après 14 jours sans arrivée.
+              </p>
+            </div>
+          ) : null}
+
+          {/* Story 43.22: the date and the seats side by side. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {choice === "members" ? (
+              <div className="grid content-start gap-1">
+                <label className="text-xs font-medium text-muted-foreground" htmlFor={`planned-${runId}`}>
+                  Date prévue (facultatif)
+                </label>
                 <input
                   className="min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
                   id={`planned-${runId}`}
@@ -270,12 +305,9 @@ export function RunOpennessSetting({
                   type="datetime-local"
                   value={date}
                 />
-              </label>
-            </>
-          ) : null}
-
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="grid gap-1">
+              </div>
+            ) : null}
+            <div className="grid content-start gap-1">
               <label className="text-xs font-medium text-muted-foreground" htmlFor={`seats-${runId}`}>
                 {choice === "members" ? "Places voulues" : "Places pour tes amis"}
               </label>
@@ -305,6 +337,11 @@ export function RunOpennessSetting({
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Story 43.22: where things stand and the save button on one row. */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+            <OpennessStatus busy={busy} choice={choice} dirty={dirty} publishing={publishing} />
             {dirty ? (
               <button className={buttonVariants({ variant: "primary" })} disabled={busy} type="submit">
                 {publishing ? <Megaphone aria-hidden className="size-4" /> : null}
@@ -313,30 +350,9 @@ export function RunOpennessSetting({
             ) : null}
           </div>
         </form>
-      ) : null}
-
-      <p className="flex items-start gap-1.5 text-xs text-muted-foreground" role="status">
-        {busy ? (
-          "Enregistrement…"
-        ) : dirty ? (
-          publishing ? "Écris ton annonce puis publie-la." : "Modifications non enregistrées."
-        ) : (
-          <>
-            <Check aria-hidden className="mt-px size-3.5 shrink-0 text-[color:var(--color-success)]" />
-            {choice === "members" ? (
-              <span>
-                Annonce en ligne dans{" "}
-                <Link className="font-semibold text-accent-text hover:text-accent-text-hover" href="/communaute/parties">
-                  Parties qui cherchent des joueurs
-                </Link>
-                , avec les jeux choisis. Sans arrivée pendant 14 jours, elle expire.
-              </span>
-            ) : choice === "friends"
-                ? "Visible de tes amis dans « Parties de tes amis » : ils la rejoignent sans invitation tant qu'elle n'est pas lancée."
-                : "Seuls ton lien et tes invitations font entrer quelqu'un."}
-          </>
-        )}
-      </p>
+      ) : (
+        <OpennessStatus busy={busy} choice={choice} dirty={false} publishing={false} />
+      )}
       {error !== null ? (
         <p className="text-sm text-danger" role="alert">
           {error}

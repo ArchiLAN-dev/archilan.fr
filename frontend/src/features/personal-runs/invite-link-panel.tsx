@@ -54,11 +54,16 @@ export function InviteLinkPanel({
   }
 
   // Story 43.20: a row of the « Faire venir des joueurs » card rather than a card of its own.
+  // grid-cols-1 (minmax(0, 1fr)): the one-line URL must not widen the card on a phone.
   return (
-    <div className="grid gap-2">
-      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <Link aria-hidden className="size-3.5" />
-        Lien d&apos;invitation
+    <div className="grid grid-cols-1 gap-2">
+      {/* Story 43.22: a heading like the settings', with who the link is for beside it. */}
+      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <Link aria-hidden className="size-3.5 text-muted-foreground" />
+          Lien d&apos;invitation
+        </span>
+        <span className="text-xs text-muted-foreground">Pour quelqu&apos;un qui n&apos;est pas dans tes amis.</span>
       </p>
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm text-muted-foreground">
@@ -94,7 +99,6 @@ export function InviteLinkPanel({
       {error && <p className="text-xs text-[color:var(--color-danger)]">{error}</p>}
       {/* Story 30.50: where players looking for a game are. */}
       <p className="text-xs text-muted-foreground">
-        Pour quelqu&apos;un qui n&apos;est pas dans tes amis.{" "}
         <a
           className="inline-flex items-center gap-1 font-semibold text-accent-text hover:text-accent-text-hover"
           href={externalLinks.archilanDiscord}

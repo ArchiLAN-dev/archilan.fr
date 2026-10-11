@@ -14,16 +14,27 @@ namespace App\Sessions\Application\Support;
  *
  * "Longest road" needs a duration, but every slot shares the session start, so
  * the shared start cancels: latest goal = longest road, earliest = first to goal.
+ *
+ * A superlative ranks players against each other, so a session played by fewer than
+ * MIN_PLAYERS distinct members has none (story 32.23): alone, one would be first and last
+ * to goal at once. Members, not slots - one member can hold several slots of a personal run.
  */
 final class RecapSuperlativesCalculator
 {
+    public const int MIN_PLAYERS = 2;
+
     /**
      * @param array<string,?\DateTimeImmutable> $goalReachedBySlotName slotName => goal time (null if never reached)
+     * @param int                               $playerCount           distinct members playing the session (owners and co-players)
      *
      * @return list<RecapSuperlative>
      */
-    public function calculate(RecapGraph $graph, array $goalReachedBySlotName): array
+    public function calculate(RecapGraph $graph, array $goalReachedBySlotName, int $playerCount): array
     {
+        if ($playerCount < self::MIN_PLAYERS) {
+            return [];
+        }
+
         $superlatives = [];
 
         $mostGenerous = $this->mostGenerous($graph);

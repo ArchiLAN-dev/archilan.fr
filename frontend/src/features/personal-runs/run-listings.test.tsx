@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { AuthUser } from "../auth/auth-context";
 import type { FriendCard } from "@/features/community/community-friends-api";
 import { RunOpennessSetting } from "./friends-open-runs";
-import { RUN_LISTINGS_KEY, type RunListing } from "./run-listings-api";
-import { friendsInLabel, plannedLabel, RunListingsBoard } from "./run-listings";
+import type { RunListing } from "./run-listings-api";
+import { friendsInLabel, plannedLabel, RunListingsBoard, runListingsKey, RunListingsBadge, RunListingsSpotlight, joinableCount, seatsLeftLabel } from "./run-listings";
 
 let mockUser: Partial<AuthUser> | null = { id: "me" };
 jest.mock("../auth/auth-context", () => ({
@@ -21,7 +21,7 @@ function card(slug: string): FriendCard {
 
 function render(node: React.ReactNode, listings: RunListing[] | undefined = undefined): string {
   const client = new QueryClient();
-  if (listings !== undefined) client.setQueryData(RUN_LISTINGS_KEY, listings);
+  if (listings !== undefined) client.setQueryData(runListingsKey(mockUser?.id ?? null), listings);
   return renderToStaticMarkup(<QueryClientProvider client={client}>{node}</QueryClientProvider>);
 }
 
@@ -53,18 +53,42 @@ describe("run listings", () => {
     mockUser = { id: "me" };
     const html = render(<RunListingsBoard />, [listing]);
 
-    expect(html).toContain("« La giga async »");
+    expect(html).toContain(">La giga async<");
     expect(html).toContain("On cherche deux joueurs, rythme libre.");
-    expect(html).toContain("Jeux : Hollow Knight, Celeste");
-    expect(html).toContain("2 / 4 places");
+    expect(html).toContain(">Hollow Knight<");
+    expect(html).toContain(">Celeste<");
+    expect(html).toContain("2 places libres sur 4");
     expect(html).toContain("Bob y est déjà");
     expect(html).toContain("Rejoindre");
     expect(html).toContain("Signaler");
   });
 
-  it("asks a visitor to sign in", () => {
+  it("says what is left to take (story 43.25)", () => {
+    expect(seatsLeftLabel({ seatsWanted: 4, joined: 1 })).toBe("3 places libres sur 4");
+    expect(seatsLeftLabel({ seatsWanted: 2, joined: 1 })).toBe("1 place libre sur 2");
+    expect(seatsLeftLabel({ seatsWanted: null, joined: 0 })).toBe("Places illimitées");
+    expect(seatsLeftLabel({ seatsWanted: null, joined: 2 })).toBe("2 inscrits · places illimitées");
+  });
+
+  it("flags the viewer's own listing, to manage rather than join or report (story 43.23)", () => {
+    mockUser = { id: "me" };
+    const html = render(<RunListingsBoard />, [{ ...listing, isMine: true }]);
+
+    expect(html).toContain("Ta partie");
+    expect(html).toContain("Gérer ma partie");
+    expect(html).toContain('href="/runs/r1"');
+    expect(html).not.toContain("Rejoindre");
+    expect(html).not.toContain("Signaler");
+    expect(render(<RunListingsBoard />, [listing])).not.toContain("Ta partie");
+  });
+
+  it("shows a visitor the listings, to sign in before joining (story 43.24)", () => {
     mockUser = null;
-    expect(render(<RunListingsBoard />)).toContain("Connecte-toi");
+    const html = render(<RunListingsBoard />, [listing]);
+    expect(html).toContain(">La giga async<");
+    expect(html).toContain("Se connecter pour rejoindre");
+    expect(html).toContain('href="/connexion?returnTo=/communaute/parties"');
+    expect(html).not.toContain("Signaler");
     mockUser = { id: "me" };
   });
 
@@ -76,5 +100,42 @@ describe("run listings", () => {
     expect(html).toContain("Venez !");
     expect(html).toContain("Places voulues");
     expect(html).toContain("Date prévue");
+  });
+});
+
+/** Story 43.21: the listings put forward. */
+describe("run listings spotlight", () => {
+  const more = [listing, { ...listing, runId: "r2", title: "Seconde" }, { ...listing, runId: "r3", title: "Troisième" }];
+
+  it("shows the two latest listings on « Communauté » and the way to all of them", () => {
+    mockUser = { id: "me" };
+    const html = render(<RunListingsSpotlight />, more);
+    expect(html).toContain("Parties qui cherchent des joueurs");
+    expect(html).toContain(">La giga async<");
+    expect(html).toContain(">Seconde<");
+    expect(html).not.toContain("Troisième");
+    expect(html).toContain("Voir les 3 annonces");
+    expect(html).toContain('href="/communaute/parties"');
+  });
+
+  it("invites a member to publish one when there is none; a visitor sees the listings", () => {
+    expect(render(<RunListingsSpotlight />, [])).toContain("Publie la tienne");
+    mockUser = null;
+    expect(render(<RunListingsSpotlight />, [])).not.toContain("Publie la tienne");
+    expect(render(<RunListingsSpotlight />, more)).toContain(">Seconde<");
+    mockUser = { id: "me" };
+  });
+});
+
+/** Story 43.26: the badge beside « Communauté ». */
+describe("run listings badge", () => {
+  it("counts what the viewer could join, their own left out, nothing at zero", () => {
+    expect(joinableCount([listing, { ...listing, runId: "r2", isMine: true }])).toBe(1);
+    mockUser = { id: "me" };
+    expect(render(<RunListingsBadge />, [listing, { ...listing, runId: "r2" }])).toContain("2 parties cherchent des joueurs");
+    expect(render(<RunListingsBadge />, [{ ...listing, isMine: true }])).toBe("");
+    mockUser = null;
+    expect(render(<RunListingsBadge />, [listing])).toContain("1 partie cherche des joueurs");
+    mockUser = { id: "me" };
   });
 });

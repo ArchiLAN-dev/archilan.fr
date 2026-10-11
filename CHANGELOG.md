@@ -5,6 +5,40 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.40.0] - 2026-10-11
+
+Les annonces de parties qui cherchent des joueurs sortent de l'ombre : mises en avant sur Communauté, visibles sans
+compte, signalées par un badge dans le menu, avec une carte plus lisible. Les succès de superlatifs demandent
+désormais deux joueurs et comptent aussi les parties perso.
+
+### Ajouté
+
+- **Annonces mises en avant** (43.21) : la page Communauté montre les parties qui cherchent des joueurs, avec un
+  lien vers toutes les annonces.
+- **Sa propre partie dans les annonces** (43.23) : le créateur voit son annonce comme les autres membres, marquée
+  « Ta partie », avec un lien pour la gérer.
+- **Annonces visibles sans compte** (43.24) : un visiteur voit les annonces et peut se connecter pour en rejoindre
+  une ; la page reste hors de l'index des moteurs.
+- **Badge sur « Communauté »** (43.26) : une pastille verte donne le nombre de parties que l'on peut rejoindre.
+- **Superlatifs des parties perso** (32.23) : une partie perso terminée à plusieurs compte pour les succès de
+  superlatifs, au propriétaire du slot gagnant comme à ses co-joueurs.
+
+### Modifié
+
+- **Carte « Faire venir des joueurs » plus claire** (43.22) : réglages repliables, aperçu de l'annonce, plus de
+  débordement sur téléphone.
+- **Carte d'annonce plus lisible** (43.25) : titre en tête, hôte avec son avatar, places restantes, jeux en
+  étiquettes, amis déjà inscrits, actions dans un pied de carte.
+- **Superlatifs à partir de deux joueurs** (32.23) : une session jouée par un seul membre n'a plus de superlatif
+  (on gagnait seul « Speedy Gonzales » et « Le Seigneur des Anneaux » d'un coup).
+
+### Déploiement
+
+- Aucune migration. L'API et le front partent ensemble (`GET /run-listings` répond désormais sans session).
+- Les superlatifs déjà gagnés en partie perso à plusieurs deviennent des succès au prochain recalcul horaire, sans
+  notification ; `php bin/console community:achievements:recompute` pour le faire tout de suite. Les succès déjà
+  gagnés en solo restent acquis.
+
 ## [0.39.0] - 2026-10-10
 
 L'epic 43 « Des amis qui servent à jouer » : les amis deviennent un moyen de trouver des parties, d'y inviter, de

@@ -65,6 +65,45 @@ final class RunListingsTest extends FunctionalTestCase
         self::assertCount(1, $this->entityManager->getRepository(Notification::class)->findBy(['recipientId' => $this->owner->getId(), 'type' => 'run_joined']));
     }
 
+    public function testTheOwnerSeesTheirOwnListingFlaggedAsTheirs(): void
+    {
+        $stranger = $this->member('stranger');
+        $this->list('Ma partie du samedi', 2);
+        self::assertResponseStatusCodeSame(200);
+
+        $mine = $this->listingsOf($this->owner);
+        self::assertCount(1, $mine, 'story 43.23: the owner sees their own listing');
+        self::assertIsArray($mine[0]);
+        self::assertTrue($mine[0]['isMine']);
+
+        $theirs = $this->listingsOf($stranger);
+        self::assertCount(1, $theirs);
+        self::assertIsArray($theirs[0]);
+        self::assertFalse($theirs[0]['isMine']);
+    }
+
+    public function testAVisitorSeesTheListingsButMustSignInToJoin(): void
+    {
+        $this->list('Ouverte a tous', 2);
+        self::assertResponseStatusCodeSame(200);
+
+        // Story 43.24: no account needed to look.
+        $this->client->getCookieJar()->clear();
+        $this->client->request('GET', '/api/v1/run-listings');
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertCount(1, $data);
+        self::assertIsArray($data[0]);
+        self::assertSame('Ouverte a tous', $data[0]['pitch']);
+        self::assertFalse($data[0]['isMine']);
+        self::assertFalse($data[0]['isOwnerFriend']);
+        self::assertSame([], $data[0]['friendsIn']);
+
+        $this->join();
+        self::assertResponseStatusCodeSame(401);
+    }
+
     public function testAListingNeedsAShortMessageAndAnAccountInGoodStanding(): void
     {
         $this->list('   ', null);

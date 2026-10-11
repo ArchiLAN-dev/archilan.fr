@@ -79,16 +79,11 @@ final readonly class RunOpennessController
         return new JsonResponse(['data' => $this->openRuns->forViewer($user->getId())]);
     }
 
-    /** Story 43.17: « Parties qui cherchent des joueurs », for signed-in members. */
+    /** Story 43.17: « Parties qui cherchent des joueurs ». Story 43.24: open to visitors as well. */
     #[Route('/api/v1/run-listings', name: 'api_run_listings', methods: ['GET'])]
     public function listings(Request $request): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
-        if ($user instanceof JsonResponse) {
-            return $user;
-        }
-
-        return new JsonResponse(['data' => $this->listings->forViewer($user->getId())]);
+        return new JsonResponse(['data' => $this->listings->forViewer($this->apiAccessGuard->optionalUser($request)?->getId())]);
     }
 
     #[Route('/api/v1/runs/{runId}/join-open', name: 'api_runs_join_open', methods: ['POST'])]
