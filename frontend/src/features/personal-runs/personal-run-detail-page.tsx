@@ -36,7 +36,7 @@ import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
 import { ConnectionDetails } from "./connection-details";
 import { RunInvitationsList } from "./run-invitations";
-import { recruitSummary, RunRecruitPanel } from "./run-recruit-panel";
+import { RunRecruitPanel } from "./run-recruit-panel";
 import { RunOpennessSetting } from "./friends-open-runs";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { RunNudgeButton, RunNudgeMute, useRunNudges } from "./run-nudges";
@@ -810,7 +810,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 }
                 participantIds={run.participants.map((p) => p.userId)}
                 runId={run.id}
-                summary={recruitSummary(run.openness ?? "invite", run.seatsWanted ?? null)}
+                state={{ openness: run.openness ?? "invite", seatsWanted: run.seatsWanted ?? null, pitch: run.pitch ?? null, plannedFor: run.plannedFor ?? null }}
               />
             </div>
           )}
