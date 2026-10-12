@@ -221,9 +221,8 @@ export function EventForm({
         <EventTextField
           defaultValue={event?.helloassoFormSlug ?? ""}
           error={errors.helloassoFormSlug}
-          hint="Le slug du formulaire de billetterie, à la fin de son adresse HelloAsso. Vide : pas de billetterie."
+          hint="La fin de l'adresse du formulaire de billetterie (ex. archilan-4), ou l'adresse entière. Vide : pas de billetterie."
           label="Formulaire HelloAsso (slug)"
-          maxLength={120}
           name="helloassoFormSlug"
         />
       </div>
@@ -298,7 +297,6 @@ function EventTextField({
   error,
   hint,
   label,
-  maxLength,
   min,
   name,
   type = "text",
@@ -307,7 +305,6 @@ function EventTextField({
   error?: string;
   hint?: string;
   label: string;
-  maxLength?: number;
   min?: number;
   name: EventField;
   type?: string;
@@ -324,7 +321,6 @@ function EventTextField({
         aria-invalid={error ? true : undefined}
         className="min-h-11 rounded border border-border bg-background px-3 outline-none focus:border-accent"
         defaultValue={defaultValue}
-        maxLength={maxLength}
         min={min}
         name={name}
         type={type}

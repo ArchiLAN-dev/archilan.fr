@@ -252,9 +252,9 @@ function EligiblePanel({ eventSlug }: { eventSlug: string }) {
         </p>
         <Link
           className="inline-flex min-h-12 w-fit items-center justify-center rounded bg-accent px-6 font-semibold text-white transition-colors hover:bg-accent-hover"
-          href={`/evenements/${eventSlug}/inscription/${state.registrationId}/jeux`}
+          href={`/evenements/${eventSlug}/inscription/${state.registrationId}/${state.kind === "already_registered" ? "recap" : "jeux"}`}
         >
-          Choisir mes jeux →
+          {state.kind === "already_registered" ? "Voir mon récapitulatif →" : "Choisir mes jeux →"}
         </Link>
       </div>
     );

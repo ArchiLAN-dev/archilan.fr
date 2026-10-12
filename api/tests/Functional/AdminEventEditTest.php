@@ -122,9 +122,31 @@ final class AdminEventEditTest extends FunctionalTestCase
         self::assertResponseIsSuccessful();
         self::assertSame('archilan-4-billet', $this->storedSlug($event));
 
+        $this->client->jsonRequest('PATCH', $url, [...$this->validPayload(), 'helloassoFormSlug' => 'https://www.helloasso.com/associations/archilan/evenements/archilan-4/widget']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('archilan-4', $this->storedSlug($event));
+
         $this->client->jsonRequest('PATCH', $url, [...$this->validPayload(), 'helloassoFormSlug' => '']);
         self::assertResponseIsSuccessful();
         self::assertNull($this->storedSlug($event));
+    }
+
+    public function testHelloassoSlugWithOtherCharactersIsRejected(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $event = $this->createEvent('Spring Sync 2027', new \DateTimeImmutable('2027-05-31T10:00:00+00:00'), new \DateTimeImmutable('2027-05-31T22:00:00+00:00'));
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/events/%s', $event->getId()), [
+            ...$this->validPayload(),
+            'helloassoFormSlug' => 'ArchiLAN 4/../billet',
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        $response = $this->decodedJsonResponse();
+        self::assertIsArray($response['error']);
+        self::assertIsArray($response['error']['details']);
+        self::assertArrayHasKey('helloassoFormSlug', $response['error']['details']);
     }
 
     public function testTooLongHelloassoSlugIsRejected(): void
