@@ -38,6 +38,10 @@ framework:
 
         routing:
             'App\Communications\Application\Message\RegistrationConfirmationMessage': async
+            'App\Communications\Application\Message\RegistrationConfirmationReminderMessage': async
+            'App\Communications\Application\Message\RegistrationReleasedMessage': async
+            # Story 4.23: the hourly pass over unconfirmed registrations runs on the async worker.
+            'App\Registrations\Application\Message\ProcessUnconfirmedRegistrationsMessage': async
             'App\Communications\Application\Message\PasswordResetMessage': async
             'App\Communications\Application\Message\EmailConfirmationMessage': async
             'App\Communications\Application\Message\SessionRunningMessage': async

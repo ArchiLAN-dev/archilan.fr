@@ -66,6 +66,8 @@ export type EligibilityEvent = {
   registrationOpensAt: string;
   registrationClosesAt: string;
   isPublic: boolean;
+  /** Story 4.23: whether a code can open this private event; absent from an older API, read as false. */
+  hasPrivateAccessPassword?: boolean;
 };
 
 export type EligibilityResult = {
@@ -583,7 +585,7 @@ export async function fetchRegistrationPatches(registrationId: string): Promise<
 
 export type MyRegistrationCta =
   | { kind: "guest" }
-  | { kind: "registered"; registrationId: string }
+  | { kind: "registered"; registrationId: string; confirmed: boolean }
   | { kind: "not_registered" };
 
 /**
@@ -603,7 +605,7 @@ export async function fetchMyRegistrationCta(eventId: string): Promise<MyRegistr
     const data = dataOf(payload);
     // Story 4.22: a cancelled registration is no registration; the member may sign up again.
     if (typeof data === "object" && data !== null && hasStringProp(data, "registrationId") && !("status" in data && data.status === "cancelled")) {
-      return { kind: "registered", registrationId: data.registrationId };
+      return { kind: "registered", registrationId: data.registrationId, confirmed: hasBooleanProp(data, "confirmed") && data.confirmed };
     }
     return { kind: "not_registered" };
   } catch {

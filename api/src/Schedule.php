@@ -21,6 +21,7 @@ use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\PersonalRuns\Application\Message\ExpireRunListingsMessage;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
 use App\PersonalRuns\Application\Message\SyncRunListingsToDiscordMessage;
+use App\Registrations\Application\Message\ProcessUnconfirmedRegistrationsMessage;
 use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\Wallet\Application\Message\AwardWeeklyQuestsMessage;
@@ -69,6 +70,11 @@ final readonly class Schedule implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::cron('30 3 * * *', new CleanupEventPrivateAccessLogMessage()),
+            )
+            ->add(
+                // Story 4.23: remind unconfirmed registrations 48 h before registrations close, release them once
+                // closed. Hourly, so the reminder and the release land within the hour.
+                RecurringMessage::cron('20 * * * *', new ProcessUnconfirmedRegistrationsMessage()),
             )
             ->add(
                 // Backstop: catch any achievement unlock the real-time post-archive path missed

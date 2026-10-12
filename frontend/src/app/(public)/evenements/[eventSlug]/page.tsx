@@ -2,23 +2,24 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, CalendarDays, ExternalLink, ImageIcon, Lock, MapPin, RefreshCw, Swords, Trophy, Users } from "lucide-react";
+import { AlertTriangle, CalendarDays, Clock, ExternalLink, ImageIcon, Lock, MapPin, RefreshCw, Trophy, Users } from "lucide-react";
 import { AdminEditLink } from "@/components/admin-edit-link";
 import { JsonLd } from "@/components/json-ld";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import { externalLinks } from "@/lib/external-links";
 import type { EventAttendanceMode, EventStatus, PublicEvent } from "@/features/events/event-types";
 import { getPublicEvent } from "@/features/events/public-events-api";
+import { dayAndHour, eventSchedule } from "@/features/events/event-schedule";
 import { EventCheckout } from "@/features/events/event-checkout";
 import { EventRegistrationCta } from "@/features/events/event-registration-cta";
+import { EventPartiesSection } from "@/features/events/event-parties";
+import { PrivateEventParties } from "@/features/events/private-event-parties";
 import { EventFriendsBadge } from "@/features/community/event-friends-badge";
 import { fetchDiscordStats } from "@/features/discord/discord-api";
 import { DiscordNudge } from "@/features/discord/discord-promo";
 import { LiveSeatCounter } from "@/features/events/live-seat-counter";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
-import type { EventRecapIndexEntry } from "@/features/recap/recap-api";
 import { getEventRecapIndex } from "@/features/recap/recap-api.server";
-import { formatDuration } from "@/features/recap/recap-format";
 
 type EventDetailPageProps = {
   params: Promise<{ eventSlug: string }>;
@@ -40,23 +41,33 @@ import { Markdown } from "@/components/markdown/markdown";
 import { markdownToPlainText } from "@/components/markdown/markdown-to-plain-text";
 
 const statusDetails: Record<EventStatus, DetailStatus> = {
+  upcoming: {
+    label: "Inscriptions bientôt ouvertes",
+    description: "Les détails sont publiés, les inscriptions ouvriront plus tard.",
+    tone: "border-accent/50 text-accent-text",
+    cta: { label: "Suivre les annonces", href: externalLinks.archipelagoDiscord, external: true },
+  },
   open: {
     label: "Inscriptions ouvertes",
     description: "Des places sont encore disponibles. Prépare tes jeux et rejoins la session.",
     tone: "border-success/50 text-success",
     cta: { label: "S'inscrire à cet événement", href: "inscription" },
   },
-  upcoming: {
-    label: "Bientôt disponible",
-    description: "Les détails sont publiés, les inscriptions ouvriront plus tard.",
-    tone: "border-accent/50 text-accent-text",
-    cta: { label: "Suivre les annonces", href: externalLinks.archipelagoDiscord, external: true },
-  },
   full: {
     label: "Complet",
-    description: "La capacité annoncée est atteinte. Surveille les annonces pour les prochaines sessions.",
+    description: "Toutes les places sont prises. Une place libérée redevient disponible ici.",
     tone: "border-danger/60 text-danger",
     cta: { label: "Suivre les annonces", href: externalLinks.archipelagoDiscord, external: true },
+  },
+  closed: {
+    label: "Inscriptions fermées",
+    description: "Les inscriptions sont closes. Rendez-vous le jour J pour suivre l'événement.",
+    tone: "border-muted-foreground/40 text-muted-foreground",
+  },
+  "in-progress": {
+    label: "En cours",
+    description: "L'événement a commencé. Les inscrits retrouvent leur partie ci-contre.",
+    tone: "border-special/60 text-special",
   },
   completed: {
     label: "Terminé",
@@ -66,9 +77,11 @@ const statusDetails: Record<EventStatus, DetailStatus> = {
 };
 
 const schemaStatusMap: Record<EventStatus, string> = {
-  open: "https://schema.org/EventScheduled",
   upcoming: "https://schema.org/EventScheduled",
+  open: "https://schema.org/EventScheduled",
   full: "https://schema.org/EventScheduled",
+  closed: "https://schema.org/EventScheduled",
+  "in-progress": "https://schema.org/EventScheduled",
   completed: "https://schema.org/EventCompleted",
 };
 
@@ -218,13 +231,25 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             </h2>
             <dl className="mt-6 grid gap-4 text-sm">
               <DetailMeta icon={CalendarDays} label="Date">
-                {event.dateIso ? <time dateTime={event.dateIso}>{event.date}</time> : event.date}
+                {event.dateIso && event.endDateIso ? (
+                  <time dateTime={event.dateIso}>{eventSchedule(event.dateIso, event.endDateIso)}</time>
+                ) : (
+                  event.date
+                )}
               </DetailMeta>
               <DetailMeta icon={MapPin} label="Lieu">
                 {event.location}
               </DetailMeta>
+              {event.registrationOpensAtIso && event.registrationClosesAtIso && event.status !== "completed" ? (
+                <DetailMeta icon={Clock} label="Inscriptions">
+                  Du <time dateTime={event.registrationOpensAtIso}>{dayAndHour(event.registrationOpensAtIso)}</time> au{" "}
+                  <time dateTime={event.registrationClosesAtIso}>{dayAndHour(event.registrationClosesAtIso, true)}</time>
+                </DetailMeta>
+              ) : null}
               <DetailMeta icon={Users} label="Disponibilité">
-                {status.description}
+                {event.status === "upcoming" && event.registrationOpensAtIso
+                  ? `Les inscriptions ouvrent le ${dayAndHour(event.registrationOpensAtIso)}.`
+                  : status.description}
               </DetailMeta>
             </dl>
           </div>
@@ -246,8 +271,8 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
                 </p>
               </div>
             )}
-            {event.status === "open" ? (
-              <EventRegistrationCta eventId={event.id} eventSlug={eventSlug} />
+            {event.status === "open" || event.status === "in-progress" ? (
+              <EventRegistrationCta eventId={event.id} eventSlug={eventSlug} inProgress={event.status === "in-progress"} />
             ) : null}
             {/* Story 30.50: questions go to the Discord. */}
             {event.status !== "completed" ? (
@@ -287,65 +312,17 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           </section>
         ) : null}
 
-        <EventPartiesSection parties={recapParties} />
+        {/* Story 4.23: a private event's list needs the member's session, which only the browser carries. */}
+        {event.membersOnly && recapParties.length === 0 ? (
+          <PrivateEventParties eventId={event.id} />
+        ) : (
+          <EventPartiesSection parties={recapParties} />
+        )}
 
         <EventPhotoGallery event={event} />
       </article>
     </>
   );
-}
-
-// Per-event recap index (story 32.3): one row per finished session that has a public recap.
-// Hidden entirely when empty - most events have no recap yet (pre-32.1 sessions never will).
-function EventPartiesSection({ parties }: { parties: EventRecapIndexEntry[] }) {
-  if (parties.length === 0) {
-    return null;
-  }
-
-  return (
-    <section aria-labelledby="event-parties-heading" className="rounded-lg border border-border p-6">
-      <div className="flex items-center gap-3">
-        <Swords aria-hidden="true" className="size-5 text-accent-text" />
-        <h2 className="font-heading text-2xl font-semibold text-foreground" id="event-parties-heading">
-          Les parties de cet événement
-        </h2>
-      </div>
-      <ul className="mt-6 grid gap-3">
-        {parties.map((party) => (
-          <li key={party.sessionId}>
-            <Link
-              className="flex flex-col gap-2 rounded border border-border bg-surface p-4 transition-colors hover:border-accent sm:flex-row sm:items-center sm:justify-between"
-              href={`/parties/${party.sessionId}`}
-            >
-              <span className="flex flex-col gap-1">
-                <span className="font-semibold text-foreground">
-                  {partyLabel(party.finishedAt ?? party.startedAt)}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {party.winner
-                    ? `Vainqueur : ${party.winner.playerName} (${party.winner.game})`
-                    : "Objectifs non atteints"}
-                </span>
-              </span>
-              <span className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{party.playerCount} joueurs</span>
-                {party.durationSeconds !== null ? <span>{formatDuration(party.durationSeconds)}</span> : null}
-                <span className="font-semibold text-accent-text">Voir le récap</span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function partyLabel(iso: string | null): string {
-  const date = iso !== null ? new Date(iso) : null;
-  if (date === null || Number.isNaN(date.getTime())) {
-    return "Partie de l'événement";
-  }
-  return `Partie du ${date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`;
 }
 
 function EventCheckoutUnavailable({ eventId }: { eventId: string }) {

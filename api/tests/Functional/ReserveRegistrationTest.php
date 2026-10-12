@@ -96,6 +96,13 @@ final class ReserveRegistrationTest extends FunctionalTestCase
         self::assertSame('reserved', $second['outcome']);
         self::assertSame($first['registrationId'], $second['registrationId']);
 
+        // Story 4.23: the event page reads whether the registration is confirmed (it is not yet).
+        $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/my-registration', $event->getId()));
+        self::assertResponseIsSuccessful();
+        $mine = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($mine);
+        self::assertFalse($mine['confirmed']);
+
         $this->entityManager->clear();
         $registrations = $this->entityManager->getRepository(Registration::class)->findAll();
         self::assertCount(1, $registrations);

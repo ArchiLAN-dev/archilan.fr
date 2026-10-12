@@ -167,25 +167,31 @@ export function RegistrationEligibilityGate({
         <EligiblePanel eventSlug={eventSlug} />
       ) : result.reason === "private_event" ? (
         <>
-          <IneligiblePanel reason={result.reason} opensAt={result.opensAt} />
+          <IneligiblePanel
+            hasAccessCode={result.event.hasPrivateAccessPassword === true}
+            opensAt={result.opensAt}
+            reason={result.reason}
+          />
           <p className="text-sm text-muted-foreground">
             Pas encore adhérent ?{" "}
             <Link className="font-semibold text-accent-text hover:underline" href="/adhesion">
               Adhérer à ArchiLAN
             </Link>
           </p>
-          <PrivateAccessDisclosure
-            eventSlug={eventSlug}
-            onGranted={() =>
-              queryClient.setQueryData<EligibilityQueryData>(
-                ["registration-eligibility", eventSlug],
-                (prev) =>
-                  prev?.kind === "success"
-                    ? { kind: "success", result: { ...prev.result, eligible: true, reason: null } }
-                    : prev,
-              )
-            }
-          />
+          {result.event.hasPrivateAccessPassword === true ? (
+            <PrivateAccessDisclosure
+              eventSlug={eventSlug}
+              onGranted={() =>
+                queryClient.setQueryData<EligibilityQueryData>(
+                  ["registration-eligibility", eventSlug],
+                  (prev) =>
+                    prev?.kind === "success"
+                      ? { kind: "success", result: { ...prev.result, eligible: true, reason: null } }
+                      : prev,
+                )
+              }
+            />
+          ) : null}
         </>
       ) : result.reason === "email_not_verified" ? (
         <EmailVerificationBanner />
@@ -340,11 +346,13 @@ function EligiblePanel({ eventSlug }: { eventSlug: string }) {
 function IneligiblePanel({
   reason,
   opensAt,
+  hasAccessCode = false,
 }: {
   reason: EligibilityReason | null;
   opensAt: string | null;
+  hasAccessCode?: boolean;
 }) {
-  const info = ineligibleInfo(reason, opensAt);
+  const info = ineligibleInfo(reason, opensAt, hasAccessCode);
 
   return (
     <div className="grid gap-4 card-glow rounded-lg border border-border p-6">
@@ -360,13 +368,16 @@ function IneligiblePanel({
 function ineligibleInfo(
   reason: EligibilityReason | null,
   opensAt: string | null,
+  hasAccessCode: boolean,
 ): { icon: React.ReactNode; title: string; description: string } {
   switch (reason) {
     case "private_event":
       return {
         icon: <Lock aria-hidden="true" className="size-5 text-muted-foreground" />,
         title: "Événement privé",
-        description: "Cet événement est réservé aux adhérents ArchiLAN à jour de leur cotisation. Si tu as un code d'accès, utilise-le ci-dessous.",
+        description: hasAccessCode
+          ? "Cet événement est réservé aux adhérents ArchiLAN à jour de leur cotisation. Si tu as un code d'accès, utilise-le ci-dessous."
+          : "Cet événement est réservé aux adhérents ArchiLAN à jour de leur cotisation.",
       };
     case "event_completed":
       return {
@@ -416,7 +427,8 @@ function PrivateAccessDisclosure({
   eventSlug: string;
   onGranted: () => void;
 }) {
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  // Story 4.23: a refused code and a failed check are two different messages.
+  const [status, setStatus] = useState<"idle" | "loading" | "refused" | "error">("idle");
   const [password, setPassword] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
@@ -440,7 +452,7 @@ function PrivateAccessDisclosure({
       if (isGrantedResponse(payload)) {
         onGranted();
       } else {
-        setStatus("error");
+        setStatus("refused");
       }
     } catch {
       setStatus("error");
@@ -465,13 +477,15 @@ function PrivateAccessDisclosure({
               id="private-access-password"
               onChange={(e) => {
                 setPassword(e.target.value);
-                if (status === "error") setStatus("idle");
+                if (status === "error" || status === "refused") setStatus("idle");
               }}
               type="password"
               value={password}
             />
-            {status === "error" ? (
-              <p className="text-xs text-danger">Code d&apos;accès invalide.</p>
+            {status === "refused" ? (
+              <p className="text-xs text-danger" role="alert">Code d&apos;accès invalide.</p>
+            ) : status === "error" ? (
+              <p className="text-xs text-danger" role="alert">Impossible de vérifier le code pour le moment. Réessaie dans quelques instants.</p>
             ) : null}
           </div>
           <button

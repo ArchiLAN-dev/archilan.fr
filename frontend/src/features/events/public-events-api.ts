@@ -1,7 +1,8 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
-import type { EventStatus, PublicEvent } from "./event-types";
+import type { PublicEvent } from "./event-types";
+import { eventDate, eventStatusAt } from "./event-schedule";
 
 type PublicEventPayload = {
   id: string;
@@ -78,14 +79,16 @@ function toPublicEvent(event: PublicEventPayload): PublicEvent {
   return {
     id: event.id,
     title: event.title,
-    date: formatDate(event.startsAt),
+    date: eventDate(event.startsAt),
     dateIso: event.startsAt,
     endDateIso: event.endsAt,
+    registrationOpensAtIso: event.registrationOpensAt,
+    registrationClosesAtIso: event.registrationClosesAt,
     location: event.venue,
     description: event.description,
     coverImageUrl: event.coverImageUrl ?? null,
     photoGallery: Array.isArray(event.photoGallery) ? event.photoGallery.slice(0, 12) : [],
-    status: toCardStatus(event),
+    status: eventStatusAt(event, new Date()),
     membersOnly: !event.isPublic,
     capacity: {
       remaining: Math.max(event.capacity - event.confirmedRegistrations, 0),
@@ -97,24 +100,6 @@ function toPublicEvent(event: PublicEventPayload): PublicEvent {
     ...(event.recapPostSlug ? { recap: event.recapPostSlug } : {}),
     ...(event.checkoutEmbedUrl ? { checkoutEmbedUrl: event.checkoutEmbedUrl } : {}),
   };
-}
-
-function toCardStatus(event: PublicEventPayload): EventStatus {
-  if (event.status === "completed") {
-    return "completed";
-  }
-
-  if (event.status === "in-progress") {
-    return "open";
-  }
-
-  return new Date(event.registrationOpensAt ?? event.startsAt) > new Date() ? "upcoming" : "open";
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("fr-FR", {
-    dateStyle: "long",
-  }).format(new Date(value));
 }
 
 function fallbackEvents(): { upcoming: PublicEvent[]; past: PublicEvent[] } {
