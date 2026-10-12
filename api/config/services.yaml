@@ -485,6 +485,7 @@ services:
     App\CatalogSync\Application\Query\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\Dbal\DbalImportedCatalogNamesQuery'
 
     App\Content\Domain\Repository\PostRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrinePostRepository'
+    App\Content\Domain\Repository\HomeAnnouncementRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrineHomeAnnouncementRepository'
 
     App\Events\Domain\Repository\EventRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventRepository'
     App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventPrivateAccessLogRepository'
