@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, CalendarDays, ExternalLink, ImageIcon, MapPin, RefreshCw, Swords, Trophy, Users } from "lucide-react";
+import { AlertTriangle, CalendarDays, ExternalLink, ImageIcon, Lock, MapPin, RefreshCw, Swords, Trophy, Users } from "lucide-react";
 import { AdminEditLink } from "@/components/admin-edit-link";
 import { JsonLd } from "@/components/json-ld";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
@@ -63,11 +63,6 @@ const statusDetails: Record<EventStatus, DetailStatus> = {
     description: "Cet événement est terminé. Consulte le récap ou la VOD quand ils sont disponibles.",
     tone: "border-muted-foreground/40 text-muted-foreground",
   },
-  "members-only": {
-    label: "Réservé aux membres",
-    description: "Cet événement est publié, mais l'accès est réservé aux membres ArchiLAN.",
-    tone: "border-special/60 text-special",
-  },
 };
 
 const schemaStatusMap: Record<EventStatus, string> = {
@@ -75,7 +70,6 @@ const schemaStatusMap: Record<EventStatus, string> = {
   upcoming: "https://schema.org/EventScheduled",
   full: "https://schema.org/EventScheduled",
   completed: "https://schema.org/EventCompleted",
-  "members-only": "https://schema.org/EventScheduled",
 };
 
 const schemaAttendanceModeMap: Record<EventAttendanceMode, string> = {
@@ -184,6 +178,16 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           </div>
 
           <Markdown className="text-lg leading-8 text-muted-foreground">{event.description}</Markdown>
+
+          {event.membersOnly && event.status !== "completed" ? (
+            <p className="inline-flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <Lock aria-hidden="true" className="size-4 text-special" />
+              Réservé aux adhérents ArchiLAN à jour, ou sur code d&apos;accès.
+              <Link className="font-semibold text-accent-text hover:underline" href="/adhesion">
+                Adhérer
+              </Link>
+            </p>
+          ) : null}
 
           {/* Story 43.4: who among my friends is coming, client-side. */}
           {event.status !== "completed" ? <EventFriendsBadge eventId={event.id} /> : null}

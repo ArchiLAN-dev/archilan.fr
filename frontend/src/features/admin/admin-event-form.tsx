@@ -219,7 +219,7 @@ export function EventForm({
         <div className="grid gap-0.5">
           <span className="text-sm font-semibold text-foreground">Accès public</span>
           <span className="text-xs text-muted-foreground">
-            {isPublic ? "Inscriptions ouvertes à tous · checkout HelloAsso visible" : "Accès restreint · protégé par mot de passe"}
+            {isPublic ? "Inscriptions ouvertes à tous · checkout HelloAsso visible" : "Réservé aux adhérents à jour, ou sur code d'accès"}
           </span>
         </div>
         <button

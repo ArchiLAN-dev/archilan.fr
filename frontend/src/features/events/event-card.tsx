@@ -29,10 +29,6 @@ const statusCopy: Record<EventStatus, StatusConfig> = {
     cta: "Voir le récap",
     tone: "border-muted-foreground/40 text-muted-foreground",
   },
-  "members-only": {
-    label: "Réservé aux membres",
-    tone: "border-special/60 text-special",
-  },
 };
 
 function EventMeta({ icon: Icon, children }: { icon: typeof CalendarDays; children: React.ReactNode }) {
@@ -122,10 +118,10 @@ export function EventCard({ event, friendEventIds }: { event: PublicEvent; frien
         </p>
       ) : null}
 
-      {event.status === "members-only" ? (
+      {event.membersOnly && event.status !== "completed" ? (
         <p className="mt-5 inline-flex items-center gap-2 text-sm text-muted-foreground">
           <Lock aria-hidden="true" className="size-4 text-special" />
-          Accès réservé aux membres ArchiLAN.
+          Réservé aux adhérents, ou sur code d&apos;accès.
         </p>
       ) : null}
 

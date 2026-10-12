@@ -6,6 +6,7 @@ namespace App\Events\Application\Query;
 
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Registrations\Application\Query\PrivateEventAccess;
 use App\Registrations\Application\Query\RegistrationCounter;
 use Psr\Clock\ClockInterface;
 
@@ -14,6 +15,7 @@ final readonly class RegistrationEligibility
     public function __construct(
         private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
+        private PrivateEventAccess $privateEventAccess,
         private ClockInterface $clock,
     ) {
     }
@@ -23,7 +25,7 @@ final readonly class RegistrationEligibility
      *
      * @return array{eligible: bool, reason: string|null, opensAt: string|null, event: array{id: string, title: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool}}|null
      */
-    public function check(string $eventId): ?array
+    public function check(string $eventId, string $userId): ?array
     {
         $event = $this->eventRepository->findById($eventId);
         if (null === $event) {
@@ -36,7 +38,7 @@ final readonly class RegistrationEligibility
 
         $now = $this->clock->now();
         $confirmedCount = $this->registrationCounter->countConfirmed($event->getId());
-        $reason = $this->computeReason($event, $confirmedCount, $now);
+        $reason = $this->computeReason($event, $confirmedCount, $now, $userId);
 
         return [
             'eligible' => null === $reason,
@@ -59,7 +61,7 @@ final readonly class RegistrationEligibility
         ];
     }
 
-    private function computeReason(Event $event, int $confirmedCount, \DateTimeImmutable $now): ?string
+    private function computeReason(Event $event, int $confirmedCount, \DateTimeImmutable $now, string $userId): ?string
     {
         if (Event::STATUS_COMPLETED === $event->getStatus()) {
             return 'event_completed';
@@ -81,7 +83,7 @@ final readonly class RegistrationEligibility
             return 'capacity_full';
         }
 
-        if (!$event->isPublic()) {
+        if (!$this->privateEventAccess->allows($event, $userId)) {
             return 'private_event';
         }
 

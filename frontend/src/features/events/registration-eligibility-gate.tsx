@@ -167,6 +167,12 @@ export function RegistrationEligibilityGate({
       ) : result.reason === "private_event" ? (
         <>
           <IneligiblePanel reason={result.reason} opensAt={result.opensAt} />
+          <p className="text-sm text-muted-foreground">
+            Pas encore adhérent ?{" "}
+            <Link className="font-semibold text-accent-text hover:underline" href="/adhesion">
+              Adhérer à ArchiLAN
+            </Link>
+          </p>
           <PrivateAccessDisclosure
             eventSlug={eventSlug}
             onGranted={() =>
@@ -347,7 +353,7 @@ function ineligibleInfo(
       return {
         icon: <Lock aria-hidden="true" className="size-5 text-muted-foreground" />,
         title: "Événement privé",
-        description: "Cet événement est réservé aux membres ArchiLAN. Si tu as un code d'accès, utilise-le ci-dessous.",
+        description: "Cet événement est réservé aux adhérents ArchiLAN à jour de leur cotisation. Si tu as un code d'accès, utilise-le ci-dessous.",
       };
     case "event_completed":
       return {

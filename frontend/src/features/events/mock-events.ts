@@ -44,7 +44,8 @@ export const upcomingEvents: PublicEvent[] = [
     description:
       "Une course réservée aux membres ArchiLAN, avec seed préparée, coordination sur place et priorité aux habitués de l'association.",
     attendanceMode: "offline",
-    status: "members-only",
+    status: "open",
+    membersOnly: true,
     capacity: { remaining: 8, total: 24 },
   },
   {

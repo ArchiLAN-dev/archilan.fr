@@ -11,6 +11,7 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Realtime\Application\Service\RealtimePublisher;
+use App\Registrations\Application\Query\PrivateEventAccess;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
@@ -30,6 +31,7 @@ final readonly class ReserveRegistration
         private EventRepositoryInterface $eventRepository,
         private UserRepositoryInterface $userRepository,
         private RegistrationCounter $registrationCounter,
+        private PrivateEventAccess $privateEventAccess,
         private RealtimePublisher $realtimePublisher,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
@@ -77,7 +79,7 @@ final readonly class ReserveRegistration
             }
 
             $now = $this->clock->now();
-            $ineligibleReason = $this->computeIneligibleReason($lockedEvent, $now);
+            $ineligibleReason = $this->computeIneligibleReason($lockedEvent, $now, $userId);
 
             if (null !== $ineligibleReason) {
                 $this->registrationRepository->commit();
@@ -160,9 +162,9 @@ final readonly class ReserveRegistration
         }
     }
 
-    private function computeIneligibleReason(Event $event, \DateTimeImmutable $now): ?string
+    private function computeIneligibleReason(Event $event, \DateTimeImmutable $now, string $userId): ?string
     {
-        if (!$event->isPublic()) {
+        if (!$this->privateEventAccess->allows($event, $userId)) {
             return 'private_event';
         }
 

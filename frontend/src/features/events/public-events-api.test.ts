@@ -72,6 +72,17 @@ describe("getPublicEvent", () => {
     expect(result?.id).toBe("evt-single");
   });
 
+  it("keeps a private event's registration status and flags it for adherents (story 4.21)", async () => {
+    server.use(
+      http.get(`${BASE}/events/evt-private`, () =>
+        HttpResponse.json({ data: { ...validEventPayload, id: "evt-private", isPublic: false } }),
+      ),
+    );
+    const result = await getPublicEvent("evt-private");
+    expect(result?.status).toBe("open");
+    expect(result?.membersOnly).toBe(true);
+  });
+
   it("returns null on network error for unknown ID", async () => {
     server.use(http.get(`${BASE}/events/${UNKNOWN_ID}`, () => HttpResponse.error()));
     expect(await getPublicEvent(UNKNOWN_ID)).toBeNull();
