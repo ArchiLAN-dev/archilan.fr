@@ -86,6 +86,7 @@ function toPublicEvent(event: PublicEventPayload): PublicEvent {
     coverImageUrl: event.coverImageUrl ?? null,
     photoGallery: Array.isArray(event.photoGallery) ? event.photoGallery.slice(0, 12) : [],
     status: toCardStatus(event),
+    membersOnly: !event.isPublic,
     capacity: {
       remaining: Math.max(event.capacity - event.confirmedRegistrations, 0),
       total: event.capacity,
@@ -99,10 +100,6 @@ function toPublicEvent(event: PublicEventPayload): PublicEvent {
 }
 
 function toCardStatus(event: PublicEventPayload): EventStatus {
-  if (!event.isPublic) {
-    return "members-only";
-  }
-
   if (event.status === "completed") {
     return "completed";
   }

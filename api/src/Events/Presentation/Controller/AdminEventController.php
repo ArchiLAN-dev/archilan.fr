@@ -64,7 +64,7 @@ final readonly class AdminEventController
             return $user;
         }
 
-        $result = $this->registrationEligibility->check($eventId);
+        $result = $this->registrationEligibility->check($eventId, $user->getId());
 
         if (null === $result) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Événement introuvable.', 404);

@@ -1,4 +1,4 @@
-export type EventStatus = "open" | "upcoming" | "full" | "completed" | "members-only";
+export type EventStatus = "open" | "upcoming" | "full" | "completed";
 
 export type EventAttendanceMode = "offline" | "online" | "mixed";
 
@@ -14,6 +14,8 @@ export type PublicEvent = {
   photoGallery?: string[];
   attendanceMode?: EventAttendanceMode;
   status: EventStatus;
+  /** Story 4.21: private event, open to active adherents or to a member with its access code. */
+  membersOnly?: boolean;
   capacity?: {
     remaining: number;
     total: number;
