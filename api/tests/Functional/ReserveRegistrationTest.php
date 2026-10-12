@@ -72,6 +72,37 @@ final class ReserveRegistrationTest extends FunctionalTestCase
         self::assertSame('not_eligible', $error['code']);
     }
 
+    /** Story 4.22: cancelling then registering again reactivates the same registration instead of failing. */
+    public function testMemberWhoCancelledCanRegisterAgain(): void
+    {
+        $user = $this->createUser('user@example.org');
+        $this->loginAs($user);
+        $event = $this->makeEvent(Event::STATUS_PUBLISHED);
+        $url = sprintf('/api/v1/events/%s/registrations', $event->getId());
+
+        $this->client->jsonRequest('POST', $url);
+        self::assertResponseStatusCodeSame(201);
+        $first = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($first);
+        self::assertIsString($first['registrationId']);
+
+        $this->client->jsonRequest('DELETE', sprintf('/api/v1/registrations/%s', $first['registrationId']));
+        self::assertResponseIsSuccessful();
+
+        $this->client->jsonRequest('POST', $url);
+        self::assertResponseStatusCodeSame(201);
+        $second = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($second);
+        self::assertSame('reserved', $second['outcome']);
+        self::assertSame($first['registrationId'], $second['registrationId']);
+
+        $this->entityManager->clear();
+        $registrations = $this->entityManager->getRepository(Registration::class)->findAll();
+        self::assertCount(1, $registrations);
+        self::assertInstanceOf(Registration::class, $registrations[0]);
+        self::assertSame(Registration::STATUS_RESERVED, $registrations[0]->getStatus());
+    }
+
     public function testOpenPublicEventReservesASeat(): void
     {
         $user = $this->createUser('user@example.org');

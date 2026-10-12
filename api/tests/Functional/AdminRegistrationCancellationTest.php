@@ -111,7 +111,15 @@ final class AdminRegistrationCancellationTest extends FunctionalTestCase
             ],
             maxGamesPerRegistrant: 2,
         );
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $gameB->configureApworld('apworlds/celeste.apworld', 'hash-celeste', 'Celeste', 'Celeste:
+  goal: summit
+', $now);
         $registration = $this->makeRegistration($event->getId(), $participant->getId(), selectedGameIds: [$gameA->getId()]);
+        $slotA = $registration->getGameSlots()[0]['slotId'];
+        $registration->submitSlotPlayerYaml($slotA, 'name: Link
+', 'hash-zelda', $now);
+        $this->entityManager->flush();
         $this->loginAs($admin);
 
         $this->client->jsonRequest(
@@ -134,6 +142,15 @@ final class AdminRegistrationCancellationTest extends FunctionalTestCase
         $this->entityManager->refresh($registration);
         $gameSlots = $registration->getGameSlots();
         self::assertSame([$gameA->getId(), $gameB->getId()], array_column($gameSlots, 'gameId'));
+        // Story 4.22: the kept slot keeps the player's YAML, the new one starts from the game's default.
+        self::assertSame($slotA, $gameSlots[0]['slotId']);
+        self::assertSame('name: Link
+', $gameSlots[0]['playerYaml'] ?? null);
+        self::assertSame('hash-zelda', $gameSlots[0]['apworldHash'] ?? null);
+        self::assertSame('Celeste:
+  goal: summit
+', $gameSlots[1]['playerYaml'] ?? null);
+        self::assertSame('hash-celeste', $gameSlots[1]['apworldHash'] ?? null);
     }
 
     /**

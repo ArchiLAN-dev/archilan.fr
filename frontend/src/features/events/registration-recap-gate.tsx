@@ -221,6 +221,19 @@ export function RegistrationRecapGate({
         <p className="text-sm text-muted-foreground">{data.eventTitle}</p>
       </header>
 
+      {/* Story 4.22: reserved is not confirmed; the member must see which one they are. */}
+      {data.submittedAt !== null ? (
+        <p className="flex items-center gap-2 rounded-lg border border-success/40 p-4 text-sm text-foreground">
+          <CheckCircle aria-hidden="true" className="size-4 shrink-0 text-success" />
+          Ton inscription est confirmée. Tu peux encore modifier tes jeux tant que les inscriptions sont ouvertes.
+        </p>
+      ) : (
+        <p className="flex items-center gap-2 rounded-lg border border-accent-warm/50 p-4 text-sm text-foreground">
+          <AlertCircle aria-hidden="true" className="size-4 shrink-0 text-accent-warm" />
+          Ton inscription n&apos;est pas encore confirmée : vérifie tes jeux puis clique sur « Confirmer l&apos;inscription ».
+        </p>
+      )}
+
       {data.gameSelectionEnabled ? (
         <section className="grid gap-4">
           <h2 className="font-heading text-xl font-semibold text-foreground">Jeux sélectionnés</h2>
@@ -284,7 +297,7 @@ export function RegistrationRecapGate({
         ) : null}
 
         <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-          {data.registrationOpen ? (
+          {data.registrationOpen && data.submittedAt === null ? (
             <button
               className="inline-flex min-h-12 w-full items-center justify-center rounded bg-accent px-6 font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               disabled={submitState.kind === "submitting"}

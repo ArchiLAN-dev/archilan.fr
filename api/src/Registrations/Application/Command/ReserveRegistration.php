@@ -103,14 +103,20 @@ final readonly class ReserveRegistration
                 throw new ConflictException('Cet événement est complet.', 'capacity_full');
             }
 
-            $registration = new Registration(
-                bin2hex(random_bytes(16)),
-                $lockedEvent->getId(),
-                $userId,
-                Registration::STATUS_RESERVED,
-                $now,
-                $now,
-            );
+            if ($existing instanceof Registration) {
+                // Story 4.22: the cancelled row comes back; a second row would break the unique index.
+                $registration = $existing;
+                $registration->reactivate($now);
+            } else {
+                $registration = new Registration(
+                    bin2hex(random_bytes(16)),
+                    $lockedEvent->getId(),
+                    $userId,
+                    Registration::STATUS_RESERVED,
+                    $now,
+                    $now,
+                );
+            }
             $this->registrationRepository->persist($registration);
             $this->registrationRepository->flush();
             $this->registrationRepository->commit();

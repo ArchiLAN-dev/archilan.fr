@@ -224,4 +224,21 @@ final class Registration
         $this->status = self::STATUS_CANCELLED;
         $this->updatedAt = $now;
     }
+
+    /**
+     * Story 4.22: a member who cancelled registers again. One row per member and event (unique index), so the cancelled
+     * row starts over: reserved now, nothing chosen, not confirmed, and its place in the arrival order is the new one.
+     */
+    public function reactivate(\DateTimeImmutable $now): void
+    {
+        if (self::STATUS_CANCELLED !== $this->status) {
+            throw new \DomainException('Only cancelled registrations can be reactivated.');
+        }
+
+        $this->status = self::STATUS_RESERVED;
+        $this->gameSlots = [];
+        $this->submittedAt = null;
+        $this->createdAt = $now;
+        $this->updatedAt = $now;
+    }
 }

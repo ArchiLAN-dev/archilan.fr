@@ -6,6 +6,8 @@ namespace App\Registrations\Application\Command;
 
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Shared\Application\Exception\ConflictException;
 use App\Shared\Application\Exception\NotFoundException;
@@ -18,6 +20,7 @@ final readonly class AdminRegistrationModification
     public function __construct(
         private RegistrationRepositoryInterface $registrationRepository,
         private EventRepositoryInterface $eventRepository,
+        private GameRepositoryInterface $gameRepository,
         private LoggerInterface $logger,
         private ClockInterface $clock,
     ) {
@@ -74,7 +77,15 @@ final readonly class AdminRegistrationModification
 
         $now = $this->clock->now();
 
-        $diffedSlots = $this->diffSlots($registration->getGameSlots(), $slotsInput);
+        /** @var array<string, Game> $gamesById */
+        $gamesById = [];
+        if ([] !== $gameIds) {
+            foreach ($this->gameRepository->findByIds(array_values(array_unique($gameIds))) as $game) {
+                $gamesById[$game->getId()] = $game;
+            }
+        }
+
+        $diffedSlots = $this->diffSlots($registration->getGameSlots(), $slotsInput, $gamesById);
         $registration->replaceSlots($diffedSlots, $now);
 
         $this->registrationRepository->flush();
@@ -143,19 +154,25 @@ final readonly class AdminRegistrationModification
     }
 
     /**
-     * Option-preserving slot diffing: reuses existing slotIds when gameId matches.
+     * Option-preserving slot diffing: reuses existing slotIds when gameId matches, and keeps their YAML and apworld
+     * hash (story 4.22: the admin path used to drop them). A new game starts from its default YAML, as for the member.
      *
-     * @param list<array{slotId: string, gameId: string, slotOrder: int}> $existingSlots
-     * @param list<array{gameId: string}>                                 $slotsInput
+     * @param list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, needsReview?: list<string>}> $existingSlots
+     * @param list<array{gameId: string}>                                                                                                                  $slotsInput
+     * @param array<string, Game>                                                                                                                          $gamesById
      *
-     * @return list<array{slotId: string, gameId: string}>
+     * @return list<array{slotId: string, gameId: string, playerYaml: string|null, apworldHash: string|null}>
      */
-    private function diffSlots(array $existingSlots, array $slotsInput): array
+    private function diffSlots(array $existingSlots, array $slotsInput, array $gamesById): array
     {
-        /** @var array<string, list<array{slotId: string}>> $existingByGameId */
+        /** @var array<string, list<array{slotId: string, playerYaml: string|null, apworldHash: string|null}>> $existingByGameId */
         $existingByGameId = [];
         foreach ($existingSlots as $slot) {
-            $existingByGameId[$slot['gameId']][] = ['slotId' => $slot['slotId']];
+            $existingByGameId[$slot['gameId']][] = [
+                'slotId' => $slot['slotId'],
+                'playerYaml' => $slot['playerYaml'] ?? null,
+                'apworldHash' => $slot['apworldHash'] ?? null,
+            ];
         }
 
         $result = [];
@@ -163,9 +180,10 @@ final readonly class AdminRegistrationModification
             $gameId = $entry['gameId'];
             if ([] !== ($existingByGameId[$gameId] ?? [])) {
                 $matched = array_shift($existingByGameId[$gameId]);
-                $result[] = ['slotId' => $matched['slotId'], 'gameId' => $gameId];
+                $result[] = ['slotId' => $matched['slotId'], 'gameId' => $gameId, 'playerYaml' => $matched['playerYaml'], 'apworldHash' => $matched['apworldHash']];
             } else {
-                $result[] = ['slotId' => bin2hex(random_bytes(8)), 'gameId' => $gameId];
+                $game = $gamesById[$gameId] ?? null;
+                $result[] = ['slotId' => bin2hex(random_bytes(8)), 'gameId' => $gameId, 'playerYaml' => $game?->getDefaultYaml(), 'apworldHash' => $game?->getApworldHash()];
             }
         }
 

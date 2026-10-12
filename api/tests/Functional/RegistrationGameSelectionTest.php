@@ -359,6 +359,25 @@ final class RegistrationGameSelectionTest extends FunctionalTestCase
         $data = $response['data'];
         self::assertIsArray($data);
         self::assertTrue($data['registrationOpen']);
+        self::assertNull($data['submittedAt']);
+    }
+
+    /** Story 4.22: the recap reads whether the registration is already confirmed. */
+    public function testGetSelectionTellsWhenTheRegistrationIsConfirmed(): void
+    {
+        $user = $this->createUser('user@example.org');
+        $event = $this->makeEvent();
+        $registration = $this->createRegistration($event->getId(), $user->getId());
+        $registration->confirm(new \DateTimeImmutable('2026-10-20T08:00:00+00:00'));
+        $this->entityManager->flush();
+
+        $this->loginAs($user);
+        $this->client->jsonRequest('GET', sprintf('/api/v1/registrations/%s/game-selection', $registration->getId()));
+        self::assertResponseStatusCodeSame(200);
+
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertSame('2026-10-20T08:00:00+00:00', $data['submittedAt']);
     }
 
     public function testPutRejectsWhenRegistrationWindowClosed(): void
