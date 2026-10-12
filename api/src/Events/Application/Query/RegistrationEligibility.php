@@ -6,6 +6,8 @@ namespace App\Events\Application\Query;
 
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Registrations\Application\Query\PrivateEventAccess;
 use App\Registrations\Application\Query\RegistrationCounter;
 use Psr\Clock\ClockInterface;
@@ -16,6 +18,7 @@ final readonly class RegistrationEligibility
         private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
         private PrivateEventAccess $privateEventAccess,
+        private UserRepositoryInterface $userRepository,
         private ClockInterface $clock,
     ) {
     }
@@ -85,6 +88,12 @@ final readonly class RegistrationEligibility
 
         if (!$this->privateEventAccess->allows($event, $userId)) {
             return 'private_event';
+        }
+
+        // Story 4.22: the reservation refuses an unverified email; say so before the click, not after.
+        $user = $this->userRepository->findById($userId);
+        if (!$user instanceof User || !$user->isEmailVerified()) {
+            return 'email_not_verified';
         }
 
         return null;

@@ -74,7 +74,8 @@ final readonly class RegistrationSubmission
                 userEmail: $user instanceof User ? $user->getEmail() : $userId,
                 userDisplayName: $user instanceof User ? $user->getDisplayName() : null,
                 eventTitle: $event->getTitle(),
-                eventStartsAt: $event->getStartsAt()->format('d/m/Y a H\hi'),
+                // Story 4.22: Paris time, and an escaped "à" ('a' alone printed am/pm).
+                eventStartsAt: $event->getStartsAt()->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m/Y \à H\hi'),
                 eventVenue: $event->getVenue(),
                 selectedGameNames: $selectedGameNames,
             ));

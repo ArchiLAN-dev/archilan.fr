@@ -305,8 +305,12 @@ export function GameSelectionGate({
   const max = data.maxGamesPerRegistrant;
   const limitReached = max !== null && workingGameIds.length >= max;
   const gameMap = new Map(data.availableGames.map((g) => [g.id, g]));
-  const canContinue =
-    workingGameIds.length > 0 && saveState.kind === "saved" && data.registrationOpen;
+  const canContinue = canContinueToRecap({
+    gameSelectionEnabled: data.gameSelectionEnabled,
+    registrationOpen: data.registrationOpen,
+    selectedCount: workingGameIds.length,
+    saved: saveState.kind === "saved",
+  });
 
   // Build labeled selection items (handle duplicate games)
   const occurrenceCounts: Record<string, number> = {};
@@ -453,7 +457,9 @@ export function GameSelectionGate({
 
         {selectionItems.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Aucun jeu sélectionné. Parcourez le catalogue ci-dessous pour ajouter des jeux.
+            {data.gameSelectionEnabled
+              ? "Aucun jeu sélectionné. Parcourez le catalogue ci-dessous pour ajouter des jeux."
+              : "Pas de choix de jeux pour cet événement : passe directement au récapitulatif pour confirmer ton inscription."}
           </p>
         ) : (
           <ul className="grid gap-1.5" role="list">
@@ -484,14 +490,16 @@ export function GameSelectionGate({
         {data.registrationOpen ? (
           <div className="grid gap-2">
             <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-              <button
-                className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={saveState.kind === "saving"}
-                type="button"
-                onClick={() => { void handleSave(); }}
-              >
-                {saveState.kind === "saving" ? "Sauvegarde…" : "Sauvegarder ma sélection"}
-              </button>
+              {data.gameSelectionEnabled ? (
+                <button
+                  className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={saveState.kind === "saving"}
+                  type="button"
+                  onClick={() => { void handleSave(); }}
+                >
+                  {saveState.kind === "saving" ? "Sauvegarde…" : "Sauvegarder ma sélection"}
+                </button>
+              ) : null}
               <button
                 className="inline-flex min-h-10 cursor-pointer items-center justify-center rounded border border-accent px-5 text-sm font-semibold text-accent-text transition-colors hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-40"
                 disabled={!canContinue}
@@ -760,4 +768,19 @@ export function GameSelectionGate({
       ) : null}
     </article>
   );
+}
+
+/**
+ * Story 4.22: the way on to the recap. With game selection, the member saves at least one game first; without it,
+ * nothing is to choose, so an open registration goes straight on (it used to need a game and stayed stuck).
+ */
+export function canContinueToRecap(input: {
+  gameSelectionEnabled: boolean;
+  registrationOpen: boolean;
+  selectedCount: number;
+  saved: boolean;
+}): boolean {
+  if (!input.registrationOpen) return false;
+  if (!input.gameSelectionEnabled) return true;
+  return input.selectedCount > 0 && input.saved;
 }

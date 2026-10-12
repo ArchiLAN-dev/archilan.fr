@@ -30,7 +30,7 @@ final readonly class RegistrationGameSelection
     /**
      * Returns game selection data for a registration, or null if not accessible.
      *
-     * @return array{registrationId: string, eventId: string, gameSelectionEnabled: bool, maxGamesPerRegistrant: int|null, registrationOpen: bool, slots: list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>, availableGames: list<array<string, mixed>>}|null
+     * @return array{registrationId: string, eventId: string, gameSelectionEnabled: bool, maxGamesPerRegistrant: int|null, registrationOpen: bool, submittedAt: string|null, slots: list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>, availableGames: list<array<string, mixed>>}|null
      */
     public function getSelection(string $registrationId, string $userId): ?array
     {
@@ -117,6 +117,8 @@ final readonly class RegistrationGameSelection
             'gameSelectionEnabled' => $event->isGameSelectionEnabled(),
             'maxGamesPerRegistrant' => $event->getGameSelectionMaxPerRegistrant(),
             'registrationOpen' => $registrationOpen,
+            // Story 4.22: the recap tells a confirmed registration from one still to confirm.
+            'submittedAt' => $registration->getSubmittedAt()?->format(\DateTimeInterface::ATOM),
             'slots' => $slots,
             'availableGames' => $availableGames,
         ];
