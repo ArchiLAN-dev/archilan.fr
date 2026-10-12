@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SlidersHorizontal } from "lucide-react";
 
+import { Switch } from "@/components/switch";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   chooseNotificationChannel,
   chooseNotificationDiscord,
   fetchNotificationPreferences,
-  NOTIFICATION_CHANNELS,
   type NotificationChannel,
+  type NotificationPreference,
 } from "./notification-preferences-api";
 
 export const NOTIFICATION_PREFERENCES_KEY = ["notification-preferences"] as const;
@@ -29,15 +30,19 @@ const TYPE_LABELS: Record<string, { label: string; hint: string }> = {
   run_recap_ready: { label: "Récap prêt", hint: "Une partie où tu as joué est terminée et son récap est prêt." },
 };
 
-export const CHANNEL_LABELS: Record<NotificationChannel, string> = {
-  bell_push: "Cloche + push",
-  bell: "Cloche seulement",
-  none: "Rien",
-};
+/**
+ * Story 40.7: the stored channel read as two switches. The bell is the base - off means nothing anywhere, back on means
+ * the bell alone; the push only adds to it.
+ */
+export function channelAfter(current: NotificationChannel, column: "bell" | "push", on: boolean): NotificationChannel {
+  if (column === "bell") return on ? "bell" : "none";
+  if (current === "none") return current;
+  return on ? "bell_push" : "bell";
+}
 
 /**
- * Story 43.11b: per type of notification, the bell and this member's devices, the bell only, or nothing. The push
- * still needs the device turned on above.
+ * Story 43.11b, 40.7: per type of notification, a switch for the bell, the push (which still needs the device turned
+ * on above) and, once the member's Discord is linked, their Discord direct messages (40.6).
  */
 export function NotificationPreferencesCard() {
   const queryClient = useQueryClient();
@@ -51,17 +56,15 @@ export function NotificationPreferencesCard() {
 
   if (!data) return null;
 
-  async function choose(type: string, channel: NotificationChannel) {
-    const next = await chooseNotificationChannel(type, channel);
-    setFailed(next === null);
-    if (next !== null) queryClient.setQueryData(NOTIFICATION_PREFERENCES_KEY, next);
+  const withDiscord = data.some((preference) => preference.discord !== null);
+
+  async function save(next: Promise<NotificationPreference[] | null>) {
+    const settings = await next;
+    setFailed(settings === null);
+    if (settings !== null) queryClient.setQueryData(NOTIFICATION_PREFERENCES_KEY, settings);
   }
 
-  async function chooseDiscord(type: string, discord: boolean) {
-    const next = await chooseNotificationDiscord(type, discord);
-    setFailed(next === null);
-    if (next !== null) queryClient.setQueryData(NOTIFICATION_PREFERENCES_KEY, next);
-  }
+  const headClass = "px-2 pb-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground";
 
   return (
     <section aria-labelledby="notification-preferences" className="card-glow grid gap-4 rounded-lg border border-border p-6">
@@ -69,53 +72,77 @@ export function NotificationPreferencesCard() {
         <SlidersHorizontal aria-hidden className="size-5 text-accent-text" />
         Ce qui me prévient
       </h2>
-      <ul className="grid gap-4" role="list">
-        {data.map((preference) => {
-          const labels = TYPE_LABELS[preference.type] ?? { label: preference.type, hint: "" };
-          return (
-            <li className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center" key={preference.type}>
-              <span className="grid gap-0.5">
-                <span className="text-sm font-medium text-foreground">{labels.label}</span>
-                {labels.hint !== "" ? <span className="text-xs text-muted-foreground">{labels.hint}</span> : null}
-              </span>
-              <span aria-label={labels.label} className="inline-flex flex-wrap gap-1" role="radiogroup">
-                {NOTIFICATION_CHANNELS.map((channel) => (
-                  <button
-                    aria-checked={preference.channel === channel}
-                    className={`min-h-9 cursor-pointer rounded-full border px-3 text-xs font-semibold transition-colors ${
-                      preference.channel === channel
-                        ? "border-accent bg-accent/15 text-accent-text"
-                        : "border-border text-muted-foreground hover:border-accent hover:text-foreground"
-                    }`}
-                    key={channel}
-                    onClick={() => {
-                      void choose(preference.type, channel);
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="border-b border-border">
+            <th className="pb-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground" scope="col">
+              Notification
+            </th>
+            <th className={headClass} scope="col">
+              Cloche
+            </th>
+            <th className={headClass} scope="col">
+              Push
+            </th>
+            {withDiscord ? (
+              <th className={headClass} scope="col">
+                Discord
+              </th>
+            ) : null}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((preference) => {
+            const labels = TYPE_LABELS[preference.type] ?? { label: preference.type, hint: "" };
+            const bell = preference.channel !== "none";
+            return (
+              <tr className="border-b border-border/60 last:border-b-0" key={preference.type}>
+                <th className="py-3 pr-2 text-left align-middle font-normal" scope="row">
+                  <span className="block text-sm font-medium text-foreground">{labels.label}</span>
+                  {labels.hint !== "" ? <span className="block text-xs text-muted-foreground">{labels.hint}</span> : null}
+                </th>
+                <td className="px-2 py-3 text-center align-middle">
+                  <Switch
+                    ariaLabel={`${labels.label} : cloche`}
+                    checked={bell}
+                    onChange={(on) => {
+                      void save(chooseNotificationChannel(preference.type, channelAfter(preference.channel, "bell", on)));
                     }}
-                    role="radio"
-                    type="button"
-                  >
-                    {CHANNEL_LABELS[channel]}
-                  </button>
-                ))}
-              </span>
-              {/* Story 40.6: offered once the member's Discord is linked, and only for what reaches the bell. */}
-              {preference.discord !== null && preference.channel !== "none" ? (
-                <label className="flex items-center gap-2 text-xs text-muted-foreground sm:col-span-2">
-                  <input
-                    checked={preference.discord}
-                    className="size-4 accent-[var(--color-accent)]"
-                    onChange={(event) => {
-                      void chooseDiscord(preference.type, event.target.checked);
-                    }}
-                    type="checkbox"
                   />
-                  Aussi en message privé sur Discord
-                </label>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+                </td>
+                <td className="px-2 py-3 text-center align-middle">
+                  <Switch
+                    ariaLabel={`${labels.label} : push`}
+                    checked={preference.channel === "bell_push"}
+                    disabled={!bell}
+                    onChange={(on) => {
+                      void save(chooseNotificationChannel(preference.type, channelAfter(preference.channel, "push", on)));
+                    }}
+                  />
+                </td>
+                {withDiscord ? (
+                  <td className="px-2 py-3 text-center align-middle">
+                    {preference.discord !== null ? (
+                      <Switch
+                        ariaLabel={`${labels.label} : Discord`}
+                        checked={bell && preference.discord}
+                        disabled={!bell}
+                        onChange={(on) => {
+                          void save(chooseNotificationDiscord(preference.type, on));
+                        }}
+                      />
+                    ) : null}
+                  </td>
+                ) : null}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="text-xs text-muted-foreground">
+        Couper la cloche coupe tout pour ce type. Le push demande aussi d&apos;activer cet appareil plus haut.
+        {withDiscord ? " Discord : un message privé du bot." : ""}
+      </p>
       {failed ? (
         <p className="text-sm text-danger" role="alert">
           Réglage non enregistré, réessaie.
