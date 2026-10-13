@@ -3,7 +3,7 @@ import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { fetchMyRegistrationCta, fetchRegistrationRecap } from "./events-api";
 import { canContinueToRecap } from "./game-selection-gate";
-import { apiFailure } from "./registration-eligibility-gate";
+import { apiFailure, codeCheckFailure } from "./registration-eligibility-gate";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -41,6 +41,11 @@ describe("registration fixes", () => {
     });
     expect(apiFailure({ error: "nope" })).toEqual({ code: null, message: null });
     expect(apiFailure(null)).toEqual({ code: null, message: null });
+  });
+
+  it("tells a blocked code check from a failed one (story 4.24)", () => {
+    expect(codeCheckFailure(429)).toBe("limited");
+    expect(codeCheckFailure(500)).toBe("error");
   });
 
   it("tells a confirmed registration from a reserved one on the recap", async () => {
