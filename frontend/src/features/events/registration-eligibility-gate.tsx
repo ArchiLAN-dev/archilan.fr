@@ -428,7 +428,7 @@ function PrivateAccessDisclosure({
   onGranted: () => void;
 }) {
   // Story 4.23: a refused code and a failed check are two different messages.
-  const [status, setStatus] = useState<"idle" | "loading" | "refused" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "refused" | "limited" | "error">("idle");
   const [password, setPassword] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
@@ -444,7 +444,7 @@ function PrivateAccessDisclosure({
       });
 
       if (!res.ok) {
-        setStatus("error");
+        setStatus(codeCheckFailure(res.status));
         return;
       }
 
@@ -484,6 +484,8 @@ function PrivateAccessDisclosure({
             />
             {status === "refused" ? (
               <p className="text-xs text-danger" role="alert">Code d&apos;accès invalide.</p>
+            ) : status === "limited" ? (
+              <p className="text-xs text-danger" role="alert">Trop d&apos;essais. Réessaie dans une heure.</p>
             ) : status === "error" ? (
               <p className="text-xs text-danger" role="alert">Impossible de vérifier le code pour le moment. Réessaie dans quelques instants.</p>
             ) : null}
@@ -528,4 +530,9 @@ export function apiFailure(payload: unknown): { code: string | null; message: st
     code: typeof code === "string" ? code : null,
     message: typeof message === "string" && message !== "" ? message : null,
   };
+}
+
+/** Story 4.24: ten refused codes in the hour block the member for a while; any other failure is a failed check. */
+export function codeCheckFailure(httpStatus: number): "limited" | "error" {
+  return httpStatus === 429 ? "limited" : "error";
 }

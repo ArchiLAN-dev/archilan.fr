@@ -89,7 +89,11 @@ final readonly class AdminEventController
             return $this->apiAccessGuard->errorResponse('not_found', 'Événement introuvable.', 404);
         }
 
-        return new JsonResponse(['data' => $result, 'meta' => []]);
+        if ($result->limited) {
+            return $this->apiAccessGuard->errorResponse('too_many_attempts', "Trop d'essais. Réessaie dans une heure.", 429);
+        }
+
+        return new JsonResponse(['data' => ['granted' => $result->granted], 'meta' => []]);
     }
 
     #[Route('/api/v1/admin/dashboard-stats', name: 'api_admin_dashboard_stats', methods: ['GET'])]

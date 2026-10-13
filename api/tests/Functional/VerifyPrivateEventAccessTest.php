@@ -159,6 +159,58 @@ final class VerifyPrivateEventAccessTest extends FunctionalTestCase
         self::assertFalse($data['granted']);
     }
 
+    /** Story 4.24: ten refused codes in the hour block the member on that event, without checking or logging more. */
+    public function testTenRefusedCodesInAnHourBlockTheMemberOnThatEvent(): void
+    {
+        $user = $this->createUser('user@example.org');
+        $other = $this->createUser('other@example.org');
+        $event = $this->makeEvent(Event::STATUS_PUBLISHED, isPublic: false, passwordHash: password_hash('the-pass', PASSWORD_BCRYPT));
+        $otherEvent = $this->makeEvent(Event::STATUS_PUBLISHED, isPublic: false, passwordHash: password_hash('the-pass', PASSWORD_BCRYPT));
+        $this->seedRefusedAttempts($event, $user->getId(), new \DateTimeImmutable('-10 minutes'));
+
+        $this->loginAs($user);
+        $this->client->jsonRequest('POST', sprintf('/api/v1/events/%s/verify-private-access', $event->getId()), ['password' => 'the-pass']);
+        self::assertResponseStatusCodeSame(429);
+        $error = $this->decodedJsonResponse()['error'];
+        self::assertIsArray($error);
+        self::assertSame('too_many_attempts', $error['code']);
+        $this->entityManager->clear();
+        self::assertCount(10, $this->entityManager->getRepository(EventPrivateAccessLog::class)->findAll());
+
+        $this->client->jsonRequest('POST', sprintf('/api/v1/events/%s/verify-private-access', $otherEvent->getId()), ['password' => 'the-pass']);
+        self::assertResponseIsSuccessful();
+
+        $this->loginAs($other);
+        $this->client->jsonRequest('POST', sprintf('/api/v1/events/%s/verify-private-access', $event->getId()), ['password' => 'the-pass']);
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertTrue($data['granted']);
+    }
+
+    public function testRefusedCodesOlderThanAnHourNoLongerBlock(): void
+    {
+        $user = $this->createUser('user@example.org');
+        $event = $this->makeEvent(Event::STATUS_PUBLISHED, isPublic: false, passwordHash: password_hash('the-pass', PASSWORD_BCRYPT));
+        $this->seedRefusedAttempts($event, $user->getId(), new \DateTimeImmutable('-61 minutes'));
+
+        $this->loginAs($user);
+        $this->client->jsonRequest('POST', sprintf('/api/v1/events/%s/verify-private-access', $event->getId()), ['password' => 'the-pass']);
+
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertTrue($data['granted']);
+    }
+
+    private function seedRefusedAttempts(Event $event, string $userId, \DateTimeImmutable $at): void
+    {
+        for ($i = 0; $i < 10; ++$i) {
+            $this->entityManager->persist(new EventPrivateAccessLog(bin2hex(random_bytes(16)), $event->getId(), $userId, false, $at));
+        }
+        $this->entityManager->flush();
+    }
+
     private function makeEvent(
         string $status,
         bool $isPublic,

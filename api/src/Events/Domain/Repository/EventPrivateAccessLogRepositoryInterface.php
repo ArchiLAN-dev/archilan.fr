@@ -10,6 +10,9 @@ interface EventPrivateAccessLogRepositoryInterface
 {
     public function save(EventPrivateAccessLog $log): void;
 
+    /** Story 4.24: refused attempts of one member on one event since a moment, to cap code guessing. */
+    public function countDeniedSince(string $eventId, string $userId, \DateTimeImmutable $since): int;
+
     /**
      * Delete access-log rows older than the given threshold (by creation time).
      *
