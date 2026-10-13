@@ -26,7 +26,7 @@ final readonly class RegistrationEligibility
     /**
      * Returns eligibility state for an authenticated user, or null if the event does not exist or is not publicly visible.
      *
-     * @return array{eligible: bool, reason: string|null, opensAt: string|null, event: array{id: string, title: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool}}|null
+     * @return array{eligible: bool, reason: string|null, opensAt: string|null, event: array{id: string, title: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, hasPrivateAccessPassword: bool}}|null
      */
     public function check(string $eventId, string $userId): ?array
     {
@@ -60,6 +60,8 @@ final readonly class RegistrationEligibility
                 'registrationOpensAt' => $event->getRegistrationOpensAt()->format(\DateTimeInterface::ATOM),
                 'registrationClosesAt' => $event->getRegistrationClosesAt()->format(\DateTimeInterface::ATOM),
                 'isPublic' => $event->isPublic(),
+                // Story 4.23: the access-code form only shows when there is a code to give.
+                'hasPrivateAccessPassword' => $event->hasPrivateAccessPassword(),
             ],
         ];
     }

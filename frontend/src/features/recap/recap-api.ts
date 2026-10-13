@@ -199,3 +199,18 @@ export async function fetchSessionRecap(sessionId: string): Promise<SessionRecap
     return null;
   }
 }
+
+/**
+ * Story 4.23: the browser fetch of an event's game list, for a private event whose list only its confirmed
+ * registrants and the admins see (the server-side fetch is always anonymous). Empty on any failure.
+ */
+export async function fetchEventRecapIndex(eventId: string): Promise<EventRecapIndexEntry[]> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/parties`);
+    if (!res.ok) return [];
+    const payload: unknown = await res.json();
+    return isEventRecapIndexPayload(payload) ? payload.data : [];
+  } catch {
+    return [];
+  }
+}

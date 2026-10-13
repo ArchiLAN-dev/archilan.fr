@@ -38,6 +38,9 @@ final class Registration
         private array $gameSlots = [],
         #[ORM\Column(name: 'submitted_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $submittedAt = null,
+        /** Story 4.23: when the member was reminded to confirm, so the reminder goes once. */
+        #[ORM\Column(name: 'reminder_sent_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $reminderSentAt = null,
     ) {
     }
 
@@ -205,6 +208,32 @@ final class Registration
         return $this->submittedAt;
     }
 
+    /** Story 4.23: reserved, never confirmed, the seat is held without access to the event's game. */
+    public function isAwaitingConfirmation(): bool
+    {
+        return $this->isReserved() && null === $this->submittedAt;
+    }
+
+    /**
+     * Story 4.23: whether to remind the member now. Once, and only for a reservation already waiting when the reminder
+     * time came: one made later is too close to the deadline to be nagged.
+     */
+    public function needsConfirmationReminder(\DateTimeImmutable $remindFrom): bool
+    {
+        return $this->isAwaitingConfirmation() && null === $this->reminderSentAt && $this->createdAt <= $remindFrom;
+    }
+
+    public function markReminded(\DateTimeImmutable $now): void
+    {
+        $this->reminderSentAt = $now;
+        $this->updatedAt = $now;
+    }
+
+    public function getReminderSentAt(): ?\DateTimeImmutable
+    {
+        return $this->reminderSentAt;
+    }
+
     public function confirm(\DateTimeImmutable $now): void
     {
         if (!$this->isReserved()) {
@@ -238,6 +267,7 @@ final class Registration
         $this->status = self::STATUS_RESERVED;
         $this->gameSlots = [];
         $this->submittedAt = null;
+        $this->reminderSentAt = null;
         $this->createdAt = $now;
         $this->updatedAt = $now;
     }

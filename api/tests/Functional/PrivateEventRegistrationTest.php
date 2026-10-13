@@ -90,6 +90,9 @@ final class PrivateEventRegistrationTest extends FunctionalTestCase
         self::assertResponseIsSuccessful();
         $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
+        // Story 4.23: the page offers the access-code form only when the event has a code.
+        self::assertIsArray($data['event']);
+        self::assertTrue($data['event']['hasPrivateAccessPassword']);
 
         return $data['reason'];
     }

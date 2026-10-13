@@ -79,7 +79,8 @@ describe("getPublicEvent", () => {
       ),
     );
     const result = await getPublicEvent("evt-private");
-    expect(result?.status).toBe("open");
+    // The fixture's registrations closed in 2024: privacy no longer stands in for the status (story 4.23).
+    expect(result?.status).toBe("closed");
     expect(result?.membersOnly).toBe(true);
   });
 

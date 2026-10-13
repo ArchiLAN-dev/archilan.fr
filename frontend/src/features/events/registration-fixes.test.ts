@@ -20,10 +20,10 @@ describe("registration fixes", () => {
 
     server.use(
       http.get(`${BASE}/events/evt-1/my-registration`, () =>
-        HttpResponse.json({ data: { registrationId: "reg-1", status: "reserved" } }),
+        HttpResponse.json({ data: { registrationId: "reg-1", status: "reserved", confirmed: true } }),
       ),
     );
-    expect(await fetchMyRegistrationCta("evt-1")).toEqual({ kind: "registered", registrationId: "reg-1" });
+    expect(await fetchMyRegistrationCta("evt-1")).toEqual({ kind: "registered", registrationId: "reg-1", confirmed: true });
   });
 
   it("goes on to the recap without a game when the event has no game selection", () => {

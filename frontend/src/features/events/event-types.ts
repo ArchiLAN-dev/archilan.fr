@@ -1,4 +1,5 @@
-export type EventStatus = "open" | "upcoming" | "full" | "completed";
+/** Story 4.23: where registrations stand, computed by `eventStatusAt`. */
+export type EventStatus = "upcoming" | "open" | "full" | "closed" | "in-progress" | "completed";
 
 export type EventAttendanceMode = "offline" | "online" | "mixed";
 
@@ -8,6 +9,9 @@ export type PublicEvent = {
   date: string;
   dateIso?: string;
   endDateIso?: string;
+  /** Story 4.23: the registration window, shown before it opens. */
+  registrationOpensAtIso?: string;
+  registrationClosesAtIso?: string;
   location: string;
   description: string;
   coverImageUrl?: string | null;

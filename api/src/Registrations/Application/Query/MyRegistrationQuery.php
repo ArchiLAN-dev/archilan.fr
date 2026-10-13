@@ -14,7 +14,7 @@ final readonly class MyRegistrationQuery
     }
 
     /**
-     * @return array{registrationId: string, status: string}|null
+     * @return array{registrationId: string, status: string, confirmed: bool}|null
      */
     public function findActiveByEventAndUser(string $eventId, string $userId): ?array
     {
@@ -24,6 +24,7 @@ final readonly class MyRegistrationQuery
             return null;
         }
 
-        return ['registrationId' => $registration->getId(), 'status' => $registration->getStatus()];
+        // Story 4.23: only a confirmed registration gets "Rejoindre ma partie" on the event page during the event.
+        return ['registrationId' => $registration->getId(), 'status' => $registration->getStatus(), 'confirmed' => null !== $registration->getSubmittedAt()];
     }
 }

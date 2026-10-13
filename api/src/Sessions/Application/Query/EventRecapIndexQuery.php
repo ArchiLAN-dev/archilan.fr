@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Query;
 
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
@@ -24,6 +25,7 @@ final readonly class EventRecapIndexQuery
         private SessionRepositoryInterface $sessions,
         private SessionRecapRepositoryInterface $recaps,
         private RunResultsQuery $runResults,
+        private SessionRecapAudience $audience,
     ) {
     }
 
@@ -37,10 +39,10 @@ final readonly class EventRecapIndexQuery
      *     winner: array{playerName: string, game: string}|null
      * }>|null
      */
-    public function execute(string $eventId): ?array
+    public function execute(string $eventId, ?string $viewerId = null): ?array
     {
         $event = $this->events->findById($eventId);
-        if (null === $event || !$event->isPublic()) {
+        if (null === $event || !$this->audience->canViewEvent($event, $viewerId)) {
             return null;
         }
 
