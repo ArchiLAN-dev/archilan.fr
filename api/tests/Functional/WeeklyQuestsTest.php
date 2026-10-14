@@ -229,7 +229,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertCount(1, $spy->posted);
         self::assertSame([['title' => 'Marathon', 'objectives' => '50 checks et 1 partie', 'reward' => 60]], $spy->posted[0]->quests);
         self::assertSame(60 + 50, $spy->posted[0]->maxPelles());
-        self::assertStringEndsWith('/compte/portefeuille', $spy->posted[0]->url);
+        self::assertStringEndsWith('/compte/pelles', $spy->posted[0]->url);
     }
 
     public function testTheNewWeekIsAnnouncedOnceToTheMembersWhoPlayedLately(): void

@@ -22,7 +22,8 @@ La série existe déjà côté succès (story 41.17) : semaines ISO consécutive
 ## Critères d'acceptation
 
 1. **Nom** : l'entrée de menu de l'espace membre devient « Pelles », le menu utilisateur « Mes pelles », le titre de la
-   page « Pelles ». L'URL `/compte/portefeuille` ne change pas (liens des notifications, de l'accueil, de la boutique).
+   page « Pelles ». La page passe à `/compte/pelles` (liens du site, des notifications, de l'annonce Discord) ;
+   `/compte/portefeuille` y redirige de façon permanente, pour les notifications et annonces déjà envoyées.
 2. **Ordre** : solde de pelles, quêtes de la semaine, premiers pas (s'il y en a), historique des mouvements, historique
    des quêtes.
 3. **Série en API** : `GET /api/v1/me/quests` renvoie `streak: {current, best, thisWeek}`.
@@ -52,4 +53,5 @@ La série existe déjà côté succès (story 41.17) : semaines ISO consécutive
   (en cours, prolongée, cassée avec record, passage 2026-W53 vers 2027-W01, vide) et `WeeklyQuestsTest`.
 - Front : `WeeklyQuests.streak` optionnel + garde ; `StreakRow` sous le coffre ; `WalletView` prend un emplacement
   `quests` entre le solde et l'historique ; `QuestHistoryPanel` séparé (même requête) en pied de page.
-- Libellés : « Pelles » (menu de l'espace membre, titre), « Mes pelles » (menu utilisateur) ; URL inchangée.
+- Libellés : « Pelles » (menu de l'espace membre, titre), « Mes pelles » (menu utilisateur) ; page déplacée vers
+  `/compte/pelles`, redirection permanente depuis `/compte/portefeuille` dans `next.config.ts`.

@@ -30,10 +30,10 @@ export function WalletPanel() {
   });
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Chargement du portefeuille…</p>;
+    return <p className="text-sm text-muted-foreground">Chargement de tes pelles…</p>;
   }
   if (!data) {
-    return <p className="text-sm text-danger">Impossible de charger ton portefeuille pour le moment.</p>;
+    return <p className="text-sm text-danger">Impossible de charger tes pelles pour le moment.</p>;
   }
 
   return (

@@ -56,7 +56,7 @@ final readonly class AnnounceQuestsOnDiscord
             $this->inWords($served),
             $this->settings->chestReward(),
             $week->end,
-            rtrim($this->siteUrl, '/').'/compte/portefeuille',
+            rtrim($this->siteUrl, '/').'/compte/pelles',
         );
 
         $previous = $this->settings->discordMessageOf($week->key);

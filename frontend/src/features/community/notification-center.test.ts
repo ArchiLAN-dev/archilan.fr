@@ -151,7 +151,7 @@ describe("pelles adjusted notification (story 41.1)", () => {
     const credit = item("pelles_adjusted", { amount: 50, kind: "gold", reason: "Aide au montage" });
 
     expect(messageFor(credit)).toBe("Tu as reçu 50 pelles : Aide au montage");
-    expect(hrefFor(credit)).toBe("/compte/portefeuille");
+    expect(hrefFor(credit)).toBe("/compte/pelles");
   });
 
   it("tells a debit", () => {
@@ -164,7 +164,7 @@ describe("quests renewed notification (story 41.17)", () => {
     const notice = item("quests_renewed", { week: "2026-W42", count: 3, maxPelles: 150 });
 
     expect(messageFor(notice)).toBe("Nouvelles quêtes de la semaine : 3 quêtes, jusqu'à 150 pelles");
-    expect(hrefFor(notice)).toBe("/compte/portefeuille");
+    expect(hrefFor(notice)).toBe("/compte/pelles");
     expect(messageFor(item("quests_renewed", {}))).toBe("Nouvelles quêtes de la semaine");
   });
 });
