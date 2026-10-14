@@ -1,6 +1,9 @@
 import type { PublicGame } from "./public-games-api";
 
-export type SortOrder = "name-asc" | "name-desc";
+export type SortOrder = "name-asc" | "name-desc" | "added-desc";
+
+/** Story 28.17: how long a game keeps its "Nouveau" badge. */
+export const RECENTLY_ADDED_DAYS = 30;
 export type AvailabilityFilter = "all" | "available" | "experimental";
 
 /**
@@ -83,9 +86,29 @@ export function filterAndSortGames(
     return true;
   });
 
+  const byName = (a: PublicGame, b: PublicGame) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
+
+  if (filters.sort === "added-desc") {
+    // Newest first, ties by name: the initial imports added hundreds of games on the same day.
+    return [...filtered].sort((a, b) => addedTime(b) - addedTime(a) || byName(a, b));
+  }
+
   const direction = filters.sort === "name-desc" ? -1 : 1;
 
-  return [...filtered].sort(
-    (a, b) => direction * a.name.localeCompare(b.name, "fr", { sensitivity: "base" }),
-  );
+  return [...filtered].sort((a, b) => direction * byName(a, b));
+}
+
+/** Story 28.17: added less than RECENTLY_ADDED_DAYS ago. A game without a date is never new. */
+export function isRecentlyAdded(game: Pick<PublicGame, "addedAt">, now: Date): boolean {
+  const added = addedTime(game);
+  if (Number.NEGATIVE_INFINITY === added) return false;
+
+  return now.getTime() - added < RECENTLY_ADDED_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/** A missing or unreadable date sorts last. */
+function addedTime(game: Pick<PublicGame, "addedAt">): number {
+  const time = game.addedAt ? new Date(game.addedAt).getTime() : Number.NaN;
+
+  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
 }

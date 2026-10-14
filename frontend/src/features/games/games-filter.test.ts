@@ -3,6 +3,7 @@ import {
   categoriesOf,
   filterAndSortGames,
   isOwned,
+  isRecentlyAdded,
   type CatalogFilters,
 } from "./games-filter";
 import type { PublicGame } from "./public-games-api";
@@ -179,5 +180,34 @@ describe("isOwned - two sources (story 28.13)", () => {
   it("keeps the manual mark when the Steam library does not contain the game", () => {
     // Re-coupling Steam must never wipe what the player claimed by hand.
     expect(isOwned(onSteam, new Set(), new Set(["g2"]))).toBe(true);
+  });
+});
+
+describe("recently added games (story 28.17)", () => {
+  const older = { ...game({ name: "Alpha" }), addedAt: "2026-06-03T10:00:00+00:00" };
+  const sameDayA = { ...game({ name: "Bravo" }), addedAt: "2026-10-01T10:00:00+00:00" };
+  const sameDayB = { ...game({ name: "Avalon" }), addedAt: "2026-10-01T10:00:00+00:00" };
+  const undated = game({ name: "Aardvark" });
+  const now = new Date("2026-10-14T12:00:00+00:00");
+
+  it("sorts newest first, ties by name, undated games last", () => {
+    expect(
+      filterAndSortGames([undated, older, sameDayA, sameDayB], { ...base, sort: "added-desc" }, new Set()).map(
+        (g) => g.name,
+      ),
+    ).toEqual(["Avalon", "Bravo", "Alpha", "Aardvark"]);
+  });
+
+  it("flags a game added less than thirty days ago", () => {
+    expect(isRecentlyAdded(sameDayA, now)).toBe(true);
+    expect(isRecentlyAdded({ addedAt: "2026-09-14T12:00:01+00:00" }, now)).toBe(true);
+    expect(isRecentlyAdded({ addedAt: "2026-09-14T12:00:00+00:00" }, now)).toBe(false);
+    expect(isRecentlyAdded(older, now)).toBe(false);
+  });
+
+  it("never flags a game without a readable date", () => {
+    expect(isRecentlyAdded(undated, now)).toBe(false);
+    expect(isRecentlyAdded({ addedAt: null }, now)).toBe(false);
+    expect(isRecentlyAdded({ addedAt: "not a date" }, now)).toBe(false);
   });
 });

@@ -7,7 +7,15 @@ export const availabilityConfig = {
   experimental: { label: "Expérimental", className: "border-warning/50 bg-warning/10 text-warning" },
 } as const;
 
-export function GameCard({ game, owned = false }: { game: PublicGame; owned?: boolean }) {
+export function GameCard({
+  game,
+  owned = false,
+  isNew = false,
+}: {
+  game: PublicGame;
+  owned?: boolean;
+  isNew?: boolean;
+}) {
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
 
   return (
@@ -33,6 +41,11 @@ export function GameCard({ game, owned = false }: { game: PublicGame; owned?: bo
 
       <div className="grid content-start gap-2 p-4">
         <div className="flex flex-wrap gap-1.5">
+          {isNew ? (
+            <span className="rounded border border-accent/50 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent-text">
+              Nouveau
+            </span>
+          ) : null}
           <span className={`rounded border px-2 py-0.5 text-xs font-semibold ${status.className}`}>
             {status.label}
           </span>
