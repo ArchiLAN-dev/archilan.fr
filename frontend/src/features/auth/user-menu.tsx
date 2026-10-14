@@ -169,7 +169,7 @@ export function AccountMenuLinks({ user, gold, onNavigate }: AccountMenuLinksPro
       >
         <span className="flex items-center gap-2.5">
           <Wallet aria-hidden="true" className="size-4" />
-          Mon portefeuille
+          Mes pelles
         </span>
         {gold !== null ? <PelleAmount amount={gold} className="font-semibold text-warning" /> : null}
       </Link>
