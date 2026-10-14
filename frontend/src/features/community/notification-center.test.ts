@@ -49,6 +49,12 @@ describe("apworld incident notification (story 38.2)", () => {
     );
   });
 
+  it("tells a game waiting for the player's file apart from a broken apworld (story 44.1)", () => {
+    expect(messageFor(item("apworld_incident_opened", { gameName: "Donkey Kong Country 3", incidentType: "required_file" }))).toBe(
+      "Fichier requis à la génération : Donkey Kong Country 3",
+    );
+  });
+
   it("leads to the health page even without any detail", () => {
     expect(hrefFor(item("apworld_incident_opened", {}))).toBe("/admin/sante-apworlds");
   });

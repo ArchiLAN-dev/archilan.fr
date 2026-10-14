@@ -104,7 +104,22 @@ final class GenerationFailureParser
         return self::formatMessage(trim($lines[count($lines) - 1]));
     }
 
-    private static function structuredFinding(string $text): ?GenerationFailureFinding
+    /**
+     * Story 44.1: the file the world asked for when the generation failed on it, else null. Read from the
+     * generator's record only: older images opened a file dialog and failed for an unrelated reason.
+     */
+    public static function requiredFile(?string $reason): ?RequiredGenerationFile
+    {
+        $record = self::failureRecord(trim($reason ?? ''));
+        $required = $record['requiredFile'] ?? null;
+
+        return is_array($required) ? RequiredGenerationFile::fromRecord($required) : null;
+    }
+
+    /**
+     * @return array<mixed>|null
+     */
+    private static function failureRecord(string $text): ?array
     {
         $record = null;
         foreach (preg_split('/\r?\n/', $text) ?: [] as $line) {
@@ -119,8 +134,22 @@ final class GenerationFailureParser
             }
         }
 
+        return $record;
+    }
+
+    private static function structuredFinding(string $text): ?GenerationFailureFinding
+    {
+        $record = self::failureRecord($text);
         if (null === $record) {
             return null;
+        }
+
+        $slot = is_string($record['slot'] ?? null) && '' !== $record['slot'] ? $record['slot'] : null;
+
+        // Story 44.1: a missing file says which one, in words, rather than the raw FileNotFoundError.
+        $required = is_array($record['requiredFile'] ?? null) ? RequiredGenerationFile::fromRecord($record['requiredFile']) : null;
+        if (null !== $required) {
+            return new GenerationFailureFinding($slot, $required->message());
         }
 
         $message = is_string($record['message'] ?? null) ? trim($record['message']) : '';
@@ -129,7 +158,6 @@ final class GenerationFailureParser
         }
 
         $type = is_string($record['type'] ?? null) ? trim($record['type']) : '';
-        $slot = is_string($record['slot'] ?? null) && '' !== $record['slot'] ? $record['slot'] : null;
 
         return new GenerationFailureFinding($slot, self::formatMessage('' !== $type ? $type.': '.$message : $message));
     }

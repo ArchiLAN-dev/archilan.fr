@@ -18,6 +18,9 @@ use Symfony\Component\Clock\MockClock;
 
 final class ReconcileApworldIncidentsTest extends TestCase
 {
+    private const string REQUIRED_FILE_ERROR = 'Traceback (most recent call last):
+###ARCHILAN-FAILURE### {"type": "FileNotFoundError", "message": "x.sfc does not exist, but DK3Settings.rom_file is required", "requiredFile": {"setting": "DK3Settings.rom_file", "file": "x.sfc", "extension": ".sfc", "description": "DKC3 (US) ROM File"}}';
+
     private InMemoryApworldIncidentRepository $incidents;
     private InMemoryApworldHealthRepository $health;
     private MockClock $clock;
@@ -70,6 +73,32 @@ final class ReconcileApworldIncidentsTest extends TestCase
         $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'boom', checkedAt: '2026-09-27T05:10:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:same')]);
 
         self::assertSame(ApworldIncidentType::PreflightFailed, $this->incidents->all()[0]->getType());
+    }
+
+    public function testAMissingFileOpensARequiredFileIncidentWithoutRetry(): void
+    {
+        // Story 44.1: a hash that passed and now stops on a file is not retried - the file will still be missing.
+        $served = [new ServedApworld('game-1', 'hash-1')];
+        $this->reconcile($served, ['hash-1' => $this->verdict('passed', checkedAt: '2026-09-20T05:00:00Z', image: 'archipelago:0.16.0', imageId: 'sha256:old')]);
+
+        $result = $this->reconcile($served, ['hash-1' => $this->verdict('failed', self::REQUIRED_FILE_ERROR, checkedAt: '2026-09-27T05:00:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:new')]);
+
+        self::assertCount(1, $result->openedIncidentIds);
+        $incident = $this->incidents->all()[0];
+        self::assertSame(ApworldIncidentType::RequiredFile, $incident->getType());
+        self::assertSame('Ce jeu demande le fichier « DKC3 (US) ROM File » (.sfc) à la génération. ArchiLAN ne sait pas encore le fournir.', $incident->getError());
+        self::assertSame([], $this->retriedHashes);
+    }
+
+    public function testARequiredFileIncidentClosesWhenTheTestPasses(): void
+    {
+        $served = [new ServedApworld('game-1', 'hash-1')];
+        $this->reconcile($served, ['hash-1' => $this->verdict('failed', self::REQUIRED_FILE_ERROR, checkedAt: '2026-09-27T05:00:00Z')]);
+
+        $result = $this->reconcile($served, ['hash-1' => $this->verdict('passed', checkedAt: '2026-09-28T05:00:00Z')]);
+
+        self::assertCount(1, $result->resolvedIncidentIds);
+        self::assertSame(ApworldIncidentStatus::Resolved, $this->incidents->all()[0]->getStatus());
     }
 
     public function testFirstFailureOfAHashThatNeverPassedOpensAnIncidentImmediately(): void

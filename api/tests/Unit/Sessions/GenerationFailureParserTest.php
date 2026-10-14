@@ -275,4 +275,40 @@ LOG;
         self::assertCount(1, $report->findings);
         self::assertSame('slot_a', $report->findings[0]->slotName);
     }
+
+    /** Story 44.1: the real record of DKC3, whose world needs the player's ROM at generation. */
+    private const string DKC3_STDERR = <<<'LOG'
+FileNotFoundError: Donkey Kong Country 3 - Dixie Kong's Double Trouble! (USA) (En,Fr).sfc does not exist, but DK3Settings.rom_file is required
+###ARCHILAN-FAILURE### {"type": "FileNotFoundError", "message": "Donkey Kong Country 3 - Dixie Kong's Double Trouble! (USA) (En,Fr).sfc does not exist, but DK3Settings.rom_file is required", "requiredFile": {"setting": "DK3Settings.rom_file", "file": "Donkey Kong Country 3 - Dixie Kong's Double Trouble! (USA) (En,Fr).sfc", "extension": ".sfc", "description": "DKC3 (US) ROM File", "md5s": ["120abf304f0c40fe059f6a192ed4f947"]}}
+LOG;
+
+    public function testARequiredFileIsNamedInWords(): void
+    {
+        self::assertSame(
+            'Ce jeu demande le fichier « DKC3 (US) ROM File » (.sfc) à la génération. ArchiLAN ne sait pas encore le fournir.',
+            GenerationFailureParser::summarize(self::DKC3_STDERR),
+        );
+
+        $file = GenerationFailureParser::requiredFile(self::DKC3_STDERR);
+        self::assertNotNull($file);
+        self::assertSame('DK3Settings.rom_file', $file->setting);
+        self::assertSame(['120abf304f0c40fe059f6a192ed4f947'], $file->md5s);
+    }
+
+    public function testARequiredFileWithoutDescriptionFallsBackOnItsFileName(): void
+    {
+        $stderr = '###ARCHILAN-FAILURE### {"type": "FileNotFoundError", "message": "x", "requiredFile": {"setting": "MK64Settings.rom_file", "file": "Mario Kart 64 (U) [!].z64", "extension": ".z64"}}';
+
+        self::assertSame(
+            'Ce jeu demande le fichier « Mario Kart 64 (U) [!].z64 » à la génération. ArchiLAN ne sait pas encore le fournir.',
+            GenerationFailureParser::summarize($stderr),
+        );
+    }
+
+    public function testAnyOtherFailureHasNoRequiredFile(): void
+    {
+        self::assertNull(GenerationFailureParser::requiredFile(self::ABL_STDERR));
+        self::assertNull(GenerationFailureParser::requiredFile('###ARCHILAN-FAILURE### {"type": "FileNotFoundError", "message": "x", "requiredFile": {"file": ""}}'));
+        self::assertNull(GenerationFailureParser::requiredFile(null));
+    }
 }
