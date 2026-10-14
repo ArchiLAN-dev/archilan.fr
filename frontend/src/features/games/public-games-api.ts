@@ -12,6 +12,8 @@ export type PublicGame = {
   supportedEventTypes: string[];
   steamAppId: number | null;
   platforms: string[];
+  /** Story 28.17: when the game joined the catalog (ISO). Optional because an older API build does not send it. */
+  addedAt?: string | null;
 };
 
 export type GamePage = {
@@ -202,6 +204,7 @@ function isPublicGame(v: unknown): v is PublicGame {
   if (!hasStringProp(v, "coverImageAlt")) return false;
   if (!("availability" in v) || !isGameAvailability(v.availability)) return false;
   if (!("steamAppId" in v) || (v.steamAppId !== null && typeof v.steamAppId !== "number")) return false;
+  if ("addedAt" in v && v.addedAt !== null && typeof v.addedAt !== "string") return false;
   if (!("platforms" in v) || !Array.isArray(v.platforms) || !v.platforms.every((item): item is string => typeof item === "string")) return false;
   return "supportedEventTypes" in v && Array.isArray(v.supportedEventTypes) && v.supportedEventTypes.every((item): item is string => typeof item === "string");
 }

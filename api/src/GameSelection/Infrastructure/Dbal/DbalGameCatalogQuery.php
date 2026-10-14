@@ -235,6 +235,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.cover_image_url AS cover_image_url',
                 'game.cover_image_alt AS cover_image_alt',
                 'game.availability AS availability',
+                'game.created_at AS created_at',
                 'sync.steam_app_id AS steam_app_id',
                 'sync.platforms AS platforms',
                 'game.platform_families AS platform_families',
@@ -248,7 +249,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
     /**
      * @param array<string, mixed> $row
      *
-     * @return array{id: string, name: string, slug: string, description: string, coverImageUrl: string|null, coverImageAlt: string, availability: string, steamAppId: int|null, platforms: list<string>, supportedEventTypes: list<string>}
+     * @return array{id: string, name: string, slug: string, description: string, coverImageUrl: string|null, coverImageAlt: string, availability: string, addedAt: string|null, steamAppId: int|null, platforms: list<string>, supportedEventTypes: list<string>}
      */
     private function mapRow(array $row): array
     {
@@ -260,6 +261,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
         $coverImageAlt = $row['cover_image_alt'] ?? null;
         $availability = $row['availability'] ?? null;
         $steamAppId = $row['steam_app_id'] ?? null;
+        $createdAt = $row['created_at'] ?? null;
 
         return [
             'id' => is_string($id) ? $id : '',
@@ -269,6 +271,8 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             'coverImageUrl' => is_string($coverImageUrl) ? $coverImageUrl : null,
             'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
             'availability' => is_string($availability) ? $availability : '',
+            // Story 28.17: the catalog sorts by it ("Ajouts récents") and flags the newest games.
+            'addedAt' => is_string($createdAt) && '' !== $createdAt ? new \DateTimeImmutable($createdAt)->format(\DateTimeInterface::ATOM) : null,
             'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
             'platforms' => PlatformCategory::resolve(
                 self::decodePlatformFamilies($row['platform_families'] ?? null),

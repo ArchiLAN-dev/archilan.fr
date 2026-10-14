@@ -18,7 +18,10 @@ export const DEFAULT_FILTERS: CatalogFilters = {
 };
 
 const AVAILABILITIES: readonly AvailabilityFilter[] = ["all", "available", "experimental"];
-const SORTS: readonly SortOrder[] = ["name-asc", "name-desc"];
+const SORTS: readonly SortOrder[] = ["name-asc", "name-desc", "added-desc"];
+
+/** Story 28.17: the newest-first sort reads `tri=recents` in the URL, the name sorts keep their value. */
+const RECENT_SORT_SLUG = "recents";
 
 /** French slugs for the list filter - the URL is user-facing, like `dispo` and `tri` (story 28.14). */
 const LIST_SLUGS: Record<Exclude<ListFilter, "all">, string> = {
@@ -38,7 +41,8 @@ type ReadableParams = {
  */
 export function readFiltersFromParams(params: ReadableParams): CatalogFilters {
   const availability = params.get("dispo");
-  const sort = params.get("tri");
+  const rawSort = params.get("tri");
+  const sort = RECENT_SORT_SLUG === rawSort ? "added-desc" : rawSort;
 
   return {
     availability: isAvailability(availability) ? availability : DEFAULT_FILTERS.availability,
@@ -75,7 +79,9 @@ export function filtersToQueryString(filters: CatalogFilters): string {
   if ("" !== query) params.set("q", query);
   if (DEFAULT_FILTERS.availability !== filters.availability) params.set("dispo", filters.availability);
   if ("all" !== filters.list) params.set("liste", LIST_SLUGS[filters.list]);
-  if (DEFAULT_FILTERS.sort !== filters.sort) params.set("tri", filters.sort);
+  if (DEFAULT_FILTERS.sort !== filters.sort) {
+    params.set("tri", "added-desc" === filters.sort ? RECENT_SORT_SLUG : filters.sort);
+  }
   for (const category of filters.categories) params.append("cat", category);
 
   return params.toString();

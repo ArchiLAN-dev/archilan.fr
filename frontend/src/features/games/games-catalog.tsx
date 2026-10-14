@@ -12,6 +12,7 @@ import {
   allCategories,
   filterAndSortGames,
   isOwned,
+  isRecentlyAdded,
   type AvailabilityFilter,
   type ListFilter,
   type SortOrder,
@@ -59,6 +60,8 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
   const [sort, setSort] = useState<SortOrder>(initial.sort);
   const [categories, setCategories] = useState<string[]>(initial.categories);
   const categoryOptions = useMemo(() => allCategories(initialGames), [initialGames]);
+  // Story 28.17: one reference time per render of the page, so every card agrees on what is new.
+  const [now] = useState(() => new Date());
 
   // Drop a list filter whose list turns out to hold nothing: a cleared or unsuccessful Steam
   // coupling for "mes jeux", a shared `?liste=a-essayer` opened by someone whose own list is empty
@@ -205,6 +208,7 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
         >
           <option value="name-asc">Nom A→Z</option>
           <option value="name-desc">Nom Z→A</option>
+          <option value="added-desc">Ajouts récents</option>
         </select>
       </div>
 
@@ -226,7 +230,12 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
       {visibleGames.length > 0 ? (
         <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {visibleGames.map((game) => (
-            <GameCard game={game} key={game.id} owned={isOwned(game, matchedAppIds, ownedGameIds)} />
+            <GameCard
+              game={game}
+              isNew={isRecentlyAdded(game, now)}
+              key={game.id}
+              owned={isOwned(game, matchedAppIds, ownedGameIds)}
+            />
           ))}
         </div>
       ) : (
