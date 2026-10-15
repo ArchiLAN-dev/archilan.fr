@@ -12,6 +12,7 @@ use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Port\PersonalRunAdvancerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Sessions\Application\Support\SlotNameGenerator;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
@@ -43,6 +44,7 @@ final readonly class LaunchPersonalRunJobHandler
         private LoggerInterface $logger,
         private ClockInterface $clock,
         private SlotCoPlayerRepositoryInterface $coPlayers,
+        private RequiredGenerationFiles $requiredFiles,
     ) {
     }
 
@@ -51,11 +53,14 @@ final readonly class LaunchPersonalRunJobHandler
         $run = $this->runs->findById($job->personalRunId);
         if (!$run instanceof Run) {
             $this->logger->error('personal_run.launch.not_found', ['runId' => $job->personalRunId]);
+            $this->requiredFiles->release($job->requiredFileIds);
 
             return;
         }
 
         if ($run->isImportedSeed()) {
+            // Nothing is generated: a file provided anyway has nothing to feed.
+            $this->requiredFiles->release($job->requiredFileIds);
             $this->launchImportedSeed($run);
 
             return;
@@ -79,6 +84,7 @@ final readonly class LaunchPersonalRunJobHandler
 
         if ([] === $slotsForSession) {
             $this->logger->error('personal_run.launch.no_slots', ['runId' => $job->personalRunId]);
+            $this->requiredFiles->release($job->requiredFileIds);
 
             return;
         }
@@ -176,6 +182,7 @@ final readonly class LaunchPersonalRunJobHandler
             // Don't leave the run stuck on "starting": reset it so the owner can retry.
             $run->resetAfterValidationFailure($now);
             $this->sessions->flush();
+            $this->requiredFiles->release($job->requiredFileIds);
 
             return;
         }
@@ -183,11 +190,12 @@ final readonly class LaunchPersonalRunJobHandler
         if ($configureResult['valid']) {
             $session->transition(Session::STATUS_READY, $now);
             $this->sessions->flush();
-            $this->personalRunAdvancer->autoAdvancePersonalRun($sessionId);
+            $this->personalRunAdvancer->autoAdvancePersonalRun($sessionId, $job->requiredFileIds);
         } else {
             $session->transition(Session::STATUS_FAILED, $now);
             $run->resetAfterValidationFailure($now);
             $this->sessions->flush();
+            $this->requiredFiles->release($job->requiredFileIds);
         }
 
         $this->logger->info('personal_run.launch.dispatched', [

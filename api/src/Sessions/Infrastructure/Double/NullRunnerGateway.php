@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Double;
 
+use App\Sessions\Application\Exception\RequiredGenerationFileExpiredException;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 
 final class NullRunnerGateway implements RunnerGatewayInterface
@@ -32,8 +34,28 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** When true, startSlotPreflight() reads as a runner that did not answer (story 38.14 tests). */
     public static bool $slotPreflightUnavailable = false;
 
+    /** @var list<array{setting: string, filename: string, content: string}> Files handed to stageRequiredFile(), read at the call (story 44.2 tests). */
+    public static array $stagedFiles = [];
+
+    /** @var list<string> Ids passed to releaseRequiredFile() (story 44.2 tests). */
+    public static array $releasedFileIds = [];
+
+    /** @var list<list<string>> The requiredFileIds of each generateSession() call (story 44.2 tests). */
+    public static array $generatedWithFileIds = [];
+
+    /** When set, stageRequiredFile() refuses the file whose setting it names (story 44.2 tests). */
+    public static ?string $refuseStagingOf = null;
+
+    /** When true, generateSession() reads as an orchestrator that no longer holds the files (story 44.2 tests). */
+    public static bool $requiredFilesExpired = false;
+
     public static function reset(): void
     {
+        self::$stagedFiles = [];
+        self::$releasedFileIds = [];
+        self::$generatedWithFileIds = [];
+        self::$refuseStagingOf = null;
+        self::$requiredFilesExpired = false;
         self::$lastSlotPreflight = null;
         self::$slotPreflightResult = ['status' => 'passed', 'error' => ''];
         self::$slotPreflightUnavailable = false;
@@ -165,8 +187,27 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /**
      * @param array<string, mixed> $generationOptions
      */
-    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = []): void
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = [], array $requiredFileIds = []): void
     {
+        self::$generatedWithFileIds[] = $requiredFileIds;
+        if ([] !== $requiredFileIds && self::$requiredFilesExpired) {
+            throw new RequiredGenerationFileExpiredException();
+        }
+    }
+
+    public function stageRequiredFile(string $setting, string $path, string $filename): string
+    {
+        if ($setting === self::$refuseStagingOf) {
+            throw new RequiredGenerationFileRefusedException('file too large');
+        }
+        self::$stagedFiles[] = ['setting' => $setting, 'filename' => $filename, 'content' => (string) file_get_contents($path)];
+
+        return 'staged-'.count(self::$stagedFiles);
+    }
+
+    public function releaseRequiredFile(string $stagedFileId): void
+    {
+        self::$releasedFileIds[] = $stagedFileId;
     }
 
     /**

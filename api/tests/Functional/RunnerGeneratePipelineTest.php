@@ -6,6 +6,8 @@ namespace App\Tests\Functional;
 
 use App\Identity\Domain\Entity\User;
 use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Infrastructure\Double\NullRunnerGateway;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class RunnerGeneratePipelineTest extends FunctionalTestCase
 {
@@ -60,6 +62,64 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
         $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
         self::assertSame('generating', $data['status']);
+    }
+
+    // ─── Generate with a required file (story 44.2) ───────────────────────────
+
+    public function testGenerateHandsTheJoinedFileToTheGeneration(): void
+    {
+        NullRunnerGateway::reset();
+        $this->loginAs($this->createAdmin());
+        $session = $this->persistSession('evt-001', Session::STATUS_READY);
+
+        $this->client->request('POST', sprintf('/api/v1/admin/sessions/%s/generate', $session->getId()), [], [
+            'requiredFiles' => ['DK3Settings.rom_file' => $this->romUpload()],
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('DK3Settings.rom_file', NullRunnerGateway::$stagedFiles[0]['setting'] ?? null);
+        self::assertSame([['staged-1']], NullRunnerGateway::$generatedWithFileIds);
+        NullRunnerGateway::reset();
+    }
+
+    public function testAnExpiredFileFailsTheGenerationAndIsReleased(): void
+    {
+        NullRunnerGateway::reset();
+        NullRunnerGateway::$requiredFilesExpired = true;
+        $this->loginAs($this->createAdmin());
+        $session = $this->persistSession('evt-001', Session::STATUS_READY);
+
+        $this->client->request('POST', sprintf('/api/v1/admin/sessions/%s/generate', $session->getId()), [], [
+            'requiredFiles' => ['DK3Settings.rom_file' => $this->romUpload()],
+        ]);
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame(['staged-1'], NullRunnerGateway::$releasedFileIds);
+        $this->entityManager->clear();
+        $failed = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $failed);
+        self::assertSame(Session::STATUS_FAILED, $failed->getStatus());
+        NullRunnerGateway::reset();
+    }
+
+    public function testARefusedFileLeavesTheSessionReady(): void
+    {
+        NullRunnerGateway::reset();
+        NullRunnerGateway::$refuseStagingOf = 'DK3Settings.rom_file';
+        $this->loginAs($this->createAdmin());
+        $session = $this->persistSession('evt-001', Session::STATUS_READY);
+
+        $this->client->request('POST', sprintf('/api/v1/admin/sessions/%s/generate', $session->getId()), [], [
+            'requiredFiles' => ['DK3Settings.rom_file' => $this->romUpload()],
+        ]);
+
+        self::assertResponseStatusCodeSame(503);
+        self::assertSame([], NullRunnerGateway::$generatedWithFileIds);
+        $this->entityManager->clear();
+        $ready = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $ready);
+        self::assertSame(Session::STATUS_READY, $ready->getStatus());
+        NullRunnerGateway::reset();
     }
 
     // ─── Launch endpoint ──────────────────────────────────────────────────────
@@ -166,6 +226,15 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    private function romUpload(): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'rom');
+        self::assertIsString($path);
+        file_put_contents($path, 'ROMDATA');
+
+        return new UploadedFile($path, 'dkc3.sfc', 'application/octet-stream', null, true);
+    }
 
     private function createAdmin(): User
     {

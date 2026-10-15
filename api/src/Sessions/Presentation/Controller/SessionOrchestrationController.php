@@ -8,6 +8,7 @@ use App\Sessions\Application\Query\SessionQuery;
 use App\Sessions\Application\Service\SessionOrchestrator;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\RequiredGenerationFilesRequest;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -63,7 +64,13 @@ final readonly class SessionOrchestrationController
             return $guard;
         }
 
-        $result = $this->sessionOrchestrator->orchestrateGenerate($sessionId);
+        // Story 44.2: optional files a world reads at generation, multipart `requiredFiles[<setting>]`.
+        $required = RequiredGenerationFilesRequest::read($request);
+        if ([] !== $required['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Fichier de génération invalide.', 422, ['requiredFiles' => $required['errors']]);
+        }
+
+        $result = $this->sessionOrchestrator->orchestrateGenerateWithFiles($sessionId, $required['files']);
 
         if (true !== ($result['found'] ?? false)) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);

@@ -12,6 +12,9 @@ use App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Command\ForceEndSessionCommand;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
+use App\Sessions\Application\Support\ProvidedGenerationFile;
 use App\Sessions\Domain\Exception\SessionNotFoundException;
 use App\Sessions\Domain\Exception\SessionNotRunningException;
 use App\Shared\Application\Exception\ConflictException;
@@ -32,6 +35,7 @@ final readonly class PersonalRunLifecycle
         private ForceEndSessionCommand $forceEndSession,
         private ClockInterface $clock,
         private LoggerInterface $logger,
+        private RequiredGenerationFiles $requiredGenerationFiles,
     ) {
     }
 
@@ -71,7 +75,11 @@ final readonly class PersonalRunLifecycle
      * @throws ForbiddenException  when the caller may not start the run in its current state
      * @throws ValidationException when the run cannot be started in its current state
      */
-    public function start(string $runId, string $callerId): RunLifecycleResult
+    /**
+     * @param list<ProvidedGenerationFile> $requiredFiles files a world reads at generation (story 44.2),
+     *                                                    handed to the orchestrator here, never stored
+     */
+    public function start(string $runId, string $callerId, array $requiredFiles = []): RunLifecycleResult
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
@@ -106,6 +114,8 @@ final readonly class PersonalRunLifecycle
             }
         }
 
+        $requiredFileIds = $this->stageRequiredFiles($run, $callerId, $requiredFiles);
+
         $run->start($this->clock->now());
         $this->runs->flush();
         // Story 16.21 : une partie qu'on relance redevient d'actualité - elle sort des archives de chacun, sans
@@ -121,7 +131,7 @@ final readonly class PersonalRunLifecycle
             ]);
         }
 
-        $this->messageBus->dispatch(new LaunchPersonalRunJob($run->getId()));
+        $this->messageBus->dispatch(new LaunchPersonalRunJob($run->getId(), $requiredFileIds));
 
         return new RunLifecycleResult($run->getId(), $run->getStatus());
     }
@@ -237,5 +247,32 @@ final readonly class PersonalRunLifecycle
         $this->runs->flush();
 
         return new RunLifecycleResult($run->getId(), $run->getStatus());
+    }
+
+    /**
+     * The launcher provides the files (provisional rule of epic 44): a participant resuming the run does not.
+     * Handed over before anything changes, so a refused file leaves the run as it was.
+     *
+     * @param list<ProvidedGenerationFile> $files
+     *
+     * @return list<string>
+     */
+    private function stageRequiredFiles(Run $run, string $callerId, array $files): array
+    {
+        if ([] === $files) {
+            return [];
+        }
+        if (!$run->isOwnedBy($callerId)) {
+            throw new ForbiddenException('Seul le lanceur de la partie peut fournir un fichier.');
+        }
+        if ($run->isImportedSeed()) {
+            throw new ValidationException('Une seed importée ne se génère pas : aucun fichier n\'est nécessaire.', ['requiredFiles' => ['Aucun fichier n\'est nécessaire.']], 'required_files_not_needed');
+        }
+
+        try {
+            return $this->requiredGenerationFiles->stage($files);
+        } catch (RequiredGenerationFileRefusedException) {
+            throw new ValidationException('Le fichier n\'a pas pu être transmis pour la génération.', ['requiredFiles' => ['Le fichier n\'a pas pu être transmis. Réessaie dans un instant.']], 'required_file_refused');
+        }
     }
 }
