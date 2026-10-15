@@ -34,6 +34,13 @@ describe("WalletView", () => {
     expect(html).toContain("Page 1 sur 2");
   });
 
+  test("puts the quests between the balance and the history (story 41.34)", () => {
+    const html = renderToStaticMarkup(<WalletView onPage={() => {}} quests={<p>QUESTS</p>} wallet={wallet} />);
+
+    expect(html.indexOf("Mes pelles")).toBeLessThan(html.indexOf("QUESTS"));
+    expect(html.indexOf("QUESTS")).toBeLessThan(html.indexOf("Historique"));
+  });
+
   test("an empty wallet says so", () => {
     const html = renderToStaticMarkup(
       <WalletView onPage={() => {}} wallet={{ gold: 0, events: [], history: { items: [], page: 1, perPage: 25, total: 0 } }} />,

@@ -40,6 +40,13 @@ const nextConfig: NextConfig = {
         destination: "/communaute",
         permanent: true,
       },
+      {
+        // Story 41.34: the wallet page is "Pelles" now. Notifications and Discord announcements already
+        // sent still point to the old URL.
+        source: "/compte/portefeuille",
+        destination: "/compte/pelles",
+        permanent: true,
+      },
     ];
   },
   async headers() {

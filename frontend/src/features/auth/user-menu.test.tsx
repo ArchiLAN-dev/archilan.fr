@@ -23,16 +23,16 @@ describe("AccountMenuLinks", () => {
     const html = renderToStaticMarkup(<AccountMenuLinks gold={null} onNavigate={() => undefined} user={member} />);
 
     expect(html).toContain("Mes parties");
-    expect(hrefs(member)).toEqual(["/compte/parties", "/joueurs/membre", "/compte", "/compte/portefeuille"]);
+    expect(hrefs(member)).toEqual(["/compte/parties", "/joueurs/membre", "/compte", "/compte/pelles"]);
   });
 
   test("keeps it for a member without a public profile, and for an admin", () => {
-    expect(hrefs({ ...member, slug: null })).toEqual(["/compte/parties", "/compte", "/compte/portefeuille"]);
+    expect(hrefs({ ...member, slug: null })).toEqual(["/compte/parties", "/compte", "/compte/pelles"]);
     expect(hrefs({ ...member, roles: ["ROLE_USER", "ROLE_ADMIN"] })).toEqual([
       "/compte/parties",
       "/joueurs/membre",
       "/compte",
-      "/compte/portefeuille",
+      "/compte/pelles",
       "/admin",
     ]);
   });

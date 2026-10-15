@@ -347,7 +347,7 @@ export function hrefFor(item: NotificationItem): string {
     return "/admin/moderation/signalements";
   }
   if (item.type === "pelles_adjusted" || item.type === "quests_renewed") {
-    return "/compte/portefeuille";
+    return "/compte/pelles";
   }
   if (item.type === "cosmetic_unlocked") {
     // Story 41.28: where the member puts it on.
