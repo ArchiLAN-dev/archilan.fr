@@ -92,8 +92,11 @@ export function PersonalRunSlotYamlPage({
 
   // One-shot editor hydration from the fetched slot (YamlOptionEditor reads its props at mount, so
   // the editor is only rendered once these seeds are in place - see the hydration gate below).
+  // The API sends a game's default YAML only once the member holds it: cached data from before the game
+  // was added lacks it, so the seed waits for the refetch the selection page started.
+  const refreshing = selectionQuery.isFetching;
   useEffect(() => {
-    if (slot === null || game === null || hydratedSlotId === slot.slotId) return;
+    if (slot === null || game === null || hydratedSlotId === slot.slotId || refreshing) return;
     const seed = slot.playerYaml ?? game.defaultYaml ?? "";
     /* eslint-disable react-hooks/set-state-in-effect -- sanctioned one-shot seed-into-form hydration (guarded by hydratedSlotId); the editor dirty-state stays local UI state per AC-ST2 */
     setEditorYaml(slot.playerYaml);
@@ -101,7 +104,7 @@ export function PersonalRunSlotYamlPage({
     setSavedYaml(seed);
     setHydratedSlotId(slot.slotId);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [slot, game, hydratedSlotId]);
+  }, [slot, game, hydratedSlotId, refreshing]);
 
   const applyTemplate = useCallback((yaml: string) => {
     setEditorYaml(yaml);
