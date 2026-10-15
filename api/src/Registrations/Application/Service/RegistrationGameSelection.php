@@ -75,7 +75,8 @@ final readonly class RegistrationGameSelection
             $game = $gamesById[$gameId] ?? null;
             // Story 11.5: a disabled game is no longer offered - except to a registration that already holds it,
             // so that slot keeps its config (flagged as disabled, it still cannot be added again).
-            if (null === $game || ($game->isDisabled() && !\in_array($gameId, $slotGameIds, true))) {
+            $held = \in_array($gameId, $slotGameIds, true);
+            if (null === $game || ($game->isDisabled() && !$held)) {
                 continue;
             }
             $availableGames[] = [
@@ -87,9 +88,11 @@ final readonly class RegistrationGameSelection
                 'disabled' => $game->isDisabled(),
                 'disabledMessage' => $game->getDisabledMessage(),
                 'isApworldReady' => $game->isApworldReady(),
-                'defaultYaml' => $game->getDefaultYaml(),
-                'optionTypes' => $game->getEffectiveOptionTypes(),
-                'locationNames' => $game->getLocationNames(),
+                // Only for the games the registration holds: the slot's YAML editor needs them, the picker
+                // does not, and sent for every configured game they can run PHP out of memory.
+                'defaultYaml' => $held ? $game->getDefaultYaml() : null,
+                'optionTypes' => $held ? $game->getEffectiveOptionTypes() : null,
+                'locationNames' => $held ? $game->getLocationNames() : null,
                 'coverImageUrl' => $game->getCoverImageUrl(),
                 'coverImageAlt' => $game->getCoverImageAlt(),
                 // Story 28.16: what the picker needs to filter by platform and to recognise a game
