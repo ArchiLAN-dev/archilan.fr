@@ -7,6 +7,8 @@ namespace App\PersonalRuns\Application\Service;
 use App\Community\Application\Query\CommunityLevelQuery;
 use App\Community\Application\Query\CommunityPresenceQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\GameSelection\Application\Support\GenerationFiles;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\AdminUserActionAudit;
 use App\Identity\Domain\Entity\User;
@@ -49,6 +51,7 @@ final readonly class PersonalRunDrafts
         private RunJoiner $joiner,
         private RunInvitationRepositoryInterface $invitations,
         private RunNudgeRepositoryInterface $nudges,
+        private GameRepositoryInterface $games,
     ) {
     }
 
@@ -196,6 +199,8 @@ final readonly class PersonalRunDrafts
             'payload' => [
                 ...$this->payload($run, $callerId, $participants, $isParticipant),
                 'archived' => $this->archives->find($run->getId(), $callerId) instanceof RunArchive,
+                // Story 44.3: what the launcher may be asked to provide before the generation.
+                'generationFiles' => $isOwner ? $this->generationFiles($run) : [],
             ],
         ];
     }
@@ -589,5 +594,22 @@ final readonly class PersonalRunDrafts
             static fn (array $slot): array => ['name' => $slot['name'], 'game' => $slot['game'] ?? $importedGames[$slot['name']] ?? null],
             $this->mySlots->forMember($sessionId, $callerId),
         );
+    }
+
+    /**
+     * The files the games of the run may read from the launcher (story 44.3), once per setting.
+     *
+     * @return list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>, neededAtGeneration: bool, games: list<string>}>
+     */
+    private function generationFiles(Run $run): array
+    {
+        $gameIds = [];
+        foreach ($this->participants->findByRunId($run->getId()) as $participant) {
+            foreach ($participant->getGameSlots() as $slot) {
+                $gameIds[$slot['gameId']] = true;
+            }
+        }
+
+        return [] === $gameIds ? [] : GenerationFiles::forGames($this->games->findByIds(array_keys($gameIds)));
     }
 }

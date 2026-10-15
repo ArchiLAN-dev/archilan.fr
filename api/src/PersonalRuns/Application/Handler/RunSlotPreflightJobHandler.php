@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Handler;
 
+use App\GameSelection\Application\Message\RecordGenerationRequiredFileJob;
 use App\GameSelection\Application\Message\ReportDefaultYamlFailureJob;
 use App\PersonalRuns\Application\Message\RunSlotPreflightJob;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Support\GenerationFailureParser;
+use App\Sessions\Application\Support\RequiredGenerationFile;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -93,7 +95,10 @@ final readonly class RunSlotPreflightJobHandler
 
         if (null !== $state && 'pending' !== $state['status']) {
             $error = '';
+            $requiredFile = null;
             if ('failed' === $state['status']) {
+                // Story 44.3: a missing file is a fact about the game, not only about this slot.
+                $requiredFile = GenerationFailureParser::requiredFile($state['error']);
                 // Actionable one-liner: the generator's structured record when present,
                 // else the parsed exception; never the raw multi-kilobyte excerpt
                 // (stories 9.40/9.43).
@@ -101,7 +106,7 @@ final readonly class RunSlotPreflightJobHandler
             }
             // Only the generator's own verdict may accuse the apworld (story 38.4): a runner down or a
             // test past its deadline says nothing about it.
-            $this->record($job, $state['status'], $error, reportFailure: true);
+            $this->record($job, $state['status'], $error, reportFailure: true, requiredFile: $requiredFile);
 
             return;
         }
@@ -120,7 +125,7 @@ final readonly class RunSlotPreflightJobHandler
         );
     }
 
-    private function record(RunSlotPreflightJob $job, string $status, string $error, bool $reportFailure = false): void
+    private function record(RunSlotPreflightJob $job, string $status, string $error, bool $reportFailure = false, ?RequiredGenerationFile $requiredFile = null): void
     {
         // Re-read: the participant may have changed while the container ran.
         $participant = $this->participants->findByRunAndUser($job->runId, $job->userId);
@@ -145,6 +150,9 @@ final readonly class RunSlotPreflightJobHandler
             if ($reportFailure && 'failed' === $status) {
                 // The apworld actually tested, not whatever the slot holds now.
                 $this->messageBus->dispatch(new ReportDefaultYamlFailureJob($slot['gameId'], $job->apworldHash ?? $slot['apworldHash'] ?? null, $yaml, $error));
+            }
+            if (null !== $requiredFile) {
+                $this->messageBus->dispatch(new RecordGenerationRequiredFileJob([$slot['gameId']], $requiredFile->toRecord()));
             }
         }
     }

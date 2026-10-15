@@ -18,6 +18,7 @@ use Archilan\OrchestratorClient\Apworlds\Response\ToggleTemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\WeightsTemplateOption;
 use Archilan\OrchestratorClient\Exception\RequiredFileExpiredException;
 use Archilan\OrchestratorClient\OrchestratorClient;
+use Archilan\OrchestratorClient\RequiredFiles\Response\DeclaredFile;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureRequest;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureSlot;
 use Archilan\OrchestratorClient\Sessions\Request\PreflightRequest;
@@ -277,6 +278,47 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
 
             return [];
         }
+    }
+
+    public function fetchDeclaredFiles(string $hash): array
+    {
+        try {
+            return array_map(self::declaredFile(...), $this->client->apworlds()->getDeclaredFiles($hash));
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.declared_files_fetch_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    public function fetchOfficialDeclaredFiles(): ?array
+    {
+        try {
+            $official = $this->client->runtime()->getDeclaredFiles();
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.official_declared_files_fetch_failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+
+        $games = [];
+        foreach ($official->games as $game => $files) {
+            $games[$game] = array_map(self::declaredFile(...), $files);
+        }
+
+        return $games;
+    }
+
+    /** @return array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>} */
+    private static function declaredFile(DeclaredFile $file): array
+    {
+        return [
+            'setting' => $file->setting,
+            'file' => $file->file,
+            'extension' => $file->extension,
+            'description' => $file->description,
+            'md5s' => $file->md5s,
+        ];
     }
 
     public function fetchRuntime(): ?array

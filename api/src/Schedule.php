@@ -12,6 +12,7 @@ use App\Community\Application\Message\SyncDiscordBansMessage;
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
 use App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage;
 use App\GameSelection\Application\Message\SweepApworldCatalogMessage;
+use App\GameSelection\Application\Message\SyncGameDeclaredFilesMessage;
 use App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage;
 use App\Identity\Application\Message\CleanupPasswordResetTokensMessage;
 use App\Identity\Application\Message\CleanupRefreshTokensMessage;
@@ -115,6 +116,9 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Story 38.9: the rolling catalogue test, a small batch a night. After the version check
                 // of 04:00, so a game about to be updated is not retested for nothing.
                 RecurringMessage::cron('0 5 * * *', new SweepApworldCatalogMessage(), new \DateTimeZone('Europe/Paris')),
+                // Story 44.3: the files each world declares (a ROM...), so the launcher can be asked for one.
+                // Nightly after the catalogue test; a new Archipelago image is picked up the next night.
+                RecurringMessage::cron('30 5 * * *', new SyncGameDeclaredFilesMessage(), new \DateTimeZone('Europe/Paris')),
                 // Derive apworld incidents from the orchestrator's test verdicts (story 38.1). A pull,
                 // not a webhook: orchestrator webhooks have no retry, a lost one would be a lost alert.
                 RecurringMessage::every('5 minutes', new ReconcileApworldIncidentsMessage()),

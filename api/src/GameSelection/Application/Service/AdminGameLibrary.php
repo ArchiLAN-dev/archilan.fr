@@ -98,6 +98,28 @@ final readonly class AdminGameLibrary
     }
 
     /**
+     * An admin says a generation does not actually need this file (story 44.3): it stops being mandatory
+     * for the launcher. A false positive, e.g. a failure that named the file for another reason.
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function clearRequiredAtGeneration(string $gameId, string $setting, string $adminId): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+        if (!$game->clearRequiredAtGeneration($setting)) {
+            return ['found' => true, 'errors' => ['setting' => ['Ce fichier n\'est pas marqué comme nécessaire à la génération.']]];
+        }
+        $this->gameRepository->save($game);
+
+        $this->logger->info('game.required_file_cleared', ['gameId' => $gameId, 'setting' => $setting, 'adminId' => $adminId]);
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
+    }
+
+    /**
      * Seed a draft install tutorial from existing data (bundled / apworld / sheet links). Only
      * overwrites an existing tutorial when $force is true.
      *
@@ -364,6 +386,7 @@ final readonly class AdminGameLibrary
         // The regenerated template may expose different options/locations than the edited one.
         $game->recordOptionTypes($this->runnerGateway->fetchOptionTypes($hash));
         $game->recordLocationNames($this->runnerGateway->fetchLocationNames($hash));
+        $game->recordDeclaredRequiredFiles($this->runnerGateway->fetchDeclaredFiles($hash));
         $this->gameRepository->save($game);
 
         $this->runnerGateway->runApworldPreflight($hash);
@@ -926,6 +949,8 @@ final readonly class AdminGameLibrary
             // which sub-settings it decided, and which ones the apworld declared by itself.
             'dictOptionValues' => $game->getDictOptionValues(),
             'locationNames' => $game->getLocationNames(),
+            // Story 44.3: the files the world declares, and which ones a failed generation proved needed.
+            'requiredFiles' => $game->getRequiredFiles(),
             'adminNotes' => $game->getAdminNotes(),
             'catalogSheetName' => $sync?->getCatalogSheetName(),
             'apworldSourceUrl' => $sync?->getApworldSourceUrl(),

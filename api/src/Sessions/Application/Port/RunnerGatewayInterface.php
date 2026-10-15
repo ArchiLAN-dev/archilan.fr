@@ -61,6 +61,22 @@ interface RunnerGatewayInterface
     public function fetchLocationNames(string $hash): array;
 
     /**
+     * The files an uploaded apworld's world declares in its host.yaml settings (story 44.3), read at
+     * introspection. Empty when not introspected yet or when the orchestrator does not answer.
+     *
+     * @return list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>
+     */
+    public function fetchDeclaredFiles(string $hash): array;
+
+    /**
+     * By Archipelago game name, the files the worlds shipped with the image declare (story 44.3).
+     * Null when the orchestrator does not answer or predates them.
+     *
+     * @return array<string, list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>>|null
+     */
+    public function fetchOfficialDeclaredFiles(): ?array;
+
+    /**
      * Upload-time preflight verdicts for all uploaded apworlds, keyed by hash (story 9.38).
      * `blocks` is true only for a failed, non-overridden verdict. Apworlds never checked
      * (uploaded before the preflight existed) appear with an empty status and blocks=false.

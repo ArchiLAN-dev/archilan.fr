@@ -112,7 +112,7 @@ final readonly class AdminSessionController
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        return new JsonResponse(['data' => ['session' => $result['session'], 'slots' => $result['slots']]]);
+        return new JsonResponse(['data' => ['session' => $result['session'], 'slots' => $result['slots'], 'generationFiles' => $result['generationFiles']]]);
     }
 
     #[Route('/api/v1/admin/sessions/{sessionId}/status', methods: ['PATCH'])]

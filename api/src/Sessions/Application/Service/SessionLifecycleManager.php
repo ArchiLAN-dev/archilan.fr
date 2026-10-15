@@ -11,7 +11,10 @@ use App\Community\Application\Message\FriendActivityJob;
 use App\Content\Domain\Entity\Post;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\GameSelection\Application\Message\RecordGenerationRequiredFileJob;
 use App\GameSelection\Application\Query\ServedApworldsQueryInterface;
+use App\GameSelection\Application\Support\GenerationFiles;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Application\Message\NotifyRunPlayersJob;
 use App\PersonalRuns\Domain\Entity\Run;
@@ -60,6 +63,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         private AchievementRecomputeTriggerInterface $achievementRecomputeTrigger,
         private ClockInterface $clock,
         private ServedApworldsQueryInterface $servedApworlds,
+        private GameRepositoryInterface $games,
         private string $runnerPublicHost = 'localhost',
     ) {
     }
@@ -107,10 +111,17 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
 
         $slotsList = $this->slots->findBySessionId($sessionId);
 
+        $gameIds = array_values(array_unique(array_filter(
+            array_map(static fn (SessionSlot $s): string => $s->getGameId(), $slotsList),
+            static fn (string $gameId): bool => '' !== $gameId,
+        )));
+
         return [
             'found' => true,
             'session' => $session->payload(),
             'slots' => array_map(fn (SessionSlot $s) => $s->payload(), $slotsList),
+            // Story 44.3: what the admin may be asked to provide before the generation.
+            'generationFiles' => [] === $gameIds ? [] : GenerationFiles::forGames($this->games->findByIds($gameIds)),
         ];
     }
 
@@ -275,6 +286,16 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             ),
             $this->servedApworldHashes($sessionId),
         ));
+
+        // Story 44.3: a generation that failed for want of a file proves the game needs it.
+        $requiredFile = GenerationFailureParser::requiredFile($reason);
+        if (null !== $requiredFile) {
+            $gameIds = array_values(array_filter(array_map(
+                static fn (SessionSlot $slot): string => $slot->getGameId(),
+                $this->slots->findBySessionId($sessionId),
+            ), static fn (string $gameId): bool => '' !== $gameId));
+            $this->messageBus->dispatch(new RecordGenerationRequiredFileJob($gameIds, $requiredFile->toRecord()));
+        }
 
         $this->logger->error('session.crash.failed', ['sessionId' => $sessionId, 'from' => $from, 'reason' => $reason]);
 

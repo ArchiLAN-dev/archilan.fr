@@ -204,6 +204,28 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Notes enregistrées.']]);
     }
 
+    /** Story 44.3: a file a failed generation proved needed, judged a false positive by an admin. */
+    #[Route('/api/v1/admin/games/{gameId}/required-files/{setting}/needed', name: 'api_admin_game_clear_required_file', methods: ['DELETE'])]
+    public function clearRequiredFile(Request $request, string $gameId, string $setting): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $result = $this->adminGameLibrary->clearRequiredAtGeneration($gameId, $setting, $admin->getId());
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Ce fichier n\'est pas marqué comme nécessaire.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => $result['game'] ?? null, 'meta' => ['message' => 'Le fichier n\'est plus exigé à la génération.']]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}/tutorial/seed', name: 'api_admin_game_seed_tutorial', methods: ['POST'])]
     public function seedTutorial(Request $request, string $gameId): JsonResponse
     {

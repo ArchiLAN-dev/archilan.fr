@@ -45,6 +45,7 @@ final readonly class ReconcileApworldIncidents
         private ClockInterface $clock,
         private ExclusivePassLockInterface $lock,
         private ApworldHealthRepositoryInterface $health,
+        private RecordGenerationRequiredFile $recordRequiredFile,
     ) {
     }
 
@@ -139,6 +140,10 @@ final readonly class ReconcileApworldIncidents
             if (null === $requiredFile && $health->hasPassedBefore() && 1 === $health->getConsecutiveFailures()) {
                 $retried[] = $served->apworldHash;
                 continue;
+            }
+            if (null !== $requiredFile) {
+                // Story 44.3: the game needs the file at generation, the launcher will be asked for it.
+                $this->recordRequiredFile->record([$served->gameId], $requiredFile);
             }
             [$type, $error] = null !== $requiredFile
                 ? [ApworldIncidentType::RequiredFile, $requiredFile->message()]

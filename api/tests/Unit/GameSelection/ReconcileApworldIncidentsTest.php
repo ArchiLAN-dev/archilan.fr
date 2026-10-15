@@ -7,13 +7,16 @@ namespace App\Tests\Unit\GameSelection;
 use App\GameSelection\Application\Command\ReconcileApworldIncidents;
 use App\GameSelection\Application\Command\ReconcileApworldIncidentsResult;
 use App\GameSelection\Application\Command\RecordApworldIncident;
+use App\GameSelection\Application\Command\RecordGenerationRequiredFile;
 use App\GameSelection\Application\Query\ServedApworld;
 use App\GameSelection\Application\Query\ServedApworldsQueryInterface;
 use App\GameSelection\Domain\Entity\ApworldIncident;
 use App\GameSelection\Domain\Enum\ApworldIncidentStatus;
 use App\GameSelection\Domain\Enum\ApworldIncidentType;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 
 final class ReconcileApworldIncidentsTest extends TestCase
@@ -348,6 +351,7 @@ final class ReconcileApworldIncidentsTest extends TestCase
             $this->clock,
             new InMemoryExclusivePassLock(held: $lockHeld),
             $this->health,
+            new RecordGenerationRequiredFile(self::createStub(GameRepositoryInterface::class), new NullLogger()),
         );
 
         return $reconcile->reconcile();

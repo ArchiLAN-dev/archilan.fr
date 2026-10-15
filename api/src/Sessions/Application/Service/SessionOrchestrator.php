@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Service;
 
 use App\Events\Domain\Entity\Event;
+use App\GameSelection\Application\Support\GenerationFiles;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
@@ -84,7 +85,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
     }
 
     /**
-     * @return array{registrations: list<array<string, mixed>>}
+     * @return array{registrations: list<array<string, mixed>>, generationFiles?: list<array<string, mixed>>}
      */
     public function getBuilder(string $eventId): array
     {
@@ -117,6 +118,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
 
         /** @var array<string, Game> $gamesById */
         $gamesById = [];
+        $gamesList = [];
         if ([] !== $allGameIds) {
             $gamesList = $this->games->findByIds(array_keys($allGameIds));
             foreach ($gamesList as $game) {
@@ -149,7 +151,8 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
             ];
         }
 
-        return ['registrations' => $result];
+        // Story 44.3: what the admin may be asked to provide before the generation.
+        return ['registrations' => $result, 'generationFiles' => GenerationFiles::forGames($gamesList)];
     }
 
     /**
