@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
@@ -15,7 +14,7 @@ import {
   Lock,
   Package,
   RefreshCw,
-  Search,
+  Settings2,
   ShieldAlert,
   Shuffle,
   Tag,
@@ -26,7 +25,25 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import { updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone } from "./apworld-update-status";
+import {
+  APWORLD_UPDATE_STATUSES,
+  updateStatusLabel,
+  updateStatusTone,
+  type ApworldUpdateStatusTone,
+} from "./apworld-update-status";
+import {
+  EMPTY_CHANGES_FILTER,
+  EMPTY_NEW_GAMES_FILTER,
+  EMPTY_UPDATES_FILTER,
+  filterChanges,
+  filterIgnored,
+  filterNewGames,
+  filterRemoved,
+  filterUpdates,
+  type ChangesFilter,
+  type NewGamesFilter,
+  type UpdatesFilter,
+} from "./admin-catalogue-filters";
 import {
   checkApworldUpdates,
   fetchAdminGameBase,
@@ -49,6 +66,22 @@ const PAGE_SIZE = 20;
 const SYNC_QUERY_KEY = ["admin-catalog-sync"] as const;
 const VOTES_QUERY_KEY = ["admin-game-request-votes"] as const;
 
+type CatalogueTab = "new" | "updates" | "stability" | "ignored" | "removed";
+
+const TABS: { key: CatalogueTab; label: string }[] = [
+  { key: "new", label: "Nouveaux jeux" },
+  { key: "updates", label: "Mises à jour APWorld" },
+  { key: "stability", label: "Stabilité modifiée" },
+  { key: "ignored", label: "Ignorés" },
+  { key: "removed", label: "Retirés du sheet" },
+];
+
+const AVAILABILITY_OPTIONS = [
+  { value: "available", label: "Disponible" },
+  { value: "experimental", label: "Expérimental" },
+  { value: "unavailable", label: "Indisponible" },
+];
+
 function withVotes(data: CatalogSyncData, votes: Map<string, number>): CatalogSyncData {
   return {
     ...data,
@@ -68,7 +101,12 @@ export function AdminCatalogueSyncPage() {
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [ignoringName, setIgnoringName] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ kind: "success" | "error"; text: string } | null>(null);
-  const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<CatalogueTab>("new");
+  const [newGamesFilter, setNewGamesFilter] = useState<NewGamesFilter>(EMPTY_NEW_GAMES_FILTER);
+  const [updatesFilter, setUpdatesFilter] = useState<UpdatesFilter>(EMPTY_UPDATES_FILTER);
+  const [changesFilter, setChangesFilter] = useState<ChangesFilter>(EMPTY_CHANGES_FILTER);
+  const [ignoredFilter, setIgnoredFilter] = useState("");
+  const [removedFilter, setRemovedFilter] = useState("");
   const [newGamesPage, setNewGamesPage] = useState(1);
   const [updatesPage, setUpdatesPage] = useState(1);
   const [changesPage, setChangesPage] = useState(1);
@@ -94,13 +132,6 @@ export function AdminCatalogueSyncPage() {
     !loading && syncResult !== undefined && syncResult.kind === "ready"
       ? withVotes(syncResult.data, votesQuery.data ?? new Map<string, number>())
       : null;
-
-  function handleSearch(q: string) {
-    setSearch(q);
-    setNewGamesPage(1);
-    setUpdatesPage(1);
-    setChangesPage(1);
-  }
 
   // Actions used to rebuild the whole page state via reloadAll(); they now invalidate both query
   // keys instead so TanStack refetches the diff and the vote counts.
@@ -194,11 +225,14 @@ export function AdminCatalogueSyncPage() {
     }
   }
 
-  const q = search.toLowerCase().trim();
-  const filteredNewGames = data?.newGames.filter((g) => !q || g.name.toLowerCase().includes(q)) ?? [];
   const allTrackedUpdates = data?.apworldUpdates.filter((u) => u.updateStatus !== "not_tracked") ?? [];
-  const filteredTrackedUpdates = allTrackedUpdates.filter((u) => !q || u.gameName.toLowerCase().includes(q));
-  const filteredChanges = data?.stabilityChanged.filter((c) => !q || c.gameName.toLowerCase().includes(q)) ?? [];
+  const counts: Record<CatalogueTab, number> = {
+    new: data?.newGames.length ?? 0,
+    updates: allTrackedUpdates.length,
+    stability: data?.stabilityChanged.length ?? 0,
+    ignored: data?.ignoredGames.length ?? 0,
+    removed: data?.removedFromSheet.length ?? 0,
+  };
 
   return (
     <section className="grid w-full min-w-0 grid-cols-1 gap-8 px-4 py-10">
@@ -272,52 +306,90 @@ export function AdminCatalogueSyncPage() {
           onRetry={() => void handleSync()}
         />
       ) : (
-        <>
-          <div className="relative">
-            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              className="w-full rounded border border-border bg-surface py-2.5 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
-              placeholder="Filtrer par nom de jeu…"
-              type="search"
-              value={search}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
+        <div className="grid min-w-0 gap-6">
+          <div className="flex flex-wrap gap-2 border-b border-border" role="tablist">
+            {TABS.map((t) => (
+              <button
+                aria-selected={tab === t.key}
+                className={`-mb-px inline-flex min-h-10 items-center gap-2 border-b-2 px-4 text-sm font-semibold transition-colors ${tab === t.key ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                role="tab"
+                type="button"
+              >
+                {t.label}
+                <span className="font-mono text-xs font-normal text-muted-foreground">{counts[t.key]}</span>
+              </button>
+            ))}
           </div>
 
-          <div className="grid gap-6">
-            <NewGamesTable
-              games={filteredNewGames}
-              totalCount={data.newGames.length}
-              page={newGamesPage}
-              onPageChange={setNewGamesPage}
-              ignoringName={ignoringName}
-              onIgnore={(name) => void handleIgnore(name)}
-            />
-            <IgnoredGamesSection
-              games={data.ignoredGames}
-              ignoringName={ignoringName}
-              onUnignore={(name) => void handleUnignore(name)}
-            />
-            <ApworldUpdatesTable
-              updates={filteredTrackedUpdates}
-              totalCount={allTrackedUpdates.length}
-              githubChecksAvailable={data.githubChecksAvailable}
-              checkingUpdates={checkingUpdates}
-              onCheckUpdates={() => void handleCheckUpdates()}
-              page={updatesPage}
-              onPageChange={setUpdatesPage}
-            />
-            <StabilityChangedTable
-              changes={filteredChanges}
-              totalCount={data.stabilityChanged.length}
-              applyingId={applyingId}
-              onApply={(id, av) => void handleApply(id, av)}
-              page={changesPage}
-              onPageChange={setChangesPage}
-            />
-            <RemovedFromSheetSection games={data.removedFromSheet} />
+          <div role="tabpanel">
+            {tab === "new" ? (
+              <NewGamesTable
+                games={filterNewGames(data.newGames, newGamesFilter)}
+                totalCount={data.newGames.length}
+                filter={newGamesFilter}
+                onFilterChange={(f) => {
+                  setNewGamesFilter(f);
+                  setNewGamesPage(1);
+                }}
+                page={newGamesPage}
+                onPageChange={setNewGamesPage}
+                ignoringName={ignoringName}
+                onIgnore={(name) => void handleIgnore(name)}
+              />
+            ) : null}
+            {tab === "updates" ? (
+              <ApworldUpdatesTable
+                updates={filterUpdates(allTrackedUpdates, updatesFilter)}
+                totalCount={allTrackedUpdates.length}
+                filter={updatesFilter}
+                onFilterChange={(f) => {
+                  setUpdatesFilter(f);
+                  setUpdatesPage(1);
+                }}
+                githubChecksAvailable={data.githubChecksAvailable}
+                checkingUpdates={checkingUpdates}
+                onCheckUpdates={() => void handleCheckUpdates()}
+                page={updatesPage}
+                onPageChange={setUpdatesPage}
+              />
+            ) : null}
+            {tab === "stability" ? (
+              <StabilityChangedTable
+                changes={filterChanges(data.stabilityChanged, changesFilter)}
+                totalCount={data.stabilityChanged.length}
+                filter={changesFilter}
+                onFilterChange={(f) => {
+                  setChangesFilter(f);
+                  setChangesPage(1);
+                }}
+                applyingId={applyingId}
+                onApply={(id, av) => void handleApply(id, av)}
+                page={changesPage}
+                onPageChange={setChangesPage}
+              />
+            ) : null}
+            {tab === "ignored" ? (
+              <IgnoredGamesTable
+                games={filterIgnored(data.ignoredGames, ignoredFilter)}
+                totalCount={data.ignoredGames.length}
+                filter={ignoredFilter}
+                onFilterChange={setIgnoredFilter}
+                ignoringName={ignoringName}
+                onUnignore={(name) => void handleUnignore(name)}
+              />
+            ) : null}
+            {tab === "removed" ? (
+              <RemovedFromSheetTable
+                games={filterRemoved(data.removedFromSheet, removedFilter)}
+                totalCount={data.removedFromSheet.length}
+                filter={removedFilter}
+                onFilterChange={setRemovedFilter}
+              />
+            ) : null}
           </div>
-        </>
+        </div>
       )}
     </section>
   );
@@ -328,6 +400,8 @@ export function AdminCatalogueSyncPage() {
 function NewGamesTable({
   games,
   totalCount,
+  filter,
+  onFilterChange,
   page,
   onPageChange,
   ignoringName,
@@ -335,6 +409,8 @@ function NewGamesTable({
 }: {
   games: NewGame[];
   totalCount: number;
+  filter: NewGamesFilter;
+  onFilterChange: (f: NewGamesFilter) => void;
   page: number;
   onPageChange: (p: number) => void;
   ignoringName: string | null;
@@ -377,8 +453,6 @@ function NewGamesTable({
     >
       {totalCount === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun nouveau jeu dans le sheet.</p>
-      ) : games.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun résultat pour cette recherche.</p>
       ) : (
         <div className="min-w-0 overflow-x-auto">
           <table className="w-full text-sm">
@@ -391,8 +465,39 @@ function NewGamesTable({
                 <Th>Liens</Th>
                 <Th right>Action</Th>
               </tr>
+              <FilterRow>
+                <FilterText label="Filtrer par nom" value={filter.name} onChange={(name) => onFilterChange({ ...filter, name })} />
+                <FilterSelect
+                  label="Filtrer par disponibilité"
+                  options={AVAILABILITY_OPTIONS}
+                  value={filter.availability}
+                  onChange={(availability) => onFilterChange({ ...filter, availability })}
+                />
+                <FilterSelect
+                  label="Filtrer par flags"
+                  options={[
+                    { value: "adult", label: "18+" },
+                    { value: "bundled", label: "AP intégré" },
+                    { value: "none", label: "Aucun" },
+                  ]}
+                  value={filter.flag}
+                  onChange={(flag) => onFilterChange({ ...filter, flag: asNewGamesFlag(flag) })}
+                />
+                <FilterSelect
+                  label="Filtrer par votes"
+                  options={[
+                    { value: "with", label: "Avec votes" },
+                    { value: "without", label: "Sans vote" },
+                  ]}
+                  value={filter.votes}
+                  onChange={(votes) => onFilterChange({ ...filter, votes: votes === "with" || votes === "without" ? votes : "" })}
+                />
+                <td />
+                <td />
+              </FilterRow>
             </thead>
             <tbody className="divide-y divide-border">
+              {games.length === 0 ? <NoResultRow colSpan={6} /> : null}
               {pageItems.map((game) => (
                 <tr className="transition-colors hover:bg-surface-2/40" key={game.name}>
                   <td className="px-4 py-3 font-semibold text-foreground">{game.name}</td>
@@ -486,6 +591,8 @@ function NewGamesTable({
 function ApworldUpdatesTable({
   updates,
   totalCount,
+  filter,
+  onFilterChange,
   githubChecksAvailable,
   checkingUpdates,
   onCheckUpdates,
@@ -494,14 +601,14 @@ function ApworldUpdatesTable({
 }: {
   updates: ApworldUpdate[];
   totalCount: number;
+  filter: UpdatesFilter;
+  onFilterChange: (f: UpdatesFilter) => void;
   githubChecksAvailable: boolean;
   checkingUpdates: boolean;
   onCheckUpdates: () => void;
   page: number;
   onPageChange: (p: number) => void;
 }) {
-  if (totalCount === 0) return null;
-
   const pageItems = updates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
@@ -530,8 +637,8 @@ function ApworldUpdatesTable({
         </button>
       }
     >
-      {updates.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun résultat pour cette recherche.</p>
+      {totalCount === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun jeu suivi.</p>
       ) : (
         <div className="min-w-0 overflow-x-auto">
           <table className="w-full text-sm">
@@ -541,10 +648,36 @@ function ApworldUpdatesTable({
                 <Th>Statut</Th>
                 <Th>Versions</Th>
                 <Th>Publiée le</Th>
-                <Th right>Release</Th>
+                <Th right>Liens</Th>
               </tr>
+              <FilterRow>
+                <FilterText label="Filtrer par nom" value={filter.name} onChange={(name) => onFilterChange({ ...filter, name })} />
+                <FilterSelect
+                  label="Filtrer par statut"
+                  options={APWORLD_UPDATE_STATUSES.filter((s) => s !== "not_tracked").map((s) => ({
+                    value: s,
+                    label: updateStatusLabel(s),
+                  }))}
+                  value={filter.status}
+                  onChange={(status) => onFilterChange({ ...filter, status })}
+                />
+                <FilterSelect
+                  label="Filtrer par versions"
+                  options={[
+                    { value: "different", label: "Version différente" },
+                    { value: "same", label: "Même version" },
+                  ]}
+                  value={filter.versions}
+                  onChange={(versions) =>
+                    onFilterChange({ ...filter, versions: versions === "different" || versions === "same" ? versions : "" })
+                  }
+                />
+                <td />
+                <td />
+              </FilterRow>
             </thead>
             <tbody className="divide-y divide-border">
+              {updates.length === 0 ? <NoResultRow colSpan={5} /> : null}
               {pageItems.map((update) => (
                 <tr className="transition-colors hover:bg-surface-2/40" key={update.gameId}>
                   <td className="px-4 py-3 font-semibold text-foreground">{update.gameName}</td>
@@ -564,19 +697,26 @@ function ApworldUpdatesTable({
                       : "-"}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {update.releaseUrl ? (
-                      <a
+                    <div className="flex flex-wrap items-center justify-end gap-3">
+                      {update.releaseUrl ? (
+                        <a
+                          className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline"
+                          href={update.releaseUrl}
+                          rel="noopener"
+                          target="_blank"
+                        >
+                          Release
+                          <ExternalLink aria-hidden="true" className="size-3" />
+                        </a>
+                      ) : null}
+                      <Link
                         className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline"
-                        href={update.releaseUrl}
-                        rel="noopener"
-                        target="_blank"
+                        href={`/admin/jeux/${update.gameId}`}
                       >
-                        Release
-                        <ExternalLink aria-hidden="true" className="size-3" />
-                      </a>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/40">-</span>
-                    )}
+                        Configurer
+                        <Settings2 aria-hidden="true" className="size-3" />
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -592,6 +732,8 @@ function ApworldUpdatesTable({
 function StabilityChangedTable({
   changes,
   totalCount,
+  filter,
+  onFilterChange,
   applyingId,
   onApply,
   page,
@@ -599,6 +741,8 @@ function StabilityChangedTable({
 }: {
   changes: StabilityChange[];
   totalCount: number;
+  filter: ChangesFilter;
+  onFilterChange: (f: ChangesFilter) => void;
   applyingId: string | null;
   onApply: (gameId: string, newAvailability: string) => void;
   page: number;
@@ -621,8 +765,6 @@ function StabilityChangedTable({
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">
           Aucun changement de stabilité détecté.
         </p>
-      ) : changes.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun résultat pour cette recherche.</p>
       ) : (
         <div className="min-w-0 overflow-x-auto">
           <table className="w-full text-sm">
@@ -632,8 +774,50 @@ function StabilityChangedTable({
                 <Th>Changement</Th>
                 <Th right>Action</Th>
               </tr>
+              <FilterRow>
+                <td className="px-4 py-2">
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <FilterTextInput
+                      label="Filtrer par nom"
+                      value={filter.name}
+                      onChange={(name) => onFilterChange({ ...filter, name })}
+                    />
+                    <FilterSelectInput
+                      allLabel="Verrou : tous"
+                      label="Filtrer par verrouillage"
+                      options={[
+                        { value: "locked", label: "Verrouillé" },
+                        { value: "unlocked", label: "Non verrouillé" },
+                      ]}
+                      value={filter.locked}
+                      onChange={(locked) =>
+                        onFilterChange({ ...filter, locked: locked === "locked" || locked === "unlocked" ? locked : "" })
+                      }
+                    />
+                  </div>
+                </td>
+                <td className="px-4 py-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <FilterSelectInput
+                      label="Filtrer par disponibilité actuelle"
+                      options={AVAILABILITY_OPTIONS}
+                      value={filter.current}
+                      onChange={(current) => onFilterChange({ ...filter, current })}
+                    />
+                    <ArrowRight aria-hidden="true" className="size-3 text-muted-foreground" />
+                    <FilterSelectInput
+                      label="Filtrer par nouvelle disponibilité"
+                      options={AVAILABILITY_OPTIONS}
+                      value={filter.next}
+                      onChange={(next) => onFilterChange({ ...filter, next })}
+                    />
+                  </div>
+                </td>
+                <td />
+              </FilterRow>
             </thead>
             <tbody className="divide-y divide-border">
+              {changes.length === 0 ? <NoResultRow colSpan={3} /> : null}
               {pageItems.map((change) => {
                 const applying = applyingId === change.gameId;
                 return (
@@ -681,83 +865,207 @@ function StabilityChangedTable({
   );
 }
 
-function IgnoredGamesSection({
+function IgnoredGamesTable({
   games,
+  totalCount,
+  filter,
+  onFilterChange,
   ignoringName,
   onUnignore,
 }: {
   games: IgnoredGame[];
+  totalCount: number;
+  filter: string;
+  onFilterChange: (name: string) => void;
   ignoringName: string | null;
   onUnignore: (name: string) => void;
 }) {
-  if (games.length === 0) return null;
-
   return (
-    <details className="group overflow-hidden rounded border border-border bg-surface">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-foreground">
-        <EyeOff aria-hidden="true" className="size-4 text-muted-foreground" />
-        <span>Jeux ignorés</span>
-        <span className="ml-1 font-mono text-xs font-normal text-muted-foreground">({games.length})</span>
-        <ChevronDown
-          aria-hidden="true"
-          className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-180"
-        />
-      </summary>
-      <ul className="divide-y divide-border border-t border-border">
-        {games.map((game) => (
-          <li className="flex items-center gap-3 px-4 py-2.5" key={game.name}>
-            <span className="text-sm text-muted-foreground">{game.name}</span>
-            <span className="text-xs text-muted-foreground/50">
-              ignoré le{" "}
-              {new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date(game.ignoredAt))}
-            </span>
-            <button
-              className="ml-auto inline-flex min-h-7 items-center gap-1.5 rounded border border-border px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={ignoringName === game.name}
-              type="button"
-              onClick={() => onUnignore(game.name)}
-            >
-              {ignoringName === game.name ? (
-                <Loader2 aria-hidden="true" className="size-3 animate-spin" />
-              ) : null}
-              Retirer
-            </button>
-          </li>
-        ))}
-      </ul>
-    </details>
+    <TableCard
+      icon={<EyeOff aria-hidden="true" className="size-4 text-muted-foreground" />}
+      title="Jeux ignorés"
+      count={totalCount}
+    >
+      {totalCount === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun jeu ignoré.</p>
+      ) : (
+        <div className="min-w-0 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <Th>Jeu</Th>
+                <Th>Ignoré le</Th>
+                <Th right>Action</Th>
+              </tr>
+              <FilterRow>
+                <FilterText label="Filtrer par nom" value={filter} onChange={onFilterChange} />
+                <td />
+                <td />
+              </FilterRow>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {games.length === 0 ? <NoResultRow colSpan={3} /> : null}
+              {games.map((game) => (
+                <tr className="transition-colors hover:bg-surface-2/40" key={game.name}>
+                  <td className="px-4 py-3 text-foreground">{game.name}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date(game.ignoredAt))}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      className="inline-flex min-h-7 items-center gap-1.5 rounded border border-border px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                      disabled={ignoringName === game.name}
+                      type="button"
+                      onClick={() => onUnignore(game.name)}
+                    >
+                      {ignoringName === game.name ? (
+                        <Loader2 aria-hidden="true" className="size-3 animate-spin" />
+                      ) : null}
+                      Retirer
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </TableCard>
   );
 }
 
-function RemovedFromSheetSection({ games }: { games: RemovedGame[] }) {
-  if (games.length === 0) return null;
-
+function RemovedFromSheetTable({
+  games,
+  totalCount,
+  filter,
+  onFilterChange,
+}: {
+  games: RemovedGame[];
+  totalCount: number;
+  filter: string;
+  onFilterChange: (name: string) => void;
+}) {
   return (
-    <details className="group overflow-hidden rounded border border-border bg-surface">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-foreground">
-        <Tag aria-hidden="true" className="size-4 text-muted-foreground" />
-        <span>Retirés du sheet</span>
-        <span className="ml-1 font-mono text-xs font-normal text-muted-foreground">({games.length})</span>
-        <ChevronDown
-          aria-hidden="true"
-          className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-180"
-        />
-      </summary>
-      <ul className="divide-y divide-border border-t border-border">
-        {games.map((game) => (
-          <li className="flex items-center gap-3 px-4 py-2.5" key={game.gameId}>
-            <span className="text-sm text-muted-foreground">{game.gameName}</span>
-            <Link
-              className="ml-auto text-xs text-accent-text hover:underline"
-              href={`/admin/jeux/${game.gameId}`}
-            >
-              Voir
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </details>
+    <TableCard
+      icon={<Tag aria-hidden="true" className="size-4 text-muted-foreground" />}
+      title="Retirés du sheet"
+      count={totalCount}
+    >
+      {totalCount === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun jeu retiré du sheet.</p>
+      ) : (
+        <div className="min-w-0 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <Th>Jeu</Th>
+                <Th right>Action</Th>
+              </tr>
+              <FilterRow>
+                <FilterText label="Filtrer par nom" value={filter} onChange={onFilterChange} />
+                <td />
+              </FilterRow>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {games.length === 0 ? <NoResultRow colSpan={2} /> : null}
+              {games.map((game) => (
+                <tr className="transition-colors hover:bg-surface-2/40" key={game.gameId}>
+                  <td className="px-4 py-3 text-foreground">{game.gameName}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link className="text-xs text-accent-text hover:underline" href={`/admin/jeux/${game.gameId}`}>
+                      Voir
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </TableCard>
   );
+}
+
+// ── Column filters ────────────────────────────────────────────────────────────
+
+const FILTER_INPUT_CLASS =
+  "w-full min-w-0 rounded border border-border bg-surface px-2 py-1.5 text-xs font-normal normal-case tracking-normal text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none";
+
+function FilterRow({ children }: { children: React.ReactNode }) {
+  return <tr className="border-b border-border bg-surface-2/30">{children}</tr>;
+}
+
+function FilterTextInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      aria-label={label}
+      className={`${FILTER_INPUT_CLASS} min-w-32`}
+      placeholder="Filtrer…"
+      type="search"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+function FilterSelectInput({
+  label,
+  allLabel = "Tous",
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  allLabel?: string;
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <select aria-label={label} className={FILTER_INPUT_CLASS} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">{allLabel}</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function FilterText(props: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <td className="px-4 py-2">
+      <FilterTextInput {...props} />
+    </td>
+  );
+}
+
+function FilterSelect(props: {
+  label: string;
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <td className="px-4 py-2">
+      <FilterSelectInput {...props} />
+    </td>
+  );
+}
+
+function NoResultRow({ colSpan }: { colSpan: number }) {
+  return (
+    <tr>
+      <td className="px-4 py-8 text-center text-sm text-muted-foreground" colSpan={colSpan}>
+        Aucun résultat pour ces filtres.
+      </td>
+    </tr>
+  );
+}
+
+function asNewGamesFlag(v: string): NewGamesFilter["flag"] {
+  return v === "adult" || v === "bundled" || v === "none" ? v : "";
 }
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
