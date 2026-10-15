@@ -38,6 +38,10 @@ afin de traiter le catalogue sans faire défiler une page interminable ni trier 
 4. **Doublons intégrés.** Une entrée présente dans les deux onglets de la feuille n'est plus qu'une seule entrée :
    les données de l'onglet principal (stabilité, liens, 18+, notes) avec le drapeau « AP intégré ». Un jeu déjà créé
    n'apparaît donc plus dans « Nouveaux jeux ».
+5. **Jeux verrouillés.** Un jeu à la disponibilité verrouillée dont la stabilité diffère de la feuille reste dans
+   « Stabilité modifiée », avec le badge « Verrouillé » et « Appliquer » désactivé (comme le prévoyait la story
+   14.9). Il n'en était plus exclu que par le diff (story 14.3), ce qui le faisait disparaître de l'onglet au
+   verrouillage. Demande de Jean le 2026-10-15.
 
 ## Tâches
 

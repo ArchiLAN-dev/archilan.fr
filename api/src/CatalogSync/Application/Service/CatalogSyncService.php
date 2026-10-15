@@ -560,7 +560,8 @@ final readonly class CatalogSyncService
 
             $matchedGameIds[] = $match->getId();
 
-            if (!$match->isAvailabilityLocked() && $match->getAvailability() !== $entry->availability) {
+            // A locked game stays listed (story 14.12): the admin sees the gap, flagged locked, without applying it.
+            if ($match->getAvailability() !== $entry->availability) {
                 $stabilityChanged[] = ['game' => $match, 'entry' => $entry];
             }
         }

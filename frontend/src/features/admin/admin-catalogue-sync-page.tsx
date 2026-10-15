@@ -848,6 +848,7 @@ function StabilityChangedTable({
                       <button
                         className="inline-flex min-h-8 items-center gap-1.5 rounded bg-accent px-3 text-xs font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
                         disabled={change.availabilityLocked || applying}
+                        title={change.availabilityLocked ? "Disponibilité verrouillée sur la fiche du jeu" : undefined}
                         type="button"
                         onClick={() => {
                           onApply(change.gameId, change.newAvailability);
