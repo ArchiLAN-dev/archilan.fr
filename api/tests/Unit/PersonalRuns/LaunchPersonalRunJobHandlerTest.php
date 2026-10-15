@@ -16,6 +16,7 @@ use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Port\PersonalRunAdvancerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Sessions\Application\Support\SlotNameGenerator;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
@@ -55,6 +56,20 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             ->with('personal_run.launch.no_slots', self::arrayHasKey('runId'));
 
         $this->makeHandler(runs: $runs, participants: $participants, logger: $logger)(new LaunchPersonalRunJob($run->getId()));
+    }
+
+    /** Story 44.2: a launch that never reaches its generation drops the files it was handed. */
+    public function testALaunchThatCannotGenerateReleasesItsFiles(): void
+    {
+        NullRunnerGateway::reset();
+        $runs = self::createStub(RunRepositoryInterface::class);
+        $runs->method('findById')->willReturn(null);
+        $runner = new NullRunnerGateway();
+
+        $this->makeHandler(runs: $runs, runnerGateway: $runner)(new LaunchPersonalRunJob('run-missing', ['staged-1', 'staged-2']));
+
+        self::assertSame(['staged-1', 'staged-2'], NullRunnerGateway::$releasedFileIds);
+        NullRunnerGateway::reset();
     }
 
     public function testLiteralCustomNameReachesConfigureSlots(): void
@@ -97,6 +112,7 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             self::createStub(LoggerInterface::class),
             new MockClock(),
             self::createStub(SlotCoPlayerRepositoryInterface::class),
+            new RequiredGenerationFiles(new NullRunnerGateway()),
         );
 
         $handler(new LaunchPersonalRunJob($run->getId()));
@@ -124,6 +140,7 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             $logger ?? self::createStub(LoggerInterface::class),
             new MockClock(),
             self::createStub(SlotCoPlayerRepositoryInterface::class),
+            new RequiredGenerationFiles($runnerGateway ?? self::createStub(RunnerGatewayInterface::class)),
         );
     }
 }

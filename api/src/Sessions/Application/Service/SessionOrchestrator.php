@@ -14,9 +14,12 @@ use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\SessionConfig\Application\Service\SessionConfigResolver;
 use App\SessionConfig\Domain\Enum\SessionType;
+use App\Sessions\Application\Exception\RequiredGenerationFileExpiredException;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\PersonalRunAdvancerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Port\SeedArchiveGatewayInterface;
+use App\Sessions\Application\Support\ProvidedGenerationFile;
 use App\Sessions\Application\Support\SlotNameGenerator;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
@@ -43,6 +46,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         private LoggerInterface $logger,
         private SessionConfigResolver $configResolver,
         private ClockInterface $clock,
+        private RequiredGenerationFiles $requiredFiles,
         private string $runnerPublicHost,
     ) {
     }
@@ -283,21 +287,53 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
     }
 
     /**
+     * The admin's generation with the files a world reads (story 44.2): handed to the orchestrator, then
+     * named by the generation in the same request.
+     *
+     * @param list<ProvidedGenerationFile> $files
+     *
      * @return array<string, mixed>
      */
-    public function orchestrateGenerate(string $sessionId): array
+    public function orchestrateGenerateWithFiles(string $sessionId, array $files): array
+    {
+        if ([] === $files) {
+            return $this->orchestrateGenerate($sessionId);
+        }
+
+        try {
+            $ids = $this->requiredFiles->stage($files);
+        } catch (RequiredGenerationFileRefusedException) {
+            return ['found' => true, 'errors' => ['runner_unavailable']];
+        }
+
+        return $this->orchestrateGenerate($sessionId, $ids);
+    }
+
+    /**
+     * @param list<string> $requiredFileIds held files the generation consumes (story 44.2); released
+     *                                      whenever the generation does not start
+     *
+     * @return array<string, mixed>
+     */
+    public function orchestrateGenerate(string $sessionId, array $requiredFileIds = []): array
     {
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
+            $this->requiredFiles->release($requiredFileIds);
+
             return ['found' => false];
         }
 
         if (Session::STATUS_READY !== $session->getStatus()) {
+            $this->requiredFiles->release($requiredFileIds);
+
             return ['found' => true, 'errors' => ['La session doit être en état "ready" pour lancer la génération.']];
         }
 
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_GENERATING);
         if (true !== ($result['found'] ?? false) || isset($result['errors'])) {
+            $this->requiredFiles->release($requiredFileIds);
+
             return $result;
         }
 
@@ -305,7 +341,21 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         $this->sessionLifecycleManager->storePendingCredentials($sessionId, adminPassword: $adminPassword);
 
         $generationOptions = $this->configResolver->resolve($this->sessionType($sessionId), $this->scopeKey($sessionId))->generation->toGenerationParams();
-        $this->runnerGateway->generateSession($sessionId, $adminPassword, null, $generationOptions);
+        try {
+            $this->runnerGateway->generateSession($sessionId, $adminPassword, null, $generationOptions, $requiredFileIds);
+        } catch (RequiredGenerationFileExpiredException $e) {
+            // Nothing was launched: the generation fails like any other, with a message the launcher can act on.
+            $this->requiredFiles->release($requiredFileIds);
+            $this->logger->warning('session.orchestrate.required_file_expired', ['sessionId' => $sessionId]);
+
+            $this->sessionLifecycleManager->recordCrash($sessionId, $e->getMessage());
+
+            return ['found' => true, 'errors' => [$e->getMessage()]];
+        } catch (\Throwable $e) {
+            $this->requiredFiles->release($requiredFileIds);
+
+            throw $e;
+        }
 
         $this->logger->info('session.orchestrate.generate', ['sessionId' => $sessionId]);
 
@@ -331,21 +381,24 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         }
     }
 
-    public function autoAdvancePersonalRun(string $sessionId): void
+    public function autoAdvancePersonalRun(string $sessionId, array $requiredFileIds = []): void
     {
         $personalRun = $this->runs->findBySessionId($sessionId);
-        if (!$personalRun instanceof Run) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$personalRun instanceof Run || !$session instanceof Session) {
+            $this->requiredFiles->release($requiredFileIds);
+
             return;
         }
 
-        $session = $this->sessions->findById($sessionId);
-        if (!$session instanceof Session) {
-            return;
+        if (Session::STATUS_READY !== $session->getStatus()) {
+            // Only a generation consumes them.
+            $this->requiredFiles->release($requiredFileIds);
         }
 
         try {
             if (Session::STATUS_READY === $session->getStatus()) {
-                $this->orchestrateGenerate($sessionId);
+                $this->orchestrateGenerate($sessionId, $requiredFileIds);
                 $this->logger->info('session.auto_advance.generate', ['sessionId' => $sessionId]);
             } elseif (Session::STATUS_GENERATED === $session->getStatus()) {
                 $this->orchestrateLaunch($sessionId);

@@ -13,6 +13,7 @@ use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Port\PersonalRunAdvancerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Sessions\Application\Support\SlotNameGenerator;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
@@ -178,6 +179,7 @@ final class LaunchImportedSeedTest extends TestCase
             self::createStub(LoggerInterface::class),
             new MockClock(),
             $coPlayers ?? self::createStub(SlotCoPlayerRepositoryInterface::class),
+            new RequiredGenerationFiles($runner ?? self::createStub(RunnerGatewayInterface::class)),
         );
     }
 }

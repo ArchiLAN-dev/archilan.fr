@@ -6,7 +6,8 @@ namespace App\Sessions\Application\Port;
 
 interface PersonalRunAdvancerInterface
 {
-    public function autoAdvancePersonalRun(string $sessionId): void;
+    /** @param list<string> $requiredFileIds held files the generation consumes (story 44.2) */
+    public function autoAdvancePersonalRun(string $sessionId, array $requiredFileIds = []): void;
 
     public function markPersonalRunStopped(string $sessionId): void;
 }

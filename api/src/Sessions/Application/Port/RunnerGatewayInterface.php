@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Port;
 
+use App\Sessions\Application\Exception\RequiredGenerationFileExpiredException;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
+
 interface RunnerGatewayInterface
 {
     /**
@@ -130,8 +133,24 @@ interface RunnerGatewayInterface
 
     /**
      * @param array<string, mixed> $generationOptions
+     * @param list<string>         $requiredFileIds   held files this generation consumes (story 44.2)
+     *
+     * @throws RequiredGenerationFileExpiredException when one of them is no longer held
      */
-    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = []): void;
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = [], array $requiredFileIds = []): void;
+
+    /**
+     * Hands a file a world reads at generation to the orchestrator, which holds it in memory for one
+     * generation only (story 44.2). Streamed from $path.
+     *
+     * @return string the one-use id the generation names it by
+     *
+     * @throws RequiredGenerationFileRefusedException
+     */
+    public function stageRequiredFile(string $setting, string $path, string $filename): string;
+
+    /** Drops a held file before its generation; never throws, the file expires anyway. */
+    public function releaseRequiredFile(string $stagedFileId): void;
 
     /**
      * @param array<string, scalar> $serverOptions
