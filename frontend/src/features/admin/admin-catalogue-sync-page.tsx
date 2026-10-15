@@ -797,20 +797,24 @@ function StabilityChangedTable({
                   </div>
                 </td>
                 <td className="px-4 py-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <FilterSelectInput
-                      label="Filtrer par disponibilité actuelle"
-                      options={AVAILABILITY_OPTIONS}
-                      value={filter.current}
-                      onChange={(current) => onFilterChange({ ...filter, current })}
-                    />
-                    <ArrowRight aria-hidden="true" className="size-3 text-muted-foreground" />
-                    <FilterSelectInput
-                      label="Filtrer par nouvelle disponibilité"
-                      options={AVAILABILITY_OPTIONS}
-                      value={filter.next}
-                      onChange={(next) => onFilterChange({ ...filter, next })}
-                    />
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-28 flex-1">
+                      <FilterSelectInput
+                        label="Filtrer par disponibilité actuelle"
+                        options={AVAILABILITY_OPTIONS}
+                        value={filter.current}
+                        onChange={(current) => onFilterChange({ ...filter, current })}
+                      />
+                    </div>
+                    <ArrowRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" />
+                    <div className="min-w-28 flex-1">
+                      <FilterSelectInput
+                        label="Filtrer par nouvelle disponibilité"
+                        options={AVAILABILITY_OPTIONS}
+                        value={filter.next}
+                        onChange={(next) => onFilterChange({ ...filter, next })}
+                      />
+                    </div>
                   </div>
                 </td>
                 <td />
