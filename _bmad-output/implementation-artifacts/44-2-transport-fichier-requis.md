@@ -154,7 +154,7 @@ et `world_cls.settings_key`, comme `derive_host_gate_settings`.
 - [x] **Task 6** (AC 12, 14, 15) - API runs perso : controller start (multipart optionnel), `PersonalRunLifecycle`,
   `LaunchPersonalRunJob`, handler, `PersonalRunAdvancer` / `SessionOrchestrator::orchestrateGenerate`.
 - [x] **Task 7** (AC 13) - API admin : `SessionOrchestrationController::generate`.
-- [ ] **Task 8** (AC 16-19) - Tests, gates des trois dépôts, vérification de bout en bout.
+- [x] **Task 8** (AC 16-19) - Tests, gates des trois dépôts, vérification de bout en bout.
 
 ## Dev Notes
 
@@ -252,8 +252,14 @@ Claude Opus 5.5 (1M context)
   le répéter ouvrait une incohérence) ; plafond en Mo (`REQUIRED_FILES_MAX_MB`) ; un réglage inconnu de l'image est un
   simple `Warning:` sur stderr et non une ligne `###ARCHILAN-WARNING###` (consommée par l'API comme avertissement de
   génération réussie, hors sujet ici) ; un dépôt refusé côté admin répond 503 `runner_unavailable`.
-- **Reste (AC 19)** : vérification de bout en bout avec une vraie ROM DKC3 sur une image et un orchestrateur locaux
-  reconstruits ; publication du client puis mise à jour du lock API.
+- **Bout en bout (AC 19, 2026-10-15)**, image et orchestrateur locaux reconstruits depuis les branches, apworld DKC3 du
+  catalogue (`07b2ffd4...`), ROM USA (En,Fr) au MD5 attendu `120abf30...` :
+  - sans fichier : session `crashed`, la ligne d'échec porte `requiredFile` (`DK3Settings.rom_file`, description, MD5) ;
+  - avec le fichier déposé (`POST /required-files`, 201) : session `generated`, patch `.apdkc3` de 831 octets ;
+  - le même jeton rejoué : 422 `required_file_expired` ;
+  - plus aucun conteneur `archilan-gen-*` ; volume de session : aucun fichier au MD5 de la ROM, aucun fichier
+    de plus de 3 Mo, aucune entrée de l'archive de sortie au MD5 de la ROM ; session de test supprimée ensuite.
+- **Reste** : publication du client 1.12.0 puis mise à jour du lock API (la CI de l'API échoue d'ici là).
 
 ### File List
 
