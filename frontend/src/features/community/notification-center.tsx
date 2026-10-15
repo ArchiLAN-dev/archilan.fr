@@ -321,7 +321,9 @@ export function messageFor(item: NotificationItem): string {
               ? "Échec avec le YAML par défaut"
               : incidentType === "image_regression"
                 ? "Régression d'image"
-                : "Apworld en échec";
+                : incidentType === "required_file"
+                  ? "Fichier requis à la génération"
+                  : "Apworld en échec";
       return hasStringProp(item.data, "gameName") && item.data.gameName !== ""
         ? `${problem} : ${item.data.gameName}`
         : "Un apworld est en échec";

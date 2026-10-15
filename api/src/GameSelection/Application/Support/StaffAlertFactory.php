@@ -117,6 +117,7 @@ final readonly class StaffAlertFactory
             ApworldIncidentType::UpdateAmbiguous => 'Mise à jour à arbitrer : plusieurs apworlds dans la release',
             ApworldIncidentType::DefaultYamlFailure => 'Échec avec le YAML par défaut : une vraie génération a échoué',
             ApworldIncidentType::ImageRegression => 'Régression après changement d\'image : l\'apworld passait sur l\'image précédente',
+            ApworldIncidentType::RequiredFile => 'Fichier requis à la génération : le jeu attend un fichier du joueur (ROM)',
         };
     }
 

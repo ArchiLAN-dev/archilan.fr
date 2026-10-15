@@ -12,6 +12,7 @@ use App\GameSelection\Domain\Repository\ApworldHealthRepositoryInterface;
 use App\GameSelection\Domain\Repository\ApworldIncidentRepositoryInterface;
 use App\GameSelection\Domain\Service\ArchipelagoImageFreshness;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Support\GenerationFailureParser;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -98,6 +99,7 @@ final readonly class ReconcileApworldIncidents
             $actives = array_values(array_filter([
                 $activeByKey[self::key($served->gameId, $served->apworldHash, ApworldIncidentType::PreflightFailed)] ?? null,
                 $activeByKey[self::key($served->gameId, $served->apworldHash, ApworldIncidentType::ImageRegression)] ?? null,
+                $activeByKey[self::key($served->gameId, $served->apworldHash, ApworldIncidentType::RequiredFile)] ?? null,
             ]));
 
             if (!\in_array($verdict['status'], [self::VERDICT_PASSED, self::VERDICT_FAILED], true)) {
@@ -132,11 +134,15 @@ final readonly class ReconcileApworldIncidents
 
             // A hash that passed and fails once is retested at once: a seed can be unlucky. The
             // second failure in a row alerts - as an image regression when our image changed since.
-            if ($health->hasPassedBefore() && 1 === $health->getConsecutiveFailures()) {
+            // A missing file is no bad luck: it will still be missing (story 44.1).
+            $requiredFile = GenerationFailureParser::requiredFile($verdict['error']);
+            if (null === $requiredFile && $health->hasPassedBefore() && 1 === $health->getConsecutiveFailures()) {
                 $retried[] = $served->apworldHash;
                 continue;
             }
-            [$type, $error] = self::failure($health, $verdict);
+            [$type, $error] = null !== $requiredFile
+                ? [ApworldIncidentType::RequiredFile, $requiredFile->message()]
+                : self::failure($health, $verdict);
 
             $recording = $this->recordIncident->record($served->gameId, $served->apworldHash, $type, $error, $observation);
             if (ApworldIncidentRecordOutcome::Opened === $recording->outcome && null !== $recording->incidentId) {
