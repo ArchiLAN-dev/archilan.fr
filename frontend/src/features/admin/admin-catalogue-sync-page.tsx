@@ -306,12 +306,12 @@ export function AdminCatalogueSyncPage() {
           onRetry={() => void handleSync()}
         />
       ) : (
-        <div className="grid min-w-0 gap-6">
-          <div className="flex flex-wrap gap-2 border-b border-border" role="tablist">
+        <div className="grid min-w-0 grid-cols-1 gap-6">
+          <div className="flex gap-2 overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
             {TABS.map((t) => (
               <button
                 aria-selected={tab === t.key}
-                className={`-mb-px inline-flex min-h-10 items-center gap-2 border-b-2 px-4 text-sm font-semibold transition-colors ${tab === t.key ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                className={`-mb-px inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 text-sm font-semibold transition-colors ${tab === t.key ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 role="tab"
@@ -323,7 +323,7 @@ export function AdminCatalogueSyncPage() {
             ))}
           </div>
 
-          <div role="tabpanel">
+          <div className="min-w-0" role="tabpanel">
             {tab === "new" ? (
               <NewGamesTable
                 games={filterNewGames(data.newGames, newGamesFilter)}
@@ -454,135 +454,137 @@ function NewGamesTable({
       {totalCount === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun nouveau jeu dans le sheet.</p>
       ) : (
-        <div className="min-w-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <ThSortable col="name" sort={sort} onSort={toggleSort}>Nom</ThSortable>
-                <Th>Disponibilité</Th>
-                <Th>Flags</Th>
-                <ThSortable col="votes" sort={sort} onSort={toggleSort}>Votes</ThSortable>
-                <Th>Liens</Th>
-                <Th right>Action</Th>
-              </tr>
-              <FilterRow>
-                <FilterText label="Filtrer par nom" value={filter.name} onChange={(name) => onFilterChange({ ...filter, name })} />
-                <FilterSelect
-                  label="Filtrer par disponibilité"
-                  options={AVAILABILITY_OPTIONS}
-                  value={filter.availability}
-                  onChange={(availability) => onFilterChange({ ...filter, availability })}
-                />
-                <FilterSelect
-                  label="Filtrer par flags"
-                  options={[
-                    { value: "adult", label: "18+" },
-                    { value: "bundled", label: "AP intégré" },
-                    { value: "none", label: "Aucun" },
-                  ]}
-                  value={filter.flag}
-                  onChange={(flag) => onFilterChange({ ...filter, flag: asNewGamesFlag(flag) })}
-                />
-                <FilterSelect
-                  label="Filtrer par votes"
-                  options={[
-                    { value: "with", label: "Avec votes" },
-                    { value: "without", label: "Sans vote" },
-                  ]}
-                  value={filter.votes}
-                  onChange={(votes) => onFilterChange({ ...filter, votes: votes === "with" || votes === "without" ? votes : "" })}
-                />
-                <td />
-                <td />
-              </FilterRow>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {games.length === 0 ? <NoResultRow colSpan={6} /> : null}
-              {pageItems.map((game) => (
-                <tr className="transition-colors hover:bg-surface-2/40" key={game.name}>
-                  <td className="px-4 py-3 font-semibold text-foreground">{game.name}</td>
-                  <td className="px-4 py-3">
-                    <AvailabilityBadge availability={game.availability} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      {game.adultContent ? (
-                        <span className="inline-flex items-center rounded border border-danger/40 bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger">
-                          18+
-                        </span>
-                      ) : null}
-                      {game.bundledWithAp ? (
-                        <span className="inline-flex items-center rounded border border-border bg-surface-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                          AP intégré
-                        </span>
-                      ) : null}
-                      {!game.adultContent && !game.bundledWithAp ? (
-                        <span className="text-xs text-muted-foreground/40">-</span>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {game.votes > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent-text">
-                        <ThumbsUp aria-hidden="true" className="size-3" />
-                        {game.votes}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/40">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      {game.links.map((link, j) =>
-                        link.url ? (
-                          <a
-                            className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline"
-                            href={link.url}
-                            key={j}
-                            rel="noopener"
-                            target="_blank"
-                          >
-                            {link.label}
-                            <ExternalLink aria-hidden="true" className="size-3" />
-                          </a>
-                        ) : (
-                          <span className="text-xs text-muted-foreground/50" key={j}>
-                            {link.label}
-                          </span>
-                        ),
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        className="inline-flex min-h-8 items-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
-                        disabled={ignoringName === game.name}
-                        title="Ne plus afficher ce jeu dans les nouveaux"
-                        type="button"
-                        onClick={() => onIgnore(game.name)}
-                      >
-                        {ignoringName === game.name ? (
-                          <Loader2 aria-hidden="true" className="size-3.5 animate-spin" />
-                        ) : (
-                          <EyeOff aria-hidden="true" className="size-3.5" />
-                        )}
-                        Ignorer
-                      </button>
-                      <Link
-                        className="inline-flex min-h-8 items-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent"
-                        href={`/admin/jeux/nouveau?name=${encodeURIComponent(game.name)}&availability=${encodeURIComponent(game.availability)}&adult=${game.adultContent ? "1" : "0"}&bundled=${game.bundledWithAp ? "1" : "0"}&links=${encodeURIComponent(JSON.stringify(game.links))}`}
-                      >
-                        Créer
-                      </Link>
-                    </div>
-                  </td>
+        <>
+          <div className="min-w-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <ThSortable col="name" sort={sort} onSort={toggleSort}>Nom</ThSortable>
+                  <Th>Disponibilité</Th>
+                  <Th>Flags</Th>
+                  <ThSortable col="votes" sort={sort} onSort={toggleSort}>Votes</ThSortable>
+                  <Th>Liens</Th>
+                  <Th right>Action</Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+                <FilterRow>
+                  <FilterText label="Filtrer par nom" value={filter.name} onChange={(name) => onFilterChange({ ...filter, name })} />
+                  <FilterSelect
+                    label="Filtrer par disponibilité"
+                    options={AVAILABILITY_OPTIONS}
+                    value={filter.availability}
+                    onChange={(availability) => onFilterChange({ ...filter, availability })}
+                  />
+                  <FilterSelect
+                    label="Filtrer par flags"
+                    options={[
+                      { value: "adult", label: "18+" },
+                      { value: "bundled", label: "AP intégré" },
+                      { value: "none", label: "Aucun" },
+                    ]}
+                    value={filter.flag}
+                    onChange={(flag) => onFilterChange({ ...filter, flag: asNewGamesFlag(flag) })}
+                  />
+                  <FilterSelect
+                    label="Filtrer par votes"
+                    options={[
+                      { value: "with", label: "Avec votes" },
+                      { value: "without", label: "Sans vote" },
+                    ]}
+                    value={filter.votes}
+                    onChange={(votes) => onFilterChange({ ...filter, votes: votes === "with" || votes === "without" ? votes : "" })}
+                  />
+                  <td />
+                  <td />
+                </FilterRow>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {games.length === 0 ? <NoResultRow colSpan={6} /> : null}
+                {pageItems.map((game) => (
+                  <tr className="transition-colors hover:bg-surface-2/40" key={game.name}>
+                    <td className="px-4 py-3 font-semibold text-foreground">{game.name}</td>
+                    <td className="px-4 py-3">
+                      <AvailabilityBadge availability={game.availability} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {game.adultContent ? (
+                          <span className="inline-flex items-center rounded border border-danger/40 bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger">
+                            18+
+                          </span>
+                        ) : null}
+                        {game.bundledWithAp ? (
+                          <span className="inline-flex items-center rounded border border-border bg-surface-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                            AP intégré
+                          </span>
+                        ) : null}
+                        {!game.adultContent && !game.bundledWithAp ? (
+                          <span className="text-xs text-muted-foreground/40">-</span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {game.votes > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent-text">
+                          <ThumbsUp aria-hidden="true" className="size-3" />
+                          {game.votes}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        {game.links.map((link, j) =>
+                          link.url ? (
+                            <a
+                              className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline"
+                              href={link.url}
+                              key={j}
+                              rel="noopener"
+                              target="_blank"
+                            >
+                              {link.label}
+                              <ExternalLink aria-hidden="true" className="size-3" />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/50" key={j}>
+                              {link.label}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          className="inline-flex min-h-8 items-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-muted-foreground transition-colors hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                          disabled={ignoringName === game.name}
+                          title="Ne plus afficher ce jeu dans les nouveaux"
+                          type="button"
+                          onClick={() => onIgnore(game.name)}
+                        >
+                          {ignoringName === game.name ? (
+                            <Loader2 aria-hidden="true" className="size-3.5 animate-spin" />
+                          ) : (
+                            <EyeOff aria-hidden="true" className="size-3.5" />
+                          )}
+                          Ignorer
+                        </button>
+                        <Link
+                          className="inline-flex min-h-8 items-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent"
+                          href={`/admin/jeux/nouveau?name=${encodeURIComponent(game.name)}&availability=${encodeURIComponent(game.availability)}&adult=${game.adultContent ? "1" : "0"}&bundled=${game.bundledWithAp ? "1" : "0"}&links=${encodeURIComponent(JSON.stringify(game.links))}`}
+                        >
+                          Créer
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <Pagination total={games.length} page={page} pageSize={PAGE_SIZE} onPageChange={onPageChange} />
-        </div>
+        </>
       )}
     </TableCard>
   );
@@ -640,90 +642,92 @@ function ApworldUpdatesTable({
       {totalCount === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun jeu suivi.</p>
       ) : (
-        <div className="min-w-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <Th>Jeu</Th>
-                <Th>Statut</Th>
-                <Th>Versions</Th>
-                <Th>Publiée le</Th>
-                <Th right>Liens</Th>
-              </tr>
-              <FilterRow>
-                <FilterText label="Filtrer par nom" value={filter.name} onChange={(name) => onFilterChange({ ...filter, name })} />
-                <FilterSelect
-                  label="Filtrer par statut"
-                  options={APWORLD_UPDATE_STATUSES.filter((s) => s !== "not_tracked").map((s) => ({
-                    value: s,
-                    label: updateStatusLabel(s),
-                  }))}
-                  value={filter.status}
-                  onChange={(status) => onFilterChange({ ...filter, status })}
-                />
-                <FilterSelect
-                  label="Filtrer par versions"
-                  options={[
-                    { value: "different", label: "Version différente" },
-                    { value: "same", label: "Même version" },
-                  ]}
-                  value={filter.versions}
-                  onChange={(versions) =>
-                    onFilterChange({ ...filter, versions: versions === "different" || versions === "same" ? versions : "" })
-                  }
-                />
-                <td />
-                <td />
-              </FilterRow>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {updates.length === 0 ? <NoResultRow colSpan={5} /> : null}
-              {pageItems.map((update) => (
-                <tr className="transition-colors hover:bg-surface-2/40" key={update.gameId}>
-                  <td className="px-4 py-3 font-semibold text-foreground">{update.gameName}</td>
-                  <td className="px-4 py-3">
-                    <UpdateStatusBadge status={update.updateStatus} />
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                    {update.deployedVersion ?? "-"}
-                    <ArrowRight aria-hidden="true" className="mx-1 inline size-3" />
-                    {update.latestVersion ?? "-"}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {update.publishedAt
-                      ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(
-                          new Date(update.publishedAt),
-                        )
-                      : "-"}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex flex-wrap items-center justify-end gap-3">
-                      {update.releaseUrl ? (
-                        <a
-                          className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline"
-                          href={update.releaseUrl}
-                          rel="noopener"
-                          target="_blank"
-                        >
-                          Release
-                          <ExternalLink aria-hidden="true" className="size-3" />
-                        </a>
-                      ) : null}
-                      <Link
-                        className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline"
-                        href={`/admin/jeux/${update.gameId}`}
-                      >
-                        Configurer
-                        <Settings2 aria-hidden="true" className="size-3" />
-                      </Link>
-                    </div>
-                  </td>
+        <>
+          <div className="min-w-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <Th>Jeu</Th>
+                  <Th>Statut</Th>
+                  <Th>Versions</Th>
+                  <Th>Publiée le</Th>
+                  <Th right>Liens</Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+                <FilterRow>
+                  <FilterText label="Filtrer par nom" value={filter.name} onChange={(name) => onFilterChange({ ...filter, name })} />
+                  <FilterSelect
+                    label="Filtrer par statut"
+                    options={APWORLD_UPDATE_STATUSES.filter((s) => s !== "not_tracked").map((s) => ({
+                      value: s,
+                      label: updateStatusLabel(s),
+                    }))}
+                    value={filter.status}
+                    onChange={(status) => onFilterChange({ ...filter, status })}
+                  />
+                  <FilterSelect
+                    label="Filtrer par versions"
+                    options={[
+                      { value: "different", label: "Version différente" },
+                      { value: "same", label: "Même version" },
+                    ]}
+                    value={filter.versions}
+                    onChange={(versions) =>
+                      onFilterChange({ ...filter, versions: versions === "different" || versions === "same" ? versions : "" })
+                    }
+                  />
+                  <td />
+                  <td />
+                </FilterRow>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {updates.length === 0 ? <NoResultRow colSpan={5} /> : null}
+                {pageItems.map((update) => (
+                  <tr className="transition-colors hover:bg-surface-2/40" key={update.gameId}>
+                    <td className="px-4 py-3 font-semibold text-foreground">{update.gameName}</td>
+                    <td className="px-4 py-3">
+                      <UpdateStatusBadge status={update.updateStatus} />
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      {update.deployedVersion ?? "-"}
+                      <ArrowRight aria-hidden="true" className="mx-1 inline size-3" />
+                      {update.latestVersion ?? "-"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {update.publishedAt
+                        ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(
+                            new Date(update.publishedAt),
+                          )
+                        : "-"}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex flex-wrap items-center justify-end gap-3">
+                        {update.releaseUrl ? (
+                          <a
+                            className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline"
+                            href={update.releaseUrl}
+                            rel="noopener"
+                            target="_blank"
+                          >
+                            Release
+                            <ExternalLink aria-hidden="true" className="size-3" />
+                          </a>
+                        ) : null}
+                        <Link
+                          className="inline-flex items-center gap-1 text-xs text-accent-text hover:underline"
+                          href={`/admin/jeux/${update.gameId}`}
+                        >
+                          Configurer
+                          <Settings2 aria-hidden="true" className="size-3" />
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <Pagination total={updates.length} page={page} pageSize={PAGE_SIZE} onPageChange={onPageChange} />
-        </div>
+        </>
       )}
     </TableCard>
   );
@@ -766,105 +770,107 @@ function StabilityChangedTable({
           Aucun changement de stabilité détecté.
         </p>
       ) : (
-        <div className="min-w-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <Th>Jeu</Th>
-                <Th>Changement</Th>
-                <Th right>Action</Th>
-              </tr>
-              <FilterRow>
-                <td className="px-4 py-2">
-                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                    <FilterTextInput
-                      label="Filtrer par nom"
-                      value={filter.name}
-                      onChange={(name) => onFilterChange({ ...filter, name })}
-                    />
-                    <FilterSelectInput
-                      allLabel="Verrou : tous"
-                      label="Filtrer par verrouillage"
-                      options={[
-                        { value: "locked", label: "Verrouillé" },
-                        { value: "unlocked", label: "Non verrouillé" },
-                      ]}
-                      value={filter.locked}
-                      onChange={(locked) =>
-                        onFilterChange({ ...filter, locked: locked === "locked" || locked === "unlocked" ? locked : "" })
-                      }
-                    />
-                  </div>
-                </td>
-                <td className="px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    <div className="min-w-28 flex-1">
+        <>
+          <div className="min-w-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <Th>Jeu</Th>
+                  <Th>Changement</Th>
+                  <Th right>Action</Th>
+                </tr>
+                <FilterRow>
+                  <td className="px-4 py-2">
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <FilterTextInput
+                        label="Filtrer par nom"
+                        value={filter.name}
+                        onChange={(name) => onFilterChange({ ...filter, name })}
+                      />
                       <FilterSelectInput
-                        label="Filtrer par disponibilité actuelle"
-                        options={AVAILABILITY_OPTIONS}
-                        value={filter.current}
-                        onChange={(current) => onFilterChange({ ...filter, current })}
+                        allLabel="Verrou : tous"
+                        label="Filtrer par verrouillage"
+                        options={[
+                          { value: "locked", label: "Verrouillé" },
+                          { value: "unlocked", label: "Non verrouillé" },
+                        ]}
+                        value={filter.locked}
+                        onChange={(locked) =>
+                          onFilterChange({ ...filter, locked: locked === "locked" || locked === "unlocked" ? locked : "" })
+                        }
                       />
                     </div>
-                    <ArrowRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" />
-                    <div className="min-w-28 flex-1">
-                      <FilterSelectInput
-                        label="Filtrer par nouvelle disponibilité"
-                        options={AVAILABILITY_OPTIONS}
-                        value={filter.next}
-                        onChange={(next) => onFilterChange({ ...filter, next })}
-                      />
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="min-w-28 flex-1">
+                        <FilterSelectInput
+                          label="Filtrer par disponibilité actuelle"
+                          options={AVAILABILITY_OPTIONS}
+                          value={filter.current}
+                          onChange={(current) => onFilterChange({ ...filter, current })}
+                        />
+                      </div>
+                      <ArrowRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" />
+                      <div className="min-w-28 flex-1">
+                        <FilterSelectInput
+                          label="Filtrer par nouvelle disponibilité"
+                          options={AVAILABILITY_OPTIONS}
+                          value={filter.next}
+                          onChange={(next) => onFilterChange({ ...filter, next })}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td />
-              </FilterRow>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {changes.length === 0 ? <NoResultRow colSpan={3} /> : null}
-              {pageItems.map((change) => {
-                const applying = applyingId === change.gameId;
-                return (
-                  <tr className="transition-colors hover:bg-surface-2/40" key={change.gameId}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-foreground">{change.gameName}</span>
-                        {change.availabilityLocked ? (
-                          <span className="inline-flex items-center gap-1 rounded border border-border bg-surface-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                            <Lock aria-hidden="true" className="size-3" />
-                            Verrouillé
-                          </span>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <AvailabilityBadge availability={change.currentAvailability} />
-                        <ArrowRight aria-hidden="true" className="size-3 text-muted-foreground" />
-                        <AvailabilityBadge availability={change.newAvailability} />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        className="inline-flex min-h-8 items-center gap-1.5 rounded bg-accent px-3 text-xs font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
-                        disabled={change.availabilityLocked || applying}
-                        title={change.availabilityLocked ? "Disponibilité verrouillée sur la fiche du jeu" : undefined}
-                        type="button"
-                        onClick={() => {
-                          onApply(change.gameId, change.newAvailability);
-                        }}
-                      >
-                        {applying ? <Loader2 aria-hidden="true" className="size-3.5 animate-spin" /> : null}
-                        Appliquer
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  </td>
+                  <td />
+                </FilterRow>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {changes.length === 0 ? <NoResultRow colSpan={3} /> : null}
+                {pageItems.map((change) => {
+                  const applying = applyingId === change.gameId;
+                  return (
+                    <tr className="transition-colors hover:bg-surface-2/40" key={change.gameId}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">{change.gameName}</span>
+                          {change.availabilityLocked ? (
+                            <span className="inline-flex items-center gap-1 rounded border border-border bg-surface-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                              <Lock aria-hidden="true" className="size-3" />
+                              Verrouillé
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <AvailabilityBadge availability={change.currentAvailability} />
+                          <ArrowRight aria-hidden="true" className="size-3 text-muted-foreground" />
+                          <AvailabilityBadge availability={change.newAvailability} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          className="inline-flex min-h-8 items-center gap-1.5 rounded bg-accent px-3 text-xs font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+                          disabled={change.availabilityLocked || applying}
+                          title={change.availabilityLocked ? "Disponibilité verrouillée sur la fiche du jeu" : undefined}
+                          type="button"
+                          onClick={() => {
+                            onApply(change.gameId, change.newAvailability);
+                          }}
+                        >
+                          {applying ? <Loader2 aria-hidden="true" className="size-3.5 animate-spin" /> : null}
+                          Appliquer
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           <Pagination total={changes.length} page={page} pageSize={PAGE_SIZE} onPageChange={onPageChange} />
-        </div>
+        </>
       )}
     </TableCard>
   );
@@ -1123,11 +1129,11 @@ function Pagination({
   const pages = buildPageRange(page, totalPages);
 
   return (
-    <div className="flex items-center justify-between border-t border-border px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
       <span className="text-xs text-muted-foreground">
         {from}–{to} sur {total}
       </span>
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         <button
           aria-label="Page précédente"
           className="inline-flex size-8 items-center justify-center rounded border border-border text-muted-foreground transition-colors hover:border-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
