@@ -1,6 +1,6 @@
 # Story 44.2 - Transporter le fichier requis jusqu'au conteneur de génération, sans le stocker
 
-**Status:** in-progress
+**Status:** review
 **Epic:** 44 - Fichiers requis à la génération (ROM fournie par le joueur)
 **Date:** 2026-10-15
 **Dépend de:** 44.1 (détection, `requiredFile` sur la ligne `###ARCHILAN-FAILURE###`)
@@ -259,7 +259,7 @@ Claude Opus 5.5 (1M context)
   - le même jeton rejoué : 422 `required_file_expired` ;
   - plus aucun conteneur `archilan-gen-*` ; volume de session : aucun fichier au MD5 de la ROM, aucun fichier
     de plus de 3 Mo, aucune entrée de l'archive de sortie au MD5 de la ROM ; session de test supprimée ensuite.
-- **Reste** : publication du client 1.12.0 puis mise à jour du lock API (la CI de l'API échoue d'ici là).
+- Client 1.12.0 publié (PR client #14, tag `v1.12.0`), lock API mis à jour ; `composer gates` vert sur le client publié.
 
 ### File List
 
