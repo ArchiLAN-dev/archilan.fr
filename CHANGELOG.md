@@ -5,6 +5,56 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.41.0] - 2026-10-15
+
+Tout pour les inscriptions de l'ArchiLAN 4 : un événement privé s'ouvre aux adhérents ou sur code d'accès, les
+inscriptions reçoivent leurs correctifs, chaque événement dit où il en est, et une réservation non confirmée est
+rappelée puis libérée. S'y ajoutent l'annonce en modale sur l'accueil, la page « Pelles », le tri des jeux récents,
+la détection des jeux qui demandent une ROM, et un correctif de prod sur la sélection de jeux.
+
+### Ajouté
+
+- **Événement privé : adhérents ou code d'accès** (4.21) : un événement privé est ouvert aux membres à l'adhésion
+  active, ou à ceux qui donnent son code ; la page dit pourquoi et renvoie vers l'adhésion.
+- **Statuts d'un événement** (4.23) : à venir, inscriptions ouvertes, complet, inscriptions closes, en cours, terminé ;
+  dates d'ouverture et de fermeture des inscriptions sur la carte et la page, à l'heure de Paris.
+- **Rejoindre sa partie pendant l'événement** (4.23) : un inscrit confirmé a un bouton « Rejoindre ma partie ».
+- **Réservations non confirmées** (4.23) : un rappel par e-mail 48 h avant la clôture, puis la place est libérée à la
+  clôture, avec un e-mail au membre.
+- **Limite d'essais du code d'accès** (4.24) : dix codes refusés par heure et par événement, puis « Trop d'essais.
+  Réessaie dans une heure. »
+- **Annonce en modale sur l'accueil** (10.14).
+- **Jeux récemment ajoutés** (28.17) : tri « Ajouts récents » sur /jeux (`?tri=recents`) et badge « Nouveau » sur les
+  jeux ajoutés depuis moins de 30 jours.
+- **Série de coffres** (41.34) : le panneau des quêtes de la semaine montre la série de semaines avec le coffre ouvert
+  et le record.
+- **Jeux qui demandent un fichier à la génération** (44.1) : un apworld qui réclame la ROM du joueur est reconnu,
+  avec un message qui nomme le fichier et un incident « Fichier requis à la génération » sur la santé des apworlds.
+
+### Modifié
+
+- **Page « Pelles »** (41.34) : « Portefeuille » devient « Pelles » (« Mes pelles » dans le menu), à l'adresse
+  `/compte/pelles` (l'ancienne redirige) ; les quêtes de la semaine passent juste sous le solde, les historiques en bas.
+- **Réglages de notifications en tableau** (40.7).
+- **Recaps d'un événement privé** (4.23) : visibles des inscrits confirmés et des admins seulement.
+
+### Corrigé
+
+- **Sélection de jeux d'une partie perso en erreur** : la réponse portait le YAML, les options et les locations de
+  tout le catalogue et épuisait la mémoire de PHP. Ces données ne sont plus envoyées que pour les jeux choisis ; même
+  correctif sur la sélection de jeux d'une inscription à un événement.
+- **Inscriptions** (4.22) : réinscription après une annulation, YAML conservés quand un admin modifie les jeux,
+  bandeau confirmé ou à confirmer sur le récapitulatif, e-mail non vérifié signalé, inscription sans sélection de jeux,
+  date de l'e-mail de confirmation à l'heure de Paris, lien HelloAsso accepté en entier.
+
+### Déploiement
+
+- Deux migrations : `Version20261012100000` (annonce) et `Version20261012110000` (date de rappel des inscriptions).
+- Le worker async et le scheduler doivent tourner : rappel et libération des réservations non confirmées, toutes les
+  heures à la 20e minute.
+- Image archipelago à publier pour la détection des fichiers requis (44.1) ; sans elle, l'API garde l'ancien
+  comportement.
+
 ## [0.40.0] - 2026-10-11
 
 Les annonces de parties qui cherchent des joueurs sortent de l'ombre : mises en avant sur Communauté, visibles sans
