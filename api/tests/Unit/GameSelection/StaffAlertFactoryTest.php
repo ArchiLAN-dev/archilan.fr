@@ -136,6 +136,16 @@ final class StaffAlertFactoryTest extends TestCase
         self::assertStringContainsString('Régression après changement d\'image', $this->factory->opened($incident, 'Crystal Project')->description);
     }
 
+    public function testARequiredFileIsNamedForWhatItIs(): void
+    {
+        // Story 44.1: the game waits for the player's ROM, the apworld is not broken.
+        $incident = ApworldIncident::open('i-1', 'game-1', self::HASH, ApworldIncidentType::RequiredFile, 'Ce jeu demande le fichier « DKC3 (US) ROM File » (.sfc) à la génération.', new \DateTimeImmutable());
+
+        $description = $this->factory->opened($incident, 'Donkey Kong Country 3')->description;
+        self::assertStringContainsString('Fichier requis à la génération', $description);
+        self::assertStringContainsString('DKC3 (US) ROM File', $description);
+    }
+
     public function testAFailureOfARealGenerationIsToldApartFromTheImportTest(): void
     {
         // Story 38.4: players failed with the default YAML although the import test passed.

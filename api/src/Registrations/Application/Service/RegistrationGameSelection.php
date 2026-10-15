@@ -30,7 +30,7 @@ final readonly class RegistrationGameSelection
     /**
      * Returns game selection data for a registration, or null if not accessible.
      *
-     * @return array{registrationId: string, eventId: string, gameSelectionEnabled: bool, maxGamesPerRegistrant: int|null, registrationOpen: bool, slots: list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>, availableGames: list<array<string, mixed>>}|null
+     * @return array{registrationId: string, eventId: string, gameSelectionEnabled: bool, maxGamesPerRegistrant: int|null, registrationOpen: bool, submittedAt: string|null, slots: list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>, availableGames: list<array<string, mixed>>}|null
      */
     public function getSelection(string $registrationId, string $userId): ?array
     {
@@ -75,7 +75,8 @@ final readonly class RegistrationGameSelection
             $game = $gamesById[$gameId] ?? null;
             // Story 11.5: a disabled game is no longer offered - except to a registration that already holds it,
             // so that slot keeps its config (flagged as disabled, it still cannot be added again).
-            if (null === $game || ($game->isDisabled() && !\in_array($gameId, $slotGameIds, true))) {
+            $held = \in_array($gameId, $slotGameIds, true);
+            if (null === $game || ($game->isDisabled() && !$held)) {
                 continue;
             }
             $availableGames[] = [
@@ -87,9 +88,11 @@ final readonly class RegistrationGameSelection
                 'disabled' => $game->isDisabled(),
                 'disabledMessage' => $game->getDisabledMessage(),
                 'isApworldReady' => $game->isApworldReady(),
-                'defaultYaml' => $game->getDefaultYaml(),
-                'optionTypes' => $game->getEffectiveOptionTypes(),
-                'locationNames' => $game->getLocationNames(),
+                // Only for the games the registration holds: the slot's YAML editor needs them, the picker
+                // does not, and sent for every configured game they can run PHP out of memory.
+                'defaultYaml' => $held ? $game->getDefaultYaml() : null,
+                'optionTypes' => $held ? $game->getEffectiveOptionTypes() : null,
+                'locationNames' => $held ? $game->getLocationNames() : null,
                 'coverImageUrl' => $game->getCoverImageUrl(),
                 'coverImageAlt' => $game->getCoverImageAlt(),
                 // Story 28.16: what the picker needs to filter by platform and to recognise a game
@@ -117,6 +120,8 @@ final readonly class RegistrationGameSelection
             'gameSelectionEnabled' => $event->isGameSelectionEnabled(),
             'maxGamesPerRegistrant' => $event->getGameSelectionMaxPerRegistrant(),
             'registrationOpen' => $registrationOpen,
+            // Story 4.22: the recap tells a confirmed registration from one still to confirm.
+            'submittedAt' => $registration->getSubmittedAt()?->format(\DateTimeInterface::ATOM),
             'slots' => $slots,
             'availableGames' => $availableGames,
         ];

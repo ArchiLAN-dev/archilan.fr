@@ -7,6 +7,7 @@ namespace App\Sessions\Presentation\Controller;
 use App\Sessions\Application\Query\EventRecapIndexQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -22,9 +23,10 @@ final readonly class EventRecapIndexController
     }
 
     #[Route('/api/v1/events/{eventId}/parties', methods: ['GET'])]
-    public function index(string $eventId): JsonResponse
+    public function index(Request $request, string $eventId): JsonResponse
     {
-        $entries = $this->eventRecapIndexQuery->execute($eventId);
+        // Story 4.23: a private event's list is shown to its confirmed registrants (client-side, with their session).
+        $entries = $this->eventRecapIndexQuery->execute($eventId, $this->apiAccessGuard->optionalUser($request)?->getId());
         if (null === $entries) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Événement introuvable.', 404);
         }

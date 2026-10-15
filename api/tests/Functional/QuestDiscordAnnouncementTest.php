@@ -81,7 +81,8 @@ final class QuestDiscordAnnouncementTest extends FunctionalTestCase
         self::assertStringContainsString('Quests of 2026-W41 posted on Discord.', $tester->getDisplay());
         self::assertSame(0, $tester->execute(['week' => self::WEEK]));
         self::assertStringContainsString('Discord message of 2026-W41 updated.', $tester->getDisplay());
-        self::assertSame(1, $tester->execute(['week' => '2026-W42']), 'a week with no quest fails');
+        // A week still to come: a started week draws its quests (41.17), so a near one turns into a date bomb.
+        self::assertSame(1, $tester->execute(['week' => '2099-W42']), 'a week with no quest fails');
     }
 
     private function channel(): SpyQuestAnnouncementChannel

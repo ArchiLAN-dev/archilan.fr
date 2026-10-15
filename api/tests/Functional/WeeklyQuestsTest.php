@@ -229,7 +229,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertCount(1, $spy->posted);
         self::assertSame([['title' => 'Marathon', 'objectives' => '50 checks et 1 partie', 'reward' => 60]], $spy->posted[0]->quests);
         self::assertSame(60 + 50, $spy->posted[0]->maxPelles());
-        self::assertStringEndsWith('/compte/portefeuille', $spy->posted[0]->url);
+        self::assertStringEndsWith('/compte/pelles', $spy->posted[0]->url);
     }
 
     public function testTheNewWeekIsAnnouncedOnceToTheMembersWhoPlayedLately(): void
@@ -287,6 +287,8 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         );
         self::assertIsArray($history[2]);
         self::assertSame(0, $history[2]['pelles'] ?? null);
+        // Story 41.34: two chests in a row, the week in progress not opened yet.
+        self::assertSame(['current' => 2, 'best' => 2, 'thisWeek' => false], $this->decodedJsonResponse()['streak'] ?? null);
 
         // Story 41.17: the achievement facts count the quests and the run of chests.
         $facts = self::getContainer()->get(QuestMetricProvider::class);

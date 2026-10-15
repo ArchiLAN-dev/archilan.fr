@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { ChestRow, ObjectiveBar, QuestHistory, WeeklyQuestsView, fetchMyQuests, type WeeklyQuests } from "./weekly-quests";
+import { ChestRow, ObjectiveBar, QuestHistory, StreakRow, WeeklyQuestsView, fetchMyQuests, type WeeklyQuests } from "./weekly-quests";
 import { pelleReasonLabel } from "./wallet-api";
 
 const quests: WeeklyQuests = {
@@ -90,5 +90,38 @@ describe("weekly quests", () => {
 
     expect(await fetchMyQuests()).toEqual(quests);
     expect(pelleReasonLabel("quest_reward")).toBe("Quête de la semaine");
+  });
+});
+
+/** Story 41.34: the run of chests in the quests panel. */
+describe("quest streak", () => {
+  test("a run in progress, still to extend this week, with the record when it is higher", () => {
+    const html = renderToStaticMarkup(<StreakRow streak={{ current: 3, best: 5, thisWeek: false }} />);
+
+    expect(html).toContain("Série : 3 semaines d&#x27;affilée");
+    expect(html).toContain("Ouvre le coffre de cette semaine pour la prolonger.");
+    expect(html).toContain("Record : 5 semaines");
+  });
+
+  test("a run already extended this week asks nothing more and hides an equal record", () => {
+    const html = renderToStaticMarkup(<StreakRow streak={{ current: 1, best: 1, thisWeek: true }} />);
+
+    expect(html).toContain("Série : 1 semaine d&#x27;affilée");
+    expect(html).not.toContain("Ouvre le coffre");
+    expect(html).not.toContain("Record");
+  });
+
+  test("no run yet says how to start one", () => {
+    const html = renderToStaticMarkup(<StreakRow streak={{ current: 0, best: 2, thisWeek: false }} />);
+
+    expect(html).toContain("Pas de série en cours");
+    expect(html).toContain("Ouvre le coffre de la semaine pour lancer une série.");
+    expect(html).toContain("Record : 2 semaines");
+  });
+
+  test("the panel shows it under the chest, not when there is neither chest nor run, nor from an older API", () => {
+    expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, streak: { current: 2, best: 2, thisWeek: false } }} />)).toContain("Série : 2 semaines");
+    expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, chest: null, streak: { current: 0, best: 4, thisWeek: false } }} />)).not.toContain("série");
+    expect(renderToStaticMarkup(<WeeklyQuestsView quests={quests} />)).not.toContain("Série");
   });
 });

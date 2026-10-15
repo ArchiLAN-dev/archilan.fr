@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { CalendarDays, ImageIcon, Lock, MapPin, Radio, Trophy, Users } from "lucide-react";
+import { CalendarDays, Clock, ImageIcon, Lock, MapPin, Radio, Trophy, Users } from "lucide-react";
 import type { EventStatus, PublicEvent } from "./event-types";
+import { dayAndHour } from "./event-schedule";
 import { externalLinks } from "@/lib/external-links";
 import { getCapacityBarColor, getCapacityPercent } from "./event-utils";
 import { EventFriendsBadge } from "@/features/community/event-friends-badge";
@@ -9,29 +10,35 @@ import { EventFriendsBadge } from "@/features/community/event-friends-badge";
 type StatusConfig = { label: string; cta?: string; tone: string };
 
 const statusCopy: Record<EventStatus, StatusConfig> = {
-  open: {
-    label: "Inscriptions ouvertes",
-    cta: "Choisir mes jeux",
-    tone: "border-success/50 text-success",
-  },
   upcoming: {
-    label: "Bientôt disponible",
+    label: "Inscriptions bientôt ouvertes",
     cta: "Voir l'événement",
     tone: "border-accent/50 text-accent-text",
   },
+  open: {
+    label: "Inscriptions ouvertes",
+    cta: "S'inscrire",
+    tone: "border-success/50 text-success",
+  },
   full: {
     label: "Complet",
-    cta: "Liste d'attente",
+    cta: "Voir l'événement",
     tone: "border-danger/60 text-danger",
+  },
+  closed: {
+    label: "Inscriptions fermées",
+    cta: "Voir l'événement",
+    tone: "border-muted-foreground/40 text-muted-foreground",
+  },
+  "in-progress": {
+    label: "En cours",
+    cta: "Suivre l'événement",
+    tone: "border-special/60 text-special",
   },
   completed: {
     label: "Terminé",
     cta: "Voir le récap",
     tone: "border-muted-foreground/40 text-muted-foreground",
-  },
-  "members-only": {
-    label: "Réservé aux membres",
-    tone: "border-special/60 text-special",
   },
 };
 
@@ -73,6 +80,13 @@ export function EventCard({ event, friendEventIds }: { event: PublicEvent; frien
           )}
         </EventMeta>
         <EventMeta icon={MapPin}>{event.location}</EventMeta>
+        {event.status === "upcoming" && event.registrationOpensAtIso ? (
+          <EventMeta icon={Clock}>
+            <span>
+              Inscriptions le <time dateTime={event.registrationOpensAtIso}>{dayAndHour(event.registrationOpensAtIso)}</time>
+            </span>
+          </EventMeta>
+        ) : null}
       </div>
 
       {friendEventIds !== undefined ? (
@@ -122,10 +136,10 @@ export function EventCard({ event, friendEventIds }: { event: PublicEvent; frien
         </p>
       ) : null}
 
-      {event.status === "members-only" ? (
+      {event.membersOnly && event.status !== "completed" ? (
         <p className="mt-5 inline-flex items-center gap-2 text-sm text-muted-foreground">
           <Lock aria-hidden="true" className="size-4 text-special" />
-          Accès réservé aux membres ArchiLAN.
+          Réservé aux adhérents, ou sur code d&apos;accès.
         </p>
       ) : null}
 

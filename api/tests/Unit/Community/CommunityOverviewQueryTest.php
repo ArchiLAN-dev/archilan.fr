@@ -13,8 +13,10 @@ use App\Community\Application\Support\AchievementImageUrlResolver;
 use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Query\ActiveRegistrationQueryInterface;
 use App\Sessions\Application\Query\ViewableSessionsQuery;
 use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Sessions\Domain\Entity\Session;
@@ -153,6 +155,8 @@ final class CommunityOverviewQueryTest extends TestCase
             self::createStub(EventRepositoryInterface::class),
             self::createStub(RunRepositoryInterface::class),
             self::createStub(RunParticipantRepositoryInterface::class),
+            self::createStub(ActiveRegistrationQueryInterface::class),
+            self::createStub(UserRepositoryInterface::class),
         );
 
         return new CommunityOverviewQuery(

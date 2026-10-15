@@ -8,6 +8,8 @@ import { ConsentGatedTwitchEmbed } from "@/features/streaming/consent-gated-twit
 import { LiveStreamHeading } from "@/features/streaming/live-stream-heading";
 import { getPublicEvents } from "@/features/events/public-events-api";
 import { getPublicPosts } from "@/features/content/public-posts-api";
+import { getHomeAnnouncement } from "@/features/content/home-announcement-api";
+import { HomeAnnouncementModal } from "@/features/content/home-announcement-modal";
 import { getHomeCommunityStats, getHomeConceptCovers, getHomeRecaps, getHomeWeeklyRuns, newestFirst } from "@/features/home/home-api";
 import {
   HomeAssociation,
@@ -37,18 +39,21 @@ export const revalidate = 300;
 
 export default async function Home() {
   // Story 34.9: everything the sections show, read in parallel and kept five minutes.
-  const [{ upcoming, past: pastAnyOrder }, discord, weeklyRuns, stats, posts] = await Promise.all([
+  const [{ upcoming, past: pastAnyOrder }, discord, weeklyRuns, stats, posts, announcement] = await Promise.all([
     getPublicEvents(),
     fetchDiscordStats(),
     getHomeWeeklyRuns(),
     getHomeCommunityStats(),
     getPublicPosts(),
+    getHomeAnnouncement(),
   ]);
   const past = newestFirst(pastAnyOrder);
   const [recaps, covers] = await Promise.all([getHomeRecaps(past), getHomeConceptCovers(weeklyRuns)]);
 
   return (
     <div className="grid gap-24">
+      {/* Story 10.14: the announcement of the moment, opened as a modal by the browser between its dates. */}
+      <HomeAnnouncementModal announcement={announcement} />
 
       {/* Hero - bannière empilée sur mobile, photo immersive superposée sur desktop */}
       <section className="relative -mx-6 -mt-16 flex flex-col md:-mx-12 lg:-mx-20 lg:min-h-[88vh] lg:flex-row lg:items-end">

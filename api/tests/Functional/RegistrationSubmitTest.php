@@ -138,6 +138,8 @@ final class RegistrationSubmitTest extends FunctionalTestCase
         self::assertInstanceOf(RegistrationConfirmationMessage::class, $message);
         self::assertSame($user->getEmail(), $message->userEmail);
         self::assertSame($event->getTitle(), $message->eventTitle);
+        // Story 4.22: 10:00 UTC on May 31 is noon in Paris (summer time), written "à", never "am"/"pm".
+        self::assertSame('31/05/2027 à 12h00', $message->eventStartsAt);
     }
 
     public function testDuplicateSubmitDoesNotDispatchSecondMessage(): void

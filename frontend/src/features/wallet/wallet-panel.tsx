@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -9,14 +9,15 @@ import { buttonVariants } from "@/components/ui/button";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount } from "./pelle-amount";
 import { fetchMyWallet, pelleReasonLabel, type Wallet } from "./wallet-api";
-import { WeeklyQuestsPanel } from "./weekly-quests";
+import { QuestHistoryPanel, WeeklyQuestsPanel } from "./weekly-quests";
 import { WelcomeQuestsPanel } from "./welcome-quests";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
 
 /**
- * « Mon portefeuille » (story 41.1 AC5): the gold balance, the pelles held for each event, and the history
- * of every movement. Private: only its owner sees it.
+ * « Pelles » (story 41.1 AC5): the gold balance, the pelles held for each event, and the history
+ * of every movement. Private: only its owner sees it. Story 41.34: the quests of the week right under the balance,
+ * the two histories last.
  */
 export function WalletPanel() {
   const [page, setPage] = useState(1);
@@ -29,23 +30,40 @@ export function WalletPanel() {
   });
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Chargement du portefeuille…</p>;
+    return <p className="text-sm text-muted-foreground">Chargement de tes pelles…</p>;
   }
   if (!data) {
-    return <p className="text-sm text-danger">Impossible de charger ton portefeuille pour le moment.</p>;
+    return <p className="text-sm text-danger">Impossible de charger tes pelles pour le moment.</p>;
   }
 
   return (
     <div className="grid gap-6">
-      <WalletView onPage={setPage} wallet={data} />
-      {/* Story 41.25: the first steps of a newcomer, then story 41.6. */}
-      <WelcomeQuestsPanel />
-      <WeeklyQuestsPanel />
+      <WalletView
+        onPage={setPage}
+        quests={
+          <>
+            {/* Story 41.6, then the first steps of a newcomer (story 41.25). */}
+            <WeeklyQuestsPanel />
+            <WelcomeQuestsPanel />
+          </>
+        }
+        wallet={data}
+      />
+      <QuestHistoryPanel />
     </div>
   );
 }
 
-export function WalletView({ wallet, onPage }: { wallet: Wallet; onPage: (page: number) => void }) {
+export function WalletView({
+  wallet,
+  onPage,
+  quests = null,
+}: {
+  wallet: Wallet;
+  onPage: (page: number) => void;
+  /** Story 41.34: shown between the balance and the history. */
+  quests?: ReactNode;
+}) {
   const { history } = wallet;
   const pages = Math.max(1, Math.ceil(history.total / history.perPage));
 
@@ -77,6 +95,8 @@ export function WalletView({ wallet, onPage }: { wallet: Wallet; onPage: (page: 
           </Link>
         </div>
       </section>
+
+      {quests}
 
       <section aria-labelledby="wallet-history" className="grid gap-3">
         <h2 className="font-heading text-xl font-semibold text-foreground" id="wallet-history">

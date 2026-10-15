@@ -49,6 +49,12 @@ describe("apworld incident notification (story 38.2)", () => {
     );
   });
 
+  it("tells a game waiting for the player's file apart from a broken apworld (story 44.1)", () => {
+    expect(messageFor(item("apworld_incident_opened", { gameName: "Donkey Kong Country 3", incidentType: "required_file" }))).toBe(
+      "Fichier requis à la génération : Donkey Kong Country 3",
+    );
+  });
+
   it("leads to the health page even without any detail", () => {
     expect(hrefFor(item("apworld_incident_opened", {}))).toBe("/admin/sante-apworlds");
   });
@@ -151,7 +157,7 @@ describe("pelles adjusted notification (story 41.1)", () => {
     const credit = item("pelles_adjusted", { amount: 50, kind: "gold", reason: "Aide au montage" });
 
     expect(messageFor(credit)).toBe("Tu as reçu 50 pelles : Aide au montage");
-    expect(hrefFor(credit)).toBe("/compte/portefeuille");
+    expect(hrefFor(credit)).toBe("/compte/pelles");
   });
 
   it("tells a debit", () => {
@@ -164,7 +170,7 @@ describe("quests renewed notification (story 41.17)", () => {
     const notice = item("quests_renewed", { week: "2026-W42", count: 3, maxPelles: 150 });
 
     expect(messageFor(notice)).toBe("Nouvelles quêtes de la semaine : 3 quêtes, jusqu'à 150 pelles");
-    expect(hrefFor(notice)).toBe("/compte/portefeuille");
+    expect(hrefFor(notice)).toBe("/compte/pelles");
     expect(messageFor(item("quests_renewed", {}))).toBe("Nouvelles quêtes de la semaine");
   });
 });

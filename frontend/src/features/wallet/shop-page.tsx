@@ -134,7 +134,7 @@ export function ShopView({
           <div className="grid justify-items-end gap-1">
             <p className="text-xs text-muted-foreground">Ton solde</p>
             {gold !== null ? <PelleAmount amount={gold} className="font-heading text-3xl font-bold text-warning" /> : <span className="text-sm text-muted-foreground">…</span>}
-            <Link className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" href="/compte/portefeuille">
+            <Link className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" href="/compte/pelles">
               Historique de mes pelles
             </Link>
           </div>

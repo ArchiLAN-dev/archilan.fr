@@ -164,12 +164,12 @@ export function AccountMenuLinks({ user, gold, onNavigate }: AccountMenuLinksPro
       <MenuLink href="/compte" icon={LayoutDashboard} label="Mon espace" onNavigate={onNavigate} />
       <Link
         className="flex items-center justify-between gap-2.5 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
-        href="/compte/portefeuille"
+        href="/compte/pelles"
         onClick={onNavigate}
       >
         <span className="flex items-center gap-2.5">
           <Wallet aria-hidden="true" className="size-4" />
-          Mon portefeuille
+          Mes pelles
         </span>
         {gold !== null ? <PelleAmount amount={gold} className="font-semibold text-warning" /> : null}
       </Link>

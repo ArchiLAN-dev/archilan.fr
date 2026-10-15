@@ -27,6 +27,25 @@ final readonly class DoctrineEventPrivateAccessLogRepository implements EventPri
         $this->entityManager->flush();
     }
 
+    public function countDeniedSince(string $eventId, string $userId, \DateTimeImmutable $since): int
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $count = $qb->select('COUNT(*)')
+            ->from($this->table)
+            ->where('event_id = :eventId')
+            ->andWhere('user_id = :userId')
+            ->andWhere('granted = :granted')
+            ->andWhere('created_at > :since')
+            ->setParameter('eventId', $eventId)
+            ->setParameter('userId', $userId)
+            ->setParameter('granted', false, Types::BOOLEAN)
+            ->setParameter('since', $since, Types::DATETIMETZ_IMMUTABLE)
+            ->executeQuery()
+            ->fetchOne();
+
+        return is_numeric($count) ? (int) $count : 0;
+    }
+
     public function deleteOlderThan(\DateTimeImmutable $threshold): int
     {
         $qb = $this->connection->createQueryBuilder();

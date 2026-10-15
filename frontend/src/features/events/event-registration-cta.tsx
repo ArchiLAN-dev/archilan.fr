@@ -8,9 +8,12 @@ import { fetchMyRegistrationCta } from "./events-api";
 export function EventRegistrationCta({
   eventId,
   eventSlug,
+  inProgress = false,
 }: {
   eventId: string;
   eventSlug: string;
+  /** Story 4.23: during the event, a confirmed registrant joins their game; nobody is offered to sign up. */
+  inProgress?: boolean;
 }) {
   // Guest-graceful: fetchMyRegistrationCta encodes the profile probe and the my-registration
   // lookup in a single result - a 401/403 is a guest (never a redirect) and any failure
@@ -24,6 +27,18 @@ export function EventRegistrationCta({
 
   if (isPending) {
     return <div className="h-12 w-full animate-pulse rounded bg-surface" />;
+  }
+
+  if (inProgress) {
+    if (data?.kind !== "registered" || !data.confirmed) return null;
+    return (
+      <Link
+        className="inline-flex min-h-12 w-full items-center justify-center rounded bg-accent px-5 font-semibold text-white transition-colors hover:bg-accent-hover"
+        href={`/evenements/${eventSlug}/inscription/${data.registrationId}/session`}
+      >
+        Rejoindre ma partie
+      </Link>
+    );
   }
 
   if (data?.kind === "registered") {

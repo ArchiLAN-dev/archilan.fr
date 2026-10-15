@@ -93,6 +93,10 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             ]);
         }
 
+        // The default YAML, option types and location names only for the games the member holds: the YAML
+        // editor of a slot needs them, the picker does not. Sent for the whole catalog, they made a response
+        // of tens of megabytes that ran PHP out of memory.
+        $held = array_column($existingSlots, 'gameId');
         $availableGames = array_map(fn (Game $g): array => [
             'id' => $g->getId(),
             'name' => $g->getName(),
@@ -102,9 +106,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'disabled' => $g->isDisabled(),
             'disabledMessage' => $g->getDisabledMessage(),
             'isApworldReady' => $g->isApworldReady(),
-            'defaultYaml' => $g->getDefaultYaml(),
-            'optionTypes' => $g->getEffectiveOptionTypes(),
-            'locationNames' => $g->getLocationNames(),
+            ...self::editorData($g, \in_array($g->getId(), $held, true)),
             'coverImageUrl' => $g->getCoverImageUrl(),
             'coverImageAlt' => $g->getCoverImageAlt(),
             'platforms' => $g->platformFamilies(),
@@ -777,6 +779,20 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'blocked' => $blocked,
             'blockReason' => $blockReason,
             'errors' => $errors,
+        ];
+    }
+
+    /**
+     * What the YAML editor of a slot reads - null for a game the member does not hold.
+     *
+     * @return array{defaultYaml: string|null, optionTypes: array<string, array<string, mixed>>|null, locationNames: list<string>|null}
+     */
+    private static function editorData(Game $game, bool $held): array
+    {
+        return [
+            'defaultYaml' => $held ? $game->getDefaultYaml() : null,
+            'optionTypes' => $held ? $game->getEffectiveOptionTypes() : null,
+            'locationNames' => $held ? $game->getLocationNames() : null,
         ];
     }
 

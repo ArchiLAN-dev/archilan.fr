@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Bot, Calendar, ChartColumn, CreditCard, Flag, Frame, Gamepad2, HeartPulse, LayoutDashboard, Library, LogOut, Menu, Newspaper, NotebookPen, PanelTop, SlidersHorizontal, Store, Tag, Target, Timer, Trophy, Users, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Bot, Calendar, ChartColumn, CreditCard, Flag, Frame, Gamepad2, HeartPulse, LayoutDashboard, Library, LogOut, Megaphone, Menu, Newspaper, NotebookPen, PanelTop, SlidersHorizontal, Store, Tag, Target, Timer, Trophy, Users, X } from "lucide-react";
 import { APWORLD_INCIDENT_SUMMARY_QUERY_KEY, fetchApworldIncidentSummary } from "@/features/admin/admin-apworld-health-api";
 import { DEFAULT_CONTRIBUTION_FILTERS, fetchContributionQueue } from "@/features/admin/admin-game-contributions-api";
 import { DEFAULT_REPORT_FILTERS, fetchModerationQueue } from "@/features/admin/admin-moderation-api";
@@ -27,6 +27,8 @@ const navGroups = [
     items: [
       { href: "/admin/evenements", icon: Calendar, label: "Événements", shortLabel: "Events", exact: false },
       { href: "/admin/actualites", icon: Newspaper, label: "Actualités", shortLabel: "Actus", exact: false },
+      // Story 10.14: the announcement opened as a modal on the home page.
+      { href: "/admin/annonces", icon: Megaphone, label: "Annonces", shortLabel: "Annonces", exact: false },
       { href: "/admin/jeux", icon: Gamepad2, label: "Jeux", shortLabel: "Jeux", exact: false },
     ],
   },

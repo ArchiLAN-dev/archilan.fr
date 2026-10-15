@@ -37,6 +37,55 @@ final class PersonalRunGameSelectionPayloadTest extends FunctionalTestCase
         self::assertSame('hash-new', $slots[0]['apworldHash'] ?? null);
     }
 
+    public function testOnlyTheHeldGamesCarryTheirYamlEditorData(): void
+    {
+        // Hotfix 2026-10-15: the default YAML, options and locations of the whole catalog ran PHP out of memory.
+        $user = $this->createUser('alice@example.org');
+        $held = $this->editableGame('Crystal Project', 'crystal-project');
+        $other = $this->editableGame('Hollow Knight', 'hollow-knight');
+        $run = Run::create($user->getId(), 'My Run', new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
+        $participant = RunParticipant::create($run->getId(), $user->getId(), new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
+        $participant->replaceSlots([['slotId' => 'slot-1', 'gameId' => $held->getId(), 'playerYaml' => null]]);
+        $this->entityManager->persist($run);
+        $this->entityManager->persist($participant);
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $this->loginAs($user);
+        $this->client->jsonRequest('GET', '/api/v1/runs/'.$run->getId().'/participants/me/game-selection');
+
+        self::assertResponseIsSuccessful();
+        $payload = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($payload);
+        $available = $payload['availableGames'] ?? null;
+        self::assertIsArray($available);
+        $bySlug = array_column($available, null, 'slug');
+        self::assertIsArray($bySlug['crystal-project'] ?? null);
+        self::assertIsArray($bySlug['hollow-knight'] ?? null);
+        self::assertSame('Crystal Project:
+  goal: moon
+', $bySlug['crystal-project']['defaultYaml']);
+        self::assertSame(['Boss'], $bySlug['crystal-project']['locationNames']);
+        self::assertNotNull($bySlug['crystal-project']['optionTypes']);
+        self::assertNull($bySlug['hollow-knight']['defaultYaml']);
+        self::assertNull($bySlug['hollow-knight']['optionTypes']);
+        self::assertNull($bySlug['hollow-knight']['locationNames']);
+        self::assertSame($other->getName(), $bySlug['hollow-knight']['name']);
+    }
+
+    private function editableGame(string $name, string $slug): \App\GameSelection\Domain\Entity\Game
+    {
+        $game = $this->createGame($name, $slug);
+        $game->overrideDefaultYaml($name.':
+  goal: moon
+', new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
+        $game->recordOptionTypes(['goal' => ['type' => 'choice', 'values' => ['moon']]]);
+        $game->recordLocationNames(['Boss']);
+        $this->entityManager->flush();
+
+        return $game;
+    }
+
     public function testAvailableGamesExposePlatformsAndSteamAppId(): void
     {
         $user = $this->createUser('alice@example.org');

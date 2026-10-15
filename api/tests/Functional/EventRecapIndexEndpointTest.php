@@ -111,6 +111,36 @@ final class EventRecapIndexEndpointTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    /** Story 4.23: a private event's games are listed for its confirmed registrants and the admins, not for others. */
+    public function testPrivateEventIsListedForItsConfirmedRegistrantsAndAdmins(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $event = $this->createEvent('Private event', $now, $now->modify('+1 day'), isPublic: false);
+        $session = $this->createFinishedSession($event->getId(), $now);
+        $this->persistProjection($session->getId());
+        $player = $this->createUser('player@example.org');
+        $this->createRegistration($event->getId(), $player->getId())->confirm($now);
+        $stranger = $this->createUser('stranger@example.org');
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $this->entityManager->flush();
+        $url = sprintf('/api/v1/events/%s/parties', $event->getId());
+
+        $this->loginAs($stranger);
+        $this->client->request('GET', $url);
+        self::assertResponseStatusCodeSame(404);
+
+        $this->loginAs($player);
+        $this->client->request('GET', $url);
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertCount(1, $data);
+
+        $this->loginAs($admin);
+        $this->client->request('GET', $url);
+        self::assertResponseIsSuccessful();
+    }
+
     private function persistProjection(string $sessionId): void
     {
         $recap = new SessionRecap(

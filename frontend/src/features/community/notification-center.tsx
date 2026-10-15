@@ -321,7 +321,9 @@ export function messageFor(item: NotificationItem): string {
               ? "Échec avec le YAML par défaut"
               : incidentType === "image_regression"
                 ? "Régression d'image"
-                : "Apworld en échec";
+                : incidentType === "required_file"
+                  ? "Fichier requis à la génération"
+                  : "Apworld en échec";
       return hasStringProp(item.data, "gameName") && item.data.gameName !== ""
         ? `${problem} : ${item.data.gameName}`
         : "Un apworld est en échec";
@@ -347,7 +349,7 @@ export function hrefFor(item: NotificationItem): string {
     return "/admin/moderation/signalements";
   }
   if (item.type === "pelles_adjusted" || item.type === "quests_renewed") {
-    return "/compte/portefeuille";
+    return "/compte/pelles";
   }
   if (item.type === "cosmetic_unlocked") {
     // Story 41.28: where the member puts it on.

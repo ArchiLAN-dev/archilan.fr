@@ -13,6 +13,9 @@ use Psr\Log\LoggerInterface;
 
 final readonly class VerifyPrivateEventAccess
 {
+    /** Story 4.24: refused codes allowed per member, event and sliding hour. */
+    public const int MAX_DENIED_PER_HOUR = 10;
+
     public function __construct(
         private EventRepositoryInterface $eventRepository,
         private EventPrivateAccessLogRepositoryInterface $accessLogRepository,
@@ -39,6 +42,13 @@ final readonly class VerifyPrivateEventAccess
 
         if (!$event->hasPrivateAccessPassword()) {
             return new PrivateAccessResult(false);
+        }
+
+        $now = $this->clock->now();
+        if ($this->accessLogRepository->countDeniedSince($event->getId(), $userId, $now->modify('-1 hour')) >= self::MAX_DENIED_PER_HOUR) {
+            $this->logger->info('event.private_access_limited', ['eventId' => $eventId, 'userId' => $userId]);
+
+            return new PrivateAccessResult(false, limited: true);
         }
 
         $confirmedCount = $this->registrationCounter->countConfirmed($event->getId());

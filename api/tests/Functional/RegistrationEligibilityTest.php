@@ -73,6 +73,27 @@ final class RegistrationEligibilityTest extends FunctionalTestCase
         self::assertSame('registration_not_open_yet', $data['reason']);
     }
 
+    /** Story 4.22: an unverified email is reported before the click, not as a server error after it. */
+    public function testUnverifiedEmailIsReportedBeforeReserving(): void
+    {
+        $user = $this->createUser('user@example.org', emailVerified: false);
+        $this->loginAs($user);
+
+        $event = $this->makeEvent(
+            Event::STATUS_PUBLISHED,
+            registrationOpensAt: new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
+            registrationClosesAt: new \DateTimeImmutable('2027-01-01T00:00:00+00:00'),
+        );
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/registration-eligibility', $event->getId()));
+
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertFalse($data['eligible']);
+        self::assertSame('email_not_verified', $data['reason']);
+    }
+
     public function testCompletedEventIsNotEligible(): void
     {
         $user = $this->createUser('user@example.org', ['ROLE_USER']);

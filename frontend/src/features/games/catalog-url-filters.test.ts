@@ -88,3 +88,12 @@ describe("readFiltersFromParams", () => {
     expect(readFiltersFromParams(new URLSearchParams("cat=&cat=PC")).categories).toEqual(["PC"]);
   });
 });
+
+describe("newest-first sort in the URL (story 28.17)", () => {
+  it("writes tri=recents and reads it back", () => {
+    const filters = { availability: "all" as const, categories: [], list: "all" as const, query: "", sort: "added-desc" as const };
+
+    expect(filtersToQueryString(filters)).toBe("tri=recents");
+    expect(readFiltersFromParams(new URLSearchParams("tri=recents")).sort).toBe("added-desc");
+  });
+});

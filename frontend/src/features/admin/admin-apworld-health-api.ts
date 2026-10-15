@@ -51,6 +51,8 @@ export const INCIDENT_TYPE_LABELS: Record<string, string> = {
   default_yaml_failure: "Échec avec le YAML par défaut",
   // Story 38.9: passed on the previous image, fails twice in a row on the current one.
   image_regression: "Régression après changement d'image",
+  // Story 44.1: the test stopped on a file the world needs (the player's ROM), which ArchiLAN cannot provide yet.
+  required_file: "Fichier requis à la génération",
 };
 
 export const INCIDENT_STATUS_LABELS: Record<string, string> = {

@@ -41,7 +41,7 @@ final class DiscordBotQuestAnnouncementChannelTest extends TestCase
         self::assertIsArray($embeds);
         $embed = $embeds[0] ?? null;
         self::assertIsArray($embed);
-        self::assertSame('https://archilan.fr/compte/portefeuille', $embed['url'] ?? null);
+        self::assertSame('https://archilan.fr/compte/pelles', $embed['url'] ?? null);
         self::assertIsString($embed['description'] ?? null);
         self::assertStringContainsString('Jusqu\'à 120 pelles', $embed['description']);
         self::assertSame([
@@ -127,7 +127,7 @@ final class DiscordBotQuestAnnouncementChannelTest extends TestCase
             ],
             50,
             new \DateTimeImmutable('2026-10-18T22:00:00+00:00'),
-            'https://archilan.fr/compte/portefeuille',
+            'https://archilan.fr/compte/pelles',
         );
     }
 }

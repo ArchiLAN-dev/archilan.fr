@@ -39,6 +39,12 @@ enum ApworldIncidentType: string
     case ImageRegression = 'image_regression';
 
     /**
+     * The test generation stopped on a file the world needs, usually the player's ROM (story 44.1): not a
+     * broken apworld, a game that waits for the player to provide the file.
+     */
+    case RequiredFile = 'required_file';
+
+    /**
      * Whether the incident is about the apworld the game serves, and so closes by itself once the
      * game serves another hash. False for a type keyed on an apworld the game never served, such as
      * a rejected update candidate (story 38.6).
@@ -46,7 +52,7 @@ enum ApworldIncidentType: string
     public function followsServedApworld(): bool
     {
         return match ($this) {
-            self::PreflightFailed, self::DefaultYamlFailure, self::ImageRegression => true,
+            self::PreflightFailed, self::DefaultYamlFailure, self::ImageRegression, self::RequiredFile => true,
             self::UpdateRejected, self::UpdateAmbiguous => false,
         };
     }
@@ -58,7 +64,7 @@ enum ApworldIncidentType: string
     public function isSettledByAPromotion(): bool
     {
         return match ($this) {
-            self::PreflightFailed, self::DefaultYamlFailure, self::ImageRegression => false,
+            self::PreflightFailed, self::DefaultYamlFailure, self::ImageRegression, self::RequiredFile => false,
             self::UpdateRejected, self::UpdateAmbiguous => true,
         };
     }

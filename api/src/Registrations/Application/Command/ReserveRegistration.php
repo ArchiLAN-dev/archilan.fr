@@ -11,6 +11,7 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Realtime\Application\Service\RealtimePublisher;
+use App\Registrations\Application\Query\PrivateEventAccess;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
@@ -30,6 +31,7 @@ final readonly class ReserveRegistration
         private EventRepositoryInterface $eventRepository,
         private UserRepositoryInterface $userRepository,
         private RegistrationCounter $registrationCounter,
+        private PrivateEventAccess $privateEventAccess,
         private RealtimePublisher $realtimePublisher,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
@@ -77,7 +79,7 @@ final readonly class ReserveRegistration
             }
 
             $now = $this->clock->now();
-            $ineligibleReason = $this->computeIneligibleReason($lockedEvent, $now);
+            $ineligibleReason = $this->computeIneligibleReason($lockedEvent, $now, $userId);
 
             if (null !== $ineligibleReason) {
                 $this->registrationRepository->commit();
@@ -101,14 +103,20 @@ final readonly class ReserveRegistration
                 throw new ConflictException('Cet événement est complet.', 'capacity_full');
             }
 
-            $registration = new Registration(
-                bin2hex(random_bytes(16)),
-                $lockedEvent->getId(),
-                $userId,
-                Registration::STATUS_RESERVED,
-                $now,
-                $now,
-            );
+            if ($existing instanceof Registration) {
+                // Story 4.22: the cancelled row comes back; a second row would break the unique index.
+                $registration = $existing;
+                $registration->reactivate($now);
+            } else {
+                $registration = new Registration(
+                    bin2hex(random_bytes(16)),
+                    $lockedEvent->getId(),
+                    $userId,
+                    Registration::STATUS_RESERVED,
+                    $now,
+                    $now,
+                );
+            }
             $this->registrationRepository->persist($registration);
             $this->registrationRepository->flush();
             $this->registrationRepository->commit();
@@ -160,9 +168,9 @@ final readonly class ReserveRegistration
         }
     }
 
-    private function computeIneligibleReason(Event $event, \DateTimeImmutable $now): ?string
+    private function computeIneligibleReason(Event $event, \DateTimeImmutable $now, string $userId): ?string
     {
-        if (!$event->isPublic()) {
+        if (!$this->privateEventAccess->allows($event, $userId)) {
             return 'private_event';
         }
 

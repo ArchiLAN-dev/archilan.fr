@@ -46,7 +46,7 @@ final readonly class RegistrationController
         }
 
         return new JsonResponse([
-            'data' => ['registrationId' => $registration['registrationId'], 'status' => $registration['status']],
+            'data' => $registration,
             'meta' => [],
         ]);
     }

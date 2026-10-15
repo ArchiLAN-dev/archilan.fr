@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Wallet\Application\Query;
 
 use App\Community\Application\Support\CosmeticRewardCatalog;
+use App\Community\Application\Support\QuestMetricProvider;
 use App\Community\Domain\ValueObject\CosmeticReward;
 use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Domain\Entity\QuestDefinition;
@@ -17,6 +18,7 @@ use Psr\Clock\ClockInterface;
  * The quests of the week as the wallet page shows them (story 41.6): what each pays, whether it is done, whether it
  * is already paid (the hourly run pays it within the hour), and when the quests renew. Story 41.15: the quests the
  * week serves, each objective with where the member stands. Story 41.16: the chest for doing them all. Story 41.17: the weeks before.
+ * Story 41.34: the run of weeks with the chest opened.
  */
 final readonly class MyWeeklyQuests
 {
@@ -32,7 +34,7 @@ final readonly class MyWeeklyQuests
     }
 
     /**
-     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int, scope: string|null}>, cosmetic: array{type: string, key: string, label: string}|null}>, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>}
+     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int, scope: string|null}>, cosmetic: array{type: string, key: string, label: string}|null}>, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>, streak: array{current: int, best: int, thisWeek: bool}}
      */
     public function of(string $userId): array
     {
@@ -79,7 +81,39 @@ final readonly class MyWeeklyQuests
             'paid' => $this->quests->chestPaid($userId, $week),
         ];
 
-        return ['week' => $week->key, 'renewsAt' => $week->end->format(\DATE_ATOM), 'quests' => $quests, 'chest' => $chest, 'history' => $this->history($userId, $week)];
+        $earned = $this->quests->earnedBy($userId);
+        $chestWeeks = array_keys(array_filter($earned, static fn (array $mine): bool => $mine['chest']));
+
+        return [
+            'week' => $week->key,
+            'renewsAt' => $week->end->format(\DATE_ATOM),
+            'quests' => $quests,
+            'chest' => $chest,
+            'history' => $this->history($week, $earned),
+            'streak' => self::streak($chestWeeks, $week),
+        ];
+    }
+
+    /**
+     * Story 41.34: the weeks in a row with the chest opened. The week in progress counts once its chest is open;
+     * until then the run still stands on the weeks before, so it is not shown broken on a Monday morning.
+     * `best` is the longest run ever, as the achievement counts it (story 41.17).
+     *
+     * @param list<string> $chestWeeks the keys of the weeks whose chest was opened (`2026-W41`)
+     *
+     * @return array{current: int, best: int, thisWeek: bool}
+     */
+    public static function streak(array $chestWeeks, QuestWeek $current): array
+    {
+        $opened = array_flip($chestWeeks);
+        $thisWeek = isset($opened[$current->key]);
+
+        $run = $thisWeek ? 1 : 0;
+        for ($week = $current->previous(); isset($opened[$week->key]); $week = $week->previous()) {
+            ++$run;
+        }
+
+        return ['current' => $run, 'best' => QuestMetricProvider::longestStreak($chestWeeks), 'thisWeek' => $thisWeek];
     }
 
     /**
@@ -113,9 +147,11 @@ final readonly class MyWeeklyQuests
      * Story 41.17: the member's 4 weeks before this one - quests done out of those served, chest, pelles earned.
      * A week paid before story 41.15 served nothing on record: it counts the quests it paid.
      *
+     * @param array<string, array{quests: list<string>, pelles: int, chest: bool}> $earned
+     *
      * @return list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>
      */
-    private function history(string $userId, QuestWeek $current): array
+    private function history(QuestWeek $current, array $earned): array
     {
         $weeks = [];
         $week = $current;
@@ -124,7 +160,6 @@ final readonly class MyWeeklyQuests
             $weeks[] = $week;
         }
         $entries = $this->settings->entriesOfWeeks(array_map(static fn (QuestWeek $week): string => $week->key, $weeks));
-        $earned = $this->quests->earnedBy($userId);
 
         return array_map(static function (QuestWeek $week) use ($entries, $earned): array {
             $mine = $earned[$week->key] ?? ['quests' => [], 'pelles' => 0, 'chest' => false];

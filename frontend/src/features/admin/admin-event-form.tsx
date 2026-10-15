@@ -22,6 +22,8 @@ export type EventFormInput = {
   registrationOpensAt: string;
   registrationClosesAt: string;
   isPublic: boolean;
+  /** Story 4.22: always sent, so a save never wipes the HelloAsso link; empty removes it. */
+  helloassoFormSlug: string;
 };
 
 export type EventField =
@@ -34,7 +36,8 @@ export type EventField =
   | "venue"
   | "capacity"
   | "registrationOpensAt"
-  | "registrationClosesAt";
+  | "registrationClosesAt"
+  | "helloassoFormSlug";
 
 export type FieldErrors = Partial<Record<EventField, string>>;
 
@@ -53,6 +56,7 @@ export type AdminEventFormData = {
   registrationOpensAt: string;
   registrationClosesAt: string;
   isPublic: boolean;
+  helloassoFormSlug: string | null;
 };
 
 export class EventDraftError extends Error {
@@ -111,6 +115,7 @@ export function EventForm({
         registrationOpensAt: localDateTime(String(form.get("registrationOpensAt") ?? "")),
         registrationClosesAt: localDateTime(String(form.get("registrationClosesAt") ?? "")),
         isPublic: form.get("isPublic") === "on",
+        helloassoFormSlug: String(form.get("helloassoFormSlug") ?? "").trim(),
       });
 
       if (mode === "create") {
@@ -213,13 +218,20 @@ export function EventForm({
         <EventTextField defaultValue={event?.capacity} error={errors.capacity} label="Capacité" min={Math.max(1, event?.confirmedRegistrations ?? 0)} name="capacity" type="number" />
         <DateTimePicker defaultValue={event?.registrationOpensAt} error={errors.registrationOpensAt} label="Ouverture inscriptions" name="registrationOpensAt" />
         <DateTimePicker defaultValue={event?.registrationClosesAt} error={errors.registrationClosesAt} label="Fermeture inscriptions" name="registrationClosesAt" />
+        <EventTextField
+          defaultValue={event?.helloassoFormSlug ?? ""}
+          error={errors.helloassoFormSlug}
+          hint="La fin de l'adresse du formulaire de billetterie (ex. archilan-4), ou l'adresse entière. Vide : pas de billetterie."
+          label="Formulaire HelloAsso (slug)"
+          name="helloassoFormSlug"
+        />
       </div>
 
       <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
         <div className="grid gap-0.5">
           <span className="text-sm font-semibold text-foreground">Accès public</span>
           <span className="text-xs text-muted-foreground">
-            {isPublic ? "Inscriptions ouvertes à tous · checkout HelloAsso visible" : "Accès restreint · protégé par mot de passe"}
+            {isPublic ? "Inscriptions ouvertes à tous · checkout HelloAsso visible" : "Réservé aux adhérents à jour, ou sur code d'accès"}
           </span>
         </div>
         <button
@@ -283,6 +295,7 @@ export function EventForm({
 function EventTextField({
   defaultValue,
   error,
+  hint,
   label,
   min,
   name,
@@ -290,18 +303,21 @@ function EventTextField({
 }: {
   defaultValue?: number | string;
   error?: string;
+  hint?: string;
   label: string;
   min?: number;
   name: EventField;
   type?: string;
 }) {
   const errorId = useId();
+  const hintId = useId();
+  const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined;
 
   return (
     <label className="grid gap-2 text-sm font-semibold text-foreground">
       {label}
       <input
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy}
         aria-invalid={error ? true : undefined}
         className="min-h-11 rounded border border-border bg-background px-3 outline-none focus:border-accent"
         defaultValue={defaultValue}
@@ -309,6 +325,7 @@ function EventTextField({
         name={name}
         type={type}
       />
+      {hint ? <span className="text-xs font-normal text-muted-foreground" id={hintId}>{hint}</span> : null}
       {error ? <span className="text-xs text-danger" id={errorId}>{error}</span> : null}
     </label>
   );
@@ -331,6 +348,7 @@ export function fieldErrorsFromPayload(payload: unknown): FieldErrors {
     capacity: firstDetail(details, "capacity"),
     registrationOpensAt: firstDetail(details, "registrationOpensAt"),
     registrationClosesAt: firstDetail(details, "registrationClosesAt"),
+    helloassoFormSlug: firstDetail(details, "helloassoFormSlug"),
   };
 }
 

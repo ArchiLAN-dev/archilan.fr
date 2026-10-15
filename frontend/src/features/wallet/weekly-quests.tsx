@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Circle, Gift, Sparkles } from "lucide-react";
+import { CheckCircle2, Circle, Flame, Gift, Sparkles } from "lucide-react";
 
 import { isCosmeticRewardView, type CosmeticRewardView } from "@/features/community/cosmetic-reward-picker";
 import { apiFetch } from "@/lib/apiFetch";
@@ -32,7 +32,22 @@ export type QuestChest = { reward: number; done: number; total: number; paid: bo
 /** Story 41.17: one of the member's weeks before this one. */
 export type QuestWeekHistory = { week: string; startsAt: string; endsAt: string; done: number; served: number; chest: boolean; pelles: number };
 
-export type WeeklyQuests = { week: string; renewsAt: string; quests: WeeklyQuest[]; chest: QuestChest | null; history: QuestWeekHistory[] };
+/** Story 41.34: the weeks in a row with the chest opened; the week in progress counts once its chest is open. */
+export type QuestStreak = { current: number; best: number; thisWeek: boolean };
+
+export type WeeklyQuests = {
+  week: string;
+  renewsAt: string;
+  quests: WeeklyQuest[];
+  chest: QuestChest | null;
+  history: QuestWeekHistory[];
+  /** Absent from an older API. */
+  streak?: QuestStreak;
+};
+
+function isStreak(v: unknown): v is QuestStreak {
+  return typeof v === "object" && v !== null && hasNumberProp(v, "current") && hasNumberProp(v, "best") && hasBooleanProp(v, "thisWeek");
+}
 
 function isHistory(v: unknown): v is QuestWeekHistory {
   return (
@@ -95,7 +110,8 @@ export function isWeeklyQuests(v: unknown): v is WeeklyQuests {
     (v.chest === null || isChest(v.chest)) &&
     "history" in v &&
     Array.isArray(v.history) &&
-    v.history.every(isHistory)
+    v.history.every(isHistory) &&
+    (!("streak" in v) || isStreak(v.streak))
   );
 }
 
@@ -112,18 +128,21 @@ export async function fetchMyQuests(): Promise<WeeklyQuests | null> {
 
 const renewFormatter = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" });
 
+function useMyQuests() {
+  return useQuery({ queryKey: ["my-quests"], queryFn: fetchMyQuests, staleTime: DEFAULT_STALE_TIME, retry: false });
+}
+
 export function WeeklyQuestsPanel() {
-  const { data } = useQuery({ queryKey: ["my-quests"], queryFn: fetchMyQuests, staleTime: DEFAULT_STALE_TIME, retry: false });
+  const { data } = useMyQuests();
 
-  if (!data) return null;
+  return data ? <WeeklyQuestsView quests={data} /> : null;
+}
 
-  // Story 41.21: the quests in progress, then their history in a block of its own.
-  return (
-    <>
-      <WeeklyQuestsView quests={data} />
-      {data.history.some((week) => week.served > 0) ? <QuestHistory weeks={data.history} /> : null}
-    </>
-  );
+/** Story 41.21: the history in a block of its own. Story 41.34: at the foot of the page, after the movements. */
+export function QuestHistoryPanel() {
+  const { data } = useMyQuests();
+
+  return data && data.history.some((week) => week.served > 0) ? <QuestHistory weeks={data.history} /> : null;
 }
 
 /**
@@ -176,7 +195,35 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
         </ul>
       )}
       {quests.chest ? <ChestRow chest={quests.chest} /> : null}
+      {quests.streak && (quests.chest || quests.streak.current > 0) ? <StreakRow streak={quests.streak} /> : null}
     </section>
+  );
+}
+
+/** Story 41.34: the run of chests in progress, what keeps it going, and the record when it is higher. */
+export function StreakRow({ streak }: { streak: QuestStreak }) {
+  const alive = streak.current > 0;
+  const hint = !alive
+    ? "Ouvre le coffre de la semaine pour lancer une série."
+    : streak.thisWeek
+      ? null
+      : "Ouvre le coffre de cette semaine pour la prolonger.";
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm">
+      <Flame aria-hidden className={`size-4 shrink-0 ${alive ? "text-warning" : "text-muted-foreground"}`} />
+      <span className="min-w-0 flex-1">
+        <span className="font-medium text-foreground">
+          {alive ? `Série : ${streak.current} semaine${streak.current > 1 ? "s" : ""} d'affilée` : "Pas de série en cours"}
+        </span>
+        {hint ? <span className="block text-xs text-muted-foreground">{hint}</span> : null}
+      </span>
+      {streak.best > streak.current ? (
+        <span className="shrink-0 text-xs text-muted-foreground">
+          Record : {streak.best} semaine{streak.best > 1 ? "s" : ""}
+        </span>
+      ) : null}
+    </div>
   );
 }
 

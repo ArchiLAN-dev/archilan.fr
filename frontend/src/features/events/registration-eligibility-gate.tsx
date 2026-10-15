@@ -15,6 +15,7 @@ import {
   type EligibilityResult,
   type RegistrationEligibilityResult,
 } from "./events-api";
+import { EmailVerificationBanner } from "@/features/auth/email-verification-banner";
 import { SeatCounter } from "./seat-counter";
 
 // "error" results are thrown inside the queryFn so TanStack keeps the last good data when a
@@ -166,20 +167,34 @@ export function RegistrationEligibilityGate({
         <EligiblePanel eventSlug={eventSlug} />
       ) : result.reason === "private_event" ? (
         <>
-          <IneligiblePanel reason={result.reason} opensAt={result.opensAt} />
-          <PrivateAccessDisclosure
-            eventSlug={eventSlug}
-            onGranted={() =>
-              queryClient.setQueryData<EligibilityQueryData>(
-                ["registration-eligibility", eventSlug],
-                (prev) =>
-                  prev?.kind === "success"
-                    ? { kind: "success", result: { ...prev.result, eligible: true, reason: null } }
-                    : prev,
-              )
-            }
+          <IneligiblePanel
+            hasAccessCode={result.event.hasPrivateAccessPassword === true}
+            opensAt={result.opensAt}
+            reason={result.reason}
           />
+          <p className="text-sm text-muted-foreground">
+            Pas encore adhérent ?{" "}
+            <Link className="font-semibold text-accent-text hover:underline" href="/adhesion">
+              Adhérer à ArchiLAN
+            </Link>
+          </p>
+          {result.event.hasPrivateAccessPassword === true ? (
+            <PrivateAccessDisclosure
+              eventSlug={eventSlug}
+              onGranted={() =>
+                queryClient.setQueryData<EligibilityQueryData>(
+                  ["registration-eligibility", eventSlug],
+                  (prev) =>
+                    prev?.kind === "success"
+                      ? { kind: "success", result: { ...prev.result, eligible: true, reason: null } }
+                      : prev,
+                )
+              }
+            />
+          ) : null}
         </>
+      ) : result.reason === "email_not_verified" ? (
+        <EmailVerificationBanner />
       ) : (
         <IneligiblePanel reason={result.reason} opensAt={result.opensAt} />
       )}
@@ -197,7 +212,8 @@ type ReserveState =
   | { kind: "reserved"; registrationId: string }
   | { kind: "already_registered"; registrationId: string }
   | { kind: "capacity_full" }
-  | { kind: "error" };
+  | { kind: "email_not_verified" }
+  | { kind: "error"; message: string | null };
 
 function EligiblePanel({ eventSlug }: { eventSlug: string }) {
   const queryClient = useQueryClient();
@@ -228,19 +244,23 @@ function EligiblePanel({ eventSlug }: { eventSlug: string }) {
       <div className="grid gap-4 rounded-lg border border-success/40 bg-surface/40 backdrop-blur-md p-6">
         <div className="flex items-center gap-3">
           <CheckCircle aria-hidden="true" className="size-5 text-success" />
-          <p className="font-heading text-xl font-semibold text-foreground">Place réservée</p>
+          <p className="font-heading text-xl font-semibold text-foreground">
+            {state.kind === "already_registered" ? "Tu es déjà inscrit" : "Place réservée"}
+          </p>
         </div>
         <p className="text-sm leading-6 text-muted-foreground">
-          Ta place est confirmée. Tu peux maintenant sélectionner tes jeux Archipelago pour cet événement.
+          {state.kind === "already_registered"
+            ? "Tu as déjà une inscription pour cet événement. Retrouve tes jeux et confirme-la depuis le récapitulatif si ce n'est pas encore fait."
+            : "Ta place est réservée, mais ton inscription n'est pas encore confirmée. Choisis tes jeux, puis confirme ton inscription depuis le récapitulatif : tu recevras alors un email de confirmation."}
         </p>
         <p className="text-xs text-muted-foreground">
           Réf. inscription&nbsp;: <code className="font-mono">{state.registrationId}</code>
         </p>
         <Link
           className="inline-flex min-h-12 w-fit items-center justify-center rounded bg-accent px-6 font-semibold text-white transition-colors hover:bg-accent-hover"
-          href={`/evenements/${eventSlug}/inscription/${state.registrationId}/jeux`}
+          href={`/evenements/${eventSlug}/inscription/${state.registrationId}/${state.kind === "already_registered" ? "recap" : "jeux"}`}
         >
-          Choisir mes jeux →
+          {state.kind === "already_registered" ? "Voir mon récapitulatif →" : "Choisir mes jeux →"}
         </Link>
       </div>
     );
@@ -260,9 +280,10 @@ function EligiblePanel({ eventSlug }: { eventSlug: string }) {
         return;
       }
 
-
       if (!res.ok) {
-        setState({ kind: "error" });
+        // Story 4.22: say why (unverified email, closed in the meantime...) instead of "try again".
+        const failure = apiFailure(await res.json().catch(() => null));
+        setState(failure.code === "email_not_verified" ? { kind: "email_not_verified" } : { kind: "error", message: failure.message });
         return;
       }
 
@@ -287,11 +308,15 @@ function EligiblePanel({ eventSlug }: { eventSlug: string }) {
         // The event-page CTA caches my-registration: a fresh reservation must invalidate it.
         void queryClient.invalidateQueries({ queryKey: ["event-my-registration"] });
       } else {
-        setState({ kind: "error" });
+        setState({ kind: "error", message: null });
       }
     } catch {
-      setState({ kind: "error" });
+      setState({ kind: "error", message: null });
     }
+  }
+
+  if (state.kind === "email_not_verified") {
+    return <EmailVerificationBanner />;
   }
 
   return (
@@ -304,7 +329,7 @@ function EligiblePanel({ eventSlug }: { eventSlug: string }) {
         Tu peux commencer ton inscription pour cet événement. Tu choisiras tes jeux et configureras tes options Archipelago dans les étapes suivantes.
       </p>
       {state.kind === "error" ? (
-        <p className="text-sm text-danger">Une erreur est survenue. Réessaie dans quelques instants.</p>
+        <p className="text-sm text-danger" role="alert">{state.message ?? "Une erreur est survenue. Réessaie dans quelques instants."}</p>
       ) : null}
       <button
         className="inline-flex min-h-12 w-fit items-center justify-center rounded bg-accent px-6 font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
@@ -321,11 +346,13 @@ function EligiblePanel({ eventSlug }: { eventSlug: string }) {
 function IneligiblePanel({
   reason,
   opensAt,
+  hasAccessCode = false,
 }: {
   reason: EligibilityReason | null;
   opensAt: string | null;
+  hasAccessCode?: boolean;
 }) {
-  const info = ineligibleInfo(reason, opensAt);
+  const info = ineligibleInfo(reason, opensAt, hasAccessCode);
 
   return (
     <div className="grid gap-4 card-glow rounded-lg border border-border p-6">
@@ -341,13 +368,16 @@ function IneligiblePanel({
 function ineligibleInfo(
   reason: EligibilityReason | null,
   opensAt: string | null,
+  hasAccessCode: boolean,
 ): { icon: React.ReactNode; title: string; description: string } {
   switch (reason) {
     case "private_event":
       return {
         icon: <Lock aria-hidden="true" className="size-5 text-muted-foreground" />,
         title: "Événement privé",
-        description: "Cet événement est réservé aux membres ArchiLAN. Si tu as un code d'accès, utilise-le ci-dessous.",
+        description: hasAccessCode
+          ? "Cet événement est réservé aux adhérents ArchiLAN à jour de leur cotisation. Si tu as un code d'accès, utilise-le ci-dessous."
+          : "Cet événement est réservé aux adhérents ArchiLAN à jour de leur cotisation.",
       };
     case "event_completed":
       return {
@@ -397,7 +427,8 @@ function PrivateAccessDisclosure({
   eventSlug: string;
   onGranted: () => void;
 }) {
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  // Story 4.23: a refused code and a failed check are two different messages.
+  const [status, setStatus] = useState<"idle" | "loading" | "refused" | "limited" | "error">("idle");
   const [password, setPassword] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
@@ -413,7 +444,7 @@ function PrivateAccessDisclosure({
       });
 
       if (!res.ok) {
-        setStatus("error");
+        setStatus(codeCheckFailure(res.status));
         return;
       }
 
@@ -421,7 +452,7 @@ function PrivateAccessDisclosure({
       if (isGrantedResponse(payload)) {
         onGranted();
       } else {
-        setStatus("error");
+        setStatus("refused");
       }
     } catch {
       setStatus("error");
@@ -446,13 +477,17 @@ function PrivateAccessDisclosure({
               id="private-access-password"
               onChange={(e) => {
                 setPassword(e.target.value);
-                if (status === "error") setStatus("idle");
+                if (status === "error" || status === "refused") setStatus("idle");
               }}
               type="password"
               value={password}
             />
-            {status === "error" ? (
-              <p className="text-xs text-danger">Code d&apos;accès invalide.</p>
+            {status === "refused" ? (
+              <p className="text-xs text-danger" role="alert">Code d&apos;accès invalide.</p>
+            ) : status === "limited" ? (
+              <p className="text-xs text-danger" role="alert">Trop d&apos;essais. Réessaie dans une heure.</p>
+            ) : status === "error" ? (
+              <p className="text-xs text-danger" role="alert">Impossible de vérifier le code pour le moment. Réessaie dans quelques instants.</p>
             ) : null}
           </div>
           <button
@@ -483,4 +518,21 @@ function isGrantedResponse(payload: unknown): boolean {
     "granted" in (data as Record<string, unknown>) &&
     (data as { granted?: unknown }).granted === true
   );
+}
+
+/** The API's error envelope `{ error: { code, message } }`, read without trusting its shape. */
+export function apiFailure(payload: unknown): { code: string | null; message: string | null } {
+  const error: unknown = payload && typeof payload === "object" && "error" in payload ? payload.error : null;
+  if (!error || typeof error !== "object") return { code: null, message: null };
+  const code: unknown = "code" in error ? error.code : null;
+  const message: unknown = "message" in error ? error.message : null;
+  return {
+    code: typeof code === "string" ? code : null,
+    message: typeof message === "string" && message !== "" ? message : null,
+  };
+}
+
+/** Story 4.24: ten refused codes in the hour block the member for a while; any other failure is a failed check. */
+export function codeCheckFailure(httpStatus: number): "limited" | "error" {
+  return httpStatus === 429 ? "limited" : "error";
 }

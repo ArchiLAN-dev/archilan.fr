@@ -52,7 +52,8 @@ export type EligibilityReason =
   | "event_in_progress"
   | "registration_not_open_yet"
   | "registration_closed"
-  | "capacity_full";
+  | "capacity_full"
+  | "email_not_verified";
 
 export type EligibilityEvent = {
   id: string;
@@ -65,6 +66,8 @@ export type EligibilityEvent = {
   registrationOpensAt: string;
   registrationClosesAt: string;
   isPublic: boolean;
+  /** Story 4.23: whether a code can open this private event; absent from an older API, read as false. */
+  hasPrivateAccessPassword?: boolean;
 };
 
 export type EligibilityResult = {
@@ -277,6 +280,8 @@ export type RecapData = {
   eventTitle: string;
   gameSelectionEnabled: boolean;
   registrationOpen: boolean;
+  /** Story 4.22: when the member confirmed, null while the registration is only reserved. */
+  submittedAt: string | null;
   slots: RecapSlot[];
   gameMap: Map<string, RecapGame>;
 };
@@ -342,6 +347,7 @@ function parseRecapData(payload: unknown): RecapData | null {
     eventTitle: d.eventTitle,
     gameSelectionEnabled: d.gameSelectionEnabled,
     registrationOpen: hasBooleanProp(d, "registrationOpen") ? d.registrationOpen : true,
+    submittedAt: hasStringProp(d, "submittedAt") ? d.submittedAt : null,
     slots,
     gameMap,
   };
@@ -579,7 +585,7 @@ export async function fetchRegistrationPatches(registrationId: string): Promise<
 
 export type MyRegistrationCta =
   | { kind: "guest" }
-  | { kind: "registered"; registrationId: string }
+  | { kind: "registered"; registrationId: string; confirmed: boolean }
   | { kind: "not_registered" };
 
 /**
@@ -597,8 +603,9 @@ export async function fetchMyRegistrationCta(eventId: string): Promise<MyRegistr
 
     const payload: unknown = await regRes.json();
     const data = dataOf(payload);
-    if (typeof data === "object" && data !== null && hasStringProp(data, "registrationId")) {
-      return { kind: "registered", registrationId: data.registrationId };
+    // Story 4.22: a cancelled registration is no registration; the member may sign up again.
+    if (typeof data === "object" && data !== null && hasStringProp(data, "registrationId") && !("status" in data && data.status === "cancelled")) {
+      return { kind: "registered", registrationId: data.registrationId, confirmed: hasBooleanProp(data, "confirmed") && data.confirmed };
     }
     return { kind: "not_registered" };
   } catch {

@@ -72,6 +72,18 @@ describe("getPublicEvent", () => {
     expect(result?.id).toBe("evt-single");
   });
 
+  it("keeps a private event's registration status and flags it for adherents (story 4.21)", async () => {
+    server.use(
+      http.get(`${BASE}/events/evt-private`, () =>
+        HttpResponse.json({ data: { ...validEventPayload, id: "evt-private", isPublic: false } }),
+      ),
+    );
+    const result = await getPublicEvent("evt-private");
+    // The fixture's registrations closed in 2024: privacy no longer stands in for the status (story 4.23).
+    expect(result?.status).toBe("closed");
+    expect(result?.membersOnly).toBe(true);
+  });
+
   it("returns null on network error for unknown ID", async () => {
     server.use(http.get(`${BASE}/events/${UNKNOWN_ID}`, () => HttpResponse.error()));
     expect(await getPublicEvent(UNKNOWN_ID)).toBeNull();
