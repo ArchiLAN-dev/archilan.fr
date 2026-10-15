@@ -54,3 +54,8 @@ afin de traiter le catalogue sans faire défiler une page interminable ni trier 
 
 - Le cache de la feuille (`catalog_sync.sheet`, 1 h) contient encore les doublons jusqu'à expiration ou un
   « Synchro. feuille ».
+
+## Annexe - menu du compte
+
+Demande de Jean le 2026-10-15, livrée sur la même branche : « Mes pelles » (et son solde) quitte le menu déroulant
+du compte dans le header. L'entrée « Pelles » de la navigation de `/compte` reste.
