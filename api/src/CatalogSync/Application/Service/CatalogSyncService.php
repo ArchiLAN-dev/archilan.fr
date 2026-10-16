@@ -87,11 +87,47 @@ final readonly class CatalogSyncService
      */
     private function doFetch(): array
     {
-        if ('' === $this->googleApiKey) {
-            return $this->fetchViaCsv();
+        return $this->mergeBundledDuplicates('' === $this->googleApiKey ? $this->fetchViaCsv() : $this->fetchViaApi());
+    }
+
+    /**
+     * The bundled tab became a duplication of the main list (story 14.12): a game listed in both tabs is one entry,
+     * the main tab's data flagged as bundled. Left as two, the duplicate found no game left to match and showed up
+     * as a new game.
+     *
+     * @param list<CatalogEntry> $entries
+     *
+     * @return list<CatalogEntry>
+     */
+    private function mergeBundledDuplicates(array $entries): array
+    {
+        /** @var array<string, CatalogEntry> $byName */
+        $byName = [];
+        foreach ($entries as $entry) {
+            $key = mb_strtolower(trim($entry->name));
+            $known = $byName[$key] ?? null;
+            if (null === $known) {
+                $byName[$key] = $entry;
+                continue;
+            }
+            if ($known->bundledWithAp === $entry->bundledWithAp) {
+                // Two rows of the same tab: not a cross-tab duplicate, both are kept as they were.
+                $byName[$key.'#'.\count($byName)] = $entry;
+                continue;
+            }
+            $main = $known->bundledWithAp ? $entry : $known;
+            $byName[$key] = new CatalogEntry(
+                name: $main->name,
+                availability: $main->availability,
+                prStatus: $main->prStatus,
+                adultContent: $main->adultContent,
+                notes: $main->notes,
+                links: $main->links,
+                bundledWithAp: true,
+            );
         }
 
-        return $this->fetchViaApi();
+        return array_values($byName);
     }
 
     /**
@@ -524,7 +560,8 @@ final readonly class CatalogSyncService
 
             $matchedGameIds[] = $match->getId();
 
-            if (!$match->isAvailabilityLocked() && $match->getAvailability() !== $entry->availability) {
+            // A locked game stays listed (story 14.12): the admin sees the gap, flagged locked, without applying it.
+            if ($match->getAvailability() !== $entry->availability) {
                 $stabilityChanged[] = ['game' => $match, 'entry' => $entry];
             }
         }

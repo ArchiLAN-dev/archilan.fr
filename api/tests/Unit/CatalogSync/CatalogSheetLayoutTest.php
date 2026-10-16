@@ -159,6 +159,44 @@ final class CatalogSheetLayoutTest extends TestCase
         self::assertContains(['level' => 'warning', 'message' => 'catalog_sync.sheet_column_missing'], $this->logger->logs);
     }
 
+    public function testAGameListedInBothTabsIsOneBundledEntryWithTheMainTabData(): void
+    {
+        // Story 14.12: the bundled tab duplicates the main list; left as two entries, the duplicate showed as a new game.
+        $entries = $this->viaApi(
+            main: [
+                $this->row(['Game', 'Stability', 'PR Status', '18+ / Unrated', 'Links & Downloads', 'Notes']),
+                $this->row(['Factorio', 'Unstable', 'Core', 'FALSE', 'Poptracker', 'First implementation.']),
+                $this->row(['Crystal Project', 'Stable', '--', 'FALSE', 'APWorld', '']),
+            ],
+            bundled: [
+                $this->row(['Game', 'Game Page']),
+                $this->row(['factorio ', 'Game Page']),
+                $this->row(['Adventure', 'Game Page']),
+            ],
+        );
+
+        self::assertSame(['Factorio', 'Crystal Project', 'Adventure'], array_map(static fn ($e): string => $e->name, $entries));
+        self::assertTrue($entries[0]->bundledWithAp);
+        self::assertSame('experimental', $entries[0]->availability, 'the main tab data wins over the bundled default');
+        self::assertSame('First implementation.', $entries[0]->notes);
+        self::assertFalse($entries[1]->bundledWithAp);
+        self::assertTrue($entries[2]->bundledWithAp);
+    }
+
+    public function testTheBundledTabReadFirstStillYieldsTheMainTabData(): void
+    {
+        $bundledFirst = ['sheets' => [
+            ['properties' => ['sheetId' => 1675722515], 'data' => [['rowData' => [$this->row(['Game']), $this->row(['Factorio'])]]]],
+            ['properties' => ['sheetId' => 58422002], 'data' => [['rowData' => [$this->row(['Game', 'Stability']), $this->row(['Factorio', 'Broken on Main'])]]]],
+        ]];
+
+        $entries = $this->service(new MockHttpClient([new MockResponse(json_encode($bundledFirst) ?: '')]), 'api-key')->fetchSheet();
+
+        self::assertCount(1, $entries);
+        self::assertSame('unavailable', $entries[0]->availability);
+        self::assertTrue($entries[0]->bundledWithAp);
+    }
+
     /**
      * @param list<array<string, mixed>> $main
      * @param list<array<string, mixed>> $bundled
