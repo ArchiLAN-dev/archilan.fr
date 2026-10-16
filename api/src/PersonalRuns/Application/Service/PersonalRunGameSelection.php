@@ -517,6 +517,10 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             );
         }
 
+        if (SlotName::isReserved($parsed['name'])) {
+            return sprintf('Le nom « %s » est réservé : choisis-en un autre.', SlotName::RESERVED_NAME);
+        }
+
         return null;
     }
 

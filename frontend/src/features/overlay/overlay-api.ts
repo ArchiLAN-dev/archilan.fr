@@ -173,22 +173,13 @@ function readSlotName(value: unknown, key: string): string {
   return `Slot ${key}`;
 }
 
-// Excludes the injected TextOnly "Bridge" observer (game "Archipelago", conventional name "Bridge") and
-// any spectator/group slot, so only real players are offered in the filter. The name fallback also
-// covers a bridge that does not yet send `game`/`slot_type` (not redeployed). Lenient otherwise: a slot
-// is kept when these fields are absent rather than wrongly hidden.
-function isRealPlayerSlot(value: unknown): boolean {
+// Keeps the real players: a spectator or an item-link group slot is left out. Story 9.56: no observer slot is
+// injected any more, and the one older multiworlds carry is a spectator, so `slot_type` covers it - filtering
+// on the game "Archipelago" would hide a player who really plays that world. Lenient otherwise: a slot is
+// kept when the field is absent rather than wrongly hidden.
+export function isRealPlayerSlot(value: unknown): boolean {
   if (typeof value !== "object" || value === null) return false;
-  if ("slot_type" in value && typeof value.slot_type === "string" && value.slot_type !== "player") {
-    return false;
-  }
-  if ("game" in value && typeof value.game === "string" && (value.game === "" || value.game === "Archipelago")) {
-    return false;
-  }
-  if ("slot_name" in value && typeof value.slot_name === "string" && value.slot_name.toLowerCase() === "bridge") {
-    return false;
-  }
-  return true;
+  return !("slot_type" in value && typeof value.slot_type === "string" && value.slot_type !== "player");
 }
 
 /**

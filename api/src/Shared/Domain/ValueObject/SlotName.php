@@ -19,10 +19,21 @@ final readonly class SlotName
     /** A name is a non-empty run of allowed chars and/or AP placeholder tokens. */
     public const string PATTERN = '/^(?:[A-Za-z0-9_]|\{(?:number|player|NUMBER|PLAYER)\})+$/';
 
+    /**
+     * Story 9.56: the multiworlds generated before then carry an injected observer slot named "Bridge", which
+     * the screens still hide by name. A player named so would be hidden with it.
+     */
+    public const string RESERVED_NAME = 'Bridge';
+
     public static function isValid(string $name): bool
     {
         return '' !== $name
             && mb_strlen($name) <= self::MAX_LENGTH
             && 1 === preg_match(self::PATTERN, $name);
+    }
+
+    public static function isReserved(string $name): bool
+    {
+        return 0 === strcasecmp($name, self::RESERVED_NAME);
     }
 }
