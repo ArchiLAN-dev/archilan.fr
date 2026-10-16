@@ -10,6 +10,7 @@ use App\PersonalRuns\Application\Message\RunSlotPreflightJob;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Sessions\Application\Support\GenerationFailureParser;
 use App\Sessions\Application\Support\RequiredGenerationFile;
 use Psr\Clock\ClockInterface;
@@ -36,6 +37,7 @@ final readonly class RunSlotPreflightJobHandler
         private MessageBusInterface $messageBus,
         private ClockInterface $clock,
         private LoggerInterface $logger,
+        private RequiredGenerationFiles $requiredGenerationFiles,
     ) {
     }
 
@@ -50,7 +52,9 @@ final readonly class RunSlotPreflightJobHandler
         $yaml = is_string($slot['playerYaml'] ?? null) ? $slot['playerYaml'] : '';
         if (null === $slot || '' === $yaml || self::isStale($job, $slot)) {
             // Slot removed, yaml edited or apworld changed since the check was requested: the result
-            // would describe a config that no longer exists.
+            // would describe a config that no longer exists. A file joined to it has nothing left to do.
+            $this->requiredGenerationFiles->release($job->requiredFileIds);
+
             return;
         }
 
@@ -71,8 +75,9 @@ final readonly class RunSlotPreflightJobHandler
         $yaml = is_string($slot['playerYaml'] ?? null) ? $slot['playerYaml'] : '';
         $apworldHash = $job->apworldHash ?? (is_string($slot['apworldHash'] ?? null) && '' !== $slot['apworldHash'] ? $slot['apworldHash'] : null);
 
-        $orchestratorJobId = $this->runnerGateway->startSlotPreflight($yaml, $apworldHash);
+        $orchestratorJobId = $this->runnerGateway->startSlotPreflight($yaml, $apworldHash, $job->requiredFileIds);
         if (null === $orchestratorJobId) {
+            $this->requiredGenerationFiles->release($job->requiredFileIds);
             $this->record($job, 'failed', 'Runner indisponible - relance le test plus tard.');
 
             return;

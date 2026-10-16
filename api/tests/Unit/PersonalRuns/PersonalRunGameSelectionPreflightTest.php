@@ -20,6 +20,7 @@ use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface;
 use App\Sessions\Domain\Service\SlotCoPlayerRoster;
 use PHPUnit\Framework\TestCase;
@@ -188,6 +189,7 @@ final class PersonalRunGameSelectionPreflightTest extends TestCase
                 $clock,
                 new NullLogger(),
             ),
+            requiredGenerationFiles: new RequiredGenerationFiles($runner),
         );
     }
 }

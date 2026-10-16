@@ -21,7 +21,10 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
+use App\Sessions\Application\Support\ProvidedGenerationFile;
 use App\Shared\Domain\ValueObject\SlotName;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -45,6 +48,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         private LoggerInterface $logger,
         private ClockInterface $clock,
         private RunSlotCoPlayers $coPlayers,
+        private RequiredGenerationFiles $requiredGenerationFiles,
     ) {
     }
 
@@ -446,6 +450,15 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
 
         $participant->submitSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '');
 
+        // Story 44.7: a game that reads a file at generation (a ROM) is only tested with it - the automatic test
+        // could only fail on its absence. Saving forgot the previous verdict; the player tests with the ROM.
+        if (self::needsAFileAtGeneration($game)) {
+            $this->participants->flush();
+            $this->logger->info('personal_run.slot_yaml_saved', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
+
+            return $this->yamlResult(found: true);
+        }
+
         // Story 9.42: every saved yaml gets an automatic solo test generation. The verdict
         // is advisory (never blocks a launch) and keyed to this exact yaml.
         $yamlSha = hash('sha256', $playerYaml);
@@ -461,11 +474,15 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
     }
 
     /**
-     * Story 9.42: explicit "Tester ma config" re-run of the solo test generation for one slot.
+     * Story 9.42: explicit "Tester ma config" re-run of the solo test generation for one slot, with the files the
+     * player joined (story 44.7): handed to the orchestrator here, before anything changes, so a refused file
+     * leaves the slot as it was. Only their ids travel in the job.
+     *
+     * @param list<ProvidedGenerationFile> $files
      *
      * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, errors: array<string, list<string>>}
      */
-    public function requestSlotPreflight(string $runId, string $userId, string $slotId): array
+    public function requestSlotPreflight(string $runId, string $userId, string $slotId, array $files = []): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
@@ -487,15 +504,27 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             return $this->yamlResult(found: true, errors: ['playerYaml' => ['Configure d\'abord un YAML pour ce slot.']]);
         }
 
+        try {
+            $fileIds = $this->requiredGenerationFiles->stage($files);
+        } catch (RequiredGenerationFileRefusedException) {
+            return $this->yamlResult(found: true, errors: ['requiredFiles' => ['Le fichier n\'a pas pu être transmis. Réessaie dans un instant.']]);
+        }
+
         $yamlSha = hash('sha256', $yaml);
         $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $this->clock->now());
         $this->participants->flush();
 
-        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha, apworldHash: $slot['apworldHash'] ?? null));
+        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha, apworldHash: $slot['apworldHash'] ?? null, requiredFileIds: $fileIds));
 
         $this->logger->info('personal_run.slot_preflight_requested', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 
         return $this->yamlResult(found: true);
+    }
+
+    /** Story 44.7: the game reads a file a failed generation proved necessary (story 44.3). */
+    private static function needsAFileAtGeneration(Game $game): bool
+    {
+        return array_any($game->getRequiredFiles(), fn ($file) => $file['neededAtGeneration']);
     }
 
     /**
