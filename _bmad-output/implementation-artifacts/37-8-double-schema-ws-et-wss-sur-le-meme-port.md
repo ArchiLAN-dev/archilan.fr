@@ -1,6 +1,6 @@
 # Story 37.8: Double schéma - servir `ws` et `wss` sur le même port
 
-**Status:** ready-for-dev - **AC 1 levé le 2026-08-15** sur banc local (Traefik v3.6.25)
+**Status:** done - **AC 1 levé le 2026-08-15** sur banc local (Traefik v3.6.25)
 **Epic:** 37 - Accès WSS aux serveurs Archipelago
 **Date:** 2026-08-15
 **Dépend de :** 37.1, 37.2, 37.3 (livrées). Ne modifie ni 37.4 ni 37.5.
