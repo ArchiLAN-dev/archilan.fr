@@ -9,7 +9,7 @@ import type { ApworldPreflight } from "./admin-games-api";
 
 /** What the file panel of an admin test says above the files. */
 export const TEST_FILES_INTRO =
-  "Le monde de ce jeu lit un fichier à toi pendant la génération, une ROM le plus souvent. Sans ce fichier, le test échouera. Il est vérifié ici, envoyé pour ce test seulement, puis supprimé : ArchiLAN ne le garde jamais.";
+  "Le jeu lit ce fichier pendant la génération. Sans ce fichier, le test échouera. Il est vérifié ici et envoyé pour ce test seulement, jamais gardé.";
 
 /** The files the game's tests should carry: those a failed generation proved necessary. */
 export function testFilesOfGame(requiredFiles: unknown): GenerationFile[] {

@@ -91,6 +91,7 @@ export function CandidateYamlTest({ gameId, requiredFiles, onClose }: { gameId: 
           disabled={state.kind === "running"}
           intro={TEST_FILES_INTRO}
           needed={testFiles}
+          variant="plain"
           onChoose={(required, file) => void provided.choose(required, file)}
           states={provided.states}
         />

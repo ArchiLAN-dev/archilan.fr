@@ -348,6 +348,7 @@ function TestGenerationForm({ game, onClose, onLaunched }: { game: AdminGame; on
           disabled={sending}
           intro={TEST_FILES_INTRO}
           needed={testFiles}
+          variant="plain"
           onChoose={(required, file) => void provided.choose(required, file)}
           states={provided.states}
         />
@@ -401,7 +402,7 @@ function ReplaceApworldForm({ game, onClose, onReplaced }: { game: AdminGame; on
     <>
       <DialogBody>
         {game.apworldSourceUrl ? (
-          <section className="grid gap-2 rounded border border-border bg-background p-4">
+          <section className="grid gap-2 border-b border-border pb-4">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <GitBranch aria-hidden className="size-4" />
               Depuis la release GitHub
@@ -441,7 +442,7 @@ function ReplaceApworldForm({ game, onClose, onReplaced }: { game: AdminGame; on
           </section>
         ) : null}
 
-        <section className="grid gap-2 rounded border border-border bg-background p-4">
+        <section className="grid gap-2 border-b border-border pb-4">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <FileCode2 aria-hidden className="size-4" />
             Depuis un fichier
