@@ -468,6 +468,11 @@ export function AdminSessionDetailPage({
         ["admin-session-detail", sessionId],
         (prev) => (prev !== undefined && prev.kind === "ready" ? { ...prev, session } : prev),
       );
+      // Review of epic 44: a failed generation may have just proved a game needs a file (a ROM). The pushed
+      // session does not carry the files, so the detail is read again and the panel asks for it.
+      if (session.status === "failed") {
+        void queryClient.invalidateQueries({ queryKey: ["admin-session-detail", sessionId] });
+      }
     },
     [queryClient, sessionId],
   );

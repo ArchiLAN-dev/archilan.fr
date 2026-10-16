@@ -61,6 +61,20 @@ final class UpgradeRunSlotsAfterApworldPromotionHandlerTest extends TestCase
         self::assertSame(1, $this->flushes);
     }
 
+    // Review of epic 44: a ROM game's upgraded slot is not tested without the ROM - the player tests with it.
+    public function testASlotOfAGameThatReadsAFileIsUpgradedWithoutATest(): void
+    {
+        $this->game->markRequiredAtGeneration('DK3Settings.rom_file', 'dkc3.sfc', '.sfc', 'DKC3 (US) ROM File', []);
+        $this->slots(['slot-1' => str_replace('Player{number}', 'Jean', self::OLD_DEFAULT)]);
+
+        $this->handle();
+
+        $slot = $this->participant->getSlot('slot-1');
+        self::assertSame('hash-new', $slot['apworldHash'] ?? null);
+        self::assertNull($slot['preflight'] ?? null);
+        self::assertSame([], $this->dispatched);
+    }
+
     public function testACustomisedSlotThatStillHoldsKeepsItsYamlAndGetsANewTest(): void
     {
         $custom = "name: Jean\ngame: Crystal Project\nCrystal Project:\n  goal: true_astley\n";

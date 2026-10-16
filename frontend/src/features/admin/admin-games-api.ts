@@ -247,7 +247,8 @@ export async function regenerateDefaultYaml(gameId: string): Promise<DefaultYaml
     if (!res.ok || !isAdminGamePayload(payload)) {
       return { kind: "error", message: "La régénération a échoué." };
     }
-    return { kind: "saved", game: payload.data, warning: null };
+    // Review of epic 44: a ROM game's test is not rerun without the file, and the page says so.
+    return { kind: "saved", game: payload.data, warning: readWarning(payload) };
   } catch {
     return { kind: "error", message: "Impossible de contacter le serveur." };
   }

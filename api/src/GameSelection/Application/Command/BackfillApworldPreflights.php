@@ -34,6 +34,12 @@ final readonly class BackfillApworldPreflights
                 ++$skipped;
                 continue;
             }
+            // Review of epic 44: like the rolling test, never replace a pass obtained with the admin's file by a run
+            // that cannot have it.
+            if ('passed' === $verdict['status'] && true === ($verdict['withRequiredFiles'] ?? false)) {
+                ++$skipped;
+                continue;
+            }
             if ($this->runnerGateway->runApworldPreflight($hash)) {
                 ++$requested;
             } else {

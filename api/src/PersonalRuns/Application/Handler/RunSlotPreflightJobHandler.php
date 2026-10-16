@@ -45,6 +45,9 @@ final readonly class RunSlotPreflightJobHandler
     {
         $participant = $this->participants->findByRunAndUser($job->runId, $job->userId);
         if (!$participant instanceof RunParticipant) {
+            // The player left the run meanwhile: the files joined to the test have nothing left to do.
+            $this->requiredGenerationFiles->release($job->requiredFileIds);
+
             return;
         }
 
@@ -78,15 +81,24 @@ final readonly class RunSlotPreflightJobHandler
         $orchestratorJobId = $this->runnerGateway->startSlotPreflight($yaml, $apworldHash, $job->requiredFileIds);
         if (null === $orchestratorJobId) {
             $this->requiredGenerationFiles->release($job->requiredFileIds);
-            $this->record($job, 'failed', 'Runner indisponible - relance le test plus tard.');
+            $this->record($job, 'failed', [] !== $job->requiredFileIds
+                ? 'Le test n\'a pas pu démarrer : runner indisponible, ou fichier expiré. Relance-le en renvoyant le fichier.'
+                : 'Runner indisponible - relance le test plus tard.');
 
             return;
         }
 
-        $this->messageBus->dispatch(
-            new RunSlotPreflightJob($job->runId, $job->userId, $job->slotId, $job->yamlSha, $orchestratorJobId, 0, $apworldHash),
-            [new DelayStamp(self::POLL_DELAY_MS)],
-        );
+        // Started: the files are consumed. Retrying this message would start the test again with ids the orchestrator
+        // no longer holds and report a false failure, so a poll that cannot be queued is recorded, not retried.
+        try {
+            $this->messageBus->dispatch(
+                new RunSlotPreflightJob($job->runId, $job->userId, $job->slotId, $job->yamlSha, $orchestratorJobId, 0, $apworldHash),
+                [new DelayStamp(self::POLL_DELAY_MS)],
+            );
+        } catch (\Throwable $e) {
+            $this->logger->warning('personal_run.slot_preflight_poll_lost', ['runId' => $job->runId, 'slotId' => $job->slotId, 'error' => $e->getMessage()]);
+            $this->record($job, 'failed', 'Le suivi du test a été perdu : relance-le.');
+        }
     }
 
     private function poll(RunSlotPreflightJob $job, RunParticipant $participant): void

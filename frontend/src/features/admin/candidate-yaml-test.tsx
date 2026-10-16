@@ -5,6 +5,7 @@ import { CheckCircle2, FlaskConical, Loader2, XCircle } from "lucide-react";
 
 import { DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { buttonVariants } from "@/components/ui/button";
+import { hasRefusedFile } from "@/features/games/required-file-check";
 import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
 import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
 import { getApworldCandidateYamlTest, startApworldCandidateYamlTest } from "./admin-games-api";
@@ -29,8 +30,8 @@ export type YamlTestState =
 export function CandidateYamlTest({ gameId, requiredFiles, onClose }: { gameId: string; requiredFiles?: unknown; onClose: () => void }) {
   const [yaml, setYaml] = useState("");
   const [state, setState] = useState<YamlTestState>({ kind: "idle" });
-  const testFiles = useMemo(() => testFilesOfGame(requiredFiles), [requiredFiles]);
-  const provided = useProvidedFiles(testFiles);
+  const testFiles = useMemo(() => testFilesOfGame(requiredFiles, { includeDeclared: true }), [requiredFiles]);
+  const provided = useProvidedFiles(testFiles, { includeDeclared: true });
   const filesBlocker = testFilesBlocker(provided.states);
 
   const jobId = state.kind === "running" ? state.jobId : null;
@@ -96,7 +97,16 @@ export function CandidateYamlTest({ gameId, requiredFiles, onClose }: { gameId: 
           onChoose={(required, file) => void provided.choose(required, file)}
           states={provided.states}
         />
-        {filesBlocker !== null ? <p className="text-sm text-danger">{filesBlocker}</p> : null}
+        {filesBlocker !== null ? (
+          <p className="flex flex-wrap items-center gap-2 text-sm text-danger">
+            {filesBlocker}
+            {hasRefusedFile(provided.states) ? (
+              <button className={buttonVariants({ variant: "ghost" })} onClick={provided.reset} type="button">
+                Retirer le fichier
+              </button>
+            ) : null}
+          </p>
+        ) : null}
         <YamlTestOutcome state={state} />
       </DialogBody>
       <DialogFooter>

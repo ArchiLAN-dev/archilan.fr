@@ -217,6 +217,24 @@ final class AdminApworldCandidateControllerTest extends FunctionalTestCase
         self::assertNull(NullRunnerGateway::$lastSlotPreflight);
     }
 
+    public function testAYamlTestTheRunnerDidNotTakeGivesTheFileBack(): void
+    {
+        $this->entityManager->persist($this->candidate());
+        $this->entityManager->flush();
+        NullRunnerGateway::$slotPreflightUnavailable = true;
+        $this->loginAs($this->admin);
+
+        $this->client->request(
+            'POST',
+            sprintf('/api/v1/admin/games/%s/apworld-candidate/test-yaml', $this->game->getId()),
+            ['yaml' => "name: Jean\n"],
+            ['requiredFiles' => ['DK3Settings.rom_file' => $this->rom('rom')]],
+        );
+
+        self::assertResponseStatusCodeSame(503);
+        self::assertSame(['staged-1'], NullRunnerGateway::$releasedFileIds);
+    }
+
     public function testAYamlTestResultIsReadWithItsErrorSummarised(): void
     {
         NullRunnerGateway::$slotPreflightResult = ['status' => 'failed', 'error' => "Traceback (most recent call last):\nAttributeError: 'MultiWorld' object has no attribute 'architect'"];

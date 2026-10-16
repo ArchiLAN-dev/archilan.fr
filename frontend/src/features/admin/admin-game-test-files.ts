@@ -11,10 +11,13 @@ import type { ApworldPreflight } from "./admin-games-api";
 export const TEST_FILES_INTRO =
   "Le jeu lit ce fichier pendant la génération. Sans ce fichier, le test échouera. Il est vérifié ici et envoyé pour ce test seulement, jamais gardé.";
 
-/** The files the game's tests should carry: those a failed generation proved necessary. */
-export function testFilesOfGame(requiredFiles: unknown): GenerationFile[] {
+/**
+ * The files the game's tests should carry: those a failed generation proved necessary. A candidate version may need
+ * one the served version never failed on, so its YAML test also offers the declared ones (review of epic 44).
+ */
+export function testFilesOfGame(requiredFiles: unknown, { includeDeclared = false }: { includeDeclared?: boolean } = {}): GenerationFile[] {
   return asGameRequiredFiles(requiredFiles)
-    .filter((file) => file.neededAtGeneration)
+    .filter((file) => includeDeclared || file.neededAtGeneration)
     .map((file) => ({ ...file, games: [] }));
 }
 
@@ -23,7 +26,7 @@ export function testFilesBlocker(states: Record<string, ProvidedFileState>): str
   const values = Object.values(states);
   if (values.some((state) => state.kind === "checking")) return "Vérification du fichier en cours…";
   if (values.some((state) => state.kind === "wrong" || state.kind === "tooLarge")) {
-    return "Le fichier choisi n'est pas le bon : change-le, ou retire-le en rechargeant la page.";
+    return "Le fichier choisi n'est pas le bon : change-le, ou retire-le.";
   }
   return null;
 }

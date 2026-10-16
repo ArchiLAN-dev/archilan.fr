@@ -5,7 +5,7 @@ import { FlaskConical, Loader2 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
-import { filesToProvide, type ProvidedFileState } from "@/features/games/required-file-check";
+import { filesToProvide, hasRefusedFile, type ProvidedFileState } from "@/features/games/required-file-check";
 import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
 import { asGameRequiredFiles, requiredFileLabel, type GenerationFile } from "@/features/games/required-files";
 import { requestSlotPreflight } from "./personal-runs-api";
@@ -87,7 +87,16 @@ function SlotTestFilesForm({
           states={provided.states}
           variant="plain"
         />
-        {blocker !== null ? <p className="text-sm text-muted-foreground">{blocker}</p> : null}
+        {blocker !== null ? (
+          <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            {blocker}
+            {hasRefusedFile(provided.states) ? (
+              <button className={buttonVariants({ variant: "ghost" })} onClick={provided.reset} type="button">
+                Retirer le fichier
+              </button>
+            ) : null}
+          </p>
+        ) : null}
         {error !== null ? (
           <p className="text-sm text-danger" role="alert">
             {error}
