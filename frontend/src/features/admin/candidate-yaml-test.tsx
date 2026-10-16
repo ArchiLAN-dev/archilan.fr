@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, FileCode2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, FlaskConical, Loader2, XCircle } from "lucide-react";
 
+import { DialogBody, DialogFooter } from "@/components/ui/dialog";
+import { buttonVariants } from "@/components/ui/button";
 import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
 import { getApworldCandidateYamlTest, startApworldCandidateYamlTest } from "./admin-games-api";
-import { testFilesBlocker, testFilesOfGame } from "./admin-game-test-files";
+import { TEST_FILES_INTRO, testFilesBlocker, testFilesOfGame } from "./admin-game-test-files";
 
 const POLL_MS = 3000;
 /** The orchestrator gives up on a test generation after a few minutes; stop polling well after that. */
@@ -20,9 +22,10 @@ export type YamlTestState =
 /**
  * Story 38.14: generate a pasted YAML against the candidate version - the admin's own, or the one of a player who
  * hit the problem - before putting it online. Nothing goes online, no incident is opened. A ROM game's test
- * carries the ROM the admin provides (story 44.6).
+ * carries the ROM the admin provides (story 44.6). The content of the "Tester avec un YAML" modal (story 38.15): the
+ * test keeps being followed there until its verdict.
  */
-export function CandidateYamlTest({ gameId, requiredFiles }: { gameId: string; requiredFiles?: unknown }) {
+export function CandidateYamlTest({ gameId, requiredFiles, onClose }: { gameId: string; requiredFiles?: unknown; onClose: () => void }) {
   const [yaml, setYaml] = useState("");
   const [state, setState] = useState<YamlTestState>({ kind: "idle" });
   const testFiles = useMemo(() => testFilesOfGame(requiredFiles), [requiredFiles]);
@@ -70,19 +73,15 @@ export function CandidateYamlTest({ gameId, requiredFiles }: { gameId: string; r
   }
 
   return (
-    <details className="rounded border border-border bg-background">
-      <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-semibold text-foreground">
-        <FileCode2 aria-hidden className="size-4 text-accent" />
-        Tester avec un YAML
-      </summary>
-      <div className="grid gap-2 border-t border-border p-3">
-        <p className="text-xs text-muted-foreground">
+    <>
+      <DialogBody>
+        <p className="text-sm text-muted-foreground">
           Colle un YAML (le tien, ou celui d&apos;un joueur qui a eu le problème) : une génération de test tourne avec cette
           nouvelle version, rien n&apos;est mis en ligne.
         </p>
         <textarea
           aria-label="YAML à tester"
-          className="min-h-40 w-full rounded border border-border bg-surface p-2 font-mono text-xs text-foreground"
+          className="min-h-56 w-full rounded border border-border bg-background p-3 font-mono text-xs text-foreground outline-none focus:border-accent"
           onChange={(e) => setYaml(e.target.value)}
           placeholder={"name: Joueur\ngame: ...\n"}
           spellCheck={false}
@@ -90,25 +89,29 @@ export function CandidateYamlTest({ gameId, requiredFiles }: { gameId: string; r
         />
         <RequiredFilesPanel
           disabled={state.kind === "running"}
-          intro="Le monde de ce jeu lit un fichier à toi pendant la génération, une ROM le plus souvent. Sans ce fichier, le test échouera. Il est vérifié ici, envoyé pour ce test seulement, puis supprimé : ArchiLAN ne le garde jamais."
+          intro={TEST_FILES_INTRO}
           needed={testFiles}
           onChoose={(required, file) => void provided.choose(required, file)}
           states={provided.states}
         />
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            className="inline-flex min-h-9 items-center gap-1.5 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={state.kind === "running" || yaml.trim() === "" || filesBlocker !== null}
-            title={filesBlocker ?? undefined}
-            onClick={() => void start()}
-            type="button"
-          >
-            Lancer le test
-          </button>
-          <YamlTestOutcome state={state} />
-        </div>
-      </div>
-    </details>
+        {filesBlocker !== null ? <p className="text-sm text-danger">{filesBlocker}</p> : null}
+        <YamlTestOutcome state={state} />
+      </DialogBody>
+      <DialogFooter>
+        <button className={buttonVariants({ variant: "ghost" })} onClick={onClose} type="button">
+          Fermer
+        </button>
+        <button
+          className={buttonVariants({ variant: "primary" })}
+          disabled={state.kind === "running" || yaml.trim() === "" || filesBlocker !== null}
+          onClick={() => void start()}
+          type="button"
+        >
+          <FlaskConical aria-hidden className="size-4" />
+          Lancer le test
+        </button>
+      </DialogFooter>
+    </>
   );
 }
 

@@ -7,6 +7,10 @@ import type { ApworldPreflight } from "./admin-games-api";
  * way a launch asks it (story 44.5), but stays optional: without it the test runs and fails on its absence.
  */
 
+/** What the file panel of an admin test says above the files. */
+export const TEST_FILES_INTRO =
+  "Le monde de ce jeu lit un fichier à toi pendant la génération, une ROM le plus souvent. Sans ce fichier, le test échouera. Il est vérifié ici, envoyé pour ce test seulement, puis supprimé : ArchiLAN ne le garde jamais.";
+
 /** The files the game's tests should carry: those a failed generation proved necessary. */
 export function testFilesOfGame(requiredFiles: unknown): GenerationFile[] {
   return asGameRequiredFiles(requiredFiles)

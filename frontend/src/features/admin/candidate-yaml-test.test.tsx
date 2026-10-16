@@ -5,9 +5,8 @@ import { CandidateYamlTest, YamlTestOutcome } from "./candidate-yaml-test";
 /** Story 38.14: generate a pasted YAML against the candidate version, before putting it online. */
 describe("CandidateYamlTest", () => {
   test("offers a YAML field and a test button, and says nothing goes online", () => {
-    const html = renderToStaticMarkup(<CandidateYamlTest gameId="game-1" />);
+    const html = renderToStaticMarkup(<CandidateYamlTest gameId="game-1" onClose={() => undefined} />);
 
-    expect(html).toContain("Tester avec un YAML");
     expect(html).toContain("<textarea");
     expect(html).toContain("rien n&#x27;est mis en ligne");
     expect(html).not.toContain("Fichiers à fournir");
@@ -16,7 +15,7 @@ describe("CandidateYamlTest", () => {
   // Story 44.6: a ROM game's test asks for the ROM, and says it fails without it.
   test("asks for the file a ROM game's generation needs", () => {
     const rom = { setting: "DK3Settings.rom_file", file: "dkc3.sfc", extension: ".sfc", description: "DKC3 (US) ROM File", md5s: [], neededAtGeneration: true };
-    const html = renderToStaticMarkup(<CandidateYamlTest gameId="game-1" requiredFiles={[rom]} />);
+    const html = renderToStaticMarkup(<CandidateYamlTest gameId="game-1" onClose={() => undefined} requiredFiles={[rom]} />);
 
     expect(html).toContain("Fichiers à fournir");
     expect(html).toContain("DKC3 (US) ROM File");
