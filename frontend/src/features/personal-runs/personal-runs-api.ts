@@ -195,17 +195,30 @@ export type GameSelectionSlot = {
   needsReview?: string[];
   // Story 16.17: who else plays this slot. Read-only here - only the run owner changes it.
   coPlayers?: SlotCoPlayer[];
+  // Story 44.3: the files the slot's game may read (a ROM...); story 44.7 asks for them before the test.
+  requiredFiles?: unknown;
 };
 
-/** Story 9.42: queue a "Tester ma config" solo test generation for one slot. */
-export async function requestSlotPreflight(runId: string, slotId: string): Promise<boolean> {
+/**
+ * Story 9.42: queue a "Tester ma config" solo test generation for one slot, with the files its game reads (story
+ * 44.7, a ROM): a multipart body then, no body otherwise.
+ */
+export async function requestSlotPreflight(
+  runId: string,
+  slotId: string,
+  files: Record<string, File> = {},
+): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
+    const body = Object.keys(files).length > 0 ? requiredFilesForm(files) : undefined;
     const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/participants/me/slots/${slotId}/preflight`, {
       method: "POST",
+      body,
     });
-    return res.ok;
+    if (res.ok) return { ok: true };
+    const payload: unknown = await res.json().catch(() => null);
+    return { ok: false, message: apiErrorMessage(payload, "Le test n'a pas pu être lancé. Réessaie dans un instant.") };
   } catch {
-    return false;
+    return { ok: false, message: "Erreur réseau." };
   }
 }
 

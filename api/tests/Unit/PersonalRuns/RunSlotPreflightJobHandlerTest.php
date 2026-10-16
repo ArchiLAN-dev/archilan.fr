@@ -11,6 +11,7 @@ use App\PersonalRuns\Application\Message\RunSlotPreflightJob;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
 use Psr\Log\NullLogger;
@@ -26,6 +27,10 @@ final class RunSlotPreflightJobHandlerTest extends TestCase
     /** @var list<Envelope> */
     private array $dispatched = [];
     private int $flushes = 0;
+    /** @var list<array{hash: ?string, ids: list<string>}> */
+    private array $started = [];
+    /** @var list<string> */
+    private array $released = [];
     /** @var list<int> */
     private array $flushesBeforeDispatch = [];
 
@@ -42,6 +47,42 @@ final class RunSlotPreflightJobHandlerTest extends TestCase
         self::assertInstanceOf(RunSlotPreflightJob::class, $message);
         self::assertSame('orch-1', $message->orchestratorJobId);
         self::assertNotNull($envelope->last(DelayStamp::class));
+    }
+
+    // Story 44.7: the ROM the player joined reaches the orchestrator with the test; dropped when it does not answer.
+    public function testStartPassesTheProvidedFiles(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, startResult: 'orch-1');
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), requiredFileIds: ['staged-1']));
+
+        self::assertSame([['hash' => 'hash-1', 'ids' => ['staged-1']]], $this->started);
+        self::assertSame([], $this->released);
+        $message = $this->dispatched[0]->getMessage();
+        self::assertInstanceOf(RunSlotPreflightJob::class, $message);
+        self::assertSame([], $message->requiredFileIds, 'the file is consumed by the start, the polls carry none');
+    }
+
+    public function testARunnerThatDoesNotAnswerReleasesTheFiles(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, startResult: null);
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), requiredFileIds: ['staged-1']));
+
+        self::assertSame(['staged-1'], $this->released);
+    }
+
+    public function testAStaleTestReleasesItsFiles(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, startResult: 'orch-1');
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', hash('sha256', 'another yaml'), requiredFileIds: ['staged-1']));
+
+        self::assertSame([], $this->started);
+        self::assertSame(['staged-1'], $this->released);
     }
 
     public function testStartWithRunnerDownRecordsFailedVerdict(): void
@@ -212,7 +253,14 @@ FillError: No more spots to place items.']);
         });
 
         $runner = self::createStub(RunnerGatewayInterface::class);
-        $runner->method('startSlotPreflight')->willReturn($startResult);
+        $runner->method('startSlotPreflight')->willReturnCallback(function (string $yaml, ?string $hash, array $ids = []) use ($startResult): ?string {
+            $this->started[] = ['hash' => $hash, 'ids' => array_values(array_filter($ids, is_string(...)))];
+
+            return $startResult;
+        });
+        $runner->method('releaseRequiredFile')->willReturnCallback(function (string $id): void {
+            $this->released[] = $id;
+        });
         $runner->method('getSlotPreflight')->willReturn($pollResult);
 
         $bus = self::createStub(MessageBusInterface::class);
@@ -234,6 +282,7 @@ FillError: No more spots to place items.']);
             messageBus: $bus,
             clock: $clock,
             logger: new NullLogger(),
+            requiredGenerationFiles: new RequiredGenerationFiles($runner),
         );
     }
 }

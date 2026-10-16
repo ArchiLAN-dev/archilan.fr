@@ -12,9 +12,15 @@ namespace App\PersonalRuns\Application\Message;
  * and it is dropped. apworldHash pins it to the apworld tested (story 38.4 review): a slot moved to
  * another apworld meanwhile (story 38.7) keeps the same yaml, so the sha alone would not see it. Null
  * on a job queued before that: the apworld is then not checked.
+ *
+ * requiredFileIds (story 44.7): the files the player joined to « Tester ma config », held by the orchestrator. Only
+ * the job that starts the test carries them; the polls that follow carry none.
  */
 final readonly class RunSlotPreflightJob
 {
+    /**
+     * @param list<string> $requiredFileIds
+     */
     public function __construct(
         public string $runId,
         public string $userId,
@@ -23,6 +29,7 @@ final readonly class RunSlotPreflightJob
         public ?string $orchestratorJobId = null,
         public int $polls = 0,
         public ?string $apworldHash = null,
+        public array $requiredFileIds = [],
     ) {
     }
 }

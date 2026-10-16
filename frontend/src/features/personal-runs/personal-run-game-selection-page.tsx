@@ -27,6 +27,7 @@ import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } fr
 import { useRouter } from "next/navigation";
 import { GeneratedLockNote } from "@/components/run-notes";
 import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
+import { SlotTestFilesDialog, slotTestFiles } from "./slot-test-files-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,8 @@ export function PersonalRunGameSelectionPage({
   const [justAdded, setJustAdded] = useState<Set<string>>(new Set());
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
   const [expandedPreflightSlotId, setExpandedPreflightSlotId] = useState<string | null>(null);
+  // Story 44.7: the slot whose « Tester ma config » waits for the ROM in a modal.
+  const [fileTestSlot, setFileTestSlot] = useState<{ slotId: string; gameName: string; requiredFiles: unknown } | null>(null);
   const addTimers = useRef<Map<string, [ReturnType<typeof setTimeout>, ReturnType<typeof setTimeout>]>>(new Map());
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -421,8 +424,13 @@ export function PersonalRunGameSelectionPage({
                     <SlotPreflightBadge
                       detailsOpen={expandedPreflightSlotId === slot.slotId}
                       onRetest={async () => {
-                        const accepted = await requestSlotPreflight(runId, slot.slotId);
-                        if (accepted) {
+                        // Story 44.7: a game that reads a ROM is tested with it - the file is asked first.
+                        if (slotTestFiles(slot.requiredFiles).length > 0) {
+                          setFileTestSlot({ slotId: slot.slotId, gameName: label, requiredFiles: slot.requiredFiles });
+                          return;
+                        }
+                        const result = await requestSlotPreflight(runId, slot.slotId);
+                        if (result.ok) {
                           void queryClient.invalidateQueries({ queryKey: ["personal-run-game-selection", runId] });
                         }
                       }}
@@ -667,6 +675,20 @@ export function PersonalRunGameSelectionPage({
           </>
         )}
       </section>
+
+      {fileTestSlot !== null ? (
+        <SlotTestFilesDialog
+          gameName={fileTestSlot.gameName}
+          onLaunched={() => void queryClient.invalidateQueries({ queryKey: ["personal-run-game-selection", runId] })}
+          onOpenChange={(open) => {
+            if (!open) setFileTestSlot(null);
+          }}
+          open
+          requiredFiles={fileTestSlot.requiredFiles}
+          runId={runId}
+          slotId={fileTestSlot.slotId}
+        />
+      ) : null}
     </article>
   );
 }
