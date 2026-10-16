@@ -83,7 +83,7 @@ interface RunnerGatewayInterface
      * Returns an empty array when the runner is unreachable - callers MUST fail open (never
      * block on missing data).
      *
-     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string}>
+     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}>
      */
     public function fetchApworldPreflights(): array;
 
@@ -98,14 +98,17 @@ interface RunnerGatewayInterface
     /**
      * Re-run the upload-time preflight for one apworld (asynchronous on the orchestrator).
      * Returns false when the runner rejected the request or is unreachable.
+     *
+     * @param list<string> $requiredFileIds held files the test reads, provided by an admin (story 44.6); the
+     *                                      verdict then says withRequiredFiles
      */
-    public function runApworldPreflight(string $hash): bool;
+    public function runApworldPreflight(string $hash, array $requiredFileIds = []): bool;
 
     /**
      * Toggle the admin "force allow" override on a preflight verdict (story 9.38 AC4).
      * Returns the updated verdict, or null when the runner is unreachable.
      *
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string}|null
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}|null
      */
     public function overrideApworldPreflight(string $hash, bool $overridden): ?array;
 
@@ -129,8 +132,10 @@ interface RunnerGatewayInterface
      * Queue a solo test generation of one player's real YAML (story 9.42). $apworldHash is
      * null for official worlds bundled in the generation image. Returns the orchestrator job
      * id to poll with getSlotPreflight, or null when the runner is unreachable.
+     *
+     * @param list<string> $requiredFileIds held files the test reads (story 44.6)
      */
-    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string;
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash, array $requiredFileIds = []): ?string;
 
     /**
      * Poll a slot preflight job. Returns null for unknown/expired ids or runner errors (the

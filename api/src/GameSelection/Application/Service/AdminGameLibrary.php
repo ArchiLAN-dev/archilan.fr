@@ -21,8 +21,11 @@ use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\Service\ArchipelagoImageFreshness;
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Sessions\Application\Support\GenerationFailureParser;
+use App\Sessions\Application\Support\ProvidedGenerationFile;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
@@ -47,6 +50,7 @@ final readonly class AdminGameLibrary
         private InstallStepsReader $stepsReader,
         private SubmitApworldCandidate $submitCandidate,
         private ApworldCandidateRepositoryInterface $candidates,
+        private RequiredGenerationFiles $requiredGenerationFiles,
     ) {
     }
 
@@ -439,11 +443,15 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * Re-run the upload-time preflight test generation of this game's apworld (story 9.38).
+     * Re-run the upload-time preflight test generation of this game's apworld (story 9.38), with the files an
+     * admin provided (story 44.6): handed to the orchestrator during the request, never stored, and dropped
+     * again when the runner does not take the test. A refused file is reported under `requiredFiles`.
+     *
+     * @param list<ProvidedGenerationFile> $files
      *
      * @return array{found: bool, errors: array<string, list<string>>}
      */
-    public function rerunApworldPreflight(string $gameId): array
+    public function rerunApworldPreflight(string $gameId, array $files = []): array
     {
         $game = $this->gameRepository->findById($gameId);
         if (!$game instanceof Game) {
@@ -455,11 +463,19 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['apworld' => ['Ce jeu n\'a pas d\'apworld configuré.']]];
         }
 
-        if (!$this->runnerGateway->runApworldPreflight($hash)) {
+        try {
+            $fileIds = $this->requiredGenerationFiles->stage($files);
+        } catch (RequiredGenerationFileRefusedException) {
+            return ['found' => true, 'errors' => ['requiredFiles' => ['Le fichier n\'a pas pu être transmis. Réessaie dans un instant.']]];
+        }
+
+        if (!$this->runnerGateway->runApworldPreflight($hash, $fileIds)) {
+            $this->requiredGenerationFiles->release($fileIds);
+
             return ['found' => true, 'errors' => ['apworld' => ['Le runner est indisponible, réessaie plus tard.']]];
         }
 
-        $this->logger->info('game.apworld_preflight_rerun', ['gameId' => $gameId, 'hash' => $hash]);
+        $this->logger->info('game.apworld_preflight_rerun', ['gameId' => $gameId, 'hash' => $hash, 'files' => \count($fileIds)]);
 
         return ['found' => true, 'errors' => []];
     }

@@ -73,6 +73,9 @@ final readonly class SweepApworldCatalog
                     // that passed has nothing forced any more, and is retested like any other (story
                     // 38.10) - which is also what clears a leftover override on the orchestrator.
                     || (true === $verdict['overridden'] && 'failed' === $status)
+                    // A pass obtained with the file an admin provided (story 44.6): the rolling test cannot
+                    // provide it, so its run would only fail again. A new apworld version starts afresh.
+                    || (true === ($verdict['withRequiredFiles'] ?? false) && 'passed' === $status)
                     || \in_array($status, ['pending', 'skipped'], true),
             );
         }

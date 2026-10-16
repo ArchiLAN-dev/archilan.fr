@@ -19,13 +19,13 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** @var array{status: string, bridgePort: ?int, apPort: ?int}|null Canned getSessionInfo() return for reconciliation tests. */
     public static ?array $nextSessionInfo = null;
 
-    /** @var array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string}> Canned preflight verdicts by hash (story 9.38 tests). */
+    /** @var array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}> Canned preflight verdicts by hash (story 9.38 tests). */
     public static array $apworldPreflights = [];
 
     /** @var array{apImage: string, apImageId: string|null}|null Canned image in use (story 38.8 tests); null = runner silent. */
     public static ?array $runtime = null;
 
-    /** @var array{playerYaml: string, apworldHash: ?string}|null The last startSlotPreflight() call (story 38.14 tests). */
+    /** @var array{playerYaml: string, apworldHash: ?string, requiredFileIds: list<string>}|null The last startSlotPreflight() call (stories 38.14, 44.6 tests). */
     public static ?array $lastSlotPreflight = null;
 
     /** @var array{status: string, error: string}|null Canned getSlotPreflight() result; null = an unknown job (story 38.14 tests). */
@@ -49,6 +49,12 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** When true, generateSession() reads as an orchestrator that no longer holds the files (story 44.2 tests). */
     public static bool $requiredFilesExpired = false;
 
+    /** @var list<array{hash: string, requiredFileIds: list<string>}> Each runApworldPreflight() call (story 44.6 tests). */
+    public static array $apworldPreflightRuns = [];
+
+    /** When true, runApworldPreflight() reads as a runner that did not answer (story 44.6 tests). */
+    public static bool $apworldPreflightUnavailable = false;
+
     /** @var array<string, list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>> Canned declared files by apworld hash (story 44.3 tests). */
     public static array $declaredFiles = [];
 
@@ -59,6 +65,8 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     {
         self::$declaredFiles = [];
         self::$officialDeclaredFiles = null;
+        self::$apworldPreflightRuns = [];
+        self::$apworldPreflightUnavailable = false;
         self::$stagedFiles = [];
         self::$releasedFileIds = [];
         self::$generatedWithFileIds = [];
@@ -139,13 +147,18 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return self::$runtime;
     }
 
-    public function runApworldPreflight(string $hash): bool
+    public function runApworldPreflight(string $hash, array $requiredFileIds = []): bool
     {
+        if (self::$apworldPreflightUnavailable) {
+            return false;
+        }
+        self::$apworldPreflightRuns[] = ['hash' => $hash, 'requiredFileIds' => $requiredFileIds];
+
         return true;
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string}
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}
      */
     public function overrideApworldPreflight(string $hash, bool $overridden): array
     {
@@ -177,12 +190,12 @@ final class NullRunnerGateway implements RunnerGatewayInterface
             : ['error' => 'runner_unavailable'];
     }
 
-    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash, array $requiredFileIds = []): ?string
     {
         if (self::$slotPreflightUnavailable) {
             return null;
         }
-        self::$lastSlotPreflight = ['playerYaml' => $playerYaml, 'apworldHash' => $apworldHash];
+        self::$lastSlotPreflight = ['playerYaml' => $playerYaml, 'apworldHash' => $apworldHash, 'requiredFileIds' => $requiredFileIds];
 
         return 'null-preflight-job';
     }

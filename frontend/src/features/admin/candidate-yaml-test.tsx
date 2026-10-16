@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, FileCode2, Loader2, XCircle } from "lucide-react";
 
+import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
 import { getApworldCandidateYamlTest, startApworldCandidateYamlTest } from "./admin-games-api";
+import { testFilesBlocker, testFilesOfGame } from "./admin-game-test-files";
 
 const POLL_MS = 3000;
 /** The orchestrator gives up on a test generation after a few minutes; stop polling well after that. */
@@ -17,11 +19,15 @@ export type YamlTestState =
 
 /**
  * Story 38.14: generate a pasted YAML against the candidate version - the admin's own, or the one of a player who
- * hit the problem - before putting it online. Nothing goes online, no incident is opened.
+ * hit the problem - before putting it online. Nothing goes online, no incident is opened. A ROM game's test
+ * carries the ROM the admin provides (story 44.6).
  */
-export function CandidateYamlTest({ gameId }: { gameId: string }) {
+export function CandidateYamlTest({ gameId, requiredFiles }: { gameId: string; requiredFiles?: unknown }) {
   const [yaml, setYaml] = useState("");
   const [state, setState] = useState<YamlTestState>({ kind: "idle" });
+  const testFiles = useMemo(() => testFilesOfGame(requiredFiles), [requiredFiles]);
+  const provided = useProvidedFiles(testFiles);
+  const filesBlocker = testFilesBlocker(provided.states);
 
   const jobId = state.kind === "running" ? state.jobId : null;
 
@@ -58,7 +64,8 @@ export function CandidateYamlTest({ gameId }: { gameId: string }) {
   }, [gameId, jobId]);
 
   async function start() {
-    const result = await startApworldCandidateYamlTest(gameId, yaml);
+    const result = await startApworldCandidateYamlTest(gameId, yaml, provided.files);
+    if (result.ok) provided.reset();
     setState(result.ok ? { kind: "running", jobId: result.jobId } : { kind: "error", message: result.message });
   }
 
@@ -81,10 +88,18 @@ export function CandidateYamlTest({ gameId }: { gameId: string }) {
           spellCheck={false}
           value={yaml}
         />
+        <RequiredFilesPanel
+          disabled={state.kind === "running"}
+          intro="Le monde de ce jeu lit un fichier à toi pendant la génération, une ROM le plus souvent. Sans ce fichier, le test échouera. Il est vérifié ici, envoyé pour ce test seulement, puis supprimé : ArchiLAN ne le garde jamais."
+          needed={testFiles}
+          onChoose={(required, file) => void provided.choose(required, file)}
+          states={provided.states}
+        />
         <div className="flex flex-wrap items-center gap-3">
           <button
             className="inline-flex min-h-9 items-center gap-1.5 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={state.kind === "running" || yaml.trim() === ""}
+            disabled={state.kind === "running" || yaml.trim() === "" || filesBlocker !== null}
+            title={filesBlocker ?? undefined}
             onClick={() => void start()}
             type="button"
           >

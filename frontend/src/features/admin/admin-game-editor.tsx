@@ -44,6 +44,8 @@ import {ApworldPreflightWarning} from "./apworld-preflight-warning";
 import {overrideIsActive} from "./apworld-preflight-override";
 import {ApworldIncidentBanner} from "./apworld-incident-banner";
 import {AdminGameRequiredFiles} from "./admin-game-required-files";
+import {passedWithFilesLabel, testFilesBlocker, testFilesOfGame} from "./admin-game-test-files";
+import {RequiredFilesPanel, useProvidedFiles} from "@/features/games/required-files-panel";
 import {updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone} from "./apworld-update-status";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -1744,7 +1746,7 @@ function ApworldCandidateBlock({game, onUpdate}: { game: AdminGame; onUpdate: (g
             />
             {error !== null && <p className="mt-2 text-sm text-danger" role="alert">{error}</p>}
             {/* Story 38.14: try the candidate with a real YAML before it serves players. */}
-            {game.apworldCandidate ? <div className="mt-2"><CandidateYamlTest gameId={game.id}/></div> : null}
+            {game.apworldCandidate ? <div className="mt-2"><CandidateYamlTest gameId={game.id} requiredFiles={game.requiredFiles}/></div> : null}
         </>
     );
 }
@@ -1767,6 +1769,10 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
     // a local copy is exactly what kept the panel stale until a page reload. Both actions
     // invalidate the query, and the editor polls while the status is pending.
     const preflight: ApworldPreflight | null = game.apworldPreflight ?? null;
+    // Story 44.6: the ROM a ROM game's test reads, chosen and checked here, forgotten once the test is sent.
+    const testFiles = useMemo(() => testFilesOfGame(game.requiredFiles), [game.requiredFiles]);
+    const provided = useProvidedFiles(testFiles);
+    const filesBlocker = testFilesBlocker(provided.states);
 
     async function refreshGame(): Promise<void> {
         await queryClient.invalidateQueries({ queryKey: ["admin-game", game.id] });
@@ -1775,10 +1781,12 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
     async function handleRerun(): Promise<void> {
         setBusy(true);
         setError(null);
-        if (await rerunApworldPreflight(game.id)) {
+        const result = await rerunApworldPreflight(game.id, provided.files);
+        if (result.ok) {
+            provided.reset();
             await refreshGame();
         } else {
-            setError("Impossible de relancer le test (runner indisponible ?).");
+            setError(result.message);
         }
         setBusy(false);
     }
@@ -1795,6 +1803,7 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
     }
 
     const info = preflight !== null ? preflightLabels[preflight.status] : null;
+    const passedWithFiles = preflight !== null ? passedWithFilesLabel(preflight, testFiles) : null;
 
     return (
         <div className="grid gap-2">
@@ -1802,7 +1811,7 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
                 <div className="grid gap-0.5">
                     <span className="text-xs uppercase tracking-wide text-muted-foreground">Test de génération</span>
                     <span className={`text-sm font-semibold ${info?.className ?? "text-muted-foreground"}`}>
-                        {info?.label ?? "Jamais testée"}
+                        {passedWithFiles ?? info?.label ?? "Jamais testée"}
                         {preflight?.checkedAt ? (
                             <span className="ml-2 text-xs font-normal text-muted-foreground">
                                 le{" "}
@@ -1817,7 +1826,8 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
                 <div className="flex flex-wrap gap-2">
                     <button
                         className="inline-flex min-h-8 items-center rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={busy || preflight?.status === "pending"}
+                        disabled={busy || preflight?.status === "pending" || filesBlocker !== null}
+                        title={filesBlocker ?? undefined}
                         type="button"
                         onClick={() => void handleRerun()}
                     >
@@ -1835,6 +1845,15 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
                     ) : null}
                 </div>
             </div>
+
+            <RequiredFilesPanel
+                disabled={busy}
+                intro="Le monde de ce jeu lit un fichier à toi pendant la génération, une ROM le plus souvent. Sans ce fichier, le test échouera. Il est vérifié ici, envoyé pour ce test seulement, puis supprimé : ArchiLAN ne le garde jamais."
+                needed={testFiles}
+                onChoose={(required, file) => void provided.choose(required, file)}
+                states={provided.states}
+            />
+            {filesBlocker !== null ? <p className="text-xs text-danger">{filesBlocker}</p> : null}
 
             {preflight?.status === "passed" && preflight.warning ? <ApworldPreflightWarning warning={preflight.warning} /> : null}
 

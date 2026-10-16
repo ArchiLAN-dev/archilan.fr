@@ -10,6 +10,17 @@ describe("CandidateYamlTest", () => {
     expect(html).toContain("Tester avec un YAML");
     expect(html).toContain("<textarea");
     expect(html).toContain("rien n&#x27;est mis en ligne");
+    expect(html).not.toContain("Fichiers à fournir");
+  });
+
+  // Story 44.6: a ROM game's test asks for the ROM, and says it fails without it.
+  test("asks for the file a ROM game's generation needs", () => {
+    const rom = { setting: "DK3Settings.rom_file", file: "dkc3.sfc", extension: ".sfc", description: "DKC3 (US) ROM File", md5s: [], neededAtGeneration: true };
+    const html = renderToStaticMarkup(<CandidateYamlTest gameId="game-1" requiredFiles={[rom]} />);
+
+    expect(html).toContain("Fichiers à fournir");
+    expect(html).toContain("DKC3 (US) ROM File");
+    expect(html).toContain("Sans ce fichier, le test échouera.");
   });
 });
 

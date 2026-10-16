@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, FileUp, Loader2 } from "lucide-react";
 import {
   acceptedFiles,
@@ -40,33 +40,38 @@ export function useProvidedFiles(declared: GenerationFile[]) {
   };
 }
 
+const LAUNCH_INTRO =
+  "Un des jeux lit un fichier à toi pendant la génération, une ROM le plus souvent. Il est vérifié ici, envoyé pour cette génération seulement, puis supprimé : ArchiLAN ne le garde jamais.";
+
 type Props = {
   needed: GenerationFile[];
   states: Record<string, ProvidedFileState>;
   onChoose: (required: GameRequiredFile, file: File) => void;
   disabled?: boolean;
+  /** What the panel says above the files; the launch wording by default (an admin test words it its own way, story 44.6). */
+  intro?: string;
 };
 
 /** One row per file a generation needs; nothing at all when none is needed. */
-export function RequiredFilesPanel({ needed, states, onChoose, disabled = false }: Props) {
+export function RequiredFilesPanel({ needed, states, onChoose, disabled = false, intro = LAUNCH_INTRO }: Props) {
+  // Two panels can share a page (the admin game page has one per test): ids must not collide.
+  const id = useId();
   if (needed.length === 0) return null;
 
   return (
-    <section aria-labelledby="required-files-panel-title" className="grid gap-3 rounded-lg border border-accent-warm/40 bg-accent-warm/10 p-4">
+    <section aria-labelledby={`${id}-title`} className="grid gap-3 rounded-lg border border-accent-warm/40 bg-accent-warm/10 p-4">
       <div>
-        <h3 className="font-heading text-base font-semibold text-foreground" id="required-files-panel-title">
+        <h3 className="font-heading text-base font-semibold text-foreground" id={`${id}-title`}>
           Fichiers à fournir
         </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Un des jeux lit un fichier à toi pendant la génération, une ROM le plus souvent. Il est vérifié ici, envoyé
-          pour cette génération seulement, puis supprimé : ArchiLAN ne le garde jamais.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{intro}</p>
       </div>
       <ul className="grid gap-3">
         {needed.map((file) => (
           <RequiredFileRow
             disabled={disabled}
             file={file}
+            inputId={`${id}-${file.setting}`}
             key={file.setting}
             onChoose={onChoose}
             state={states[file.setting] ?? { kind: "missing" }}
@@ -82,13 +87,14 @@ function RequiredFileRow({
   state,
   onChoose,
   disabled,
+  inputId,
 }: {
   file: GenerationFile;
   state: ProvidedFileState;
   onChoose: (required: GameRequiredFile, file: File) => void;
   disabled: boolean;
+  inputId: string;
 }) {
-  const inputId = `required-file-${file.setting}`;
   const tone =
     state.kind === "accepted" ? "text-success" : state.kind === "wrong" || state.kind === "tooLarge" ? "text-danger" : "text-muted-foreground";
 

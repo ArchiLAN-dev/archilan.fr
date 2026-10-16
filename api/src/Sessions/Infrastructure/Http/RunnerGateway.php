@@ -334,10 +334,10 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
     }
 
-    public function runApworldPreflight(string $hash): bool
+    public function runApworldPreflight(string $hash, array $requiredFileIds = []): bool
     {
         try {
-            $this->client->apworlds()->runPreflight($hash);
+            $this->client->apworlds()->runPreflight($hash, $requiredFileIds);
 
             return true;
         } catch (\Throwable $e) {
@@ -359,7 +359,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null, warning: string}
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null, warning: string, withRequiredFiles: bool}
      */
     private function preflightPayload(ApworldPreflight $preflight): array
     {
@@ -375,6 +375,8 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
             // Story 38.12: what the generator reported on a pass (accessibility not met, as the Launcher
             // allows); empty otherwise.
             'warning' => $preflight->warning,
+            // Story 44.6: the test was given the file its world reads, which only an admin can provide.
+            'withRequiredFiles' => $preflight->withRequiredFiles,
         ];
     }
 
@@ -402,10 +404,10 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
     }
 
-    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash, array $requiredFileIds = []): ?string
     {
         try {
-            return $this->client->preflight()->start($playerYaml, $apworldHash)->id;
+            return $this->client->preflight()->start($playerYaml, $apworldHash, $requiredFileIds)->id;
         } catch (\Throwable $e) {
             $this->logger->warning('runner.slot_preflight_start_failed', ['error' => $e->getMessage()]);
 
