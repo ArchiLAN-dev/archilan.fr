@@ -127,6 +127,24 @@ Fill.FillError: Could not access required locations for accessibility check.';
         self::assertSame($raw, $preflight['error'] ?? null);
     }
 
+    // Review of epic 44: editing the template of a ROM game does not rerun its test without the ROM.
+    public function testEditingTheTemplateOfARomGameAsksForATestWithTheFile(): void
+    {
+        $this->game->markRequiredAtGeneration('DK3Settings.rom_file', 'dkc3.sfc', '.sfc', 'DKC3 (US) ROM File', []);
+        $this->entityManager->flush();
+        $this->loginAs($this->admin);
+
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/admin/games/%s/default-yaml', $this->game->getId()), ['defaultYaml' => "name: Player{number}\ngame: Donkey Kong Country 3\n"]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([], NullRunnerGateway::$apworldPreflightRuns);
+        $meta = $this->decodedJsonResponse()['meta'] ?? null;
+        self::assertIsArray($meta);
+        $warning = $meta['warning'] ?? null;
+        self::assertIsString($warning);
+        self::assertStringContainsString('relance le test avec lui', $warning);
+    }
+
     /** @param array<string, UploadedFile> $files */
     private function rerun(array $files): void
     {

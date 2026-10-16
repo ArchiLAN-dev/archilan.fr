@@ -83,7 +83,10 @@ afin de lancer une partie avec un jeu à ROM sans échec de génération ni patc
 5. Les erreurs de l'API sont lisibles : le premier message de `error.details.requiredFiles` en 422
    `validation_failed`, le message de `required_file_refused`, et le 403. Le fichier sélectionné est gardé pour
    réessayer.
-6. **Participant** : quand `requiresLauncherFiles` est vrai, son bouton de reprise est désactivé avec « Seul
+6. **[Amendé à la revue du 2026-10-16 : écart accepté]** Une run en veille reprend depuis sa sauvegarde
+   (`/sessions/{id}/restart`) sans régénérer : aucun fichier n'y est demandé, le champ `requiresLauncherFiles` et
+   le bouton désactivé ne servent donc à rien. Texte d'origine conservé pour mémoire.
+   **Participant** : quand `requiresLauncherFiles` est vrai, son bouton de reprise est désactivé avec « Seul
    <propriétaire> peut relancer cette partie : un des jeux demande un fichier au lancement. » (API : nouveau champ
    `requiresLauncherFiles` dans le détail de run, vrai si un jeu de la run a un fichier `neededAtGeneration`).
 7. Une génération échouée pour fichier expiré affiche déjà le message de l'API (bannière d'échec existante) ;

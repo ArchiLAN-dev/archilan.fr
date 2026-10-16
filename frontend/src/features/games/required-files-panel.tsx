@@ -16,8 +16,10 @@ import { requiredFileLabel, type GameRequiredFile, type GenerationFile } from ".
  * Story 44.5: the files a launch must carry, chosen and checked in the browser. The `File` objects live in
  * this state only - never in a query cache nor in browser storage - and are dropped with the page.
  */
-export function useProvidedFiles(declared: GenerationFile[]) {
-  const needed = useMemo(() => filesToProvide(declared), [declared]);
+export function useProvidedFiles(declared: GenerationFile[], { includeDeclared = false }: { includeDeclared?: boolean } = {}) {
+  // A launch asks only for the files a failed generation proved necessary; a candidate's YAML test may offer the
+  // declared ones too (review of epic 44).
+  const needed = useMemo(() => (includeDeclared ? declared : filesToProvide(declared)), [declared, includeDeclared]);
   const [states, setStates] = useState<Record<string, ProvidedFileState>>({});
 
   const choose = useCallback(async (required: GameRequiredFile, file: File) => {
@@ -36,7 +38,7 @@ export function useProvidedFiles(declared: GenerationFile[]) {
     choose,
     reset,
     blocker: launchBlocker(needed, states),
-    files: acceptedFiles(states),
+    files: acceptedFiles(states, needed),
   };
 }
 

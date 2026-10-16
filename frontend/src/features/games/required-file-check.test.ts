@@ -1,5 +1,6 @@
 import {
   acceptedFiles,
+  hasRefusedFile,
   checkProvidedFile,
   filesToProvide,
   launchBlocker,
@@ -67,5 +68,29 @@ describe("provided file check (story 44.5)", () => {
     const sent = form.get("requiredFiles[DK3Settings.rom_file]");
     expect(sent).toBeInstanceOf(File);
     expect(sent instanceof File ? sent.name : "").toBe("Donkey Kong Country 3 (USA).sfc");
+  });
+});
+
+/** Review of epic 44. */
+describe("required file check, review fixes", () => {
+  const rom = { setting: "DK3Settings.rom_file", file: "dkc3.sfc", extension: ".sfc", description: null, md5s: ["900150983CD24FB0D6963F7D28E17F72"], neededAtGeneration: true };
+
+  it("accepts the right file whatever the case of the declared MD5", async () => {
+    // md5("abc") = 900150983cd24fb0d6963f7d28e17f72
+    const state = await checkProvidedFile(rom, new File(["abc"], "dkc3.sfc"));
+    expect(state.kind).toBe("accepted");
+  });
+
+  it("sends only the files still needed", () => {
+    const states = {
+      "DK3Settings.rom_file": { kind: "accepted" as const, file: new File(["a"], "a.sfc"), md5: null },
+      "Gone.rom_file": { kind: "accepted" as const, file: new File(["b"], "b.sfc"), md5: null },
+    };
+    expect(Object.keys(acceptedFiles(states, [rom]))).toEqual(["DK3Settings.rom_file"]);
+  });
+
+  it("knows when a chosen file can be taken back", () => {
+    expect(hasRefusedFile({ a: { kind: "wrong", md5: "x", expected: "DKC3" } })).toBe(true);
+    expect(hasRefusedFile({ a: { kind: "checking", progress: 0 } })).toBe(false);
   });
 });

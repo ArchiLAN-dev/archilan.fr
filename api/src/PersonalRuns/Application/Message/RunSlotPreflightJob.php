@@ -32,4 +32,26 @@ final readonly class RunSlotPreflightJob
         public array $requiredFileIds = [],
     ) {
     }
+
+    /**
+     * Review of epic 44: unserialize() never runs the constructor, so a message queued before requiredFileIds
+     * existed would leave it uninitialised and crash the handler that reads it. Such a message carries no file.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function __unserialize(array $data): void
+    {
+        foreach (['runId', 'userId', 'slotId', 'yamlSha'] as $key) {
+            $value = $data[$key] ?? null;
+            $this->{$key} = is_string($value) ? $value : '';
+        }
+        $orchestratorJobId = $data['orchestratorJobId'] ?? null;
+        $this->orchestratorJobId = is_string($orchestratorJobId) ? $orchestratorJobId : null;
+        $polls = $data['polls'] ?? 0;
+        $this->polls = is_int($polls) ? $polls : 0;
+        $apworldHash = $data['apworldHash'] ?? null;
+        $this->apworldHash = is_string($apworldHash) ? $apworldHash : null;
+        $ids = $data['requiredFileIds'] ?? [];
+        $this->requiredFileIds = is_array($ids) ? array_values(array_filter($ids, is_string(...))) : [];
+    }
 }

@@ -35,6 +35,9 @@ use Symfony\Component\Yaml\Yaml;
 
 final readonly class PersonalRunGameSelection implements RunGameAssignmentInterface
 {
+    /** Twice the slot test's own polling deadline (RunSlotPreflightJobHandler, ~7 minutes). */
+    private const int STALE_PENDING_SECONDS = 15 * 60;
+
     public function __construct(
         private RunRepositoryInterface $runs,
         private RunParticipantRepositoryInterface $participants,
@@ -86,9 +89,11 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         ));
 
         $slots = [];
+        $now = $this->clock->now();
         foreach ($existingSlots as $slot) {
             $game = $gamesById[$slot['gameId']] ?? null;
             $slots[] = array_merge($slot, [
+                'preflight' => self::withoutStalePending($slot['preflight'] ?? null, $now),
                 'gameName' => $game?->getName() ?? $slot['gameId'],
                 'playerYaml' => $slot['playerYaml'] ?? null,
                 'apworldHash' => $slot['apworldHash'] ?? null,
@@ -452,7 +457,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
 
         // Story 44.7: a game that reads a file at generation (a ROM) is only tested with it - the automatic test
         // could only fail on its absence. Saving forgot the previous verdict; the player tests with the ROM.
-        if (self::needsAFileAtGeneration($game)) {
+        if ($game->needsAFileAtGeneration()) {
             $this->participants->flush();
             $this->logger->info('personal_run.slot_yaml_saved', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 
@@ -511,20 +516,43 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         }
 
         $yamlSha = hash('sha256', $yaml);
-        $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $this->clock->now());
-        $this->participants->flush();
+        try {
+            $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $this->clock->now());
+            $this->participants->flush();
 
-        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha, apworldHash: $slot['apworldHash'] ?? null, requiredFileIds: $fileIds));
+            $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha, apworldHash: $slot['apworldHash'] ?? null, requiredFileIds: $fileIds));
+        } catch (\Throwable $e) {
+            // Nothing will consume the held files: give them back rather than let them wait for their expiry.
+            $this->requiredGenerationFiles->release($fileIds);
+
+            throw $e;
+        }
 
         $this->logger->info('personal_run.slot_preflight_requested', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 
         return $this->yamlResult(found: true);
     }
 
-    /** Story 44.7: the game reads a file a failed generation proved necessary (story 44.3). */
-    private static function needsAFileAtGeneration(Game $game): bool
+    /**
+     * Review of epic 44: a test still pending long after the handler's own deadline (~7 minutes of polling) lost its
+     * job - a worker that could not read it, a restart. Shown as a failure the player can run again, instead of a
+     * « Test en cours… » that hides the button for good.
+     *
+     * @param array{status: string, error: string, checkedAt: string, yamlSha: string}|null $preflight
+     *
+     * @return array{status: string, error: string, checkedAt: string, yamlSha: string}|null
+     */
+    private static function withoutStalePending(?array $preflight, \DateTimeImmutable $now): ?array
     {
-        return array_any($game->getRequiredFiles(), fn ($file) => $file['neededAtGeneration']);
+        if (null === $preflight || 'pending' !== $preflight['status']) {
+            return $preflight;
+        }
+        $since = \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $preflight['checkedAt']);
+        if (false === $since || $now->getTimestamp() - $since->getTimestamp() < self::STALE_PENDING_SECONDS) {
+            return $preflight;
+        }
+
+        return [...$preflight, 'status' => 'failed', 'error' => 'Le test n\'a pas répondu : relance-le.'];
     }
 
     /**

@@ -418,6 +418,15 @@ final class Game
         return $this->requiredFiles ?? [];
     }
 
+    /**
+     * A generation of this game reads a file the launcher provides (a ROM), proven by a failed generation
+     * (story 44.3). A test run without it can only fail on its absence (review of epic 44).
+     */
+    public function needsAFileAtGeneration(): bool
+    {
+        return array_any($this->getRequiredFiles(), static fn (array $file): bool => $file['neededAtGeneration']);
+    }
+
     /** Whether the world declares this setting or a generation proved it (story 44.3). */
     public function knowsRequiredFile(string $setting): bool
     {

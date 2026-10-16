@@ -46,6 +46,22 @@ final class BackfillApworldPreflightsTest extends TestCase
         self::assertSame(0, $result->skipped);
     }
 
+    // Review of epic 44: --all never replaces a pass obtained with the admin's file by a run without it.
+    public function testRunWithAllLeavesAPassObtainedWithTheFileAlone(): void
+    {
+        $runner = self::createStub(RunnerGatewayInterface::class);
+        $runner->method('fetchApworldPreflights')->willReturn([
+            'aaa' => self::VERDICT_PASSED,
+            'rom' => [...self::VERDICT_PASSED, 'withRequiredFiles' => true],
+        ]);
+        $runner->method('runApworldPreflight')->willReturn(true);
+
+        $result = new BackfillApworldPreflights($runner, new NullLogger())->run(all: true);
+
+        self::assertSame(1, $result->requested);
+        self::assertSame(1, $result->skipped);
+    }
+
     public function testRunCountsRunnerErrors(): void
     {
         $runner = self::createStub(RunnerGatewayInterface::class);

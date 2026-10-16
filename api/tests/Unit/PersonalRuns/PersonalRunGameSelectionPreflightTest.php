@@ -83,6 +83,40 @@ final class PersonalRunGameSelectionPreflightTest extends TestCase
         self::assertSame([], $result['errors']);
     }
 
+    // Review of epic 44: a test pending long past its deadline lost its job; the slot offers the test again.
+    public function testATestPendingForTooLongIsShownAsFailed(): void
+    {
+        $game = $this->game('Some World', 'some-world', 'hash-ok');
+        $existingSlots = [['slotId' => 'slot-1', 'gameId' => $game->getId(), 'slotOrder' => 1]];
+        $service = $this->service($game, [], $existingSlots, pendingSince: new \DateTimeImmutable('2026-07-30T09:00:00+00:00'));
+
+        $preflight = $this->firstSlotPreflight($service);
+
+        self::assertSame('failed', $preflight['status'] ?? null);
+        self::assertSame('Le test n\'a pas répondu : relance-le.', $preflight['error'] ?? null);
+    }
+
+    public function testARecentPendingTestStaysPending(): void
+    {
+        $game = $this->game('Some World', 'some-world', 'hash-ok');
+        $existingSlots = [['slotId' => 'slot-1', 'gameId' => $game->getId(), 'slotOrder' => 1]];
+        $service = $this->service($game, [], $existingSlots, pendingSince: new \DateTimeImmutable('2026-07-30T09:55:00+00:00'));
+
+        self::assertSame('pending', $this->firstSlotPreflight($service)['status'] ?? null);
+    }
+
+    /** @return array<mixed> */
+    private function firstSlotPreflight(PersonalRunGameSelection $service): array
+    {
+        $slots = $service->getMySlots('run-1', 'owner-1')['slots'] ?? [];
+        $slot = $slots[0] ?? null;
+        self::assertIsArray($slot);
+        $preflight = $slot['preflight'] ?? null;
+        self::assertIsArray($preflight);
+
+        return $preflight;
+    }
+
     // Story 38.16: the catalog flags the game a save would refuse, so the member is not offered it blindly.
     public function testTheCatalogFlagsAGameBlockedByItsGenerationTest(): void
     {
@@ -135,7 +169,7 @@ final class PersonalRunGameSelectionPreflightTest extends TestCase
      * @param array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}> $verdicts
      * @param list<array{slotId: string, gameId: string, slotOrder: int}>                                            $existingSlots
      */
-    private function service(Game $game, array $verdicts, array $existingSlots = []): PersonalRunGameSelection
+    private function service(Game $game, array $verdicts, array $existingSlots = [], ?\DateTimeImmutable $pendingSince = null): PersonalRunGameSelection
     {
         $now = new \DateTimeImmutable('2026-07-30T10:00:00+00:00');
 
@@ -146,6 +180,9 @@ final class PersonalRunGameSelectionPreflightTest extends TestCase
         $participant = RunParticipant::create($run->getId(), 'owner-1', $now);
         if ([] !== $existingSlots) {
             $participant->replaceSlots($existingSlots);
+        }
+        if (null !== $pendingSince) {
+            $participant->recordSlotPreflight($existingSlots[0]['slotId'], 'pending', '', 'sha', $pendingSince);
         }
         $participants = self::createStub(RunParticipantRepositoryInterface::class);
         $participants->method('findByRunAndUser')->willReturn($participant);

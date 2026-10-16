@@ -92,9 +92,10 @@ final readonly class UpgradeRunSlotsAfterApworldPromotionHandler
         foreach ($upgrades as [$participant, $slotId, $playerYaml, $decision]) {
             $participant->upgradeSlotApworld($slotId, $plan->promotion->newHash, $decision->replacementYaml, $decision->reviewReasons);
 
-            // Every upgraded slot is tested again, like a saved YAML (story 9.42).
+            // Every upgraded slot is tested again, like a saved YAML (story 9.42) - except for a game that reads a file
+            // at generation: without it the test could only fail (review of epic 44); the player tests with the ROM.
             $effectiveYaml = $decision->replacementYaml ?? $playerYaml;
-            if (null !== $effectiveYaml && '' !== $effectiveYaml) {
+            if (null !== $effectiveYaml && '' !== $effectiveYaml && !$game->needsAFileAtGeneration()) {
                 $yamlSha = hash('sha256', $effectiveYaml);
                 $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $now);
                 $preflights[] = new RunSlotPreflightJob($run->getId(), $participant->getUserId(), $slotId, $yamlSha, apworldHash: $plan->promotion->newHash);

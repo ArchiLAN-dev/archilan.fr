@@ -441,7 +441,12 @@ final readonly class AdminGameLibraryController
             return $this->apiAccessGuard->errorResponse('regenerate_failed', 'La régénération a échoué.', 500);
         }
 
-        return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Template régénéré depuis l\'apworld.']]);
+        $meta = ['message' => 'Template régénéré depuis l\'apworld.'];
+        if (isset($result['warning'])) {
+            $meta['warning'] = $result['warning'];
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => $meta]);
     }
 
     #[Route('/api/v1/admin/games/{gameId}/apworld-preflight', name: 'api_admin_game_apworld_preflight_rerun', methods: ['POST'])]

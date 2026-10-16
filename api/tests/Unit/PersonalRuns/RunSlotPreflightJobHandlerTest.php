@@ -85,6 +85,39 @@ final class RunSlotPreflightJobHandlerTest extends TestCase
         self::assertSame(['staged-1'], $this->released);
     }
 
+    // Review of epic 44: a message queued before requiredFileIds existed still decodes, with no file.
+    public function testAMessageQueuedBeforeTheFilesExistedStillDecodes(): void
+    {
+        $old = 'O:'.\strlen(RunSlotPreflightJob::class).':"'.RunSlotPreflightJob::class.'":7:{s:5:"runId";s:5:"run-1";s:6:"userId";s:6:"user-1";s:6:"slotId";s:6:"slot-1";s:7:"yamlSha";s:3:"abc";s:17:"orchestratorJobId";N;s:5:"polls";i:0;s:11:"apworldHash";s:6:"hash-1";}';
+
+        $job = unserialize($old);
+
+        self::assertInstanceOf(RunSlotPreflightJob::class, $job);
+        self::assertSame([], $job->requiredFileIds);
+        self::assertSame('hash-1', $job->apworldHash);
+    }
+
+    public function testAPlayerWhoLeftReleasesTheFilesOfTheirTest(): void
+    {
+        $handler = $this->handler(null, startResult: 'orch-1');
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), requiredFileIds: ['staged-1']));
+
+        self::assertSame(['staged-1'], $this->released);
+    }
+
+    public function testAPollThatCannotBeQueuedIsRecordedNotRetried(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, startResult: 'orch-1', failDispatch: true);
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), requiredFileIds: ['staged-1']));
+
+        $slot = $participant->getSlot('slot-1');
+        self::assertSame('failed', $slot['preflight']['status'] ?? null);
+        self::assertSame('Le suivi du test a été perdu : relance-le.', $slot['preflight']['error']);
+    }
+
     public function testStartWithRunnerDownRecordsFailedVerdict(): void
     {
         $participant = $this->participant();
@@ -244,7 +277,7 @@ FillError: No more spots to place items.']);
     /**
      * @param array{status: string, error: string}|null $pollResult
      */
-    private function handler(RunParticipant $participant, ?string $startResult = null, ?array $pollResult = null): RunSlotPreflightJobHandler
+    private function handler(?RunParticipant $participant, ?string $startResult = null, ?array $pollResult = null, bool $failDispatch = false): RunSlotPreflightJobHandler
     {
         $participants = self::createStub(RunParticipantRepositoryInterface::class);
         $participants->method('findByRunAndUser')->willReturn($participant);
@@ -264,7 +297,10 @@ FillError: No more spots to place items.']);
         $runner->method('getSlotPreflight')->willReturn($pollResult);
 
         $bus = self::createStub(MessageBusInterface::class);
-        $bus->method('dispatch')->willReturnCallback(function (object $message, array $stamps = []): Envelope {
+        $bus->method('dispatch')->willReturnCallback(function (object $message, array $stamps = []) use ($failDispatch): Envelope {
+            if ($failDispatch) {
+                throw new \RuntimeException('transport down');
+            }
             $onlyStamps = array_values(array_filter($stamps, static fn (mixed $stamp): bool => $stamp instanceof StampInterface));
             $envelope = new Envelope($message, $onlyStamps);
             $this->dispatched[] = $envelope;

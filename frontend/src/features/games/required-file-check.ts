@@ -42,7 +42,8 @@ export async function checkProvidedFile(
   if (required.md5s.length === 0) return { kind: "accepted", file, md5: null };
 
   const md5 = await md5OfFile(file, onProgress);
-  return required.md5s.includes(md5)
+  // spark-md5 gives lower-case hex; a world may declare its hashes in upper case.
+  return required.md5s.some((expected) => expected.toLowerCase() === md5)
     ? { kind: "accepted", file, md5 }
     : { kind: "wrong", md5, expected: requiredFileLabel(required) };
 }
@@ -62,13 +63,22 @@ export function launchBlocker(needed: GameRequiredFile[], states: Record<string,
   return null;
 }
 
-/** The accepted files keyed by their setting, as the launch sends them. */
-export function acceptedFiles(states: Record<string, ProvidedFileState>): Record<string, File> {
+/**
+ * The accepted files keyed by their setting, as the launch sends them. Only those still needed: a file chosen
+ * for a game removed from the run since would be sent for nothing (and count against the 4-file cap).
+ */
+export function acceptedFiles(states: Record<string, ProvidedFileState>, needed?: GameRequiredFile[]): Record<string, File> {
+  const settings = needed !== undefined ? new Set(needed.map((file) => file.setting)) : null;
   const files: Record<string, File> = {};
   for (const [setting, state] of Object.entries(states)) {
-    if (state.kind === "accepted") files[setting] = state.file;
+    if (state.kind === "accepted" && (settings === null || settings.has(setting))) files[setting] = state.file;
   }
   return files;
+}
+
+/** A chosen file is not the right one (or too heavy): the screen offers to take it back. */
+export function hasRefusedFile(states: Record<string, ProvidedFileState>): boolean {
+  return Object.values(states).some((state) => state.kind === "wrong" || state.kind === "tooLarge");
 }
 
 /** The multipart body of a launch with files: `requiredFiles[<setting>]`, the original name kept. */

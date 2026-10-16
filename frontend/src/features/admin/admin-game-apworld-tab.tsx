@@ -7,6 +7,7 @@ import { FileCode2, FlaskConical, GitBranch, Info, Loader2, Plus, RefreshCw, Shi
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
+import { hasRefusedFile } from "@/features/games/required-file-check";
 import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
 import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
 import { parseDefaultYaml, type FreeformDictOption } from "@/lib/archipelago-yaml";
@@ -348,7 +349,16 @@ function TestGenerationForm({ game, onClose, onLaunched }: { game: AdminGame; on
           onChoose={(required, file) => void provided.choose(required, file)}
           states={provided.states}
         />
-        {blocker !== null ? <p className="text-sm text-danger">{blocker}</p> : null}
+        {blocker !== null ? (
+          <p className="flex flex-wrap items-center gap-2 text-sm text-danger">
+            {blocker}
+            {hasRefusedFile(provided.states) ? (
+              <button className={buttonVariants({ variant: "ghost" })} onClick={provided.reset} type="button">
+                Retirer le fichier
+              </button>
+            ) : null}
+          </p>
+        ) : null}
         {error !== null ? (
           <p className="text-sm text-danger" role="alert">
             {error}
