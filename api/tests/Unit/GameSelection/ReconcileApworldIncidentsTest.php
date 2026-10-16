@@ -89,7 +89,7 @@ final class ReconcileApworldIncidentsTest extends TestCase
         self::assertCount(1, $result->openedIncidentIds);
         $incident = $this->incidents->all()[0];
         self::assertSame(ApworldIncidentType::RequiredFile, $incident->getType());
-        self::assertSame('Ce jeu demande le fichier « DKC3 (US) ROM File » (.sfc) à la génération. ArchiLAN ne sait pas encore le fournir.', $incident->getError());
+        self::assertSame('Ce jeu demande le fichier « DKC3 (US) ROM File » (.sfc) à la génération. Le lanceur doit le fournir au lancement de la partie.', $incident->getError());
         self::assertSame([], $this->retriedHashes);
     }
 

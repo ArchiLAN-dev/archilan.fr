@@ -29,3 +29,20 @@ export function asGameRequiredFiles(v: unknown): GameRequiredFile[] {
 export function requiredFileLabel(file: GameRequiredFile): string {
   return file.description ?? file.file;
 }
+
+// Story 44.5: a file of a whole party (run, event session), asked once across its games.
+export type GenerationFile = GameRequiredFile & { games: string[] };
+
+export function isGenerationFile(v: unknown): v is GenerationFile {
+  return (
+    isGameRequiredFile(v) &&
+    "games" in v &&
+    Array.isArray(v.games) &&
+    v.games.every((game: unknown) => typeof game === "string")
+  );
+}
+
+/** The well-formed `generationFiles` of a payload; absent or malformed reads as none. */
+export function asGenerationFiles(v: unknown): GenerationFile[] {
+  return Array.isArray(v) ? v.filter(isGenerationFile) : [];
+}

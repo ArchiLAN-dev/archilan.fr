@@ -71,7 +71,7 @@ final readonly class RequiredGenerationFile
         $name = $this->description ?? $this->file;
 
         return sprintf(
-            'Ce jeu demande le fichier « %s »%s à la génération. ArchiLAN ne sait pas encore le fournir.',
+            'Ce jeu demande le fichier « %s »%s à la génération. Le lanceur doit le fournir au lancement de la partie.',
             $name,
             '' !== $this->extension && null !== $this->description ? sprintf(' (%s)', $this->extension) : '',
         );
