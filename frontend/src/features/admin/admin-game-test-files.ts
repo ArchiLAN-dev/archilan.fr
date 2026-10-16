@@ -7,6 +7,10 @@ import type { ApworldPreflight } from "./admin-games-api";
  * way a launch asks it (story 44.5), but stays optional: without it the test runs and fails on its absence.
  */
 
+/** What the file panel of an admin test says above the files. */
+export const TEST_FILES_INTRO =
+  "Le jeu lit ce fichier pendant la génération. Sans ce fichier, le test échouera. Il est vérifié ici et envoyé pour ce test seulement, jamais gardé.";
+
 /** The files the game's tests should carry: those a failed generation proved necessary. */
 export function testFilesOfGame(requiredFiles: unknown): GenerationFile[] {
   return asGameRequiredFiles(requiredFiles)

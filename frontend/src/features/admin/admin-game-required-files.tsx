@@ -44,13 +44,15 @@ export function AdminGameRequiredFiles({gameId, requiredFiles, onUpdate}: Props)
     }
 
     return (
-        <section className="min-w-0 rounded-lg border border-border bg-surface p-6" aria-labelledby="required-files-title">
-            <h2 className="font-heading text-xl font-semibold text-foreground" id="required-files-title">Fichiers du joueur</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-                Ce que le world lit chez le joueur, une ROM le plus souvent. ArchiLAN ne les stocke jamais : le lanceur les
-                fournit à chaque génération. Seuls les fichiers exigés à la génération lui seront demandés.
-            </p>
-            <ul className="mt-5 grid gap-3">
+        <section className="grid min-w-0 gap-4 rounded-lg border border-border bg-surface p-5 sm:p-6" aria-labelledby="required-files-title">
+            <div className="grid gap-1">
+                <h2 className="font-heading text-lg font-semibold text-foreground" id="required-files-title">Fichiers du joueur</h2>
+                <p className="text-sm text-muted-foreground">
+                    Ce que le world lit chez le joueur, une ROM le plus souvent. ArchiLAN ne les stocke jamais : le lanceur les
+                    fournit à chaque génération. Seuls les fichiers exigés à la génération lui seront demandés.
+                </p>
+            </div>
+            <ul className="grid gap-3">
                 {files.map((file) => {
                     const status = requiredFileStatus(file);
                     return (
@@ -86,7 +88,7 @@ export function AdminGameRequiredFiles({gameId, requiredFiles, onUpdate}: Props)
                     );
                 })}
             </ul>
-            {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
+            {error ? <p className="text-sm text-danger">{error}</p> : null}
         </section>
     );
 }

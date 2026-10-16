@@ -57,7 +57,7 @@ export function ApworldCandidateStatus({ candidate, busy, onForce, onRetry, onAp
 
   return (
     <div
-      className={`mt-4 grid gap-3 rounded border p-4 text-sm ${rejected ? "border-danger/40 bg-danger/10" : "border-accent/40 bg-accent/5"}`}
+      className={`grid gap-3 rounded border p-4 text-sm ${rejected ? "border-danger/40 bg-danger/10" : "border-accent/40 bg-accent/5"}`}
       role="status"
     >
       <p className="flex flex-wrap items-center gap-2 font-semibold text-foreground">

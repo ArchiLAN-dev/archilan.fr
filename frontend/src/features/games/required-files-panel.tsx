@@ -50,28 +50,37 @@ type Props = {
   disabled?: boolean;
   /** What the panel says above the files; the launch wording by default (an admin test words it its own way, story 44.6). */
   intro?: string;
+  /**
+   * `card` stands out on a page; `plain` sits in a modal that is already a frame (story 38.15): no tinted card,
+   * one divided list instead of a bordered box per file.
+   */
+  variant?: "card" | "plain";
 };
 
 /** One row per file a generation needs; nothing at all when none is needed. */
-export function RequiredFilesPanel({ needed, states, onChoose, disabled = false, intro = LAUNCH_INTRO }: Props) {
+export function RequiredFilesPanel({ needed, states, onChoose, disabled = false, intro = LAUNCH_INTRO, variant = "card" }: Props) {
   // Two panels can share a page (the admin game page has one per test): ids must not collide.
   const id = useId();
   if (needed.length === 0) return null;
 
   return (
-    <section aria-labelledby={`${id}-title`} className="grid gap-3 rounded-lg border border-accent-warm/40 bg-accent-warm/10 p-4">
+    <section
+      aria-labelledby={`${id}-title`}
+      className={variant === "card" ? "grid gap-3 rounded-lg border border-accent-warm/40 bg-accent-warm/10 p-4" : "grid gap-2"}
+    >
       <div>
         <h3 className="font-heading text-base font-semibold text-foreground" id={`${id}-title`}>
           Fichiers à fournir
         </h3>
         <p className="mt-1 text-sm text-muted-foreground">{intro}</p>
       </div>
-      <ul className="grid gap-3">
+      <ul className={variant === "card" ? "grid gap-3" : "divide-y divide-border border-y border-border"}>
         {needed.map((file) => (
           <RequiredFileRow
             disabled={disabled}
             file={file}
             inputId={`${id}-${file.setting}`}
+            plain={variant === "plain"}
             key={file.setting}
             onChoose={onChoose}
             state={states[file.setting] ?? { kind: "missing" }}
@@ -88,18 +97,20 @@ function RequiredFileRow({
   onChoose,
   disabled,
   inputId,
+  plain,
 }: {
   file: GenerationFile;
   state: ProvidedFileState;
   onChoose: (required: GameRequiredFile, file: File) => void;
   disabled: boolean;
   inputId: string;
+  plain: boolean;
 }) {
   const tone =
     state.kind === "accepted" ? "text-success" : state.kind === "wrong" || state.kind === "tooLarge" ? "text-danger" : "text-muted-foreground";
 
   return (
-    <li className="grid gap-2 rounded border border-border bg-surface p-3">
+    <li className={plain ? "grid gap-2 py-3" : "grid gap-2 rounded border border-border bg-surface p-3"}>
       <div className="flex flex-wrap items-baseline gap-2">
         <span className="font-semibold text-foreground">{requiredFileLabel(file)}</span>
         {file.extension !== "" ? <span className="text-sm text-muted-foreground">{file.extension}</span> : null}

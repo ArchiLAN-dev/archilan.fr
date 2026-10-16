@@ -251,6 +251,78 @@ export async function regenerateDefaultYaml(gameId: string): Promise<DefaultYaml
   }
 }
 
+// ── Replacing the apworld (story 38.15: moved out of the editor, unchanged) ─────────
+
+export type GithubApworldAsset = { name: string; downloadUrl: string; size: number; tag: string | null };
+
+function isGithubApworldAsset(v: unknown): v is GithubApworldAsset {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "name") &&
+    hasStringProp(v, "downloadUrl") &&
+    "size" in v &&
+    typeof v.size === "number" &&
+    hasNullableStringProp(v, "tag")
+  );
+}
+
+const SERVER_ERROR = "Impossible de contacter le serveur.";
+
+/** The .apworld files of the latest release at the game's source URL. */
+export async function fetchGithubApworldAssets(gameId: string): Promise<{ ok: true; assets: GithubApworldAsset[] } | { ok: false; message: string }> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/github-assets`);
+    const json: unknown = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, message: apiErrorMessage(json, "Erreur lors de la récupération des assets.") };
+    const data: unknown = typeof json === "object" && json !== null && "data" in json ? json.data : null;
+    return { ok: true, assets: Array.isArray(data) ? data.filter(isGithubApworldAsset) : [] };
+  } catch {
+    return { ok: false, message: SERVER_ERROR };
+  }
+}
+
+export type ApworldReplaceResult = { ok: true; game: AdminGame } | { ok: false; message: string };
+
+/** Import one asset of the release. `holdForApproval` (story 38.14): a passed test waits for the admin. */
+export async function importApworldFromGithub(gameId: string, asset: GithubApworldAsset, holdForApproval: boolean): Promise<ApworldReplaceResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/apworld-from-github`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assetDownloadUrl: asset.downloadUrl, assetName: asset.name, assetTag: asset.tag, holdForApproval }),
+    });
+    const json: unknown = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, message: apiErrorMessage(json, "Erreur lors de l'import.") };
+    return isAdminGamePayload(json) ? { ok: true, game: json.data } : { ok: false, message: "Erreur lors de l'import." };
+  } catch {
+    return { ok: false, message: SERVER_ERROR };
+  }
+}
+
+/** Upload a local .apworld file. */
+export async function uploadApworldFile(gameId: string, file: File, holdForApproval: boolean): Promise<ApworldReplaceResult> {
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    if (holdForApproval) form.append("holdForApproval", "1");
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/apworld`, { method: "PATCH", body: form });
+    const json: unknown = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, message: uploadErrorMessage(json) };
+    return isAdminGamePayload(json) ? { ok: true, game: json.data } : { ok: false, message: "Une erreur est survenue." };
+  } catch {
+    return { ok: false, message: SERVER_ERROR };
+  }
+}
+
+/** The upload's refusal is the first message under `details.file`. */
+function uploadErrorMessage(json: unknown): string {
+  const error: unknown = typeof json === "object" && json !== null && "error" in json ? json.error : null;
+  const details: unknown = typeof error === "object" && error !== null && "details" in error ? error.details : null;
+  const list: unknown = typeof details === "object" && details !== null && "file" in details ? details.file : null;
+  return Array.isArray(list) && typeof list[0] === "string" ? list[0] : "Une erreur est survenue.";
+}
+
 const RERUN_ERROR = "Impossible de relancer le test (runner indisponible ?).";
 
 /**
