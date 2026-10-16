@@ -26,6 +26,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
+import type { GenerationFile } from "@/features/games/required-files";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/apiFetch";
@@ -44,6 +46,7 @@ import {
   fetchAdminEventSessions,
   fetchAdminEventTitle,
   fetchAdminSessionDetail,
+  generateSession,
   fetchContainerLogs,
   fetchContainerState,
   type AdminSessionDetailResult,
@@ -495,6 +498,7 @@ export function AdminSessionDetailPage({
         autoStart={autoStart}
         eventId={eventId}
         onSessionUpdate={handleSessionUpdate}
+        generationFiles={detail.generationFiles}
         session={detail.session}
         slots={detail.slots}
       />
@@ -768,12 +772,14 @@ function SessionDetail({
   onSessionUpdate,
   eventId,
   autoStart = null,
+  generationFiles,
 }: {
   session: Session;
   slots: SessionSlot[];
   onSessionUpdate: (session: Session) => void;
   eventId: string;
   autoStart?: "generate-and-launch" | null;
+  generationFiles: GenerationFile[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -781,6 +787,10 @@ function SessionDetail({
 
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [pendingChain, setPendingChain] = useState<"generate" | "generate-and-launch" | null>(autoStart);
+  // Story 44.5: the files a generation needs (a ROM), chosen and checked here, never stored.
+  const provided = useProvidedFiles(generationFiles);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const filesMissing = provided.blocker !== null;
   const [copied, setCopied] = useState<string | null>(null);
   const [forceEndOpen, setForceEndOpen] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -818,6 +828,11 @@ function SessionDetail({
       return;
     }
     if (session.status === "ready") {
+      // Story 44.5: the chain stops here until the admin provides the files a game needs.
+      if (filesMissing) {
+        clearPendingChainSoon();
+        return;
+      }
       runChainedAction("generate");
       return;
     }
@@ -860,6 +875,19 @@ function SessionDetail({
 
   async function runAction(action: string): Promise<boolean> {
     setActionPending(action);
+    setActionError(null);
+    if (action === "generate") {
+      const result = await generateSession(session.id, provided.files);
+      setActionPending(null);
+      if (!result.ok) {
+        setActionError(result.message);
+        return false;
+      }
+      // The files went with the generation: nothing is kept for later.
+      provided.reset();
+      onSessionUpdate(result.session);
+      return true;
+    }
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${session.id}/${action}`, {
         method: "POST",
@@ -951,7 +979,7 @@ function SessionDetail({
             <>
               <ActionButton
                 compact
-                disabled={pendingChain !== null}
+                disabled={pendingChain !== null || filesMissing}
                 icon={<Activity aria-hidden="true" className="size-4" />}
                 label="Générer"
                 loading={pendingChain === "generate" || ((actionPending === "validate" || actionPending === "generate") && pendingChain === null)}
@@ -960,7 +988,7 @@ function SessionDetail({
               />
               <ActionButton
                 compact
-                disabled={pendingChain !== null && pendingChain !== "generate-and-launch"}
+                disabled={(pendingChain !== null && pendingChain !== "generate-and-launch") || filesMissing}
                 icon={<Zap aria-hidden="true" className="size-4" />}
                 label="Générer & Lancer"
                 loading={pendingChain !== null || actionPending !== null}
@@ -1020,7 +1048,7 @@ function SessionDetail({
             <>
               <ActionButton
                 compact
-                disabled={pendingChain !== null}
+                disabled={pendingChain !== null || filesMissing}
                 icon={<RefreshCw aria-hidden="true" className="size-4" />}
                 label="Régénérer"
                 loading={pendingChain === "generate" || ((actionPending === "validate" || actionPending === "generate") && pendingChain === null)}
@@ -1029,7 +1057,7 @@ function SessionDetail({
               />
               <ActionButton
                 compact
-                disabled={pendingChain !== null && pendingChain !== "generate-and-launch"}
+                disabled={(pendingChain !== null && pendingChain !== "generate-and-launch") || filesMissing}
                 icon={<Zap aria-hidden="true" className="size-4" />}
                 label="Régénérer & Lancer"
                 loading={pendingChain !== null || actionPending !== null}
@@ -1050,6 +1078,15 @@ function SessionDetail({
           ) : null}
         </div>
       </div>
+
+      {/* Story 44.5: the files a generation needs, and why a generation could not start. */}
+      {["draft", "ready", "failed"].includes(session.status) && (provided.needed.length > 0 || actionError !== null) ? (
+        <div className="grid gap-3 border-b border-border px-5 py-3">
+          <RequiredFilesPanel disabled={actionPending !== null} needed={provided.needed} onChoose={(required, file) => void provided.choose(required, file)} states={provided.states} />
+          {provided.blocker !== null ? <p className="text-xs text-muted-foreground">{provided.blocker}</p> : null}
+          {actionError !== null ? <p className="text-sm text-danger" role="alert">{actionError}</p> : null}
+        </div>
+      ) : null}
 
       {/* ── Tab bar ── one scrollable row on every width, same pattern as the run page (16.12). */}
       <div className="flex gap-1 overflow-x-auto border-b border-border bg-surface px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

@@ -1,5 +1,7 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { requiredFilesForm } from "@/features/games/required-file-check";
+import { asGenerationFiles, type GenerationFile } from "@/features/games/required-files";
 import { hasBooleanProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -142,7 +144,7 @@ export async function fetchAdminEventSessions(eventId: string): Promise<AdminEve
 }
 
 export type AdminSessionDetailResult =
-  | { kind: "ready"; session: Session; slots: SessionSlot[] }
+  | { kind: "ready"; session: Session; slots: SessionSlot[]; generationFiles: GenerationFile[] }
   | { kind: "error"; message: string };
 
 export async function fetchAdminSessionDetail(sessionId: string): Promise<AdminSessionDetailResult> {
@@ -155,10 +157,48 @@ export async function fetchAdminSessionDetail(sessionId: string): Promise<AdminS
     if (!isSessionDetailPayload(payload)) {
       return { kind: "error", message: "Session introuvable." };
     }
-    return { kind: "ready", session: payload.data.session, slots: payload.data.slots };
+    // Story 44.3/44.5: the files the session's games may read from the admin at generation.
+    const generationFiles = "generationFiles" in payload.data ? asGenerationFiles(payload.data.generationFiles) : [];
+    return { kind: "ready", session: payload.data.session, slots: payload.data.slots, generationFiles };
   } catch {
     return { kind: "error", message: "Impossible de contacter l'API." };
   }
+}
+
+/**
+ * Story 44.5: start the generation of an event session, with the files its games read (a ROM) when any.
+ * The refusal reason is returned: the admin page used to drop it silently.
+ */
+export async function generateSession(
+  sessionId: string,
+  files: Record<string, File> = {},
+): Promise<{ ok: true; session: Session } | { ok: false; message: string }> {
+  try {
+    const body = Object.keys(files).length > 0 ? requiredFilesForm(files) : undefined;
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${sessionId}/generate`, { method: "POST", body });
+    const payload: unknown = await res.json().catch(() => null);
+    if (res.ok && typeof payload === "object" && payload !== null && "data" in payload && isSessionItem(payload.data)) {
+      return { ok: true, session: payload.data };
+    }
+    return { ok: false, message: generateErrorMessage(payload) };
+  } catch {
+    return { ok: false, message: "Impossible de contacter l'API." };
+  }
+}
+
+function generateErrorMessage(payload: unknown): string {
+  if (typeof payload === "object" && payload !== null && "error" in payload) {
+    const error = payload.error;
+    if (typeof error === "object" && error !== null) {
+      if ("details" in error && typeof error.details === "object" && error.details !== null) {
+        for (const value of Object.values(error.details)) {
+          if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+        }
+      }
+      if ("message" in error && typeof error.message === "string") return error.message;
+    }
+  }
+  return "La génération n'a pas pu être lancée.";
 }
 
 export async function fetchAdminEventTitle(eventId: string): Promise<string | null> {

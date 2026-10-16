@@ -15,7 +15,6 @@ import {
   Gamepad2,
   Loader2,
   PackageX,
-  Play,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
@@ -30,6 +29,7 @@ import { REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { fetchPersonalRun, setRunArchivedForMe, setRunRecapVisibility, type PersonalRunResult } from "./personal-runs-api";
 import { IdleBanner } from "./idle-banner";
+import { PersonalRunStart } from "./personal-run-start";
 import { ImportedSeedPanel } from "./imported-seed-panel";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
@@ -434,24 +434,6 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
     // The list page groups runs by status: mark its cache stale too so navigating back reflects the
     // change immediately (the old page refetched the list on every mount).
     void queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
-  }
-
-  async function handleStart() {
-    setActioning(true);
-    setActionError(null);
-    try {
-      const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/start`, { method: "POST" });
-      if (!res.ok) {
-        const payload = (await res.json()) as { error?: { code?: string; message?: string } };
-        setActionError(payload.error?.message ?? "Impossible de démarrer la partie.");
-        return;
-      }
-      await refreshRun();
-    } catch {
-      setActionError("Erreur réseau.");
-    } finally {
-      setActioning(false);
-    }
   }
 
   async function handleStop() {
@@ -959,25 +941,15 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     vérifie les configs marquées « Échec du test » avant de lancer.
                   </InfoHint>
                 )}
-                <button
-                  className="inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                <PersonalRunStart
                   disabled={!isStartable || actioning}
-                  onClick={() => void handleStart()}
-                  title={!hasConfiguredGames ? "Configure au moins un jeu pour pouvoir démarrer" : undefined}
-                  type="button"
-                >
-                  {actioning ? (
-                    <Loader2 aria-hidden className="size-4 animate-spin" />
-                  ) : (
-                    <Play aria-hidden className="size-4" />
-                  )}
-                  Démarrer la partie
-                </button>
-                {!hasConfiguredGames && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    Configure au moins un jeu pour pouvoir démarrer.
-                  </p>
-                )}
+                  generationFiles={run.generationFiles}
+                  hasConfiguredGames={hasConfiguredGames}
+                  onBusy={setActioning}
+                  onError={setActionError}
+                  onStarted={refreshRun}
+                  runId={runId}
+                />
                 <div className="flex gap-2">
                   <button
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded border border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface"
