@@ -181,11 +181,11 @@ function LiveApworldCard({ game, onUpdate }: Props) {
             type="button"
           >
             <FlaskConical aria-hidden className="size-4" />
-            Tester la génération…
+            Tester la génération
           </button>
           <button className={buttonVariants()} onClick={() => setReplacing(true)} type="button">
             <Upload aria-hidden className="size-4" />
-            Remplacer…
+            Remplacer
           </button>
         </>
       }
@@ -528,7 +528,7 @@ function CandidateCard({ game, onUpdate }: Props) {
       actions={
         <button className={buttonVariants()} onClick={() => setTestingYaml(true)} type="button">
           <FileCode2 aria-hidden className="size-4" />
-          Tester avec un YAML…
+          Tester avec un YAML
         </button>
       }
       description="La version qui attend son test, ou ta validation, avant de servir les joueurs."
