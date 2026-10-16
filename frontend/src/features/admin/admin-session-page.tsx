@@ -1753,7 +1753,7 @@ function AdminTerminal({
               disabled={sending}
               onChange={(e) => { setCommand(e.target.value); }}
               onKeyDown={handleKeyDown}
-              placeholder="!players  !hint Slot Item  !kick Slot"
+              placeholder="!players  !admin /hint Slot Item  !admin /kick Slot"
               type="text"
               value={command}
             />
