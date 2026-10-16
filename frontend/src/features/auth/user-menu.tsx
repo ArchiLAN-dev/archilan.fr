@@ -4,15 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, Gamepad2, LayoutDashboard, LogOut, Shield, User, Wallet } from "lucide-react";
+import { ChevronDown, Gamepad2, LayoutDashboard, LogOut, Shield, User } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchMyCommunityProfile } from "@/features/community/community-profile-api";
 import { useAuth, type AuthUser } from "./auth-context";
 import { MemberAvatar } from "../community/member-avatar";
-import { PelleAmount } from "../wallet/pelle-amount";
-import { fetchMyWallet } from "../wallet/wallet-api";
 
 /**
  * Account dropdown for the desktop nav. Collapses everything that used to be a row of buttons
@@ -42,15 +40,6 @@ export function UserMenu({ user }: { user: AuthUser }) {
     retry: false,
   });
   const avatarUrl = profile?.avatarUrl ?? null;
-
-  // Story 41.1: the gold balance, under the same key as the wallet page's first page, so a credit seen
-  // there shows here too.
-  const { data: wallet } = useQuery({
-    queryKey: ["my-wallet", 1],
-    queryFn: () => fetchMyWallet(1),
-    staleTime: DEFAULT_STALE_TIME,
-    retry: false,
-  });
 
   useEffect(() => {
     if (!open) return;
@@ -125,7 +114,7 @@ export function UserMenu({ user }: { user: AuthUser }) {
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             </div>
           </div>
-          <AccountMenuLinks gold={wallet?.gold ?? null} onNavigate={() => setOpen(false)} user={user} />
+          <AccountMenuLinks onNavigate={() => setOpen(false)} user={user} />
           <div className="border-t border-border py-1">
             <button
               className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
@@ -144,8 +133,6 @@ export function UserMenu({ user }: { user: AuthUser }) {
 
 type AccountMenuLinksProps = {
   user: AuthUser;
-  /** The wallet balance, or null while it loads (or when it failed). */
-  gold: number | null;
   onNavigate: () => void;
 };
 
@@ -153,7 +140,7 @@ type AccountMenuLinksProps = {
  * The account links of the open panel. Pulled out of `UserMenu`, which only renders them once opened,
  * so their list can be rendered statically in tests.
  */
-export function AccountMenuLinks({ user, gold, onNavigate }: AccountMenuLinksProps) {
+export function AccountMenuLinks({ user, onNavigate }: AccountMenuLinksProps) {
   const isAdmin = user.roles.includes("ROLE_ADMIN");
 
   return (
@@ -162,17 +149,6 @@ export function AccountMenuLinks({ user, gold, onNavigate }: AccountMenuLinksPro
       <MenuLink href="/compte/parties" icon={Gamepad2} label="Mes parties" onNavigate={onNavigate} />
       {user.slug ? <MenuLink href={`/joueurs/${user.slug}`} icon={User} label="Mon profil" onNavigate={onNavigate} /> : null}
       <MenuLink href="/compte" icon={LayoutDashboard} label="Mon espace" onNavigate={onNavigate} />
-      <Link
-        className="flex items-center justify-between gap-2.5 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
-        href="/compte/pelles"
-        onClick={onNavigate}
-      >
-        <span className="flex items-center gap-2.5">
-          <Wallet aria-hidden="true" className="size-4" />
-          Mes pelles
-        </span>
-        {gold !== null ? <PelleAmount amount={gold} className="font-semibold text-warning" /> : null}
-      </Link>
       {isAdmin ? <MenuLink href="/admin" icon={Shield} label="Administration" onNavigate={onNavigate} /> : null}
     </div>
   );

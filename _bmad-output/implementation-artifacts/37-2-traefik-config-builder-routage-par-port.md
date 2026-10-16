@@ -1,6 +1,6 @@
 # Story 37.2: TraefikConfigBuilder - routage par port
 
-**Status:** ready-for-dev
+**Status:** done
 **Epic:** 37 - Accès WSS aux serveurs Archipelago
 **Date:** 2026-08-10
 **Dépend de :** 37.1 pour la convention de nommage des entrypoints. À livrer avec 37.1 et 37.3.

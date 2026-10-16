@@ -1,6 +1,6 @@
 # Story 44.2 - Transporter le fichier requis jusqu'au conteneur de génération, sans le stocker
 
-**Status:** review
+**Status:** done
 **Epic:** 44 - Fichiers requis à la génération (ROM fournie par le joueur)
 **Date:** 2026-10-15
 **Dépend de:** 44.1 (détection, `requiredFile` sur la ligne `###ARCHILAN-FAILURE###`)

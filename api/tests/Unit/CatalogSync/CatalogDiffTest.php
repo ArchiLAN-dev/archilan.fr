@@ -184,7 +184,7 @@ final class CatalogDiffTest extends TestCase
         self::assertCount(0, $diff['newGames']);
     }
 
-    public function testAvailabilityLockedGameExcludedFromStabilityChanged(): void
+    public function testAvailabilityLockedGameStaysInStabilityChanged(): void
     {
         $service = $this->makeService();
         $game = $this->makeGame('Hollow Knight', 'available', availabilityLocked: true);
@@ -192,7 +192,9 @@ final class CatalogDiffTest extends TestCase
 
         $diff = $service->computeDiff([$entry], [$game]);
 
-        self::assertCount(0, $diff['stabilityChanged']); // locked → excluded
+        // Story 14.12: still listed, the lock only blocks applying the change.
+        self::assertCount(1, $diff['stabilityChanged']);
+        self::assertSame($game, $diff['stabilityChanged'][0]['game']);
         self::assertCount(0, $diff['newGames']); // still matched
     }
 
@@ -262,7 +264,7 @@ final class CatalogDiffTest extends TestCase
         $sheetEntries = [
             $this->makeEntry('Celeste', 'experimental'), // stability changed
             $this->makeEntry('Hollow Knight', 'available'), // matched by name, no change
-            $this->makeEntry('Dark Souls', 'experimental'), // locked, no stability change
+            $this->makeEntry('Dark Souls', 'experimental'), // locked, listed but not applicable
             $this->makeEntry('Brand New Game'), // new
         ];
         // 'Removed Game' is not in sheetEntries
@@ -272,8 +274,9 @@ final class CatalogDiffTest extends TestCase
         self::assertCount(1, $diff['newGames']);
         self::assertSame('Brand New Game', $diff['newGames'][0]->name);
 
-        self::assertCount(1, $diff['stabilityChanged']);
+        self::assertCount(2, $diff['stabilityChanged']);
         self::assertSame($gameTracked, $diff['stabilityChanged'][0]['game']);
+        self::assertSame($gameLocked, $diff['stabilityChanged'][1]['game']);
 
         self::assertCount(1, $diff['removedFromSheet']);
         self::assertSame($gameRemoved, $diff['removedFromSheet'][0]);

@@ -1,6 +1,6 @@
 # Story 44.3 - Savoir avant la génération quel fichier un jeu demande
 
-**Status:** in-progress
+**Status:** done
 **Epic:** 44 - Fichiers requis à la génération (ROM fournie par le joueur)
 **Date:** 2026-10-15
 **Dépend de:** 44.1 (verdict `requiredFile`), 44.2 (transport, mergée : API #847, orchestrateur #31, image #35, client v1.12.0)
