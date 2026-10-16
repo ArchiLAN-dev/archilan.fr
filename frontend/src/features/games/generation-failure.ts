@@ -13,8 +13,8 @@ export type GenerationFailureAudience = "player" | "admin";
 const PATTERNS: [GenerationFailureKind, RegExp][] = [
   // A file the world declares in host.yaml (story 44.1): the launch asks for it.
   ["required_file", /demande le fichier|does not exist, but .+ is required/i],
-  // A file the world reads without declaring it (Beat Saber's song list in data/): it has to be provided too, but
-  // the launch cannot ask for it yet.
+  // A file the generation does not find, the world not declaring it: a file to provide, or a path the apworld assumes
+  // (Beat Saber wrote its song cache to /Archipelago/data, story 38.17). The message alone cannot tell which.
   ["missing_file", /filenotfounderror|no such file or directory/i],
   ["timeout", /timed out|délai dépassé/i],
   ["fill", /fillerror|no more spots to place|could not access required locations|not all locations/i],
@@ -40,10 +40,9 @@ const COPY: Record<GenerationFailureKind, Copy> = {
   },
   missing_file: {
     title: "Fichier manquant",
-    player:
-      "Le jeu attend un fichier qui n'a pas été fourni (une liste de musiques, par exemple) : vois avec le lanceur de la partie ou l'équipe.",
+    player: "Le jeu cherche un fichier qu'il ne trouve pas pendant la génération. Transmets le message à l'équipe : ça se règle de notre côté.",
     admin:
-      "L'apworld lit un fichier absent sans le déclarer comme réglage : le lancement ne sait pas encore le demander. Il faut le fournir hors de ce circuit, ou le faire prendre en charge.",
+      "L'apworld cherche un fichier absent de l'environnement de génération : un fichier à fournir, ou un chemin qu'il suppose ailleurs (Beat Saber écrivait son cache dans /Archipelago/data). Le journal technique dit lequel.",
   },
   invalid_yaml: {
     title: "YAML illisible",
