@@ -1,6 +1,6 @@
 # Story 37.1: Entrypoints Traefik et provider HTTP
 
-**Status:** ready-for-dev
+**Status:** done
 **Epic:** 37 - Accès WSS aux serveurs Archipelago
 **Date:** 2026-08-10
 **Dépend de :** rien techniquement. À livrer **en même temps que 37.2 et 37.3** : les trois ne

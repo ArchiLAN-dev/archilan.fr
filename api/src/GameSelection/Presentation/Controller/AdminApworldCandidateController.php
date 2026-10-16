@@ -10,6 +10,7 @@ use App\GameSelection\Application\Command\StartApworldCandidateYamlTest;
 use App\GameSelection\Application\Command\TriageApworldCandidate;
 use App\GameSelection\Application\Query\ApworldCandidateYamlTestQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\RequiredGenerationFilesRequest;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -76,15 +77,22 @@ final readonly class AdminApworldCandidateController
             return $admin;
         }
 
+        // Story 44.6: with a file to join, the YAML comes as a multipart field beside it.
+        $provided = RequiredGenerationFilesRequest::read($request);
+        if ([] !== $provided['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', $provided['errors'][0], 422, ['requiredFiles' => $provided['errors']]);
+        }
         $body = json_decode($request->getContent(), true);
-        $yaml = is_array($body) && is_string($body['yaml'] ?? null) ? $body['yaml'] : '';
-        $start = $this->startYamlTest->start($gameId, $yaml);
+        $field = $request->request->get('yaml');
+        $yaml = is_array($body) && is_string($body['yaml'] ?? null) ? $body['yaml'] : (is_string($field) ? $field : '');
+        $start = $this->startYamlTest->start($gameId, $yaml, $provided['files']);
 
         return match ($start->outcome) {
             ApworldCandidateYamlTestOutcome::Started => new JsonResponse(['data' => ['jobId' => $start->jobId]], 202),
             ApworldCandidateYamlTestOutcome::InvalidYaml => $this->apiAccessGuard->errorResponse('validation_failed', 'Colle un YAML (100 Ko au plus).', 422, ['yaml' => ['Colle un YAML (100 Ko au plus).']]),
             ApworldCandidateYamlTestOutcome::NoCandidate => $this->apiAccessGuard->errorResponse('no_candidate', 'Aucune nouvelle version à tester pour ce jeu.', 404),
             ApworldCandidateYamlTestOutcome::RunnerUnavailable => $this->apiAccessGuard->errorResponse('runner_unavailable', 'Le runner est indisponible, le test n\'a pas été lancé. Réessaie plus tard.', 503),
+            ApworldCandidateYamlTestOutcome::FileRefused => $this->apiAccessGuard->errorResponse('required_file_refused', 'Le fichier n\'a pas pu être transmis. Réessaie dans un instant.', 422, ['requiredFiles' => ['Le fichier n\'a pas pu être transmis. Réessaie dans un instant.']]),
         };
     }
 

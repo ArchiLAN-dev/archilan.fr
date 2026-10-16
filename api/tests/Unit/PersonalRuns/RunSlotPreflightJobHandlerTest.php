@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
+use App\GameSelection\Application\Message\RecordGenerationRequiredFileJob;
 use App\GameSelection\Application\Message\ReportDefaultYamlFailureJob;
 use App\PersonalRuns\Application\Handler\RunSlotPreflightJobHandler;
 use App\PersonalRuns\Application\Message\RunSlotPreflightJob;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
 use Psr\Log\NullLogger;
@@ -25,6 +27,10 @@ final class RunSlotPreflightJobHandlerTest extends TestCase
     /** @var list<Envelope> */
     private array $dispatched = [];
     private int $flushes = 0;
+    /** @var list<array{hash: ?string, ids: list<string>}> */
+    private array $started = [];
+    /** @var list<string> */
+    private array $released = [];
     /** @var list<int> */
     private array $flushesBeforeDispatch = [];
 
@@ -41,6 +47,75 @@ final class RunSlotPreflightJobHandlerTest extends TestCase
         self::assertInstanceOf(RunSlotPreflightJob::class, $message);
         self::assertSame('orch-1', $message->orchestratorJobId);
         self::assertNotNull($envelope->last(DelayStamp::class));
+    }
+
+    // Story 44.7: the ROM the player joined reaches the orchestrator with the test; dropped when it does not answer.
+    public function testStartPassesTheProvidedFiles(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, startResult: 'orch-1');
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), requiredFileIds: ['staged-1']));
+
+        self::assertSame([['hash' => 'hash-1', 'ids' => ['staged-1']]], $this->started);
+        self::assertSame([], $this->released);
+        $message = $this->dispatched[0]->getMessage();
+        self::assertInstanceOf(RunSlotPreflightJob::class, $message);
+        self::assertSame([], $message->requiredFileIds, 'the file is consumed by the start, the polls carry none');
+    }
+
+    public function testARunnerThatDoesNotAnswerReleasesTheFiles(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, startResult: null);
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), requiredFileIds: ['staged-1']));
+
+        self::assertSame(['staged-1'], $this->released);
+    }
+
+    public function testAStaleTestReleasesItsFiles(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, startResult: 'orch-1');
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', hash('sha256', 'another yaml'), requiredFileIds: ['staged-1']));
+
+        self::assertSame([], $this->started);
+        self::assertSame(['staged-1'], $this->released);
+    }
+
+    // Review of epic 44: a message queued before requiredFileIds existed still decodes, with no file.
+    public function testAMessageQueuedBeforeTheFilesExistedStillDecodes(): void
+    {
+        $old = 'O:'.\strlen(RunSlotPreflightJob::class).':"'.RunSlotPreflightJob::class.'":7:{s:5:"runId";s:5:"run-1";s:6:"userId";s:6:"user-1";s:6:"slotId";s:6:"slot-1";s:7:"yamlSha";s:3:"abc";s:17:"orchestratorJobId";N;s:5:"polls";i:0;s:11:"apworldHash";s:6:"hash-1";}';
+
+        $job = unserialize($old);
+
+        self::assertInstanceOf(RunSlotPreflightJob::class, $job);
+        self::assertSame([], $job->requiredFileIds);
+        self::assertSame('hash-1', $job->apworldHash);
+    }
+
+    public function testAPlayerWhoLeftReleasesTheFilesOfTheirTest(): void
+    {
+        $handler = $this->handler(null, startResult: 'orch-1');
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), requiredFileIds: ['staged-1']));
+
+        self::assertSame(['staged-1'], $this->released);
+    }
+
+    public function testAPollThatCannotBeQueuedIsRecordedNotRetried(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, startResult: 'orch-1', failDispatch: true);
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), requiredFileIds: ['staged-1']));
+
+        $slot = $participant->getSlot('slot-1');
+        self::assertSame('failed', $slot['preflight']['status'] ?? null);
+        self::assertSame('Le suivi du test a été perdu : relance-le.', $slot['preflight']['error']);
     }
 
     public function testStartWithRunnerDownRecordsFailedVerdict(): void
@@ -129,6 +204,21 @@ FillError: No more spots to place items.']);
         self::assertSame([1], $this->flushesBeforeDispatch);
     }
 
+    /** Story 44.3: a test that failed for want of a file proves the slot's game needs it. */
+    public function testAFailureOnARequiredFileIsRecordedOnTheGame(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, pollResult: ['status' => 'failed', 'error' => 'FileNotFoundError: dkc3.sfc does not exist, but DK3Settings.rom_file is required'."\n".'###ARCHILAN-FAILURE### {"type": "FileNotFoundError", "message": "x", "requiredFile": {"setting": "DK3Settings.rom_file", "file": "dkc3.sfc", "extension": ".sfc"}}']);
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), 'orch-1', 3));
+
+        $recorded = array_values(array_filter(array_map(static fn (Envelope $e): object => $e->getMessage(), $this->dispatched), static fn (object $m): bool => $m instanceof RecordGenerationRequiredFileJob));
+        self::assertCount(1, $recorded);
+        self::assertInstanceOf(RecordGenerationRequiredFileJob::class, $recorded[0]);
+        self::assertSame(['game-1'], $recorded[0]->candidateGameIds);
+        self::assertSame('DK3Settings.rom_file', $recorded[0]->requiredFile['setting']);
+    }
+
     public function testAFailureThatIsNotTheGeneratorsReportsNothing(): void
     {
         // A runner down or a test past its deadline says nothing about the apworld.
@@ -187,7 +277,7 @@ FillError: No more spots to place items.']);
     /**
      * @param array{status: string, error: string}|null $pollResult
      */
-    private function handler(RunParticipant $participant, ?string $startResult = null, ?array $pollResult = null): RunSlotPreflightJobHandler
+    private function handler(?RunParticipant $participant, ?string $startResult = null, ?array $pollResult = null, bool $failDispatch = false): RunSlotPreflightJobHandler
     {
         $participants = self::createStub(RunParticipantRepositoryInterface::class);
         $participants->method('findByRunAndUser')->willReturn($participant);
@@ -196,11 +286,21 @@ FillError: No more spots to place items.']);
         });
 
         $runner = self::createStub(RunnerGatewayInterface::class);
-        $runner->method('startSlotPreflight')->willReturn($startResult);
+        $runner->method('startSlotPreflight')->willReturnCallback(function (string $yaml, ?string $hash, array $ids = []) use ($startResult): ?string {
+            $this->started[] = ['hash' => $hash, 'ids' => array_values(array_filter($ids, is_string(...)))];
+
+            return $startResult;
+        });
+        $runner->method('releaseRequiredFile')->willReturnCallback(function (string $id): void {
+            $this->released[] = $id;
+        });
         $runner->method('getSlotPreflight')->willReturn($pollResult);
 
         $bus = self::createStub(MessageBusInterface::class);
-        $bus->method('dispatch')->willReturnCallback(function (object $message, array $stamps = []): Envelope {
+        $bus->method('dispatch')->willReturnCallback(function (object $message, array $stamps = []) use ($failDispatch): Envelope {
+            if ($failDispatch) {
+                throw new \RuntimeException('transport down');
+            }
             $onlyStamps = array_values(array_filter($stamps, static fn (mixed $stamp): bool => $stamp instanceof StampInterface));
             $envelope = new Envelope($message, $onlyStamps);
             $this->dispatched[] = $envelope;
@@ -218,6 +318,7 @@ FillError: No more spots to place items.']);
             messageBus: $bus,
             clock: $clock,
             logger: new NullLogger(),
+            requiredGenerationFiles: new RequiredGenerationFiles($runner),
         );
     }
 }

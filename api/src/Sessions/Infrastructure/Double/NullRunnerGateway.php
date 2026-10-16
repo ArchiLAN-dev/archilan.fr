@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Double;
 
+use App\Sessions\Application\Exception\RequiredGenerationFileExpiredException;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 
 final class NullRunnerGateway implements RunnerGatewayInterface
@@ -17,13 +19,13 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** @var array{status: string, bridgePort: ?int, apPort: ?int}|null Canned getSessionInfo() return for reconciliation tests. */
     public static ?array $nextSessionInfo = null;
 
-    /** @var array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string}> Canned preflight verdicts by hash (story 9.38 tests). */
+    /** @var array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}> Canned preflight verdicts by hash (story 9.38 tests). */
     public static array $apworldPreflights = [];
 
     /** @var array{apImage: string, apImageId: string|null}|null Canned image in use (story 38.8 tests); null = runner silent. */
     public static ?array $runtime = null;
 
-    /** @var array{playerYaml: string, apworldHash: ?string}|null The last startSlotPreflight() call (story 38.14 tests). */
+    /** @var array{playerYaml: string, apworldHash: ?string, requiredFileIds: list<string>}|null The last startSlotPreflight() call (stories 38.14, 44.6 tests). */
     public static ?array $lastSlotPreflight = null;
 
     /** @var array{status: string, error: string}|null Canned getSlotPreflight() result; null = an unknown job (story 38.14 tests). */
@@ -32,8 +34,44 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** When true, startSlotPreflight() reads as a runner that did not answer (story 38.14 tests). */
     public static bool $slotPreflightUnavailable = false;
 
+    /** @var list<array{setting: string, filename: string, content: string}> Files handed to stageRequiredFile(), read at the call (story 44.2 tests). */
+    public static array $stagedFiles = [];
+
+    /** @var list<string> Ids passed to releaseRequiredFile() (story 44.2 tests). */
+    public static array $releasedFileIds = [];
+
+    /** @var list<list<string>> The requiredFileIds of each generateSession() call (story 44.2 tests). */
+    public static array $generatedWithFileIds = [];
+
+    /** When set, stageRequiredFile() refuses the file whose setting it names (story 44.2 tests). */
+    public static ?string $refuseStagingOf = null;
+
+    /** When true, generateSession() reads as an orchestrator that no longer holds the files (story 44.2 tests). */
+    public static bool $requiredFilesExpired = false;
+
+    /** @var list<array{hash: string, requiredFileIds: list<string>}> Each runApworldPreflight() call (story 44.6 tests). */
+    public static array $apworldPreflightRuns = [];
+
+    /** When true, runApworldPreflight() reads as a runner that did not answer (story 44.6 tests). */
+    public static bool $apworldPreflightUnavailable = false;
+
+    /** @var array<string, list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>> Canned declared files by apworld hash (story 44.3 tests). */
+    public static array $declaredFiles = [];
+
+    /** @var array<string, list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>>|null Canned files of the image's own worlds; null = runner silent (story 44.3 tests). */
+    public static ?array $officialDeclaredFiles = null;
+
     public static function reset(): void
     {
+        self::$declaredFiles = [];
+        self::$officialDeclaredFiles = null;
+        self::$apworldPreflightRuns = [];
+        self::$apworldPreflightUnavailable = false;
+        self::$stagedFiles = [];
+        self::$releasedFileIds = [];
+        self::$generatedWithFileIds = [];
+        self::$refuseStagingOf = null;
+        self::$requiredFilesExpired = false;
         self::$lastSlotPreflight = null;
         self::$slotPreflightResult = ['status' => 'passed', 'error' => ''];
         self::$slotPreflightUnavailable = false;
@@ -94,18 +132,33 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return self::$apworldPreflights;
     }
 
+    public function fetchDeclaredFiles(string $hash): array
+    {
+        return self::$declaredFiles[$hash] ?? [];
+    }
+
+    public function fetchOfficialDeclaredFiles(): ?array
+    {
+        return self::$officialDeclaredFiles;
+    }
+
     public function fetchRuntime(): ?array
     {
         return self::$runtime;
     }
 
-    public function runApworldPreflight(string $hash): bool
+    public function runApworldPreflight(string $hash, array $requiredFileIds = []): bool
     {
+        if (self::$apworldPreflightUnavailable) {
+            return false;
+        }
+        self::$apworldPreflightRuns[] = ['hash' => $hash, 'requiredFileIds' => $requiredFileIds];
+
         return true;
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string}
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}
      */
     public function overrideApworldPreflight(string $hash, bool $overridden): array
     {
@@ -137,12 +190,12 @@ final class NullRunnerGateway implements RunnerGatewayInterface
             : ['error' => 'runner_unavailable'];
     }
 
-    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash, array $requiredFileIds = []): ?string
     {
         if (self::$slotPreflightUnavailable) {
             return null;
         }
-        self::$lastSlotPreflight = ['playerYaml' => $playerYaml, 'apworldHash' => $apworldHash];
+        self::$lastSlotPreflight = ['playerYaml' => $playerYaml, 'apworldHash' => $apworldHash, 'requiredFileIds' => $requiredFileIds];
 
         return 'null-preflight-job';
     }
@@ -165,8 +218,27 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /**
      * @param array<string, mixed> $generationOptions
      */
-    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = []): void
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = [], array $requiredFileIds = []): void
     {
+        self::$generatedWithFileIds[] = $requiredFileIds;
+        if ([] !== $requiredFileIds && self::$requiredFilesExpired) {
+            throw new RequiredGenerationFileExpiredException();
+        }
+    }
+
+    public function stageRequiredFile(string $setting, string $path, string $filename): string
+    {
+        if ($setting === self::$refuseStagingOf) {
+            throw new RequiredGenerationFileRefusedException('file too large');
+        }
+        self::$stagedFiles[] = ['setting' => $setting, 'filename' => $filename, 'content' => (string) file_get_contents($path)];
+
+        return 'staged-'.count(self::$stagedFiles);
+    }
+
+    public function releaseRequiredFile(string $stagedFileId): void
+    {
+        self::$releasedFileIds[] = $stagedFileId;
     }
 
     /**

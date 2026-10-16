@@ -383,6 +383,10 @@ function SessionStatusBanner({ session }: { session: SessionPayload | null }) {
           <AlertCircle aria-hidden="true" className="size-4 text-danger" />
           <p className="font-semibold text-danger">La session a rencontré une erreur.</p>
         </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Les organisateurs voient l&apos;erreur de leur côté. Garde cette page ouverte : la connexion s&apos;affichera ici dès
+          que la partie sera relancée. Si ça dure, préviens-les sur le Discord de l&apos;événement.
+        </p>
       </div>
     );
   }

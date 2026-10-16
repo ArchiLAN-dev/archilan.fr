@@ -6,6 +6,7 @@ namespace App\PersonalRuns\Application\Service;
 
 use App\Community\Application\Query\CommunityLevelQuery;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\GameSelection\Application\Support\GenerationFiles;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
@@ -20,7 +21,10 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
+use App\Sessions\Application\Support\ProvidedGenerationFile;
 use App\Shared\Domain\ValueObject\SlotName;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -31,6 +35,9 @@ use Symfony\Component\Yaml\Yaml;
 
 final readonly class PersonalRunGameSelection implements RunGameAssignmentInterface
 {
+    /** Twice the slot test's own polling deadline (RunSlotPreflightJobHandler, ~7 minutes). */
+    private const int STALE_PENDING_SECONDS = 15 * 60;
+
     public function __construct(
         private RunRepositoryInterface $runs,
         private RunParticipantRepositoryInterface $participants,
@@ -44,6 +51,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         private LoggerInterface $logger,
         private ClockInterface $clock,
         private RunSlotCoPlayers $coPlayers,
+        private RequiredGenerationFiles $requiredGenerationFiles,
     ) {
     }
 
@@ -81,15 +89,19 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         ));
 
         $slots = [];
+        $now = $this->clock->now();
         foreach ($existingSlots as $slot) {
             $game = $gamesById[$slot['gameId']] ?? null;
             $slots[] = array_merge($slot, [
+                'preflight' => self::withoutStalePending($slot['preflight'] ?? null, $now),
                 'gameName' => $game?->getName() ?? $slot['gameId'],
                 'playerYaml' => $slot['playerYaml'] ?? null,
                 'apworldHash' => $slot['apworldHash'] ?? null,
                 // Story 16.17: the owner sees who else is on the slot, without being able to
                 // change it - that is the run owner's call.
                 'coPlayers' => $coPlayersBySlot[$slot['slotId']] ?? [],
+                // Story 44.3: the files the game may read from the launcher (a ROM...).
+                'requiredFiles' => null !== $game ? GenerationFiles::ofGame($game) : [],
             ]);
         }
 
@@ -97,6 +109,9 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         // editor of a slot needs them, the picker does not. Sent for the whole catalog, they made a response
         // of tens of megabytes that ran PHP out of memory.
         $held = array_column($existingSlots, 'gameId');
+        // Story 38.16: the catalog says which games a save would refuse for a failed generation test (story 9.38
+        // AC4), instead of letting the member pick one and meet « Sélection invalide ». Fails open, like the save.
+        $verdicts = $this->runnerGateway->fetchApworldPreflights();
         $availableGames = array_map(fn (Game $g): array => [
             'id' => $g->getId(),
             'name' => $g->getName(),
@@ -105,7 +120,9 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'availability' => $g->getAvailability(),
             'disabled' => $g->isDisabled(),
             'disabledMessage' => $g->getDisabledMessage(),
+            'preflightBlocked' => true === ($verdicts[$g->getApworldHash() ?? '']['blocks'] ?? false),
             'isApworldReady' => $g->isApworldReady(),
+            'requiredFiles' => GenerationFiles::ofGame($g),
             ...self::editorData($g, \in_array($g->getId(), $held, true)),
             'coverImageUrl' => $g->getCoverImageUrl(),
             'coverImageAlt' => $g->getCoverImageAlt(),
@@ -438,6 +455,15 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
 
         $participant->submitSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '');
 
+        // Story 44.7: a game that reads a file at generation (a ROM) is only tested with it - the automatic test
+        // could only fail on its absence. Saving forgot the previous verdict; the player tests with the ROM.
+        if ($game->needsAFileAtGeneration()) {
+            $this->participants->flush();
+            $this->logger->info('personal_run.slot_yaml_saved', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
+
+            return $this->yamlResult(found: true);
+        }
+
         // Story 9.42: every saved yaml gets an automatic solo test generation. The verdict
         // is advisory (never blocks a launch) and keyed to this exact yaml.
         $yamlSha = hash('sha256', $playerYaml);
@@ -453,11 +479,15 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
     }
 
     /**
-     * Story 9.42: explicit "Tester ma config" re-run of the solo test generation for one slot.
+     * Story 9.42: explicit "Tester ma config" re-run of the solo test generation for one slot, with the files the
+     * player joined (story 44.7): handed to the orchestrator here, before anything changes, so a refused file
+     * leaves the slot as it was. Only their ids travel in the job.
+     *
+     * @param list<ProvidedGenerationFile> $files
      *
      * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, errors: array<string, list<string>>}
      */
-    public function requestSlotPreflight(string $runId, string $userId, string $slotId): array
+    public function requestSlotPreflight(string $runId, string $userId, string $slotId, array $files = []): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
@@ -479,15 +509,50 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             return $this->yamlResult(found: true, errors: ['playerYaml' => ['Configure d\'abord un YAML pour ce slot.']]);
         }
 
-        $yamlSha = hash('sha256', $yaml);
-        $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $this->clock->now());
-        $this->participants->flush();
+        try {
+            $fileIds = $this->requiredGenerationFiles->stage($files);
+        } catch (RequiredGenerationFileRefusedException) {
+            return $this->yamlResult(found: true, errors: ['requiredFiles' => ['Le fichier n\'a pas pu être transmis. Réessaie dans un instant.']]);
+        }
 
-        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha, apworldHash: $slot['apworldHash'] ?? null));
+        $yamlSha = hash('sha256', $yaml);
+        try {
+            $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $this->clock->now());
+            $this->participants->flush();
+
+            $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha, apworldHash: $slot['apworldHash'] ?? null, requiredFileIds: $fileIds));
+        } catch (\Throwable $e) {
+            // Nothing will consume the held files: give them back rather than let them wait for their expiry.
+            $this->requiredGenerationFiles->release($fileIds);
+
+            throw $e;
+        }
 
         $this->logger->info('personal_run.slot_preflight_requested', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 
         return $this->yamlResult(found: true);
+    }
+
+    /**
+     * Review of epic 44: a test still pending long after the handler's own deadline (~7 minutes of polling) lost its
+     * job - a worker that could not read it, a restart. Shown as a failure the player can run again, instead of a
+     * « Test en cours… » that hides the button for good.
+     *
+     * @param array{status: string, error: string, checkedAt: string, yamlSha: string}|null $preflight
+     *
+     * @return array{status: string, error: string, checkedAt: string, yamlSha: string}|null
+     */
+    private static function withoutStalePending(?array $preflight, \DateTimeImmutable $now): ?array
+    {
+        if (null === $preflight || 'pending' !== $preflight['status']) {
+            return $preflight;
+        }
+        $since = \DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $preflight['checkedAt']);
+        if (false === $since || $now->getTimestamp() - $since->getTimestamp() < self::STALE_PENDING_SECONDS) {
+            return $preflight;
+        }
+
+        return [...$preflight, 'status' => 'failed', 'error' => 'Le test n\'a pas répondu : relance-le.'];
     }
 
     /**

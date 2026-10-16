@@ -26,6 +26,12 @@ import { parseNeedsReview, SlotNeedsReview } from "@/features/games/slot-needs-r
 import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } from "./personal-runs-api";
 import { useRouter } from "next/navigation";
 import { GeneratedLockNote } from "@/components/run-notes";
+import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
+import { SlotTestFilesDialog, slotTestFiles } from "./slot-test-files-dialog";
+import { selectionErrorMessage } from "./game-selection-errors";
+
+/** Story 38.16: why a game whose generation test fails cannot be added (the save says the same, story 9.38). */
+const PREFLIGHT_BLOCKED_MESSAGE = "Son monde Archipelago échoue au test de génération : il ne peut pas être ajouté pour le moment.";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,6 +76,8 @@ export function PersonalRunGameSelectionPage({
   const [justAdded, setJustAdded] = useState<Set<string>>(new Set());
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
   const [expandedPreflightSlotId, setExpandedPreflightSlotId] = useState<string | null>(null);
+  // Story 44.7: the slot whose « Tester ma config » waits for the ROM in a modal.
+  const [fileTestSlot, setFileTestSlot] = useState<{ slotId: string; gameName: string; requiredFiles: unknown } | null>(null);
   const addTimers = useRef<Map<string, [ReturnType<typeof setTimeout>, ReturnType<typeof setTimeout>]>>(new Map());
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -173,8 +181,12 @@ export function PersonalRunGameSelectionPage({
         body: JSON.stringify({ gameIds: workingGameIds }),
       });
       if (!res.ok) {
-        const body = (await res.json()) as { error?: { message?: string } };
-        setSaveState({ kind: "error", message: body.error?.message ?? "Impossible de sauvegarder la sélection." });
+        const body: unknown = await res.json().catch(() => null);
+        const names = new Map<string, string>([
+          ...result.data.availableGames.map((g): [string, string] => [g.id, g.name]),
+          ...result.data.slots.map((slot): [string, string] => [slot.gameId, slot.gameName]),
+        ]);
+        setSaveState({ kind: "error", message: selectionErrorMessage(body, workingGameIds, (id) => names.get(id) ?? id) });
         return;
       }
       setSaveState({ kind: "saved" });
@@ -420,8 +432,13 @@ export function PersonalRunGameSelectionPage({
                     <SlotPreflightBadge
                       detailsOpen={expandedPreflightSlotId === slot.slotId}
                       onRetest={async () => {
-                        const accepted = await requestSlotPreflight(runId, slot.slotId);
-                        if (accepted) {
+                        // Story 44.7: a game that reads a ROM is tested with it - the file is asked first.
+                        if (slotTestFiles(slot.requiredFiles).length > 0) {
+                          setFileTestSlot({ slotId: slot.slotId, gameName: label, requiredFiles: slot.requiredFiles });
+                          return;
+                        }
+                        const result = await requestSlotPreflight(runId, slot.slotId);
+                        if (result.ok) {
                           void queryClient.invalidateQueries({ queryKey: ["personal-run-game-selection", runId] });
                         }
                       }}
@@ -463,12 +480,8 @@ export function PersonalRunGameSelectionPage({
                 {slot !== null &&
                   slot.preflight?.status === "failed" &&
                   expandedPreflightSlotId === slot.slotId && (
-                    <div className="mt-2 rounded border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 p-2">
-                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-relaxed text-muted-foreground">
-                        {slot.preflight.error !== ""
-                          ? slot.preflight.error
-                          : "Échec du test de génération (aucun détail disponible)."}
-                      </pre>
+                    <div className="mt-2">
+                      <GenerationFailureNotice audience="player" message={slot.preflight.error} />
                     </div>
                   )}
               </li>
@@ -542,7 +555,7 @@ export function PersonalRunGameSelectionPage({
                 const recentRel = recent ? relativeTime(recent.lastPlayedAt) : "";
                 return (
                   <li
-                    className={`flex items-center gap-3 bg-background px-3 py-3 first:rounded-t-lg last:rounded-b-lg transition-colors hover:bg-surface ${game.disabled ? "opacity-60" : ""}`}
+                    className={`flex items-center gap-3 bg-background px-3 py-3 first:rounded-t-lg last:rounded-b-lg transition-colors hover:bg-surface ${game.disabled || game.preflightBlocked === true ? "opacity-60" : ""}`}
                     key={game.id}
                   >
                     <div className="h-16 w-12 shrink-0 overflow-hidden rounded border border-border bg-surface">
@@ -580,6 +593,11 @@ export function PersonalRunGameSelectionPage({
                             Désactivé
                           </span>
                         )}
+                        {!game.disabled && game.preflightBlocked === true && (
+                          <span className="rounded border border-danger/50 bg-danger/10 px-1.5 py-0.5 text-[11px] font-semibold text-danger">
+                            Test en échec
+                          </span>
+                        )}
                         {availabilityConfig[game.availability] && (
                           <span
                             className={`rounded border px-1.5 py-0.5 text-[11px] font-semibold ${availabilityConfig[game.availability].className}`}
@@ -610,6 +628,8 @@ export function PersonalRunGameSelectionPage({
                         <p className="mt-0.5 text-xs text-danger">
                           Temporairement désactivé{game.disabledMessage ? ` : ${game.disabledMessage}` : "."}
                         </p>
+                      ) : game.preflightBlocked === true ? (
+                        <p className="mt-0.5 text-xs text-danger">{PREFLIGHT_BLOCKED_MESSAGE}</p>
                       ) : game.description ? (
                         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{game.description}</p>
                       ) : null}
@@ -623,8 +643,14 @@ export function PersonalRunGameSelectionPage({
                           : "border-border text-foreground hover:border-accent hover:text-accent-text",
                         fading ? "opacity-0" : "opacity-100",
                       ].join(" ")}
-                      disabled={locked || game.disabled}
-                      title={game.disabled ? (game.disabledMessage ?? "Jeu temporairement désactivé") : undefined}
+                      disabled={locked || game.disabled || game.preflightBlocked === true}
+                      title={
+                        game.disabled
+                          ? (game.disabledMessage ?? "Jeu temporairement désactivé")
+                          : game.preflightBlocked === true
+                            ? PREFLIGHT_BLOCKED_MESSAGE
+                            : undefined
+                      }
                       onClick={() => handleAddGame(game.id)}
                       type="button"
                     >
@@ -670,6 +696,20 @@ export function PersonalRunGameSelectionPage({
           </>
         )}
       </section>
+
+      {fileTestSlot !== null ? (
+        <SlotTestFilesDialog
+          gameName={fileTestSlot.gameName}
+          onLaunched={() => void queryClient.invalidateQueries({ queryKey: ["personal-run-game-selection", runId] })}
+          onOpenChange={(open) => {
+            if (!open) setFileTestSlot(null);
+          }}
+          open
+          requiredFiles={fileTestSlot.requiredFiles}
+          runId={runId}
+          slotId={fileTestSlot.slotId}
+        />
+      ) : null}
     </article>
   );
 }

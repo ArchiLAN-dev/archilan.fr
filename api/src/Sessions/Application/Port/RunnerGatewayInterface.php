@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Port;
 
+use App\Sessions\Application\Exception\RequiredGenerationFileExpiredException;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
+
 interface RunnerGatewayInterface
 {
     /**
@@ -58,13 +61,29 @@ interface RunnerGatewayInterface
     public function fetchLocationNames(string $hash): array;
 
     /**
+     * The files an uploaded apworld's world declares in its host.yaml settings (story 44.3), read at
+     * introspection. Empty when not introspected yet or when the orchestrator does not answer.
+     *
+     * @return list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>
+     */
+    public function fetchDeclaredFiles(string $hash): array;
+
+    /**
+     * By Archipelago game name, the files the worlds shipped with the image declare (story 44.3).
+     * Null when the orchestrator does not answer or predates them.
+     *
+     * @return array<string, list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>>|null
+     */
+    public function fetchOfficialDeclaredFiles(): ?array;
+
+    /**
      * Upload-time preflight verdicts for all uploaded apworlds, keyed by hash (story 9.38).
      * `blocks` is true only for a failed, non-overridden verdict. Apworlds never checked
      * (uploaded before the preflight existed) appear with an empty status and blocks=false.
      * Returns an empty array when the runner is unreachable - callers MUST fail open (never
      * block on missing data).
      *
-     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string}>
+     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}>
      */
     public function fetchApworldPreflights(): array;
 
@@ -79,14 +98,17 @@ interface RunnerGatewayInterface
     /**
      * Re-run the upload-time preflight for one apworld (asynchronous on the orchestrator).
      * Returns false when the runner rejected the request or is unreachable.
+     *
+     * @param list<string> $requiredFileIds held files the test reads, provided by an admin (story 44.6); the
+     *                                      verdict then says withRequiredFiles
      */
-    public function runApworldPreflight(string $hash): bool;
+    public function runApworldPreflight(string $hash, array $requiredFileIds = []): bool;
 
     /**
      * Toggle the admin "force allow" override on a preflight verdict (story 9.38 AC4).
      * Returns the updated verdict, or null when the runner is unreachable.
      *
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string}|null
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}|null
      */
     public function overrideApworldPreflight(string $hash, bool $overridden): ?array;
 
@@ -110,8 +132,10 @@ interface RunnerGatewayInterface
      * Queue a solo test generation of one player's real YAML (story 9.42). $apworldHash is
      * null for official worlds bundled in the generation image. Returns the orchestrator job
      * id to poll with getSlotPreflight, or null when the runner is unreachable.
+     *
+     * @param list<string> $requiredFileIds held files the test reads (story 44.6)
      */
-    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string;
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash, array $requiredFileIds = []): ?string;
 
     /**
      * Poll a slot preflight job. Returns null for unknown/expired ids or runner errors (the
@@ -130,8 +154,24 @@ interface RunnerGatewayInterface
 
     /**
      * @param array<string, mixed> $generationOptions
+     * @param list<string>         $requiredFileIds   held files this generation consumes (story 44.2)
+     *
+     * @throws RequiredGenerationFileExpiredException when one of them is no longer held
      */
-    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = []): void;
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = [], array $requiredFileIds = []): void;
+
+    /**
+     * Hands a file a world reads at generation to the orchestrator, which holds it in memory for one
+     * generation only (story 44.2). Streamed from $path.
+     *
+     * @return string the one-use id the generation names it by
+     *
+     * @throws RequiredGenerationFileRefusedException
+     */
+    public function stageRequiredFile(string $setting, string $path, string $filename): string;
+
+    /** Drops a held file before its generation; never throws, the file expires anyway. */
+    public function releaseRequiredFile(string $stagedFileId): void;
 
     /**
      * @param array<string, scalar> $serverOptions

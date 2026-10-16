@@ -7,6 +7,7 @@ namespace App\GameSelection\Presentation\Controller;
 use App\GameSelection\Application\Service\AdminGameLibrary;
 use App\GameSelection\Domain\Entity\Game;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\RequiredGenerationFilesRequest;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -202,6 +203,28 @@ final readonly class AdminGameLibraryController
         }
 
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Notes enregistrées.']]);
+    }
+
+    /** Story 44.3: a file a failed generation proved needed, judged a false positive by an admin. */
+    #[Route('/api/v1/admin/games/{gameId}/required-files/{setting}/needed', name: 'api_admin_game_clear_required_file', methods: ['DELETE'])]
+    public function clearRequiredFile(Request $request, string $gameId, string $setting): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $result = $this->adminGameLibrary->clearRequiredAtGeneration($gameId, $setting, $admin->getId());
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Ce fichier n\'est pas marqué comme nécessaire.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => $result['game'] ?? null, 'meta' => ['message' => 'Le fichier n\'est plus exigé à la génération.']]);
     }
 
     #[Route('/api/v1/admin/games/{gameId}/tutorial/seed', name: 'api_admin_game_seed_tutorial', methods: ['POST'])]
@@ -418,7 +441,12 @@ final readonly class AdminGameLibraryController
             return $this->apiAccessGuard->errorResponse('regenerate_failed', 'La régénération a échoué.', 500);
         }
 
-        return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Template régénéré depuis l\'apworld.']]);
+        $meta = ['message' => 'Template régénéré depuis l\'apworld.'];
+        if (isset($result['warning'])) {
+            $meta['warning'] = $result['warning'];
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => $meta]);
     }
 
     #[Route('/api/v1/admin/games/{gameId}/apworld-preflight', name: 'api_admin_game_apworld_preflight_rerun', methods: ['POST'])]
@@ -430,10 +458,19 @@ final readonly class AdminGameLibraryController
             return $admin;
         }
 
-        $result = $this->adminGameLibrary->rerunApworldPreflight($gameId);
+        $provided = RequiredGenerationFilesRequest::read($request);
+        if ([] !== $provided['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', $provided['errors'][0], 422, ['requiredFiles' => $provided['errors']]);
+        }
+
+        $result = $this->adminGameLibrary->rerunApworldPreflight($gameId, $provided['files']);
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if (isset($result['errors']['requiredFiles'])) {
+            return $this->apiAccessGuard->errorResponse('required_file_refused', $result['errors']['requiredFiles'][0], 422, $result['errors']);
         }
 
         if ([] !== $result['errors']) {

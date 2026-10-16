@@ -285,7 +285,7 @@ LOG;
     public function testARequiredFileIsNamedInWords(): void
     {
         self::assertSame(
-            'Ce jeu demande le fichier « DKC3 (US) ROM File » (.sfc) à la génération. ArchiLAN ne sait pas encore le fournir.',
+            'Ce jeu demande le fichier « DKC3 (US) ROM File » (.sfc) à la génération. Le lanceur doit le fournir au lancement de la partie.',
             GenerationFailureParser::summarize(self::DKC3_STDERR),
         );
 
@@ -300,7 +300,7 @@ LOG;
         $stderr = '###ARCHILAN-FAILURE### {"type": "FileNotFoundError", "message": "x", "requiredFile": {"setting": "MK64Settings.rom_file", "file": "Mario Kart 64 (U) [!].z64", "extension": ".z64"}}';
 
         self::assertSame(
-            'Ce jeu demande le fichier « Mario Kart 64 (U) [!].z64 » à la génération. ArchiLAN ne sait pas encore le fournir.',
+            'Ce jeu demande le fichier « Mario Kart 64 (U) [!].z64 » à la génération. Le lanceur doit le fournir au lancement de la partie.',
             GenerationFailureParser::summarize($stderr),
         );
     }

@@ -15,7 +15,6 @@ import {
   Gamepad2,
   Loader2,
   PackageX,
-  Play,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
@@ -30,6 +29,7 @@ import { REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { fetchPersonalRun, setRunArchivedForMe, setRunRecapVisibility, type PersonalRunResult } from "./personal-runs-api";
 import { IdleBanner } from "./idle-banner";
+import { PersonalRunStart } from "./personal-run-start";
 import { ImportedSeedPanel } from "./imported-seed-panel";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
@@ -54,6 +54,7 @@ import { ARCHIVABLE_STATUSES, type PersonalRun, type PersonalRunParticipant, typ
 import { MemberAvatar } from "../community/member-avatar";
 import { TitledName } from "@/features/community/titled-name";
 import { InfoHint } from "@/components/ui/info-hint";
+import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generation-failure-notice";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -209,27 +210,20 @@ function ValidationErrorBanner({
           <p className="text-sm font-semibold text-[color:var(--color-danger)]">
             La validation a échoué lors du dernier démarrage
           </p>
-          <ul className="mt-2 grid gap-2">
-            {errors.map((slot) => (
-              <li key={slot.slotName}>
-                <p className="text-xs font-medium text-foreground">Slot « {slot.slotName} »</p>
-                <ul className="mt-0.5 list-disc pl-4">
-                  {slot.errors.map((err) => (
-                    <li className="text-xs text-muted-foreground" key={err}>{err}</li>
-                  ))}
-                </ul>
-              </li>
-            ))}
+          {/* Story 38.16: each finding says its kind and what to do; the log stays folded. */}
+          <ul className="mt-2 grid divide-y divide-[color:var(--color-danger)]/20">
+            {errors.flatMap((slot) =>
+              slot.errors.map((err) => (
+                <li className="py-2 first:pt-0 last:pb-0" key={`${slot.slotName}-${err}`}>
+                  <GenerationFailureNotice audience="player" bare message={err} slotName={slot.slotName} />
+                </li>
+              )),
+            )}
           </ul>
           {logExcerpt !== null && logExcerpt !== "" ? (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
-                Détails techniques
-              </summary>
-              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md border border-border bg-surface p-3 text-[11px] leading-relaxed text-muted-foreground">
-                {logExcerpt}
-              </pre>
-            </details>
+            <div className="mt-3">
+              <TechnicalLog log={logExcerpt} />
+            </div>
           ) : null}
         </div>
       </div>
@@ -434,24 +428,6 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
     // The list page groups runs by status: mark its cache stale too so navigating back reflects the
     // change immediately (the old page refetched the list on every mount).
     void queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
-  }
-
-  async function handleStart() {
-    setActioning(true);
-    setActionError(null);
-    try {
-      const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/start`, { method: "POST" });
-      if (!res.ok) {
-        const payload = (await res.json()) as { error?: { code?: string; message?: string } };
-        setActionError(payload.error?.message ?? "Impossible de démarrer la partie.");
-        return;
-      }
-      await refreshRun();
-    } catch {
-      setActionError("Erreur réseau.");
-    } finally {
-      setActioning(false);
-    }
   }
 
   async function handleStop() {
@@ -959,25 +935,15 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     vérifie les configs marquées « Échec du test » avant de lancer.
                   </InfoHint>
                 )}
-                <button
-                  className="inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                <PersonalRunStart
                   disabled={!isStartable || actioning}
-                  onClick={() => void handleStart()}
-                  title={!hasConfiguredGames ? "Configure au moins un jeu pour pouvoir démarrer" : undefined}
-                  type="button"
-                >
-                  {actioning ? (
-                    <Loader2 aria-hidden className="size-4 animate-spin" />
-                  ) : (
-                    <Play aria-hidden className="size-4" />
-                  )}
-                  Démarrer la partie
-                </button>
-                {!hasConfiguredGames && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    Configure au moins un jeu pour pouvoir démarrer.
-                  </p>
-                )}
+                  generationFiles={run.generationFiles}
+                  hasConfiguredGames={hasConfiguredGames}
+                  onBusy={setActioning}
+                  onError={setActionError}
+                  onStarted={refreshRun}
+                  runId={runId}
+                />
                 <div className="flex gap-2">
                   <button
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded border border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface"

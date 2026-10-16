@@ -12,6 +12,7 @@ use App\PersonalRuns\Application\Service\PersonalRunGameSelection;
 use App\PersonalRuns\Application\Service\PersonalRunSeedImport;
 use App\PersonalRuns\Application\Service\RunSlotCoPlayers;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\RequiredGenerationFilesRequest;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -189,9 +190,15 @@ final readonly class PersonalRunController
             return $user;
         }
 
+        // Story 44.2: optional files a world reads at generation, multipart `requiredFiles[<setting>]`.
+        $required = RequiredGenerationFilesRequest::read($request);
+        if ([] !== $required['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Fichier de génération invalide.', 422, ['requiredFiles' => $required['errors']]);
+        }
+
         // Failures (missing, not owner, wrong state) are thrown as typed ApplicationFailures and mapped
         // to HTTP by ApplicationFailureListener (epic 35).
-        $result = $this->lifecycle->start($runId, $user->getId());
+        $result = $this->lifecycle->start($runId, $user->getId(), $required['files']);
 
         return new JsonResponse(['data' => ['runId' => $result->runId, 'status' => $result->status]], 202);
     }
@@ -369,7 +376,13 @@ final readonly class PersonalRunController
             return $user;
         }
 
-        $result = $this->gameSelection->requestSlotPreflight($runId, $user->getId(), $slotId);
+        // Story 44.7: the ROM of a ROM game travels with the request, `requiredFiles[<setting>]`.
+        $provided = RequiredGenerationFilesRequest::read($request);
+        if ([] !== $provided['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', $provided['errors'][0], 422, ['requiredFiles' => $provided['errors']]);
+        }
+
+        $result = $this->gameSelection->requestSlotPreflight($runId, $user->getId(), $slotId, $provided['files']);
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
@@ -377,6 +390,10 @@ final readonly class PersonalRunController
 
         if (!$result['authorized']) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
+        }
+
+        if (isset($result['errors']['requiredFiles'])) {
+            return $this->apiAccessGuard->errorResponse('required_file_refused', $result['errors']['requiredFiles'][0], 422, $result['errors']);
         }
 
         if ([] !== $result['errors']) {

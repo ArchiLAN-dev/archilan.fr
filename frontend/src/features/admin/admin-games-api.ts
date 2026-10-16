@@ -1,4 +1,6 @@
 import type { InstallStep } from "@/features/games/install-steps-editor";
+import { requiredFilesForm } from "@/features/games/required-file-check";
+import type { GameRequiredFile } from "@/features/games/required-files";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -56,7 +58,27 @@ export type AdminGame = {
   // Story 9.52: the curation alone. What the admin decided, as opposed to what the apworld
   // declared, so the screen can show which is which and offer to hand an option back.
   dictOptionValues?: Record<string, Record<string, { values: string[]; closed: boolean }>> | null;
+  // Story 44.3: the files the world declares, and which ones a failed generation proved needed.
+  requiredFiles?: GameRequiredFile[];
 };
+
+/**
+ * Story 44.3: a file a failed generation proved needed, judged a false positive. It stops being
+ * mandatory for the launcher. The updated game, or null when the request failed.
+ */
+export async function clearRequiredFileNeed(gameId: string, setting: string): Promise<AdminGame | null> {
+  try {
+    const res = await apiFetch(
+      `${env.apiBaseUrl}/admin/games/${gameId}/required-files/${encodeURIComponent(setting)}/needed`,
+      { method: "DELETE" },
+    );
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    return isAdminGamePayload(payload) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Story 9.52: declare what the sub-settings of one dict option accept.
@@ -140,6 +162,10 @@ export type ApworldPreflight = {
   imageId?: string | null;
   // Story 38.12: what the generator reported on a pass (accessibility not met, as the Launcher allows).
   warning?: string;
+  // Story 44.6: the test was given the file its world reads, which only an admin can provide.
+  withRequiredFiles?: boolean;
+  // Story 38.16: a failed verdict in one line (GenerationFailureParser), `error` being the raw tail.
+  summary?: string;
 };
 
 export function isApworldPreflight(v: unknown): v is ApworldPreflight {
@@ -221,19 +247,100 @@ export async function regenerateDefaultYaml(gameId: string): Promise<DefaultYaml
     if (!res.ok || !isAdminGamePayload(payload)) {
       return { kind: "error", message: "La régénération a échoué." };
     }
-    return { kind: "saved", game: payload.data, warning: null };
+    // Review of epic 44: a ROM game's test is not rerun without the file, and the page says so.
+    return { kind: "saved", game: payload.data, warning: readWarning(payload) };
   } catch {
     return { kind: "error", message: "Impossible de contacter le serveur." };
   }
 }
 
-/** Queue a preflight re-run (async on the orchestrator). Returns whether it was accepted. */
-export async function rerunApworldPreflight(gameId: string): Promise<boolean> {
+// ── Replacing the apworld (story 38.15: moved out of the editor, unchanged) ─────────
+
+export type GithubApworldAsset = { name: string; downloadUrl: string; size: number; tag: string | null };
+
+function isGithubApworldAsset(v: unknown): v is GithubApworldAsset {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "name") &&
+    hasStringProp(v, "downloadUrl") &&
+    "size" in v &&
+    typeof v.size === "number" &&
+    hasNullableStringProp(v, "tag")
+  );
+}
+
+const SERVER_ERROR = "Impossible de contacter le serveur.";
+
+/** The .apworld files of the latest release at the game's source URL. */
+export async function fetchGithubApworldAssets(gameId: string): Promise<{ ok: true; assets: GithubApworldAsset[] } | { ok: false; message: string }> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/apworld-preflight`, { method: "POST" });
-    return res.ok;
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/github-assets`);
+    const json: unknown = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, message: apiErrorMessage(json, "Erreur lors de la récupération des assets.") };
+    const data: unknown = typeof json === "object" && json !== null && "data" in json ? json.data : null;
+    return { ok: true, assets: Array.isArray(data) ? data.filter(isGithubApworldAsset) : [] };
   } catch {
-    return false;
+    return { ok: false, message: SERVER_ERROR };
+  }
+}
+
+export type ApworldReplaceResult = { ok: true; game: AdminGame } | { ok: false; message: string };
+
+/** Import one asset of the release. `holdForApproval` (story 38.14): a passed test waits for the admin. */
+export async function importApworldFromGithub(gameId: string, asset: GithubApworldAsset, holdForApproval: boolean): Promise<ApworldReplaceResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/apworld-from-github`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assetDownloadUrl: asset.downloadUrl, assetName: asset.name, assetTag: asset.tag, holdForApproval }),
+    });
+    const json: unknown = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, message: apiErrorMessage(json, "Erreur lors de l'import.") };
+    return isAdminGamePayload(json) ? { ok: true, game: json.data } : { ok: false, message: "Erreur lors de l'import." };
+  } catch {
+    return { ok: false, message: SERVER_ERROR };
+  }
+}
+
+/** Upload a local .apworld file. */
+export async function uploadApworldFile(gameId: string, file: File, holdForApproval: boolean): Promise<ApworldReplaceResult> {
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    if (holdForApproval) form.append("holdForApproval", "1");
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/apworld`, { method: "PATCH", body: form });
+    const json: unknown = await res.json().catch(() => null);
+    if (!res.ok) return { ok: false, message: uploadErrorMessage(json) };
+    return isAdminGamePayload(json) ? { ok: true, game: json.data } : { ok: false, message: "Une erreur est survenue." };
+  } catch {
+    return { ok: false, message: SERVER_ERROR };
+  }
+}
+
+/** The upload's refusal is the first message under `details.file`. */
+function uploadErrorMessage(json: unknown): string {
+  const error: unknown = typeof json === "object" && json !== null && "error" in json ? json.error : null;
+  const details: unknown = typeof error === "object" && error !== null && "details" in error ? error.details : null;
+  const list: unknown = typeof details === "object" && details !== null && "file" in details ? details.file : null;
+  return Array.isArray(list) && typeof list[0] === "string" ? list[0] : "Une erreur est survenue.";
+}
+
+const RERUN_ERROR = "Impossible de relancer le test (runner indisponible ?).";
+
+/**
+ * Queue a preflight re-run (async on the orchestrator), with the files the admin provided (story 44.6): a
+ * multipart body then, no body otherwise.
+ */
+export async function rerunApworldPreflight(gameId: string, files: Record<string, File> = {}): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    const body = Object.keys(files).length > 0 ? requiredFilesForm(files) : undefined;
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/apworld-preflight`, { method: "POST", body });
+    if (res.ok) return { ok: true };
+    const json: unknown = await res.json().catch(() => null);
+    return { ok: false, message: apiErrorMessage(json, RERUN_ERROR) };
+  } catch {
+    return { ok: false, message: RERUN_ERROR };
   }
 }
 
@@ -319,13 +426,22 @@ export function approveApworldCandidate(gameId: string): Promise<ApworldCandidat
 
 const YAML_TEST_ERROR = "Le test n'a pas pu être lancé. Réessaie dans un instant.";
 
-/** Story 38.14: generate a pasted YAML against the candidate version. Nothing goes online. */
-export async function startApworldCandidateYamlTest(gameId: string, yaml: string): Promise<{ ok: true; jobId: string } | { ok: false; message: string }> {
+/**
+ * Story 38.14: generate a pasted YAML against the candidate version. Nothing goes online. With files to join
+ * (story 44.6, a ROM) the YAML travels as a multipart field beside them.
+ */
+export async function startApworldCandidateYamlTest(
+  gameId: string,
+  yaml: string,
+  files: Record<string, File> = {},
+): Promise<{ ok: true; jobId: string } | { ok: false; message: string }> {
   try {
+    const withFiles = Object.keys(files).length > 0;
+    const form = withFiles ? requiredFilesForm(files) : null;
+    form?.append("yaml", yaml);
     const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${encodeURIComponent(gameId)}/apworld-candidate/test-yaml`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ yaml }),
+      ...(form !== null ? { body: form } : { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ yaml }) }),
     });
     const json: unknown = await res.json().catch(() => null);
     if (res.ok) {

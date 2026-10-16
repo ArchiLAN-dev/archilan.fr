@@ -26,6 +26,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
+import type { GenerationFile } from "@/features/games/required-files";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/apiFetch";
@@ -44,6 +46,7 @@ import {
   fetchAdminEventSessions,
   fetchAdminEventTitle,
   fetchAdminSessionDetail,
+  generateSession,
   fetchContainerLogs,
   fetchContainerState,
   type AdminSessionDetailResult,
@@ -52,6 +55,7 @@ import {
   type SessionSlot,
   type SessionStatus,
 } from "./admin-sessions-api";
+import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generation-failure-notice";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -464,6 +468,11 @@ export function AdminSessionDetailPage({
         ["admin-session-detail", sessionId],
         (prev) => (prev !== undefined && prev.kind === "ready" ? { ...prev, session } : prev),
       );
+      // Review of epic 44: a failed generation may have just proved a game needs a file (a ROM). The pushed
+      // session does not carry the files, so the detail is read again and the panel asks for it.
+      if (session.status === "failed") {
+        void queryClient.invalidateQueries({ queryKey: ["admin-session-detail", sessionId] });
+      }
     },
     [queryClient, sessionId],
   );
@@ -495,6 +504,7 @@ export function AdminSessionDetailPage({
         autoStart={autoStart}
         eventId={eventId}
         onSessionUpdate={handleSessionUpdate}
+        generationFiles={detail.generationFiles}
         session={detail.session}
         slots={detail.slots}
       />
@@ -768,12 +778,14 @@ function SessionDetail({
   onSessionUpdate,
   eventId,
   autoStart = null,
+  generationFiles,
 }: {
   session: Session;
   slots: SessionSlot[];
   onSessionUpdate: (session: Session) => void;
   eventId: string;
   autoStart?: "generate-and-launch" | null;
+  generationFiles: GenerationFile[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -781,6 +793,10 @@ function SessionDetail({
 
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [pendingChain, setPendingChain] = useState<"generate" | "generate-and-launch" | null>(autoStart);
+  // Story 44.5: the files a generation needs (a ROM), chosen and checked here, never stored.
+  const provided = useProvidedFiles(generationFiles);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const filesMissing = provided.blocker !== null;
   const [copied, setCopied] = useState<string | null>(null);
   const [forceEndOpen, setForceEndOpen] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -818,6 +834,11 @@ function SessionDetail({
       return;
     }
     if (session.status === "ready") {
+      // Story 44.5: the chain stops here until the admin provides the files a game needs.
+      if (filesMissing) {
+        clearPendingChainSoon();
+        return;
+      }
       runChainedAction("generate");
       return;
     }
@@ -860,6 +881,19 @@ function SessionDetail({
 
   async function runAction(action: string): Promise<boolean> {
     setActionPending(action);
+    setActionError(null);
+    if (action === "generate") {
+      const result = await generateSession(session.id, provided.files);
+      setActionPending(null);
+      if (!result.ok) {
+        setActionError(result.message);
+        return false;
+      }
+      // The files went with the generation: nothing is kept for later.
+      provided.reset();
+      onSessionUpdate(result.session);
+      return true;
+    }
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${session.id}/${action}`, {
         method: "POST",
@@ -951,7 +985,7 @@ function SessionDetail({
             <>
               <ActionButton
                 compact
-                disabled={pendingChain !== null}
+                disabled={pendingChain !== null || filesMissing}
                 icon={<Activity aria-hidden="true" className="size-4" />}
                 label="Générer"
                 loading={pendingChain === "generate" || ((actionPending === "validate" || actionPending === "generate") && pendingChain === null)}
@@ -960,7 +994,7 @@ function SessionDetail({
               />
               <ActionButton
                 compact
-                disabled={pendingChain !== null && pendingChain !== "generate-and-launch"}
+                disabled={(pendingChain !== null && pendingChain !== "generate-and-launch") || filesMissing}
                 icon={<Zap aria-hidden="true" className="size-4" />}
                 label="Générer & Lancer"
                 loading={pendingChain !== null || actionPending !== null}
@@ -1020,7 +1054,7 @@ function SessionDetail({
             <>
               <ActionButton
                 compact
-                disabled={pendingChain !== null}
+                disabled={pendingChain !== null || filesMissing}
                 icon={<RefreshCw aria-hidden="true" className="size-4" />}
                 label="Régénérer"
                 loading={pendingChain === "generate" || ((actionPending === "validate" || actionPending === "generate") && pendingChain === null)}
@@ -1029,7 +1063,7 @@ function SessionDetail({
               />
               <ActionButton
                 compact
-                disabled={pendingChain !== null && pendingChain !== "generate-and-launch"}
+                disabled={(pendingChain !== null && pendingChain !== "generate-and-launch") || filesMissing}
                 icon={<Zap aria-hidden="true" className="size-4" />}
                 label="Régénérer & Lancer"
                 loading={pendingChain !== null || actionPending !== null}
@@ -1050,6 +1084,15 @@ function SessionDetail({
           ) : null}
         </div>
       </div>
+
+      {/* Story 44.5: the files a generation needs, and why a generation could not start. */}
+      {["draft", "ready", "failed"].includes(session.status) && (provided.needed.length > 0 || actionError !== null) ? (
+        <div className="grid gap-3 border-b border-border px-5 py-3">
+          <RequiredFilesPanel disabled={actionPending !== null} needed={provided.needed} onChoose={(required, file) => void provided.choose(required, file)} states={provided.states} />
+          {provided.blocker !== null ? <p className="text-xs text-muted-foreground">{provided.blocker}</p> : null}
+          {actionError !== null ? <p className="text-sm text-danger" role="alert">{actionError}</p> : null}
+        </div>
+      ) : null}
 
       {/* ── Tab bar ── one scrollable row on every width, same pattern as the run page (16.12). */}
       <div className="flex gap-1 overflow-x-auto border-b border-border bg-surface px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -1081,12 +1124,12 @@ function SessionDetail({
               <SessionPipelineBar status={session.status} />
             </div>
 
-            {/* Crash / failed alert */}
-            {(session.status === "crashed" || session.status === "failed") ? (
+            {/* A crashed server: the AP server stopped, nothing to read but its logs. */}
+            {session.status === "crashed" ? (
               <div className="grid gap-0 overflow-hidden rounded border border-danger/40">
                 <div className="flex items-start gap-3 bg-danger/10 px-4 py-3 text-sm text-danger">
                   <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                  <span>{session.error ?? (session.status === "crashed" ? "La session a planté. Vérifiez le runner avant de relancer." : "La génération a échoué.")}</span>
+                  <span>{session.error ?? "La session a planté. Vérifiez le runner avant de relancer."}</span>
                 </div>
                 {session.lastLogs ? (
                   <pre className="max-h-48 overflow-y-auto bg-[var(--color-bg)] px-4 py-3 font-mono text-xs text-danger/70 whitespace-pre-wrap">
@@ -1096,23 +1139,27 @@ function SessionDetail({
               </div>
             ) : null}
 
-            {/* Validation errors */}
-            {session.validationErrors && session.validationErrors.length > 0 ? (
-              <div className="rounded border border-danger/40 bg-danger/5 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-danger">
+            {/* Story 38.16: a failed generation or a refused validation, one notice per finding, the log once. */}
+            {session.status === "failed" || (session.validationErrors && session.validationErrors.length > 0) ? (
+              <div className="grid gap-3 rounded border border-danger/40 bg-danger/5 p-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-danger">
                   <AlertTriangle aria-hidden="true" className="size-4" />
-                  Erreurs de validation - corrigez les YAMLs puis relancez la génération.
-                </div>
-                <div className="grid gap-2">
-                  {session.validationErrors.map((ve) => (
-                    <div className="rounded border border-danger/20 bg-[var(--color-bg)] px-3 py-2 text-xs" key={ve.slotName}>
-                      <span className="font-mono font-semibold text-foreground">{ve.slotName}</span>
-                      <ul className="mt-1 grid gap-0.5 text-danger">
-                        {ve.errors.map((err, i) => <li key={i}>- {err}</li>)}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
+                  {session.status === "failed" ? "La génération a échoué." : "Erreurs de validation : corrigez les YAMLs puis relancez la génération."}
+                </p>
+                {session.validationErrors && session.validationErrors.length > 0 ? (
+                  <div className="grid divide-y divide-danger/20">
+                    {session.validationErrors.flatMap((ve) =>
+                      ve.errors.map((err, i) => (
+                        <div className="py-2 first:pt-0 last:pb-0" key={`${ve.slotName}-${i}`}>
+                          <GenerationFailureNotice audience="admin" bare message={err} slotName={ve.slotName} />
+                        </div>
+                      )),
+                    )}
+                  </div>
+                ) : (
+                  <GenerationFailureNotice audience="admin" bare message={session.error ?? ""} />
+                )}
+                {session.status === "failed" && session.lastLogs ? <TechnicalLog log={session.lastLogs} /> : null}
               </div>
             ) : null}
 

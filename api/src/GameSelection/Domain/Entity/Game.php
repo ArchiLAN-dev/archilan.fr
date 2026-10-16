@@ -25,6 +25,17 @@ final class Game
     #[ORM\OneToOne(mappedBy: 'game', cascade: ['persist', 'remove'])]
     private ?GameCatalogSync $catalogSync = null;
 
+    /**
+     * The files the world reads from the player, almost always a ROM (story 44.3). Two claims in one row:
+     * what the world declares in its host.yaml settings - a superset, most only serve the client - and
+     * whether a failed generation proved one necessary (`neededAtGeneration`). Only the latter makes the
+     * launcher provide it. A re-introspection replaces the declared ones and keeps what was proven.
+     *
+     * @var list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>, neededAtGeneration: bool}>|null
+     */
+    #[ORM\Column(name: 'required_files', type: 'json', nullable: true)]
+    private ?array $requiredFiles = null;
+
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(type: 'string', length: 32)]
@@ -397,6 +408,117 @@ final class Game
         }
 
         return $types;
+    }
+
+    /**
+     * @return list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>, neededAtGeneration: bool}>
+     */
+    public function getRequiredFiles(): array
+    {
+        return $this->requiredFiles ?? [];
+    }
+
+    /**
+     * A generation of this game reads a file the launcher provides (a ROM), proven by a failed generation
+     * (story 44.3). A test run without it can only fail on its absence (review of epic 44).
+     */
+    public function needsAFileAtGeneration(): bool
+    {
+        return array_any($this->getRequiredFiles(), static fn (array $file): bool => $file['neededAtGeneration']);
+    }
+
+    /** Whether the world declares this setting or a generation proved it (story 44.3). */
+    public function knowsRequiredFile(string $setting): bool
+    {
+        return array_any($this->getRequiredFiles(), static fn (array $file): bool => $file['setting'] === $setting);
+    }
+
+    /**
+     * Replace what the world declares (story 44.3). A setting a generation proved necessary keeps its flag,
+     * and stays even when the world stops declaring it: the failed generation is the stronger evidence.
+     *
+     * @param list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}> $declared
+     */
+    public function recordDeclaredRequiredFiles(array $declared): void
+    {
+        $proven = [];
+        foreach ($this->getRequiredFiles() as $file) {
+            if ($file['neededAtGeneration']) {
+                $proven[$file['setting']] = $file;
+            }
+        }
+
+        $files = [];
+        foreach ($declared as $file) {
+            $files[$file['setting']] = [...$file, 'neededAtGeneration' => isset($proven[$file['setting']])];
+            unset($proven[$file['setting']]);
+        }
+        foreach ($proven as $setting => $file) {
+            $files[$setting] = $file;
+        }
+        ksort($files);
+
+        $this->requiredFiles = [] === $files ? null : array_values($files);
+    }
+
+    /**
+     * A generation failed for want of this file (story 44.3): the launcher must provide it from now on. The
+     * failure's own details win over the declared ones, the world described what it actually checked.
+     *
+     * @param list<string> $md5s
+     *
+     * @return bool false when the setting was already known to be needed
+     */
+    public function markRequiredAtGeneration(string $setting, string $file, string $extension, ?string $description, array $md5s): bool
+    {
+        $files = [];
+        $known = null;
+        foreach ($this->getRequiredFiles() as $entry) {
+            $files[$entry['setting']] = $entry;
+            if ($entry['setting'] === $setting) {
+                $known = $entry;
+            }
+        }
+        if (null !== $known && $known['neededAtGeneration']) {
+            return false;
+        }
+
+        $files[$setting] = [
+            'setting' => $setting,
+            'file' => $file,
+            'extension' => $extension,
+            'description' => $description ?? $known['description'] ?? null,
+            'md5s' => [] !== $md5s ? $md5s : ($known['md5s'] ?? []),
+            'neededAtGeneration' => true,
+        ];
+        ksort($files);
+        $this->requiredFiles = array_values($files);
+
+        return true;
+    }
+
+    /**
+     * An admin says a generation does not actually need this file (story 44.3): it goes back to declared
+     * only, and the launcher may still provide it.
+     *
+     * @return bool false when the setting was not marked
+     */
+    public function clearRequiredAtGeneration(string $setting): bool
+    {
+        $changed = false;
+        $files = [];
+        foreach ($this->getRequiredFiles() as $entry) {
+            if ($entry['setting'] === $setting && $entry['neededAtGeneration']) {
+                $changed = true;
+                $entry['neededAtGeneration'] = false;
+            }
+            $files[] = $entry;
+        }
+        if ($changed) {
+            $this->requiredFiles = $files;
+        }
+
+        return $changed;
     }
 
     /**

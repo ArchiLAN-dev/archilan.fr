@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/apiFetch";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
+import { requiredFilesForm } from "@/features/games/required-file-check";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import type { ImportedSlot, ParticipantGameSlot, ParticipantIdentity, PersonalRun, SlotCoPlayer } from "./types";
 
@@ -194,17 +195,30 @@ export type GameSelectionSlot = {
   needsReview?: string[];
   // Story 16.17: who else plays this slot. Read-only here - only the run owner changes it.
   coPlayers?: SlotCoPlayer[];
+  // Story 44.3: the files the slot's game may read (a ROM...); story 44.7 asks for them before the test.
+  requiredFiles?: unknown;
 };
 
-/** Story 9.42: queue a "Tester ma config" solo test generation for one slot. */
-export async function requestSlotPreflight(runId: string, slotId: string): Promise<boolean> {
+/**
+ * Story 9.42: queue a "Tester ma config" solo test generation for one slot, with the files its game reads (story
+ * 44.7, a ROM): a multipart body then, no body otherwise.
+ */
+export async function requestSlotPreflight(
+  runId: string,
+  slotId: string,
+  files: Record<string, File> = {},
+): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
+    const body = Object.keys(files).length > 0 ? requiredFilesForm(files) : undefined;
     const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/participants/me/slots/${slotId}/preflight`, {
       method: "POST",
+      body,
     });
-    return res.ok;
+    if (res.ok) return { ok: true };
+    const payload: unknown = await res.json().catch(() => null);
+    return { ok: false, message: apiErrorMessage(payload, "Le test n'a pas pu être lancé. Réessaie dans un instant.") };
   } catch {
-    return false;
+    return { ok: false, message: "Erreur réseau." };
   }
 }
 
@@ -234,6 +248,27 @@ export async function importRunSeed(
   }
 }
 
+/**
+ * Start a run (story 44.5: with the files its games read at generation, if any). Without files the call
+ * is the plain one; with them it is `multipart requiredFiles[<setting>]`. The refusal reason is returned
+ * rather than swallowed: a wrong or refused file is something the launcher can act on.
+ */
+export async function startRun(
+  runId: string,
+  files: Record<string, File> = {},
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    const body = Object.keys(files).length > 0 ? requiredFilesForm(files) : undefined;
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/start`, { method: "POST", body });
+    if (res.ok) return { ok: true };
+
+    const payload: unknown = await res.json().catch(() => null);
+    return { ok: false, message: apiErrorMessage(payload, "Impossible de démarrer la partie.") };
+  } catch {
+    return { ok: false, message: "Erreur réseau." };
+  }
+}
+
 /** Story 16.18: put zero or more participants on a slot of the imported archive. */
 export async function assignImportedSlot(
   runId: string,
@@ -259,6 +294,11 @@ export async function assignImportedSlot(
 }
 
 function importErrorMessage(payload: unknown): string {
+  return apiErrorMessage(payload, "Import impossible.");
+}
+
+/** The first field error of the API envelope, else its message, else the fallback. */
+function apiErrorMessage(payload: unknown, fallback: string): string {
   if (typeof payload === "object" && payload !== null && "error" in payload) {
     const error = payload.error;
     if (typeof error === "object" && error !== null && "details" in error) {
@@ -274,7 +314,7 @@ function importErrorMessage(payload: unknown): string {
     }
   }
 
-  return "Import impossible.";
+  return fallback;
 }
 
 function readImportedSlots(payload: unknown): ImportedSlot[] {
@@ -339,6 +379,8 @@ export type GameSelectionGame = {
   // Temporary admin kill switch (story 11.4): still listed, but not addable.
   disabled?: boolean;
   disabledMessage?: string | null;
+  // Story 38.16: its apworld fails its generation test (no admin override): a save would refuse it.
+  preflightBlocked?: boolean;
   isApworldReady: boolean;
   defaultYaml: string | null;
   optionTypes: OptionTypesMap | null;

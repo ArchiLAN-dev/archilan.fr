@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Http;
 
+use App\Sessions\Application\Exception\RequiredGenerationFileExpiredException;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use Archilan\OrchestratorClient\Apworlds\Response\ApworldPreflight;
 use Archilan\OrchestratorClient\Apworlds\Response\ChoiceTemplateOption;
@@ -14,7 +16,9 @@ use Archilan\OrchestratorClient\Apworlds\Response\TemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\TextTemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\ToggleTemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\WeightsTemplateOption;
+use Archilan\OrchestratorClient\Exception\RequiredFileExpiredException;
 use Archilan\OrchestratorClient\OrchestratorClient;
+use Archilan\OrchestratorClient\RequiredFiles\Response\DeclaredFile;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureRequest;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureSlot;
 use Archilan\OrchestratorClient\Sessions\Request\PreflightRequest;
@@ -276,6 +280,47 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
     }
 
+    public function fetchDeclaredFiles(string $hash): array
+    {
+        try {
+            return array_map(self::declaredFile(...), $this->client->apworlds()->getDeclaredFiles($hash));
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.declared_files_fetch_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    public function fetchOfficialDeclaredFiles(): ?array
+    {
+        try {
+            $official = $this->client->runtime()->getDeclaredFiles();
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.official_declared_files_fetch_failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+
+        $games = [];
+        foreach ($official->games as $game => $files) {
+            $games[$game] = array_map(self::declaredFile(...), $files);
+        }
+
+        return $games;
+    }
+
+    /** @return array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>} */
+    private static function declaredFile(DeclaredFile $file): array
+    {
+        return [
+            'setting' => $file->setting,
+            'file' => $file->file,
+            'extension' => $file->extension,
+            'description' => $file->description,
+            'md5s' => $file->md5s,
+        ];
+    }
+
     public function fetchRuntime(): ?array
     {
         try {
@@ -289,10 +334,10 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
     }
 
-    public function runApworldPreflight(string $hash): bool
+    public function runApworldPreflight(string $hash, array $requiredFileIds = []): bool
     {
         try {
-            $this->client->apworlds()->runPreflight($hash);
+            $this->client->apworlds()->runPreflight($hash, $requiredFileIds);
 
             return true;
         } catch (\Throwable $e) {
@@ -314,7 +359,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null, warning: string}
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null, warning: string, withRequiredFiles: bool}
      */
     private function preflightPayload(ApworldPreflight $preflight): array
     {
@@ -330,6 +375,8 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
             // Story 38.12: what the generator reported on a pass (accessibility not met, as the Launcher
             // allows); empty otherwise.
             'warning' => $preflight->warning,
+            // Story 44.6: the test was given the file its world reads, which only an admin can provide.
+            'withRequiredFiles' => $preflight->withRequiredFiles,
         ];
     }
 
@@ -357,10 +404,10 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
     }
 
-    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash, array $requiredFileIds = []): ?string
     {
         try {
-            return $this->client->preflight()->start($playerYaml, $apworldHash)->id;
+            return $this->client->preflight()->start($playerYaml, $apworldHash, $requiredFileIds)->id;
         } catch (\Throwable $e) {
             $this->logger->warning('runner.slot_preflight_start_failed', ['error' => $e->getMessage()]);
 
@@ -408,10 +455,36 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
 
     /**
      * @param array<string, mixed> $generationOptions
+     * @param list<string>         $requiredFileIds
      */
-    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = []): void
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = [], array $requiredFileIds = []): void
     {
-        $this->client->sessions()->generate($sessionId, $adminPassword, $seed, $generationOptions);
+        try {
+            $this->client->sessions()->generate($sessionId, $adminPassword, $seed, $generationOptions, $requiredFileIds);
+        } catch (RequiredFileExpiredException $e) {
+            throw new RequiredGenerationFileExpiredException($e);
+        }
+    }
+
+    public function stageRequiredFile(string $setting, string $path, string $filename): string
+    {
+        try {
+            return $this->client->requiredFiles()->stage($setting, $path, $filename)->stagedFileId;
+        } catch (\Throwable $e) {
+            // The setting and the name only: never the content of a file we must not keep.
+            $this->logger->error('runner.required_file.stage_failed', ['setting' => $setting, 'filename' => $filename, 'error' => $e->getMessage()]);
+
+            throw new RequiredGenerationFileRefusedException($e->getMessage(), 0, $e);
+        }
+    }
+
+    public function releaseRequiredFile(string $stagedFileId): void
+    {
+        try {
+            $this->client->requiredFiles()->release($stagedFileId);
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.required_file.release_failed', ['error' => $e->getMessage()]);
+        }
     }
 
     /**

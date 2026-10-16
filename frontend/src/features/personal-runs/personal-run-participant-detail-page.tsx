@@ -14,6 +14,7 @@ import { SlotCoPlayers, type CoPlayerCandidate } from "./slot-co-players";
 import { MemberAvatar } from "../community/member-avatar";
 import { TitledName } from "@/features/community/titled-name";
 import { useRouter } from "next/navigation";
+import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
 
 const availabilityConfig: Record<string, { label: string; className: string }> = {
   available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
@@ -287,17 +288,7 @@ export function PersonalRunParticipantDetailPage({
 
                 {slot.preflight ? (
                   slot.preflight.status === "failed" ? (
-                    <details className="grid gap-1.5">
-                      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold text-[color:var(--color-danger)] hover:underline">
-                        <AlertCircle aria-hidden className="size-3.5" />
-                        Échec du test de génération - voir le détail
-                      </summary>
-                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 p-2 text-[11px] leading-relaxed text-muted-foreground">
-                        {slot.preflight.error !== ""
-                          ? slot.preflight.error
-                          : "Échec du test de génération (aucun détail disponible)."}
-                      </pre>
-                    </details>
+                    <GenerationFailureNotice audience="player" message={slot.preflight.error} />
                   ) : (
                     <p
                       className={[

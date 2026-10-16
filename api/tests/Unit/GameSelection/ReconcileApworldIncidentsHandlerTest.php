@@ -8,6 +8,7 @@ use App\GameSelection\Application\Command\DecideApworldCandidates;
 use App\GameSelection\Application\Command\PromoteApworldCandidate;
 use App\GameSelection\Application\Command\ReconcileApworldIncidents;
 use App\GameSelection\Application\Command\RecordApworldIncident;
+use App\GameSelection\Application\Command\RecordGenerationRequiredFile;
 use App\GameSelection\Application\Handler\ReconcileApworldIncidentsHandler;
 use App\GameSelection\Application\Message\ApworldPromoted;
 use App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob;
@@ -205,7 +206,7 @@ final class ReconcileApworldIncidentsHandlerTest extends TestCase
         $handler = new ReconcileApworldIncidentsHandler(
             new DecideApworldCandidates($this->candidates, $runner, new PromoteApworldCandidate($games, $this->incidents, $runner, $clock), $record, $clock, new InMemoryExclusivePassLock()),
             $runner,
-            new ReconcileApworldIncidents($servedQuery, $runner, $this->incidents, $record, $clock, new InMemoryExclusivePassLock(), new InMemoryApworldHealthRepository()),
+            new ReconcileApworldIncidents($servedQuery, $runner, $this->incidents, $record, $clock, new InMemoryExclusivePassLock(), new InMemoryApworldHealthRepository(), new RecordGenerationRequiredFile(self::createStub(GameRepositoryInterface::class), new NullLogger())),
             new ApworldIncidentAlertDispatcher($bus),
             new NullLogger(),
         );

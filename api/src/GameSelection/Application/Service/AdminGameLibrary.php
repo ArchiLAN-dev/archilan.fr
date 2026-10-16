@@ -21,8 +21,11 @@ use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\Service\ArchipelagoImageFreshness;
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Sessions\Application\Support\GenerationFailureParser;
+use App\Sessions\Application\Support\ProvidedGenerationFile;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
@@ -30,6 +33,9 @@ use Symfony\Component\Yaml\Yaml;
 
 final readonly class AdminGameLibrary
 {
+    /** Review of epic 44: a ROM game's test is run again by the admin, with the file. */
+    private const string RERUN_WITH_FILE = 'Template enregistré. Ce jeu lit un fichier à la génération : relance le test avec lui depuis « Tester la génération ».';
+
     /** Mirrors GAME_DESCRIPTION_MAX in the frontend's content-limits.ts. */
     private const int MAX_DESCRIPTION = 5000;
 
@@ -47,6 +53,7 @@ final readonly class AdminGameLibrary
         private InstallStepsReader $stepsReader,
         private SubmitApworldCandidate $submitCandidate,
         private ApworldCandidateRepositoryInterface $candidates,
+        private RequiredGenerationFiles $requiredGenerationFiles,
     ) {
     }
 
@@ -93,6 +100,28 @@ final readonly class AdminGameLibrary
         $this->gameRepository->save($game);
 
         $this->logger->info('game.admin_notes_saved', ['gameId' => $gameId, 'hasNotes' => null !== $game->getAdminNotes()]);
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
+    }
+
+    /**
+     * An admin says a generation does not actually need this file (story 44.3): it stops being mandatory
+     * for the launcher. A false positive, e.g. a failure that named the file for another reason.
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function clearRequiredAtGeneration(string $gameId, string $setting, string $adminId): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+        if (!$game->clearRequiredAtGeneration($setting)) {
+            return ['found' => true, 'errors' => ['setting' => ['Ce fichier n\'est pas marqué comme nécessaire à la génération.']]];
+        }
+        $this->gameRepository->save($game);
+
+        $this->logger->info('game.required_file_cleared', ['gameId' => $gameId, 'setting' => $setting, 'adminId' => $adminId]);
 
         return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
     }
@@ -315,8 +344,13 @@ final readonly class AdminGameLibrary
         $hash = $game->getApworldHash();
         if (null !== $hash && '' !== $hash) {
             if ($this->runnerGateway->setApworldTemplate($hash, $defaultYaml)) {
-                // The verdict must describe the template we now serve, not the previous one.
-                $this->runnerGateway->runApworldPreflight($hash);
+                // The verdict must describe the template we now serve, not the previous one - unless the game reads a
+                // file at generation: a run without it would only replace the verdict with a missing-file failure.
+                if ($game->needsAFileAtGeneration()) {
+                    $warning = self::RERUN_WITH_FILE;
+                } else {
+                    $this->runnerGateway->runApworldPreflight($hash);
+                }
             } else {
                 $warning = 'Template enregistré, mais le runner est indisponible : le verdict du test reste celui de la version précédente.';
             }
@@ -334,7 +368,7 @@ final readonly class AdminGameLibrary
      * repairs a game whose template failed at upload. A world that still cannot produce a
      * template leaves the stored value untouched and returns the actionable error.
      *
-     * @return array{found: bool, errors: array<string, list<string>>, game?: array<string, mixed>}
+     * @return array{found: bool, errors: array<string, list<string>>, game?: array<string, mixed>, warning?: string}
      */
     public function regenerateDefaultYaml(string $gameId): array
     {
@@ -364,13 +398,21 @@ final readonly class AdminGameLibrary
         // The regenerated template may expose different options/locations than the edited one.
         $game->recordOptionTypes($this->runnerGateway->fetchOptionTypes($hash));
         $game->recordLocationNames($this->runnerGateway->fetchLocationNames($hash));
+        $game->recordDeclaredRequiredFiles($this->runnerGateway->fetchDeclaredFiles($hash));
         $this->gameRepository->save($game);
 
-        $this->runnerGateway->runApworldPreflight($hash);
+        $warning = null;
+        if ($game->needsAFileAtGeneration()) {
+            $warning = self::RERUN_WITH_FILE;
+        } else {
+            $this->runnerGateway->runApworldPreflight($hash);
+        }
 
         $this->logger->info('game.default_yaml_regenerated', ['gameId' => $gameId, 'hash' => $hash]);
 
-        return ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+        $payload = ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+
+        return null !== $warning ? [...$payload, 'warning' => $warning] : $payload;
     }
 
     /**
@@ -416,11 +458,15 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * Re-run the upload-time preflight test generation of this game's apworld (story 9.38).
+     * Re-run the upload-time preflight test generation of this game's apworld (story 9.38), with the files an
+     * admin provided (story 44.6): handed to the orchestrator during the request, never stored, and dropped
+     * again when the runner does not take the test. A refused file is reported under `requiredFiles`.
+     *
+     * @param list<ProvidedGenerationFile> $files
      *
      * @return array{found: bool, errors: array<string, list<string>>}
      */
-    public function rerunApworldPreflight(string $gameId): array
+    public function rerunApworldPreflight(string $gameId, array $files = []): array
     {
         $game = $this->gameRepository->findById($gameId);
         if (!$game instanceof Game) {
@@ -432,11 +478,19 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['apworld' => ['Ce jeu n\'a pas d\'apworld configuré.']]];
         }
 
-        if (!$this->runnerGateway->runApworldPreflight($hash)) {
+        try {
+            $fileIds = $this->requiredGenerationFiles->stage($files);
+        } catch (RequiredGenerationFileRefusedException) {
+            return ['found' => true, 'errors' => ['requiredFiles' => ['Le fichier n\'a pas pu être transmis. Réessaie dans un instant.']]];
+        }
+
+        if (!$this->runnerGateway->runApworldPreflight($hash, $fileIds)) {
+            $this->requiredGenerationFiles->release($fileIds);
+
             return ['found' => true, 'errors' => ['apworld' => ['Le runner est indisponible, réessaie plus tard.']]];
         }
 
-        $this->logger->info('game.apworld_preflight_rerun', ['gameId' => $gameId, 'hash' => $hash]);
+        $this->logger->info('game.apworld_preflight_rerun', ['gameId' => $gameId, 'hash' => $hash, 'files' => \count($fileIds)]);
 
         return ['found' => true, 'errors' => []];
     }
@@ -493,7 +547,7 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}|null
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool, summary: string}|null
      */
     private function preflightForGame(Game $game): ?array
     {
@@ -503,8 +557,14 @@ final readonly class AdminGameLibrary
         }
 
         $verdict = $this->runnerGateway->fetchApworldPreflights()[$hash] ?? null;
+        if (null === $verdict || '' === $verdict['status']) {
+            return null;
+        }
 
-        return (null !== $verdict && '' !== $verdict['status']) ? $verdict : null;
+        // Story 38.16: the page shows what failed in one line, the raw tail only on demand.
+        $verdict['summary'] = 'failed' === $verdict['status'] ? GenerationFailureParser::summarize($verdict['error']) : '';
+
+        return $verdict;
     }
 
     /**
@@ -926,6 +986,8 @@ final readonly class AdminGameLibrary
             // which sub-settings it decided, and which ones the apworld declared by itself.
             'dictOptionValues' => $game->getDictOptionValues(),
             'locationNames' => $game->getLocationNames(),
+            // Story 44.3: the files the world declares, and which ones a failed generation proved needed.
+            'requiredFiles' => $game->getRequiredFiles(),
             'adminNotes' => $game->getAdminNotes(),
             'catalogSheetName' => $sync?->getCatalogSheetName(),
             'apworldSourceUrl' => $sync?->getApworldSourceUrl(),

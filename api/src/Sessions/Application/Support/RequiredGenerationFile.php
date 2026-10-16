@@ -49,13 +49,29 @@ final readonly class RequiredGenerationFile
         );
     }
 
+    /**
+     * The record `fromRecord` reads back (story 44.3): handed to an async job.
+     *
+     * @return array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}
+     */
+    public function toRecord(): array
+    {
+        return [
+            'setting' => $this->setting,
+            'file' => $this->file,
+            'extension' => $this->extension,
+            'description' => $this->description,
+            'md5s' => $this->md5s,
+        ];
+    }
+
     /** What the admin and the player read. */
     public function message(): string
     {
         $name = $this->description ?? $this->file;
 
         return sprintf(
-            'Ce jeu demande le fichier « %s »%s à la génération. ArchiLAN ne sait pas encore le fournir.',
+            'Ce jeu demande le fichier « %s »%s à la génération. Le lanceur doit le fournir au lancement de la partie.',
             $name,
             '' !== $this->extension && null !== $this->description ? sprintf(' (%s)', $this->extension) : '',
         );
