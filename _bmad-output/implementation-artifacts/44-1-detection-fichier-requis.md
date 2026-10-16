@@ -1,6 +1,6 @@
 # Story 44.1 - Détecter les apworlds qui demandent un fichier à la génération
 
-**Status:** review
+**Status:** done
 **Epic:** 44 - Fichiers requis à la génération (ROM fournie par le joueur)
 **Date:** 2026-10-14
 

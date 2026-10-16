@@ -1,6 +1,6 @@
 # Story 37.3: Fin de l'exposition publique du port Archipelago
 
-**Status:** ready-for-dev
+**Status:** done
 **Epic:** 37 - Accès WSS aux serveurs Archipelago
 **Date:** 2026-08-10
 **Dépend de :** 37.1 et 37.2. **Ne jamais déployer seule** : sans routeur Traefik en face, refermer
