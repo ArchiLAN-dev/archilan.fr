@@ -26,6 +26,7 @@ import { parseNeedsReview, SlotNeedsReview } from "@/features/games/slot-needs-r
 import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } from "./personal-runs-api";
 import { useRouter } from "next/navigation";
 import { GeneratedLockNote } from "@/components/run-notes";
+import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -463,12 +464,8 @@ export function PersonalRunGameSelectionPage({
                 {slot !== null &&
                   slot.preflight?.status === "failed" &&
                   expandedPreflightSlotId === slot.slotId && (
-                    <div className="mt-2 rounded border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 p-2">
-                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-relaxed text-muted-foreground">
-                        {slot.preflight.error !== ""
-                          ? slot.preflight.error
-                          : "Échec du test de génération (aucun détail disponible)."}
-                      </pre>
+                    <div className="mt-2">
+                      <GenerationFailureNotice audience="player" message={slot.preflight.error} />
                     </div>
                   )}
               </li>

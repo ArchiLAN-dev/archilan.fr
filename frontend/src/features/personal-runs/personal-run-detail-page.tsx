@@ -54,6 +54,7 @@ import { ARCHIVABLE_STATUSES, type PersonalRun, type PersonalRunParticipant, typ
 import { MemberAvatar } from "../community/member-avatar";
 import { TitledName } from "@/features/community/titled-name";
 import { InfoHint } from "@/components/ui/info-hint";
+import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generation-failure-notice";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -209,27 +210,20 @@ function ValidationErrorBanner({
           <p className="text-sm font-semibold text-[color:var(--color-danger)]">
             La validation a échoué lors du dernier démarrage
           </p>
-          <ul className="mt-2 grid gap-2">
-            {errors.map((slot) => (
-              <li key={slot.slotName}>
-                <p className="text-xs font-medium text-foreground">Slot « {slot.slotName} »</p>
-                <ul className="mt-0.5 list-disc pl-4">
-                  {slot.errors.map((err) => (
-                    <li className="text-xs text-muted-foreground" key={err}>{err}</li>
-                  ))}
-                </ul>
-              </li>
-            ))}
+          {/* Story 38.16: each finding says its kind and what to do; the log stays folded. */}
+          <ul className="mt-2 grid divide-y divide-[color:var(--color-danger)]/20">
+            {errors.flatMap((slot) =>
+              slot.errors.map((err) => (
+                <li className="py-2 first:pt-0 last:pb-0" key={`${slot.slotName}-${err}`}>
+                  <GenerationFailureNotice audience="player" bare message={err} slotName={slot.slotName} />
+                </li>
+              )),
+            )}
           </ul>
           {logExcerpt !== null && logExcerpt !== "" ? (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
-                Détails techniques
-              </summary>
-              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md border border-border bg-surface p-3 text-[11px] leading-relaxed text-muted-foreground">
-                {logExcerpt}
-              </pre>
-            </details>
+            <div className="mt-3">
+              <TechnicalLog log={logExcerpt} />
+            </div>
           ) : null}
         </div>
       </div>

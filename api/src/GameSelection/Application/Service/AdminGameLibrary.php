@@ -532,7 +532,7 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}|null
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool, summary: string}|null
      */
     private function preflightForGame(Game $game): ?array
     {
@@ -542,8 +542,14 @@ final readonly class AdminGameLibrary
         }
 
         $verdict = $this->runnerGateway->fetchApworldPreflights()[$hash] ?? null;
+        if (null === $verdict || '' === $verdict['status']) {
+            return null;
+        }
 
-        return (null !== $verdict && '' !== $verdict['status']) ? $verdict : null;
+        // Story 38.16: the page shows what failed in one line, the raw tail only on demand.
+        $verdict['summary'] = 'failed' === $verdict['status'] ? GenerationFailureParser::summarize($verdict['error']) : '';
+
+        return $verdict;
     }
 
     /**

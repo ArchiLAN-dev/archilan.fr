@@ -107,6 +107,26 @@ final class AdminGameTestWithRequiredFileTest extends FunctionalTestCase
         self::assertTrue($preflight['withRequiredFiles'] ?? null);
     }
 
+    // Story 38.16: a failed verdict comes with its one-line summary, the raw tail kept for the log.
+    public function testAFailedVerdictComesWithItsSummary(): void
+    {
+        $raw = 'generate_multiworld.py exited 1: Traceback (most recent call last):
+  File "x.py", line 1
+Fill.FillError: Could not access required locations for accessibility check.';
+        NullRunnerGateway::$apworldPreflights['hash-dkc3'] = ['status' => 'failed', 'error' => $raw, 'checkedAt' => '2026-10-16T10:00:00+00:00', 'overridden' => false, 'blocks' => true];
+        $this->loginAs($this->admin);
+
+        $this->client->request('GET', sprintf('/api/v1/admin/games/%s', $this->game->getId()));
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $preflight = $data['apworldPreflight'] ?? null;
+        self::assertIsArray($preflight);
+        self::assertSame('Fill.FillError: Could not access required locations for accessibility check.', $preflight['summary'] ?? null);
+        self::assertSame($raw, $preflight['error'] ?? null);
+    }
+
     /** @param array<string, UploadedFile> $files */
     private function rerun(array $files): void
     {

@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
+import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
 import { parseDefaultYaml, type FreeformDictOption } from "@/lib/archipelago-yaml";
 import {
   approveApworldCandidate,
@@ -250,13 +251,8 @@ function LiveApworldCard({ game, onUpdate }: Props) {
           <p className="text-xs text-warning">Dérogation active : le jeu reste sélectionnable malgré le verdict.</p>
         ) : null}
 
-        {preflight?.status === "failed" && preflight.error !== "" ? (
-          <details>
-            <summary className="cursor-pointer text-xs font-semibold text-danger hover:underline">Voir l&apos;erreur de génération</summary>
-            <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-background p-2 text-[11px] leading-relaxed text-muted-foreground">
-              {preflight.error}
-            </pre>
-          </details>
+        {preflight?.status === "failed" ? (
+          <GenerationFailureNotice audience="admin" log={preflight.error} message={preflight.summary ?? ""} />
         ) : null}
 
         {error !== null ? (

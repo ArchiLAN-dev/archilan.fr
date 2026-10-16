@@ -55,6 +55,7 @@ import {
   type SessionSlot,
   type SessionStatus,
 } from "./admin-sessions-api";
+import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generation-failure-notice";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1118,12 +1119,12 @@ function SessionDetail({
               <SessionPipelineBar status={session.status} />
             </div>
 
-            {/* Crash / failed alert */}
-            {(session.status === "crashed" || session.status === "failed") ? (
+            {/* A crashed server: the AP server stopped, nothing to read but its logs. */}
+            {session.status === "crashed" ? (
               <div className="grid gap-0 overflow-hidden rounded border border-danger/40">
                 <div className="flex items-start gap-3 bg-danger/10 px-4 py-3 text-sm text-danger">
                   <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                  <span>{session.error ?? (session.status === "crashed" ? "La session a planté. Vérifiez le runner avant de relancer." : "La génération a échoué.")}</span>
+                  <span>{session.error ?? "La session a planté. Vérifiez le runner avant de relancer."}</span>
                 </div>
                 {session.lastLogs ? (
                   <pre className="max-h-48 overflow-y-auto bg-[var(--color-bg)] px-4 py-3 font-mono text-xs text-danger/70 whitespace-pre-wrap">
@@ -1133,23 +1134,27 @@ function SessionDetail({
               </div>
             ) : null}
 
-            {/* Validation errors */}
-            {session.validationErrors && session.validationErrors.length > 0 ? (
-              <div className="rounded border border-danger/40 bg-danger/5 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-danger">
+            {/* Story 38.16: a failed generation or a refused validation, one notice per finding, the log once. */}
+            {session.status === "failed" || (session.validationErrors && session.validationErrors.length > 0) ? (
+              <div className="grid gap-3 rounded border border-danger/40 bg-danger/5 p-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-danger">
                   <AlertTriangle aria-hidden="true" className="size-4" />
-                  Erreurs de validation - corrigez les YAMLs puis relancez la génération.
-                </div>
-                <div className="grid gap-2">
-                  {session.validationErrors.map((ve) => (
-                    <div className="rounded border border-danger/20 bg-[var(--color-bg)] px-3 py-2 text-xs" key={ve.slotName}>
-                      <span className="font-mono font-semibold text-foreground">{ve.slotName}</span>
-                      <ul className="mt-1 grid gap-0.5 text-danger">
-                        {ve.errors.map((err, i) => <li key={i}>- {err}</li>)}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
+                  {session.status === "failed" ? "La génération a échoué." : "Erreurs de validation : corrigez les YAMLs puis relancez la génération."}
+                </p>
+                {session.validationErrors && session.validationErrors.length > 0 ? (
+                  <div className="grid divide-y divide-danger/20">
+                    {session.validationErrors.flatMap((ve) =>
+                      ve.errors.map((err, i) => (
+                        <div className="py-2 first:pt-0 last:pb-0" key={`${ve.slotName}-${i}`}>
+                          <GenerationFailureNotice audience="admin" bare message={err} slotName={ve.slotName} />
+                        </div>
+                      )),
+                    )}
+                  </div>
+                ) : (
+                  <GenerationFailureNotice audience="admin" bare message={session.error ?? ""} />
+                )}
+                {session.status === "failed" && session.lastLogs ? <TechnicalLog log={session.lastLogs} /> : null}
               </div>
             ) : null}
 

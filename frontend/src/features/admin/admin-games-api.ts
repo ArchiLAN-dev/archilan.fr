@@ -164,6 +164,8 @@ export type ApworldPreflight = {
   warning?: string;
   // Story 44.6: the test was given the file its world reads, which only an admin can provide.
   withRequiredFiles?: boolean;
+  // Story 38.16: a failed verdict in one line (GenerationFailureParser), `error` being the raw tail.
+  summary?: string;
 };
 
 export function isApworldPreflight(v: unknown): v is ApworldPreflight {

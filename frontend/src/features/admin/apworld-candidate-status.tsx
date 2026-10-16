@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, FlaskConical, RotateCcw, ShieldAlert, UploadCloud, XCircle } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
 
 import type { ApworldCandidate } from "./admin-games-api";
 
@@ -84,7 +85,7 @@ export function ApworldCandidateStatus({ candidate, busy, onForce, onRetry, onAp
         {candidate.heldForApproval === true && candidate.status === "testing" ? " Une fois le test réussi, tu la mettras en ligne toi-même." : ""}
       </p>
       {decided && candidate.rejectionReason !== null && (
-        <p className="rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground">{candidate.rejectionReason}</p>
+        <GenerationFailureNotice audience="admin" bare message={candidate.rejectionReason} />
       )}
 
       <div className="flex flex-wrap gap-2">

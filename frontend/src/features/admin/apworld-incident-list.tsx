@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle2, EyeOff, Hand } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
 
 import { INCIDENT_STATUS_LABELS, INCIDENT_TYPE_LABELS, type ApworldIncident } from "./admin-apworld-health-api";
 import { formatIncidentDate, incidentOwnerLine } from "./apworld-incident-format";
@@ -82,7 +83,7 @@ function IncidentCard({ incident, busy, onAcknowledge, onResolve, onIgnore }: Ca
         </span>
       </header>
 
-      <p className="text-sm text-foreground">{incident.summary}</p>
+      <GenerationFailureNotice audience="admin" bare log={incident.error} message={incident.summary} />
 
       <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
         <div>
@@ -103,13 +104,6 @@ function IncidentCard({ incident, busy, onAcknowledge, onResolve, onIgnore }: Ca
           <dd className="font-semibold text-foreground">{incidentOwnerLine(incident)}</dd>
         </div>
       </dl>
-
-      <details className="text-xs">
-        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Erreur complète</summary>
-        <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-background p-3 font-mono text-[11px] text-foreground">
-          {incident.error}
-        </pre>
-      </details>
 
       {active && (
         <div className="flex flex-wrap gap-2">
