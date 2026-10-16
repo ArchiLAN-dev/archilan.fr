@@ -6,6 +6,7 @@ import { CheckCircle2, FlaskConical, Loader2, XCircle } from "lucide-react";
 import { DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
+import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
 import { getApworldCandidateYamlTest, startApworldCandidateYamlTest } from "./admin-games-api";
 import { TEST_FILES_INTRO, testFilesBlocker, testFilesOfGame } from "./admin-game-test-files";
 
@@ -138,13 +139,11 @@ export function YamlTestOutcome({ state }: { state: YamlTestState }) {
           <CheckCircle2 aria-hidden className="size-4" /> Génération réussie avec cette version.
         </span>
       ) : (
-        <div className="grid w-full gap-1" role="alert">
+        <div className="grid w-full gap-2" role="alert">
           <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-danger">
             <XCircle aria-hidden className="size-4" /> Génération échouée avec cette version.
           </span>
-          {state.error !== null && (
-            <p className="rounded border border-border bg-surface px-3 py-2 font-mono text-xs text-foreground">{state.error}</p>
-          )}
+          <GenerationFailureNotice audience="admin" message={state.error ?? ""} />
         </div>
       );
   }

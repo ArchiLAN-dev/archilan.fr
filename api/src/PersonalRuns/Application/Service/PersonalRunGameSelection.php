@@ -100,6 +100,9 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         // editor of a slot needs them, the picker does not. Sent for the whole catalog, they made a response
         // of tens of megabytes that ran PHP out of memory.
         $held = array_column($existingSlots, 'gameId');
+        // Story 38.16: the catalog says which games a save would refuse for a failed generation test (story 9.38
+        // AC4), instead of letting the member pick one and meet « Sélection invalide ». Fails open, like the save.
+        $verdicts = $this->runnerGateway->fetchApworldPreflights();
         $availableGames = array_map(fn (Game $g): array => [
             'id' => $g->getId(),
             'name' => $g->getName(),
@@ -108,6 +111,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'availability' => $g->getAvailability(),
             'disabled' => $g->isDisabled(),
             'disabledMessage' => $g->getDisabledMessage(),
+            'preflightBlocked' => true === ($verdicts[$g->getApworldHash() ?? '']['blocks'] ?? false),
             'isApworldReady' => $g->isApworldReady(),
             'requiredFiles' => GenerationFiles::ofGame($g),
             ...self::editorData($g, \in_array($g->getId(), $held, true)),

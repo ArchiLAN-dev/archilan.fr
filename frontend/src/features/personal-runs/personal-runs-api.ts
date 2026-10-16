@@ -366,6 +366,8 @@ export type GameSelectionGame = {
   // Temporary admin kill switch (story 11.4): still listed, but not addable.
   disabled?: boolean;
   disabledMessage?: string | null;
+  // Story 38.16: its apworld fails its generation test (no admin override): a save would refuse it.
+  preflightBlocked?: boolean;
   isApworldReady: boolean;
   defaultYaml: string | null;
   optionTypes: OptionTypesMap | null;
