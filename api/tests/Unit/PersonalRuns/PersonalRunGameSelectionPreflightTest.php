@@ -83,6 +83,29 @@ final class PersonalRunGameSelectionPreflightTest extends TestCase
         self::assertSame([], $result['errors']);
     }
 
+    // Story 38.16: the catalog flags the game a save would refuse, so the member is not offered it blindly.
+    public function testTheCatalogFlagsAGameBlockedByItsGenerationTest(): void
+    {
+        $game = $this->game('Broken World', 'broken-world', self::FAILED_HASH);
+        $service = $this->service($game, $this->blockingVerdicts());
+
+        $result = $service->getMySlots('run-1', 'owner-1');
+
+        $available = $result['availableGames'] ?? [];
+        self::assertCount(1, $available);
+        self::assertTrue($available[0]['preflightBlocked']);
+    }
+
+    public function testTheCatalogBlocksNothingWhenTheRunnerIsSilent(): void
+    {
+        $game = $this->game('Some World', 'some-world', self::FAILED_HASH);
+        $service = $this->service($game, []);
+
+        $available = $service->getMySlots('run-1', 'owner-1')['availableGames'] ?? [];
+
+        self::assertFalse($available[0]['preflightBlocked'] ?? null);
+    }
+
     /**
      * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}>
      */
@@ -130,6 +153,7 @@ final class PersonalRunGameSelectionPreflightTest extends TestCase
         $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($game);
         $games->method('findByIds')->willReturn([$game]);
+        $games->method('findByAvailabilitiesSortedByName')->willReturn([$game]);
 
         $runner = self::createStub(RunnerGatewayInterface::class);
         $runner->method('fetchApworldPreflights')->willReturn($verdicts);
