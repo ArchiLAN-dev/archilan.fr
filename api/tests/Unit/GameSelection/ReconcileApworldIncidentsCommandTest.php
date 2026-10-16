@@ -8,6 +8,7 @@ use App\GameSelection\Application\Command\DecideApworldCandidates;
 use App\GameSelection\Application\Command\PromoteApworldCandidate;
 use App\GameSelection\Application\Command\ReconcileApworldIncidents;
 use App\GameSelection\Application\Command\RecordApworldIncident;
+use App\GameSelection\Application\Command\RecordGenerationRequiredFile;
 use App\GameSelection\Application\Message\ApworldPromoted;
 use App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob;
 use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
@@ -22,6 +23,7 @@ use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Presentation\Command\ReconcileApworldIncidentsCommand;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -101,7 +103,7 @@ final class ReconcileApworldIncidentsCommandTest extends TestCase
         return new ReconcileApworldIncidentsCommand(
             new DecideApworldCandidates($candidates ?? new InMemoryApworldCandidateRepository(), $runner, new PromoteApworldCandidate($games, $incidents, $runner, $clock), $record, $clock, new InMemoryExclusivePassLock()),
             $runner,
-            new ReconcileApworldIncidents($served, $runner, $incidents, $record, $clock, new InMemoryExclusivePassLock(), new InMemoryApworldHealthRepository()),
+            new ReconcileApworldIncidents($served, $runner, $incidents, $record, $clock, new InMemoryExclusivePassLock(), new InMemoryApworldHealthRepository(), new RecordGenerationRequiredFile(self::createStub(GameRepositoryInterface::class), new NullLogger())),
             new ApworldIncidentAlertDispatcher($bus),
         );
     }

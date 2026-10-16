@@ -49,8 +49,16 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** When true, generateSession() reads as an orchestrator that no longer holds the files (story 44.2 tests). */
     public static bool $requiredFilesExpired = false;
 
+    /** @var array<string, list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>> Canned declared files by apworld hash (story 44.3 tests). */
+    public static array $declaredFiles = [];
+
+    /** @var array<string, list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>>|null Canned files of the image's own worlds; null = runner silent (story 44.3 tests). */
+    public static ?array $officialDeclaredFiles = null;
+
     public static function reset(): void
     {
+        self::$declaredFiles = [];
+        self::$officialDeclaredFiles = null;
         self::$stagedFiles = [];
         self::$releasedFileIds = [];
         self::$generatedWithFileIds = [];
@@ -114,6 +122,16 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     public function fetchApworldPreflights(): array
     {
         return self::$apworldPreflights;
+    }
+
+    public function fetchDeclaredFiles(string $hash): array
+    {
+        return self::$declaredFiles[$hash] ?? [];
+    }
+
+    public function fetchOfficialDeclaredFiles(): ?array
+    {
+        return self::$officialDeclaredFiles;
     }
 
     public function fetchRuntime(): ?array

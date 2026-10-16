@@ -8,6 +8,7 @@ use App\Community\Application\Query\CommunityLevelQuery;
 use App\Community\Application\Query\CommunityPresenceQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use App\Identity\Domain\Repository\AdminUserActionAuditRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
@@ -52,6 +53,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
             new RunJoiner(self::createStub(RunParticipantRepositoryInterface::class), self::createStub(\App\Community\Application\Support\Notifier::class), self::createStub(UserRepositoryInterface::class)),
             self::createStub(RunInvitationRepositoryInterface::class),
             self::createStub(RunNudgeRepositoryInterface::class),
+            self::createStub(GameRepositoryInterface::class),
         );
     }
 

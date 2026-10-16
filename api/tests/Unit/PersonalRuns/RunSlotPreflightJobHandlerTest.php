@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
+use App\GameSelection\Application\Message\RecordGenerationRequiredFileJob;
 use App\GameSelection\Application\Message\ReportDefaultYamlFailureJob;
 use App\PersonalRuns\Application\Handler\RunSlotPreflightJobHandler;
 use App\PersonalRuns\Application\Message\RunSlotPreflightJob;
@@ -127,6 +128,21 @@ FillError: No more spots to place items.']);
 
         self::assertEquals([new ReportDefaultYamlFailureJob('game-1', 'hash-1', self::YAML, 'FillError: No more spots to place items.')], array_map(static fn (Envelope $e): object => $e->getMessage(), $this->dispatched));
         self::assertSame([1], $this->flushesBeforeDispatch);
+    }
+
+    /** Story 44.3: a test that failed for want of a file proves the slot's game needs it. */
+    public function testAFailureOnARequiredFileIsRecordedOnTheGame(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, pollResult: ['status' => 'failed', 'error' => 'FileNotFoundError: dkc3.sfc does not exist, but DK3Settings.rom_file is required'."\n".'###ARCHILAN-FAILURE### {"type": "FileNotFoundError", "message": "x", "requiredFile": {"setting": "DK3Settings.rom_file", "file": "dkc3.sfc", "extension": ".sfc"}}']);
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), 'orch-1', 3));
+
+        $recorded = array_values(array_filter(array_map(static fn (Envelope $e): object => $e->getMessage(), $this->dispatched), static fn (object $m): bool => $m instanceof RecordGenerationRequiredFileJob));
+        self::assertCount(1, $recorded);
+        self::assertInstanceOf(RecordGenerationRequiredFileJob::class, $recorded[0]);
+        self::assertSame(['game-1'], $recorded[0]->candidateGameIds);
+        self::assertSame('DK3Settings.rom_file', $recorded[0]->requiredFile['setting']);
     }
 
     public function testAFailureThatIsNotTheGeneratorsReportsNothing(): void

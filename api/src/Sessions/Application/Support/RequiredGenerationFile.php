@@ -49,6 +49,22 @@ final readonly class RequiredGenerationFile
         );
     }
 
+    /**
+     * The record `fromRecord` reads back (story 44.3): handed to an async job.
+     *
+     * @return array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}
+     */
+    public function toRecord(): array
+    {
+        return [
+            'setting' => $this->setting,
+            'file' => $this->file,
+            'extension' => $this->extension,
+            'description' => $this->description,
+            'md5s' => $this->md5s,
+        ];
+    }
+
     /** What the admin and the player read. */
     public function message(): string
     {
