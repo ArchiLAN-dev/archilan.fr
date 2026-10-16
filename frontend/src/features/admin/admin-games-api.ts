@@ -1,4 +1,5 @@
 import type { InstallStep } from "@/features/games/install-steps-editor";
+import { requiredFilesForm } from "@/features/games/required-file-check";
 import type { GameRequiredFile } from "@/features/games/required-files";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { apiFetch } from "@/lib/apiFetch";
@@ -161,6 +162,8 @@ export type ApworldPreflight = {
   imageId?: string | null;
   // Story 38.12: what the generator reported on a pass (accessibility not met, as the Launcher allows).
   warning?: string;
+  // Story 44.6: the test was given the file its world reads, which only an admin can provide.
+  withRequiredFiles?: boolean;
 };
 
 export function isApworldPreflight(v: unknown): v is ApworldPreflight {
@@ -248,13 +251,21 @@ export async function regenerateDefaultYaml(gameId: string): Promise<DefaultYaml
   }
 }
 
-/** Queue a preflight re-run (async on the orchestrator). Returns whether it was accepted. */
-export async function rerunApworldPreflight(gameId: string): Promise<boolean> {
+const RERUN_ERROR = "Impossible de relancer le test (runner indisponible ?).";
+
+/**
+ * Queue a preflight re-run (async on the orchestrator), with the files the admin provided (story 44.6): a
+ * multipart body then, no body otherwise.
+ */
+export async function rerunApworldPreflight(gameId: string, files: Record<string, File> = {}): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/apworld-preflight`, { method: "POST" });
-    return res.ok;
+    const body = Object.keys(files).length > 0 ? requiredFilesForm(files) : undefined;
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/apworld-preflight`, { method: "POST", body });
+    if (res.ok) return { ok: true };
+    const json: unknown = await res.json().catch(() => null);
+    return { ok: false, message: apiErrorMessage(json, RERUN_ERROR) };
   } catch {
-    return false;
+    return { ok: false, message: RERUN_ERROR };
   }
 }
 
@@ -340,13 +351,22 @@ export function approveApworldCandidate(gameId: string): Promise<ApworldCandidat
 
 const YAML_TEST_ERROR = "Le test n'a pas pu être lancé. Réessaie dans un instant.";
 
-/** Story 38.14: generate a pasted YAML against the candidate version. Nothing goes online. */
-export async function startApworldCandidateYamlTest(gameId: string, yaml: string): Promise<{ ok: true; jobId: string } | { ok: false; message: string }> {
+/**
+ * Story 38.14: generate a pasted YAML against the candidate version. Nothing goes online. With files to join
+ * (story 44.6, a ROM) the YAML travels as a multipart field beside them.
+ */
+export async function startApworldCandidateYamlTest(
+  gameId: string,
+  yaml: string,
+  files: Record<string, File> = {},
+): Promise<{ ok: true; jobId: string } | { ok: false; message: string }> {
   try {
+    const withFiles = Object.keys(files).length > 0;
+    const form = withFiles ? requiredFilesForm(files) : null;
+    form?.append("yaml", yaml);
     const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${encodeURIComponent(gameId)}/apworld-candidate/test-yaml`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ yaml }),
+      ...(form !== null ? { body: form } : { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ yaml }) }),
     });
     const json: unknown = await res.json().catch(() => null);
     if (res.ok) {

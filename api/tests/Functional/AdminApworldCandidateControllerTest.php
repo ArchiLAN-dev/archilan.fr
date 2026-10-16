@@ -12,6 +12,7 @@ use App\GameSelection\Domain\Enum\ApworldCandidateOrigin;
 use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
 use App\Identity\Domain\Entity\User;
 use App\Sessions\Infrastructure\Double\NullRunnerGateway;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
@@ -174,10 +175,46 @@ final class AdminApworldCandidateControllerTest extends FunctionalTestCase
 
         self::assertResponseStatusCodeSame(202);
         self::assertSame('null-preflight-job', $this->data()['jobId'] ?? null);
-        self::assertSame(['playerYaml' => "name: Jean\ngame: Crystal Project\n", 'apworldHash' => 'hash-new'], NullRunnerGateway::$lastSlotPreflight);
+        self::assertSame(['playerYaml' => "name: Jean\ngame: Crystal Project\n", 'apworldHash' => 'hash-new', 'requiredFileIds' => []], NullRunnerGateway::$lastSlotPreflight);
         $this->entityManager->clear();
         self::assertSame('hash-old', $this->entityManager->find(Game::class, $this->game->getId())?->getApworldHash());
         self::assertSame(ApworldCandidateStatus::Testing, $this->entityManager->find(ApworldCandidate::class, 'candidate-1')?->getStatus());
+    }
+
+    // Story 44.6: the YAML test of a ROM game is sent as multipart, the YAML beside the file it reads.
+    public function testAYamlTestReadsTheProvidedFile(): void
+    {
+        $this->entityManager->persist($this->candidate());
+        $this->entityManager->flush();
+        $this->loginAs($this->admin);
+
+        $this->client->request(
+            'POST',
+            sprintf('/api/v1/admin/games/%s/apworld-candidate/test-yaml', $this->game->getId()),
+            ['yaml' => "name: Jean\ngame: Crystal Project\n"],
+            ['requiredFiles' => ['DK3Settings.rom_file' => $this->rom('rom bytes')]],
+        );
+
+        self::assertResponseStatusCodeSame(202);
+        self::assertSame(['playerYaml' => "name: Jean\ngame: Crystal Project\n", 'apworldHash' => 'hash-new', 'requiredFileIds' => ['staged-1']], NullRunnerGateway::$lastSlotPreflight);
+    }
+
+    public function testAYamlTestWithARefusedFileIsNotStarted(): void
+    {
+        $this->entityManager->persist($this->candidate());
+        $this->entityManager->flush();
+        NullRunnerGateway::$refuseStagingOf = 'DK3Settings.rom_file';
+        $this->loginAs($this->admin);
+
+        $this->client->request(
+            'POST',
+            sprintf('/api/v1/admin/games/%s/apworld-candidate/test-yaml', $this->game->getId()),
+            ['yaml' => "name: Jean\ngame: Crystal Project\n"],
+            ['requiredFiles' => ['DK3Settings.rom_file' => $this->rom('rom')]],
+        );
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertNull(NullRunnerGateway::$lastSlotPreflight);
     }
 
     public function testAYamlTestResultIsReadWithItsErrorSummarised(): void
@@ -248,6 +285,15 @@ final class AdminApworldCandidateControllerTest extends FunctionalTestCase
         $candidate->reject('Fill.FillError: boom', new \DateTimeImmutable('2026-09-25 04:20:00+00:00'));
         $this->entityManager->persist($candidate);
         $this->entityManager->flush();
+    }
+
+    private function rom(string $content): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'rom');
+        self::assertIsString($path);
+        file_put_contents($path, $content);
+
+        return new UploadedFile($path, 'dkc3.sfc', 'application/octet-stream', null, true);
     }
 
     private function candidate(bool $hold = false): ApworldCandidate

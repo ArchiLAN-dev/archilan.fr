@@ -124,6 +124,22 @@ final class SweepApworldCatalogTest extends TestCase
         self::assertSame(['h-forced-but-passing'], $this->launched);
     }
 
+    public function testAPassObtainedWithTheAdminsFileIsLeftAlone(): void
+    {
+        // Story 44.6: the rolling test cannot provide the ROM; rerun without it, a game the admin validated with
+        // its file would fail again and open an incident. A failure with the file is retested as usual.
+        $this->sweep(
+            [new ServedApworld('g-rom', 'h-rom'), new ServedApworld('g-rom-failed', 'h-rom-failed')],
+            [
+                'h-rom' => $this->verdict('passed', '2026-01-01T00:00:00Z', null, null, withRequiredFiles: true),
+                'h-rom-failed' => $this->verdict('failed', '2026-01-01T00:00:00Z', null, null, withRequiredFiles: true),
+            ],
+            25,
+        );
+
+        self::assertSame(['h-rom-failed'], $this->launched);
+    }
+
     public function testAnApworldNeverTestedIsPlanned(): void
     {
         // Uploaded before verdicts existed: listed with an empty status.
@@ -133,10 +149,10 @@ final class SweepApworldCatalogTest extends TestCase
     }
 
     /**
-     * @param list<ServedApworld>                                                                                                                                $served
-     * @param array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}> $verdicts
-     * @param array{apImage: string, apImageId: string|null}|null                                                                                                $runtime
-     * @param list<ApworldCandidate>                                                                                                                             $candidates
+     * @param list<ServedApworld>                                                                                                                                                          $served
+     * @param array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, withRequiredFiles?: bool}> $verdicts
+     * @param array{apImage: string, apImageId: string|null}|null                                                                                                                          $runtime
+     * @param list<ApworldCandidate>                                                                                                                                                       $candidates
      */
     private function sweep(array $served, array $verdicts, int $batchSize, ?array $runtime = self::RUNTIME, array $candidates = []): SweepApworldCatalogResult
     {
@@ -159,10 +175,10 @@ final class SweepApworldCatalogTest extends TestCase
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null}
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null, withRequiredFiles: bool}
      */
-    private function verdict(string $status, string $checkedAt, ?string $image, ?string $imageId, bool $overridden = false): array
+    private function verdict(string $status, string $checkedAt, ?string $image, ?string $imageId, bool $overridden = false, bool $withRequiredFiles = false): array
     {
-        return ['status' => $status, 'error' => '', 'checkedAt' => $checkedAt, 'overridden' => $overridden, 'blocks' => false, 'image' => $image, 'imageId' => $imageId];
+        return ['status' => $status, 'error' => '', 'checkedAt' => $checkedAt, 'overridden' => $overridden, 'blocks' => false, 'image' => $image, 'imageId' => $imageId, 'withRequiredFiles' => $withRequiredFiles];
     }
 }

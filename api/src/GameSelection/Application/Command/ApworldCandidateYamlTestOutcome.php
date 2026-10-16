@@ -15,4 +15,6 @@ enum ApworldCandidateYamlTestOutcome: string
     /** The game has no candidate in test, awaiting approval, rejected or expired. */
     case NoCandidate = 'no_candidate';
     case RunnerUnavailable = 'runner_unavailable';
+    /** The orchestrator did not take the file the admin provided (story 44.6). */
+    case FileRefused = 'file_refused';
 }

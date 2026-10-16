@@ -17,6 +17,7 @@ use App\GameSelection\Application\Support\InstallStepsNormalizer;
 use App\GameSelection\Application\Support\InstallStepsReader;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
@@ -53,6 +54,7 @@ trait BuildsAdminGameLibrary
             new InstallStepsReader(),
             $submit ?? new SubmitApworldCandidate(self::createStub(GameRepositoryInterface::class), new InMemoryApworldCandidateRepository(), self::createStub(RunnerGatewayInterface::class), self::createStub(MinioStorageInterface::class), new MockClock(), new NullLogger(), 'apworlds'),
             $candidates ?? new InMemoryApworldCandidateRepository(),
+            new RequiredGenerationFiles($runner),
         );
     }
 }

@@ -7,6 +7,7 @@ namespace App\GameSelection\Presentation\Controller;
 use App\GameSelection\Application\Service\AdminGameLibrary;
 use App\GameSelection\Domain\Entity\Game;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\RequiredGenerationFilesRequest;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -452,10 +453,19 @@ final readonly class AdminGameLibraryController
             return $admin;
         }
 
-        $result = $this->adminGameLibrary->rerunApworldPreflight($gameId);
+        $provided = RequiredGenerationFilesRequest::read($request);
+        if ([] !== $provided['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', $provided['errors'][0], 422, ['requiredFiles' => $provided['errors']]);
+        }
+
+        $result = $this->adminGameLibrary->rerunApworldPreflight($gameId, $provided['files']);
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if (isset($result['errors']['requiredFiles'])) {
+            return $this->apiAccessGuard->errorResponse('required_file_refused', $result['errors']['requiredFiles'][0], 422, $result['errors']);
         }
 
         if ([] !== $result['errors']) {
