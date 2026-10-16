@@ -5,6 +5,48 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.42.0] - 2026-10-16
+
+Les jeux qui demandent la ROM du joueur à la génération deviennent jouables : le fichier est demandé au lancement,
+contrôlé dans le navigateur, transmis au conteneur de génération puis supprimé. ArchiLAN ne stocke jamais de ROM.
+S'y ajoutent des erreurs de génération lisibles partout, une fiche APWorld refondue, la liste de chansons de Beat Saber
+embarquée dans l'image, et un catalogue admin en onglets.
+
+### Ajouté
+
+- **Fichier requis à la génération** (44.2, 44.3, 44.5) : chaque jeu sait quel fichier il demande (nom, MD5 attendu)
+  avant toute génération ; au lancement d'une partie perso ou d'une session d'événement, le lanceur choisit le
+  fichier, son MD5 est vérifié dans le navigateur, puis il voyage jusqu'au conteneur de génération sans être stocké.
+- **Suivi exact sans la ROM** (44.4) : le suivi d'une partie à ROM est recalculé sans le fichier.
+- **Tests admin avec la ROM** (44.6) : depuis la fiche admin d'un jeu à ROM, les tests de génération prennent le
+  fichier fourni par l'admin.
+- **« Tester ma config » avec la ROM** (44.7) : le test d'un slot d'un jeu à ROM demande le fichier dans une modale ;
+  un tel slot n'est plus testé automatiquement.
+- **Erreurs de génération lisibles** (38.16) : un échec est classé (fichier manquant, option invalide...) et expliqué
+  sur chaque écran ; le catalogue signale les jeux bloqués par leur test, la sauvegarde des jeux nomme le jeu en cause.
+- **Liste de chansons de Beat Saber dans l'image** (38.17) : l'apworld n'a plus besoin du réseau à la génération ; la
+  liste est rafraîchie chaque mois par une PR sur l'image archipelago.
+
+### Modifié
+
+- **Onglet APWorld de la fiche jeu** (38.15) : cartes et modales à la place de la longue page.
+- **Catalogue admin** (14.12) : onglets, filtres par colonne, liens « Release » et dépôt sur les mises à jour, une
+  seule entrée pour un jeu présent dans les deux onglets de la feuille (« AP intégré »), et les jeux verrouillés
+  restent dans « stabilité modifiée ». « Mes pelles » quitte le menu de l'en-tête.
+
+### Corrigé
+
+- **Revue de l'epic 44** (44.8) : un ancien message en file d'attente se relit, le fichier est libéré après chaque
+  génération, un test resté « en cours » plus de 15 min s'affiche échoué, un jeu à ROM n'est plus retesté sans fichier
+  (sauvegarde de template, promotion d'apworld, backfill), MD5 insensible à la casse, « Retirer le fichier ».
+- **Sécurité** : composants Symfony 7.4 mis à jour (http-foundation, yaml, expression-language).
+
+### Mise en prod
+
+- Ordre : image `archipelago` puis `orchestrateur` (fichier requis, tests avec ROM), puis le site.
+- Après déploiement, une fois : `php bin/console app:games:sync-declared-files --reintrospect` (lent).
+- Migration `Version20261015200000` ; redémarrer les workers (nouveaux messages async).
+
 ## [0.41.0] - 2026-10-15
 
 Tout pour les inscriptions de l'ArchiLAN 4 : un événement privé s'ouvre aux adhérents ou sur code d'accès, les
