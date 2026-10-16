@@ -1,4 +1,5 @@
 import type { InstallStep } from "@/features/games/install-steps-editor";
+import type { GameRequiredFile } from "@/features/games/required-files";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -56,7 +57,27 @@ export type AdminGame = {
   // Story 9.52: the curation alone. What the admin decided, as opposed to what the apworld
   // declared, so the screen can show which is which and offer to hand an option back.
   dictOptionValues?: Record<string, Record<string, { values: string[]; closed: boolean }>> | null;
+  // Story 44.3: the files the world declares, and which ones a failed generation proved needed.
+  requiredFiles?: GameRequiredFile[];
 };
+
+/**
+ * Story 44.3: a file a failed generation proved needed, judged a false positive. It stops being
+ * mandatory for the launcher. The updated game, or null when the request failed.
+ */
+export async function clearRequiredFileNeed(gameId: string, setting: string): Promise<AdminGame | null> {
+  try {
+    const res = await apiFetch(
+      `${env.apiBaseUrl}/admin/games/${gameId}/required-files/${encodeURIComponent(setting)}/needed`,
+      { method: "DELETE" },
+    );
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    return isAdminGamePayload(payload) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Story 9.52: declare what the sub-settings of one dict option accept.

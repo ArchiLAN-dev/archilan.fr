@@ -78,6 +78,8 @@ final readonly class PromoteApworldCandidate
         $game->recordApworldMinioUpload($candidate->getMinioKey());
         $game->recordOptionTypes($introspection->optionTypes);
         $game->recordLocationNames($introspection->locationNames);
+        // Story 44.3: what the new apworld declares; a file a generation proved necessary stays required.
+        $game->recordDeclaredRequiredFiles($this->runnerGateway->fetchDeclaredFiles($candidate->getApworldHash()));
         if (null !== $candidate->getVersionTag()) {
             $game->getCatalogSync()?->recordApworldDeployment($candidate->getVersionTag());
         }

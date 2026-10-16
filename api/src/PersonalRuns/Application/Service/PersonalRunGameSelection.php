@@ -6,6 +6,7 @@ namespace App\PersonalRuns\Application\Service;
 
 use App\Community\Application\Query\CommunityLevelQuery;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\GameSelection\Application\Support\GenerationFiles;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
@@ -90,6 +91,8 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
                 // Story 16.17: the owner sees who else is on the slot, without being able to
                 // change it - that is the run owner's call.
                 'coPlayers' => $coPlayersBySlot[$slot['slotId']] ?? [],
+                // Story 44.3: the files the game may read from the launcher (a ROM...).
+                'requiredFiles' => null !== $game ? GenerationFiles::ofGame($game) : [],
             ]);
         }
 
@@ -106,6 +109,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'disabled' => $g->isDisabled(),
             'disabledMessage' => $g->getDisabledMessage(),
             'isApworldReady' => $g->isApworldReady(),
+            'requiredFiles' => GenerationFiles::ofGame($g),
             ...self::editorData($g, \in_array($g->getId(), $held, true)),
             'coverImageUrl' => $g->getCoverImageUrl(),
             'coverImageAlt' => $g->getCoverImageAlt(),

@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/apiFetch";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
+import { requiredFilesForm } from "@/features/games/required-file-check";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import type { ImportedSlot, ParticipantGameSlot, ParticipantIdentity, PersonalRun, SlotCoPlayer } from "./types";
 
@@ -234,6 +235,27 @@ export async function importRunSeed(
   }
 }
 
+/**
+ * Start a run (story 44.5: with the files its games read at generation, if any). Without files the call
+ * is the plain one; with them it is `multipart requiredFiles[<setting>]`. The refusal reason is returned
+ * rather than swallowed: a wrong or refused file is something the launcher can act on.
+ */
+export async function startRun(
+  runId: string,
+  files: Record<string, File> = {},
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    const body = Object.keys(files).length > 0 ? requiredFilesForm(files) : undefined;
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/start`, { method: "POST", body });
+    if (res.ok) return { ok: true };
+
+    const payload: unknown = await res.json().catch(() => null);
+    return { ok: false, message: apiErrorMessage(payload, "Impossible de démarrer la partie.") };
+  } catch {
+    return { ok: false, message: "Erreur réseau." };
+  }
+}
+
 /** Story 16.18: put zero or more participants on a slot of the imported archive. */
 export async function assignImportedSlot(
   runId: string,
@@ -259,6 +281,11 @@ export async function assignImportedSlot(
 }
 
 function importErrorMessage(payload: unknown): string {
+  return apiErrorMessage(payload, "Import impossible.");
+}
+
+/** The first field error of the API envelope, else its message, else the fallback. */
+function apiErrorMessage(payload: unknown, fallback: string): string {
   if (typeof payload === "object" && payload !== null && "error" in payload) {
     const error = payload.error;
     if (typeof error === "object" && error !== null && "details" in error) {
@@ -274,7 +301,7 @@ function importErrorMessage(payload: unknown): string {
     }
   }
 
-  return "Import impossible.";
+  return fallback;
 }
 
 function readImportedSlots(payload: unknown): ImportedSlot[] {

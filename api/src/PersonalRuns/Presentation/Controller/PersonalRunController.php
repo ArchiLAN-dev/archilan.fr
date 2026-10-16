@@ -12,6 +12,7 @@ use App\PersonalRuns\Application\Service\PersonalRunGameSelection;
 use App\PersonalRuns\Application\Service\PersonalRunSeedImport;
 use App\PersonalRuns\Application\Service\RunSlotCoPlayers;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\RequiredGenerationFilesRequest;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -189,9 +190,15 @@ final readonly class PersonalRunController
             return $user;
         }
 
+        // Story 44.2: optional files a world reads at generation, multipart `requiredFiles[<setting>]`.
+        $required = RequiredGenerationFilesRequest::read($request);
+        if ([] !== $required['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Fichier de génération invalide.', 422, ['requiredFiles' => $required['errors']]);
+        }
+
         // Failures (missing, not owner, wrong state) are thrown as typed ApplicationFailures and mapped
         // to HTTP by ApplicationFailureListener (epic 35).
-        $result = $this->lifecycle->start($runId, $user->getId());
+        $result = $this->lifecycle->start($runId, $user->getId(), $required['files']);
 
         return new JsonResponse(['data' => ['runId' => $result->runId, 'status' => $result->status]], 202);
     }

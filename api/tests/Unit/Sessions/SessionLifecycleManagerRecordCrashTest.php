@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Sessions;
 
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\GameSelection\Application\Message\RecordGenerationRequiredFileJob;
 use App\GameSelection\Application\Query\ServedApworld;
 use App\GameSelection\Application\Query\ServedApworldsQueryInterface;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
@@ -130,6 +132,29 @@ LOG;
         self::assertSame([], $job->findings);
     }
 
+    /** Story 44.3: a crash for want of a file asks the games of the session which one needed it. */
+    public function testRecordCrashOnARequiredFileQueuesItsRecord(): void
+    {
+        $session = $this->generatingSession();
+        $dispatched = [];
+        $bus = self::createStub(MessageBusInterface::class);
+        $bus->method('dispatch')->willReturnCallback(static function (object $message) use (&$dispatched): Envelope {
+            $dispatched[] = $message;
+
+            return new Envelope($message);
+        });
+        $manager = $this->manager($session, [$this->slot('masterkafey_DKC3')], $bus);
+
+        $manager->recordCrash('session-1', 'FileNotFoundError: dkc3.sfc does not exist, but DK3Settings.rom_file is required'."\n".'###ARCHILAN-FAILURE### {"type": "FileNotFoundError", "message": "dkc3.sfc does not exist", "requiredFile": {"setting": "DK3Settings.rom_file", "file": "dkc3.sfc", "extension": ".sfc", "md5s": ["120abf304f0c40fe059f6a192ed4f947"]}}');
+
+        $jobs = array_values(array_filter($dispatched, static fn (object $m): bool => $m instanceof RecordGenerationRequiredFileJob));
+        self::assertCount(1, $jobs);
+        self::assertInstanceOf(RecordGenerationRequiredFileJob::class, $jobs[0]);
+        self::assertSame(['game-1'], $jobs[0]->candidateGameIds);
+        self::assertSame('DK3Settings.rom_file', $jobs[0]->requiredFile['setting']);
+        self::assertSame(['120abf304f0c40fe059f6a192ed4f947'], $jobs[0]->requiredFile['md5s']);
+    }
+
     private function generatingSession(): Session
     {
         $now = new \DateTimeImmutable('2026-07-30T12:00:00+00:00');
@@ -183,6 +208,7 @@ LOG;
             achievementRecomputeTrigger: self::createStub(AchievementRecomputeTriggerInterface::class),
             clock: $clock,
             servedApworlds: $served,
+            games: self::createStub(GameRepositoryInterface::class),
         );
     }
 }

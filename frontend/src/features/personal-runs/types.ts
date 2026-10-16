@@ -166,6 +166,9 @@ export type PersonalRun = {
   importedSeed?: boolean;
   // Slots read out of the imported archive, null when the run was generated here.
   importedSlots?: ImportedSlot[] | null;
+  // Story 44.3/44.5: the files the games may read from the launcher, owner only. Read with
+  // `asGenerationFiles`; absent on an older API payload.
+  generationFiles?: unknown;
   adminPassword: string | null;
   createdAt: string;
   updatedAt: string;

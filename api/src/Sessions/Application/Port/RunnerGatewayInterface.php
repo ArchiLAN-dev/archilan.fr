@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Port;
 
+use App\Sessions\Application\Exception\RequiredGenerationFileExpiredException;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
+
 interface RunnerGatewayInterface
 {
     /**
@@ -56,6 +59,22 @@ interface RunnerGatewayInterface
      * @return list<string>
      */
     public function fetchLocationNames(string $hash): array;
+
+    /**
+     * The files an uploaded apworld's world declares in its host.yaml settings (story 44.3), read at
+     * introspection. Empty when not introspected yet or when the orchestrator does not answer.
+     *
+     * @return list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>
+     */
+    public function fetchDeclaredFiles(string $hash): array;
+
+    /**
+     * By Archipelago game name, the files the worlds shipped with the image declare (story 44.3).
+     * Null when the orchestrator does not answer or predates them.
+     *
+     * @return array<string, list<array{setting: string, file: string, extension: string, description: ?string, md5s: list<string>}>>|null
+     */
+    public function fetchOfficialDeclaredFiles(): ?array;
 
     /**
      * Upload-time preflight verdicts for all uploaded apworlds, keyed by hash (story 9.38).
@@ -130,8 +149,24 @@ interface RunnerGatewayInterface
 
     /**
      * @param array<string, mixed> $generationOptions
+     * @param list<string>         $requiredFileIds   held files this generation consumes (story 44.2)
+     *
+     * @throws RequiredGenerationFileExpiredException when one of them is no longer held
      */
-    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = []): void;
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = [], array $requiredFileIds = []): void;
+
+    /**
+     * Hands a file a world reads at generation to the orchestrator, which holds it in memory for one
+     * generation only (story 44.2). Streamed from $path.
+     *
+     * @return string the one-use id the generation names it by
+     *
+     * @throws RequiredGenerationFileRefusedException
+     */
+    public function stageRequiredFile(string $setting, string $path, string $filename): string;
+
+    /** Drops a held file before its generation; never throws, the file expires anyway. */
+    public function releaseRequiredFile(string $stagedFileId): void;
 
     /**
      * @param array<string, scalar> $serverOptions

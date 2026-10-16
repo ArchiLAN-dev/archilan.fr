@@ -43,6 +43,7 @@ import {ApworldPreflightImage} from "./apworld-preflight-image";
 import {ApworldPreflightWarning} from "./apworld-preflight-warning";
 import {overrideIsActive} from "./apworld-preflight-override";
 import {ApworldIncidentBanner} from "./apworld-incident-banner";
+import {AdminGameRequiredFiles} from "./admin-game-required-files";
 import {updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone} from "./apworld-update-status";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -304,6 +305,7 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
             </div>
             <div aria-labelledby="tab-apworld" hidden={activeTab !== "apworld"} id="panel-apworld" role="tabpanel">
                 <ApworldSection game={game} onUpdate={refreshGame}/>
+                <AdminGameRequiredFiles gameId={game.id} onUpdate={refreshGame} requiredFiles={game.requiredFiles}/>
             </div>
             <div aria-labelledby="tab-tutoriel" hidden={activeTab !== "tutoriel"} id="panel-tutoriel" role="tabpanel">
                 <PendingTutorialProposals gameName={game.name} proposals={pendingContributions}/>
