@@ -56,8 +56,8 @@ describe("ApworldTab", () => {
     const html = render(game({ apworldPreflight: failed }));
 
     expect(html).toContain("Version en ligne");
-    expect(html).toContain("Tester la génération…");
-    expect(html).toContain("Remplacer…");
+    expect(html).toContain("Tester la génération");
+    expect(html).toContain("Remplacer");
     expect(html).toContain("Autoriser malgré l&#x27;échec");
     expect(html).toContain("Échec du test de génération");
     expect(html).toContain("Template YAML");
@@ -81,7 +81,7 @@ describe("ApworldTab", () => {
     );
 
     expect(html).toContain("Nouvelle version");
-    expect(html).toContain("Tester avec un YAML…");
+    expect(html).toContain("Tester avec un YAML");
     expect(html).not.toContain("<textarea aria-label=\"YAML à tester\"");
   });
 
