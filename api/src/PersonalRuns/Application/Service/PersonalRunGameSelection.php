@@ -358,7 +358,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         // Dropping a game drops the people who were playing it with you (story 16.17): a roster
         // attached to a slot that no longer exists would be invisible and un-removable.
         $slotIdsAfter = array_map(static fn (array $slot): string => $slot['slotId'], $participant->getGameSlots());
-        $this->coPlayers->forget(array_values(array_diff($slotIdsBefore, $slotIdsAfter)));
+        $this->coPlayers->forget($runId, array_values(array_diff($slotIdsBefore, $slotIdsAfter)));
 
         $this->logger->info('personal_run.game_selection_saved', ['runId' => $runId, 'userId' => $userId]);
 

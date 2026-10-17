@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Application\Service;
 
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\PersonalRuns\Application\Support\RunReadinessReader;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
@@ -38,6 +39,7 @@ final readonly class RunSlotCoPlayers
         private AchievementRecomputeTriggerInterface $achievements,
         private ClockInterface $clock,
         private LoggerInterface $logger,
+        private RunReadinessReader $readiness,
     ) {
     }
 
@@ -103,6 +105,7 @@ final readonly class RunSlotCoPlayers
         }
 
         $this->coPlayers->flush();
+        $this->dropReadinessOfIdle($runId, array_values(array_diff($previous, $resolved['userIds'])));
 
         // The facts change the moment the rows do, but achievements are granted by their own engine:
         // without this, someone added to a slot of an already finished run would wait for their next
@@ -161,14 +164,43 @@ final readonly class RunSlotCoPlayers
      *
      * @param list<string> $slotIds
      */
-    public function forget(array $slotIds): void
+    public function forget(string $runId, array $slotIds): void
     {
+        if ([] === $slotIds) {
+            return;
+        }
+
+        $dropped = array_map(static fn (SlotCoPlayer $coPlayer): string => $coPlayer->getUserId(), $this->coPlayers->findBySlotIds($slotIds));
         foreach ($slotIds as $slotId) {
             $this->coPlayers->deleteBySlotId($slotId);
         }
+        $this->coPlayers->flush();
+        $this->dropReadinessOfIdle($runId, array_values(array_unique($dropped)));
+    }
 
-        if ([] !== $slotIds) {
-            $this->coPlayers->flush();
+    /**
+     * Story 16.23: a co-player who just lost the last slot they played, with no game of their own, has nothing left
+     * to be ready for. Their status goes, so it does not come back on its own if they are given a slot again.
+     *
+     * @param list<string> $userIds the members just removed from a slot
+     */
+    private function dropReadinessOfIdle(string $runId, array $userIds): void
+    {
+        if ([] === $userIds) {
+            return;
+        }
+
+        $participants = $this->participants->findByRunId($runId);
+        $eligible = $this->readiness->eligible($participants);
+        $changed = false;
+        foreach ($participants as $participant) {
+            if (in_array($participant->getUserId(), $userIds, true) && !isset($eligible[$participant->getUserId()]) && $participant->isReady()) {
+                $participant->clearReady();
+                $changed = true;
+            }
+        }
+        if ($changed) {
+            $this->participants->flush();
         }
     }
 

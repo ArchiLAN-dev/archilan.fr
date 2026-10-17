@@ -160,6 +160,15 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
         detail: games.length > 0 ? games.join(", ") : null,
       };
     }
+    case "run_all_ready": {
+      // Story 16.23: every player of the member's draft run said they are ready.
+      const run = text(data, "runTitle");
+      return base("run", "Partie", icon("bell"), [
+        { text: "Tout le monde est prêt dans " },
+        ...(run !== "" ? [strong(run)] : [{ text: "ta partie" }]),
+        { text: " : tu peux lancer" },
+      ]);
+    }
     case "run_started": {
       // Story 43.28: the run's server is up for the first time.
       const run = text(data, "runTitle");

@@ -27,6 +27,7 @@ const TYPE_LABELS: Record<string, { label: string; hint: string }> = {
   run_started: { label: "Partie lancée", hint: "Le serveur d'une partie où tu joues est prêt." },
   run_joined: { label: "Arrivées dans mes parties", hint: "Quelqu'un rejoint une partie que tu as créée." },
   run_games_chosen: { label: "Jeux choisis dans mes parties", hint: "Un joueur de ta partie a choisi ou changé ses jeux." },
+  run_all_ready: { label: "Tout le monde est prêt", hint: "Tous les joueurs de ta partie se sont dits prêts : tu peux lancer." },
   run_recap_ready: { label: "Récap prêt", hint: "Une partie où tu as joué est terminée et son récap est prêt." },
 };
 
