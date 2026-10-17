@@ -36,6 +36,9 @@ export type PersonalRunParticipant = {
   isAdmin: boolean;
   level: number;
   playing: boolean;
+  // Story 16.23: the player said they are ready (draft only), and whether they can (a game, or a co-played slot).
+  ready?: boolean;
+  canBeReady?: boolean;
 };
 
 export type ParticipantLevel = {
@@ -162,6 +165,8 @@ export type PersonalRun = {
   // Story 9.42: slots across all participants whose solo test generation failed (advisory
   // launch warning). Absent on older API payloads.
   failedPreflightCount?: number;
+  // Story 16.23: « 3 / 4 prêts » over the players who can be ready; null once launched.
+  readiness?: { ready: number; total: number } | null;
   // Story 16.18: this run hosts a seed generated elsewhere. Falsy on an older API payload.
   importedSeed?: boolean;
   // Slots read out of the imported archive, null when the run was generated here.

@@ -166,6 +166,20 @@ export async function setRunArchivedForMe(runId: string, archived: boolean): Pro
   }
 }
 
+/**
+ * Say one is ready in a draft run, or take it back (story 16.23). Null on success, otherwise the server's message.
+ */
+export async function setRunReady(runId: string, ready: boolean): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/ready`, { method: ready ? "PUT" : "DELETE" });
+    if (res.ok) return null;
+    const payload: unknown = await res.json().catch(() => null);
+    return errorMessageOf(payload) ?? "Impossible d'enregistrer ton statut.";
+  } catch {
+    return "Impossible de joindre le serveur.";
+  }
+}
+
 function errorMessageOf(payload: unknown): string | null {
   if (typeof payload !== "object" || payload === null || !("error" in payload)) return null;
   const error = payload.error;
