@@ -5,6 +5,32 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.43.0] - 2026-10-17
+
+Les joueurs d'une partie privée peuvent se dire prêts, et le suivi « faisable » d'une partie à plusieurs reste juste
+quand un des jeux ne se reproduit pas à l'identique.
+
+### Ajouté
+
+- **Statut « Prêt » dans une partie privée** (16.23) : tant que la partie n'est pas lancée, chaque joueur qui a un jeu
+  (ou qui est co-joueur du slot d'un autre) peut se dire prêt. Un badge « Prêt » s'affiche à côté de chaque joueur
+  prêt dans « Participants », un compteur « 3 / 4 prêts » près du bouton de lancement et dans l'onglet, et le
+  créateur est prévenu quand tout le monde est prêt (notification `run_all_ready`, cloche + push, réglable).
+  Changer ses jeux ou sa config annule le statut ; le lancement n'en dépend jamais. Une partie en brouillon à
+  plusieurs se rafraîchit toutes les 15 s.
+
+### Corrigé
+
+- **Suivi « faisable » jugé slot par slot** (17.31, image archipelago v0.19.1) : un jeu qui ne se reproduit pas à
+  l'identique (Pokémon Battle Revolution) ne fait plus basculer toute la partie dans le calcul de secours, et
+  Pikmin 2 y reprend son onion de départ, ses grottes et ses sous-niveaux réels. Des emplacements qui demandaient
+  des Pikmin bleus apparaissaient faisables sans le Blue Onion.
+
+### Mise en prod
+
+- Image `archipelago` 0.19.1 (le suivi d'une partie en cours se corrige à son prochain lancement).
+- Migration `Version20261017100000` (`run_participant.ready_at`) ; redémarrer les workers (nouveau message async).
+
 ## [0.42.0] - 2026-10-16
 
 Les jeux qui demandent la ROM du joueur à la génération deviennent jouables : le fichier est demandé au lancement,
