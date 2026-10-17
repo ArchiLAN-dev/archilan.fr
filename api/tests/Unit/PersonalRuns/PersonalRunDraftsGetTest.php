@@ -126,6 +126,7 @@ final class PersonalRunDraftsGetTest extends TestCase
             self::createStub(RunInvitationRepositoryInterface::class),
             self::createStub(RunNudgeRepositoryInterface::class),
             self::createStub(GameRepositoryInterface::class),
+            new \App\PersonalRuns\Application\Support\RunReadinessReader(self::createStub(\App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface::class)),
         );
     }
 }

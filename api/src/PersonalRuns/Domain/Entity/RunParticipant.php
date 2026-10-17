@@ -28,6 +28,12 @@ final class RunParticipant
          */
         #[ORM\Column(name: 'game_slots', type: Types::JSON)]
         private array $gameSlots = [],
+        /**
+         * When the player said they are ready (story 16.23), null when they are not. Advisory only: it never
+         * blocks a launch. Changing one's games or a config drops it.
+         */
+        #[ORM\Column(name: 'ready_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $readyAt = null,
     ) {
     }
 
@@ -59,6 +65,21 @@ final class RunParticipant
         return $this->gameSlots;
     }
 
+    public function isReady(): bool
+    {
+        return null !== $this->readyAt;
+    }
+
+    public function markReady(\DateTimeImmutable $now): void
+    {
+        $this->readyAt ??= $now;
+    }
+
+    public function clearReady(): void
+    {
+        $this->readyAt = null;
+    }
+
     public function hasSlots(): bool
     {
         return [] !== $this->gameSlots;
@@ -69,6 +90,15 @@ final class RunParticipant
      */
     public function replaceSlots(array $slots): void
     {
+        // Adding or removing a game drops the ready status (story 16.23); reordering them does not.
+        $slotIdsBefore = array_map(static fn (array $slot): string => $slot['slotId'], $this->gameSlots);
+        $slotIdsAfter = array_map(static fn (array $slot): string => $slot['slotId'], $slots);
+        sort($slotIdsBefore);
+        sort($slotIdsAfter);
+        if ($slotIdsBefore !== $slotIdsAfter) {
+            $this->readyAt = null;
+        }
+
         $preflightBySlotId = [];
         $reviewBySlotId = [];
         foreach ($this->gameSlots as $existing) {
@@ -112,6 +142,10 @@ final class RunParticipant
     {
         foreach ($this->gameSlots as &$slot) {
             if ($slot['slotId'] === $slotId) {
+                // A new config is not the one the player said they were ready with (story 16.23).
+                if (($slot['playerYaml'] ?? null) !== $playerYaml) {
+                    $this->readyAt = null;
+                }
                 $slot['playerYaml'] = $playerYaml;
                 $slot['apworldHash'] = $apworldHash;
                 // The verdict was for the previous yaml - a stale badge must not survive.

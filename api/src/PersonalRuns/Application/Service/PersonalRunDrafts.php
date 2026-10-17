@@ -18,6 +18,7 @@ use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Application\Support\RunJoiner;
+use App\PersonalRuns\Application\Support\RunReadinessReader;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunArchive;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
@@ -52,6 +53,7 @@ final readonly class PersonalRunDrafts
         private RunInvitationRepositoryInterface $invitations,
         private RunNudgeRepositoryInterface $nudges,
         private GameRepositoryInterface $games,
+        private RunReadinessReader $readiness,
     ) {
     }
 
@@ -414,7 +416,7 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}>
+     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool, ready: bool, canBeReady: bool}>
      */
     private function getParticipants(string $runId, string $viewerId): array
     {
@@ -423,6 +425,11 @@ final readonly class PersonalRunDrafts
         if ([] === $participants) {
             return [];
         }
+
+        // Story 16.23: only meaningful before the launch. A status left from a player who no longer has
+        // anything to play is not shown, so the badge and the count always agree.
+        $run = $this->runs->findById($runId);
+        $readiness = $run instanceof Run && !$run->isLockedForEditing() ? $this->readiness->eligible($participants) : null;
 
         $userIds = array_values(array_unique(array_map(static fn (RunParticipant $p) => $p->getUserId(), $participants)));
         $users = $this->users->findByIds($userIds);
@@ -444,7 +451,7 @@ final readonly class PersonalRunDrafts
         $levels = $this->levels->levelForMany($userIds);
         $playing = $this->presence->playing($userIds, $viewerId);
 
-        return array_map(function (RunParticipant $p) use ($usersById, $cards, $memberIds, $levels, $playing): array {
+        return array_map(function (RunParticipant $p) use ($usersById, $cards, $memberIds, $levels, $playing, $readiness): array {
             $user = $usersById[$p->getUserId()] ?? null;
             $card = $cards[$p->getUserId()] ?? null;
             $level = $levels[$p->getUserId()] ?? null;
@@ -465,13 +472,28 @@ final readonly class PersonalRunDrafts
                 'isAdmin' => null !== $user && in_array('ROLE_ADMIN', $user->getRoles(), true),
                 'level' => null !== $level ? $level['level'] : 0,
                 'playing' => isset($playing[$p->getUserId()]),
+                'canBeReady' => null !== $readiness && isset($readiness[$p->getUserId()]),
+                'ready' => null !== $readiness && isset($readiness[$p->getUserId()]) && $p->isReady(),
             ];
         }, $participants);
     }
 
     /**
-     * @param list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}> $participants
-     * @param bool                                                                                                                                                                                                                                                                                                                                 $isParticipant l'appelant est-il rattaché à la run sans en être propriétaire (story 16.14)
+     * @param list<array{ready: bool, canBeReady: bool}> $participants
+     *
+     * @return array{ready: int, total: int}
+     */
+    private static function readiness(array $participants): array
+    {
+        return [
+            'ready' => count(array_filter($participants, static fn (array $p): bool => $p['ready'])),
+            'total' => count(array_filter($participants, static fn (array $p): bool => $p['canBeReady'])),
+        ];
+    }
+
+    /**
+     * @param list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool, ready: bool, canBeReady: bool}> $participants
+     * @param bool                                                                                                                                                                                                                                                                                                                                                                $isParticipant l'appelant est-il rattaché à la run sans en être propriétaire (story 16.14)
      *
      * @return array<string, mixed>
      */
@@ -555,6 +577,8 @@ final readonly class PersonalRunDrafts
             // ouvrirait tous d'un coup. D'où un drapeau séparé.
             'canStart' => null !== $callerId && $run->isStartAllowedFor($callerId, $isParticipant),
             'participants' => $participants,
+            // Story 16.23: « 3 / 4 prêts », null once launched.
+            'readiness' => Run::STATUS_DRAFT === $run->getStatus() ? self::readiness($participants) : null,
             'sessionId' => $sessionId,
             'recapPublic' => $run->isRecapPublic(),
             // Story 43.14: who may join without a link or a name.

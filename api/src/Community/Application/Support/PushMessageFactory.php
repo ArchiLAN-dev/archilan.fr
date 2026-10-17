@@ -18,6 +18,8 @@ final class PushMessageFactory
         'slot_unblocked', 'run_invitation', 'friend_activity', 'run_nudge',
         // Story 43.28: the moments of a personal run (pushed by default only when it starts, see the preferences).
         'run_joined', 'run_games_chosen', 'run_started', 'run_recap_ready',
+        // Story 16.23.
+        'run_all_ready',
     ];
 
     public static function isPushable(string $type): bool
@@ -35,7 +37,7 @@ final class PushMessageFactory
             'run_invitation' => self::runInvitation($payload),
             'friend_activity' => self::friendActivity($payload),
             'run_nudge' => self::runNudge($payload),
-            'run_joined', 'run_games_chosen', 'run_started', 'run_recap_ready' => self::runMoment($type, $payload),
+            'run_joined', 'run_games_chosen', 'run_started', 'run_recap_ready', 'run_all_ready' => self::runMoment($type, $payload),
             default => null,
         };
     }
@@ -167,6 +169,7 @@ final class PushMessageFactory
             'run_joined' => sprintf('%s a rejoint %s', self::text($payload, 'joinerName') ?? 'Un joueur', $quoted ?? 'ta partie'),
             'run_games_chosen' => self::gamesChosen($payload, $quoted),
             'run_started' => null !== $quoted ? sprintf('%s est lancée : à toi de jouer', $quoted) : 'Ta partie est lancée : à toi de jouer',
+            'run_all_ready' => null !== $quoted ? sprintf('Tout le monde est prêt dans %s : tu peux lancer', $quoted) : 'Tout le monde est prêt : tu peux lancer ta partie',
             default => null !== $quoted ? sprintf('Le récap de %s est prêt', $quoted) : 'Le récap de ta partie est prêt',
         };
 

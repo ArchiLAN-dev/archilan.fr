@@ -188,6 +188,9 @@ function runMomentMessage(item: NotificationItem): string {
       return `${actorName(item)} a choisi ses jeux${run !== null ? ` dans ${run}` : ""}`;
     case "run_started":
       return `${run ?? "Ta partie"} est lancée : à toi de jouer`;
+    case "run_all_ready":
+      // Story 16.23: every player of the member's draft run is ready.
+      return `Tout le monde est prêt dans ${run ?? "ta partie"} : tu peux lancer`;
     default:
       return `Le récap de ${run ?? "ta partie"} est prêt`;
   }
@@ -211,6 +214,7 @@ export function messageFor(item: NotificationItem): string {
         : `${actorName(item)} a rejoint ta partie`;
     case "run_games_chosen":
     case "run_started":
+    case "run_all_ready":
     case "run_recap_ready":
       return runMomentMessage(item);
     case "weekly_duel":
@@ -377,6 +381,7 @@ export function hrefFor(item: NotificationItem): string {
     || item.type === "run_joined"
     || item.type === "run_listing_expired"
     || item.type === "run_games_chosen"
+    || item.type === "run_all_ready"
     || item.type === "run_started"
     || item.type === "run_recap_ready"
   ) {

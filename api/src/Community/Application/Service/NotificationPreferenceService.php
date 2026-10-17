@@ -33,6 +33,8 @@ final readonly class NotificationPreferenceService
         'run_started' => NotificationChannel::BellAndPush,
         'run_joined' => NotificationChannel::Bell,
         'run_games_chosen' => NotificationChannel::Bell,
+        // Story 16.23: every player of the member's draft run is ready, the moment to launch.
+        'run_all_ready' => NotificationChannel::BellAndPush,
         'run_recap_ready' => NotificationChannel::Bell,
     ];
 
@@ -42,7 +44,7 @@ final readonly class NotificationPreferenceService
      * @var list<string>
      */
     private const array DISCORD_BY_DEFAULT = [
-        'run_invitation', 'slot_unblocked', 'run_nudge', 'run_started', 'run_joined', 'run_games_chosen', 'run_recap_ready',
+        'run_invitation', 'slot_unblocked', 'run_nudge', 'run_started', 'run_joined', 'run_games_chosen', 'run_all_ready', 'run_recap_ready',
     ];
 
     public function __construct(

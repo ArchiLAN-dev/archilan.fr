@@ -30,6 +30,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { fetchPersonalRun, setRunArchivedForMe, setRunRecapVisibility, type PersonalRunResult } from "./personal-runs-api";
 import { IdleBanner } from "./idle-banner";
 import { PersonalRunStart } from "./personal-run-start";
+import { ReadinessSummary, ReadyBadge, ReadyToggle } from "./run-readiness";
 import { ImportedSeedPanel } from "./imported-seed-panel";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
@@ -66,7 +67,17 @@ type PageState =
 
 // ─── My games card ────────────────────────────────────────────────────────────
 
-function MyGamesCard({ run, mySlotCount }: { run: PersonalRun; mySlotCount: number }) {
+function MyGamesCard({
+  run,
+  mySlotCount,
+  me,
+  onReadyChanged,
+}: {
+  run: PersonalRun;
+  mySlotCount: number;
+  me: PersonalRunParticipant | null;
+  onReadyChanged: () => void;
+}) {
   // Editing games/YAML is only meaningful before the first generation: once the run leaves draft the
   // multiworld is fixed (resume replays the existing session), so the edit entry is hidden.
   const canConfigure = run.status === "draft";
@@ -106,6 +117,7 @@ function MyGamesCard({ run, mySlotCount }: { run: PersonalRun; mySlotCount: numb
           {mySlotCount} jeu{mySlotCount > 1 ? "x" : ""} configuré{mySlotCount > 1 ? "s" : ""}.
         </p>
       )}
+      {canConfigure && me !== null ? <ReadyToggle onChanged={onReadyChanged} participant={me} runId={run.id} /> : null}
     </div>
   );
 }
@@ -155,13 +167,15 @@ function ParticipantList({
                   </TitledName>
                 </p>
               )}
-              <PlayerBadges
-                className="mt-1"
-                isAdmin={p.isAdmin}
-                isMember={p.isMember}
-                level={p.level}
-                playing={p.playing}
-              />
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <PlayerBadges
+                  isAdmin={p.isAdmin}
+                  isMember={p.isMember}
+                  level={p.level}
+                  playing={p.playing}
+                />
+                <ReadyBadge participant={p} />
+              </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 Depuis le{" "}
                 {new Date(p.joinedAt).toLocaleDateString("fr-FR", {
@@ -398,6 +412,8 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
       const result = query.state.data;
       if (result?.kind !== "ready") return false;
       if ((POLLING_STATUSES as readonly string[]).includes(result.run.status)) return 3_000;
+      // Story 16.23: the other players' ready status and games show up while the run is being prepared.
+      if (result.run.status === "draft" && result.run.participants.length > 1) return 15_000;
       return result.run.status === "active" ? 30_000 : false;
     },
   });
@@ -841,7 +857,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
         {/* My games card - visible to owner + participants when configurable */}
         {activeTab === "overview" && (run.isOwner || myParticipant !== null) && (run.status === "draft" || run.status === "idle") && (
-          <MyGamesCard mySlotCount={mySlotCount} run={run} />
+          <MyGamesCard me={myParticipant} mySlotCount={mySlotCount} onReadyChanged={() => void runQuery.refetch()} run={run} />
         )}
 
         {/* Story 16.19 : une interface identique à celle du propriétaire invite à oublier de qui est
@@ -935,6 +951,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     vérifie les configs marquées « Échec du test » avant de lancer.
                   </InfoHint>
                 )}
+                <ReadinessSummary className="self-start" readiness={run.readiness} />
                 <PersonalRunStart
                   disabled={!isStartable || actioning}
                   generationFiles={run.generationFiles}
@@ -1239,6 +1256,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                   {run.participants.length}
                 </span>
               )}
+              <ReadinessSummary className="ml-2 font-normal" readiness={run.readiness} />
             </h2>
             <ParticipantList myUserId={myUserId} nudges={nudges} participants={run.participants} runId={run.id} />
             {nudges !== null && myUserId !== null && nudges.players.some((n) => n.userId === myUserId) ? (

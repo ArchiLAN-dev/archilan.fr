@@ -100,6 +100,7 @@ framework:
             'App\PersonalRuns\Application\Message\SyncRunListingsToDiscordMessage': async
             # Story 43.28: the moments of a personal run, told to its players off the request.
             'App\PersonalRuns\Application\Message\NotifyRunGamesChosenJob': async
+            'App\PersonalRuns\Application\Message\NotifyRunAllReadyJob': async
             'App\PersonalRuns\Application\Message\NotifyRunPlayersJob': async
             'App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob': async
             'App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob': async
