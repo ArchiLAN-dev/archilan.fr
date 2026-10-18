@@ -72,9 +72,11 @@ séquestre en or serait rendu en bronze (or détruit, bronze créé).
 
 ## Dev Notes
 
-- Le hint en pelles reste désactivé par défaut en partie privée (décision 2 de l'epic), et les primes aussi : le
-  bronze se gagne même si les deux sont coupés. À rediscuter avec Jean : activer les deux par défaut maintenant
-  qu'ils ne coûtent plus d'or.
+- **Activés par défaut en partie privée** (Jean, 2026-10-18, « oui par défaut ») : payés en bronze, hints et primes
+  ne coûtent plus rien de l'or. Défaut du code (`SessionConfig::defaultsFor(Private)`) et profil « private »
+  enregistré (migration `Version20261018120000`, le profil en base l'emporte sur le code). Une partie qui avait
+  surchargé l'un ou l'autre garde son choix. Hebdos et events restent coupés par défaut. Lève la décision 2 de
+  l'epic pour les parties privées.
 - Appliquer « l'or ne sert qu'à la boutique » aux hebdos et aux events est une story à part, à écrire quand Jean
   l'aura tranché.
 

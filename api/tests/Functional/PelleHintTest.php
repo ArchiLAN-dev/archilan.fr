@@ -221,9 +221,8 @@ final class PelleHintTest extends FunctionalTestCase
         $this->runId = $run->getId();
         $this->entityManager->getConnection()->executeStatement('UPDATE session SET status = :status WHERE id = :id', ['status' => $status, 'id' => $sessionId]);
         $this->entityManager->clear();
-        if ($enabled) {
-            $this->override($run->getId());
-        }
+        // Story 41.38: a private run sells hints by default, so "disabled" is said explicitly.
+        $this->override($run->getId(), $enabled);
 
         return $sessionId;
     }
@@ -240,11 +239,11 @@ final class PelleHintTest extends FunctionalTestCase
         return $sessionId;
     }
 
-    private function override(string $scopeKey): void
+    private function override(string $scopeKey, bool $enabled = true): void
     {
         $set = self::getContainer()->get(SetSessionConfigOverride::class);
         self::assertInstanceOf(SetSessionConfigOverride::class, $set);
-        $set->execute($scopeKey, ['pelleHints' => true]);
+        $set->execute($scopeKey, ['pelleHints' => $enabled]);
     }
 
     private function pelles(PelleKind $kind, ?string $eventId, int $amount): void

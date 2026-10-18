@@ -221,6 +221,10 @@ final readonly class SessionConfig
                     // on the "private" profile (owners cannot change it, story 27.9).
                     autoShutdown: 1800,
                     compatibility: Compatibility::Casual,
+                    // Story 41.38: paid in the run's own bronze, hints and bounties cost a private run nothing
+                    // from the shop's gold - so they are on by default (Jean, 2026-10-18).
+                    pelleHints: true,
+                    pelleBounties: true,
                 ),
                 new SessionGenerationConfig([], false, SpoilerLevel::WithPaths),
             ),

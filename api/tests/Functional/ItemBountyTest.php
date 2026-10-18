@@ -236,12 +236,11 @@ final class ItemBountyTest extends FunctionalTestCase
         $this->entityManager->getConnection()->executeStatement('UPDATE session SET status = :status WHERE id = :id', ['status' => Session::STATUS_RUNNING, 'id' => $sessionId]);
         // The session entity is still in the identity map as a draft.
         $this->entityManager->clear();
-        if ($bounties) {
-            $set = self::getContainer()->get(SetSessionConfigOverride::class);
-            self::assertInstanceOf(SetSessionConfigOverride::class, $set);
-            // The checks' own bronze (story 41.37) stays out of the bounty sums.
-            $set->execute($run->getId(), ['pelleBounties' => true, 'bronzePerCheck' => 0]);
-        }
+        $set = self::getContainer()->get(SetSessionConfigOverride::class);
+        self::assertInstanceOf(SetSessionConfigOverride::class, $set);
+        // The checks' own bronze (story 41.37) stays out of the bounty sums; bounties are on by default in a private
+        // run (story 41.38), so "off" is said explicitly.
+        $set->execute($run->getId(), ['pelleBounties' => $bounties, 'bronzePerCheck' => 0]);
 
         return $sessionId;
     }
