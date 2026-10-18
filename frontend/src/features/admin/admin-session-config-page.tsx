@@ -219,6 +219,17 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
         </div>
       </Section>
 
+      {type === "private" ? (
+        <Section description="Monnaie propre à chaque partie privée, brûlée à sa fin. L'or reste pour la boutique." title="Pelles de bronze">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <NumberField hint={sessionConfigHelp.bronzeStart} label="Au lancement" max={1000} min={0} onChange={(n) => patchServer({ bronzeStart: n })} value={server.bronzeStart} />
+            <NumberField hint={sessionConfigHelp.bronzePerCheck} label="Par check" max={1000} min={0} onChange={(n) => patchServer({ bronzePerCheck: n })} value={server.bronzePerCheck} />
+            <NumberField hint={sessionConfigHelp.bronzePerGoal} label="Au goal" max={1000} min={0} onChange={(n) => patchServer({ bronzePerGoal: n })} value={server.bronzePerGoal} />
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">0 coupe ce gain.</p>
+        </Section>
+      ) : null}
+
       <Section description="Comportement de la salle et règles de la partie." title="Salle & partie">
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField hint={sessionConfigHelp.countdownMode} label="Compte à rebours (!countdown)" labels={COUNTDOWN_LABELS} onChange={(v) => patchServer({ countdownMode: v })} options={COUNTDOWN_MODES} value={server.countdownMode} />

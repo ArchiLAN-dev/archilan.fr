@@ -38,6 +38,9 @@ final readonly class SessionConfigOverride
         public ?int $pelleItemHintPrice = null,
         public ?int $pelleLocationHintPrice = null,
         public ?bool $pelleBounties = null,
+        public ?int $bronzeStart = null,
+        public ?int $bronzePerCheck = null,
+        public ?int $bronzePerGoal = null,
     ) {
     }
 
@@ -65,6 +68,9 @@ final readonly class SessionConfigOverride
             pelleItemHintPrice: $c->server->pelleItemHintPrice,
             pelleLocationHintPrice: $c->server->pelleLocationHintPrice,
             pelleBounties: $c->server->pelleBounties,
+            bronzeStart: $c->server->bronzeStart,
+            bronzePerCheck: $c->server->bronzePerCheck,
+            bronzePerGoal: $c->server->bronzePerGoal,
         );
     }
 
@@ -127,6 +133,11 @@ final readonly class SessionConfigOverride
         if (null !== $this->pelleBounties) {
             $out['pelleBounties'] = $this->pelleBounties;
         }
+        foreach (['bronzeStart' => $this->bronzeStart, 'bronzePerCheck' => $this->bronzePerCheck, 'bronzePerGoal' => $this->bronzePerGoal] as $key => $amount) {
+            if (null !== $amount) {
+                $out[$key] = $amount;
+            }
+        }
 
         return $out;
     }
@@ -168,6 +179,9 @@ final readonly class SessionConfigOverride
             pelleItemHintPrice: isset($data['pelleItemHintPrice']) && is_int($data['pelleItemHintPrice']) ? $data['pelleItemHintPrice'] : null,
             pelleLocationHintPrice: isset($data['pelleLocationHintPrice']) && is_int($data['pelleLocationHintPrice']) ? $data['pelleLocationHintPrice'] : null,
             pelleBounties: isset($data['pelleBounties']) && is_bool($data['pelleBounties']) ? $data['pelleBounties'] : null,
+            bronzeStart: isset($data['bronzeStart']) && is_int($data['bronzeStart']) ? $data['bronzeStart'] : null,
+            bronzePerCheck: isset($data['bronzePerCheck']) && is_int($data['bronzePerCheck']) ? $data['bronzePerCheck'] : null,
+            bronzePerGoal: isset($data['bronzePerGoal']) && is_int($data['bronzePerGoal']) ? $data['bronzePerGoal'] : null,
         );
     }
 
@@ -189,6 +203,9 @@ final readonly class SessionConfigOverride
             && null === $this->pelleHints
             && null === $this->pelleItemHintPrice
             && null === $this->pelleLocationHintPrice
-            && null === $this->pelleBounties;
+            && null === $this->pelleBounties
+            && null === $this->bronzeStart
+            && null === $this->bronzePerCheck
+            && null === $this->bronzePerGoal;
     }
 }

@@ -19,6 +19,11 @@ final readonly class SessionServerConfig
     public const int DEFAULT_PELLE_ITEM_HINT_PRICE = 20;
     public const int DEFAULT_PELLE_LOCATION_HINT_PRICE = 10;
     public const int MAX_PELLE_HINT_PRICE = 1000;
+    // Story 41.36: what a private run hands out in bronze pelles. 0 turns that source off.
+    public const int DEFAULT_BRONZE_START = 20;
+    public const int DEFAULT_BRONZE_PER_CHECK = 1;
+    public const int DEFAULT_BRONZE_PER_GOAL = 25;
+    public const int MAX_BRONZE_AMOUNT = 1000;
 
     public function __construct(
         public ReleaseCollectMode $releaseMode,
@@ -37,10 +42,19 @@ final readonly class SessionServerConfig
         public int $pelleLocationHintPrice = self::DEFAULT_PELLE_LOCATION_HINT_PRICE,
         // Story 41.4: bounties on items, paid in pelles. A site setting too.
         public bool $pelleBounties = false,
+        // Story 41.36: the bronze a private run hands out. Site settings, read for private runs only.
+        public int $bronzeStart = self::DEFAULT_BRONZE_START,
+        public int $bronzePerCheck = self::DEFAULT_BRONZE_PER_CHECK,
+        public int $bronzePerGoal = self::DEFAULT_BRONZE_PER_GOAL,
     ) {
         if ($pelleItemHintPrice < 1 || $pelleItemHintPrice > self::MAX_PELLE_HINT_PRICE
             || $pelleLocationHintPrice < 1 || $pelleLocationHintPrice > self::MAX_PELLE_HINT_PRICE) {
             throw new \DomainException('invalid_pelle_hint_price');
+        }
+        foreach ([$bronzeStart, $bronzePerCheck, $bronzePerGoal] as $bronze) {
+            if ($bronze < 0 || $bronze > self::MAX_BRONZE_AMOUNT) {
+                throw new \DomainException('invalid_bronze_amount');
+            }
         }
         if ($hintCost < 0 || $hintCost > 100) {
             throw new \DomainException('invalid_hint_cost');

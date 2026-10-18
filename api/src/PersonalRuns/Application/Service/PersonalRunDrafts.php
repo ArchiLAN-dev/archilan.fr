@@ -14,6 +14,7 @@ use App\Identity\Domain\Entity\AdminUserActionAudit;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
+use App\PersonalRuns\Application\Port\RunBronzeInterface;
 use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
@@ -54,6 +55,7 @@ final readonly class PersonalRunDrafts
         private RunNudgeRepositoryInterface $nudges,
         private GameRepositoryInterface $games,
         private RunReadinessReader $readiness,
+        private RunBronzeInterface $bronze,
     ) {
     }
 
@@ -233,6 +235,8 @@ final readonly class PersonalRunDrafts
         $this->runs->flush();
         // Story 43.19: nobody can answer an invitation into a cancelled run any more.
         $this->invitations->closePendingForRun($run->getId(), $this->clock->now());
+        // Story 41.36: its bronze burns.
+        $this->bronze->reconcileLater($run->getId());
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
     }
@@ -265,6 +269,8 @@ final readonly class PersonalRunDrafts
         $this->runs->flush();
         // Story 43.19: nobody can answer an invitation into a cancelled run any more.
         $this->invitations->closePendingForRun($run->getId(), $this->clock->now());
+        // Story 41.36: its bronze burns.
+        $this->bronze->reconcileLater($run->getId());
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
     }
@@ -289,6 +295,8 @@ final readonly class PersonalRunDrafts
 
         $run->unarchive($this->clock->now());
         $this->runs->flush();
+        // Story 41.36: the bronze burned at the cancellation comes back.
+        $this->bronze->reconcileLater($run->getId());
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
     }
@@ -323,6 +331,8 @@ final readonly class PersonalRunDrafts
 
         // Tracée avant la suppression : après, la partie n'existe plus pour porter son propriétaire.
         $this->trace->record($run, $callerId, AdminUserActionAudit::ACTION_RUN_DELETE);
+        // Story 41.36 : le bronze restant brûle tant que la partie existe encore pour le registre.
+        $this->bronze->burnNow($run->getId());
         $this->participants->deleteByRunId($run->getId());
         // Story 16.21 : les archives personnelles partent avec la partie, rien ne les rattache plus à rien.
         $this->archives->deleteByRunId($run->getId());

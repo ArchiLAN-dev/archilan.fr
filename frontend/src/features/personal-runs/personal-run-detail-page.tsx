@@ -898,6 +898,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 clear: () => clearOverride(`/runs/${run.id}/config-override`),
               }}
               lockedKeys={["autoShutdown"]}
+              showBronze
               scopeLabel="cette run"
             />
           </section>
