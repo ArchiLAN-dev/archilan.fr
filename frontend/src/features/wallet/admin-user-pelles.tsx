@@ -108,6 +108,11 @@ export function AdminUserPelles({ userId, isSelf, memberName }: { userId: string
                 {event.eventTitle} : <PelleAmount amount={event.balance} className="font-semibold" />
               </span>
             ))}
+            {wallet.bronze.map((run) => (
+              <span key={run.runId}>
+                Bronze, {run.runTitle} : <PelleAmount amount={run.balance} className="font-semibold" />
+              </span>
+            ))}
           </div>
         ) : null}
 

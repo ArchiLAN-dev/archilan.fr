@@ -60,13 +60,14 @@ final readonly class BuyHintWithPelles
             throw new ForbiddenException('Cette partie ne vend pas de hints contre des pelles.', 'pelle_hints_disabled');
         }
 
-        return $this->sell($userId, $sessionId, $slotIndex, $kind, $itemName, $locationId, $requestId, $terms['itemPrice'], $terms['locationPrice'], $terms['eventId']);
+        return $this->sell($userId, $sessionId, $slotIndex, $kind, $itemName, $locationId, $requestId, $terms['itemPrice'], $terms['locationPrice'], $terms['eventId'], $terms['runId']);
     }
 
     /**
      * The sale itself, once the caller checked its own conditions (a running session that sells hints, or a weekly
      * attempt, story 41.8): debit, free hint from the bridge of `$bridgeSessionId`, refund if it was not given.
-     * `$eventId` names the event whose pelles pay first, null for gold only.
+     * `$eventId` names the event whose pelles pay first, null for gold only. `$runId` names the private run whose
+     * bronze alone pays (story 41.38).
      *
      * @param 'item'|'location' $kind
      *
@@ -74,7 +75,7 @@ final readonly class BuyHintWithPelles
      * @throws ForbiddenException  when the member is banned
      * @throws ValidationException when the request is malformed or the member cannot pay
      */
-    public function sell(string $userId, string $bridgeSessionId, int $slotIndex, string $kind, ?string $itemName, ?int $locationId, string $requestId, int $itemPrice, int $locationPrice, ?string $eventId): PelleHintPurchase
+    public function sell(string $userId, string $bridgeSessionId, int $slotIndex, string $kind, ?string $itemName, ?int $locationId, string $requestId, int $itemPrice, int $locationPrice, ?string $eventId, ?string $runId = null): PelleHintPurchase
     {
         $sessionId = $bridgeSessionId;
         if ('' === $requestId || \strlen($requestId) > self::MAX_REQUEST_ID_LENGTH) {
@@ -98,11 +99,13 @@ final readonly class BuyHintWithPelles
             $give = fn () => $this->gateway->hintLocation($sessionId, $slotIndex, $locationId);
         }
 
-        [$purse, $eventId] = $this->purse($userId, $eventId, $price);
+        [$purse, $eventId] = $this->purse($userId, $eventId, $runId, $price);
+        $runId = PelleKind::Bronze === $purse ? $runId : null;
 
         $debit = $this->record->record(new RecordPelleMovementInput(
             $userId, -$price, $purse, $eventId, PelleReason::HintPurchase, $label, null,
             sprintf('hint:%s:%s', $userId, $requestId),
+            runId: $runId,
         ));
         if ($debit->alreadyRecorded) {
             // A double submit: paid once, hinted once.
@@ -117,6 +120,7 @@ final readonly class BuyHintWithPelles
                 $userId, $price, $purse, $eventId, PelleReason::HintRefund, 'Remboursement, '.lcfirst($label), null,
                 sprintf('hint-refund:%s:%s', $userId, $requestId),
                 byAdmin: true,
+                runId: $runId,
             ));
 
             throw new ConflictException(self::failureMessage($e), $e instanceof HintNotGivenException ? $e->reason : 'hint_failed');
@@ -139,12 +143,22 @@ final readonly class BuyHintWithPelles
     }
 
     /**
-     * The event's pelles first when they cover the price, then gold pelles.
+     * A private run's bronze alone (story 41.38); elsewhere the event's pelles first when they cover the price, then
+     * gold pelles.
      *
      * @return array{0: PelleKind, 1: string|null}
      */
-    private function purse(string $userId, ?string $eventId, int $price): array
+    private function purse(string $userId, ?string $eventId, ?string $runId, int $price): array
     {
+        if (null !== $runId) {
+            $bronze = $this->movements->balance($userId, PelleKind::Bronze, null, $runId);
+            if ($bronze >= $price) {
+                return [PelleKind::Bronze, null];
+            }
+
+            throw new ValidationException(sprintf('Il te faut %d pelles de bronze pour ce hint.', $price), ['price' => $price, 'bronze' => $bronze], 'insufficient_pelles');
+        }
+
         $event = null === $eventId ? 0 : $this->movements->balance($userId, PelleKind::Event, $eventId);
         if (null !== $eventId && $event >= $price) {
             return [PelleKind::Event, $eventId];

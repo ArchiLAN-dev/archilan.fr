@@ -387,6 +387,12 @@ export function PellesView({ stats }: { stats: PelleStats }) {
         <KeyFigure label="Créées" trend={stats.created} value={<PelleAmount amount={stats.created.total} />} />
         <KeyFigure label="Détruites" trend={stats.destroyed} value={<PelleAmount amount={stats.destroyed.total} />} />
       </dl>
+      {/* Story 41.38: the bronze of the private runs, never part of the gold above. */}
+      <dl aria-label="Pelles de bronze" className="grid grid-cols-3 gap-3">
+        <KeyFigure label="Bronze gagné" value={<PelleAmount amount={stats.bronze.created} />} />
+        <KeyFigure label="Bronze dépensé" value={<PelleAmount amount={stats.bronze.spent} />} />
+        <KeyFigure label="Bronze brûlé" value={<PelleAmount amount={stats.bronze.burned} />} />
+      </dl>
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartBlock definition="Pelles d'or créées (crédits) et détruites (dépenses). Les pelles d'événement n'y figurent pas." title="Créées et détruites">
           <TrendChart

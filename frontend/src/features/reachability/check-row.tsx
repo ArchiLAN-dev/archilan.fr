@@ -7,10 +7,10 @@ import type { CheckEntry } from "./types";
  * Story 41.3: the same hint, bought with pelles when the party sells it. `affordable` is false when the
  * member's pelles do not cover the price; the option stays visible, disabled, so the price is known.
  */
-export type PelleHintOption = { price: number; affordable: boolean; onBuy: () => Promise<void> };
+export type PelleHintOption = { price: number; affordable: boolean; onBuy: () => Promise<void>; unit?: string };
 
 /** The offer of a whole list: one price, the buy keyed by what is hinted (an item name, a location id). */
-export type PelleHintOffer<T> = { price: number; affordable: boolean; onBuy: (target: T) => Promise<void> };
+export type PelleHintOffer<T> = { price: number; affordable: boolean; onBuy: (target: T) => Promise<void>; unit?: string };
 
 export function HintButton({
   onHint,
@@ -129,11 +129,11 @@ export function HintConfirm({
           className="inline-flex items-center gap-1 rounded border border-accent-text/40 bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-text hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
           disabled={!pelle.affordable}
           onClick={() => onConfirm(pelle.onBuy)}
-          title={pelle.affordable ? undefined : "Tu n'as pas assez de pelles."}
+          title={pelle.affordable ? undefined : `Tu n'as pas assez de ${pelle.unit ?? "pelles"}.`}
           type="button"
         >
           <Shovel className="size-3" />
-          {`${pelle.price} pelles`}
+          {`${pelle.price} ${pelle.unit ?? "pelles"}`}
         </button>
       ) : null}
       <button
@@ -179,7 +179,7 @@ export function CheckRow({
             free={hintFree}
             hintCost={hintCost}
             onHint={() => onHintRequest(check.id)}
-            pelle={pelleHint ? { price: pelleHint.price, affordable: pelleHint.affordable, onBuy: () => pelleHint.onBuy(check.id) } : undefined}
+            pelle={pelleHint ? { price: pelleHint.price, unit: pelleHint.unit, affordable: pelleHint.affordable, onBuy: () => pelleHint.onBuy(check.id) } : undefined}
           />
         ) : null}
       </div>
