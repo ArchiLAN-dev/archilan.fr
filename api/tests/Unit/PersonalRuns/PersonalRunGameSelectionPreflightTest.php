@@ -226,6 +226,7 @@ final class PersonalRunGameSelectionPreflightTest extends TestCase
                 $clock,
                 new NullLogger(),
                 new \App\PersonalRuns\Application\Support\RunReadinessReader(self::createStub(SlotCoPlayerRepositoryInterface::class)),
+                self::createStub(\App\PersonalRuns\Application\Port\RunBronzeInterface::class),
             ),
             requiredGenerationFiles: new RequiredGenerationFiles($runner),
         );

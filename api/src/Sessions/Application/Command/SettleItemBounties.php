@@ -77,19 +77,12 @@ final readonly class SettleItemBounties
         }
         $sender = $this->slots->findBySessionAndSlotName($bounty->getSessionId(), $senderName);
         $receiver = $this->slots->findBySessionAndSlotName($bounty->getSessionId(), $receiverName);
-        if (!$sender instanceof SessionSlot || self::releasedOrDone($sender, $now) || ($receiver instanceof SessionSlot && self::releasedOrDone($receiver, $now))) {
+        if (!$sender instanceof SessionSlot || $sender->stoppedFinding($now) || ($receiver instanceof SessionSlot && $receiver->stoppedFinding($now))) {
             return null;
         }
         $owner = $this->owners->ownerOf($sender);
 
         return null === $owner || $owner === $bounty->getPosterId() ? null : $owner;
-    }
-
-    private static function releasedOrDone(SessionSlot $slot, \DateTimeImmutable $now): bool
-    {
-        $goal = $slot->getGoalReachedAt();
-
-        return $slot->isWasReleased() || (null !== $goal && $goal <= $now);
     }
 
     private function pay(ItemBounty $bounty, string $winnerId, \DateTimeImmutable $now): bool

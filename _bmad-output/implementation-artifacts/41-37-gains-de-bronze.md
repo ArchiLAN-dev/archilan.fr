@@ -1,6 +1,6 @@
 # Story 41.37: Pelles de bronze - gains en partie
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Pelles, la monnaie du site
 **Date:** 2026-10-18
 **Dépend de :** 41.36 (type, réglages, cycle de vie).
@@ -60,13 +60,13 @@ diffère de la règle des primes (décision 7 : la prime va au propriétaire seu
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1) - Dotation au premier passage à `active` (handler de lancement) et à l'ajout d'un
+- [x] **Task 1** (AC 1) - Dotation au premier passage à `active` (handler de lancement) et à l'ajout d'un
   co-joueur sur une partie lancée.
-- [ ] **Task 2** (AC 2, 3, 5-7) - Service de crédit appelé par `FeedPushController` après les primes ;
+- [x] **Task 2** (AC 2, 3, 5-7) - Service de crédit appelé par `FeedPushController` après les primes ;
   résolution des joueurs d'un slot (propriétaire + co-joueurs) ; règles d'exclusion partagées avec
   `SettleItemBounties` plutôt que recopiées.
-- [ ] **Task 3** (AC 4) - Crédit au goal depuis `RecordSlotGoal`, pour une partie privée seulement.
-- [ ] **Task 4** (AC 9, 10) - Tests et gates.
+- [x] **Task 3** (AC 4) - Crédit au goal depuis `RecordSlotGoal`, pour une partie privée seulement.
+- [x] **Task 4** (AC 9, 10) - Tests et gates.
 
 ## Dev Notes
 
@@ -77,4 +77,25 @@ diffère de la règle des primes (décision 7 : la prime va au propriétaire seu
 
 ## Dev Agent Record
 
-_(à remplir à l'implémentation)_
+- **Dotation** : dans `ReconcileRunBronze` (41.36), branche « partie jouable » : après la restitution, chaque joueur
+  de la session (propriétaires de slot et co-joueurs, `RunSlotPlayers`) reçoit le départ, clé
+  `bronze-start:{run}:{membre}`. Le job est envoyé quand la session d'une partie privée passe `running`
+  (`SessionLifecycleManager::transition`) et quand les co-joueurs d'un slot changent (`RunSlotCoPlayers`) ; une
+  relance repasse par là sans rien redonner. Un joueur banni ne reçoit rien (pas `byAdmin`).
+- **Checks et goal** : `CreditRunBronze` (Sessions), appelé par `FeedPushController` après les primes et par
+  `RecordSlotGoal` après l'enregistrement du goal, chacun dans son `try/catch` (best-effort). Clés
+  `bronze-check:{run}:{ordre du slot}:{location}:{membre}` et `bronze-goal:{run}:{ordre du slot}:{membre}`.
+- **Règle commune** : `SessionSlot::stoppedFinding($at)` remplace le `releasedOrDone` privé de
+  `SettleItemBounties` ; primes et bronze ne peuvent plus diverger.
+- Une partie terminée ou annulée ne donne pas de départ : la branche « terminée » du réconciliateur brûle et
+  s'arrête.
+
+### Tests
+
+- `RunBronzeEarningsTest` : départ une fois à tous (propriétaires et co-joueur), même relancé ; co-joueur ajouté
+  plus tard ; check payé une fois par location, au propriétaire et au co-joueur, item pour soi-même compris,
+  recevoir n'est pas checker ; release, collect, goal déjà atteint, slot sans joueur ne paient pas ; goal payé une
+  fois ; montants du propriétaire et 0 sans ligne ; banni sans gain, les autres payés ; partie terminée sans
+  départ.
+- `ItemBountyTest` inchangé et vert (règle extraite).
+- Non couvert par un test : l'envoi du job au passage `running` (une ligne, même place que `markRunning`).

@@ -170,6 +170,16 @@ final class SessionSlot
         $this->goalReachedAt = $goalReachedAt;
     }
 
+    /**
+     * Whether an item this slot sends or receives at `$at` was found by nobody (stories 41.4, 41.37): the feed tells
+     * a release or a collect apart from a find nowhere, so a slot that released or collected, or had reached its goal
+     * (a goal is followed by the release), no longer finds anything.
+     */
+    public function stoppedFinding(\DateTimeImmutable $at): bool
+    {
+        return $this->wasReleased || (null !== $this->goalReachedAt && $this->goalReachedAt <= $at);
+    }
+
     public function markAsReleased(): void
     {
         if (null !== $this->goalReachedAt) {

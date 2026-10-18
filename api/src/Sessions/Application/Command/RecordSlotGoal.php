@@ -33,6 +33,7 @@ final readonly class RecordSlotGoal
         private SessionSlotRepositoryInterface $slots,
         private LoggerInterface $logger,
         private MessageBusInterface $messageBus,
+        private CreditRunBronze $creditBronze,
     ) {
     }
 
@@ -82,6 +83,13 @@ final readonly class RecordSlotGoal
             $this->messageBus->dispatch(FriendActivityJob::goalReached($sessionId, $slotName));
         } catch (\Throwable $e) {
             $this->logger->warning('friend_activity.dispatch_failed', ['sessionId' => $sessionId, 'error' => $e->getMessage()]);
+        }
+
+        // Story 41.37: on a private run, the slot's players earn the goal's bronze. Best-effort too.
+        try {
+            $this->creditBronze->onGoal($sessionId, $slotName);
+        } catch (\Throwable $e) {
+            $this->logger->error('sessions.bronze.goal_failed', ['sessionId' => $sessionId, 'error' => $e->getMessage()]);
         }
 
         return null;
