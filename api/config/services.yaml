@@ -401,6 +401,13 @@ services:
     App\Community\Infrastructure\Adapter\DiscordAvatarResolver:
         arguments:
             $discordBotToken: '%env(default:default_empty_string:DISCORD_BOT_TOKEN)%'
+
+    # Story 34.10: the frontend's ISR revalidation route, on the Docker network. Either value empty = disabled.
+    App\Shared\Application\Port\PublicPageCacheInterface: '@App\Shared\Infrastructure\Http\HttpPublicPageCache'
+    App\Shared\Infrastructure\Http\HttpPublicPageCache:
+        arguments:
+            $frontendInternalUrl: '%env(default:default_empty_string:FRONTEND_INTERNAL_URL)%'
+            $revalidateSecret: '%env(default:default_empty_string:REVALIDATE_SECRET)%'
     App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRecentlyPlayedGamesQuery'
     App\PersonalRuns\Application\Query\MyRunSlotsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalMyRunSlotsQuery'
     App\PersonalRuns\Application\Query\RunInviteFriendsQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRunInviteFriendsQuery'

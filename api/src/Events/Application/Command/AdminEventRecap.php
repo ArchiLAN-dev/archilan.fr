@@ -9,6 +9,7 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ValidationException;
+use App\Shared\Application\Support\PublicPagesRevalidation;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -18,6 +19,7 @@ final readonly class AdminEventRecap
         private EventRepositoryInterface $eventRepository,
         private LoggerInterface $logger,
         private ClockInterface $clock,
+        private PublicPagesRevalidation $publicPages,
     ) {
     }
 
@@ -49,6 +51,7 @@ final readonly class AdminEventRecap
         }
 
         $this->eventRepository->save($event);
+        $this->publicPages->eventChanged($eventId);
 
         $this->logger->info('event.recap_attached', ['eventId' => $eventId]);
     }

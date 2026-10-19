@@ -11,6 +11,7 @@ use App\Events\Presentation\Controller\AdminEventGalleryController;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
+use App\Shared\Application\Support\PublicPagesRevalidation;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -25,6 +26,7 @@ final readonly class AdminEventDrafts
         private LoggerInterface $logger,
         private PublicMediaUrlResolver $publicMedia,
         private ClockInterface $clock,
+        private PublicPagesRevalidation $publicPages,
     ) {
     }
 
@@ -85,6 +87,7 @@ final readonly class AdminEventDrafts
 
         $event->linkHelloassoForm($parsed['helloassoFormSlug'], $this->clock->now());
         $this->eventRepository->save($event);
+        $this->publicPages->eventChanged($event->getId());
 
         $this->logger->info('event.created', ['eventId' => $event->getId(), 'title' => $event->getTitle()]);
 
@@ -140,6 +143,7 @@ final readonly class AdminEventDrafts
             $event->linkHelloassoForm($parsed['helloassoFormSlug'], $this->clock->now());
         }
         $this->eventRepository->save($event);
+        $this->publicPages->eventChanged($event->getId());
 
         $this->logger->info('event.updated', ['eventId' => $event->getId()]);
 
@@ -168,6 +172,7 @@ final readonly class AdminEventDrafts
         }
 
         $this->eventRepository->save($event);
+        $this->publicPages->eventChanged($event->getId());
 
         $this->logger->info('event.transition', ['eventId' => $event->getId(), 'to' => $event->getStatus()]);
 
@@ -196,6 +201,7 @@ final readonly class AdminEventDrafts
         $hash = password_hash($password, PASSWORD_DEFAULT);
         $event->configurePrivateAccessPassword($hash, $this->clock->now());
         $this->eventRepository->save($event);
+        $this->publicPages->eventChanged($event->getId());
 
         $this->logger->info('event.private_access_configured', ['eventId' => $event->getId()]);
 
