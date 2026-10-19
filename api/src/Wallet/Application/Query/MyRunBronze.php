@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace App\Wallet\Application\Query;
 
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\SessionConfig\Application\Service\SessionConfigResolver;
 use App\SessionConfig\Domain\Enum\SessionType;
+use App\Sessions\Application\Support\RunSlotPlayers;
 
 /**
  * Story 41.38: what a player of a private run sees of its bronze - their balance, what the run hands out and what
  * it sells, and their history in it. Their own pelles only: nobody else's balance is shown.
+ *
+ * Story 41.39: for the run's players only - its owner, its participants and the co-players of its slots. Anyone else
+ * reads it as a run that does not exist, as the run's other pages do.
  */
 final readonly class MyRunBronze
 {
@@ -19,6 +24,8 @@ final readonly class MyRunBronze
         private RunRepositoryInterface $runs,
         private SessionConfigResolver $configResolver,
         private RunBronzeQueryInterface $bronze,
+        private RunParticipantRepositoryInterface $participants,
+        private RunSlotPlayers $players,
     ) {
     }
 
@@ -28,7 +35,7 @@ final readonly class MyRunBronze
     public function of(string $userId, string $runId): ?array
     {
         $run = $this->runs->findById($runId);
-        if (!$run instanceof Run) {
+        if (!$run instanceof Run || !$this->playsIn($userId, $run)) {
             return null;
         }
 
@@ -47,5 +54,15 @@ final readonly class MyRunBronze
             'bounties' => $server->pelleBounties,
             'history' => $mine['history'],
         ];
+    }
+
+    private function playsIn(string $userId, Run $run): bool
+    {
+        if ($run->getOwnerId() === $userId || null !== $this->participants->findByRunAndUser($run->getId(), $userId)) {
+            return true;
+        }
+        $sessionId = $run->getSessionId();
+
+        return null !== $sessionId && \in_array($userId, $this->players->ofSession($sessionId), true);
     }
 }

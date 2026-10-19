@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Command;
 
+use App\Sessions\Application\Exception\BountyAlreadySettledException;
 use App\Sessions\Application\Support\BountyPurse;
 use App\Sessions\Domain\Entity\ItemBounty;
 use App\Sessions\Domain\Repository\ItemBountyRepositoryInterface;
@@ -55,11 +56,17 @@ final readonly class RefundEndedSessionBounties
                 $this->record->record(
                     BountyPurse::movement($bounty, $bounty->getPosterId(), $bounty->getAmount(), PelleReason::BountyRefund, sprintf('Prime rendue : fin de partie (%s)', $bounty->getItemName()), sprintf('bounty-refund:%s', $bounty->getId()), true),
                     function () use ($bounty, $now): void {
+                        // Story 41.39: paid or withdrawn meanwhile, it is not given back on top.
+                        if (!$this->bounties->claimOpen($bounty->getId())) {
+                            throw new BountyAlreadySettledException($bounty->getId());
+                        }
                         $bounty->refund($now);
                         $this->bounties->save($bounty);
                     },
                 );
                 ++$refunded;
+            } catch (BountyAlreadySettledException) {
+                continue;
             } catch (\Throwable $e) {
                 $this->logger->warning('sessions.bounty.refund_failed', ['bountyId' => $bounty->getId(), 'error' => $e->getMessage()]);
             }

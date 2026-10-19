@@ -176,13 +176,32 @@ final readonly class SessionConfigOverride
             race: isset($data['race']) && is_bool($data['race']) ? $data['race'] : null,
             spoiler: isset($data['spoiler']) && is_int($data['spoiler']) ? SpoilerLevel::fromInt($data['spoiler']) : null,
             pelleHints: isset($data['pelleHints']) && is_bool($data['pelleHints']) ? $data['pelleHints'] : null,
-            pelleItemHintPrice: isset($data['pelleItemHintPrice']) && is_int($data['pelleItemHintPrice']) ? $data['pelleItemHintPrice'] : null,
-            pelleLocationHintPrice: isset($data['pelleLocationHintPrice']) && is_int($data['pelleLocationHintPrice']) ? $data['pelleLocationHintPrice'] : null,
+            pelleItemHintPrice: self::bounded($data, 'pelleItemHintPrice', 1, SessionServerConfig::MAX_PELLE_HINT_PRICE, 'invalid_pelle_hint_price'),
+            pelleLocationHintPrice: self::bounded($data, 'pelleLocationHintPrice', 1, SessionServerConfig::MAX_PELLE_HINT_PRICE, 'invalid_pelle_hint_price'),
             pelleBounties: isset($data['pelleBounties']) && is_bool($data['pelleBounties']) ? $data['pelleBounties'] : null,
-            bronzeStart: isset($data['bronzeStart']) && is_int($data['bronzeStart']) ? $data['bronzeStart'] : null,
-            bronzePerCheck: isset($data['bronzePerCheck']) && is_int($data['bronzePerCheck']) ? $data['bronzePerCheck'] : null,
-            bronzePerGoal: isset($data['bronzePerGoal']) && is_int($data['bronzePerGoal']) ? $data['bronzePerGoal'] : null,
+            bronzeStart: self::bounded($data, 'bronzeStart', 0, SessionServerConfig::MAX_BRONZE_AMOUNT, 'invalid_bronze_amount'),
+            bronzePerCheck: self::bounded($data, 'bronzePerCheck', 0, SessionServerConfig::MAX_BRONZE_AMOUNT, 'invalid_bronze_amount'),
+            bronzePerGoal: self::bounded($data, 'bronzePerGoal', 0, SessionServerConfig::MAX_BRONZE_AMOUNT, 'invalid_bronze_amount'),
         );
+    }
+
+    /**
+     * Story 41.39: an amount out of the bounds `SessionServerConfig` enforces is refused on write. Stored, it would
+     * only fail later, when the run's configuration is resolved - by every check, hint and bounty of the run.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function bounded(array $data, string $key, int $min, int $max, string $error): ?int
+    {
+        $value = $data[$key] ?? null;
+        if (!is_int($value)) {
+            return null;
+        }
+        if ($value < $min || $value > $max) {
+            throw new \DomainException($error);
+        }
+
+        return $value;
     }
 
     public function isEmpty(): bool

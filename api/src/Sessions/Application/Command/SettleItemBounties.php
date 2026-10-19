@@ -6,6 +6,7 @@ namespace App\Sessions\Application\Command;
 
 use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Entity\Notification;
+use App\Sessions\Application\Exception\BountyAlreadySettledException;
 use App\Sessions\Application\Support\BountyPurse;
 use App\Sessions\Application\Support\SlotOwnerResolver;
 use App\Sessions\Domain\Entity\ItemBounty;
@@ -92,6 +93,7 @@ final readonly class SettleItemBounties
                 BountyPurse::movement($bounty, $winnerId, $reward, PelleReason::BountyReward, sprintf('Prime gagnée : %s envoyé à %s', $bounty->getItemName(), $bounty->getSlotName()), sprintf('bounty-reward:%s', $bounty->getId())),
                 // Settled with the payment, in its transaction: a refused payment leaves the bounty open.
                 function () use ($bounty, $winnerId, $now): void {
+                    $this->claim($bounty);
                     $bounty->pay($winnerId, $now);
                     $this->bounties->save($bounty);
                 },
@@ -101,6 +103,9 @@ final readonly class SettleItemBounties
             $this->logger->info('sessions.bounty.winner_refused', ['bountyId' => $bounty->getId(), 'reason' => $e->getMessage()]);
 
             return false;
+        } catch (BountyAlreadySettledException) {
+            // Settled meanwhile (withdrawn, refunded at the run's end): nothing left to pay or to give back.
+            return true;
         }
 
         $this->notifier->notify($winnerId, Notification::TYPE_PELLES_ADJUSTED, [
@@ -114,18 +119,31 @@ final readonly class SettleItemBounties
 
     private function refund(ItemBounty $bounty, \DateTimeImmutable $now): void
     {
-        $this->record->record(
-            BountyPurse::movement($bounty, $bounty->getPosterId(), $bounty->getAmount(), PelleReason::BountyRefund, sprintf('Prime rendue : %s est arrivé', $bounty->getItemName()), sprintf('bounty-refund:%s', $bounty->getId()), true),
-            function () use ($bounty, $now): void {
-                $bounty->refund($now);
-                $this->bounties->save($bounty);
-            },
-        );
+        try {
+            $this->record->record(
+                BountyPurse::movement($bounty, $bounty->getPosterId(), $bounty->getAmount(), PelleReason::BountyRefund, sprintf('Prime rendue : %s est arrivé', $bounty->getItemName()), sprintf('bounty-refund:%s', $bounty->getId()), true),
+                function () use ($bounty, $now): void {
+                    $this->claim($bounty);
+                    $bounty->refund($now);
+                    $this->bounties->save($bounty);
+                },
+            );
+        } catch (BountyAlreadySettledException) {
+            return;
+        }
         $this->notifier->notify($bounty->getPosterId(), Notification::TYPE_PELLES_ADJUSTED, [
             'amount' => $bounty->getAmount(),
             'kind' => BountyPurse::kindOf($bounty)->value,
             'reason' => sprintf('prime rendue, %s est arrivé', $bounty->getItemName()),
         ]);
+    }
+
+    /** Story 41.39: inside the movement's transaction, so a bounty settled twice at once is paid once. */
+    private function claim(ItemBounty $bounty): void
+    {
+        if (!$this->bounties->claimOpen($bounty->getId())) {
+            throw new BountyAlreadySettledException($bounty->getId());
+        }
     }
 
     /**
