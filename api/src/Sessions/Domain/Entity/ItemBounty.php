@@ -10,6 +10,9 @@ use Doctrine\ORM\Mapping as ORM;
  * Pelles offered by a player to whoever sends a given item to their slot (story 41.4). The pelles are held as soon
  * as the bounty is posted; the bounty ends paid (to the owner of the sending slot, minus the commission), refunded
  * (the item came but nobody earned it, or the session ended) or withdrawn by its poster.
+ *
+ * Story 41.38: on a private run the pelles held are the run's bronze (`runId`); elsewhere, and for a bounty posted
+ * before bronze existed, gold. Paid or given back in the pelles it holds, whatever the rule is by then.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'item_bounty')]
@@ -47,10 +50,12 @@ final class ItemBounty
         private ?\DateTimeImmutable $settledAt = null,
         #[ORM\Column(name: 'winner_id', type: 'string', length: 32, nullable: true)]
         private ?string $winnerId = null,
+        #[ORM\Column(name: 'run_id', type: 'string', length: 32, nullable: true)]
+        private ?string $runId = null,
     ) {
     }
 
-    public static function post(string $sessionId, string $slotName, string $itemName, int $amount, string $posterId, \DateTimeImmutable $now): self
+    public static function post(string $sessionId, string $slotName, string $itemName, int $amount, string $posterId, \DateTimeImmutable $now, ?string $runId = null): self
     {
         $itemName = trim($itemName);
         if ('' === $itemName) {
@@ -60,7 +65,7 @@ final class ItemBounty
             throw new \DomainException('bounty_amount_out_of_bounds');
         }
 
-        return new self(bin2hex(random_bytes(16)), $sessionId, $slotName, $itemName, $amount, $posterId, self::STATUS_OPEN, $now);
+        return new self(bin2hex(random_bytes(16)), $sessionId, $slotName, $itemName, $amount, $posterId, self::STATUS_OPEN, $now, runId: $runId);
     }
 
     /** What the winner receives: the amount minus the commission, which is destroyed. */
@@ -132,6 +137,12 @@ final class ItemBounty
     public function getStatus(): string
     {
         return $this->status;
+    }
+
+    /** The private run whose bronze the bounty holds, null for gold. */
+    public function getRunId(): ?string
+    {
+        return $this->runId;
     }
 
     public function getWinnerId(): ?string

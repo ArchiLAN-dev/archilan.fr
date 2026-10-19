@@ -85,9 +85,26 @@ export function WalletView({
             </div>
           ))}
         </div>
+        {wallet.bronze.length > 0 ? (
+          <div className="grid gap-2 border-t border-border pt-4">
+            <p className="text-sm font-semibold text-foreground">Pelles de bronze</p>
+            <ul className="grid gap-1.5">
+              {wallet.bronze.map((run) => (
+                <li className="flex items-center justify-between gap-3 text-sm" key={run.runId}>
+                  <Link className="min-w-0 truncate text-foreground hover:text-accent-text" href={`/runs/${run.runId}`}>
+                    {run.runTitle}
+                  </Link>
+                  <PelleAmount amount={run.balance} className="shrink-0 font-semibold text-foreground" />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            Les pelles d&apos;or se gardent. Les pelles d&apos;un événement ne servent que pendant cet événement.
+            Les pelles d&apos;or se gardent et servent à la boutique. Les pelles d&apos;un événement ne servent que pendant cet
+            événement. Les pelles de bronze appartiennent à une partie privée : elles paient ses indices et ses primes, et
+            disparaissent à sa fin.
           </p>
           {/* Story 41.12: the way to the shop. */}
           <Link className={buttonVariants({ variant: "primary" })} href="/boutique">

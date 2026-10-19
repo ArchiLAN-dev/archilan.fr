@@ -68,6 +68,22 @@ final readonly class DoctrineItemBountyRepository implements ItemBountyRepositor
         return $bounties;
     }
 
+    /**
+     * An update that changes nothing, for the row lock it takes: Postgres re-reads the status once the lock is
+     * granted, so a bounty another transaction just closed matches no row.
+     */
+    public function claimOpen(string $bountyId): bool
+    {
+        return 1 === $this->entityManager->getConnection()->createQueryBuilder()
+            ->update('item_bounty')
+            ->set('status', 'status')
+            ->where('id = :id')
+            ->andWhere('status = :open')
+            ->setParameter('id', $bountyId)
+            ->setParameter('open', ItemBounty::STATUS_OPEN)
+            ->executeStatement();
+    }
+
     public function save(ItemBounty $bounty): void
     {
         $this->entityManager->persist($bounty);

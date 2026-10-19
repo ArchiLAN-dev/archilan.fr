@@ -11,7 +11,7 @@ use App\Wallet\Domain\Exception\InvalidPelleMovementException;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Story 41.1. A line of the pelles ledger: a gain or a spend, never zero, gold or event pelles.
+ * Story 41.1. A line of the pelles ledger: a gain or a spend, never zero, gold, event or (story 41.36) bronze pelles.
  */
 final class PelleMovementTest extends TestCase
 {
@@ -64,5 +64,32 @@ final class PelleMovementTest extends TestCase
         $this->expectException(InvalidPelleMovementException::class);
 
         PelleMovement::record('user-1', $amount, $kind, $eventId, PelleReason::AdminCredit, $label, 'admin-1', null, new \DateTimeImmutable(self::AT));
+    }
+
+    public function testBronzePellesBelongToOneRun(): void
+    {
+        $movement = PelleMovement::record('user-1', 20, PelleKind::Bronze, null, PelleReason::BronzeStart, 'Départ', null, 'bronze-start:run-1:user-1', new \DateTimeImmutable(self::AT), 'run-1');
+
+        self::assertSame('run-1', $movement->getRunId());
+        self::assertNull($movement->getEventId());
+    }
+
+    /**
+     * @return iterable<string, array{PelleKind, ?string, ?string}>
+     */
+    public static function misplacedRuns(): iterable
+    {
+        yield 'bronze without its run' => [PelleKind::Bronze, null, null];
+        yield 'bronze tied to an event' => [PelleKind::Bronze, 'event-1', 'run-1'];
+        yield 'gold tied to a run' => [PelleKind::Gold, null, 'run-1'];
+        yield 'event pelles tied to a run' => [PelleKind::Event, 'event-1', 'run-1'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('misplacedRuns')]
+    public function testOnlyBronzeNamesARun(PelleKind $kind, ?string $eventId, ?string $runId): void
+    {
+        $this->expectException(InvalidPelleMovementException::class);
+
+        PelleMovement::record('user-1', 10, $kind, $eventId, PelleReason::AdminCredit, 'Libellé', null, null, new \DateTimeImmutable(self::AT), $runId);
     }
 }

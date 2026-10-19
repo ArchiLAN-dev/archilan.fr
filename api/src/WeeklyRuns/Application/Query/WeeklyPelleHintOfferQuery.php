@@ -21,7 +21,7 @@ final readonly class WeeklyPelleHintOfferQuery
     }
 
     /**
-     * @return array{enabled: bool, itemPrice: int, locationPrice: int, eventBalance: null, goldBalance: int}|'not_found'|'forbidden'
+     * @return array{enabled: bool, itemPrice: int, locationPrice: int, eventBalance: null, bronzeBalance: null, goldBalance: int}|'not_found'|'forbidden'
      */
     public function offer(string $userId, bool $isAdmin, string $runId, string $entryId): array|string
     {
@@ -35,6 +35,7 @@ final readonly class WeeklyPelleHintOfferQuery
             'itemPrice' => $terms['itemPrice'],
             'locationPrice' => $terms['locationPrice'],
             'eventBalance' => null,
+            'bronzeBalance' => null,
             'goldBalance' => $this->movements->balance($userId, PelleKind::Gold, null),
         ];
     }

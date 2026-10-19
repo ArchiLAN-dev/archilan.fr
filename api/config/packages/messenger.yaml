@@ -66,6 +66,8 @@ framework:
             'App\Community\Application\Message\SyncDiscordBansMessage': async
             # Story 41.24: the week's quests told on Discord, out of the hourly quest run.
             'App\Wallet\Application\Message\AnnounceQuestsOnDiscordJob': async
+            # Story 41.36: a private run's bronze burned at its end, or given back when it is restored.
+            'App\Wallet\Application\Message\ReconcileRunBronzeJob': async
             'App\Community\Application\Message\ExtendDiscordTimeoutsMessage': async
             # Story 38.5 review: the nightly GitHub pass runs on the async worker, not in the scheduler,
             # so the two-minute stuck-run reconciliation is never held up behind it.

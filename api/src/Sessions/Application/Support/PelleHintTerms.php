@@ -26,7 +26,7 @@ final readonly class PelleHintTerms
     }
 
     /**
-     * @return array{session: Session, enabled: bool, itemPrice: int, locationPrice: int, bounties: bool, eventId: string|null}|null
+     * @return array{session: Session, enabled: bool, itemPrice: int, locationPrice: int, bounties: bool, eventId: string|null, runId: string|null}|null
      */
     public function of(string $sessionId): ?array
     {
@@ -48,6 +48,8 @@ final readonly class PelleHintTerms
             // Story 41.4.
             'bounties' => $server->pelleBounties,
             'eventId' => $run instanceof Run ? null : $session->getEventId(),
+            // Story 41.38: a private run pays in its own bronze, never in gold.
+            'runId' => $run instanceof Run ? $run->getId() : null,
         ];
     }
 }

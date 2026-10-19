@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
+use App\Sessions\Application\Command\CreditRunBronze;
 use App\Sessions\Application\Command\RecordSessionFeedEvent;
 use App\Sessions\Application\Command\SettleItemBounties;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
@@ -37,6 +38,7 @@ final readonly class FeedPushController
         private RecordSessionFeedEvent $recordFeedEvent,
         private LoggerInterface $logger,
         private SettleItemBounties $settleBounties,
+        private CreditRunBronze $creditBronze,
     ) {
     }
 
@@ -73,6 +75,16 @@ final readonly class FeedPushController
             $this->settleBounties->onFeedEvent($sessionId, $event);
         } catch (\Throwable $exception) {
             $this->logger->error('Settling an item bounty failed.', [
+                'sessionId' => $sessionId,
+                'exception' => $exception,
+            ]);
+        }
+
+        // Story 41.37: a check of a private run pays its slot's players in bronze. Best-effort as well.
+        try {
+            $this->creditBronze->onFeedEvent($sessionId, $event);
+        } catch (\Throwable $exception) {
+            $this->logger->error('Crediting a check in bronze failed.', [
                 'sessionId' => $sessionId,
                 'exception' => $exception,
             ]);
