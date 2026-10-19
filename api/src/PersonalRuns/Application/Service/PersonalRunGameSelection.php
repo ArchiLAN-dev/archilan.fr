@@ -850,7 +850,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
     /**
      * What the YAML editor of a slot reads - null for a game the member does not hold.
      *
-     * @return array{defaultYaml: string|null, optionTypes: array<string, array<string, mixed>>|null, locationNames: list<string>|null}
+     * @return array{defaultYaml: string|null, optionTypes: array<string, array<string, mixed>>|null, locationNames: list<string>|null, itemNames: list<string>|null, itemGroups: array<string, list<string>>|null}
      */
     private static function editorData(Game $game, bool $held): array
     {
@@ -858,6 +858,8 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'defaultYaml' => $held ? $game->getDefaultYaml() : null,
             'optionTypes' => $held ? $game->getEffectiveOptionTypes() : null,
             'locationNames' => $held ? $game->getLocationNames() : null,
+            'itemNames' => $held ? $game->getItemNames() : null,
+            'itemGroups' => $held ? $game->getItemGroups() : null,
         ];
     }
 

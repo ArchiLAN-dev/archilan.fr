@@ -34,6 +34,26 @@ final class ApworldIntrospectionNormalizer
     }
 
     /**
+     * Story 9.58: the item names and groups the orchestrator returns, names only. Whatever it answers - an older
+     * orchestrator, a test double - reads as no items rather than breaking what records them.
+     *
+     * @return array{items: list<string>, groups: array<string, list<string>>}
+     */
+    public static function items(mixed $raw): array
+    {
+        $raw = is_array($raw) ? $raw : [];
+        $groups = [];
+        foreach (is_array($raw['groups'] ?? null) ? $raw['groups'] : [] as $name => $members) {
+            $items = self::locationNames($members);
+            if (is_string($name) && '' !== $name && [] !== $items) {
+                $groups[$name] = $items;
+            }
+        }
+
+        return ['items' => self::locationNames($raw['items'] ?? null), 'groups' => $groups];
+    }
+
+    /**
      * Validate the apworld's option-type table at the boundary (story 9.33).
      *
      * It used to keep only entries carrying integer bounds, which is how every non-range option was

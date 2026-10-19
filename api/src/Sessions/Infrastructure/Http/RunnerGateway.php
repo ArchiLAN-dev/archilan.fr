@@ -215,6 +215,20 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
     }
 
+    public function fetchItems(string $hash): array
+    {
+        try {
+            $items = $this->client->apworlds()->getItems($hash);
+
+            return ['items' => $items->items, 'groups' => $items->groups];
+        } catch (\Throwable $e) {
+            // An orchestrator older than story 9.58 answers 404: the editors simply get no item hints.
+            $this->logger->info('runner.apworld_items_fetch_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return ['items' => [], 'groups' => []];
+        }
+    }
+
     /**
      * @return array{error: string, detail?: string}
      */

@@ -15,6 +15,7 @@ import {
   type RangeOption,
   type ToggleOption,
 } from "./archipelago-yaml";
+import { ITEM_DICT_OPTION_KEYS, ITEM_LIST_OPTION_KEYS, isKnownItemName, type ItemCatalog } from "./item-catalog";
 
 /**
  * Story 9.57: importing a YAML written elsewhere into the option editor.
@@ -45,6 +46,8 @@ export type ImportCheck = {
 type Options = {
   /** List items checked against the static location list when it is known (story 4.14). */
   locationNames?: readonly string[] | null;
+  /** Story 9.58: item names checked against the game's items and groups when they are known. */
+  itemCatalog?: ItemCatalog | null;
 };
 
 const LOCATION_KEYS = new Set(["priority_locations", "exclude_locations", "start_location_hints"]);
@@ -269,6 +272,18 @@ function applyValue(option: GameOption, value: unknown): Outcome {
   }
 }
 
+/**
+ * Story 9.58: the item names an item option holds that the game does not declare - in a list (start_hints...) or as
+ * the keys of a dict (start_inventory). A hint only: a world may create items from its options.
+ */
+function unknownItemNames(key: string, value: unknown, catalog: ItemCatalog | null): string[] {
+  if (catalog === null) return [];
+  let names: unknown[] = [];
+  if (ITEM_LIST_OPTION_KEYS.has(key) && Array.isArray(value)) names = value;
+  else if (ITEM_DICT_OPTION_KEYS.has(key) && isMapping(value)) names = Object.keys(value);
+  return names.filter((name): name is string => typeof name === "string" && !isKnownItemName(catalog, name));
+}
+
 /** The YAML's `game` must name this game, and only this one: the editor configures a single game. */
 function gameError(game: unknown, gameName: string): string | null {
   if (game === undefined || game === null) return "Le champ « game » est absent.";
@@ -360,6 +375,9 @@ export function checkImportedYaml(text: string, base: ParsedYaml, options: Optio
     }
     applied.set(key, outcome.option);
     for (const note of outcome.notes ?? []) warnings.push({ path, message: `${option.label} : ${note}.` });
+
+    const unknownItems = unknownItemNames(key, value, options.itemCatalog ?? null);
+    if (unknownItems.length > 0) warnings.push({ path, message: `Items inconnus de ce jeu : ${unknownItems.join(", ")}.` });
 
     const locations = options.locationNames;
     if (LOCATION_KEYS.has(key) && locations && locations.length > 0 && Array.isArray(value)) {

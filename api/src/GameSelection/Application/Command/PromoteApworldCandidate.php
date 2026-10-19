@@ -44,7 +44,13 @@ final readonly class PromoteApworldCandidate
         $optionTypes = ApworldIntrospectionNormalizer::optionTypes($this->runnerGateway->fetchOptionTypes($candidate->getApworldHash()));
         $locationNames = ApworldIntrospectionNormalizer::locationNames($this->runnerGateway->fetchLocationNames($candidate->getApworldHash()));
 
-        return [] === $optionTypes || [] === $locationNames ? null : new ApworldIntrospection($optionTypes, $locationNames);
+        if ([] === $optionTypes || [] === $locationNames) {
+            return null;
+        }
+        // Story 9.58: optional - an older orchestrator knows no items, the promotion goes ahead without them.
+        $items = ApworldIntrospectionNormalizer::items($this->runnerGateway->fetchItems($candidate->getApworldHash()));
+
+        return new ApworldIntrospection($optionTypes, $locationNames, $items['items'], $items['groups']);
     }
 
     /**
@@ -78,6 +84,7 @@ final readonly class PromoteApworldCandidate
         $game->recordApworldMinioUpload($candidate->getMinioKey());
         $game->recordOptionTypes($introspection->optionTypes);
         $game->recordLocationNames($introspection->locationNames);
+        $game->recordItemNames($introspection->itemNames, $introspection->itemGroups);
         // Story 44.3: what the new apworld declares; a file a generation proved necessary stays required.
         $game->recordDeclaredRequiredFiles($this->runnerGateway->fetchDeclaredFiles($candidate->getApworldHash()));
         if (null !== $candidate->getVersionTag()) {

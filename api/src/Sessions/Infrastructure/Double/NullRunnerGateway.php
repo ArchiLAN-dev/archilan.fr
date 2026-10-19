@@ -102,6 +102,11 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return ['Null Location'];
     }
 
+    public function fetchItems(string $hash): array
+    {
+        return ['items' => ['Null Item', 'Other Item'], 'groups' => ['Null Group' => ['Null Item']]];
+    }
+
     public function preflight(string $sessionId, array $slots): array
     {
         $proposed = [];

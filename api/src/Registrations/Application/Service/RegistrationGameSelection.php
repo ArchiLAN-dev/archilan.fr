@@ -93,6 +93,8 @@ final readonly class RegistrationGameSelection
                 'defaultYaml' => $held ? $game->getDefaultYaml() : null,
                 'optionTypes' => $held ? $game->getEffectiveOptionTypes() : null,
                 'locationNames' => $held ? $game->getLocationNames() : null,
+                'itemNames' => $held ? $game->getItemNames() : null,
+                'itemGroups' => $held ? $game->getItemGroups() : null,
                 'coverImageUrl' => $game->getCoverImageUrl(),
                 'coverImageAlt' => $game->getCoverImageAlt(),
                 // Story 28.16: what the picker needs to filter by platform and to recognise a game

@@ -1,4 +1,5 @@
 import { checkImportedYaml, IMPORT_MAX_BYTES } from "./archipelago-yaml-import";
+import { buildItemCatalog } from "./item-catalog";
 import { parseDefaultYaml, serializeToYaml, type GameOption, type OptionTypesMap, type ParsedYaml } from "./archipelago-yaml";
 
 /** A trimmed Hollow Knight template, in the weighted shape Archipelago writes. */
@@ -234,6 +235,39 @@ A Link to the Past:
 
     expect(check.errors).toEqual([]);
     expect(check.warnings).toEqual([{ path: "Hollow Knight.start_location_hints", message: "Lieux inconnus : Nowhere." }]);
+  });
+});
+
+describe("checkImportedYaml - noms d'items (story 9.58)", () => {
+  const catalog = buildItemCatalog(["Lurien", "Mantis_Claw"], { Dreamers: ["Lurien"] });
+
+  test("un item inconnu du jeu est signalé, sans bloquer", () => {
+    const check = checkImportedYaml(`game: Hollow Knight
+Hollow Knight:
+  start_hints:
+    - Lurien
+    - Dreamers
+    - Mantis Claw
+  start_inventory:
+    Mantis_Claw: 1
+    Grub: 3
+`, base(), { itemCatalog: catalog });
+
+    expect(check.errors).toEqual([]);
+    expect(check.result).not.toBeNull();
+    expect(check.warnings).toEqual([
+      { path: "Hollow Knight.start_hints", message: "Items inconnus de ce jeu : Mantis Claw." },
+      { path: "Hollow Knight.start_inventory", message: "Items inconnus de ce jeu : Grub." },
+    ]);
+  });
+
+  test("sans liste d'items, rien n'est signalé", () => {
+    const check = checkImportedYaml(`game: Hollow Knight
+Hollow Knight:
+  start_hints: [Anything]
+`, base());
+
+    expect(check.warnings).toEqual([]);
   });
 });
 

@@ -8,6 +8,7 @@ use App\CatalogSync\Application\Service\ApworldVersionChecker;
 use App\GameSelection\Application\Command\SubmitApworldCandidate;
 use App\GameSelection\Application\Port\GameUsageCounterInterface;
 use App\GameSelection\Application\Query\AdminGameListQueryInterface;
+use App\GameSelection\Application\Support\ApworldIntrospectionNormalizer;
 use App\GameSelection\Application\Support\GamePlatformResolver;
 use App\GameSelection\Application\Support\GameTutorialSeeder;
 use App\GameSelection\Application\Support\InstallStepsNormalizer;
@@ -398,6 +399,8 @@ final readonly class AdminGameLibrary
         // The regenerated template may expose different options/locations than the edited one.
         $game->recordOptionTypes($this->runnerGateway->fetchOptionTypes($hash));
         $game->recordLocationNames($this->runnerGateway->fetchLocationNames($hash));
+        $items = ApworldIntrospectionNormalizer::items($this->runnerGateway->fetchItems($hash));
+        $game->recordItemNames($items['items'], $items['groups']);
         $game->recordDeclaredRequiredFiles($this->runnerGateway->fetchDeclaredFiles($hash));
         $this->gameRepository->save($game);
 
@@ -986,6 +989,9 @@ final readonly class AdminGameLibrary
             // which sub-settings it decided, and which ones the apworld declared by itself.
             'dictOptionValues' => $game->getDictOptionValues(),
             'locationNames' => $game->getLocationNames(),
+            // Story 9.58: the item hints, for the weekly template editor.
+            'itemNames' => $game->getItemNames(),
+            'itemGroups' => $game->getItemGroups(),
             // Story 44.3: the files the world declares, and which ones a failed generation proved needed.
             'requiredFiles' => $game->getRequiredFiles(),
             'adminNotes' => $game->getAdminNotes(),
