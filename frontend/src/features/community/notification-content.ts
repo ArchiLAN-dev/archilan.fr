@@ -244,8 +244,14 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
     case "pelles_adjusted": {
       const amount = hasNumberProp(data, "amount") ? data.amount : 0;
       const event = text(data, "eventTitle");
+      // Story 41.38: a private run's bounties move its bronze.
+      const bronze = text(data, "kind") === "bronze";
       const title: Segment[] =
-        amount < 0 ? [{ text: "Pelles retirées par l'équipe" }] : event !== "" ? [{ text: "Pelles pour " }, strong(event)] : [{ text: "Pelles reçues" }];
+        amount < 0
+          ? [{ text: "Pelles retirées par l'équipe" }]
+          : event !== ""
+            ? [{ text: "Pelles pour " }, strong(event)]
+            : [{ text: bronze ? "Pelles de bronze reçues" : "Pelles reçues" }];
       const reason = text(data, "reason");
       return { ...base("pelles", "Pelles", icon("pelles"), title), amount, detail: reason !== "" ? `« ${reason} »` : null };
     }

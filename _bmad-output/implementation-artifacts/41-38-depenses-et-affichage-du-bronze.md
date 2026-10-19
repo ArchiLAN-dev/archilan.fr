@@ -1,6 +1,6 @@
 # Story 41.38: Pelles de bronze - dépenses et affichage
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Pelles, la monnaie du site
 **Date:** 2026-10-18
 **Dépend de :** 41.36 (socle), 41.37 (gains).
@@ -61,23 +61,53 @@ séquestre en or serait rendu en bronze (or détruit, bronze créé).
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1) - `PelleHintTerms` expose la partie ; `BuyHintWithPelles::purse()` choisit le bronze en
+- [x] **Task 1** (AC 1) - `PelleHintTerms` expose la partie ; `BuyHintWithPelles::purse()` choisit le bronze en
   partie privée, sans repli sur l'or.
-- [ ] **Task 2** (AC 2-4) - `PostItemBounty`, `SettleItemBounties`, `WithdrawItemBounty`,
+- [x] **Task 2** (AC 2-4) - `PostItemBounty`, `SettleItemBounties`, `WithdrawItemBounty`,
   `RefundEndedSessionBounties` : type et portée lus sur le séquestre.
-- [ ] **Task 3** (AC 6) - API et front de la page de partie et de la fiche de slot.
-- [ ] **Task 4** (AC 7, 8) - `/compte/pelles` et fiche admin.
-- [ ] **Task 5** (AC 9, 10) - Statistiques et textes de notification.
-- [ ] **Task 6** (AC 11, 12) - Tests et gates.
+- [x] **Task 3** (AC 6) - API et front de la page de partie et de la fiche de slot.
+- [x] **Task 4** (AC 7, 8) - `/compte/pelles` et fiche admin.
+- [x] **Task 5** (AC 9, 10) - Statistiques et textes de notification.
+- [x] **Task 6** (AC 11, 12) - Tests et gates.
 
 ## Dev Notes
 
-- Le hint en pelles reste désactivé par défaut en partie privée (décision 2 de l'epic), et les primes aussi : le
-  bronze se gagne même si les deux sont coupés. À rediscuter avec Jean : activer les deux par défaut maintenant
-  qu'ils ne coûtent plus d'or.
+- **Activés par défaut en partie privée** (Jean, 2026-10-18, « oui par défaut ») : payés en bronze, hints et primes
+  ne coûtent plus rien de l'or. Défaut du code (`SessionConfig::defaultsFor(Private)`) et profil « private »
+  enregistré (migration `Version20261018120000`, le profil en base l'emporte sur le code). Une partie qui avait
+  surchargé l'un ou l'autre garde son choix. Hebdos et events restent coupés par défaut. Lève la décision 2 de
+  l'epic pour les parties privées.
 - Appliquer « l'or ne sert qu'à la boutique » aux hebdos et aux events est une story à part, à écrire quand Jean
   l'aura tranché.
 
 ## Dev Agent Record
 
-_(à remplir à l'implémentation)_
+- **Hints** : `PelleHintTerms` expose `runId` ; `BuyHintWithPelles::purse()` ne prend que le bronze de la partie,
+  sans repli sur l'or (refus `insufficient_pelles`, détails `{price, bronze}`) ; remboursement en bronze. L'offre
+  (`GET .../pelle-hints`) gagne `bronzeBalance` (null hors partie privée, null aussi pour les hebdos).
+- **Primes** : `item_bounty.run_id` (migration `Version20261018110000`). Une prime d'une partie privée tient son
+  bronze ; une prime sans partie (toutes celles d'avant) tient de l'or. `BountyPurse` construit chaque mouvement
+  (séquestre, versement, retrait, remboursement) d'après la prime elle-même, jamais d'après la règle du moment.
+- **Fin de partie** : `ReconcileRunBronze::burn()` rembourse d'abord les primes ouvertes de la session
+  (`RefundEndedSessionBounties::refundSession()`), puis brûle.
+- **Lecture** : `WalletQueryInterface` gagne `bronze` (par partie, solde non nul) et son historique exclut le
+  bronze ; `RunBronzeQueryInterface` + `MyRunBronze` pour `GET /api/v1/runs/{runId}/bronze` (solde, gains et prix
+  réglés, historique avec les checks regroupés par jour).
+- **Stats** : `bronze: {created, spent, burned}` sur la période ; l'or en circulation n'a jamais compté le bronze
+  (requêtes déjà filtrées sur `kind = gold`).
+- **Front** : carte « Mes pelles de bronze » sur la page de la partie (`RunBronzeCard`), section bronze sur
+  `/compte/pelles` et la fiche admin, prix des hints affiché « pelles de bronze » en partie privée, chiffres bronze
+  dans les statistiques, aides de config mises à jour.
+- **Tests existants adaptés** : `PelleHintTest` et `ItemBountyTest` montaient une partie privée payée en or ; ils
+  paient désormais en bronze (c'est la règle de la story). `ItemBountyTest` coupe le gain par check (41.37) pour
+  garder des sommes de primes lisibles. Les tests d'event et d'hebdo gardent leurs attentes (l'hebdo gagne
+  seulement `bronzeBalance: null` dans l'offre).
+
+### Tests
+
+- `PelleHintTest` : hint payé en bronze sans toucher l'or ; refusé sans bronze malgré 500 d'or ; remboursé en
+  bronze ; offre avec `bronzeBalance`.
+- `ItemBountyTest` : prime posée avant la story payée en or ; fin de partie qui rend la prime puis brûle tout.
+- `RunBronzeTest` : portefeuille (bronze à part, historique sans bronze), endpoint de partie (checks regroupés),
+  statistiques (bronze à part de l'or).
+- Front : `run-bronze.test.tsx`, `pelle-hints.test.tsx` (bronze seul en partie privée), `wallet-views.test.tsx`.

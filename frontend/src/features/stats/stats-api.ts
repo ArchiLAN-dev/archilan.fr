@@ -78,6 +78,8 @@ export type PelleStats = {
   created: Trend;
   destroyed: Trend;
   byReason: { reason: string; created: number; destroyed: number }[];
+  /** Story 41.38: the private runs' bronze, apart from gold. */
+  bronze: { created: number; spent: number; burned: number };
 };
 
 function isBucket(v: unknown): v is StatsBucket {
@@ -215,6 +217,12 @@ export function isPelleStats(v: unknown): v is PelleStats {
     "period" in v &&
     isPeriodInfo(v.period) &&
     hasNumberProp(v, "goldInCirculation") &&
+    "bronze" in v &&
+    typeof v.bronze === "object" &&
+    v.bronze !== null &&
+    hasNumberProp(v.bronze, "created") &&
+    hasNumberProp(v.bronze, "spent") &&
+    hasNumberProp(v.bronze, "burned") &&
     "created" in v &&
     isTrend(v.created) &&
     "destroyed" in v &&

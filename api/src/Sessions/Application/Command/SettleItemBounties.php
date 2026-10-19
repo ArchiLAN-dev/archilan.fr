@@ -6,6 +6,7 @@ namespace App\Sessions\Application\Command;
 
 use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Entity\Notification;
+use App\Sessions\Application\Support\BountyPurse;
 use App\Sessions\Application\Support\SlotOwnerResolver;
 use App\Sessions\Domain\Entity\ItemBounty;
 use App\Sessions\Domain\Entity\SessionSlot;
@@ -14,8 +15,6 @@ use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Wallet\Application\Command\RecordPelleMovement;
-use App\Wallet\Application\Command\RecordPelleMovementInput;
-use App\Wallet\Domain\Enum\PelleKind;
 use App\Wallet\Domain\Enum\PelleReason;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -90,11 +89,7 @@ final readonly class SettleItemBounties
         $reward = $bounty->reward();
         try {
             $this->record->record(
-                new RecordPelleMovementInput(
-                    $winnerId, $reward, PelleKind::Gold, null, PelleReason::BountyReward,
-                    sprintf('Prime gagnée : %s envoyé à %s', $bounty->getItemName(), $bounty->getSlotName()), null,
-                    sprintf('bounty-reward:%s', $bounty->getId()),
-                ),
+                BountyPurse::movement($bounty, $winnerId, $reward, PelleReason::BountyReward, sprintf('Prime gagnée : %s envoyé à %s', $bounty->getItemName(), $bounty->getSlotName()), sprintf('bounty-reward:%s', $bounty->getId())),
                 // Settled with the payment, in its transaction: a refused payment leaves the bounty open.
                 function () use ($bounty, $winnerId, $now): void {
                     $bounty->pay($winnerId, $now);
@@ -110,7 +105,7 @@ final readonly class SettleItemBounties
 
         $this->notifier->notify($winnerId, Notification::TYPE_PELLES_ADJUSTED, [
             'amount' => $reward,
-            'kind' => PelleKind::Gold->value,
+            'kind' => BountyPurse::kindOf($bounty)->value,
             'reason' => sprintf('prime pour %s', $bounty->getItemName()),
         ]);
 
@@ -120,12 +115,7 @@ final readonly class SettleItemBounties
     private function refund(ItemBounty $bounty, \DateTimeImmutable $now): void
     {
         $this->record->record(
-            new RecordPelleMovementInput(
-                $bounty->getPosterId(), $bounty->getAmount(), PelleKind::Gold, null, PelleReason::BountyRefund,
-                sprintf('Prime rendue : %s est arrivé', $bounty->getItemName()), null,
-                sprintf('bounty-refund:%s', $bounty->getId()),
-                byAdmin: true,
-            ),
+            BountyPurse::movement($bounty, $bounty->getPosterId(), $bounty->getAmount(), PelleReason::BountyRefund, sprintf('Prime rendue : %s est arrivé', $bounty->getItemName()), sprintf('bounty-refund:%s', $bounty->getId()), true),
             function () use ($bounty, $now): void {
                 $bounty->refund($now);
                 $this->bounties->save($bounty);
@@ -133,7 +123,7 @@ final readonly class SettleItemBounties
         );
         $this->notifier->notify($bounty->getPosterId(), Notification::TYPE_PELLES_ADJUSTED, [
             'amount' => $bounty->getAmount(),
-            'kind' => PelleKind::Gold->value,
+            'kind' => BountyPurse::kindOf($bounty)->value,
             'reason' => sprintf('prime rendue, %s est arrivé', $bounty->getItemName()),
         ]);
     }

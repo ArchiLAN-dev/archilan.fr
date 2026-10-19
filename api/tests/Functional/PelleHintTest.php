@@ -16,11 +16,13 @@ use App\Wallet\Domain\Enum\PelleKind;
 use App\Wallet\Domain\Enum\PelleReason;
 
 /**
- * Story 41.3: hints bought with pelles.
+ * Story 41.3: hints bought with pelles. Story 41.38: on a private run, with the run's bronze only.
  */
 final class PelleHintTest extends FunctionalTestCase
 {
     private User $admin;
+
+    private string $runId = '';
 
     protected function setUp(): void
     {
@@ -31,16 +33,18 @@ final class PelleHintTest extends FunctionalTestCase
         $this->spy()->refuseNext = null;
     }
 
-    public function testAPlayerBuysAnItemHintWithGoldPelles(): void
+    public function testAPlayerBuysAnItemHintWithTheRunsBronze(): void
     {
         $sessionId = $this->runSession(enabled: true);
-        $this->pelles(PelleKind::Gold, null, 50);
+        $this->bronze(50);
+        $this->pelles(PelleKind::Gold, null, 80);
         $this->loginAs($this->admin);
 
         $this->buy($sessionId, ['kind' => 'item', 'itemName' => 'Grappin', 'requestId' => 'r1']);
 
         self::assertResponseIsSuccessful();
-        self::assertSame(['paidWith' => 'gold', 'price' => 20, 'balanceAfter' => 30, 'alreadyBought' => false], $this->decodedJsonResponse());
+        self::assertSame(['paidWith' => 'bronze', 'price' => 20, 'balanceAfter' => 30, 'alreadyBought' => false], $this->decodedJsonResponse());
+        self::assertSame(80, $this->balance(PelleKind::Gold, null), 'gold is for the shop');
         self::assertSame([$sessionId.'/1/item:Grappin'], $this->spy()->hints);
         $purchase = $this->lines(PelleReason::HintPurchase);
         self::assertCount(1, $purchase);
@@ -51,7 +55,7 @@ final class PelleHintTest extends FunctionalTestCase
     public function testALocationHintHasItsOwnPrice(): void
     {
         $sessionId = $this->runSession(enabled: true);
-        $this->pelles(PelleKind::Gold, null, 50);
+        $this->bronze(50);
         $this->loginAs($this->admin);
 
         $this->buy($sessionId, ['kind' => 'location', 'locationId' => 1234, 'requestId' => 'r1']);
@@ -63,7 +67,7 @@ final class PelleHintTest extends FunctionalTestCase
     public function testADoubleSubmitPaysAndHintsOnce(): void
     {
         $sessionId = $this->runSession(enabled: true);
-        $this->pelles(PelleKind::Gold, null, 50);
+        $this->bronze(50);
         $this->loginAs($this->admin);
         // Same container for both requests, so the spy sees both.
         $this->client->disableReboot();
@@ -79,7 +83,7 @@ final class PelleHintTest extends FunctionalTestCase
     public function testAFailedHintIsRefunded(): void
     {
         $sessionId = $this->runSession(enabled: true);
-        $this->pelles(PelleKind::Gold, null, 50);
+        $this->bronze(50);
         $this->spy()->failNext = true;
         $this->loginAs($this->admin);
 
@@ -89,13 +93,14 @@ final class PelleHintTest extends FunctionalTestCase
         $refund = $this->lines(PelleReason::HintRefund);
         self::assertCount(1, $refund);
         self::assertSame(20, $refund[0]->getAmount());
-        self::assertSame(50, $this->balance(PelleKind::Gold, null));
+        self::assertSame(PelleKind::Bronze, $refund[0]->getKind(), 'refunded in what paid');
+        self::assertSame(50, $this->bronzeBalance());
     }
 
     public function testAHintThatAlreadyExistsIsRefundedWithTheReason(): void
     {
         $sessionId = $this->runSession(enabled: true);
-        $this->pelles(PelleKind::Gold, null, 50);
+        $this->bronze(50);
         $this->spy()->refuseNext = \App\Sessions\Application\Exception\HintNotGivenException::ALREADY_HINTED;
         $this->loginAs($this->admin);
 
@@ -106,7 +111,7 @@ final class PelleHintTest extends FunctionalTestCase
         self::assertIsArray($error);
         self::assertSame('already_hinted', $error['code'] ?? null);
         self::assertSame("Pas de hint : ce hint existe déjà. Tes pelles t'ont été rendues.", $error['message'] ?? null);
-        self::assertSame(50, $this->balance(PelleKind::Gold, null));
+        self::assertSame(50, $this->bronzeBalance());
     }
 
     public function testAPartyThatDoesNotSellHintsRefuses(): void
@@ -121,10 +126,11 @@ final class PelleHintTest extends FunctionalTestCase
         self::assertSame([], $this->spy()->hints);
     }
 
-    public function testNotEnoughPellesIsRefusedWithTheBalances(): void
+    public function testNotEnoughBronzeIsRefusedEvenWithGold(): void
     {
         $sessionId = $this->runSession(enabled: true);
-        $this->pelles(PelleKind::Gold, null, 5);
+        $this->bronze(5);
+        $this->pelles(PelleKind::Gold, null, 500);
         $this->loginAs($this->admin);
 
         $this->buy($sessionId, ['kind' => 'item', 'itemName' => 'Grappin', 'requestId' => 'r1']);
@@ -133,7 +139,23 @@ final class PelleHintTest extends FunctionalTestCase
         $error = $this->decodedJsonResponse()['error'] ?? null;
         self::assertIsArray($error);
         self::assertSame('insufficient_pelles', $error['code'] ?? null);
-        self::assertSame(['price' => 20, 'event' => null, 'gold' => 5], $error['details'] ?? null);
+        self::assertSame(['price' => 20, 'bronze' => 5], $error['details'] ?? null);
+        self::assertSame(500, $this->balance(PelleKind::Gold, null));
+    }
+
+    public function testNotEnoughPellesOnAnEventIsRefusedWithTheBalances(): void
+    {
+        $event = $this->createEvent('ArchiLAN #3', new \DateTimeImmutable('2030-11-01T10:00:00+00:00'), new \DateTimeImmutable('2030-11-02T18:00:00+00:00'), published: true);
+        $sessionId = $this->eventSession($event->getId());
+        $this->pelles(PelleKind::Gold, null, 5);
+        $this->loginAs($this->admin);
+
+        $this->buy($sessionId, ['kind' => 'item', 'itemName' => 'Grappin', 'requestId' => 'r1']);
+
+        self::assertResponseStatusCodeSame(422);
+        $error = $this->decodedJsonResponse()['error'] ?? null;
+        self::assertIsArray($error);
+        self::assertSame(['price' => 20, 'event' => 0, 'gold' => 5], $error['details'] ?? null);
     }
 
     public function testAnEventSessionSpendsTheEventPellesFirst(): void
@@ -178,13 +200,14 @@ final class PelleHintTest extends FunctionalTestCase
     public function testTheOfferShowsPricesAndBalances(): void
     {
         $sessionId = $this->runSession(enabled: true);
+        $this->bronze(30);
         $this->pelles(PelleKind::Gold, null, 50);
         $this->loginAs($this->admin);
 
         $this->client->request('GET', sprintf('/api/v1/sessions/%s/slots/1/pelle-hints', $sessionId));
 
         self::assertResponseIsSuccessful();
-        self::assertSame(['enabled' => true, 'itemPrice' => 20, 'locationPrice' => 10, 'eventBalance' => null, 'goldBalance' => 50], $this->decodedJsonResponse());
+        self::assertSame(['enabled' => true, 'itemPrice' => 20, 'locationPrice' => 10, 'eventBalance' => null, 'bronzeBalance' => 30, 'goldBalance' => 50], $this->decodedJsonResponse());
     }
 
     private function runSession(bool $enabled, string $status = Session::STATUS_RUNNING): string
@@ -195,11 +218,11 @@ final class PelleHintTest extends FunctionalTestCase
         $this->entityManager->persist(Session::create($sessionId, $run->getId(), new \DateTimeImmutable('2026-09-01T10:00:00+00:00')));
         $run->attachSession($sessionId);
         $this->entityManager->flush();
+        $this->runId = $run->getId();
         $this->entityManager->getConnection()->executeStatement('UPDATE session SET status = :status WHERE id = :id', ['status' => $status, 'id' => $sessionId]);
         $this->entityManager->clear();
-        if ($enabled) {
-            $this->override($run->getId());
-        }
+        // Story 41.38: a private run sells hints by default, so "disabled" is said explicitly.
+        $this->override($run->getId(), $enabled);
 
         return $sessionId;
     }
@@ -216,11 +239,11 @@ final class PelleHintTest extends FunctionalTestCase
         return $sessionId;
     }
 
-    private function override(string $scopeKey): void
+    private function override(string $scopeKey, bool $enabled = true): void
     {
         $set = self::getContainer()->get(SetSessionConfigOverride::class);
         self::assertInstanceOf(SetSessionConfigOverride::class, $set);
-        $set->execute($scopeKey, ['pelleHints' => true]);
+        $set->execute($scopeKey, ['pelleHints' => $enabled]);
     }
 
     private function pelles(PelleKind $kind, ?string $eventId, int $amount): void
@@ -228,6 +251,21 @@ final class PelleHintTest extends FunctionalTestCase
         $record = self::getContainer()->get(RecordPelleMovement::class);
         self::assertInstanceOf(RecordPelleMovement::class, $record);
         $record->record(new RecordPelleMovementInput($this->admin->getId(), $amount, $kind, $eventId, PelleReason::AdminCredit, 'Crédit de test', null, null, true));
+    }
+
+    private function bronze(int $amount): void
+    {
+        $record = self::getContainer()->get(RecordPelleMovement::class);
+        self::assertInstanceOf(RecordPelleMovement::class, $record);
+        $record->record(new RecordPelleMovementInput($this->admin->getId(), $amount, PelleKind::Bronze, null, PelleReason::BronzeStart, 'Départ', null, null, runId: $this->runId));
+    }
+
+    private function bronzeBalance(): int
+    {
+        return array_sum(array_map(
+            static fn (PelleMovement $m): int => $m->getAmount(),
+            $this->entityManager->getRepository(PelleMovement::class)->findBy(['userId' => $this->admin->getId(), 'kind' => PelleKind::Bronze, 'runId' => $this->runId]),
+        ));
     }
 
     /**

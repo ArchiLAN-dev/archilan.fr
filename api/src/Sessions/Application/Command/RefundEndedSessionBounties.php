@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Command;
 
+use App\Sessions\Application\Support\BountyPurse;
+use App\Sessions\Domain\Entity\ItemBounty;
 use App\Sessions\Domain\Repository\ItemBountyRepositoryInterface;
 use App\Wallet\Application\Command\RecordPelleMovement;
-use App\Wallet\Application\Command\RecordPelleMovementInput;
-use App\Wallet\Domain\Enum\PelleKind;
 use App\Wallet\Domain\Enum\PelleReason;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -29,17 +29,31 @@ final readonly class RefundEndedSessionBounties
     /** @return int the number of bounties refunded */
     public function refundEnded(): int
     {
+        return $this->refundAll($this->bounties->findOpenOfEndedSessions());
+    }
+
+    /**
+     * Story 41.38: a private run that ends gives its open bounties back before its bronze burns, whatever its
+     * session's status.
+     *
+     * @return int the number of bounties refunded
+     */
+    public function refundSession(string $sessionId): int
+    {
+        return $this->refundAll($this->bounties->findOpenBySession($sessionId));
+    }
+
+    /**
+     * @param list<ItemBounty> $bounties
+     */
+    private function refundAll(array $bounties): int
+    {
         $refunded = 0;
-        foreach ($this->bounties->findOpenOfEndedSessions() as $bounty) {
+        foreach ($bounties as $bounty) {
             $now = $this->clock->now();
             try {
                 $this->record->record(
-                    new RecordPelleMovementInput(
-                        $bounty->getPosterId(), $bounty->getAmount(), PelleKind::Gold, null, PelleReason::BountyRefund,
-                        sprintf('Prime rendue : fin de partie (%s)', $bounty->getItemName()), null,
-                        sprintf('bounty-refund:%s', $bounty->getId()),
-                        byAdmin: true,
-                    ),
+                    BountyPurse::movement($bounty, $bounty->getPosterId(), $bounty->getAmount(), PelleReason::BountyRefund, sprintf('Prime rendue : fin de partie (%s)', $bounty->getItemName()), sprintf('bounty-refund:%s', $bounty->getId()), true),
                     function () use ($bounty, $now): void {
                         $bounty->refund($now);
                         $this->bounties->save($bounty);

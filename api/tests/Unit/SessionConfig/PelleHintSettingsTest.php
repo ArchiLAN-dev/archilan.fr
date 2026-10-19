@@ -14,15 +14,17 @@ use PHPUnit\Framework\TestCase;
  */
 final class PelleHintSettingsTest extends TestCase
 {
-    public function testEveryProfileStartsDisabledWithTheSitePrices(): void
+    public function testOnlyPrivateRunsStartWithHintsAndBountiesOn(): void
     {
         foreach (SessionType::cases() as $type) {
             $server = SessionConfig::defaultsFor($type)->server;
+            // Story 41.38: paid in the run's own bronze, they are on by default in private runs only.
+            $private = SessionType::Private === $type;
 
-            self::assertFalse($server->pelleHints, $type->value);
+            self::assertSame($private, $server->pelleHints, $type->value);
             self::assertSame(20, $server->pelleItemHintPrice);
             self::assertSame(10, $server->pelleLocationHintPrice);
-            self::assertFalse($server->pelleBounties, 'story 41.4');
+            self::assertSame($private, $server->pelleBounties, 'story 41.4');
         }
     }
 

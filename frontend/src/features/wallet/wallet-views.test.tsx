@@ -9,6 +9,7 @@ import type { Wallet } from "./wallet-api";
 const wallet: Wallet = {
   gold: 120,
   events: [{ eventId: "e1", eventTitle: "ArchiLAN #3", balance: 15 }],
+  bronze: [{ runId: "r1", runTitle: "Run du dimanche", balance: 42 }],
   history: {
     items: [
       { id: "m1", amount: 50, kind: "gold", eventId: null, eventTitle: null, reason: "admin_credit", label: "Aide au montage", createdAt: "2026-10-03T12:00:00+00:00" },
@@ -34,6 +35,14 @@ describe("WalletView", () => {
     expect(html).toContain("Page 1 sur 2");
   });
 
+  test("lists the bronze of each private run, apart from gold (story 41.38)", () => {
+    const html = renderToStaticMarkup(<WalletView onPage={() => {}} wallet={wallet} />);
+
+    expect(html).toContain("Pelles de bronze");
+    expect(html).toContain("Run du dimanche");
+    expect(html).toContain('href="/runs/r1"');
+  });
+
   test("puts the quests between the balance and the history (story 41.34)", () => {
     const html = renderToStaticMarkup(<WalletView onPage={() => {}} quests={<p>QUESTS</p>} wallet={wallet} />);
 
@@ -43,7 +52,7 @@ describe("WalletView", () => {
 
   test("an empty wallet says so", () => {
     const html = renderToStaticMarkup(
-      <WalletView onPage={() => {}} wallet={{ gold: 0, events: [], history: { items: [], page: 1, perPage: 25, total: 0 } }} />,
+      <WalletView onPage={() => {}} wallet={{ gold: 0, events: [], bronze: [], history: { items: [], page: 1, perPage: 25, total: 0 } }} />,
     );
 
     expect(html).toContain("Aucun mouvement pour le moment.");

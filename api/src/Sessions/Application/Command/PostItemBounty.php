@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Command;
 
 use App\Sessions\Application\Query\SessionQuery;
+use App\Sessions\Application\Support\BountyPurse;
 use App\Sessions\Application\Support\PelleHintTerms;
 use App\Sessions\Domain\Entity\ItemBounty;
 use App\Sessions\Domain\Entity\Session;
@@ -14,8 +15,6 @@ use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ValidationException;
 use App\Wallet\Application\Command\RecordPelleMovement;
-use App\Wallet\Application\Command\RecordPelleMovementInput;
-use App\Wallet\Domain\Enum\PelleKind;
 use App\Wallet\Domain\Enum\PelleReason;
 use Psr\Clock\ClockInterface;
 
@@ -65,7 +64,7 @@ final readonly class PostItemBounty
         }
 
         try {
-            $bounty = ItemBounty::post($sessionId, $slotName, $itemName, $amount, $userId, $this->clock->now());
+            $bounty = ItemBounty::post($sessionId, $slotName, $itemName, $amount, $userId, $this->clock->now(), $terms['runId']);
         } catch (\DomainException $e) {
             throw new ValidationException(sprintf('Une prime va de %d à %d pelles, sur un objet nommé.', ItemBounty::MIN_AMOUNT, ItemBounty::MAX_AMOUNT), [], $e->getMessage());
         }
@@ -81,11 +80,7 @@ final readonly class PostItemBounty
         }
 
         $this->record->record(
-            new RecordPelleMovementInput(
-                $userId, -$amount, PelleKind::Gold, null, PelleReason::BountyEscrow,
-                sprintf('Prime : %s', $bounty->getItemName()), null,
-                sprintf('bounty:%s:%s', $userId, $requestId),
-            ),
+            BountyPurse::movement($bounty, $userId, -$amount, PelleReason::BountyEscrow, sprintf('Prime : %s', $bounty->getItemName()), sprintf('bounty:%s:%s', $userId, $requestId)),
             fn () => $this->bounties->save($bounty),
         );
 

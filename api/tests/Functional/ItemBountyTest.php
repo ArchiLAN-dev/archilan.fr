@@ -20,7 +20,7 @@ use App\Wallet\Domain\Enum\PelleKind;
 use App\Wallet\Domain\Enum\PelleReason;
 
 /**
- * Story 41.4: bounties on items, paid in pelles.
+ * Story 41.4: bounties on items, paid in pelles. Story 41.38: on a private run, in the run's bronze.
  */
 final class ItemBountyTest extends FunctionalTestCase
 {
@@ -30,6 +30,8 @@ final class ItemBountyTest extends FunctionalTestCase
     private User $bob;
     private string $sessionId;
 
+    private string $runId = '';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -37,7 +39,7 @@ final class ItemBountyTest extends FunctionalTestCase
         $this->alice = $this->createUser('alice@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Alice');
         $this->bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob');
         $this->sessionId = $this->runSession(bounties: true);
-        $this->gold($this->alice, 100);
+        $this->bronze($this->alice, 100);
     }
 
     public function testAPlayerPostsABountyAndThePelleAreHeld(): void
@@ -189,6 +191,36 @@ final class ItemBountyTest extends FunctionalTestCase
         self::assertSame(100, $this->balance($this->alice));
     }
 
+    public function testABountyPostedInGoldBeforeTheBronzeIsPaidInGold(): void
+    {
+        // Posted before story 41.38: no run on the bounty, its escrow in gold.
+        $bounty = ItemBounty::post($this->sessionId, 'Alice', 'Grappin', 50, $this->alice->getId(), new \DateTimeImmutable());
+        $this->entityManager->persist($bounty);
+        $this->entityManager->flush();
+
+        $this->feedPush('Bob', 'Alice', 'Grappin');
+
+        self::assertSame(45, $this->goldOf($this->bob), 'paid in the pelles it holds');
+        self::assertSame(0, $this->balance($this->bob));
+    }
+
+    public function testTheEndOfTheRunGivesBountiesBackBeforeTheBronzeBurns(): void
+    {
+        $this->bountyOn('Grappin', 50);
+        $this->entityManager->getConnection()->executeStatement('UPDATE run SET status = :status WHERE id = :id', ['status' => Run::STATUS_COMPLETED, 'id' => $this->runId]);
+        $this->entityManager->clear();
+
+        $reconcile = self::getContainer()->get(\App\Wallet\Application\Command\ReconcileRunBronze::class);
+        self::assertInstanceOf(\App\Wallet\Application\Command\ReconcileRunBronze::class, $reconcile);
+        $reconcile->reconcile($this->runId);
+
+        self::assertSame(ItemBounty::STATUS_REFUNDED, $this->onlyBounty()->getStatus());
+        self::assertSame(0, $this->balance($this->alice), 'the refunded bronze burned with the rest');
+        $burn = $this->entityManager->getRepository(PelleMovement::class)->findOneBy(['reason' => PelleReason::BronzeExpired, 'userId' => $this->alice->getId()]);
+        self::assertInstanceOf(PelleMovement::class, $burn);
+        self::assertSame(-100, $burn->getAmount());
+    }
+
     private function runSession(bool $bounties): string
     {
         $run = Run::create($this->alice->getId(), 'Run de test', new \DateTimeImmutable('2026-09-01T10:00:00+00:00'));
@@ -196,6 +228,7 @@ final class ItemBountyTest extends FunctionalTestCase
         $sessionId = 'session-'.bin2hex(random_bytes(4));
         $this->entityManager->persist(Session::create($sessionId, $run->getId(), new \DateTimeImmutable('2026-09-01T10:00:00+00:00')));
         $run->attachSession($sessionId);
+        $this->runId = $run->getId();
         $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $sessionId, $this->alice->getId(), 'game-1', 'Alice', 1, 'slot-alice'));
         $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $sessionId, $this->bob->getId(), 'game-1', 'Bob', 2, 'slot-bob'));
         $this->entityManager->persist(new SessionPlayersSnapshot($sessionId, ['slots' => ['1' => ['slot_name' => 'Alice'], '2' => ['slot_name' => 'Bob']]], new \DateTimeImmutable()));
@@ -203,11 +236,11 @@ final class ItemBountyTest extends FunctionalTestCase
         $this->entityManager->getConnection()->executeStatement('UPDATE session SET status = :status WHERE id = :id', ['status' => Session::STATUS_RUNNING, 'id' => $sessionId]);
         // The session entity is still in the identity map as a draft.
         $this->entityManager->clear();
-        if ($bounties) {
-            $set = self::getContainer()->get(SetSessionConfigOverride::class);
-            self::assertInstanceOf(SetSessionConfigOverride::class, $set);
-            $set->execute($run->getId(), ['pelleBounties' => true]);
-        }
+        $set = self::getContainer()->get(SetSessionConfigOverride::class);
+        self::assertInstanceOf(SetSessionConfigOverride::class, $set);
+        // The checks' own bronze (story 41.37) stays out of the bounty sums; bounties are on by default in a private
+        // run (story 41.38), so "off" is said explicitly.
+        $set->execute($run->getId(), ['pelleBounties' => $bounties, 'bronzePerCheck' => 0]);
 
         return $sessionId;
     }
@@ -246,14 +279,22 @@ final class ItemBountyTest extends FunctionalTestCase
         $this->entityManager->clear();
     }
 
-    private function gold(User $member, int $amount): void
+    private function bronze(User $member, int $amount): void
     {
         $record = self::getContainer()->get(RecordPelleMovement::class);
         self::assertInstanceOf(RecordPelleMovement::class, $record);
-        $record->record(new RecordPelleMovementInput($member->getId(), $amount, PelleKind::Gold, null, PelleReason::AdminCredit, 'Crédit de test', null, null, true));
+        $record->record(new RecordPelleMovementInput($member->getId(), $amount, PelleKind::Bronze, null, PelleReason::BronzeStart, 'Départ', null, null, true, $this->runId));
     }
 
     private function balance(User $member): int
+    {
+        return array_sum(array_map(
+            static fn (PelleMovement $m): int => $m->getAmount(),
+            $this->entityManager->getRepository(PelleMovement::class)->findBy(['userId' => $member->getId(), 'kind' => PelleKind::Bronze, 'runId' => $this->runId]),
+        ));
+    }
+
+    private function goldOf(User $member): int
     {
         return array_sum(array_map(
             static fn (PelleMovement $m): int => $m->getAmount(),

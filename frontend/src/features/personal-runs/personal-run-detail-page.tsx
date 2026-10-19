@@ -56,6 +56,7 @@ import { MemberAvatar } from "../community/member-avatar";
 import { TitledName } from "@/features/community/titled-name";
 import { InfoHint } from "@/components/ui/info-hint";
 import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generation-failure-notice";
+import { RunBronzeCard } from "@/features/wallet/run-bronze";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -854,6 +855,9 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           </div>
           <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent sm:hidden" />
         </div>
+
+        {/* Story 41.38: the player's bronze in this run, once it has a server. */}
+        {activeTab === "overview" && run.sessionId !== null && (run.isOwner || myParticipant !== null) && <RunBronzeCard runId={run.id} />}
 
         {/* My games card - visible to owner + participants when configurable */}
         {activeTab === "overview" && (run.isOwner || myParticipant !== null) && (run.status === "draft" || run.status === "idle") && (

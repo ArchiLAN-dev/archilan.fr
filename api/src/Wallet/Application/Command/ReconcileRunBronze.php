@@ -8,6 +8,7 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\SessionConfig\Application\Service\SessionConfigResolver;
 use App\SessionConfig\Domain\Enum\SessionType;
+use App\Sessions\Application\Command\RefundEndedSessionBounties;
 use App\Sessions\Application\Support\RunSlotPlayers;
 use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
@@ -41,6 +42,7 @@ final readonly class ReconcileRunBronze
         private RecordPelleMovement $record,
         private RunSlotPlayers $players,
         private SessionConfigResolver $configResolver,
+        private RefundEndedSessionBounties $bounties,
         private LoggerInterface $logger,
     ) {
     }
@@ -75,6 +77,11 @@ final readonly class ReconcileRunBronze
 
     private function burn(Run $run): void
     {
+        // Story 41.38: open bounties go back to their posters first, so the bronze they held burns with the rest.
+        $sessionId = $run->getSessionId();
+        if (null !== $sessionId) {
+            $this->bounties->refundSession($sessionId);
+        }
         $burns = $this->movements->bronzeBurnsOfRun($run->getId());
         $label = sprintf('Fin de « %s »', $run->getTitle());
 

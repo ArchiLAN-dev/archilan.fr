@@ -158,6 +158,61 @@ final class RunBronzeTest extends FunctionalTestCase
         self::assertSame(0, $this->ledger()->balance($this->bob->getId(), PelleKind::Bronze, null, $runId));
     }
 
+    public function testTheWalletListsTheRunsBronzeOutsideTheGoldHistory(): void
+    {
+        $this->credit($this->bob, 30);
+        $this->loginAs($this->bob);
+
+        $this->client->request('GET', '/api/v1/me/wallet');
+
+        self::assertResponseIsSuccessful();
+        $wallet = $this->decodedJsonResponse();
+        self::assertSame([['runId' => $this->run->getId(), 'runTitle' => 'Ma run', 'balance' => 30]], $wallet['bronze'] ?? null);
+        self::assertSame(0, $wallet['gold'] ?? null);
+        $history = $wallet['history'] ?? null;
+        self::assertIsArray($history);
+        self::assertSame(0, $history['total'] ?? null, 'story 41.38: bronze has its own history');
+    }
+
+    public function testTheRunTellsAPlayerTheirBronzeWithChecksGroupedByDay(): void
+    {
+        $this->credit($this->bob, 20);
+        foreach ([10, 11, 12] as $location) {
+            $this->recorder()->record(new RecordPelleMovementInput($this->bob->getId(), 1, PelleKind::Bronze, null, PelleReason::BronzeCheck, 'Check', null, 'check-'.$location, runId: $this->run->getId()));
+        }
+        $this->loginAs($this->bob);
+
+        $this->client->request('GET', '/api/v1/runs/'.$this->run->getId().'/bronze');
+
+        self::assertResponseIsSuccessful();
+        $bronze = $this->decodedJsonResponse();
+        self::assertSame(23, $bronze['balance'] ?? null);
+        self::assertSame([20, 1, 25], [$bronze['start'] ?? null, $bronze['perCheck'] ?? null, $bronze['perGoal'] ?? null]);
+        self::assertFalse($bronze['ended'] ?? null);
+        $history = $bronze['history'] ?? null;
+        self::assertIsArray($history);
+        self::assertCount(2, $history, 'the three checks make one line');
+        $checks = array_values(array_filter($history, static fn (mixed $line): bool => is_array($line) && 'bronze_check' === ($line['reason'] ?? null)));
+        self::assertCount(1, $checks);
+        self::assertSame([3, 3], [$checks[0]['amount'] ?? null, $checks[0]['count'] ?? null]);
+    }
+
+    public function testTheStatisticsKeepBronzeApartFromGold(): void
+    {
+        $this->credit($this->bob, 30);
+        $this->setStatus(Run::STATUS_COMPLETED);
+        $this->entityManager->flush();
+        $this->reconcile();
+        $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin', 'admin'));
+
+        $this->client->request('GET', '/api/v1/admin/statistiques/pelles');
+
+        self::assertResponseIsSuccessful();
+        $stats = $this->decodedJsonResponse();
+        self::assertSame(0, $stats['goldInCirculation'] ?? null);
+        self::assertSame(['created' => 30, 'spent' => 0, 'burned' => 30], $stats['bronze'] ?? null);
+    }
+
     private function setStatus(string $status): void
     {
         new \ReflectionProperty(Run::class, 'status')->setValue($this->run, $status);
