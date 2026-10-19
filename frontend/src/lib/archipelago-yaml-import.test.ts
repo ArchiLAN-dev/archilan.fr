@@ -25,8 +25,8 @@ Hollow Knight:
     0: 50
   RandomCharmCosts:
     random: 0
-    vanilla: 50
-    shuffle: 0
+    vanilla: 50 # equivalent to -1
+    shuffle: 0 # equivalent to -2
   start_hints: []
   start_location_hints: []
   start_inventory: {}
@@ -135,6 +135,74 @@ Hollow Knight:
   });
 });
 
+describe("checkImportedYaml - valeurs qu'Archipelago accepte sous une autre forme", () => {
+  test("des poids au-delà de 100 gardent leurs proportions, avec une remarque", () => {
+    const check = checkImportedYaml(`game: Hollow Knight
+Hollow Knight:
+  Goal:
+    any: 300
+    radiance: 100
+    hollowknight: 1
+`, base());
+
+    expect(check.errors).toEqual([]);
+    expect(option(check.result, "Goal")).toMatchObject({
+      choices: [
+        { value: "any", weight: 100 },
+        { value: "hollowknight", weight: 1 },
+        { value: "radiance", weight: 33 },
+      ],
+    });
+    expect(check.warnings).toEqual([
+      { path: "Hollow Knight.Goal", message: "Goal : poids ramenés entre 0 et 100 en gardant les proportions (l'éditeur ne va pas au-delà)." },
+    ]);
+  });
+
+  test("des poids jusqu'à 100 sont repris tels quels, sans remarque", () => {
+    const check = checkImportedYaml(`game: Hollow Knight
+Hollow Knight:
+  StartingGeo:
+    100: 7
+    300: 93
+`, base());
+
+    expect(option(check.result, "StartingGeo")).toMatchObject({ entries: [{ key: "100", weight: 7 }, { key: "300", weight: 93 }] });
+    expect(check.warnings).toEqual([]);
+  });
+
+  test("random sur un choix devient des poids égaux entre tous les choix", () => {
+    const check = checkImportedYaml(`game: Hollow Knight
+Hollow Knight:
+  Goal: random
+`, base());
+
+    expect(check.errors).toEqual([]);
+    expect(option(check.result, "Goal")).toMatchObject({ choices: [{ weight: 17 }, { weight: 17 }, { weight: 17 }] });
+    expect(check.warnings[0]?.message).toContain("« random » converti en poids égaux entre tous les choix");
+  });
+
+  test("random pondéré sur un interrupteur répartit son poids entre true et false", () => {
+    const check = checkImportedYaml(`game: Hollow Knight
+Hollow Knight:
+  RandomizeSkills:
+    random: 40
+    true: 10
+`, base());
+
+    expect(option(check.result, "RandomizeSkills")).toMatchObject({ weightFalse: 20, weightTrue: 30 });
+  });
+
+  test("le nombre d'une valeur nommée hors bornes retombe sur son nom", () => {
+    const check = checkImportedYaml(`game: Hollow Knight
+Hollow Knight:
+  RandomCharmCosts: -1
+`, base());
+
+    expect(check.errors).toEqual([]);
+    expect(option(check.result, "RandomCharmCosts")).toMatchObject({ entries: [{ key: "vanilla", weight: 50, isCustom: false }] });
+  });
+});
+
 describe("checkImportedYaml - avertissements", () => {
   test("une option inconnue et une section étrangère sont signalées puis ignorées", () => {
     const check = checkImportedYaml(
@@ -213,8 +281,12 @@ describe("checkImportedYaml - erreurs bloquantes", () => {
   });
 
   test.each([
-    ["Goal: godhome", "« godhome » n'est pas un choix possible"],
-    ["RandomizeSkills: maybe", "« maybe » n'est pas une valeur d'interrupteur"],
+    ["Goal: godhome", "« godhome » n'est pas un des choix connus de l'éditeur (any, hollowknight, radiance)"],
+    ["Goal: 1", "« 1 » est le numéro d'un choix : écris plutôt son nom"],
+    ["Goal: random-low", "ne s'applique qu'aux options numériques"],
+    ["RandomizeSkills: random-high", "ne s'applique qu'aux options numériques"],
+    ["RandomCharmCosts: -3", "-3 est hors limites (0 à 240)"],
+    ["RandomizeSkills: maybe", "« maybe » n'est pas une valeur d'interrupteur (true, false ou random)"],
     ["StartingGeo: 5000", "5000 est hors limites (0 à 1000)"],
     ["StartingGeo: 2.5", "2.5 n'est pas un nombre entier"],
     ["StartingGeo: lots", "« lots » n'est ni un nombre ni une valeur nommée"],

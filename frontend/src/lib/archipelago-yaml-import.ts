@@ -9,8 +9,11 @@ import {
   parseItemLinkEntries,
   parsePlandoEntries,
   SLOT_NAME_MAX_LENGTH,
+  type ChoiceOption,
   type GameOption,
   type ParsedYaml,
+  type RangeOption,
+  type ToggleOption,
 } from "./archipelago-yaml";
 
 /**
@@ -48,7 +51,12 @@ const LOCATION_KEYS = new Set(["priority_locations", "exclude_locations", "start
 const TRUE_WORDS = new Set(["true", "on", "yes"]);
 const FALSE_WORDS = new Set(["false", "off", "no"]);
 
-type Outcome = { option: GameOption } | { error: string };
+type Outcome = { option: GameOption; notes?: string[] } | { error: string };
+
+/** What a toggle or a choice accepts beside its values: Archipelago rolls one of them uniformly. */
+const RANDOM_KEY = "random";
+const EDITOR_MAX_WEIGHT = 100;
+const SCALED_NOTE = `poids ramenés entre 0 et ${EDITOR_MAX_WEIGHT} en gardant les proportions (l'éditeur ne va pas au-delà)`;
 
 function isMapping(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -58,13 +66,9 @@ function isScalar(value: unknown): value is string | number | boolean {
   return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 }
 
-function clampWeight(weight: number): number {
-  return Math.max(0, Math.min(100, Math.round(weight)));
-}
-
 /**
- * Reads a weighted mapping (`value: weight`). A scalar is the same thing with a single value, which
- * is how Archipelago reads `Goal: hollowknight`.
+ * Reads a weighted mapping (`value: weight`) as written, before any rounding. A scalar is the same thing
+ * with a single value, which is how Archipelago reads `Goal: hollowknight`.
  */
 function readWeights(value: unknown): Map<string, number> | string {
   if (isScalar(value)) return new Map([[String(value), 50]]);
@@ -75,11 +79,35 @@ function readWeights(value: unknown): Map<string, number> | string {
     if (typeof weight !== "number" || !Number.isFinite(weight) || weight < 0) {
       return `le poids de « ${key} » doit être un nombre positif`;
     }
-    weights.set(key, clampWeight(weight));
+    weights.set(key, weight);
   }
   if (weights.size === 0) return "aucune valeur";
   if ([...weights.values()].every((w) => w === 0)) return "tous les poids sont à 0, la génération échouerait";
   return weights;
+}
+
+/**
+ * Brings weights to whole numbers the editor can hold, without changing the odds Archipelago will roll.
+ *
+ * Archipelago takes any whole weight; the editor stops at 100. Clipping a weight changes the odds
+ * (`{any: 300, radiance: 100}` would roll 50/50 instead of 75/25), so when one goes past 100 all of them
+ * are scaled down together. A weight that was not zero never rounds down to zero: that would remove a
+ * value the file asked for.
+ */
+function toEditorWeights(raw: Map<string, number>): { weights: Map<string, number>; scaled: boolean } {
+  const max = Math.max(...raw.values());
+  const scaled = max > EDITOR_MAX_WEIGHT;
+  const factor = scaled ? EDITOR_MAX_WEIGHT / max : 1;
+  const weights = new Map<string, number>();
+  for (const [key, weight] of raw) {
+    weights.set(key, weight > 0 ? Math.max(1, Math.round(weight * factor)) : 0);
+  }
+  return { weights, scaled };
+}
+
+function notesFor(scaled: boolean, extra: string[] = []): { notes?: string[] } {
+  const notes = [...extra, ...(scaled ? [SCALED_NOTE] : [])];
+  return notes.length > 0 ? { notes } : {};
 }
 
 function toggleValue(raw: string): boolean | null {
@@ -89,62 +117,128 @@ function toggleValue(raw: string): boolean | null {
   return null;
 }
 
+/** `random-low`, `random-range-1-10`...: Archipelago reads them on numbers only. */
+function isNumericRandomAlias(key: string): boolean {
+  return key.toLowerCase() !== RANDOM_KEY && labelFromAlias(key.toLowerCase()) !== null;
+}
+
+/**
+ * The number a named value of a range stands for, from the note Archipelago's template writes beside it
+ * (`vanilla: 50 # equivalent to -1`). It lets `RandomCharmCosts: -1` land on `vanilla` instead of being
+ * refused as out of bounds: Archipelago accepts a named value's number even outside the range.
+ */
+function namedEquivalents(option: RangeOption): Map<number, string> {
+  const out = new Map<number, string>();
+  for (const entry of option.entries) {
+    const match = /equivalent to (-?\d+)/i.exec(entry.description ?? "");
+    if (match !== null && isNaN(Number(entry.key))) out.set(Number(match[1]), entry.key);
+  }
+  return out;
+}
+
+function applyToggle(option: ToggleOption, value: unknown): Outcome {
+  const raw = readWeights(value);
+  if (typeof raw === "string") return { error: raw };
+  let weightFalse = 0;
+  let weightTrue = 0;
+  let rolled = false;
+  for (const [key, weight] of raw) {
+    if (key.toLowerCase() === RANDOM_KEY) {
+      // Archipelago draws true or false evenly: the same odds as splitting the weight in two.
+      weightFalse += weight / 2;
+      weightTrue += weight / 2;
+      rolled = true;
+      continue;
+    }
+    if (isNumericRandomAlias(key)) return { error: `« ${key} » ne s'applique qu'aux options numériques, utilise « random »` };
+    const side = toggleValue(key);
+    if (side === null) return { error: `« ${key} » n'est pas une valeur d'interrupteur (true, false ou random)` };
+    if (side) weightTrue += weight;
+    else weightFalse += weight;
+  }
+  const { weights, scaled } = toEditorWeights(new Map([["false", weightFalse], ["true", weightTrue]]));
+  return {
+    option: { ...option, weightFalse: weights.get("false") ?? 0, weightTrue: weights.get("true") ?? 0 },
+    ...notesFor(scaled, rolled ? ["« random » converti en poids égaux entre true et false"] : []),
+  };
+}
+
+function applyChoice(option: ChoiceOption, value: unknown): Outcome {
+  const raw = readWeights(value);
+  if (typeof raw === "string") return { error: raw };
+  const listed = option.choices.map((c) => c.value).join(", ");
+  // Archipelago matches a choice's name without regard to case.
+  const canonical = new Map(option.choices.map((c) => [c.value.toLowerCase(), c.value]));
+  const chosen = new Map<string, number>(option.choices.map((c) => [c.value, 0]));
+  let rolled = false;
+  for (const [key, weight] of raw) {
+    const lower = key.toLowerCase();
+    if (lower === RANDOM_KEY && !canonical.has(RANDOM_KEY)) {
+      // Archipelago draws one of the choices evenly: the same odds as spreading the weight over all of them.
+      for (const c of option.choices) chosen.set(c.value, (chosen.get(c.value) ?? 0) + weight / option.choices.length);
+      rolled = true;
+      continue;
+    }
+    if (isNumericRandomAlias(key)) return { error: `« ${key} » ne s'applique qu'aux options numériques, utilise « random »` };
+    const match = canonical.get(lower);
+    if (match !== undefined) {
+      chosen.set(match, (chosen.get(match) ?? 0) + weight);
+      continue;
+    }
+    if (key.trim() !== "" && !isNaN(Number(key))) {
+      return { error: `« ${key} » est le numéro d'un choix : écris plutôt son nom (${listed})` };
+    }
+    return { error: `« ${key} » n'est pas un des choix connus de l'éditeur (${listed}). Si c'est un alias accepté par le jeu, écris le nom du choix` };
+  }
+  const { weights, scaled } = toEditorWeights(chosen);
+  return {
+    option: { ...option, choices: option.choices.map((c) => ({ ...c, weight: weights.get(c.value) ?? 0 })) },
+    ...notesFor(scaled, rolled ? ["« random » converti en poids égaux entre tous les choix"] : []),
+  };
+}
+
+function applyRange(option: RangeOption, value: unknown): Outcome {
+  const raw = readWeights(value);
+  if (typeof raw === "string") return { error: raw };
+  const named = new Set(option.entries.filter((e) => isNaN(Number(e.key))).map((e) => e.key));
+  const equivalents = namedEquivalents(option);
+  const byKey = new Map(option.entries.map((e) => [e.key, e]));
+  const resolved = new Map<string, number>();
+  for (const [rawKey, weight] of raw) {
+    let key = rawKey.trim();
+    if (key !== "" && !isNaN(Number(key))) {
+      const n = Number(key);
+      if (!Number.isInteger(n)) return { error: `${key} n'est pas un nombre entier` };
+      const outOfBounds = option.max > option.min && (n < option.min || n > option.max);
+      const equivalent = equivalents.get(n);
+      if (outOfBounds && equivalent !== undefined) key = equivalent;
+      else if (outOfBounds) return { error: `${key} est hors limites (${option.min} à ${option.max})` };
+    } else if (!named.has(key) && labelFromAlias(key) === null) {
+      return { error: `« ${key} » n'est ni un nombre ni une valeur nommée de cette option` };
+    }
+    resolved.set(key, (resolved.get(key) ?? 0) + weight);
+  }
+  const { weights, scaled } = toEditorWeights(resolved);
+  const entries = [...weights].map(([key, weight]) => {
+    const known = byKey.get(key);
+    return known ? { ...known, weight } : createRangeEntry(key, weight, true);
+  });
+  return { option: { ...option, entries }, ...notesFor(scaled) };
+}
+
 function applyValue(option: GameOption, value: unknown): Outcome {
   switch (option.type) {
     case "text":
       return isScalar(value) ? { option: { ...option, value: String(value) } } : { error: "une valeur simple est attendue" };
 
-    case "toggle": {
-      const weights = readWeights(value);
-      if (typeof weights === "string") return { error: weights };
-      let weightFalse = 0;
-      let weightTrue = 0;
-      for (const [key, weight] of weights) {
-        const side = toggleValue(key);
-        if (side === null) return { error: `« ${key} » n'est pas une valeur d'interrupteur (true ou false)` };
-        if (side) weightTrue += weight;
-        else weightFalse += weight;
-      }
-      return { option: { ...option, weightFalse: clampWeight(weightFalse), weightTrue: clampWeight(weightTrue) } };
-    }
+    case "toggle":
+      return applyToggle(option, value);
 
-    case "choice": {
-      const weights = readWeights(value);
-      if (typeof weights === "string") return { error: weights };
-      const canonical = new Map(option.choices.map((c) => [c.value.toLowerCase(), c.value]));
-      const chosen = new Map<string, number>();
-      for (const [key, weight] of weights) {
-        const match = canonical.get(key.toLowerCase());
-        if (match === undefined) {
-          return { error: `« ${key} » n'est pas un choix possible (${option.choices.map((c) => c.value).join(", ")})` };
-        }
-        chosen.set(match, (chosen.get(match) ?? 0) + weight);
-      }
-      return { option: { ...option, choices: option.choices.map((c) => ({ ...c, weight: clampWeight(chosen.get(c.value) ?? 0) })) } };
-    }
+    case "choice":
+      return applyChoice(option, value);
 
-    case "range": {
-      const weights = readWeights(value);
-      if (typeof weights === "string") return { error: weights };
-      const named = new Set(option.entries.filter((e) => isNaN(Number(e.key))).map((e) => e.key));
-      const byKey = new Map(option.entries.map((e) => [e.key, e]));
-      const entries = [];
-      for (const [rawKey, weight] of weights) {
-        const key = rawKey.trim();
-        if (key !== "" && !isNaN(Number(key))) {
-          const n = Number(key);
-          if (!Number.isInteger(n)) return { error: `${key} n'est pas un nombre entier` };
-          if (option.max > option.min && (n < option.min || n > option.max)) {
-            return { error: `${key} est hors limites (${option.min} à ${option.max})` };
-          }
-        } else if (!named.has(key) && labelFromAlias(key) === null) {
-          return { error: `« ${key} » n'est ni un nombre ni une valeur nommée de cette option` };
-        }
-        const known = byKey.get(key);
-        entries.push(known ? { ...known, weight } : createRangeEntry(key, weight, true));
-      }
-      return { option: { ...option, entries } };
-    }
+    case "range":
+      return applyRange(option, value);
 
     case "freeform":
       if (option.kind === "list") {
@@ -265,6 +359,7 @@ export function checkImportedYaml(text: string, base: ParsedYaml, options: Optio
       continue;
     }
     applied.set(key, outcome.option);
+    for (const note of outcome.notes ?? []) warnings.push({ path, message: `${option.label} : ${note}.` });
 
     const locations = options.locationNames;
     if (LOCATION_KEYS.has(key) && locations && locations.length > 0 && Array.isArray(value)) {

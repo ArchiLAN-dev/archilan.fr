@@ -120,6 +120,18 @@ final class GameYamlTestControllerTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(503);
     }
 
+    public function testAnUnavailableGameIsNotTested(): void
+    {
+        $this->game->update('Hollow Knight', 'hollow-knight', 'desc', null, 'cover', '', Game::AVAILABILITY_UNAVAILABLE, new \DateTimeImmutable('2026-10-19'));
+        $this->entityManager->flush();
+        $this->loginAs($this->player);
+
+        $this->client->jsonRequest('POST', $this->uri(), ['yaml' => self::YAML]);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertNull(NullRunnerGateway::$lastSlotPreflight);
+    }
+
     public function testAnAnonymousVisitorIsRefused(): void
     {
         $this->client->jsonRequest('POST', $this->uri(), ['yaml' => self::YAML]);

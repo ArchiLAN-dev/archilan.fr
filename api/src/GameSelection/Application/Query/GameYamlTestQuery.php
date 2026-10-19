@@ -14,7 +14,7 @@ final readonly class GameYamlTestQuery
 {
     public function __construct(
         private GameYamlTestTicket $tickets,
-        private ApworldCandidateYamlTestQuery $results,
+        private YamlTestResultQuery $results,
     ) {
     }
 

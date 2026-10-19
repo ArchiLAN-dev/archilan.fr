@@ -60,9 +60,9 @@ acceptent n'importe quel YAML et n'importe quel apworld (null pour un monde du c
    - `POST /api/v1/games/{gameId}/yaml-test`, utilisateur connecté, corps `{yaml}` (100 Ko au plus) → 202 `{ticket}` ;
    - `GET /api/v1/games/{gameId}/yaml-test/{ticket}` → `{status: pending|running|passed|failed, error}` ; le ticket
      lie le job au joueur et au jeu (HMAC) : seul l'utilisateur qui a lancé le test peut le lire (sinon 404) ;
-   - jeu inconnu ou sans apworld configuré → 404 ; jeu qui exige un fichier (une ROM, epic 44) → 409
+   - jeu inconnu, indisponible ou sans apworld configuré → 404 ; jeu qui exige un fichier (une ROM, epic 44) → 409
      `required_file`, avec un message qui renvoie vers le test du slot ; runner indisponible → 503 ;
-   - au plus 5 tests par utilisateur et par 10 minutes → 429 au-delà.
+   - au plus 5 tests par utilisateur sur 10 minutes glissantes, compte atomique → 429 au-delà.
 6. **Tests.** Tests unitaires de `checkImportedYaml` (chaque erreur, chaque avertissement, un YAML valide complet, et
    l'application sur les valeurs par défaut) ; test de rendu de l'éditeur (boutons selon le contexte) ; tests API du
    démarrage, de la lecture (propriétaire, autre utilisateur, autre jeu), du jeu à fichier requis, du plafond.
@@ -82,8 +82,10 @@ acceptent n'importe quel YAML et n'importe quel apworld (null pour un monde du c
 
 ## Dev Notes
 
-- Le plafond vit dans le cache applicatif (`cache.app`), pas en base : une fenêtre fixe de 10 minutes par joueur. Le
-  propriétaire du job n'est stocké nulle part : le ticket rendu au joueur est `jobId.hmac(joueur, jeu, jobId)`, signé
+- Le plafond passe par le RateLimiter de Symfony (`game_yaml_test`, fenêtre glissante, `config/packages/rate_limiter.yaml`)
+  derrière le port `YamlTestQuotaInterface`. Il compte sous verrou (`symfony/lock`, store `flock` : un seul conteneur
+  api-web ; un second hôte demanderait un store partagé). Nouvelles dépendances : `symfony/rate-limiter`, `symfony/lock`
+  (image API à reconstruire). Le propriétaire du job n'est stocké nulle part : le ticket rendu au joueur est `jobId.hmac(joueur, jeu, jobId)`, signé
   avec le secret de l'application. L'orchestrateur ne garde ses résultats que 30 minutes de toute façon.
 - Les jeux à fichier requis restent testables par le test du slot (story 44.7), qui sait joindre la ROM : ce test-ci
   n'accepte pas de fichier, pour ne pas faire circuler de ROM hors d'un slot.
@@ -103,6 +105,21 @@ acceptent n'importe quel YAML et n'importe quel apworld (null pour un monde du c
 - Le bouton « Tester la génération » est aussi dans la barre de l'éditeur, pour tester la config affichée sans import.
 - Validé sur le YAML Hollow Knight de l'hebdo : 5 seeds générées dans l'image archipelago 0.6.8 avant cette story.
 
+### Correctifs de revue
+
+- Des poids au-delà de 100 sont ramenés ensemble sur 0-100 en gardant leurs proportions (un poids non nul ne tombe
+  jamais à 0), avec une remarque ; avant, chaque poids était plafonné seul et les probabilités changeaient.
+- `random` sur un interrupteur ou un choix devient des poids égaux (même tirage qu'Archipelago) ; `random-low` et
+  consorts y sont refusés avec un message qui dit pourquoi ; un choix écrit par son numéro demande son nom ; un choix
+  inconnu dit qu'il est inconnu de l'éditeur (un alias du jeu reste possible) au lieu de « pas un choix possible ».
+- Le nombre d'une valeur nommée de Range (`RandomCharmCosts: -1`) retombe sur son nom grâce à la note
+  `equivalent to N` du template d'Archipelago, au lieu d'être refusé hors bornes.
+- API : jeux indisponibles refusés ; plafond atomique et glissant (RateLimiter + lock) au lieu d'un compteur de cache.
+- Accessibilité : seul le résumé du rapport d'import est une région live, plus la liste entière à chaque frappe.
+- `ApworldCandidateYamlTestQuery` renommée `YamlTestResultQuery`, partagée par les deux tests.
+- Test du client API (`game-yaml-test-api.test.ts`).
+- Non vérifié dans un navigateur : la session Chrome locale n'était pas connectée.
+
 ### File List
 
 - `frontend/src/lib/archipelago-yaml-import.ts` (nouveau), `frontend/src/lib/archipelago-yaml-import.test.ts` (nouveau)
@@ -116,7 +133,14 @@ acceptent n'importe quel YAML et n'importe quel apworld (null pour un monde du c
 - `api/src/GameSelection/Application/Command/StartGameYamlTest.php`, `GameYamlTestStart.php`,
   `GameYamlTestOutcome.php` (nouveaux)
 - `api/src/GameSelection/Application/Support/GameYamlTestTicket.php` (nouveau)
-- `api/src/GameSelection/Application/Query/GameYamlTestQuery.php` (nouveau)
+- `api/src/GameSelection/Application/Query/GameYamlTestQuery.php` (nouveau),
+  `YamlTestResultQuery.php` (renommée depuis `ApworldCandidateYamlTestQuery.php`),
+  `api/src/GameSelection/Presentation/Controller/AdminApworldCandidateController.php`
+- `api/src/GameSelection/Application/Port/YamlTestQuotaInterface.php`,
+  `api/src/GameSelection/Infrastructure/Adapter/RateLimitedYamlTestQuota.php` (nouveaux)
+- `api/config/packages/lock.yaml`, `api/config/packages/rate_limiter.yaml` (nouveaux), `api/composer.json`,
+  `api/composer.lock`, `api/symfony.lock`
+- `frontend/src/features/games/game-yaml-test-api.test.ts` (nouveau)
 - `api/src/GameSelection/Presentation/Controller/GameYamlTestController.php` (nouveau)
 - `api/tests/Functional/GameYamlTestControllerTest.php`,
   `api/tests/Unit/GameSelection/Application/Command/StartGameYamlTestTest.php` (nouveaux)

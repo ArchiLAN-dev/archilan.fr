@@ -43,9 +43,9 @@ final readonly class GameYamlTestController
         return match ($start->outcome) {
             GameYamlTestOutcome::Started => new JsonResponse(['data' => ['ticket' => $start->ticket]], 202),
             GameYamlTestOutcome::InvalidYaml => $this->apiAccessGuard->errorResponse('validation_failed', 'Le YAML est vide ou dépasse 100 Ko.', 422, ['yaml' => ['Le YAML est vide ou dépasse 100 Ko.']]),
-            GameYamlTestOutcome::UnknownGame => $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable, ou sans fichier .apworld configuré.', 404),
+            GameYamlTestOutcome::UnknownGame => $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable, indisponible, ou sans fichier .apworld configuré.', 404),
             GameYamlTestOutcome::RequiresFile => $this->apiAccessGuard->errorResponse('required_file', 'Ce jeu a besoin d\'un fichier (une ROM) pour générer : teste-le depuis ton slot, qui permet de le joindre.', 409),
-            GameYamlTestOutcome::TooManyTests => $this->apiAccessGuard->errorResponse('too_many_tests', sprintf('Tu as lancé %d tests en 10 minutes : attends un peu avant le suivant.', StartGameYamlTest::MAX_TESTS_PER_WINDOW), 429),
+            GameYamlTestOutcome::TooManyTests => $this->apiAccessGuard->errorResponse('too_many_tests', 'Tu as lancé 5 tests en 10 minutes : attends un peu avant le suivant.', 429),
             GameYamlTestOutcome::RunnerUnavailable => $this->apiAccessGuard->errorResponse('runner_unavailable', 'Le runner est indisponible, le test n\'a pas été lancé. Réessaie plus tard.', 503),
         };
     }

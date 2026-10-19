@@ -122,18 +122,25 @@ function ImportForm({ base, locationNames, gameId, onApply, onClose }: Omit<Prop
   );
 }
 
+/**
+ * The report is recomputed at every keystroke. Only its one-line summary is a live region: a screen reader
+ * announcing the whole list each time would drown the typing.
+ */
 function ImportReport({ errors, warnings }: { errors: ImportIssue[]; warnings: ImportIssue[] }) {
-  if (errors.length === 0 && warnings.length === 0) {
-    return <p className="text-sm text-success" role="status">Structure valide : ce YAML peut être appliqué.</p>;
-  }
-
   return (
     <div className="grid gap-2">
+      <p
+        aria-live="polite"
+        className={`text-sm ${errors.length > 0 ? "text-danger" : "text-success"}`}
+        role="status"
+      >
+        {summary(errors.length, warnings.length)}
+      </p>
       {errors.length > 0 ? (
         <IssueList
           icon={<AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0" />}
           issues={errors}
-          title="À corriger avant d'importer :"
+          title="À corriger :"
           tone="text-danger"
         />
       ) : null}
@@ -141,7 +148,7 @@ function ImportReport({ errors, warnings }: { errors: ImportIssue[]; warnings: I
         <IssueList
           icon={<Info aria-hidden className="mt-0.5 size-4 shrink-0" />}
           issues={warnings}
-          title="Ignoré à l'import :"
+          title="À savoir :"
           tone="text-muted-foreground"
         />
       ) : null}
@@ -151,7 +158,7 @@ function ImportReport({ errors, warnings }: { errors: ImportIssue[]; warnings: I
 
 function IssueList({ icon, issues, title, tone }: { icon: React.ReactNode; issues: ImportIssue[]; title: string; tone: string }) {
   return (
-    <div className={`grid gap-1 text-sm ${tone}`} role={tone === "text-danger" ? "alert" : undefined}>
+    <div className={`grid gap-1 text-sm ${tone}`}>
       <span className="flex items-start gap-1.5 font-semibold">
         {icon}
         {title}
@@ -167,4 +174,10 @@ function IssueList({ icon, issues, title, tone }: { icon: React.ReactNode; issue
       </ul>
     </div>
   );
+}
+
+function summary(errors: number, warnings: number): string {
+  const notes = warnings === 0 ? "" : ` (${warnings} ${warnings > 1 ? "remarques" : "remarque"})`;
+  if (errors > 0) return `${errors} ${errors > 1 ? "erreurs" : "erreur"} à corriger avant d'importer${notes}.`;
+  return `Structure valide : ce YAML peut être appliqué${notes}.`;
 }
