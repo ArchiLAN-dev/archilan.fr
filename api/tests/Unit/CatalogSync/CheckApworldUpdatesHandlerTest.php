@@ -60,6 +60,9 @@ final class CheckApworldUpdatesHandlerTest extends TestCase
         $handler = new CheckApworldUpdatesHandler(
             new CheckApworldUpdatesService($checker, $games, new NullLogger(), $clock),
             new SubmitAvailableApworldUpdates($games, new InMemoryApworldCandidateRepository(), $checker, new RecordApworldIncident($incidents, $clock), $incidents, $bus, new NullLogger(), 10),
+            new InMemoryApworldUpdateCheckRunRepository(),
+            new FreePassLock(),
+            $clock,
             new NullLogger(),
         );
 

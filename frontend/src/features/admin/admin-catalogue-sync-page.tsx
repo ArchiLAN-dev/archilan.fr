@@ -21,10 +21,11 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { describeUpdateCheck, isUpdateCheckActive, type ApworldUpdateCheckRun } from "./apworld-update-check";
 import {
   APWORLD_UPDATE_STATUSES,
   updateStatusLabel,
@@ -45,7 +46,8 @@ import {
   type UpdatesFilter,
 } from "./admin-catalogue-filters";
 import {
-  checkApworldUpdates,
+  fetchApworldUpdateCheck,
+  startApworldUpdateCheck,
   fetchAdminGameBase,
   fetchCatalogSync,
   fetchGameRequestVotes,
@@ -65,6 +67,9 @@ const PAGE_SIZE = 20;
 
 const SYNC_QUERY_KEY = ["admin-catalog-sync"] as const;
 const VOTES_QUERY_KEY = ["admin-game-request-votes"] as const;
+const UPDATE_CHECK_QUERY_KEY = ["admin-apworld-update-check"] as const;
+/** While a pass is queued or running (story 38.18), how often the page asks where it stands. */
+const UPDATE_CHECK_POLL_MS = 4000;
 
 type CatalogueTab = "new" | "updates" | "stability" | "ignored" | "removed";
 
@@ -97,7 +102,7 @@ function withVotes(data: CatalogSyncData, votes: Map<string, number>): CatalogSy
 export function AdminCatalogueSyncPage() {
   const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
-  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [startingCheck, setStartingCheck] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [ignoringName, setIgnoringName] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -125,6 +130,29 @@ export function AdminCatalogueSyncPage() {
     staleTime: DEFAULT_STALE_TIME,
     retry: false,
   });
+
+  // Story 38.18: the last pass checking the apworlds, followed while it is queued or running, also after a reload.
+  const updateCheckQuery = useQuery({
+    queryKey: UPDATE_CHECK_QUERY_KEY,
+    queryFn: fetchApworldUpdateCheck,
+    staleTime: UPDATE_CHECK_POLL_MS / 2,
+    retry: false,
+    refetchInterval: (query) => {
+      const result = query.state.data;
+      return result?.kind === "ok" && isUpdateCheckActive(result.run) ? UPDATE_CHECK_POLL_MS : false;
+    },
+  });
+  const updateCheck = updateCheckQuery.data?.kind === "ok" ? updateCheckQuery.data.run : null;
+  const updateCheckActive = isUpdateCheckActive(updateCheck);
+
+  // A pass that just ended changed the versions the updates tab lists: reload it once.
+  const wasActive = useRef(false);
+  useEffect(() => {
+    if (wasActive.current && !updateCheckActive) {
+      void queryClient.invalidateQueries({ queryKey: SYNC_QUERY_KEY });
+    }
+    wasActive.current = updateCheckActive;
+  }, [updateCheckActive, queryClient]);
 
   const loading = syncQuery.isPending || votesQuery.isPending;
   const syncResult = syncQuery.data;
@@ -155,20 +183,19 @@ export function AdminCatalogueSyncPage() {
     }
   }
 
+  // Story 38.18: the click only queues the pass; its progress and report come from the update-check query.
   async function handleCheckUpdates(): Promise<void> {
-    setCheckingUpdates(true);
+    setStartingCheck(true);
     setFlash(null);
     try {
-      const summary = await checkApworldUpdates();
-      if (summary === null) {
-        setFlash({ kind: "error", text: "La vérification des mises à jour a échoué." });
+      const outcome = await startApworldUpdateCheck();
+      if (outcome === "error") {
+        setFlash({ kind: "error", text: "La vérification des mises à jour n'a pas pu être lancée." });
         return;
       }
-      const extra = summary.rateLimitHit ? " (limite GitHub atteinte)" : "";
-      setFlash({ kind: "success", text: `${summary.checked} jeu(x) vérifié(s)${extra}.` });
-      await refreshAll();
+      await queryClient.invalidateQueries({ queryKey: UPDATE_CHECK_QUERY_KEY });
     } finally {
-      setCheckingUpdates(false);
+      setStartingCheck(false);
     }
   }
 
@@ -349,7 +376,8 @@ export function AdminCatalogueSyncPage() {
                   setUpdatesPage(1);
                 }}
                 githubChecksAvailable={data.githubChecksAvailable}
-                checkingUpdates={checkingUpdates}
+                checkingUpdates={startingCheck || updateCheckActive}
+                updateCheck={updateCheck}
                 onCheckUpdates={() => void handleCheckUpdates()}
                 page={updatesPage}
                 onPageChange={setUpdatesPage}
@@ -597,6 +625,7 @@ function ApworldUpdatesTable({
   onFilterChange,
   githubChecksAvailable,
   checkingUpdates,
+  updateCheck,
   onCheckUpdates,
   page,
   onPageChange,
@@ -607,6 +636,7 @@ function ApworldUpdatesTable({
   onFilterChange: (f: UpdatesFilter) => void;
   githubChecksAvailable: boolean;
   checkingUpdates: boolean;
+  updateCheck: ApworldUpdateCheckRun | null;
   onCheckUpdates: () => void;
   page: number;
   onPageChange: (p: number) => void;
@@ -639,6 +669,7 @@ function ApworldUpdatesTable({
         </button>
       }
     >
+      {updateCheck !== null ? <UpdateCheckStatus run={updateCheck} /> : null}
       {totalCount === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun jeu suivi.</p>
       ) : (
@@ -1310,5 +1341,29 @@ function availabilityLabel(availability: string): string {
   return (
     { available: "Disponible", experimental: "Expérimental", unavailable: "Indisponible" }[availability] ??
     availability
+  );
+}
+
+const UPDATE_CHECK_TONES = {
+  info: "border-border bg-surface text-muted-foreground",
+  success: "border-success/50 bg-success/5 text-success",
+  warning: "border-warning/50 bg-warning/5 text-warning",
+  error: "border-danger/50 bg-danger/5 text-danger",
+} as const;
+
+/** Story 38.18: where the last pass stands, above the updates table. */
+function UpdateCheckStatus({ run }: { run: ApworldUpdateCheckRun }) {
+  const { tone, text } = describeUpdateCheck(run);
+  const active = isUpdateCheckActive(run);
+
+  return (
+    <p
+      aria-live="polite"
+      className={`mx-4 mt-4 flex items-start gap-2 rounded border p-3 text-sm ${UPDATE_CHECK_TONES[tone]}`}
+      role={tone === "error" ? "alert" : "status"}
+    >
+      {active ? <Loader2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 animate-spin" /> : null}
+      {text}
+    </p>
   );
 }

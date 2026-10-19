@@ -98,6 +98,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Wallet/Domain/Entity'
                 prefix: 'App\Wallet\Domain\Entity'
                 alias: Wallet
+            CatalogSync:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/CatalogSync/Domain/Entity'
+                prefix: 'App\CatalogSync\Domain\Entity'
+                alias: CatalogSync
 
 when@test:
     doctrine:

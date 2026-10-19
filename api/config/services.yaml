@@ -483,6 +483,7 @@ services:
             $discordStaffWebhookUrl: '%env(default:default_empty_string:DISCORD_STAFF_WEBHOOK_URL)%'
 
     App\CatalogSync\Application\Query\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\Dbal\DbalImportedCatalogNamesQuery'
+    App\CatalogSync\Domain\Repository\ApworldUpdateCheckRunRepositoryInterface: '@App\CatalogSync\Infrastructure\Doctrine\DoctrineApworldUpdateCheckRunRepository'
 
     App\Content\Domain\Repository\PostRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrinePostRepository'
     App\Content\Domain\Repository\HomeAnnouncementRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrineHomeAnnouncementRepository'

@@ -15,6 +15,12 @@ use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExcep
 
 final readonly class CheckApworldUpdatesService
 {
+    /**
+     * Games checked between two saves (story 38.18). A pass cut short keeps what it did: the versions read and,
+     * above all, the date of last check that puts the games it reached at the back of the next pass's queue.
+     */
+    public const int BATCH_SIZE = 25;
+
     public function __construct(
         private ApworldVersionChecker $checker,
         private GameRepositoryInterface $gameRepository,
@@ -29,8 +35,14 @@ final readonly class CheckApworldUpdatesService
      * Least recently checked first, never-checked before all: when the GitHub rate limit stops a
      * pass, the next one resumes with the games this one did not reach, instead of starting the
      * alphabet over and starving its end forever.
+     *
+     * Saved every BATCH_SIZE games, not only at the end (story 38.18): a pass interrupted halfway (a timeout,
+     * a worker restart) no longer loses all its work and sends the next one back to the same games.
+     * `$onProgress` is told the total, then the report so far after each saved batch.
+     *
+     * @param (\Closure(int, ApworldUpdateCheckReport): void)|null $onProgress
      */
-    public function checkAll(): ApworldUpdateCheckReport
+    public function checkAll(?\Closure $onProgress = null): ApworldUpdateCheckReport
     {
         $games = array_values(array_filter(
             $this->gameRepository->findAllSortedByName(),
@@ -46,8 +58,12 @@ final readonly class CheckApworldUpdatesService
         $failed = 0;
         $rateLimitHit = false;
         $updatesAvailable = [];
+        $total = \count($games);
+        if (null !== $onProgress) {
+            $onProgress($total, new ApworldUpdateCheckReport(0, false));
+        }
 
-        foreach ($games as $game) {
+        foreach ($games as $index => $game) {
             // Tried, whatever the outcome: a repository that always fails must not hold the head of the queue.
             $game->markApworldChecked($now);
             try {
@@ -74,6 +90,13 @@ final readonly class CheckApworldUpdatesService
                     'game' => $game->getName(),
                     'error' => $e->getMessage(),
                 ]);
+            }
+
+            if (0 === ($index + 1) % self::BATCH_SIZE) {
+                $this->gameRepository->flush();
+                if (null !== $onProgress) {
+                    $onProgress($total, new ApworldUpdateCheckReport($checked, $rateLimitHit, $updatesAvailable, $failed));
+                }
             }
         }
 
