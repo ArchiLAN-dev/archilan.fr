@@ -56,3 +56,15 @@ export const env = {
   // set it to verify via the meta-tag method without a code change.
   gscVerification: optionalString(process.env.NEXT_PUBLIC_GSC_VERIFICATION),
 } as const;
+
+/**
+ * Server-only settings: no `NEXT_PUBLIC_` prefix, so Next.js never inlines them in the client bundle, where
+ * they read as empty. Read at call time, from the running server's environment, not at build time.
+ */
+export const serverEnv = {
+  /**
+   * Story 34.10: the secret the API sends to `POST /api/revalidate`, the same value as the API's
+   * `REVALIDATE_SECRET`. Empty disables the route (503).
+   */
+  revalidateSecret: (): string => optionalString(process.env.REVALIDATE_SECRET),
+} as const;

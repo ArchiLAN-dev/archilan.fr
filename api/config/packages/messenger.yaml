@@ -46,6 +46,8 @@ framework:
             'App\Communications\Application\Message\EmailConfirmationMessage': async
             'App\Communications\Application\Message\SessionRunningMessage': async
             'App\Events\Application\Message\EventCapacityReachedMessage': async
+            # Story 34.10: the frontend is asked to drop the cache of a written event or post, after the commit.
+            'App\Shared\Application\Message\RevalidatePublicPagesJob': async
             'App\Payments\Application\Message\SyncHelloAssoFormMessage': async
             'App\Sessions\Application\Message\FetchLogsJob': run_server
             'App\Sessions\Application\Message\ArchiveRunJob': run_server
