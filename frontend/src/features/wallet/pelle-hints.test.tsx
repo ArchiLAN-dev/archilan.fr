@@ -4,12 +4,12 @@ import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { HintButton, HintConfirm } from "@/features/reachability/check-row";
-import { buyPelleHint, canAfford, fetchPelleHintTerms, sessionSlotUrl, type PelleHintTerms } from "./pelle-hints";
+import { buyPelleHint, canAfford, fetchPelleHintTerms, priceUnit, sessionSlotUrl, type PelleHintTerms } from "./pelle-hints";
 import { pelleReasonLabel } from "./wallet-api";
 
 const BASE = TEST_API_BASE_URL;
 
-const terms: PelleHintTerms = { enabled: true, itemPrice: 20, locationPrice: 10, eventBalance: 5, goldBalance: 12 };
+const terms: PelleHintTerms = { enabled: true, itemPrice: 20, locationPrice: 10, eventBalance: 5, bronzeBalance: null, goldBalance: 12 };
 
 /** Story 41.3: hints bought with pelles. */
 describe("pelle hints", () => {
@@ -18,6 +18,14 @@ describe("pelle hints", () => {
     expect(canAfford(terms, 20)).toBe(false);
     expect(canAfford({ ...terms, eventBalance: 25 }, 20)).toBe(true);
     expect(canAfford({ ...terms, eventBalance: null }, 12)).toBe(true);
+  });
+
+  test("on a private run, the run's bronze alone pays (story 41.38)", () => {
+    const run = { ...terms, eventBalance: null, bronzeBalance: 15, goldBalance: 500 };
+    expect(canAfford(run, 10)).toBe(true);
+    expect(canAfford(run, 20)).toBe(false);
+    expect(priceUnit(run)).toBe("pelles de bronze");
+    expect(priceUnit(terms)).toBe("pelles");
   });
 
   test("reads the terms of a slot", async () => {

@@ -21,8 +21,23 @@ interface PelleMovementRepositoryInterface
      */
     public function lockMember(string $userId): void;
 
-    /** The member's balance of one kind (and of one event, for event pelles). */
-    public function balance(string $userId, PelleKind $kind, ?string $eventId): int;
+    /** The member's balance of one kind (and of one event, for event pelles; of one run, for bronze). */
+    public function balance(string $userId, PelleKind $kind, ?string $eventId, ?string $runId = null): int;
+
+    /**
+     * Story 41.36: the positive bronze balances of a run, by member.
+     *
+     * @return array<string, int>
+     */
+    public function bronzeBalancesOfRun(string $runId): array;
+
+    /**
+     * Story 41.36: what the end of a run took from each member, and what its restorations gave back - totals and
+     * counts, never an order (the ledger's dates are to the second).
+     *
+     * @return array<string, array{burned: int, burns: int, restored: int, restores: int}>
+     */
+    public function bronzeBurnsOfRun(string $runId): array;
 
     public function findByUniqueKey(string $uniqueKey): ?PelleMovement;
 

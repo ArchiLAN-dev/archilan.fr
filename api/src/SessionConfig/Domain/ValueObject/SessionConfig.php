@@ -39,6 +39,9 @@ final readonly class SessionConfig
         $server['pelleItemHintPrice'] = $this->server->pelleItemHintPrice;
         $server['pelleLocationHintPrice'] = $this->server->pelleLocationHintPrice;
         $server['pelleBounties'] = $this->server->pelleBounties;
+        $server['bronzeStart'] = $this->server->bronzeStart;
+        $server['bronzePerCheck'] = $this->server->bronzePerCheck;
+        $server['bronzePerGoal'] = $this->server->bronzePerGoal;
 
         return [
             'server' => $server,
@@ -83,6 +86,10 @@ final readonly class SessionConfig
                 pelleItemHintPrice: self::optInt($server, 'pelleItemHintPrice') ?? SessionServerConfig::DEFAULT_PELLE_ITEM_HINT_PRICE,
                 pelleLocationHintPrice: self::optInt($server, 'pelleLocationHintPrice') ?? SessionServerConfig::DEFAULT_PELLE_LOCATION_HINT_PRICE,
                 pelleBounties: self::optBool($server, 'pelleBounties') ?? false,
+                // Optional too: a profile stored before story 41.36 carries none of them.
+                bronzeStart: self::optInt($server, 'bronzeStart') ?? SessionServerConfig::DEFAULT_BRONZE_START,
+                bronzePerCheck: self::optInt($server, 'bronzePerCheck') ?? SessionServerConfig::DEFAULT_BRONZE_PER_CHECK,
+                bronzePerGoal: self::optInt($server, 'bronzePerGoal') ?? SessionServerConfig::DEFAULT_BRONZE_PER_GOAL,
             ),
             new SessionGenerationConfig(
                 $plando,
@@ -214,6 +221,10 @@ final readonly class SessionConfig
                     // on the "private" profile (owners cannot change it, story 27.9).
                     autoShutdown: 1800,
                     compatibility: Compatibility::Casual,
+                    // Story 41.38: paid in the run's own bronze, hints and bounties cost a private run nothing
+                    // from the shop's gold - so they are on by default (Jean, 2026-10-18).
+                    pelleHints: true,
+                    pelleBounties: true,
                 ),
                 new SessionGenerationConfig([], false, SpoilerLevel::WithPaths),
             ),
@@ -260,6 +271,9 @@ final readonly class SessionConfig
                 pelleItemHintPrice: $o->pelleItemHintPrice ?? $this->server->pelleItemHintPrice,
                 pelleLocationHintPrice: $o->pelleLocationHintPrice ?? $this->server->pelleLocationHintPrice,
                 pelleBounties: $o->pelleBounties ?? $this->server->pelleBounties,
+                bronzeStart: $o->bronzeStart ?? $this->server->bronzeStart,
+                bronzePerCheck: $o->bronzePerCheck ?? $this->server->bronzePerCheck,
+                bronzePerGoal: $o->bronzePerGoal ?? $this->server->bronzePerGoal,
             ),
             new SessionGenerationConfig(
                 plandoOptions: $o->plandoOptions ?? $this->generation->plandoOptions,

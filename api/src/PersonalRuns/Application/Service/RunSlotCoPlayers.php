@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Application\Service;
 
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\PersonalRuns\Application\Port\RunBronzeInterface;
 use App\PersonalRuns\Application\Support\RunReadinessReader;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
@@ -40,6 +41,7 @@ final readonly class RunSlotCoPlayers
         private ClockInterface $clock,
         private LoggerInterface $logger,
         private RunReadinessReader $readiness,
+        private RunBronzeInterface $bronze,
     ) {
     }
 
@@ -106,6 +108,8 @@ final readonly class RunSlotCoPlayers
 
         $this->coPlayers->flush();
         $this->dropReadinessOfIdle($runId, array_values(array_diff($previous, $resolved['userIds'])));
+        // Story 41.37: a co-player joining a launched run gets its bronze start.
+        $this->bronze->reconcileLater($runId);
 
         // The facts change the moment the rows do, but achievements are granted by their own engine:
         // without this, someone added to a slot of an already finished run would wait for their next

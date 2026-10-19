@@ -9,7 +9,8 @@ use App\Wallet\Domain\Enum\PelleReason;
 
 /**
  * What a movement of the pelles ledger needs (story 41.1). `byAdmin` lets an admin act on a banned member
- * (AC4bis): nothing else may credit or debit a banned account.
+ * (AC4bis): nothing else may credit or debit a banned account. `runId` names the private run of a bronze movement
+ * (story 41.36).
  */
 final readonly class RecordPelleMovementInput
 {
@@ -23,6 +24,7 @@ final readonly class RecordPelleMovementInput
         public ?string $authorId,
         public ?string $uniqueKey,
         public bool $byAdmin = false,
+        public ?string $runId = null,
     ) {
     }
 }

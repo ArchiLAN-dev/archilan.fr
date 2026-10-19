@@ -14,7 +14,8 @@ import { PelleAmount, pellesLabel } from "./pelle-amount";
 /** Story 41.4: an open bounty of the session, as a player sees it. */
 export type ItemBounty = { id: string; slotName: string; itemName: string; amount: number; reward: number; mine: boolean };
 
-export type ItemBounties = { enabled: boolean; bounties: ItemBounty[] };
+/** `bronze` (story 41.39): the session belongs to a private run, its bounties hold the run's bronze. */
+export type ItemBounties = { enabled: boolean; bronze: boolean; bounties: ItemBounty[] };
 
 export const BOUNTY_MIN = 10;
 export const BOUNTY_MAX = 1000;
@@ -33,7 +34,7 @@ function isBounty(v: unknown): v is ItemBounty {
 }
 
 export function isItemBounties(v: unknown): v is ItemBounties {
-  return typeof v === "object" && v !== null && hasBooleanProp(v, "enabled") && "bounties" in v && Array.isArray(v.bounties) && v.bounties.every(isBounty);
+  return typeof v === "object" && v !== null && hasBooleanProp(v, "enabled") && hasBooleanProp(v, "bronze") && "bounties" in v && Array.isArray(v.bounties) && v.bounties.every(isBounty);
 }
 
 export async function fetchItemBounties(sessionId: string, slotIndex: string): Promise<ItemBounties | null> {
@@ -97,11 +98,14 @@ export function ItemBountiesPanel({ sessionId, slotIndex, missingItems }: { sess
   async function refresh(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: ["item-bounties", sessionId, slotIndex] });
     await queryClient.invalidateQueries({ queryKey: ["my-wallet"] });
+    // Story 41.39: a private run's bounty moves the run's bronze, shown in its own card.
+    if (data?.bronze) await queryClient.invalidateQueries({ queryKey: ["run-bronze"] });
   }
 
   return (
     <ItemBountiesView
       bounties={data.bounties}
+      bronze={data.bronze}
       missingItems={missingItems}
       onPost={async (itemName, amount, requestId) => {
         const error = await postItemBounty(sessionId, slotIndex, itemName, amount, requestId);
@@ -119,11 +123,14 @@ export function ItemBountiesPanel({ sessionId, slotIndex, missingItems }: { sess
 
 export function ItemBountiesView({
   bounties,
+  bronze = false,
   missingItems,
   onPost,
   onWithdraw,
 }: {
   bounties: ItemBounty[];
+  /** Story 41.39: the bounties of a private run hold its bronze, and say so. */
+  bronze?: boolean;
   missingItems: string[];
   onPost: (itemName: string, amount: number, requestId: string) => Promise<string | null>;
   onWithdraw: (bountyId: string) => Promise<string | null>;
@@ -136,6 +143,7 @@ export function ItemBountiesView({
   // One id per bounty, kept across a retry so a double submit holds the pelles once.
   const requestIdRef = useRef<string | null>(null);
 
+  const unit = bronze ? "pelles de bronze" : "pelles";
   const parsedAmount = Number.parseInt(amount, 10);
   const canPost = !pending && itemName !== "" && Number.isInteger(parsedAmount) && parsedAmount >= BOUNTY_MIN && parsedAmount <= BOUNTY_MAX;
 
@@ -148,7 +156,7 @@ export function ItemBountiesView({
       requestIdRef.current = null;
       setItemName("");
       setAmount("");
-      setMessage({ tone: "ok", text: "Prime posée : tes pelles sont mises de côté." });
+      setMessage({ tone: "ok", text: `Prime posée : tes ${unit} sont mises de côté.` });
     } else {
       setMessage({ tone: "error", text: error });
     }
@@ -225,7 +233,7 @@ export function ItemBountiesView({
           </label>
           <label className="grid gap-1 text-xs">
             <span className="text-muted-foreground">
-              Pelles ({BOUNTY_MIN} à {BOUNTY_MAX})
+              {bronze ? "Pelles de bronze" : "Pelles"} ({BOUNTY_MIN} à {BOUNTY_MAX})
             </span>
             <input className={`${fieldClass} w-24`} inputMode="numeric" max={BOUNTY_MAX} min={BOUNTY_MIN} onChange={(e) => setAmount(e.target.value)} type="number" value={amount} />
           </label>
@@ -242,11 +250,11 @@ export function ItemBountiesView({
       {message !== null ? <p className={`text-xs ${message.tone === "ok" ? "text-success" : "text-danger"}`}>{message.text}</p> : null}
 
       <ConfirmDialog
-        confirmLabel={confirming?.kind === "withdraw" ? "Retirer la prime" : `Offrir ${pellesLabel(parsedAmount || 0)}`}
+        confirmLabel={confirming?.kind === "withdraw" ? "Retirer la prime" : `Offrir ${pellesLabel(parsedAmount || 0)}${bronze ? " de bronze" : ""}`}
         description={
           confirming?.kind === "withdraw"
-            ? "Tes pelles te sont rendues en entier."
-            : "Tes pelles sont mises de côté dès maintenant et versées au joueur qui t'enverra l'objet."
+            ? `Tes ${unit} te sont rendues en entier.`
+            : `Tes ${unit} sont mises de côté dès maintenant et versées au joueur qui t'enverra l'objet.`
         }
         icon={confirming?.kind === "withdraw" ? Undo2 : Shovel}
         onConfirm={() => void confirm()}

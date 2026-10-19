@@ -20,7 +20,9 @@ final readonly class ItemBountiesQuery
     }
 
     /**
-     * @return array{enabled: bool, bounties: list<array{id: string, slotName: string, itemName: string, amount: int, reward: int, mine: bool}>}|null
+     * `bronze` (story 41.39): the session belongs to a private run, so a bounty posted there holds the run's bronze.
+     *
+     * @return array{enabled: bool, bronze: bool, bounties: list<array{id: string, slotName: string, itemName: string, amount: int, reward: int, mine: bool}>}|null
      */
     public function forSession(string $sessionId, string $viewerId): ?array
     {
@@ -41,6 +43,6 @@ final readonly class ItemBountiesQuery
             ];
         }
 
-        return ['enabled' => $terms['bounties'], 'bounties' => $bounties];
+        return ['enabled' => $terms['bounties'], 'bronze' => null !== $terms['runId'], 'bounties' => $bounties];
     }
 }

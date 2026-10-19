@@ -42,15 +42,35 @@ final readonly class DbalWalletQuery implements WalletQueryInterface
             ];
         }
 
-        $total = $this->connection->fetchOne('SELECT COUNT(*) FROM pelle_movement WHERE user_id = :userId', ['userId' => $userId]);
+        $bronzeRows = $this->connection->fetchAllAssociative(
+            'SELECT m.run_id, r.title, SUM(m.amount) AS balance
+               FROM pelle_movement m
+               JOIN run r ON r.id = m.run_id
+              WHERE m.user_id = :userId AND m.kind = :kind
+              GROUP BY m.run_id, r.title
+             HAVING SUM(m.amount) <> 0
+              ORDER BY r.title',
+            ['userId' => $userId, 'kind' => PelleKind::Bronze->value],
+        );
+        $bronze = [];
+        foreach ($bronzeRows as $row) {
+            $bronze[] = [
+                'runId' => $this->string($row['run_id']),
+                'runTitle' => $this->string($row['title']),
+                'balance' => $this->int($row['balance']),
+            ];
+        }
+
+        $notBronze = ['userId' => $userId, 'bronze' => PelleKind::Bronze->value];
+        $total = $this->connection->fetchOne('SELECT COUNT(*) FROM pelle_movement WHERE user_id = :userId AND kind <> :bronze', $notBronze);
         $rows = $this->connection->fetchAllAssociative(
             'SELECT m.id, m.amount, m.kind, m.event_id, e.title, m.reason, m.label, m.created_at
                FROM pelle_movement m
                LEFT JOIN event e ON e.id = m.event_id
-              WHERE m.user_id = :userId
+              WHERE m.user_id = :userId AND m.kind <> :bronze
               ORDER BY m.created_at DESC, m.id DESC
               LIMIT :limit OFFSET :offset',
-            ['userId' => $userId, 'limit' => self::PER_PAGE, 'offset' => ($page - 1) * self::PER_PAGE],
+            $notBronze + ['limit' => self::PER_PAGE, 'offset' => ($page - 1) * self::PER_PAGE],
             ['limit' => \Doctrine\DBAL\ParameterType::INTEGER, 'offset' => \Doctrine\DBAL\ParameterType::INTEGER],
         );
         $items = [];
@@ -71,6 +91,7 @@ final readonly class DbalWalletQuery implements WalletQueryInterface
         return [
             'gold' => $this->int($gold),
             'events' => $events,
+            'bronze' => $bronze,
             'history' => [
                 'items' => $items,
                 'page' => $page,

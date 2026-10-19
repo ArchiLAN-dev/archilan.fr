@@ -17,6 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(name: 'pelle_movement')]
 #[ORM\Index(name: 'idx_pelle_movement_user', columns: ['user_id', 'created_at'])]
+#[ORM\Index(name: 'idx_pelle_movement_run', columns: ['run_id', 'user_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_pelle_movement_key', columns: ['unique_key'])]
 final class PelleMovement
 {
@@ -44,6 +45,9 @@ final class PelleMovement
         private ?string $uniqueKey,
         #[ORM\Column(name: 'created_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $createdAt,
+        // Story 41.36: the private run a bronze movement belongs to.
+        #[ORM\Column(name: 'run_id', type: 'string', length: 32, nullable: true)]
+        private ?string $runId = null,
     ) {
     }
 
@@ -57,6 +61,7 @@ final class PelleMovement
         ?string $authorId,
         ?string $uniqueKey,
         \DateTimeImmutable $now,
+        ?string $runId = null,
     ): self {
         $label = trim($label);
         if (0 === $amount) {
@@ -65,11 +70,14 @@ final class PelleMovement
         if ((PelleKind::Event === $kind) !== (null !== $eventId)) {
             throw new InvalidPelleMovementException('pelle_event_mismatch');
         }
+        if ((PelleKind::Bronze === $kind) !== (null !== $runId)) {
+            throw new InvalidPelleMovementException('pelle_run_mismatch');
+        }
         if ('' === $label || mb_strlen($label) > self::LABEL_MAX_LENGTH) {
             throw new InvalidPelleMovementException('pelle_label_invalid');
         }
 
-        return new self(bin2hex(random_bytes(16)), $userId, $amount, $kind, $eventId, $reason, $label, $authorId, $uniqueKey, $now);
+        return new self(bin2hex(random_bytes(16)), $userId, $amount, $kind, $eventId, $reason, $label, $authorId, $uniqueKey, $now, $runId);
     }
 
     public function isSpend(): bool
@@ -100,6 +108,11 @@ final class PelleMovement
     public function getEventId(): ?string
     {
         return $this->eventId;
+    }
+
+    public function getRunId(): ?string
+    {
+        return $this->runId;
     }
 
     public function getReason(): PelleReason
