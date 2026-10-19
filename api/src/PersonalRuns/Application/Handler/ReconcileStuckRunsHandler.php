@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Application\Handler;
 
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
+use App\PersonalRuns\Application\Port\RunBronzeInterface;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Entity\Session;
@@ -24,6 +25,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  *      run starting  → draft (la génération a échoué, le proprio peut refaire) ;
  *      run stopping/restarting → idle (markStopped) ;
  *  - session encore transitoire → on attend (son watchdog la résoudra, la run suivra au prochain tour).
+ *
+ * Story 41.39 : une run ramenée à active ou terminée par ce filet voit aussi son bronze réconcilié (départ donné,
+ * ou bronze brûlé), comme quand elle y arrive par le chemin normal.
  */
 #[AsMessageHandler]
 final readonly class ReconcileStuckRunsHandler
@@ -41,6 +45,7 @@ final readonly class ReconcileStuckRunsHandler
         private SessionRepositoryInterface $sessions,
         private LoggerInterface $logger,
         private ClockInterface $clock,
+        private RunBronzeInterface $bronze,
     ) {
     }
 
@@ -51,6 +56,7 @@ final readonly class ReconcileStuckRunsHandler
         $candidates = $this->runs->findByStatuses(Run::STUCK_STATUSES);
 
         $reconciled = 0;
+        $bronzeToReconcile = [];
 
         foreach ($candidates as $run) {
             if (!$run->isStuck($now)) {
@@ -84,6 +90,10 @@ final readonly class ReconcileStuckRunsHandler
                 continue;
             }
 
+            if (\in_array($to, [Run::STATUS_ACTIVE, Run::STATUS_COMPLETED], true)) {
+                $bronzeToReconcile[] = $run->getId();
+            }
+
             $this->logger->warning('personal_run.reconcile.stuck', [
                 'runId' => $run->getId(),
                 'from' => $from,
@@ -97,6 +107,10 @@ final readonly class ReconcileStuckRunsHandler
         if ($reconciled > 0) {
             $this->runs->flush();
             $this->logger->info('personal_run.reconcile.done', ['reconciled' => $reconciled]);
+        }
+        // After the commit, as every other path that moves a run's bronze.
+        foreach ($bronzeToReconcile as $runId) {
+            $this->bronze->reconcileLater($runId);
         }
     }
 }

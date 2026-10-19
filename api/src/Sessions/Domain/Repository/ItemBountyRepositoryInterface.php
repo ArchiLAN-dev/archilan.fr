@@ -29,4 +29,11 @@ interface ItemBountyRepositoryInterface
     public function findOpenOfEndedSessions(): array;
 
     public function save(ItemBounty $bounty): void;
+
+    /**
+     * Story 41.39: locks the bounty's row for the current transaction and says whether it is still open. Called by
+     * whatever settles a bounty, inside the transaction of its movement: a second settlement running at the same
+     * time waits for the first, then finds the bounty closed and rolls back, instead of paying it a second time.
+     */
+    public function claimOpen(string $bountyId): bool;
 }

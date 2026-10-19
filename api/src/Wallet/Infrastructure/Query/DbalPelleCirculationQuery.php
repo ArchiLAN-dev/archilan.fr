@@ -7,6 +7,8 @@ namespace App\Wallet\Infrastructure\Query;
 use App\Shared\Application\Support\StatsPeriod;
 use App\Wallet\Application\Query\PelleCirculationQueryInterface;
 use App\Wallet\Domain\Enum\PelleKind;
+use App\Wallet\Domain\Enum\PelleReason;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalPelleCirculationQuery implements PelleCirculationQueryInterface
@@ -58,7 +60,27 @@ final readonly class DbalPelleCirculationQuery implements PelleCirculationQueryI
             $byReason[] = ['reason' => $this->string($row['reason']), 'created' => $this->int($row['created']), 'destroyed' => $this->int($row['destroyed'])];
         }
 
+        $bronze = $this->connection->fetchAssociative(
+            'SELECT COALESCE(SUM(amount) FILTER (WHERE reason IN (:earned)), 0) AS created,
+                    COALESCE(-SUM(amount) FILTER (WHERE reason IN (:spending)), 0) AS spent,
+                    COALESCE(-SUM(amount) FILTER (WHERE reason IN (:burning)), 0) AS burned
+               FROM pelle_movement
+              WHERE kind = :kind AND created_at >= :start AND created_at < :end',
+            [
+                'kind' => PelleKind::Bronze->value, 'start' => $start, 'end' => $end,
+                'earned' => [PelleReason::BronzeStart->value, PelleReason::BronzeCheck->value, PelleReason::BronzeGoal->value],
+                'spending' => [PelleReason::HintPurchase->value, PelleReason::HintRefund->value, PelleReason::BountyEscrow->value, PelleReason::BountyRefund->value, PelleReason::BountyReward->value],
+                'burning' => [PelleReason::BronzeExpired->value, PelleReason::BronzeRestored->value],
+            ],
+            ['earned' => ArrayParameterType::STRING, 'spending' => ArrayParameterType::STRING, 'burning' => ArrayParameterType::STRING],
+        );
+
         return [
+            'bronze' => [
+                'created' => $this->int($bronze['created'] ?? null),
+                'spent' => $this->int($bronze['spent'] ?? null),
+                'burned' => $this->int($bronze['burned'] ?? null),
+            ],
             'goldInCirculation' => $this->int($inCirculation),
             'created' => $this->trend($period, $created, $this->int($previous['created'] ?? null)),
             'destroyed' => $this->trend($period, $destroyed, $this->int($previous['destroyed'] ?? null)),

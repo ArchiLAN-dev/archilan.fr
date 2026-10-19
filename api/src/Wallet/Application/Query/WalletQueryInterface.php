@@ -10,11 +10,14 @@ interface WalletQueryInterface
 
     /**
      * A member's wallet (story 41.1 AC5): the gold balance, the balance of each event they hold pelles for
-     * (empty ones left out), and one page of the history, newest first.
+     * (empty ones left out), and one page of the history, newest first. Story 41.38: the bronze of each private run
+     * they hold some in (an ended run's is burned, so left out); the history stays gold and event pelles, a run's
+     * bronze has its own (RunBronzeQueryInterface).
      *
      * @return array{
      *     gold: int,
      *     events: list<array{eventId: string, eventTitle: string, balance: int}>,
+     *     bronze: list<array{runId: string, runTitle: string, balance: int}>,
      *     history: array{
      *         items: list<array{id: string, amount: int, kind: string, eventId: string|null, eventTitle: string|null, reason: string, label: string, createdAt: string}>,
      *         page: int,
