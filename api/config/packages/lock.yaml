@@ -1,0 +1,4 @@
+framework:
+    # Story 9.57: the rate limiters count under a lock. A single api-web container per host, so a local
+    # flock is enough; a second host would need a shared store (postgresql+advisory://...).
+    lock: flock

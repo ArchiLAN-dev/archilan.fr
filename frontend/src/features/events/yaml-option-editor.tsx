@@ -1,8 +1,8 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Download, Info, Plus, X } from "lucide-react";
+import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Download, FlaskConical, Info, Plus, Upload, X } from "lucide-react";
 
 import {
   RANDOM_ALIASES,
@@ -35,6 +35,8 @@ import {
 } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
 import { LocationAutocompleteInput } from "@/features/events/location-autocomplete-input";
+import { YamlImportDialog } from "@/features/events/yaml-import-dialog";
+import { GameYamlTestOutcome, useGameYamlTest } from "@/features/games/game-yaml-test";
 
 /** YAML options whose list items are location names -> get the static-location autocomplete (story 4.14). */
 const LOCATION_OPTION_KEYS = new Set(["priority_locations", "exclude_locations", "start_location_hints"]);
@@ -73,6 +75,8 @@ type YamlOptionEditorProps = {
   onSaved?: (slotId: string) => void;
   saveUrl?: string;
   onChange?: (yaml: string) => void;
+  /** Story 9.57: the game being configured, for the test generation of the YAML shown. */
+  gameId?: string;
 };
 
 /**
@@ -97,6 +101,7 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
       onSaved,
       saveUrl,
       onChange,
+      gameId,
     },
     ref,
   ) {
@@ -115,6 +120,8 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
   const [boundsErrors, setBoundsErrors] = useState<OutOfBoundsRange[]>([]);
   // Keys of options flagged invalid on the last save attempt (highlighted in red).
   const [invalidKeys, setInvalidKeys] = useState<Set<string>>(new Set());
+  const [importOpen, setImportOpen] = useState(false);
+  const yamlTest = useGameYamlTest(gameId);
 
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => {
     const base = parseDefaultYaml(defaultYaml ?? "", optionTypes);
@@ -142,6 +149,21 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
   function markDirty() {
     if (slotId) onDirty?.(slotId);
     setPanelSave({ kind: "idle" });
+    yamlTest.reset();
+  }
+
+  // Story 9.57: what an import is checked against and applied over - the game's defaults, not the current
+  // edits, so the imported file says the whole config.
+  const importBase = useMemo(() => parseDefaultYaml(defaultYaml ?? "", optionTypes), [defaultYaml, optionTypes]);
+
+  function applyImport(imported: ParsedYaml) {
+    setParsed(imported);
+    setNameError(slotNameError(imported.playerName));
+    setZeroWeightLabels([]);
+    setBoundsErrors([]);
+    setInvalidKeys(new Set());
+    onChange?.(serializeToYaml(imported));
+    markDirty();
   }
 
   function updateOption(updated: GameOption) {
@@ -440,8 +462,41 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
             <Download aria-hidden="true" className="size-4" />
             Exporter en YAML
           </button>
+          {effectivelyOpen && parsed !== null && importBase !== null ? (
+            <button
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent sm:w-auto"
+              type="button"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload aria-hidden="true" className="size-4" />
+              Importer un YAML
+            </button>
+          ) : null}
+          {gameId !== undefined ? (
+            <button
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              disabled={yamlTest.busy}
+              type="button"
+              onClick={() => { void yamlTest.start(parsed ? serializeToYaml(parsed) : rawYaml); }}
+            >
+              <FlaskConical aria-hidden="true" className="size-4" />
+              Tester la génération
+            </button>
+          ) : null}
         </div>
+        <GameYamlTestOutcome state={yamlTest.state} />
       </div>
+
+      {importBase !== null && importOpen ? (
+        <YamlImportDialog
+          base={importBase}
+          gameId={gameId}
+          locationNames={locationNames}
+          open={importOpen}
+          onApply={applyImport}
+          onClose={() => setImportOpen(false)}
+        />
+      ) : null}
     </div>
   );
 });

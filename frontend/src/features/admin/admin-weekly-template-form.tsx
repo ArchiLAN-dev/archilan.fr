@@ -269,6 +269,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
             key={yamlEditorKey}
             ref={yamlEditorRef}
             defaultYaml={defaultYaml}
+            gameId={gameId || undefined}
             locationNames={locationNames}
             optionTypes={optionTypes}
             playerYaml={initialTemplateYaml}

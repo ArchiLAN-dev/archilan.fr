@@ -183,6 +183,7 @@ export function SlotYamlGate({
 
       <YamlOptionEditor
         defaultYaml={data.game.defaultYaml}
+        gameId={data.game.id}
         locationNames={data.game.locationNames}
         optionTypes={data.game.optionTypes}
         playerYaml={data.slot.playerYaml}
