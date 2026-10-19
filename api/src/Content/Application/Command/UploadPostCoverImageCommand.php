@@ -11,6 +11,7 @@ use App\Content\Domain\Repository\PostRepositoryInterface;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
+use App\Shared\Application\Support\PublicPagesRevalidation;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -24,6 +25,7 @@ final readonly class UploadPostCoverImageCommand
         private ClockInterface $clock,
         private PublicMediaUrlResolver $publicMedia,
         private LoggerInterface $logger,
+        private PublicPagesRevalidation $publicPages,
     ) {
     }
 
@@ -55,6 +57,7 @@ final readonly class UploadPostCoverImageCommand
 
         $post->attachCoverImage($key, $this->clock->now());
         $this->postRepository->save($post);
+        $this->publicPages->postChanged($post->getSlug());
 
         return $this->adminPostCatalog->get($postId);
     }

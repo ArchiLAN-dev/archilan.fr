@@ -4,6 +4,15 @@ import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards"
 import type { PublicEvent } from "./event-types";
 import { eventDate, eventStatusAt } from "./event-schedule";
 
+/**
+ * Story 34.10: cache tags of the public event reads. The API asks the frontend to revalidate them when an
+ * event is written (`POST /api/revalidate`), so a published event shows at once instead of after five minutes.
+ */
+export const EVENTS_TAG = "events";
+export function eventTag(eventId: string): string {
+  return `event:${eventId}`;
+}
+
 type PublicEventPayload = {
   id: string;
   title: string;
@@ -29,9 +38,10 @@ type PublicEventPayload = {
 
 export async function getPublicEvents(): Promise<{ upcoming: PublicEvent[]; past: PublicEvent[] }> {
   try {
-    // ISR: cache for 5 min so listing/home pages can be statically served (story 34.4).
+    // ISR: cache for 5 min so listing/home pages can be statically served (story 34.4). The tag lets the API
+    // drop it as soon as an event is written (story 34.10).
     const response = await apiFetch(`${env.apiBaseUrl}/events`, {
-      next: { revalidate: 300 },
+      next: { revalidate: 300, tags: [EVENTS_TAG] },
     });
 
     if (!response.ok) {
@@ -57,7 +67,7 @@ export async function getPublicEvents(): Promise<{ upcoming: PublicEvent[]; past
 export async function getPublicEvent(eventId: string): Promise<PublicEvent | null> {
   try {
     const response = await apiFetch(`${env.apiBaseUrl}/events/${eventId}`, {
-      next: { revalidate: 300 },
+      next: { revalidate: 300, tags: [EVENTS_TAG, eventTag(eventId)] },
     });
 
     if (!response.ok) {

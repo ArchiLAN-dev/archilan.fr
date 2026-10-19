@@ -11,6 +11,7 @@ use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Application\Exception\ValidationException;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
+use App\Shared\Application\Support\PublicPagesRevalidation;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Log\LoggerInterface;
 
@@ -24,6 +25,7 @@ final readonly class ManageEventGalleryCommand
         private AdminEventDrafts $adminEventDrafts,
         private PublicMediaUrlResolver $publicMedia,
         private LoggerInterface $logger,
+        private PublicPagesRevalidation $publicPages,
     ) {
     }
 
@@ -59,6 +61,7 @@ final readonly class ManageEventGalleryCommand
 
         $event->appendGalleryUpload($key);
         $this->eventRepository->save($event);
+        $this->publicPages->eventChanged($eventId);
 
         return $this->adminEventDrafts->get($eventId);
     }
@@ -78,5 +81,6 @@ final readonly class ManageEventGalleryCommand
         }
 
         $this->eventRepository->save($event);
+        $this->publicPages->eventChanged($eventId);
     }
 }

@@ -16,9 +16,13 @@ export type PelleMovement = {
 
 export type EventPelleBalance = { eventId: string; eventTitle: string; balance: number };
 
+/** Story 41.38: the bronze of one private run, kept apart from gold and burned when the run ends. */
+export type RunBronzeBalance = { runId: string; runTitle: string; balance: number };
+
 export type Wallet = {
   gold: number;
   events: EventPelleBalance[];
+  bronze: RunBronzeBalance[];
   history: { items: PelleMovement[]; page: number; perPage: number; total: number };
 };
 
@@ -51,6 +55,11 @@ export const PELLE_REASON_LABELS: Record<string, string> = {
   shop_purchase: "Achat en boutique",
   welcome_reward: "Premiers pas",
   collection_reward: "Collection complète",
+  bronze_start: "Départ de la partie",
+  bronze_check: "Checks",
+  bronze_goal: "Objectif atteint",
+  bronze_expired: "Fin de la partie",
+  bronze_restored: "Partie reprise",
 };
 
 export function pelleReasonLabel(reason: string): string {
@@ -73,6 +82,10 @@ function isMovement(v: unknown): v is PelleMovement {
   );
 }
 
+function isRunBronze(v: unknown): v is RunBronzeBalance {
+  return typeof v === "object" && v !== null && hasStringProp(v, "runId") && hasStringProp(v, "runTitle") && hasNumberProp(v, "balance");
+}
+
 function isEventBalance(v: unknown): v is EventPelleBalance {
   return (
     typeof v === "object" &&
@@ -86,6 +99,7 @@ function isEventBalance(v: unknown): v is EventPelleBalance {
 export function isWallet(v: unknown): v is Wallet {
   if (typeof v !== "object" || v === null || !hasNumberProp(v, "gold")) return false;
   if (!("events" in v) || !Array.isArray(v.events) || !v.events.every(isEventBalance)) return false;
+  if (!("bronze" in v) || !Array.isArray(v.bronze) || !v.bronze.every(isRunBronze)) return false;
   if (!("history" in v) || typeof v.history !== "object" || v.history === null) return false;
   const history = v.history;
   return (

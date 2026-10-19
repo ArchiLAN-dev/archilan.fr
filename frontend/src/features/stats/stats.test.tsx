@@ -72,6 +72,7 @@ const pelles: PelleStats = {
   created: trend([0, 0, 0, 100], 7),
   destroyed: trend([0, 0, 0, 40], 0),
   byReason: [{ reason: "admin_credit", created: 100, destroyed: 0 }],
+  bronze: { created: 30, spent: 5, burned: 25 },
 };
 
 /** Story 42.1: the admin statistics page. */

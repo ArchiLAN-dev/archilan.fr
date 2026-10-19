@@ -19,6 +19,13 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
     // Older than the longest stuck threshold (STARTING = 30 min) so every transitional run counts.
     private const string OLD = '-40 minutes';
 
+    private SpyRunBronze $bronze;
+
+    protected function setUp(): void
+    {
+        $this->bronze = new SpyRunBronze();
+    }
+
     public function testStuckStoppingWithResolvedSessionGoesIdle(): void
     {
         $run = $this->makeStuckRun(Run::STATUS_STOPPING);
@@ -27,6 +34,7 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
         $this->handle($run, $session);
 
         self::assertSame(Run::STATUS_IDLE, $run->getStatus());
+        self::assertSame([], $this->bronze->reconciled, 'a paused run keeps its bronze as it is');
     }
 
     /**
@@ -41,6 +49,7 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
         $this->handle($run, $session);
 
         self::assertSame(Run::STATUS_COMPLETED, $run->getStatus());
+        self::assertSame([$run->getId()], $this->bronze->reconciled, 'story 41.39: a run completed here burns its bronze');
     }
 
     public function testStuckStoppingWithRunningSessionGoesActive(): void
@@ -51,6 +60,7 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
         $this->handle($run, $session);
 
         self::assertSame(Run::STATUS_ACTIVE, $run->getStatus());
+        self::assertSame([$run->getId()], $this->bronze->reconciled, 'story 41.39: a run running again gets its start');
     }
 
     public function testStuckStartingWithFailedSessionResetsToDraft(): void
@@ -61,6 +71,7 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
         $this->handle($run, $session);
 
         self::assertSame(Run::STATUS_DRAFT, $run->getStatus());
+        self::assertSame([], $this->bronze->reconciled, 'story 41.39: a run back to draft gets no start');
     }
 
     public function testStuckStoppingWithMissingSessionGoesIdle(): void
@@ -101,7 +112,7 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
         $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
-        (new ReconcileStuckRunsHandler($runs, $sessions, new NullLogger(), new MockClock()))(new ReconcileStuckRunsMessage());
+        (new ReconcileStuckRunsHandler($runs, $sessions, new NullLogger(), new MockClock(), $this->bronze))(new ReconcileStuckRunsMessage());
     }
 
     private function makeStuckRun(string $status): Run

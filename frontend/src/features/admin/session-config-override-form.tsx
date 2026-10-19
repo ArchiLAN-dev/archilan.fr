@@ -40,7 +40,10 @@ type FieldDef =
   | { key: string; label: string; section: string; kind: "text"; fallback: string }
   | { key: string; label: string; section: string; kind: "plando"; fallback: string[] };
 
-const SECTION_ORDER = ["Échanges d'objets", "Indices & score", "Indices contre pelles", "Salle & partie", "Génération"] as const;
+const SECTION_ORDER = ["Échanges d'objets", "Indices & score", "Indices contre pelles", "Pelles de bronze", "Salle & partie", "Génération"] as const;
+
+// Story 41.36: the bronze pelles exist in private runs only.
+const BRONZE_KEYS: readonly string[] = ["bronzeStart", "bronzePerCheck", "bronzePerGoal"];
 
 // A run-specific join password proposed when the override is enabled (admins/owners can edit it).
 function randomPassword(): string {
@@ -69,6 +72,9 @@ const FIELDS: FieldDef[] = [
   { key: "pelleItemHintPrice", label: "Prix d'un indice d'objet (pelles)", section: "Indices contre pelles", kind: "int", min: 1, max: 1000, fallback: 20 },
   { key: "pelleLocationHintPrice", label: "Prix d'un indice de lieu (pelles)", section: "Indices contre pelles", kind: "int", min: 1, max: 1000, fallback: 10 },
   { key: "pelleBounties", label: "Primes en pelles sur les objets", section: "Indices contre pelles", kind: "bool", fallback: false },
+  { key: "bronzeStart", label: "Bronze au lancement (0 coupe ce gain)", section: "Pelles de bronze", kind: "int", min: 0, max: 1000, fallback: 20 },
+  { key: "bronzePerCheck", label: "Bronze par check (0 coupe ce gain)", section: "Pelles de bronze", kind: "int", min: 0, max: 1000, fallback: 1 },
+  { key: "bronzePerGoal", label: "Bronze au goal (0 coupe ce gain)", section: "Pelles de bronze", kind: "int", min: 0, max: 1000, fallback: 25 },
   { key: "countdownMode", label: "Compte à rebours (!countdown)", section: "Salle & partie", kind: "select", options: COUNTDOWN_MODES, labels: CD, fallback: "auto" },
   { key: "disableItemCheat", label: "Interdire la triche d'objets (!getitem)", section: "Salle & partie", kind: "bool", fallback: true },
   { key: "compatibility", label: "Compatibilité", section: "Salle & partie", kind: "intselect", options: COMPATIBILITY_VALUES, labels: COMPAT, fallback: 2 },
@@ -96,14 +102,17 @@ export function SessionConfigOverrideForm({
   adapter,
   scopeLabel,
   lockedKeys = [],
+  showBronze = false,
 }: {
   adapter: OverrideAdapter;
   scopeLabel: string;
+  // Story 41.36: the bronze settings, for a private run only.
+  showBronze?: boolean;
   // Field keys the current scope may not override (e.g. autoShutdown for private-run owners - it is
   // locked to the admin "private" type profile). Hidden entirely; the server is the authoritative gate.
   lockedKeys?: readonly string[];
 }) {
-  const fields = FIELDS.filter((f) => !lockedKeys.includes(f.key));
+  const fields = FIELDS.filter((f) => !lockedKeys.includes(f.key) && (showBronze || !BRONZE_KEYS.includes(f.key)));
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: adapter.queryKey,
@@ -173,7 +182,7 @@ export function SessionConfigOverrideForm({
       const next = { ...(d ?? {}) };
       if (on) {
         // Propose a fresh random password when overriding the join password.
-        next[field.key] = field.key === "joinPassword" ? randomPassword() : field.fallback;
+        next[field.key] = field.key === "joinPassword" ? randomPassword() : initialOverrideValue(field, profileValues);
       } else {
         delete next[field.key];
       }
@@ -325,6 +334,14 @@ function OverrideControl({ field, value, onChange }: { field: FieldDef; value: O
   );
 }
 
+/**
+ * Story 41.39: the value a field starts from when it is ticked for overriding - the one it inherits, so ticking the
+ * box changes nothing until the value itself is changed. The field's fallback only when the profile is not known.
+ */
+export function initialOverrideValue(field: Pick<FieldDef, "key" | "fallback">, profileValues: Record<string, OverrideValue> | null): OverrideValue {
+  return profileValues?.[field.key] ?? field.fallback;
+}
+
 // Flatten the resolved profile (nested server/generation) into the flat field-keyed shape.
 function flattenProfile(c: SessionConfig): Record<string, OverrideValue> {
   return {
@@ -342,6 +359,9 @@ function flattenProfile(c: SessionConfig): Record<string, OverrideValue> {
     pelleItemHintPrice: c.server.pelleItemHintPrice,
     pelleLocationHintPrice: c.server.pelleLocationHintPrice,
     pelleBounties: c.server.pelleBounties,
+    bronzeStart: c.server.bronzeStart,
+    bronzePerCheck: c.server.bronzePerCheck,
+    bronzePerGoal: c.server.bronzePerGoal,
     plandoOptions: c.generation.plandoOptions,
     race: c.generation.race,
     spoiler: c.generation.spoiler,

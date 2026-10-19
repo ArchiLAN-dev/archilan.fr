@@ -15,6 +15,8 @@ export type PelleHintTerms = {
   locationPrice: number;
   /** The event's pelles, on an event session only. */
   eventBalance: number | null;
+  /** Story 41.38: the run's bronze, on a private run only - and then the only balance that pays. */
+  bronzeBalance: number | null;
   goldBalance: number;
 };
 
@@ -28,6 +30,7 @@ export function isPelleHintTerms(v: unknown): v is PelleHintTerms {
     hasNumberProp(v, "itemPrice") &&
     hasNumberProp(v, "locationPrice") &&
     hasNullableNumberProp(v, "eventBalance") &&
+    hasNullableNumberProp(v, "bronzeBalance") &&
     hasNumberProp(v, "goldBalance")
   );
 }
@@ -58,9 +61,15 @@ export async function buyPelleHint(slotUrl: string, target: PelleHintTarget, req
   if (!res.ok) throw new Error(`pelle hint failed: ${res.status}`);
 }
 
-/** Can the member pay this price, with the event's pelles or with gold pelles? */
+/** Can the member pay this price: with the run's bronze on a private run, else with the event's pelles or gold? */
 export function canAfford(terms: PelleHintTerms, price: number): boolean {
+  if (terms.bronzeBalance !== null) return terms.bronzeBalance >= price;
   return (terms.eventBalance ?? 0) >= price || terms.goldBalance >= price;
+}
+
+/** How the price reads on the button. */
+export function priceUnit(terms: PelleHintTerms): string {
+  return terms.bronzeBalance !== null ? "pelles de bronze" : "pelles";
 }
 
 /**
@@ -90,13 +99,15 @@ export function usePelleHintOffers(slotUrl: string | null): {
     } finally {
       await queryClient.invalidateQueries({ queryKey: ["pelle-hint-terms", slotUrl] });
       await queryClient.invalidateQueries({ queryKey: ["my-wallet"] });
+      await queryClient.invalidateQueries({ queryKey: ["run-bronze"] });
     }
   }
 
   return {
-    item: { price: data.itemPrice, affordable: canAfford(data, data.itemPrice), onBuy: (itemName) => buy({ kind: "item", itemName }) },
+    item: { price: data.itemPrice, unit: priceUnit(data), affordable: canAfford(data, data.itemPrice), onBuy: (itemName) => buy({ kind: "item", itemName }) },
     location: {
       price: data.locationPrice,
+      unit: priceUnit(data),
       affordable: canAfford(data, data.locationPrice),
       onBuy: (locationId) => buy({ kind: "location", locationId }),
     },

@@ -33,6 +33,7 @@ final readonly class RecordSlotGoal
         private SessionSlotRepositoryInterface $slots,
         private LoggerInterface $logger,
         private MessageBusInterface $messageBus,
+        private CreditRunBronze $creditBronze,
     ) {
     }
 
@@ -70,6 +71,10 @@ final readonly class RecordSlotGoal
         // no-op - not just for the goal instant (SessionSlot::recordGoal() guards that too)
         // but for the progress counters as well. Keep the early return.
         if (null !== $slot->getGoalReachedAt()) {
+            // Story 41.39: except for the goal's bronze, keyed per player: a credit that failed the first time
+            // is tried again, one that succeeded is not paid twice.
+            $this->creditGoalBronze($sessionId, $slotName);
+
             return null;
         }
 
@@ -84,6 +89,18 @@ final readonly class RecordSlotGoal
             $this->logger->warning('friend_activity.dispatch_failed', ['sessionId' => $sessionId, 'error' => $e->getMessage()]);
         }
 
+        // Story 41.37: on a private run, the slot's players earn the goal's bronze. Best-effort too.
+        $this->creditGoalBronze($sessionId, $slotName);
+
         return null;
+    }
+
+    private function creditGoalBronze(string $sessionId, string $slotName): void
+    {
+        try {
+            $this->creditBronze->onGoal($sessionId, $slotName);
+        } catch (\Throwable $e) {
+            $this->logger->error('sessions.bronze.goal_failed', ['sessionId' => $sessionId, 'error' => $e->getMessage()]);
+        }
     }
 }
