@@ -8,6 +8,7 @@ import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { GameYamlTestOutcome, useGameYamlTest } from "@/features/games/game-yaml-test";
 import { checkImportedYaml, IMPORT_MAX_BYTES, type ImportIssue } from "@/lib/archipelago-yaml-import";
 import { serializeToYaml, type ParsedYaml } from "@/lib/archipelago-yaml";
+import type { ItemCatalog } from "@/lib/item-catalog";
 
 type Props = {
   open: boolean;
@@ -15,6 +16,8 @@ type Props = {
   /** The game's default YAML, parsed with its option types: what the import is checked against and applied over. */
   base: ParsedYaml;
   locationNames?: readonly string[] | null;
+  /** Story 9.58: the game's items, to flag an item name it does not declare. */
+  itemCatalog?: ItemCatalog | null;
   /** When known, the checked YAML can be test-generated before it is applied. */
   gameId?: string;
   onApply: (parsed: ParsedYaml) => void;
@@ -24,7 +27,7 @@ type Props = {
  * Story 9.57: import a YAML written elsewhere into the option editor. The text is checked as it is typed or
  * loaded, and only a YAML without error can be applied; nothing is saved until the editor is.
  */
-export function YamlImportDialog({ open, onClose, base, locationNames, gameId, onApply }: Props) {
+export function YamlImportDialog({ open, onClose, base, locationNames, itemCatalog, gameId, onApply }: Props) {
   return (
     <Dialog
       description={`Un fichier .yaml ou un texte collé, pour ${base.gameName}. Les options absentes du fichier gardent leur valeur par défaut.`}
@@ -33,19 +36,19 @@ export function YamlImportDialog({ open, onClose, base, locationNames, gameId, o
       size="wide"
       title="Importer un YAML"
     >
-      <ImportForm base={base} gameId={gameId} locationNames={locationNames} onApply={onApply} onClose={onClose} />
+      <ImportForm base={base} gameId={gameId} itemCatalog={itemCatalog} locationNames={locationNames} onApply={onApply} onClose={onClose} />
     </Dialog>
   );
 }
 
-function ImportForm({ base, locationNames, gameId, onApply, onClose }: Omit<Props, "open">) {
+function ImportForm({ base, locationNames, itemCatalog, gameId, onApply, onClose }: Omit<Props, "open">) {
   const [text, setText] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
   const test = useGameYamlTest(gameId);
 
   const check = useMemo(
-    () => (text.trim() === "" ? null : checkImportedYaml(text, base, { locationNames })),
-    [text, base, locationNames],
+    () => (text.trim() === "" ? null : checkImportedYaml(text, base, { locationNames, itemCatalog })),
+    [text, base, locationNames, itemCatalog],
   );
   const result = check?.result ?? null;
 

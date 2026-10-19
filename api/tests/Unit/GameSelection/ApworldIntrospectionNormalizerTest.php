@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\GameSelection;
 
 use App\GameSelection\Application\Support\ApworldIntrospectionNormalizer;
+use App\GameSelection\Domain\Entity\Game;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -73,5 +74,30 @@ final class ApworldIntrospectionNormalizerTest extends TestCase
     {
         self::assertSame(['Castle Ramparts Chest', 'Spawn'], ApworldIntrospectionNormalizer::locationNames(['Castle Ramparts Chest', '', 42, null, 'Spawn']));
         self::assertSame([], ApworldIntrospectionNormalizer::locationNames('not-a-list'));
+    }
+
+    /** Story 9.58: whatever the orchestrator answers about items reads as names only, or as none. */
+    public function testItemsKeepOnlyNames(): void
+    {
+        self::assertSame(
+            ['items' => ['A', 'B'], 'groups' => ['G' => ['A']]],
+            ApworldIntrospectionNormalizer::items(['items' => ['A', 1, '', 'B'], 'groups' => ['G' => ['A', 2], 'Empty' => [], '' => ['A'], 'Bad' => 'A']]),
+        );
+        self::assertSame(['items' => [], 'groups' => []], ApworldIntrospectionNormalizer::items([]));
+        self::assertSame(['items' => [], 'groups' => []], ApworldIntrospectionNormalizer::items(null));
+    }
+
+    /** Story 9.58: no items known is stored as null, like the locations; groups without items mean nothing. */
+    public function testAGameStoresNoItemsAsNull(): void
+    {
+        $game = Game::create('Hollow Knight', 'hollow-knight', '', null, '', '', 'available', new \DateTimeImmutable());
+
+        $game->recordItemNames([], ['Dreamers' => ['Lurien']]);
+        self::assertNull($game->getItemNames());
+        self::assertNull($game->getItemGroups());
+
+        $game->recordItemNames(['Lurien'], []);
+        self::assertSame(['Lurien'], $game->getItemNames());
+        self::assertNull($game->getItemGroups());
     }
 }

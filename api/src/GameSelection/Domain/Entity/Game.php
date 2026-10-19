@@ -117,6 +117,21 @@ final class Game
          */
         #[ORM\Column(name: 'location_names', type: 'json', nullable: true)]
         private ?array $locationNames = null,
+        /**
+         * Static apworld item names (item_name_to_id keys), from introspection (story 9.58): the same kind of hint
+         * as the locations, for the item-typed YAML options (start_hints, start_inventory, local_items...).
+         *
+         * @var list<string>|null
+         */
+        #[ORM\Column(name: 'item_names', type: 'json', nullable: true)]
+        private ?array $itemNames = null,
+        /**
+         * The world's item groups (item_name_groups, without "Everything"), group => item names (story 9.58).
+         *
+         * @var array<string, list<string>>|null
+         */
+        #[ORM\Column(name: 'item_groups', type: 'json', nullable: true)]
+        private ?array $itemGroups = null,
         // Free-text admin-only notes about the game (apworld quirks, config pitfalls, decision
         // history). Strictly internal: never exposed on public/game-selection payloads (story 3.12).
         #[ORM\Column(name: 'admin_notes', type: 'text', nullable: true)]
@@ -535,6 +550,35 @@ final class Game
     public function recordLocationNames(?array $locationNames): void
     {
         $this->locationNames = null === $locationNames || [] === $locationNames ? null : $locationNames;
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    public function getItemNames(): ?array
+    {
+        return $this->itemNames;
+    }
+
+    /**
+     * @return array<string, list<string>>|null
+     */
+    public function getItemGroups(): ?array
+    {
+        return $this->itemGroups;
+    }
+
+    /**
+     * Story 9.58: what introspection said about the world's items. Empty means not known (an orchestrator or an
+     * image older than the story), kept as null like the locations.
+     *
+     * @param list<string>                $itemNames
+     * @param array<string, list<string>> $itemGroups
+     */
+    public function recordItemNames(array $itemNames, array $itemGroups): void
+    {
+        $this->itemNames = [] === $itemNames ? null : $itemNames;
+        $this->itemGroups = [] === $itemNames || [] === $itemGroups ? null : $itemGroups;
     }
 
     public function getAdminNotes(): ?string

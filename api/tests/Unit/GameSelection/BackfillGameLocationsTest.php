@@ -43,6 +43,27 @@ final class BackfillGameLocationsTest extends TestCase
         self::assertNull($noApworld->getLocationNames());
     }
 
+    /** Story 9.58: the backfill records the items too, once the orchestrator knows them. */
+    public function testBackfillsTheItemNamesAndGroups(): void
+    {
+        $now = new \DateTimeImmutable('2026-10-19T10:00:00+00:00');
+        $game = Game::create('Hollow Knight', 'hollow-knight', '', null, '', '', 'available', $now);
+        $game->configureApworld('key.apworld', 'hash-hk', 'Hollow Knight', 'game: Hollow Knight', $now);
+
+        $runner = self::createStub(RunnerGatewayInterface::class);
+        $runner->method('fetchLocationNames')->willReturn(['Crossroads_Stag']);
+        $runner->method('fetchItems')->willReturn(['items' => ['Lurien', 'Mantis_Claw'], 'groups' => ['Dreamers' => ['Lurien']]]);
+
+        $repo = self::createStub(GameRepositoryInterface::class);
+        $repo->method('findAllSortedByName')->willReturn([$game]);
+
+        $result = new BackfillGameLocations($repo, $runner, new NullLogger())->run();
+
+        self::assertSame(1, $result->updated);
+        self::assertSame(['Lurien', 'Mantis_Claw'], $game->getItemNames());
+        self::assertSame(['Dreamers' => ['Lurien']], $game->getItemGroups());
+    }
+
     public function testEmptyLocationListLeavesGameNull(): void
     {
         $now = new \DateTimeImmutable('2026-07-19T10:00:00+00:00');

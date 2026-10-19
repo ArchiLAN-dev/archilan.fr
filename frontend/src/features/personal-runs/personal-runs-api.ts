@@ -399,6 +399,9 @@ export type GameSelectionGame = {
   defaultYaml: string | null;
   optionTypes: OptionTypesMap | null;
   locationNames: string[] | null;
+  /** Story 9.58: sent with the games the member holds, like the locations; read through asItemNames/asItemGroups. */
+  itemNames?: unknown;
+  itemGroups?: unknown;
   coverImageUrl: string | null;
   coverImageAlt: string;
   platforms: string[];

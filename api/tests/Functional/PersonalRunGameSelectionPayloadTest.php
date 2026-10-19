@@ -70,6 +70,10 @@ final class PersonalRunGameSelectionPayloadTest extends FunctionalTestCase
         self::assertNull($bySlug['hollow-knight']['defaultYaml']);
         self::assertNull($bySlug['hollow-knight']['optionTypes']);
         self::assertNull($bySlug['hollow-knight']['locationNames']);
+        // Story 9.58: the items travel with the locations, for the held games only.
+        self::assertSame(['Lurien', 'Mantis_Claw'], $bySlug['crystal-project']['itemNames'] ?? null);
+        self::assertSame(['Dreamers' => ['Lurien']], $bySlug['crystal-project']['itemGroups'] ?? null);
+        self::assertNull($bySlug['hollow-knight']['itemNames']);
         self::assertSame($other->getName(), $bySlug['hollow-knight']['name']);
     }
 
@@ -81,6 +85,7 @@ final class PersonalRunGameSelectionPayloadTest extends FunctionalTestCase
 ', new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
         $game->recordOptionTypes(['goal' => ['type' => 'choice', 'values' => ['moon']]]);
         $game->recordLocationNames(['Boss']);
+        $game->recordItemNames(['Lurien', 'Mantis_Claw'], ['Dreamers' => ['Lurien']]);
         $this->entityManager->flush();
 
         return $game;
