@@ -48,6 +48,10 @@ final readonly class WithdrawItemBounty
         $this->record->record(
             BountyPurse::movement($bounty, $userId, $bounty->getAmount(), PelleReason::BountyRefund, sprintf('Prime retirée : %s', $bounty->getItemName()), sprintf('bounty-refund:%s', $bounty->getId()), true),
             function () use ($bounty, $now): void {
+                // Story 41.39: paid or refunded since it was read above, it is not given back on top.
+                if (!$this->bounties->claimOpen($bounty->getId())) {
+                    throw new ConflictException('Cette prime est déjà réglée.', 'bounty_not_open');
+                }
                 $bounty->withdraw($now);
                 $this->bounties->save($bounty);
             },

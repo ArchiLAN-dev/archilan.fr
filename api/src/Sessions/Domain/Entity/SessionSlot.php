@@ -180,6 +180,18 @@ final class SessionSlot
         return $this->wasReleased || (null !== $this->goalReachedAt && $this->goalReachedAt <= $at);
     }
 
+    /**
+     * Story 41.39: whether this slot had released or collected by `$at`. On the receiving side that is what turns an
+     * item into one found by nobody (a collect pulls the slot's items out of the others' worlds); a receiver that only
+     * reached its goal still receives items the others actually found.
+     */
+    public function handedOverBy(\DateTimeImmutable $at): bool
+    {
+        return $this->wasReleased
+            || (null !== $this->releasedAt && $this->releasedAt <= $at)
+            || (null !== $this->collectedAt && $this->collectedAt <= $at);
+    }
+
     public function markAsReleased(): void
     {
         if (null !== $this->goalReachedAt) {

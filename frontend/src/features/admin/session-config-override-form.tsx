@@ -182,7 +182,7 @@ export function SessionConfigOverrideForm({
       const next = { ...(d ?? {}) };
       if (on) {
         // Propose a fresh random password when overriding the join password.
-        next[field.key] = field.key === "joinPassword" ? randomPassword() : field.fallback;
+        next[field.key] = field.key === "joinPassword" ? randomPassword() : initialOverrideValue(field, profileValues);
       } else {
         delete next[field.key];
       }
@@ -332,6 +332,14 @@ function OverrideControl({ field, value, onChange }: { field: FieldDef; value: O
       ))}
     </div>
   );
+}
+
+/**
+ * Story 41.39: the value a field starts from when it is ticked for overriding - the one it inherits, so ticking the
+ * box changes nothing until the value itself is changed. The field's fallback only when the profile is not known.
+ */
+export function initialOverrideValue(field: Pick<FieldDef, "key" | "fallback">, profileValues: Record<string, OverrideValue> | null): OverrideValue {
+  return profileValues?.[field.key] ?? field.fallback;
 }
 
 // Flatten the resolved profile (nested server/generation) into the flat field-keyed shape.

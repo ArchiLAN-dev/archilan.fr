@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Presentation\Command;
 
+use App\PersonalRuns\Application\Port\RunBronzeInterface;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Entity\Session;
@@ -38,6 +39,7 @@ final class RepairFinishedRunsCommand extends Command
         private readonly RunRepositoryInterface $runs,
         private readonly SessionRepositoryInterface $sessions,
         private readonly ClockInterface $clock,
+        private readonly RunBronzeInterface $bronze,
     ) {
         parent::__construct();
     }
@@ -51,6 +53,7 @@ final class RepairFinishedRunsCommand extends Command
     {
         $dryRun = true === $input->getOption('dry-run');
         $repaired = 0;
+        $completed = [];
 
         foreach ($this->runs->findByStatuses(self::REPAIRABLE) as $run) {
             $sessionId = $run->getSessionId();
@@ -72,12 +75,17 @@ final class RepairFinishedRunsCommand extends Command
 
             if (!$dryRun) {
                 $run->markSessionFinished($this->clock->now());
+                $completed[] = $run->getId();
             }
             ++$repaired;
         }
 
         if (!$dryRun && $repaired > 0) {
             $this->runs->flush();
+        }
+        // Story 41.39: a run completed here burns its bronze, as one completed by the normal path does.
+        foreach ($completed as $runId) {
+            $this->bronze->reconcileLater($runId);
         }
 
         $output->writeln(sprintf(

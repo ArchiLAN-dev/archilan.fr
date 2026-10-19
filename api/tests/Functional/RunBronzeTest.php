@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\Wallet\Application\Command\ReconcileRunBronze;
 use App\Wallet\Application\Command\RecordPelleMovement;
 use App\Wallet\Application\Command\RecordPelleMovementInput;
@@ -176,6 +177,8 @@ final class RunBronzeTest extends FunctionalTestCase
 
     public function testTheRunTellsAPlayerTheirBronzeWithChecksGroupedByDay(): void
     {
+        $this->entityManager->persist(RunParticipant::create($this->run->getId(), $this->bob->getId(), new \DateTimeImmutable()));
+        $this->entityManager->flush();
         $this->credit($this->bob, 20);
         foreach ([10, 11, 12] as $location) {
             $this->recorder()->record(new RecordPelleMovementInput($this->bob->getId(), 1, PelleKind::Bronze, null, PelleReason::BronzeCheck, 'Check', null, 'check-'.$location, runId: $this->run->getId()));
@@ -195,6 +198,18 @@ final class RunBronzeTest extends FunctionalTestCase
         $checks = array_values(array_filter($history, static fn (mixed $line): bool => is_array($line) && 'bronze_check' === ($line['reason'] ?? null)));
         self::assertCount(1, $checks);
         self::assertSame([3, 3], [$checks[0]['amount'] ?? null, $checks[0]['count'] ?? null]);
+    }
+
+    /** Story 41.39: a run's bronze is for its players; to anyone else the run does not exist. */
+    public function testOnlyTheRunsPlayersSeeItsBronze(): void
+    {
+        $this->loginAs($this->bob);
+        $this->client->request('GET', '/api/v1/runs/'.$this->run->getId().'/bronze');
+        self::assertResponseStatusCodeSame(404, 'not a player of the run');
+
+        $this->loginAs($this->owner);
+        $this->client->request('GET', '/api/v1/runs/'.$this->run->getId().'/bronze');
+        self::assertResponseIsSuccessful();
     }
 
     public function testTheStatisticsKeepBronzeApartFromGold(): void

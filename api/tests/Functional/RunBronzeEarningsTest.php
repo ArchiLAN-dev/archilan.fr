@@ -89,7 +89,8 @@ final class RunBronzeEarningsTest extends FunctionalTestCase
     public static function checksNobodyPlayed(): iterable
     {
         yield 'the sender released' => ['Bob', 'Alice', static function (SessionSlot $bob): void { $bob->markAsReleased(); }];
-        yield 'the receiver collected' => ['Bob', 'Alice', static function (SessionSlot $bob, SessionSlot $alice): void { $alice->markAsReleased(); }];
+        yield 'the receiver released' => ['Bob', 'Alice', static function (SessionSlot $bob, SessionSlot $alice): void { $alice->markAsReleased(); }];
+        yield 'the receiver collected' => ['Bob', 'Alice', static function (SessionSlot $bob, SessionSlot $alice): void { $alice->recordHandOver(true, new \DateTimeImmutable('-1 minute')); }];
         yield 'the sender had its goal' => ['Bob', 'Alice', static function (SessionSlot $bob): void { $bob->recordGoal(new \DateTimeImmutable('-1 minute')); }];
         yield 'a slot nobody plays' => ['Bridge', 'Alice', static function (): void {}];
     }
@@ -106,6 +107,54 @@ final class RunBronzeEarningsTest extends FunctionalTestCase
         $this->feedPush($sender, $receiver, 10);
 
         self::assertSame([], $this->movements(PelleReason::BronzeCheck));
+    }
+
+    /** Story 41.39: the receiver's goal alone does not make the sender's check one nobody played. */
+    public function testACheckForASlotThatReachedItsGoalStillPays(): void
+    {
+        $this->slot('Alice')->recordGoal(new \DateTimeImmutable('-1 minute'));
+        $this->entityManager->flush();
+
+        $this->feedPush('Bob', 'Alice', 10);
+
+        self::assertSame(1, $this->balance($this->bob));
+    }
+
+    /** Story 41.39: an ended run's bronze has burned, nothing more is earned in it. */
+    public function testAnEndedRunPaysNoCheckAndNoGoal(): void
+    {
+        new \ReflectionProperty(Run::class, 'status')->setValue($this->run, Run::STATUS_COMPLETED);
+        $this->entityManager->flush();
+
+        $this->feedPush('Bob', 'Alice', 10);
+        $this->goal('Bob');
+
+        self::assertSame([], $this->movements(PelleReason::BronzeCheck));
+        self::assertSame([], $this->movements(PelleReason::BronzeGoal));
+    }
+
+    /** Story 41.39: a goal already recorded whose credit never happened is paid when the callback comes again. */
+    public function testARepeatedGoalCallbackPaysAGoalCreditThatWasMissed(): void
+    {
+        $this->slot('Bob')->recordGoal(new \DateTimeImmutable('2026-10-18T12:00:00+00:00'));
+        $this->entityManager->flush();
+
+        $this->goal('Bob');
+        $this->goal('Bob');
+
+        self::assertSame(25, $this->balance($this->bob));
+        self::assertSame(25, $this->balance($this->carol));
+    }
+
+    /** Story 41.39: a draft keeping the session of an earlier attempt has not started, nobody gets its start. */
+    public function testADraftWithAnOldSessionGrantsNoStart(): void
+    {
+        new \ReflectionProperty(Run::class, 'status')->setValue($this->run, Run::STATUS_DRAFT);
+        $this->entityManager->flush();
+
+        $this->reconcile();
+
+        self::assertSame([], $this->movements(PelleReason::BronzeStart));
     }
 
     public function testTheGoalPaysEveryPlayerOfTheSlotOnce(): void

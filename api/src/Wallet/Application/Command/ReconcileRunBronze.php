@@ -36,6 +36,12 @@ final readonly class ReconcileRunBronze
 {
     private const array ENDED = [Run::STATUS_COMPLETED, Run::STATUS_CANCELLED];
 
+    /**
+     * Story 41.39: a run that was launched and can still be played. A draft or a run being generated may keep the
+     * session of an earlier attempt: it has not started, nobody gets its start yet.
+     */
+    private const array LAUNCHED = [Run::STATUS_ACTIVE, Run::STATUS_IDLE, Run::STATUS_STOPPING, Run::STATUS_RESTARTING];
+
     public function __construct(
         private RunRepositoryInterface $runs,
         private PelleMovementRepositoryInterface $movements,
@@ -60,7 +66,9 @@ final readonly class ReconcileRunBronze
             return;
         }
         $this->restore($run);
-        $this->grantStart($run);
+        if (\in_array($run->getStatus(), self::LAUNCHED, true)) {
+            $this->grantStart($run);
+        }
     }
 
     /**

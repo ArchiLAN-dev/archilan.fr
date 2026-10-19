@@ -32,6 +32,9 @@ use Psr\Log\LoggerInterface;
  *
  * The keys name the location (`bronze-check:{run}:{slot}:{location}:{member}`), so a feed event received twice -
  * a replay, a restart - pays once.
+ *
+ * Story 41.39: an ended run pays nothing more, its bronze has burned; and the receiver's goal alone no longer stops
+ * the sender's check from paying, only the receiver's release or collect does.
  */
 final readonly class CreditRunBronze
 {
@@ -61,7 +64,7 @@ final readonly class CreditRunBronze
         }
 
         $run = $this->runs->findBySessionId($sessionId);
-        if (!$run instanceof Run) {
+        if (!$run instanceof Run || $run->isTerminal()) {
             return;
         }
         $amount = $this->terms($run)->bronzePerCheck;
@@ -76,7 +79,7 @@ final readonly class CreditRunBronze
         }
         $receiverName = self::part($event, 'receiver', 'name');
         $receiver = \is_string($receiverName) && '' !== $receiverName ? $this->slots->findBySessionAndSlotName($sessionId, $receiverName) : null;
-        if ($receiver instanceof SessionSlot && $receiver->stoppedFinding($now)) {
+        if ($receiver instanceof SessionSlot && $receiver->handedOverBy($now)) {
             return;
         }
 
@@ -91,7 +94,7 @@ final readonly class CreditRunBronze
     public function onGoal(string $sessionId, string $slotName): void
     {
         $run = $this->runs->findBySessionId($sessionId);
-        if (!$run instanceof Run) {
+        if (!$run instanceof Run || $run->isTerminal()) {
             return;
         }
         $amount = $this->terms($run)->bronzePerGoal;

@@ -9,10 +9,13 @@ use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\SessionConfig\Application\Command\SetSessionConfigOverride;
 use App\Sessions\Application\Command\RefundEndedSessionBounties;
+use App\Sessions\Application\Command\WithdrawItemBounty;
 use App\Sessions\Domain\Entity\ItemBounty;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
 use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\ItemBountyRepositoryInterface;
+use App\Shared\Application\Exception\ConflictException;
 use App\Wallet\Application\Command\RecordPelleMovement;
 use App\Wallet\Application\Command\RecordPelleMovementInput;
 use App\Wallet\Domain\Entity\PelleMovement;
@@ -175,6 +178,41 @@ final class ItemBountyTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(204);
         self::assertSame(100, $this->balance($this->alice));
         self::assertSame(ItemBounty::STATUS_WITHDRAWN, $this->onlyBounty()->getStatus());
+    }
+
+    /**
+     * Story 41.39: two settlements of the same bounty at once (here, a payment that lands while the poster withdraws)
+     * used to both go through, each locking a different member. The bounty's row decides: the second finds it closed.
+     */
+    public function testABountySettledMeanwhileIsNotGivenBackOnTop(): void
+    {
+        $bountyId = $this->bountyOn('Grappin', 50);
+        $bounties = self::getContainer()->get(ItemBountyRepositoryInterface::class);
+        self::assertInstanceOf(ItemBountyRepositoryInterface::class, $bounties);
+        // The withdrawal reads the bounty open...
+        self::assertTrue($bounties->findById($bountyId)?->isOpen());
+        // ...while another settlement closes it.
+        $this->entityManager->getConnection()->executeStatement('UPDATE item_bounty SET status = :paid WHERE id = :id', ['paid' => ItemBounty::STATUS_PAID, 'id' => $bountyId]);
+
+        $withdraw = self::getContainer()->get(WithdrawItemBounty::class);
+        self::assertInstanceOf(WithdrawItemBounty::class, $withdraw);
+        try {
+            $withdraw->withdraw($this->alice->getId(), $bountyId);
+            self::fail('the withdrawal must be refused');
+        } catch (ConflictException) {
+        }
+
+        self::assertSame(50, $this->balance($this->alice), 'the escrow is not given back on top of the payment');
+    }
+
+    public function testTheBountiesOfAPrivateRunSayTheyHoldBronze(): void
+    {
+        $this->loginAs($this->alice);
+
+        $this->client->request('GET', sprintf('/api/v1/sessions/%s/slots/1/bounties', $this->sessionId));
+
+        self::assertResponseIsSuccessful();
+        self::assertTrue($this->decodedJsonResponse()['bronze'] ?? null);
     }
 
     public function testTheEndOfTheSessionRefundsOpenBounties(): void

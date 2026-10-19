@@ -32,6 +32,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Shared\Application\Support\ArchipelagoConnectionUri;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 
 final readonly class PersonalRunDrafts
 {
@@ -56,6 +57,7 @@ final readonly class PersonalRunDrafts
         private GameRepositoryInterface $games,
         private RunReadinessReader $readiness,
         private RunBronzeInterface $bronze,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -329,10 +331,18 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_not_deletable'];
         }
 
+        // Story 41.36 : le bronze restant brûle tant que la partie existe encore pour le registre. Story 41.39 :
+        // s'il ne peut pas brûler, la suppression est refusée proprement - supprimer quand même laisserait du bronze
+        // rattaché à une partie disparue.
+        try {
+            $this->bronze->burnNow($run->getId());
+        } catch (\Throwable $e) {
+            $this->logger->error('personal_run.delete.bronze_burn_failed', ['runId' => $run->getId(), 'exception' => $e]);
+
+            return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'bronze_burn_failed'];
+        }
         // Tracée avant la suppression : après, la partie n'existe plus pour porter son propriétaire.
         $this->trace->record($run, $callerId, AdminUserActionAudit::ACTION_RUN_DELETE);
-        // Story 41.36 : le bronze restant brûle tant que la partie existe encore pour le registre.
-        $this->bronze->burnNow($run->getId());
         $this->participants->deleteByRunId($run->getId());
         // Story 16.21 : les archives personnelles partent avec la partie, rien ne les rattache plus à rien.
         $this->archives->deleteByRunId($run->getId());
