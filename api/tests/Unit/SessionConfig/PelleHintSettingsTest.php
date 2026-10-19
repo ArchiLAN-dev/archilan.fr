@@ -62,6 +62,37 @@ final class PelleHintSettingsTest extends TestCase
         self::assertFalse($override->isEmpty());
     }
 
+    public function testTheBronzeSettingsDefaultAndOverride(): void
+    {
+        $server = SessionConfig::defaultsFor(SessionType::Private)->server;
+        self::assertSame([20, 1, 25], [$server->bronzeStart, $server->bronzePerCheck, $server->bronzePerGoal], 'story 41.36');
+        self::assertArrayNotHasKey('bronzeStart', $server->toServerFlags());
+
+        $override = SessionConfigOverride::fromArray(['bronzePerCheck' => 0, 'bronzePerGoal' => 100]);
+        $overridden = SessionConfig::defaultsFor(SessionType::Private)->withOverride($override)->server;
+
+        self::assertSame([20, 0, 100], [$overridden->bronzeStart, $overridden->bronzePerCheck, $overridden->bronzePerGoal], '0 turns a source off');
+        self::assertSame(['bronzePerCheck' => 0, 'bronzePerGoal' => 100], $override->toArray());
+    }
+
+    public function testAProfileStoredBeforeTheBronzeReadsItsDefaults(): void
+    {
+        $array = SessionConfig::defaultsFor(SessionType::Private)->toArray();
+        unset($array['server']['bronzeStart'], $array['server']['bronzePerCheck'], $array['server']['bronzePerGoal']);
+
+        $server = SessionConfig::fromArray($array)->server;
+
+        self::assertSame([20, 1, 25], [$server->bronzeStart, $server->bronzePerCheck, $server->bronzePerGoal]);
+    }
+
+    public function testABronzeAmountOutOfBoundsIsRefused(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('invalid_bronze_amount');
+
+        SessionConfig::defaultsFor(SessionType::Private)->withOverride(new SessionConfigOverride(bronzeStart: 1001));
+    }
+
     public function testAPriceOutOfBoundsIsRefused(): void
     {
         $this->expectException(\DomainException::class);

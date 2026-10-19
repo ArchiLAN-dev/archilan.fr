@@ -17,6 +17,9 @@ export const sessionConfigHelp: Record<string, string> = {
   pelleBounties:
     "Permet aux joueurs d'offrir des pelles en or à qui leur enverra un objet précis ; 10 % de la prime sont détruits au versement.",
   pelleItemHintPrice: "Prix en pelles d'un indice sur un objet (où se trouve tel objet).",
+  bronzeStart: "Pelles de bronze données à chaque joueur au lancement de la partie. 0 coupe ce gain.",
+  bronzePerCheck: "Pelles de bronze gagnées par les joueurs d'un slot à chaque check de ce slot. 0 coupe ce gain.",
+  bronzePerGoal: "Pelles de bronze gagnées par les joueurs d'un slot quand il atteint son objectif. 0 coupe ce gain.",
   pelleLocationHintPrice: "Prix en pelles d'un indice sur un lieu (ce que cache tel check).",
   hintCost:
     "Prix d'un indice, en pourcentage du nombre total de checks. Les joueurs gagnent des points d'indice en validant des checks.",
