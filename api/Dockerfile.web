@@ -19,6 +19,13 @@ RUN apk upgrade --no-cache  # rebuild 2026-10-19 : CVE-2026-88806 (libx11 -> 1.8
 RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size = 200M" >> /usr/local/etc/php/conf.d/uploads.ini
 
+# PHP2Shell (CVE-2026-109618 / CVE-2026-109619, RCE sans authentification) : l'image FrankenPHP
+# 1.13.1 embarque PHP 8.5.11, et aucune image FrankenPHP en 8.5.12 n'existe encore. Mitigation
+# provisoire : l'attaque passe par session.upload_progress, actif par défaut. L'API n'utilise pas les
+# sessions PHP (framework.session: false), on ne perd donc rien. À retirer quand le tag FrankenPHP
+# sera monté sur une image en PHP >= 8.5.12.
+RUN echo "session.upload_progress.enabled = Off" > /usr/local/etc/php/conf.d/zz-php2shell.ini
+
 RUN install-php-extensions pdo_pgsql intl amqp opcache zip gd
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
