@@ -1,4 +1,6 @@
-FROM php:8.5-cli-alpine
+# Patch PHP épinglé (et non le tag flottant 8.5) : PHP2Shell, CVE-2026-109618 / CVE-2026-109619,
+# corrigées en 8.5.12. Le tag 8.5-cli-alpine servait encore 8.5.11 le jour du correctif.
+FROM php:8.5.12-cli-alpine
 
 # Les paquets Alpine de l'image de base vieillissent avec le tag php auquel elle est épinglée.
 # `apk upgrade` récupère les correctifs de sécurité publiés depuis. Sans lui, le worker est resté
