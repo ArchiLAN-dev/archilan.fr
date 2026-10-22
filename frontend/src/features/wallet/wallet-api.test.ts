@@ -8,6 +8,7 @@ const BASE = TEST_API_BASE_URL;
 const wallet = {
   gold: 120,
   events: [{ eventId: "e1", eventTitle: "ArchiLAN #3", balance: 15 }],
+  bronze: [{ runId: "r1", runTitle: "Run du dimanche", balance: 42 }],
   history: {
     items: [
       { id: "m1", amount: 50, kind: "gold", eventId: null, eventTitle: null, reason: "admin_credit", label: "Aide", createdAt: "2026-10-03T12:00:00+00:00" },

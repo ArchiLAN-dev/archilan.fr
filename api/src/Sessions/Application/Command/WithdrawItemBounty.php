@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Command;
 
+use App\Sessions\Application\Support\BountyPurse;
 use App\Sessions\Domain\Entity\ItemBounty;
 use App\Sessions\Domain\Repository\ItemBountyRepositoryInterface;
 use App\Shared\Application\Exception\ConflictException;
 use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Wallet\Application\Command\RecordPelleMovement;
-use App\Wallet\Application\Command\RecordPelleMovementInput;
-use App\Wallet\Domain\Enum\PelleKind;
 use App\Wallet\Domain\Enum\PelleReason;
 use Psr\Clock\ClockInterface;
 
@@ -47,13 +46,12 @@ final readonly class WithdrawItemBounty
 
         $now = $this->clock->now();
         $this->record->record(
-            new RecordPelleMovementInput(
-                $userId, $bounty->getAmount(), PelleKind::Gold, null, PelleReason::BountyRefund,
-                sprintf('Prime retirée : %s', $bounty->getItemName()), null,
-                sprintf('bounty-refund:%s', $bounty->getId()),
-                byAdmin: true,
-            ),
+            BountyPurse::movement($bounty, $userId, $bounty->getAmount(), PelleReason::BountyRefund, sprintf('Prime retirée : %s', $bounty->getItemName()), sprintf('bounty-refund:%s', $bounty->getId()), true),
             function () use ($bounty, $now): void {
+                // Story 41.39: paid or refunded since it was read above, it is not given back on top.
+                if (!$this->bounties->claimOpen($bounty->getId())) {
+                    throw new ConflictException('Cette prime est déjà réglée.', 'bounty_not_open');
+                }
                 $bounty->withdraw($now);
                 $this->bounties->save($bounty);
             },

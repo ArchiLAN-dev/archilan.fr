@@ -37,6 +37,7 @@ use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Sessions\Domain\ValueObject\SessionView;
+use App\Wallet\Application\Message\ReconcileRunBronzeJob;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
 use Psr\Clock\ClockInterface;
@@ -196,6 +197,9 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             $personalRun = $this->runs->findBySessionId($sessionId);
             if ($personalRun instanceof Run) {
                 $personalRun->markRunning($session->getHost() ?? '', $session->getPort() ?? 0, $now, $session->getPassword());
+                // Story 41.37: its players get the run's bronze start, once. The job only reads the run's state,
+                // so it may run before or after this commit.
+                $this->messageBus->dispatch(new ReconcileRunBronzeJob($personalRun->getId()));
             }
         }
 

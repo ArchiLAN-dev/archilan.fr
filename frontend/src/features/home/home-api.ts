@@ -2,6 +2,7 @@ import { env } from "@/lib/env";
 import { hasStringProp } from "@/lib/type-guards";
 import { isCommunityStatsPayload, type CommunityStats } from "@/features/community/community-api";
 import type { PublicEvent } from "@/features/events/event-types";
+import { EVENTS_TAG, eventTag } from "@/features/events/public-events-api";
 import { isEventRecapIndexPayload, type EventRecapIndexEntry } from "@/features/recap/recap-api";
 import { isCurrentRunsPayload, type CurrentWeeklyRun } from "@/features/weekly-runs/weekly-runs-api";
 
@@ -10,11 +11,10 @@ import { isCurrentRunsPayload, type CurrentWeeklyRun } from "@/features/weekly-r
  * fails soft: an empty list or null folds its section away.
  */
 
-const REVALIDATE = { next: { revalidate: 300 } } as const;
-
-async function getJson(path: string): Promise<unknown> {
+/** `tags` lets the API drop a read as soon as what it shows is written (story 34.10). */
+async function getJson(path: string, tags: string[] = []): Promise<unknown> {
   try {
-    const res = await fetch(`${env.apiBaseUrl}${path}`, REVALIDATE);
+    const res = await fetch(`${env.apiBaseUrl}${path}`, { next: { revalidate: 300, tags } });
     if (!res.ok) return null;
     const payload: unknown = await res.json();
     return payload;
@@ -73,7 +73,7 @@ export async function getHomeRecaps(past: PublicEvent[], limit = 2): Promise<Hom
   const recent = past.slice(0, 3);
   const indexes = await Promise.all(
     recent.map(async (event) => {
-      const payload = await getJson(`/events/${encodeURIComponent(event.id)}/parties`);
+      const payload = await getJson(`/events/${encodeURIComponent(event.id)}/parties`, [EVENTS_TAG, eventTag(event.id)]);
       return isEventRecapIndexPayload(payload) ? payload.data.map((entry) => ({ ...entry, eventTitle: event.title })) : [];
     }),
   );

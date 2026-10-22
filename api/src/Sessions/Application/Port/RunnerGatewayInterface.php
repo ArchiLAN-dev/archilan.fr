@@ -61,6 +61,15 @@ interface RunnerGatewayInterface
     public function fetchLocationNames(string $hash): array;
 
     /**
+     * Static item names and item groups introspected from an uploaded apworld (story 9.58): a hint for the
+     * item-typed YAML options, like the locations. Empty lists when the apworld has not been introspected by an
+     * image that knows items, or when the orchestrator does not answer (an older one has no such route).
+     *
+     * @return array{items: list<string>, groups: array<string, list<string>>}
+     */
+    public function fetchItems(string $hash): array;
+
+    /**
      * The files an uploaded apworld's world declares in its host.yaml settings (story 44.3), read at
      * introspection. Empty when not introspected yet or when the orchestrator does not answer.
      *

@@ -28,6 +28,10 @@ export type SessionServerConfig = {
   pelleLocationHintPrice: number;
   /** Story 41.4: bounties on items, paid in pelles. */
   pelleBounties: boolean;
+  /** Story 41.36: the bronze pelles a private run hands out (0 turns a source off). */
+  bronzeStart: number;
+  bronzePerCheck: number;
+  bronzePerGoal: number;
 };
 
 export type SessionGenerationConfig = {
@@ -173,6 +177,9 @@ function isServerConfig(v: unknown): v is SessionServerConfig {
   if (!("pelleItemHintPrice" in v) || typeof v.pelleItemHintPrice !== "number") return false;
   if (!("pelleLocationHintPrice" in v) || typeof v.pelleLocationHintPrice !== "number") return false;
   if (!("pelleBounties" in v) || typeof v.pelleBounties !== "boolean") return false;
+  if (!("bronzeStart" in v) || typeof v.bronzeStart !== "number") return false;
+  if (!("bronzePerCheck" in v) || typeof v.bronzePerCheck !== "number") return false;
+  if (!("bronzePerGoal" in v) || typeof v.bronzePerGoal !== "number") return false;
   if (!("joinPassword" in v)) return false;
   return v.joinPassword === null || typeof v.joinPassword === "string";
 }

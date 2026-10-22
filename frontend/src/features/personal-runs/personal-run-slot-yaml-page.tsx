@@ -9,6 +9,7 @@ import { YamlOptionEditor, type YamlEditorHandle } from "@/features/events/yaml-
 import { YamlOptionsView } from "@/components/yaml/yaml-options-view";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { asItemGroups, asItemNames } from "@/lib/item-catalog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchMyGameSelection } from "./personal-runs-api";
 import { useRouter } from "next/navigation";
@@ -261,6 +262,9 @@ export function PersonalRunSlotYamlPage({
         key={editorKey}
         ref={editorRef}
         defaultYaml={data.game.defaultYaml}
+        gameId={data.game.id}
+        itemGroups={asItemGroups(data.game.itemGroups)}
+        itemNames={asItemNames(data.game.itemNames)}
         locationNames={data.game.locationNames ?? null}
         onChange={setCurrentYaml}
         optionTypes={data.game.optionTypes}

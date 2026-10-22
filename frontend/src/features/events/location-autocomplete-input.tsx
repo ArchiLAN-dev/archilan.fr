@@ -15,6 +15,8 @@ type Props = {
   suggestions: string[] | null;
   disabled?: boolean;
   placeholder?: string;
+  /** Story 9.58: a word shown beside some suggestions (an item group and its size). */
+  annotations?: Record<string, string>;
 };
 
 /**
@@ -31,6 +33,7 @@ export function LocationAutocompleteInput({
   suggestions,
   disabled = false,
   placeholder = "élément",
+  annotations,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
@@ -135,7 +138,14 @@ export function LocationAutocompleteInput({
                 onClick={() => select(name)}
                 onMouseEnter={() => setHighlight(i)}
               >
-                {name}
+                {annotations?.[name] ? (
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="truncate">{name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{annotations[name]}</span>
+                  </span>
+                ) : (
+                  name
+                )}
               </button>
             </li>
           ))}

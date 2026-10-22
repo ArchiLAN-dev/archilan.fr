@@ -24,11 +24,14 @@ Elle **remplace les « happenings »** des ArchiLAN, où des coins étaient gér
   déclencheurs que l'XP, mais ce sont deux compteurs distincts.
 - **Gains enregistrés à l'événement, avec une clé anti-doublon** (par exemple « goal du slot X »), jamais
   recalculés : changer un barème ne modifie pas les soldes passés.
-- **Deux types de pelles seulement** (leçon de Reddit, qui a supprimé ses 50 récompenses en 2023 parce que le
-  fouillis gênait plus qu'il n'aidait) :
-  - **pelles en or** : permanentes, utilisables partout ;
+- **Peu de types de pelles** (leçon de Reddit, qui a supprimé ses 50 récompenses en 2023 parce que le
+  fouillis gênait plus qu'il n'aidait). Deux au départ, trois depuis le 2026-10-18 (stories 41.36 à 41.38) :
+  - **pelles en or** : permanentes ; en partie privée, elles ne servent plus qu'à la boutique ;
   - **pelles d'event** : distribuées pendant un événement, dépensables seulement dans ses parties, et qui
-    disparaissent à sa fin.
+    disparaissent à sa fin ;
+  - **pelles de bronze** : propres à une partie privée (un solde par joueur et par partie), gagnées en y jouant
+    (départ, checks, goal, montants réglés par le propriétaire), seules à payer hints et primes de cette partie,
+    jamais converties, brûlées à sa fin.
 - **Autant de puits que de sources.** Une monnaie qui s'accumule sans se dépenser perd sa valeur. Les sources
   (gains) et les puits (dépenses, commissions, destructions) sont conçus ensemble, et mesurés dès la première
   story (tableau de bord admin : pelles créées, détruites, en circulation, par semaine).

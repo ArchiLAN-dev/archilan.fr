@@ -259,7 +259,9 @@ export function messageFor(item: NotificationItem): string {
       const amount = hasNumberProp(item.data, "amount") ? item.data.amount : 0;
       // Story 41.2: event pelles name their event.
       const event = hasStringProp(item.data, "eventTitle") && item.data.eventTitle !== "" ? ` pour « ${item.data.eventTitle} »` : "";
-      const what = `${Math.abs(amount)} ${Math.abs(amount) > 1 ? "pelles" : "pelle"}${event}`;
+      // Story 41.38: a private run's bounties move its bronze.
+      const bronze = hasStringProp(item.data, "kind") && item.data.kind === "bronze" ? " de bronze" : "";
+      const what = `${Math.abs(amount)} ${Math.abs(amount) > 1 ? "pelles" : "pelle"}${bronze}${event}`;
       const reason = hasStringProp(item.data, "reason") && item.data.reason !== "" ? ` : ${item.data.reason}` : "";
       return amount < 0 ? `L'équipe t'a retiré ${what}${reason}` : `Tu as reçu ${what}${reason}`;
     }

@@ -8,7 +8,7 @@ use App\GameSelection\Application\Command\ApworldCandidateTriageOutcome;
 use App\GameSelection\Application\Command\ApworldCandidateYamlTestOutcome;
 use App\GameSelection\Application\Command\StartApworldCandidateYamlTest;
 use App\GameSelection\Application\Command\TriageApworldCandidate;
-use App\GameSelection\Application\Query\ApworldCandidateYamlTestQuery;
+use App\GameSelection\Application\Query\YamlTestResultQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiredGenerationFilesRequest;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
@@ -29,7 +29,7 @@ final readonly class AdminApworldCandidateController
         private ApiAccessGuard $apiAccessGuard,
         private TriageApworldCandidate $triage,
         private StartApworldCandidateYamlTest $startYamlTest,
-        private ApworldCandidateYamlTestQuery $yamlTests,
+        private YamlTestResultQuery $yamlTests,
     ) {
     }
 

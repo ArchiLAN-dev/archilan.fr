@@ -3,6 +3,14 @@ import { env } from "@/lib/env";
 import { hasStringProp } from "@/lib/type-guards";
 import type { PublicPost, PublicPostType } from "./content-types";
 
+/**
+ * Story 34.10: cache tags of the public post reads, revalidated by the API when a post is written.
+ */
+export const POSTS_TAG = "posts";
+export function postTag(slug: string): string {
+  return `post:${slug}`;
+}
+
 type PostPayload = {
   slug: string;
   title: string;
@@ -22,7 +30,7 @@ function isPublicPostType(v: unknown): v is PublicPostType {
 export async function getPublicPosts(): Promise<PublicPost[]> {
   try {
     // ISR: cache for 5 min so the actualités listing can be statically served (story 34.4).
-    const response = await apiFetch(`${env.apiBaseUrl}/posts`, { next: { revalidate: 300 } });
+    const response = await apiFetch(`${env.apiBaseUrl}/posts`, { next: { revalidate: 300, tags: [POSTS_TAG] } });
 
     if (!response.ok) {
       return [];
@@ -42,7 +50,7 @@ export async function getPublicPosts(): Promise<PublicPost[]> {
 export async function getPublicPostBySlugFromApi(slug: string): Promise<PublicPost | null> {
   try {
     const response = await apiFetch(`${env.apiBaseUrl}/posts/${encodeURIComponent(slug)}`, {
-      next: { revalidate: 300 },
+      next: { revalidate: 300, tags: [POSTS_TAG, postTag(slug)] },
     });
 
     if (!response.ok) {

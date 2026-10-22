@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\CatalogSync;
 
 use App\CatalogSync\Application\Command\ApworldUpdateAvailable;
+use App\CatalogSync\Application\Command\ApworldUpdateCheckReport;
 use App\CatalogSync\Application\Command\CheckApworldUpdatesService;
 use App\CatalogSync\Application\Service\ApworldVersionChecker;
 use App\GameSelection\Domain\Entity\Game;
@@ -118,6 +119,47 @@ final class CheckApworldUpdatesServiceTest extends TestCase
         self::assertSame(1, $report->failed);
         self::assertCount(2, $report->updatesAvailable);
         self::assertSame(1, $this->flushes, 'what was checked is saved');
+    }
+
+    public function testThePassIsSavedEveryBatchAndReportsItsProgress(): void
+    {
+        $games = [];
+        for ($i = 1; $i <= 30; ++$i) {
+            $games[] = $this->game(sprintf('Game%02d', $i), sprintf('repo%02d', $i), '1.0.0', null);
+        }
+        $progress = [];
+
+        $this->service($games, fn (string $repo): MockResponse => $this->release('v1.0.0', $repo))
+            ->checkAll(static function (int $total, ApworldUpdateCheckReport $soFar) use (&$progress): void {
+                $progress[] = [$total, $soFar->checked];
+            });
+
+        self::assertSame(2, $this->flushes, 'one save after the first 25 games, one at the end');
+        self::assertSame([[30, 0], [30, 25]], $progress, 'the total first, then each saved batch');
+    }
+
+    public function testAnInterruptedPassKeepsTheBatchesAlreadySaved(): void
+    {
+        $games = [];
+        for ($i = 1; $i <= 30; ++$i) {
+            $games[] = $this->game(sprintf('Game%02d', $i), sprintf('repo%02d', $i), '1.0.0', null);
+        }
+        $calls = 0;
+
+        try {
+            // Interrupted right after the first batch is saved, as a worker restart or a timeout would.
+            $this->service($games, fn (string $repo): MockResponse => $this->release('v1.0.0', $repo))
+                ->checkAll(static function () use (&$calls): void {
+                    if (2 === ++$calls) {
+                        throw new \RuntimeException('worker stopped');
+                    }
+                });
+            self::fail('the interruption propagates');
+        } catch (\RuntimeException) {
+        }
+
+        self::assertSame(1, $this->flushes, 'the first 25 games were saved before the interruption');
+        self::assertCount(25, array_filter($games, static fn (Game $g): bool => null !== $g->getApworldCheckedAt()), 'and they go to the back of the next pass');
     }
 
     public function testStopsOnRateLimitAndReportsIt(): void

@@ -142,7 +142,7 @@ export function asLocationNames(value: unknown): string[] | null {
 const METADATA_KEYS = new Set(["name", "description", "game", "requires"]);
 
 // All known top-level keys - used to identify the game block by exclusion
-const STANDARD_KEYS = new Set([
+export const STANDARD_KEYS: ReadonlySet<string> = new Set([
   "name", "description", "game", "requires",
   "accessibility", "progression_balancing",
   "local_items", "non_local_items", "start_inventory",
@@ -432,7 +432,7 @@ function parseCategories(yamlStr: string, gameName: string): Map<string, string>
 
 // ─── Plando items parsing ─────────────────────────────────────────────────────
 
-function parsePlandoEntries(value: unknown): PlandoItem[] {
+export function parsePlandoEntries(value: unknown): PlandoItem[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((raw) => {
     if (!raw || typeof raw !== "object") return [];
@@ -483,7 +483,7 @@ function parsePlandoEntries(value: unknown): PlandoItem[] {
 
 // ─── Item links parsing ───────────────────────────────────────────────────────
 
-function parseItemLinkEntries(value: unknown): ItemLinkEntry[] {
+export function parseItemLinkEntries(value: unknown): ItemLinkEntry[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((raw) => {
     if (!raw || typeof raw !== "object") return [];
@@ -529,7 +529,7 @@ function parseItemLinkEntries(value: unknown): ItemLinkEntry[] {
  * values are dumped as single-line YAML flow instead (`{ascension: 1, downfall: 0}`), which
  * `parseFreeformValue` reads back to the original structure.
  */
-function dumpFreeformValue(value: unknown): string {
+export function dumpFreeformValue(value: unknown): string {
   if (typeof value !== "object" || value === null) return String(value ?? "");
   return quoteYaml11Booleans(yaml.dump(value, { flowLevel: 0, schema: yaml.CORE_SCHEMA })).trim();
 }

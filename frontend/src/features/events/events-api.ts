@@ -8,6 +8,7 @@
 import { parseNeedsReview } from "@/features/games/slot-needs-review";
 import { apiFetch } from "@/lib/apiFetch";
 import { asLocationNames, asOptionTypesMap, type OptionTypesMap } from "@/lib/archipelago-yaml";
+import { asItemGroups, asItemNames } from "@/lib/item-catalog";
 import { env } from "@/lib/env";
 import { parsePatchFiles, type PatchFile } from "@/lib/patch-files";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
@@ -382,6 +383,9 @@ export type SlotYamlGame = {
   defaultYaml: string | null;
   optionTypes: OptionTypesMap | null;
   locationNames: string[] | null;
+  /** Story 9.58: the game's item names and groups, for the slot's YAML editor. */
+  itemNames: string[] | null;
+  itemGroups: Record<string, string[]> | null;
 };
 
 export type SlotYamlData = {
@@ -442,6 +446,8 @@ function parseSlotYamlData(payload: unknown, targetSlotId: string): SlotYamlData
     defaultYaml: optionalString(rawGame, "defaultYaml"),
     optionTypes: asOptionTypesMap(Reflect.get(rawGame, "optionTypes")),
     locationNames: asLocationNames(Reflect.get(rawGame, "locationNames")),
+    itemNames: asItemNames(Reflect.get(rawGame, "itemNames")),
+    itemGroups: asItemGroups(Reflect.get(rawGame, "itemGroups")),
   };
 
   // Compute slot label - need sibling count for same game

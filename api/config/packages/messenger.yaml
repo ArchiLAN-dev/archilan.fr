@@ -46,6 +46,8 @@ framework:
             'App\Communications\Application\Message\EmailConfirmationMessage': async
             'App\Communications\Application\Message\SessionRunningMessage': async
             'App\Events\Application\Message\EventCapacityReachedMessage': async
+            # Story 34.10: the frontend is asked to drop the cache of a written event or post, after the commit.
+            'App\Shared\Application\Message\RevalidatePublicPagesJob': async
             'App\Payments\Application\Message\SyncHelloAssoFormMessage': async
             'App\Sessions\Application\Message\FetchLogsJob': run_server
             'App\Sessions\Application\Message\ArchiveRunJob': run_server
@@ -64,6 +66,8 @@ framework:
             'App\Community\Application\Message\SyncDiscordBansMessage': async
             # Story 41.24: the week's quests told on Discord, out of the hourly quest run.
             'App\Wallet\Application\Message\AnnounceQuestsOnDiscordJob': async
+            # Story 41.36: a private run's bronze burned at its end, or given back when it is restored.
+            'App\Wallet\Application\Message\ReconcileRunBronzeJob': async
             'App\Community\Application\Message\ExtendDiscordTimeoutsMessage': async
             # Story 38.5 review: the nightly GitHub pass runs on the async worker, not in the scheduler,
             # so the two-minute stuck-run reconciliation is never held up behind it.

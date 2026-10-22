@@ -8,10 +8,11 @@ use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Support\GenerationFailureParser;
 
 /**
- * Story 38.14: where a YAML test on an apworld candidate stands. The orchestrator keeps these results thirty
- * minutes, in memory: an unknown or expired test, or a runner that does not answer, reads as null.
+ * Where a YAML test generation stands, by its orchestrator job id: the admin's test of an apworld candidate
+ * (story 38.14) and a player's test from an option editor (story 9.57). The orchestrator keeps these results
+ * thirty minutes, in memory: an unknown or expired test, or a runner that does not answer, reads as null.
  */
-final readonly class ApworldCandidateYamlTestQuery
+final readonly class YamlTestResultQuery
 {
     public function __construct(private RunnerGatewayInterface $runnerGateway)
     {

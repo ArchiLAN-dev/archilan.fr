@@ -8,6 +8,8 @@ use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ValidationException;
@@ -27,6 +29,7 @@ final readonly class RecordPelleMovement
         private PelleMovementRepositoryInterface $movements,
         private UserRepositoryInterface $users,
         private EventRepositoryInterface $events,
+        private RunRepositoryInterface $runs,
         private ClockInterface $clock,
     ) {
     }
@@ -35,7 +38,7 @@ final readonly class RecordPelleMovement
      * @param (\Closure(PelleMovement): void)|null $inTransaction a write that must commit with the movement,
      *                                                            such as an admin's audit line
      *
-     * @throws NotFoundException   when the member or the event does not exist
+     * @throws NotFoundException   when the member, the event or the run does not exist
      * @throws ForbiddenException  when the member is banned and the movement is not an admin's
      * @throws ValidationException when the movement is malformed or the balance would go below zero
      */
@@ -52,11 +55,14 @@ final readonly class RecordPelleMovement
         if (null !== $input->eventId && !$this->events->findById($input->eventId) instanceof Event) {
             throw new NotFoundException('Événement introuvable.', 'event_not_found');
         }
+        if (null !== $input->runId && !$this->runs->findById($input->runId) instanceof Run) {
+            throw new NotFoundException('Partie introuvable.', 'run_not_found');
+        }
 
         $this->movements->beginTransaction();
         try {
             $this->movements->lockMember($input->userId);
-            $before = $this->movements->balance($input->userId, $input->kind, $input->eventId);
+            $before = $this->movements->balance($input->userId, $input->kind, $input->eventId, $input->runId);
 
             $existing = null === $input->uniqueKey ? null : $this->movements->findByUniqueKey($input->uniqueKey);
             if ($existing instanceof PelleMovement) {
@@ -71,7 +77,7 @@ final readonly class RecordPelleMovement
             }
 
             try {
-                $movement = PelleMovement::record($input->userId, $input->amount, $input->kind, $input->eventId, $input->reason, $input->label, $input->authorId, $input->uniqueKey, $now);
+                $movement = PelleMovement::record($input->userId, $input->amount, $input->kind, $input->eventId, $input->reason, $input->label, $input->authorId, $input->uniqueKey, $now, $input->runId);
             } catch (InvalidPelleMovementException $e) {
                 throw new ValidationException('Mouvement de pelles invalide.', [], $e->getMessage());
             }

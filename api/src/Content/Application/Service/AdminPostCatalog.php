@@ -8,6 +8,7 @@ use App\Content\Application\Query\AdminPostView;
 use App\Content\Domain\Entity\Post;
 use App\Content\Domain\Repository\PostRepositoryInterface;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
+use App\Shared\Application\Support\PublicPagesRevalidation;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 final readonly class AdminPostCatalog
@@ -17,6 +18,7 @@ final readonly class AdminPostCatalog
     public function __construct(
         private PostRepositoryInterface $postRepository,
         private PublicMediaUrlResolver $publicMedia,
+        private PublicPagesRevalidation $publicPages,
     ) {
     }
 
@@ -70,6 +72,7 @@ final readonly class AdminPostCatalog
         } catch (UniqueConstraintViolationException) {
             return ['errors' => ['slug' => ['Ce slug est déjà utilisé par un autre article.']]];
         }
+        $this->publicPages->postChanged($post->getSlug());
 
         return ['id' => $post->getId(), 'errors' => []];
     }
@@ -109,6 +112,7 @@ final readonly class AdminPostCatalog
         }
 
         $this->postRepository->save($post);
+        $this->publicPages->postChanged($post->getSlug());
 
         return ['found' => true, 'errors' => []];
     }
@@ -126,6 +130,7 @@ final readonly class AdminPostCatalog
 
         $post->publish($now);
         $this->postRepository->save($post);
+        $this->publicPages->postChanged($post->getSlug());
 
         return ['found' => true];
     }
@@ -143,6 +148,7 @@ final readonly class AdminPostCatalog
 
         $post->unpublish($now);
         $this->postRepository->save($post);
+        $this->publicPages->postChanged($post->getSlug());
 
         return ['found' => true];
     }

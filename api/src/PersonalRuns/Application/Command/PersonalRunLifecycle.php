@@ -6,6 +6,7 @@ namespace App\PersonalRuns\Application\Command;
 
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
+use App\PersonalRuns\Application\Port\RunBronzeInterface;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunArchiveRepositoryInterface;
@@ -36,6 +37,7 @@ final readonly class PersonalRunLifecycle
         private ClockInterface $clock,
         private LoggerInterface $logger,
         private RequiredGenerationFiles $requiredGenerationFiles,
+        private RunBronzeInterface $bronze,
     ) {
     }
 
@@ -245,6 +247,8 @@ final readonly class PersonalRunLifecycle
 
         $run->complete($this->clock->now());
         $this->runs->flush();
+        // Story 41.36: the run is over, its bronze burns.
+        $this->bronze->reconcileLater($run->getId());
 
         return new RunLifecycleResult($run->getId(), $run->getStatus());
     }

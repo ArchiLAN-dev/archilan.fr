@@ -68,7 +68,7 @@ final class WeeklyPelleHintTest extends FunctionalTestCase
         $this->loginAs($this->player);
 
         $this->client->request('GET', $this->url($entryId));
-        self::assertSame(['enabled' => false, 'itemPrice' => 20, 'locationPrice' => 10, 'eventBalance' => null, 'goldBalance' => 50], $this->decodedJsonResponse());
+        self::assertSame(['enabled' => false, 'itemPrice' => 20, 'locationPrice' => 10, 'eventBalance' => null, 'bronzeBalance' => null, 'goldBalance' => 50], $this->decodedJsonResponse());
 
         $this->client->jsonRequest('POST', $this->url($entryId), ['kind' => 'item', 'itemName' => 'Grappin', 'requestId' => 'r1']);
         self::assertResponseStatusCodeSame(403);

@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import type { ApworldUpdateStatus } from "./apworld-update-status";
+import { isApworldUpdateCheckRun, type ApworldUpdateCheckRun } from "./apworld-update-check";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -175,22 +176,32 @@ export async function fetchAdminGameBase(gameId: string): Promise<AdminGameBase 
 
 // ── Actions ──────────────────────────────────────────────────────────────────
 
-export type CheckUpdatesSummary = { checked: number; rateLimitHit: boolean };
-
-export async function checkApworldUpdates(): Promise<CheckUpdatesSummary | null> {
+/**
+ * Story 38.18: queue a pass checking the apworlds for updates. It runs on the worker; the page follows it with
+ * `fetchApworldUpdateCheck`. `already_running`: a pass (the button's or the night's) is queued or running.
+ */
+export async function startApworldUpdateCheck(): Promise<"queued" | "already_running" | "error"> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/admin/catalog-sync/check-updates`, { method: "POST" });
-    if (!res.ok) return null;
-    const body: unknown = await res.json().catch(() => null);
-    const checked =
-      typeof body === "object" && body !== null && hasNumberProp(body, "checked") ? body.checked : 0;
-    const rateLimitHit =
-      typeof body === "object" && body !== null && hasBooleanProp(body, "rateLimitHit")
-        ? body.rateLimitHit
-        : false;
-    return { checked, rateLimitHit };
+    if (res.status === 202) return "queued";
+    if (res.status === 409) return "already_running";
+    return "error";
   } catch {
-    return null;
+    return "error";
+  }
+}
+
+/** Story 38.18: the last pass, `null` when there has never been one. */
+export async function fetchApworldUpdateCheck(): Promise<{ kind: "ok"; run: ApworldUpdateCheckRun | null } | { kind: "error" }> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/catalog-sync/check-updates`);
+    if (!res.ok) return { kind: "error" };
+    const body: unknown = await res.json();
+    if (typeof body !== "object" || body === null || !("data" in body)) return { kind: "error" };
+    if (body.data === null) return { kind: "ok", run: null };
+    return isApworldUpdateCheckRun(body.data) ? { kind: "ok", run: body.data } : { kind: "error" };
+  } catch {
+    return { kind: "error" };
   }
 }
 

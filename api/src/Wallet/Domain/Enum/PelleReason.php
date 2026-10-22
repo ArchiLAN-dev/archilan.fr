@@ -30,4 +30,11 @@ enum PelleReason: string
     case WelcomeReward = 'welcome_reward';
     // Story 30.52: a collection of achievements completed.
     case CollectionReward = 'collection_reward';
+    // Story 41.36: a private run's bronze, handed out as it is played (41.37), burned at its end and given back
+    // when a cancelled run is restored.
+    case BronzeStart = 'bronze_start';
+    case BronzeCheck = 'bronze_check';
+    case BronzeGoal = 'bronze_goal';
+    case BronzeExpired = 'bronze_expired';
+    case BronzeRestored = 'bronze_restored';
 }

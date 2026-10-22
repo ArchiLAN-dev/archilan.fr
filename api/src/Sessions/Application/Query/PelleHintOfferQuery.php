@@ -21,7 +21,7 @@ final readonly class PelleHintOfferQuery
     }
 
     /**
-     * @return array{enabled: bool, itemPrice: int, locationPrice: int, eventBalance: int|null, goldBalance: int}|null
+     * @return array{enabled: bool, itemPrice: int, locationPrice: int, eventBalance: int|null, bronzeBalance: int|null, goldBalance: int}|null
      */
     public function offer(string $userId, string $sessionId): ?array
     {
@@ -35,6 +35,8 @@ final readonly class PelleHintOfferQuery
             'itemPrice' => $terms['itemPrice'],
             'locationPrice' => $terms['locationPrice'],
             'eventBalance' => null === $terms['eventId'] ? null : $this->movements->balance($userId, PelleKind::Event, $terms['eventId']),
+            // Story 41.38: on a private run, the run's bronze is the only balance that pays.
+            'bronzeBalance' => null === $terms['runId'] ? null : $this->movements->balance($userId, PelleKind::Bronze, null, $terms['runId']),
             'goldBalance' => $this->movements->balance($userId, PelleKind::Gold, null),
         ];
     }

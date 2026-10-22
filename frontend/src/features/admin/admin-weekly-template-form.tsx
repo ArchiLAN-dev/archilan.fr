@@ -40,6 +40,8 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
   const [defaultYaml, setDefaultYaml] = useState(FALLBACK_YAML);
   const [optionTypes, setOptionTypes] = useState<OptionTypesMap | null>(null);
   const [locationNames, setLocationNames] = useState<string[] | null>(null);
+  const [itemNames, setItemNames] = useState<string[] | null>(null);
+  const [itemGroups, setItemGroups] = useState<Record<string, string[]> | null>(null);
   const [yamlConfig, setYamlConfig] = useState(FALLBACK_YAML);
   const [initialTemplateYaml, setInitialTemplateYaml] = useState<string | null>(null);
   const [maxAttempts, setMaxAttempts] = useState<string>("");
@@ -89,6 +91,8 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
         setDefaultYaml(gameDetailResult?.defaultYaml || templateResult.yamlConfig || FALLBACK_YAML);
         setOptionTypes(gameDetailResult?.optionTypes ?? null);
         setLocationNames(gameDetailResult?.locationNames ?? null);
+        setItemNames(gameDetailResult?.itemNames ?? null);
+        setItemGroups(gameDetailResult?.itemGroups ?? null);
       }
     } else if (mode === "create" && initialGameId) {
       // Game pre-selected from the per-game detail page: lock it and load its defaults.
@@ -101,6 +105,8 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
         setYamlConfig(nextDefaultYaml);
         setOptionTypes(gameDetailResult.optionTypes ?? null);
         setLocationNames(gameDetailResult.locationNames ?? null);
+        setItemNames(gameDetailResult.itemNames ?? null);
+        setItemGroups(gameDetailResult.itemGroups ?? null);
       }
     }
 
@@ -120,6 +126,8 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
     setDefaultYaml(nextDefaultYaml);
     setOptionTypes(gameDetail?.optionTypes ?? null);
     setLocationNames(gameDetail?.locationNames ?? null);
+        setItemNames(gameDetail?.itemNames ?? null);
+        setItemGroups(gameDetail?.itemGroups ?? null);
     setYamlConfig(nextDefaultYaml);
     setYamlEditorKey((k) => k + 1);
   }
@@ -269,6 +277,9 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
             key={yamlEditorKey}
             ref={yamlEditorRef}
             defaultYaml={defaultYaml}
+            gameId={gameId || undefined}
+            itemGroups={itemGroups}
+            itemNames={itemNames}
             locationNames={locationNames}
             optionTypes={optionTypes}
             playerYaml={initialTemplateYaml}

@@ -10,6 +10,7 @@ const BASE = TEST_API_BASE_URL;
 
 const open: ItemBounties = {
   enabled: true,
+  bronze: false,
   bounties: [
     { id: "b1", slotName: "Alice", itemName: "Grappin", amount: 50, reward: 45, mine: true },
     { id: "b2", slotName: "Bob", itemName: "Bombe", amount: 20, reward: 18, mine: false },
@@ -31,6 +32,12 @@ describe("item bounties", () => {
     expect(html).not.toContain('aria-label="Retirer la prime sur Bombe"');
     expect(html).toContain("Poser une prime");
     expect(html).toContain("<option value=\"Clé\">Clé</option>");
+  });
+
+  test("a private run's bounties say they hold bronze (story 41.39)", () => {
+    const html = renderToStaticMarkup(<ItemBountiesView bounties={open.bounties} bronze missingItems={["Grappin"]} onPost={noop} onWithdraw={noop} />);
+
+    expect(html).toContain("Pelles de bronze (10 à 1000)");
   });
 
   test("no form when nothing is missing, and a word when no bounty is open", () => {

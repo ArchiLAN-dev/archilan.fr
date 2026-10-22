@@ -1,8 +1,8 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Download, Info, Plus, X } from "lucide-react";
+import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Download, FlaskConical, Info, Plus, Upload, X } from "lucide-react";
 
 import {
   RANDOM_ALIASES,
@@ -35,6 +35,10 @@ import {
 } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
 import { LocationAutocompleteInput } from "@/features/events/location-autocomplete-input";
+import { ItemCatalogContext, ItemNameInput } from "@/features/events/item-name-input";
+import { buildItemCatalog, ITEM_DICT_OPTION_KEYS, ITEM_LIST_OPTION_KEYS } from "@/lib/item-catalog";
+import { YamlImportDialog } from "@/features/events/yaml-import-dialog";
+import { GameYamlTestOutcome, useGameYamlTest } from "@/features/games/game-yaml-test";
 
 /** YAML options whose list items are location names -> get the static-location autocomplete (story 4.14). */
 const LOCATION_OPTION_KEYS = new Set(["priority_locations", "exclude_locations", "start_location_hints"]);
@@ -66,6 +70,9 @@ type YamlOptionEditorProps = {
   playerYaml: string | null;
   optionTypes?: OptionTypesMap | null;
   locationNames?: string[] | null;
+  /** Story 9.58: the game's item names and groups, suggested in every item field. */
+  itemNames?: string[] | null;
+  itemGroups?: Record<string, string[]> | null;
   registrationId?: string;
   registrationOpen?: boolean;
   slotId?: string;
@@ -73,6 +80,8 @@ type YamlOptionEditorProps = {
   onSaved?: (slotId: string) => void;
   saveUrl?: string;
   onChange?: (yaml: string) => void;
+  /** Story 9.57: the game being configured, for the test generation of the YAML shown. */
+  gameId?: string;
 };
 
 /**
@@ -90,6 +99,8 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
       playerYaml,
       optionTypes,
       locationNames,
+      itemNames,
+      itemGroups,
       registrationId,
       registrationOpen = true,
       slotId,
@@ -97,6 +108,7 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
       onSaved,
       saveUrl,
       onChange,
+      gameId,
     },
     ref,
   ) {
@@ -115,6 +127,9 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
   const [boundsErrors, setBoundsErrors] = useState<OutOfBoundsRange[]>([]);
   // Keys of options flagged invalid on the last save attempt (highlighted in red).
   const [invalidKeys, setInvalidKeys] = useState<Set<string>>(new Set());
+  const [importOpen, setImportOpen] = useState(false);
+  const itemCatalog = useMemo(() => buildItemCatalog(itemNames, itemGroups), [itemNames, itemGroups]);
+  const yamlTest = useGameYamlTest(gameId);
 
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => {
     const base = parseDefaultYaml(defaultYaml ?? "", optionTypes);
@@ -142,6 +157,21 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
   function markDirty() {
     if (slotId) onDirty?.(slotId);
     setPanelSave({ kind: "idle" });
+    yamlTest.reset();
+  }
+
+  // Story 9.57: what an import is checked against and applied over - the game's defaults, not the current
+  // edits, so the imported file says the whole config.
+  const importBase = useMemo(() => parseDefaultYaml(defaultYaml ?? "", optionTypes), [defaultYaml, optionTypes]);
+
+  function applyImport(imported: ParsedYaml) {
+    setParsed(imported);
+    setNameError(slotNameError(imported.playerName));
+    setZeroWeightLabels([]);
+    setBoundsErrors([]);
+    setInvalidKeys(new Set());
+    onChange?.(serializeToYaml(imported));
+    markDirty();
   }
 
   function updateOption(updated: GameOption) {
@@ -264,6 +294,7 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
   }
 
   return (
+    <ItemCatalogContext.Provider value={itemCatalog}>
     <div className="card-glow rounded-lg border border-border p-4 sm:p-5">
       {parsed ? (
         <>
@@ -440,9 +471,44 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
             <Download aria-hidden="true" className="size-4" />
             Exporter en YAML
           </button>
+          {effectivelyOpen && parsed !== null && importBase !== null ? (
+            <button
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent sm:w-auto"
+              type="button"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload aria-hidden="true" className="size-4" />
+              Importer un YAML
+            </button>
+          ) : null}
+          {gameId !== undefined ? (
+            <button
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              disabled={yamlTest.busy}
+              type="button"
+              onClick={() => { void yamlTest.start(parsed ? serializeToYaml(parsed) : rawYaml); }}
+            >
+              <FlaskConical aria-hidden="true" className="size-4" />
+              Tester la génération
+            </button>
+          ) : null}
         </div>
+        <GameYamlTestOutcome state={yamlTest.state} />
       </div>
+
+      {importBase !== null && importOpen ? (
+        <YamlImportDialog
+          base={importBase}
+          gameId={gameId}
+          itemCatalog={itemCatalog}
+          locationNames={locationNames}
+          open={importOpen}
+          onApply={applyImport}
+          onClose={() => setImportOpen(false)}
+        />
+      ) : null}
     </div>
+    </ItemCatalogContext.Provider>
   );
 });
 
@@ -696,6 +762,7 @@ function OptionField({
       </div>
       {option.type === "freeform" && option.kind === "list" && (
         <ListField
+          itemNames={ITEM_LIST_OPTION_KEYS.has(option.key)}
           option={option}
           readOnly={readOnly}
           suggestions={LOCATION_OPTION_KEYS.has(option.key) ? locationNames : null}
@@ -1057,12 +1124,15 @@ function ListField({
   readOnly,
   onChange,
   suggestions = null,
+  itemNames = false,
 }: {
   option: FreeformListOption;
   readOnly: boolean;
   onChange: (o: FreeformListOption) => void;
   /** Static location suggestions for location-typed options (story 4.14); null = plain input. */
   suggestions?: string[] | null;
+  /** Story 9.58: the values are item names, suggested from the game's items and groups. */
+  itemNames?: boolean;
 }) {
   return (
     <div className="grid gap-2">
@@ -1072,15 +1142,24 @@ function ListField({
           The inputs are fully controlled, so values stay correct across removal. */}
       {option.items.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
-          <LocationAutocompleteInput
-            disabled={readOnly}
-            suggestions={suggestions}
-            value={item}
-            onChange={(val) => {
-              const items = option.items.map((it, idx) => (idx === i ? val : it));
-              onChange({ ...option, items });
-            }}
-          />
+          {itemNames ? (
+            <ItemNameInput
+              disabled={readOnly}
+              placeholder="élément"
+              value={item}
+              onChange={(val) => onChange({ ...option, items: option.items.map((it, idx) => (idx === i ? val : it)) })}
+            />
+          ) : (
+            <LocationAutocompleteInput
+              disabled={readOnly}
+              suggestions={suggestions}
+              value={item}
+              onChange={(val) => {
+                const items = option.items.map((it, idx) => (idx === i ? val : it));
+                onChange({ ...option, items });
+              }}
+            />
+          )}
           {!readOnly && (
             <button
               aria-label="Supprimer"
@@ -1145,13 +1224,17 @@ function DictField({
       )}
       {option.entries.map((entry) => (
         <div key={entry.id} className="flex items-center gap-2">
-          <input
-            className={INPUT_CLS}
-            disabled={lockKeys}
-            placeholder="élément"
-            value={entry.k}
-            onChange={(e) => update(entry.id, "k", e.target.value)}
-          />
+          {ITEM_DICT_OPTION_KEYS.has(option.key) && !lockKeys ? (
+            <ItemNameInput placeholder="élément" value={entry.k} onChange={(val) => update(entry.id, "k", val)} />
+          ) : (
+            <input
+              className={INPUT_CLS}
+              disabled={lockKeys}
+              placeholder="élément"
+              value={entry.k}
+              onChange={(e) => update(entry.id, "k", e.target.value)}
+            />
+          )}
           <DictValueField
             choices={option.entryChoices?.[entry.k]?.values}
             closed={option.entryChoices?.[entry.k]?.closed === true}
@@ -1446,13 +1529,7 @@ function PlandoEntryCard({
         <p className={SUB_LABEL_CLS}>Items à placer</p>
         {entry.items.map((item) => (
           <div key={item.id} className="flex items-center gap-2">
-            <input
-              className={INPUT_CLS}
-              disabled={readOnly}
-              placeholder="Nom de l'item"
-              value={item.name}
-              onChange={(e) => updateItem(item.id, "name", e.target.value)}
-            />
+            <ItemNameInput disabled={readOnly} value={item.name} onChange={(val) => updateItem(item.id, "name", val)} />
             <div className="shrink-0">
               <NumberStepper
                 disabled={readOnly}
@@ -1775,13 +1852,7 @@ function ItemLinkCard({
           <>
             {entry.itemPool.map((item, idx) => (
               <div key={`pool-${entry.id}-${idx}`} className="flex items-center gap-2">
-                <input
-                  className={INPUT_CLS}
-                  disabled={readOnly}
-                  placeholder="Nom de l'item"
-                  value={item}
-                  onChange={(e) => updatePoolItem(idx, e.target.value)}
-                />
+                <ItemNameInput disabled={readOnly} value={item} onChange={(val) => updatePoolItem(idx, val)} />
                 {!readOnly && (
                   <button
                     aria-label="Supprimer l'item"
@@ -1827,12 +1898,11 @@ function ItemLinkCard({
             })}
           </div>
           {entry.replacementItem !== null && (
-            <input
-              className="min-h-9 flex-1 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+            <ItemNameInput
               disabled={readOnly}
               placeholder="Nom de l'item de remplacement"
               value={entry.replacementItem}
-              onChange={(e) => onChange({ ...entry, replacementItem: e.target.value })}
+              onChange={(val) => onChange({ ...entry, replacementItem: val })}
             />
           )}
         </div>
@@ -1863,13 +1933,7 @@ function ItemLinkCard({
         <p className={SUB_LABEL_CLS}>Local items</p>
         {entry.localItems.map((item, idx) => (
           <div key={`local-${entry.id}-${idx}`} className="flex items-center gap-2">
-            <input
-              className={INPUT_CLS}
-              disabled={readOnly}
-              placeholder="Nom de l'item"
-              value={item}
-              onChange={(e) => updateLocalItem(idx, e.target.value)}
-            />
+            <ItemNameInput disabled={readOnly} value={item} onChange={(val) => updateLocalItem(idx, val)} />
             {!readOnly && (
               <button
                 aria-label="Supprimer"
@@ -1898,13 +1962,7 @@ function ItemLinkCard({
         <p className={SUB_LABEL_CLS}>Non-local items</p>
         {entry.nonLocalItems.map((item, idx) => (
           <div key={`nonlocal-${entry.id}-${idx}`} className="flex items-center gap-2">
-            <input
-              className={INPUT_CLS}
-              disabled={readOnly}
-              placeholder="Nom de l'item"
-              value={item}
-              onChange={(e) => updateNonLocalItem(idx, e.target.value)}
-            />
+            <ItemNameInput disabled={readOnly} value={item} onChange={(val) => updateNonLocalItem(idx, val)} />
             {!readOnly && (
               <button
                 aria-label="Supprimer"

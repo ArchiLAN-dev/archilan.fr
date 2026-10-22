@@ -7,6 +7,7 @@ namespace App\Wallet\Presentation\Controller;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use App\Wallet\Application\Query\MyCollection;
+use App\Wallet\Application\Query\MyRunBronze;
 use App\Wallet\Application\Query\MyWeeklyQuests;
 use App\Wallet\Application\Query\MyWelcomeQuests;
 use App\Wallet\Application\Query\WalletQueryInterface;
@@ -27,7 +28,25 @@ final readonly class WalletController
         private MyWeeklyQuests $quests,
         private MyWelcomeQuests $welcome,
         private MyCollection $collection,
+        private MyRunBronze $runBronze,
     ) {
+    }
+
+    /** Story 41.38: the caller's bronze in one private run. */
+    #[Route('/api/v1/runs/{runId}/bronze', name: 'api_wallet_run_bronze', methods: ['GET'])]
+    public function runBronze(Request $request, string $runId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $bronze = $this->runBronze->of($user->getId(), $runId);
+        if (null === $bronze) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Partie introuvable.', 404);
+        }
+
+        return new JsonResponse($bronze);
     }
 
     /** The quests of the week (story 41.6). */
