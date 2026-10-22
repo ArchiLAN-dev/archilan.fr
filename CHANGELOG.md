@@ -5,6 +5,64 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.44.0] - 2026-10-22
+
+Les parties privées ont leur propre monnaie, les pelles de bronze, et les éditeurs de YAML savent importer un
+fichier, le tester et compléter les noms d'items.
+
+### Ajouté
+
+- **Pelles de bronze des parties privées** (41.36 à 41.39) : chaque joueur d'une partie privée a un solde de
+  bronze propre à cette partie, jamais converti, brûlé à la fin de la partie. Il se gagne au lancement (20 par
+  défaut), à chaque check joué (1) et au goal (25), montants réglables par le propriétaire (0 coupe la source).
+  Les co-joueurs d'un slot sont crédités chacun. Release, collect et checks après le goal ne paient pas. En partie
+  privée, hints et primes se paient uniquement en bronze ; l'or reste pour la boutique. Une prime posée en or avant
+  la mise en prod est versée ou rendue en or.
+- **Import d'un YAML dans les éditeurs** (9.57) : chaque éditeur de YAML (profils, slots, hebdos, events) accepte
+  un fichier existant. La structure est vérifiée et normalisée (poids, `random`, valeurs nommées), les options
+  inconnues sont signalées, et une génération de test confirme que le YAML passe avant de l'enregistrer.
+- **Autocomplétion des noms d'items** (9.58, image archipelago 0.20.0, orchestrateur 0.22.0) : les options qui
+  attendent des items (`start_inventory`, `start_hints`, `local_items`...) proposent les noms et groupes d'items
+  du jeu, et un nom inconnu est signalé.
+- **Pages publiques rafraîchies à la modification** (34.10) : modifier un événement ou un article rafraîchit tout
+  de suite sa page publique, au lieu d'attendre jusqu'à 5 minutes.
+- **Vérification des mises à jour d'apworlds en arrière-plan** (38.18) : la vérification tourne dans le worker et
+  ne bloque plus l'admin ; une seule vérification à la fois.
+
+### Sécurité
+
+- Images API sur PHP 8.5.12 (PHP2Shell, CVE-2026-109618 / CVE-2026-109619, déjà livré en 0.43.1 et 0.43.2), avec
+  le patch PHP épinglé dans le tag FrankenPHP. La mitigation provisoire `session.upload_progress` est retirée.
+- Couches Alpine reconstruites pour libx11 (CVE-2026-88806) et libexpat (CVE-2026-77214).
+
+### Mise en prod
+
+Dans l'ordre :
+
+1. Images `archipelago` 0.20.0 puis `orchestrateur` 0.22.0.
+2. `envs/api.env` : `FRONTEND_INTERNAL_URL=http://archilan-frontend:3000` et `REVALIDATE_SECRET` ;
+   `envs/frontend.env` : le même `REVALIDATE_SECRET` (`openssl rand -hex 32`). Vide = pages rafraîchies toutes les
+   5 minutes comme avant.
+3. API et frontend 0.44.0. Migrations (jouées par `api-migrations`) : `Version20261018100000`,
+   `Version20261018110000`, `Version20261018120000`, `Version20261019100000`, `Version20261019110000`.
+4. Redémarrer les workers (nouveaux messages async).
+5. Remplir le catalogue d'items : `app:games:backfill-option-types --reintrospect` puis
+   `app:games:backfill-locations`.
+6. Vérifier : `app:frontend:revalidate events` ne doit répondre ni `Disabled` ni `Rejected`.
+
+## [0.43.2] - 2026-10-21
+
+### Sécurité
+
+- `api-worker` épinglé sur `php:8.5.12-cli-alpine` (PHP2Shell, CVE-2026-109618 / CVE-2026-109619).
+
+## [0.43.1] - 2026-10-21
+
+### Sécurité
+
+- `api-web` : `session.upload_progress.enabled = Off`, mitigation de PHP2Shell (CVE-2026-109618 /
+  CVE-2026-109619) en attendant une image FrankenPHP en PHP 8.5.12.
+
 ## [0.43.0] - 2026-10-17
 
 Les joueurs d'une partie privée peuvent se dire prêts, et le suivi « faisable » d'une partie à plusieurs reste juste
