@@ -32,6 +32,17 @@ interface GameRepositoryInterface
     public function findAllSortedByName(): array;
 
     /**
+     * Every game id, by name: a sweep that writes each game's introspection loads them one at a time from this,
+     * then {@see release()}s each, so its memory does not grow with the catalogue (story 38.20).
+     *
+     * @return list<string>
+     */
+    public function findAllIdsSortedByName(): array;
+
+    /** Stop tracking a saved game and what it holds, so a sweep does not keep the whole catalogue loaded. */
+    public function release(Game $game): void;
+
+    /**
      * @param list<string> $availabilities
      *
      * @return list<Game>

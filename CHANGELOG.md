@@ -5,6 +5,26 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.44.1] - 2026-10-22
+
+### Corrigé
+
+- **Plus de manque de mémoire sur les listes de jeux** (38.20) : depuis l'ajout des noms d'items (0.44.0), charger
+  le catalogue décodait l'introspection complète de chaque jeu (YAML par défaut, options, lieux, items) et dépassait
+  128 Mo. `/admin/catalogue` renvoyait une erreur 500 ; la page « mes slots » d'une partie privée, la sélection des
+  jeux d'un événement, la vérification des mises à jour et les backfills étaient exposés au même problème.
+  L'introspection vit maintenant dans sa propre table, chargée seulement pour le jeu qui en a besoin. Mesuré sur un
+  catalogue de 664 jeux : 16 Mo pour la liste, contre 115 Mo avant.
+- `app:games:backfill-locations` et `app:games:backfill-option-types` traitent les jeux un par un et ne gardent rien
+  en mémoire entre deux jeux.
+
+### Mise en prod
+
+1. Déployer l'API 0.44.1 : la migration `Version20261022200000` déplace l'introspection vers la table
+   `game_introspection` (service `api-migrations`, automatique).
+2. Redémarrer les workers.
+3. Optionnel : retirer le montage `php-memory.ini` (`memory_limit = 1G`) ajouté en attendant ce correctif.
+
 ## [0.44.0] - 2026-10-22
 
 Les parties privées ont leur propre monnaie, les pelles de bronze, et les éditeurs de YAML savent importer un

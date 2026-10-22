@@ -52,6 +52,29 @@ final readonly class DoctrineGameRepository implements GameRepositoryInterface
         return $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC']);
     }
 
+    public function findAllIdsSortedByName(): array
+    {
+        $ids = $this->entityManager->getConnection()->createQueryBuilder()
+            ->select('id')
+            ->from('game')
+            ->orderBy('name', 'ASC')
+            ->executeQuery()
+            ->fetchFirstColumn();
+
+        return array_values(array_filter($ids, is_string(...)));
+    }
+
+    public function release(Game $game): void
+    {
+        // Cascades to the introspection and the catalog sync (mapping): a catalog sync left managed would point
+        // at a detached game and fail the next flush.
+        $this->entityManager->detach($game);
+        // A game and its catalog sync point at each other, so a released game is a reference cycle that PHP
+        // only frees when its cycle collector runs - after thousands of roots, never during a 900-game sweep,
+        // which then grew by ~13 MB per 100 games anyway. Collected here, the sweep stays flat.
+        gc_collect_cycles();
+    }
+
     public function findByAvailabilitiesSortedByName(array $availabilities): array
     {
         if ([] === $availabilities) {

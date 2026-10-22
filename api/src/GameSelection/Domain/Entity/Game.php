@@ -22,8 +22,16 @@ final class Game
     /** A version number could not be read from a tag (story 38.5): shown, never acted upon. */
     public const string UPDATE_STATUS_UNDETERMINED = 'undetermined';
 
-    #[ORM\OneToOne(mappedBy: 'game', cascade: ['persist', 'remove'])]
+    #[ORM\OneToOne(mappedBy: 'game', cascade: ['persist', 'remove', 'detach'])]
     private ?GameCatalogSync $catalogSync = null;
+
+    /**
+     * Default YAML, option table, location, item and item group names (story 38.20). The owning side, so
+     * Doctrine loads it lazily: a list of games never decodes it. Null until something is first recorded.
+     */
+    #[ORM\OneToOne(cascade: ['persist', 'remove', 'detach'])]
+    #[ORM\JoinColumn(name: 'introspection_id', referencedColumnName: 'game_id', nullable: true, onDelete: 'SET NULL')]
+    private ?GameIntrospection $introspection = null;
 
     /**
      * The files the world reads from the player, almost always a ROM (story 44.3). Two claims in one row:
@@ -66,26 +74,10 @@ final class Game
         private ?string $apworldHash = null,
         #[ORM\Column(name: 'apworld_uploaded_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $apworldUploadedAt = null,
-        #[ORM\Column(name: 'default_yaml', type: 'text', nullable: true)]
-        private ?string $defaultYaml = null,
         #[ORM\Column(name: 'apworld_minio_key', type: 'string', length: 500, nullable: true)]
         private ?string $apworldMinioKey = null,
         #[ORM\Column(name: 'availability_locked', type: 'boolean', options: ['default' => false])]
         private bool $availabilityLocked = false,
-        /**
-         * What the apworld says each of its options is, from introspection (stories 9.25 / 9.33).
-         *
-         * Range bounds only at first, which is why the editor guessed every other type from the
-         * shape of the value. Rows written back then carry `{min, max, default}` with no `type`.
-         *
-         * A `dict` row may also carry `keys` (story 9.51): per sub-setting, the values it accepts,
-         * for the worlds whose `OptionDict` declares a `schema`. Absent for all the others, which is
-         * the majority - and absent means "nothing was declared", not "an empty list was".
-         *
-         * @var array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>, keys?: array<string, array{values: list<string>}>}>|null
-         */
-        #[ORM\Column(name: 'option_types', type: 'json', nullable: true)]
-        private ?array $optionTypes = null,
         /**
          * What an admin says the sub-settings of a dict option accept (story 9.52).
          *
@@ -108,30 +100,6 @@ final class Game
          */
         #[ORM\Column(name: 'install_steps', type: 'json', nullable: true)]
         private ?array $installSteps = null,
-        /**
-         * Static apworld location names (the World class's location_name_to_id keys), from introspection
-         * (story 4.14). Free-text suggestion hint for the location-typed YAML options; null when the
-         * apworld has no apworld/introspection yet.
-         *
-         * @var list<string>|null
-         */
-        #[ORM\Column(name: 'location_names', type: 'json', nullable: true)]
-        private ?array $locationNames = null,
-        /**
-         * Static apworld item names (item_name_to_id keys), from introspection (story 9.58): the same kind of hint
-         * as the locations, for the item-typed YAML options (start_hints, start_inventory, local_items...).
-         *
-         * @var list<string>|null
-         */
-        #[ORM\Column(name: 'item_names', type: 'json', nullable: true)]
-        private ?array $itemNames = null,
-        /**
-         * The world's item groups (item_name_groups, without "Everything"), group => item names (story 9.58).
-         *
-         * @var array<string, list<string>>|null
-         */
-        #[ORM\Column(name: 'item_groups', type: 'json', nullable: true)]
-        private ?array $itemGroups = null,
         // Free-text admin-only notes about the game (apworld quirks, config pitfalls, decision
         // history). Strictly internal: never exposed on public/game-selection payloads (story 3.12).
         #[ORM\Column(name: 'admin_notes', type: 'text', nullable: true)]
@@ -212,7 +180,7 @@ final class Game
         $this->apworldUploadedAt = $now;
         // Strip a leading UTF-8 BOM: apworld templates authored on Windows often carry one,
         // which breaks the YAML parser downstream (it reads an empty game). Sanitize at the source.
-        $this->defaultYaml = str_starts_with($defaultYaml, "\u{FEFF}") ? substr($defaultYaml, 3) : $defaultYaml;
+        $this->introspection()->recordDefaultYaml(self::withoutBom($defaultYaml));
         $this->archipelagoGameName = $archipelagoGameName;
         $this->updatedAt = $now;
     }
@@ -231,8 +199,13 @@ final class Game
      */
     public function overrideDefaultYaml(string $defaultYaml, \DateTimeImmutable $now): void
     {
-        $this->defaultYaml = str_starts_with($defaultYaml, "\u{FEFF}") ? substr($defaultYaml, 3) : $defaultYaml;
+        $this->introspection()->recordDefaultYaml(self::withoutBom($defaultYaml));
         $this->updatedAt = $now;
+    }
+
+    private static function withoutBom(string $yaml): string
+    {
+        return str_starts_with($yaml, "\u{FEFF}") ? substr($yaml, 3) : $yaml;
     }
 
     public function isApworldReady(): bool
@@ -329,7 +302,7 @@ final class Game
 
     public function getDefaultYaml(): ?string
     {
-        return $this->defaultYaml;
+        return $this->introspection?->getDefaultYaml();
     }
 
     /**
@@ -337,7 +310,7 @@ final class Game
      */
     public function getOptionTypes(): ?array
     {
-        return $this->optionTypes;
+        return $this->introspection?->getOptionTypes();
     }
 
     /**
@@ -352,7 +325,10 @@ final class Game
      */
     public function recordOptionTypes(?array $optionTypes): void
     {
-        $this->optionTypes = null === $optionTypes || [] === $optionTypes ? null : $optionTypes;
+        $optionTypes = null === $optionTypes || [] === $optionTypes ? null : $optionTypes;
+        if (null !== $optionTypes || $this->introspection instanceof GameIntrospection) {
+            $this->introspection()->recordOptionTypes($optionTypes);
+        }
     }
 
     /**
@@ -405,7 +381,7 @@ final class Game
      */
     public function getEffectiveOptionTypes(): ?array
     {
-        $types = $this->optionTypes;
+        $types = $this->getOptionTypes();
         if (null === $types || null === $this->dictOptionValues) {
             return $types;
         }
@@ -541,7 +517,7 @@ final class Game
      */
     public function getLocationNames(): ?array
     {
-        return $this->locationNames;
+        return $this->introspection?->getLocationNames();
     }
 
     /**
@@ -549,7 +525,10 @@ final class Game
      */
     public function recordLocationNames(?array $locationNames): void
     {
-        $this->locationNames = null === $locationNames || [] === $locationNames ? null : $locationNames;
+        $locationNames = null === $locationNames || [] === $locationNames ? null : $locationNames;
+        if (null !== $locationNames || $this->introspection instanceof GameIntrospection) {
+            $this->introspection()->recordLocationNames($locationNames);
+        }
     }
 
     /**
@@ -557,7 +536,7 @@ final class Game
      */
     public function getItemNames(): ?array
     {
-        return $this->itemNames;
+        return $this->introspection?->getItemNames();
     }
 
     /**
@@ -565,7 +544,7 @@ final class Game
      */
     public function getItemGroups(): ?array
     {
-        return $this->itemGroups;
+        return $this->introspection?->getItemGroups();
     }
 
     /**
@@ -577,8 +556,18 @@ final class Game
      */
     public function recordItemNames(array $itemNames, array $itemGroups): void
     {
-        $this->itemNames = [] === $itemNames ? null : $itemNames;
-        $this->itemGroups = [] === $itemNames || [] === $itemGroups ? null : $itemGroups;
+        if ([] !== $itemNames || $this->introspection instanceof GameIntrospection) {
+            $this->introspection()->recordItems(
+                [] === $itemNames ? null : $itemNames,
+                [] === $itemNames || [] === $itemGroups ? null : $itemGroups,
+            );
+        }
+    }
+
+    /** The introspection row, created at the first thing recorded in it (story 38.20). */
+    private function introspection(): GameIntrospection
+    {
+        return $this->introspection ??= new GameIntrospection($this->id);
     }
 
     public function getAdminNotes(): ?string
