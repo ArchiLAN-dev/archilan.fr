@@ -8,6 +8,7 @@ use App\GameSelection\Application\Command\BackfillGameOptionTypes;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -29,7 +30,7 @@ final class BackfillGameOptionTypesTest extends TestCase
 
         $saved = [];
         $repo = self::createStub(GameRepositoryInterface::class);
-        $repo->method('findAllSortedByName')->willReturn([$withApworld, $noApworld]);
+        self::serve($repo, [$withApworld, $noApworld]);
         $repo->method('save')->willReturnCallback(function (Game $g) use (&$saved): void {
             $saved[] = $g;
         });
@@ -121,7 +122,7 @@ final class BackfillGameOptionTypesTest extends TestCase
         $other->configureApworld('key2.apworld', 'hash-at', 'Atlyss', 'game: Atlyss', $now);
 
         $repo = self::createStub(GameRepositoryInterface::class);
-        $repo->method('findAllSortedByName')->willReturn([$target, $other]);
+        self::serve($repo, [$target, $other]);
         $repo->method('findBySlug')->willReturnMap([['muse-dash', $target]]);
 
         $runner = self::createStub(RunnerGatewayInterface::class);
@@ -151,8 +152,19 @@ final class BackfillGameOptionTypesTest extends TestCase
     private function repository(array $games): GameRepositoryInterface
     {
         $repo = self::createStub(GameRepositoryInterface::class);
-        $repo->method('findAllSortedByName')->willReturn($games);
+        self::serve($repo, $games);
 
         return $repo;
+    }
+
+    /**
+     * The repository hands out ids, then each game by id (story 38.20).
+     *
+     * @param list<Game> $games
+     */
+    private static function serve(GameRepositoryInterface&Stub $repo, array $games): void
+    {
+        $repo->method('findAllIdsSortedByName')->willReturn(array_map(static fn (Game $g): string => $g->getId(), $games));
+        $repo->method('findById')->willReturnCallback(static fn (string $id): ?Game => array_find($games, static fn (Game $g): bool => $g->getId() === $id));
     }
 }

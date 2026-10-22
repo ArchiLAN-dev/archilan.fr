@@ -37,9 +37,14 @@ final readonly class BackfillGameOptionTypes
         $reintrospected = 0;
         $reintrospectionFailed = 0;
 
-        foreach ($this->gamesToSweep($gameSlug) as $game) {
-            $hash = $game->getApworldHash();
-            if (null === $hash || '' === $hash) {
+        foreach ($this->gameIdsToSweep($gameSlug) as $gameId) {
+            $game = $this->games->findById($gameId);
+            $hash = $game?->getApworldHash();
+            if (!$game instanceof Game || null === $hash || '' === $hash) {
+                if ($game instanceof Game) {
+                    $this->games->release($game);
+                }
+
                 continue;
             }
 
@@ -61,12 +66,13 @@ final readonly class BackfillGameOptionTypes
             $types = $this->runner->fetchOptionTypes($hash);
             if ([] === $types) {
                 $this->logger->info('game.option_types_backfill_empty', ['gameId' => $game->getId(), 'hash' => $hash]);
-                continue;
+            } else {
+                $game->recordOptionTypes($types);
+                $this->games->save($game);
+                ++$updated;
             }
-
-            $game->recordOptionTypes($types);
-            $this->games->save($game);
-            ++$updated;
+            // One game at a time (story 38.20): the sweep must not hold the whole catalogue's introspection.
+            $this->games->release($game);
         }
 
         return new OptionTypesBackfillReport($processed, $updated, $reintrospected, $reintrospectionFailed);
@@ -75,16 +81,16 @@ final readonly class BackfillGameOptionTypes
     /**
      * The games to sweep: the whole catalogue, or the single one named by its slug.
      *
-     * @return list<Game>
+     * @return list<string>
      */
-    private function gamesToSweep(?string $gameSlug): array
+    private function gameIdsToSweep(?string $gameSlug): array
     {
         if (null === $gameSlug || '' === $gameSlug) {
-            return $this->games->findAllSortedByName();
+            return $this->games->findAllIdsSortedByName();
         }
 
         $game = $this->games->findBySlug($gameSlug);
 
-        return $game instanceof Game ? [$game] : [];
+        return $game instanceof Game ? [$game->getId()] : [];
     }
 }
