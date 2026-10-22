@@ -8,6 +8,7 @@ use App\GameSelection\Application\Port\GameUsageCounterInterface;
 use App\GameSelection\Application\Service\AdminGameLibrary;
 use App\GameSelection\Application\Support\InstallStepsNormalizer;
 use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\GameIntrospection;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
@@ -131,8 +132,9 @@ final class AdminGameLibraryDefaultYamlTest extends TestCase
         $game->configureApworld('deadbeef.apworld', 'deadbeef', 'Atlyss', '', $now);
         // configureApworld seeds an empty template: exactly the state a failed generation leaves.
         $game->overrideDefaultYaml('', $now);
-        $reset = new \ReflectionProperty($game, 'defaultYaml');
-        $reset->setValue($game, null);
+        $introspection = new \ReflectionProperty($game, 'introspection')->getValue($game);
+        self::assertInstanceOf(GameIntrospection::class, $introspection);
+        $introspection->recordDefaultYaml(null);
 
         return $game;
     }
