@@ -303,6 +303,37 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertSame(60, $entry1['value']);
     }
 
+    public function testSpeedAxisCountsFromTheFirstLaunchAfterARelaunch(): void
+    {
+        // Story 32.24: a relaunch after the goal moved started_at past it and the player vanished from the board.
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $event = $this->createEvent('LAN', $now, $now->modify('+1 day'));
+        $game = $this->createGame('G', 'g');
+        $alice = $this->createUser('alice@ex.com', ['ROLE_USER'], 'Alice', 'alice');
+        $registration = $this->createRegistration($event->getId(), $alice->getId());
+
+        $session = $this->makeFinishedSession($event->getId(), $now);
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $registration->getId(), $game->getId(), 'A', 0);
+        $slot->recordGoal($now->modify('+45 seconds'));
+        $this->entityManager->persist($slot);
+
+        $session->transition(Session::STATUS_LAUNCHING, $now->modify('+3 hours'));
+        $session->transition(Session::STATUS_RUNNING, $now->modify('+3 hours'), 'bridge.local', 38282, 'secret', 5001);
+        $session->transition(Session::STATUS_FINISHED, $now->modify('+4 hours'));
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/leaderboard?axis=speed');
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertCount(1, $data);
+        $entry = $data[0];
+        self::assertIsArray($entry);
+        self::assertSame('alice', $entry['slug']);
+        self::assertSame(45, $entry['value']);
+    }
+
     // ─── Avatar URL ──────────────────────────────────────────────────────────
 
     public function testLeaderboardIncludesResolvedAvatarUrl(): void
