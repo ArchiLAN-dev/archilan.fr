@@ -69,7 +69,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.disabled_at AS disabled_at',
                 'game.disabled_message AS disabled_message',
                 'game.archipelago_game_name AS archipelago_game_name',
-                'game.option_types AS option_types',
+                'introspection.option_types AS option_types',
                 'game.install_steps AS install_steps',
                 'sync.steam_app_id AS steam_app_id',
                 'sync.platforms AS platforms',
@@ -83,6 +83,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             )
             ->from('game', 'game')
             ->leftJoin('game', 'game_catalog_sync', 'sync', 'sync.game_id = game.id')
+            ->leftJoin('game', 'game_introspection', 'introspection', 'introspection.game_id = game.introspection_id')
             ->where('game.slug = :slug')
             ->andWhere('game.availability IN (:available, :experimental)')
             ->setParameter('slug', $slug)
