@@ -85,3 +85,11 @@ export function posToTransformOrigin(pos: OverlayPos): string {
   const horizontal = pos.endsWith("left") ? "left" : pos.endsWith("right") ? "right" : "center";
   return `${vertical} ${horizontal}`;
 }
+
+/**
+ * The goal fanfare of an overlay (story 16.24): `sound=1` plays one at random, anything else stays silent. An OBS
+ * source has no fanfare picker, so its own stored choice would always be the default - silent since 16.24.
+ */
+export function goalsFanfare(params: Pick<OverlayParams, "sound">): "random" | "disabled" {
+  return params.sound ? "random" : "disabled";
+}

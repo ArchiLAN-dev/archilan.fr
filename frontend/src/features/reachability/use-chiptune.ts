@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { getSharedAudioContext, primeAudioOnFirstGesture } from "./audio-context";
 import { FANFARES, FANFARES_MAP } from "./fanfares";
-import { readFanfarePref } from "./use-fanfare-preference";
+import { type FanfarePref, readFanfarePref } from "./use-fanfare-preference";
 
 const MASTER_GAIN = 0.30;
 const ATTACK = 0.006;
@@ -14,9 +14,10 @@ const RELEASE = 0.10;
 // realtime event - which is not itself a user gesture - tries to play the fanfare.
 primeAudioOnFirstGesture();
 
-export function useChiptune(): void {
+/** `forced` overrides the player's stored choice (the OBS overlay follows its own `sound` parameter). */
+export function useChiptune(forced?: FanfarePref): void {
     useEffect(() => {
-        const pref = readFanfarePref();
+        const pref = forced ?? readFanfarePref();
         if (pref === "disabled") return;
         const fanfare = pref === "random"
             ? FANFARES[Math.floor(Math.random() * FANFARES.length)]
@@ -78,5 +79,5 @@ export function useChiptune(): void {
             // AudioContext blocked or unavailable
         }
         // The context is shared and reused across celebrations - never close it here.
-    }, []); // intentional: play once on mount
+    }, [forced]); // plays once per celebration: `forced` is fixed for its lifetime
 }
