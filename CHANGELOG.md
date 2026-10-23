@@ -5,6 +5,18 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.44.2] - 2026-10-23
+
+### Sécurité
+
+- **Next.js 16.3.8 → 16.4.2** : corrige les failles publiées pour Next.js 16.0 à 16.4.0, dont deux critiques
+  (une exécution de code à distance sans authentification dans les fonctions `use cache`, GHSA-673q-mjm6-r5xr) et
+  un déni de service des Server Actions (GHSA-p3m5-59mp-jv5r). `pnpm audit` bloquait la CI frontend de toutes les PR.
+
+### Mise en prod
+
+1. Déployer le frontend 0.44.2. Rien côté API.
+
 ## [0.44.1] - 2026-10-22
 
 ### Corrigé
