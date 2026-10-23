@@ -9,11 +9,13 @@ function SphereDetail({
   sphere,
   currentSlot,
   filter,
+  hideItems,
   onFilter,
 }: {
   sphere: SphereEntry;
   currentSlot: number;
   filter: string;
+  hideItems: boolean;
   onFilter: (v: string) => void;
 }) {
   const q = filter.trim().toLowerCase();
@@ -25,7 +27,7 @@ function SphereDetail({
     return sd !== 0 ? sd : a.name.localeCompare(b.name);
   });
   const filtered = q
-    ? sorted.filter((l) => l.name.toLowerCase().includes(q) || (l.item?.name.toLowerCase().includes(q) ?? false))
+    ? sorted.filter((l) => l.name.toLowerCase().includes(q) || (!hideItems && (l.item?.name.toLowerCase().includes(q) ?? false)))
     : sorted;
 
   const statusLabel =
@@ -86,7 +88,7 @@ function SphereDetail({
                     {loc.name}
                   </span>
                 </div>
-                {loc.item ? (
+                {loc.item && !hideItems ? (
                   <span className="ml-4 flex flex-wrap items-baseline gap-1.5 text-xs text-muted-foreground/60">
                     <span>→ {loc.item.name}</span>
                     {!isOwnItem ? (
@@ -108,9 +110,12 @@ function SphereDetail({
 export function SphereLine({
   spheres,
   currentSlot,
+  hideItems = false,
 }: {
   spheres: SphereEntry[];
   currentSlot: number;
+  /** Story 27.12: the spheres without what each location holds (a live push may still carry the items). */
+  hideItems?: boolean;
 }) {
   const defaultIdx = spheres.findIndex((s) => s.status === "current");
   const [selectedIdx, setSelectedIdx] = useState(defaultIdx >= 0 ? defaultIdx : 0);
@@ -175,6 +180,7 @@ export function SphereLine({
         <SphereDetail
           currentSlot={currentSlot}
           filter={sphereFilter}
+          hideItems={hideItems}
           onFilter={setSphereFilter}
           sphere={selected}
         />

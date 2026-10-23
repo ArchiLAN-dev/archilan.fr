@@ -46,6 +46,8 @@ final readonly class SessionServerConfig
         public int $bronzeStart = self::DEFAULT_BRONZE_START,
         public int $bronzePerCheck = self::DEFAULT_BRONZE_PER_CHECK,
         public int $bronzePerGoal = self::DEFAULT_BRONZE_PER_GOAL,
+        // Story 27.12: players see their slot's spheres (locations only, items stripped). A site setting too.
+        public bool $spheresVisible = true,
     ) {
         if ($pelleItemHintPrice < 1 || $pelleItemHintPrice > self::MAX_PELLE_HINT_PRICE
             || $pelleLocationHintPrice < 1 || $pelleLocationHintPrice > self::MAX_PELLE_HINT_PRICE) {

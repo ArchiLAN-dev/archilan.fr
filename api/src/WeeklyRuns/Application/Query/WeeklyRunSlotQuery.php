@@ -4,13 +4,31 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application\Query;
 
+use App\SessionConfig\Application\Service\SessionConfigResolver;
+use App\SessionConfig\Domain\Enum\SessionType;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
 use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface;
 
 final readonly class WeeklyRunSlotQuery
 {
-    public function __construct(private WeeklyEntryRepositoryInterface $entries)
+    public function __construct(
+        private WeeklyEntryRepositoryInterface $entries,
+        private WeeklyRunRepositoryInterface $runs,
+        private SessionConfigResolver $configResolver,
+    ) {
+    }
+
+    /**
+     * Whether the player of an attempt sees their spheres (story 27.12): the "weekly" profile and the override of
+     * the weekly's template, as the launch reads them.
+     */
+    public function spheresVisible(string $weeklyRunId): bool
     {
+        $run = $this->runs->findById($weeklyRunId);
+
+        return $this->configResolver->resolve(SessionType::Weekly, $run instanceof WeeklyRun ? $run->getTemplateId() : null)->server->spheresVisible;
     }
 
     /**

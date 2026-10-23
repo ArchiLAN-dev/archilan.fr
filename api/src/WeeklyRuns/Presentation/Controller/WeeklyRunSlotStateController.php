@@ -51,17 +51,21 @@ final readonly class WeeklyRunSlotStateController
                 ['timeout' => 130],
             );
             $data = $response->toArray();
+            // Story 27.12: the weekly template's setting decides whether the player gets the spheres at all.
+            $spheresVisible = $this->weeklyRunSlotQuery->spheresVisible($runId);
 
             // Story 17.28: « computing », with the slot's last result (or none); the new one is pushed.
             if (202 === $response->getStatusCode()) {
                 $previous = is_array($data['previous'] ?? null) ? $data['previous'] : null;
 
-                return new JsonResponse(['data' => null === $previous ? null : $this->stripItemRewards($previous), 'computing' => true], 202);
+                return new JsonResponse([
+                    'data' => null === $previous ? null : $this->forPlayer($previous, $spheresVisible),
+                    'computing' => true,
+                    'spheresVisible' => $spheresVisible,
+                ], 202);
             }
 
-            $data = $this->stripItemRewards($data);
-
-            return new JsonResponse(['data' => $data]);
+            return new JsonResponse(['data' => $this->forPlayer($data, $spheresVisible), 'spheresVisible' => $spheresVisible]);
         } catch (\Throwable) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
@@ -373,6 +377,20 @@ final readonly class WeeklyRunSlotStateController
     private function isAdmin(User $user): bool
     {
         return in_array('ROLE_ADMIN', $user->getRoles(), true);
+    }
+
+    /**
+     * @param array<mixed> $data
+     *
+     * @return array<mixed>
+     */
+    private function forPlayer(array $data, bool $spheresVisible): array
+    {
+        if (!$spheresVisible) {
+            unset($data['spheres']);
+        }
+
+        return $this->stripItemRewards($data);
     }
 
     /**

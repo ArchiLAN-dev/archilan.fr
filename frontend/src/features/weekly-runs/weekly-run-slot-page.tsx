@@ -30,6 +30,7 @@ import { FanfarePicker } from "@/features/reachability/fanfare-picker";
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
+import { SphereLine } from "@/features/reachability/sphere-line";
 import type { HintsData, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { HINT_STATUS_NAMES, REACHABILITY_INVALID_MESSAGE, REACHABILITY_RETRY_MS, isHintsUpdate, isReachabilityData, reachableAnswerOf } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
@@ -86,12 +87,17 @@ export function WeeklyRunSlotPage({
 
   // ─── Tabs ──────────────────────────────────────────────────────────────────
 
-  type TabId = "checks" | "items" | "indices";
-  const TABS: { id: TabId; label: string; icon: ElementType }[] = [
+  // Story 27.12: the weekly template's setting, as the API answered it.
+  const [spheresVisible, setSpheresVisible] = useState(false);
+
+  type TabId = "checks" | "items" | "spheres" | "indices";
+  const ALL_TABS: { id: TabId; label: string; icon: ElementType }[] = [
     { id: "checks",  label: "Checks",  icon: ListChecks },
     { id: "items",   label: "Items",   icon: Package },
+    { id: "spheres", label: "Sphères", icon: Route },
     { id: "indices", label: "Indices", icon: Lightbulb },
   ];
+  const TABS = ALL_TABS.filter((t) => t.id !== "spheres" || spheresVisible);
   const VALID_TABS = new Set<string>(TABS.map((t) => t.id));
   const rawTab = searchParams.get("tab");
   const activeTab: TabId = VALID_TABS.has(rawTab ?? "") ? (rawTab as TabId) : "checks";
@@ -186,6 +192,7 @@ export function WeeklyRunSlotPage({
         return;
       }
       const data = answer.data;
+      setSpheresVisible(answer.spheresVisible);
       setComputingTick((tick) => (answer.computing ? tick + 1 : 0));
       setState({ kind: "data", data });
       if (prevItemsRef.current.size === 0) {
@@ -785,6 +792,8 @@ export function WeeklyRunSlotPage({
                 ? { main: `${data.counts.checked} / ${data.counts.total}`, highlight: data.counts.reachable_now > 0 ? `${data.counts.reachable_now} faisables` : null }
                 : tab.id === "items" && data
                   ? { main: String(countItems(data.items_received)), highlight: null }
+                  : tab.id === "spheres" && data?.spheres && data.spheres.length > 0
+                    ? { main: `${data.spheres.filter((s) => s.status === "past").length} / ${data.spheres.length}`, highlight: null }
                   : tab.id === "indices" && hints != null && hints.hints.length > 0
                     ? { main: String(hints.hints.length), highlight: null }
                     : null;
@@ -921,6 +930,15 @@ export function WeeklyRunSlotPage({
                   variant="not-received"
                 />
               </div>
+            ) : null}
+
+            {/* Sphères tab */}
+            {activeTab === "spheres" ? (
+              state.data.spheres && state.data.spheres.length > 0 ? (
+                <SphereLine currentSlot={Number(slotIndex)} hideItems spheres={state.data.spheres} />
+              ) : (
+                <p className="text-sm text-muted-foreground">Aucune donnée de sphères disponible.</p>
+              )
             ) : null}
 
             {/* Indices tab */}

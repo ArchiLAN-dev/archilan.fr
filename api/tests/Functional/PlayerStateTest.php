@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Domain\Entity\User;
+use App\PersonalRuns\Domain\Entity\Run;
 use App\Registrations\Domain\Entity\Registration;
+use App\SessionConfig\Application\Command\SetSessionConfigOverride;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
 use App\Sessions\Domain\Entity\SessionSlot;
@@ -224,6 +226,110 @@ final class PlayerStateTest extends FunctionalTestCase
         $error = $this->decodedJsonResponse()['error'];
         self::assertIsArray($error);
         self::assertSame('bridge_unavailable', $error['code']);
+    }
+
+    // ─── spheres follow the run's setting (story 27.12) ────────────────────────
+
+    public function testReachableGivesAPlayerTheSpheresWithoutTheirItemsByDefault(): void
+    {
+        $session = $this->createRunningSession('run-spheres-on', 'evt-001');
+        $this->httpClient->setResponseFactory(new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->decodedJsonResponse();
+        self::assertTrue($body['spheresVisible'] ?? null);
+        $data = $body['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertSame([['index' => 0, 'locations' => [['id' => 1, 'name' => 'Cave']]]], $data['spheres'] ?? null);
+    }
+
+    public function testReachableDropsTheSpheresOfAnEventThatHidesThem(): void
+    {
+        $session = $this->createRunningSession('run-spheres-off', 'evt-001');
+        $this->overrideConfig($session->getId(), ['spheresVisible' => false]);
+        $this->httpClient->setResponseFactory(new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->decodedJsonResponse();
+        self::assertFalse($body['spheresVisible'] ?? null);
+        $data = $body['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertArrayNotHasKey('spheres', $data);
+        self::assertSame([['id' => 1, 'name' => 'Cave']], $data['reachable_unchecked'] ?? null, 'the rest is untouched');
+    }
+
+    public function testReachableDropsTheSpheresOfTheComputingPreviousToo(): void
+    {
+        $session = $this->createRunningSession('run-spheres-computing', 'evt-001');
+        $this->overrideConfig($session->getId(), ['spheresVisible' => false]);
+        $this->httpClient->setResponseFactory(new MockResponse(
+            (string) json_encode(['computing' => true, 'previous' => ['spheres' => [['index' => 0, 'locations' => []]]]]),
+            ['http_code' => 202],
+        ));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(202);
+        self::assertSame(['data' => [], 'computing' => true, 'spheresVisible' => false], $this->decodedJsonResponse());
+    }
+
+    public function testReachableKeepsTheSpheresForAnAdmin(): void
+    {
+        $session = $this->createRunningSession('run-spheres-admin', 'evt-001');
+        $this->overrideConfig($session->getId(), ['spheresVisible' => false]);
+        $this->loginAs($this->createAdmin());
+        $this->httpClient->setResponseFactory(new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->decodedJsonResponse();
+        self::assertTrue($body['spheresVisible'] ?? null);
+        $data = $body['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertSame([['index' => 0, 'locations' => [['id' => 1, 'name' => 'Cave', 'item' => ['name' => 'Sword']]]]], $data['spheres'] ?? null);
+    }
+
+    public function testThePrivateRunOwnerSeesTheSpheresTheyHid(): void
+    {
+        $owner = $this->createPlayer('owner@example.org', 'Owner');
+        $run = Run::create($owner->getId(), 'Run de test', new \DateTimeImmutable('2026-10-24T10:00:00+00:00'));
+        $this->entityManager->persist($run);
+        $session = $this->createRunningSession('run-spheres-private', $run->getId());
+        $run->attachSession($session->getId());
+        $this->entityManager->flush();
+        $this->overrideConfig($run->getId(), ['spheresVisible' => false]);
+        $this->httpClient->setResponseFactory(new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+        self::assertResponseStatusCodeSame(200);
+        self::assertFalse($this->decodedJsonResponse()['spheresVisible'] ?? null, 'anyone else');
+
+        $this->loginAs($owner);
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->decodedJsonResponse()['spheresVisible'] ?? null, 'the owner');
+    }
+
+    private function reachableWithSpheres(): string
+    {
+        $cave = ['id' => 1, 'name' => 'Cave', 'item' => ['name' => 'Sword']];
+
+        return (string) json_encode(['reachable_unchecked' => [$cave], 'spheres' => [['index' => 0, 'locations' => [$cave]]]]);
+    }
+
+    /**
+     * @param array<string, mixed> $override
+     */
+    private function overrideConfig(string $scopeKey, array $override): void
+    {
+        $set = self::getContainer()->get(SetSessionConfigOverride::class);
+        self::assertInstanceOf(SetSessionConfigOverride::class, $set);
+        $set->execute($scopeKey, $override);
     }
 
     // ─── slot-ownership gate (issues #252 / #253) ───────────────────────────────
