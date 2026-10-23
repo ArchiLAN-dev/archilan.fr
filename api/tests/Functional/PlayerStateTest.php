@@ -193,7 +193,7 @@ final class PlayerStateTest extends FunctionalTestCase
         $this->httpClient->setResponseFactory(new MockResponse('{"computing":true,"previous":null}', ['http_code' => 202]));
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
         self::assertResponseStatusCodeSame(202);
-        self::assertSame(['data' => null, 'computing' => true], $this->decodedJsonResponse());
+        self::assertSame(['data' => null, 'computing' => true, 'spheresVisible' => true], $this->decodedJsonResponse());
     }
 
     public function testReachableMapsABridgeTimeoutToItsOwnCode(): void
@@ -303,7 +303,8 @@ final class PlayerStateTest extends FunctionalTestCase
         $run->attachSession($session->getId());
         $this->entityManager->flush();
         $this->overrideConfig($run->getId(), ['spheresVisible' => false]);
-        $this->httpClient->setResponseFactory(new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
+        // Two requests: a fresh response each time (a single MockResponse is consumed by the first).
+        $this->httpClient->setResponseFactory(fn (): MockResponse => new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
         self::assertResponseStatusCodeSame(200);
