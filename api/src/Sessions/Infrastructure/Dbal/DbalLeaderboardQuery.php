@@ -19,6 +19,9 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
 {
+    /** Speed runs from the server's first launch, which a relaunch never moves (story 32.24). */
+    private const string RUN_START = 'COALESCE(s.first_launched_at, s.started_at)';
+
     private string $sessionTable;
     private string $slotTable;
     private string $registrationTable;
@@ -209,7 +212,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $eventQb->select(
             $this->userColumn().' AS user_id',
             'MIN(slot.goal_reached_at) AS earliest_goal_at',
-            's.started_at',
+            self::RUN_START.' AS started_at',
         )
             ->from($this->slotTable, 'slot')
             ->join('slot', $this->players(), 'sp', $eventQb->expr()->eq('sp.'.DbalSlotPlayerSource::SLOT_COLUMN, 'slot.id'))
@@ -218,7 +221,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             ->where($eventQb->expr()->eq('s.status', ':status'))
             ->andWhere($eventQb->expr()->isNotNull('slot.goal_reached_at'))
             ->setParameter('status', 'finished')
-            ->groupBy($this->userColumn(), 's.id', 's.started_at');
+            ->groupBy($this->userColumn(), 's.id', self::RUN_START);
 
         if (null !== $eventId) {
             $eventQb->andWhere($eventQb->expr()->eq('s.event_id', ':eventId'))
@@ -232,7 +235,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             $prQb->select(
                 $this->userColumn().' AS user_id',
                 'MIN(slot.goal_reached_at) AS earliest_goal_at',
-                's.started_at',
+                self::RUN_START.' AS started_at',
             )
                 ->from($this->slotTable, 'slot')
                 ->join('slot', $this->players(), 'sp', $prQb->expr()->eq('sp.'.DbalSlotPlayerSource::SLOT_COLUMN, 'slot.id'))
@@ -241,7 +244,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
                 ->where($prQb->expr()->eq('s.status', ':status'))
                 ->andWhere($prQb->expr()->isNotNull('slot.goal_reached_at'))
                 ->setParameter('status', 'finished')
-                ->groupBy($this->userColumn(), 's.id', 's.started_at');
+                ->groupBy($this->userColumn(), 's.id', self::RUN_START);
             $allRows = array_merge($allRows, $prQb->executeQuery()->fetchAllAssociative());
         }
 

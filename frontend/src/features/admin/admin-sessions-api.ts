@@ -35,8 +35,12 @@ export type Session = {
   password: string | null;
   serverPassword?: string | null;
   createdAt: string;
+  /** Last launch: moves on every relaunch, crash restart or resume (story 32.24). */
   startedAt: string | null;
+  /** First launch, never moved afterwards. Absent from an API that predates story 32.24. */
+  firstLaunchedAt?: string | null;
   stoppedAt: string | null;
+  finishedAt?: string | null;
   lastActivityAt?: string | null;
   pausedWithoutSave?: boolean;
   error?: string | null;

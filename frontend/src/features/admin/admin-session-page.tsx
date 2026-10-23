@@ -41,6 +41,7 @@ import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { clearOverride, fetchSessionConfig, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
+import { sessionUptimeMs } from "@/features/admin/session-uptime";
 import { CollapsibleConfigPanel } from "@/components/collapsible-config-panel";
 import {
   fetchAdminEventSessions,
@@ -398,7 +399,7 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
                   <div className="grid min-w-0 flex-1 gap-0.5">
                     <p className="font-mono text-sm text-muted-foreground">{session.id.slice(0, 12)}…</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatDate(session.createdAt)} · {formatDuration(session)}
+                      {[formatDate(session.createdAt), formatDuration(session)].filter(Boolean).join(" · ")}
                     </p>
                   </div>
 
@@ -966,7 +967,7 @@ function SessionDetail({
           <div aria-hidden="true" className="hidden h-3.5 w-px bg-border lg:block" />
           <span className="hidden text-xs text-muted-foreground/70 lg:block">
             Créée {formatDate(session.createdAt)}
-            {session.startedAt ? ` · ${formatDuration(session)}` : ""}
+            {launchSummary(session)}
           </span>
         </div>
 
@@ -2229,10 +2230,23 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function formatDuration(session: Session) {
-  const start = new Date(session.startedAt ?? session.createdAt).getTime();
-  const end = session.stoppedAt ? new Date(session.stoppedAt).getTime() : Date.now();
-  const elapsed = Math.max(0, end - start);
+/**
+ * First and last launch (story 32.24): the recap counts from the first, the uptime from the last. The last
+ * launch is only shown when a relaunch moved it.
+ */
+function launchSummary(session: Session): string {
+  if (!session.startedAt) return "";
+  const first = session.firstLaunchedAt ?? session.startedAt;
+  const parts = [`Premier lancement ${formatDate(first)}`];
+  if (first !== session.startedAt) parts.push(`Dernier lancement ${formatDate(session.startedAt)}`);
+  const duration = formatDuration(session);
+  if (duration) parts.push(duration);
+  return ` · ${parts.join(" · ")}`;
+}
+
+function formatDuration(session: Session): string | null {
+  const elapsed = sessionUptimeMs(session, Date.now());
+  if (elapsed === null) return null;
   const minutes = Math.floor(elapsed / 60000);
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;

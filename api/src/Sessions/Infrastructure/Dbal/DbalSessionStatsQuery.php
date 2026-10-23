@@ -33,16 +33,17 @@ final readonly class DbalSessionStatsQuery implements SessionStatsQueryInterface
             'runningSessions' => $this->reader->count('SELECT COUNT(*) FROM session WHERE status = :running', ['running' => Session::STATUS_RUNNING]),
             'activeRuns' => $this->reader->count("SELECT COUNT(*) FROM run WHERE status = 'active'"),
             'runsCreated' => $this->reader->trend($period, 'FROM run WHERE 1 = 1', 'created_at'),
+            // A launch counts once, at the first launch: a resume or relaunch never moves it (story 32.24).
             'runsLaunched' => $this->reader->trend(
                 $period,
-                'FROM session s JOIN run r ON r.id = s.event_id WHERE s.started_at IS NOT NULL',
-                's.started_at',
+                'FROM session s JOIN run r ON r.id = s.event_id WHERE s.first_launched_at IS NOT NULL',
+                's.first_launched_at',
                 distinct: 'r.id',
             ),
             'eventSessionsLaunched' => $this->reader->trend(
                 $period,
-                'FROM session s WHERE s.started_at IS NOT NULL AND NOT EXISTS (SELECT 1 FROM run r WHERE r.id = s.event_id)',
-                's.started_at',
+                'FROM session s WHERE s.first_launched_at IS NOT NULL AND NOT EXISTS (SELECT 1 FROM run r WHERE r.id = s.event_id)',
+                's.first_launched_at',
             ),
             'weeklyLaunched' => $this->reader->trend($period, 'FROM weekly_entries WHERE 1 = 1', 'launched_at'),
             'weeklyCompleted' => $this->reader->trend($period, 'FROM weekly_entries WHERE 1 = 1', 'goal_reached_at'),

@@ -13,6 +13,10 @@ describe("formatDuration", () => {
     expect(formatDuration(42)).toBe("42 s");
   });
 
+  it("never prints a minus sign for a negative duration (story 32.24)", () => {
+    expect(formatDuration(-90)).toBe("0 s");
+  });
+
   it("formats zero", () => {
     expect(formatDuration(0)).toBe("0 s");
   });

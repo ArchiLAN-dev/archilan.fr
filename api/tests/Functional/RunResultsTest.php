@@ -236,6 +236,59 @@ final class RunResultsTest extends FunctionalTestCase
         return $session;
     }
 
+    public function testTimesCountFromTheFirstLaunchAfterARelaunch(): void
+    {
+        // Story 32.24: a goal reached before a relaunch, and a relaunch after the end, used to read negative
+        // because times started at the last launch.
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $event = $this->createEvent('ArchiLAN 2026', $now, $now->modify('+2 days'));
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $user = $this->createUser('alice@example.org', displayName: 'Alice');
+        $registration = $this->createRegistration($event->getId(), $user->getId());
+
+        $session = $this->createFinishedSession($event->getId(), $now);
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $registration->getId(), $game->getId(), 'Alice', 0, 'slot-1');
+        $slot->recordGoal($now->modify('+30 minutes'));
+        $this->entityManager->persist($slot);
+
+        // Forced relaunch the next day, then finished again a few minutes later.
+        $session->transition(Session::STATUS_LAUNCHING, $now->modify('+1 day'));
+        $session->transition(Session::STATUS_RUNNING, $now->modify('+1 day +1 minute'), 'bridge.local', 38282, 'secret', 5001);
+        $session->transition(Session::STATUS_FINISHED, $now->modify('+1 day +5 minutes'));
+        $this->entityManager->flush();
+
+        $data = $this->results($session->getId());
+        self::assertNotNull($data);
+        self::assertSame($now->format(\DateTimeInterface::ATOM), $data['startedAt']);
+        self::assertSame(86400 + 300, $data['durationSeconds']);
+        self::assertIsArray($data['slots']);
+        $row = $data['slots'][0];
+        self::assertIsArray($row);
+        self::assertSame(1800, $row['completionSeconds']);
+    }
+
+    public function testInconsistentGoalBeforeTheLaunchReadsAsZero(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $event = $this->createEvent('ArchiLAN 2026', $now, $now->modify('+2 days'));
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $user = $this->createUser('alice@example.org', displayName: 'Alice');
+        $registration = $this->createRegistration($event->getId(), $user->getId());
+
+        $session = $this->createFinishedSession($event->getId(), $now);
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $registration->getId(), $game->getId(), 'Alice', 0, 'slot-1');
+        $slot->recordGoal($now->modify('-10 minutes'));
+        $this->entityManager->persist($slot);
+        $this->entityManager->flush();
+
+        $data = $this->results($session->getId());
+        self::assertNotNull($data);
+        self::assertIsArray($data['slots']);
+        $row = $data['slots'][0];
+        self::assertIsArray($row);
+        self::assertSame(0, $row['completionSeconds']);
+    }
+
     private function createFinishedSession(string $eventId, \DateTimeImmutable $now): Session
     {
         $session = Session::create(bin2hex(random_bytes(16)), $eventId, $now);
