@@ -2,10 +2,9 @@
 
 import { Music, Play, Shuffle, VolumeX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { FANFARE_IDS, FANFARE_NAMES, FANFARES_MAP, type NoteSpec } from "./fanfares";
+import { FANFARE_GAIN, FANFARE_IDS, FANFARE_NAMES, FANFARES_MAP, type NoteSpec } from "./fanfares";
 import { type FanfarePref, useFanfarePreference } from "./use-fanfare-preference";
 
-const MASTER_GAIN = 0.22;
 const ATTACK = 0.006;
 const RELEASE = 0.10;
 
@@ -19,7 +18,7 @@ function playPreview(notes: NoteSpec[]): () => void {
         ctx = new AudioContext();
         const now = ctx.currentTime;
         const master = ctx.createGain();
-        master.gain.setValueAtTime(MASTER_GAIN, now);
+        master.gain.setValueAtTime(FANFARE_GAIN, now);
         master.connect(ctx.destination);
 
         for (const [freq, start, duration, type, vol] of notes) {

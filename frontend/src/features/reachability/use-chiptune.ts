@@ -2,10 +2,9 @@
 
 import { useEffect } from "react";
 import { getSharedAudioContext, primeAudioOnFirstGesture } from "./audio-context";
-import { FANFARES, FANFARES_MAP } from "./fanfares";
+import { FANFARE_GAIN, FANFARES, FANFARES_MAP } from "./fanfares";
 import { type FanfarePref, readFanfarePref } from "./use-fanfare-preference";
 
-const MASTER_GAIN = 0.30;
 const ATTACK = 0.006;
 const RELEASE = 0.10;
 
@@ -32,7 +31,7 @@ export function useChiptune(forced?: FanfarePref): void {
         try {
             const now = ctx.currentTime;
             const master = ctx.createGain();
-            master.gain.setValueAtTime(MASTER_GAIN, now);
+            master.gain.setValueAtTime(FANFARE_GAIN, now);
             master.connect(ctx.destination);
 
             for (const [freq, start, duration, type, vol] of fanfare) {
