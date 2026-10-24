@@ -5,6 +5,30 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.47.0] - 2026-10-24
+
+Le blind test de mashups est prêt à être déployé : l'app à part (dépôt `archilan-blind-test`) tourne à côté du site,
+joue la musique depuis YouTube et connaît ses joueurs par leur compte archilan.fr.
+
+### Ajouté
+
+- **Déploiement de l'app de blind test** (41.43, 41.44) : profil Compose `blind-test` (services `blind-test` et
+  `blind-test-credits`, volume `blind-test-data`), `envs/blind-test.env.example`, variables `BLIND_TEST_VERSION` et
+  `BLIND_TEST_DOMAIN`, procédure dans `docs/deploiement-production.md` (import de la playlist depuis le wiki
+  SiIvaGunner, vérification des vidéos YouTube, régie et écran de salle).
+- **« Se connecter avec archilan.fr » sur l'app de blind test** (41.45) : l'app renvoie le joueur sur le site, qui
+  émet un code à usage unique (60 s) ; l'app l'échange de serveur à serveur contre l'identité du joueur inscrit.
+  Le cookie de session du site ne quitte pas son domaine. Le bouton « Jouer au blind test » affiche aussi un QR
+  code pour ouvrir l'app sur téléphone.
+
+### Modifié
+
+- **Lien du blind test** (41.45) : le lien signé de 41.40 laisse place à la connexion par code.
+  `BLIND_TEST_APP_URL` est désormais l'adresse de base de l'app, sans chemin. Une migration
+  (`Version20261024120000`, table `blind_test_login_code`).
+- Le contrôle d'accès au blind test répond « pas d'accès » sans erreur quand le membre ne peut pas jouer, et n'est
+  plus appelé pour un visiteur anonyme.
+
 ## [0.46.0] - 2026-10-24
 
 Le suivi en direct ne dévoile plus le contenu des emplacements, le détail d'une inscription s'ouvre de nouveau, et
