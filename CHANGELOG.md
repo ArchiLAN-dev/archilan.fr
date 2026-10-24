@@ -5,6 +5,60 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.45.0] - 2026-10-24
+
+On peut suivre un jeu pour être prévenu de ses nouveaux apworlds, les sphères sont visibles sans spoil, et les
+joueurs d'un événement récupèrent enfin leurs fichiers de génération.
+
+### Ajouté
+
+- **Suivre un jeu** (38.22) : un bouton « Suivre ce jeu » sur la page d'un jeu. Chaque fois que le site met en place
+  un nouvel apworld pour ce jeu (fichier admin, import GitHub ou mise à jour automatique), ceux qui le suivent
+  reçoivent une notification : « Nouvel apworld pour {jeu} », ou « {jeu} est jouable sur le site » pour un premier
+  apworld. Réglable dans les préférences (« Jeux suivis ») : cloche par défaut, push possible.
+- **Sphères visibles sans spoil** (27.12) : les joueurs voient l'onglet Sphères de leur slot, emplacements seulement,
+  sans ce qu'ils contiennent. Réglable dans la config des parties (privée, hebdo, événement), activé par défaut ; le
+  propriétaire d'une partie privée garde toujours ses sphères. Nouvel onglet Sphères sur la page de slot d'une hebdo.
+- **Logs des conteneurs d'une session** (17.33, orchestrateur 0.23.0) : l'onglet « Container » de l'admin d'une
+  session devient « Logs » et affiche les logs du serveur AP, du bridge ou de la génération, rafraîchis toutes les
+  5 s quand la session tourne. Le bouton « Créer » devient « Forcer le lancement ».
+
+### Modifié
+
+- **Fanfare de goal coupée par défaut** (16.24) : sans choix enregistré, plus de musique à l'atteinte du goal ; le
+  sélecteur de fanfare la réactive.
+- **Fanfare moins forte** (16.25) : le volume passe de 0.30 à 0.12, et l'aperçu du sélecteur joue enfin le même
+  niveau.
+
+### Corrigé
+
+- **Fichiers de génération des événements** (17.32) : la section « Fichiers de patch » d'une inscription restait
+  vide (ancien dossier local, nom de fichier attendu égal au slot). Elle lit l'archive de génération comme en partie
+  privée, avec les mêmes règles (ses slots seulement, jamais la multidata ni le spoiler), dès la génération.
+- **Temps de partie jamais négatifs** (32.24) : la durée d'une partie, le temps d'un joueur et le classement de
+  vitesse partent du premier lancement du serveur, pas de la dernière relance.
+- **L'onglet Container ne marchait pas** (17.33) : il visait un conteneur qui n'existe plus par un socket Docker que
+  `api-web` n'a pas. Le code est retiré (`ContainerController`, `FetchLogsJob`, callback runner `logs`).
+- **Pokémon Noir et Blanc sans template** (38.21, image archipelago 0.20.1) : `worlds.world_sources` manquait dans les
+  scripts de chargement d'apworld.
+
+### Sécurité
+
+- Couches Alpine reconstruites pour brotli-libs (CVE-2026-111497).
+- Overrides pnpm : zod 4.6.6 (GHSA-mrhx-c7xc-m3w5), body-parser 2.4.0 (GHSA-27r3-jxmh-p828), undici 7.30.1
+  (GHSA-xjj6-f33q-929c).
+
+### Mise en prod
+
+Dans l'ordre :
+
+1. Image `orchestrateur` 0.23.0 (route des logs ; sans elle l'onglet Logs affiche « orchestrateur trop ancien »).
+   Image `archipelago` 0.20.1 si elle n'est pas déjà en place.
+2. API et frontend 0.45.0. Migrations (jouées par `api-migrations`) : `Version20261022100000` (premier lancement),
+   `Version20261024100000` (`game_follow`).
+3. Redémarrer les workers (nouveau handler async de `ApworldPromoted`).
+4. Pokémon Noir et Blanc : « Régénérer » le template, puis `--reintrospect` et `app:games:backfill-locations`.
+
 ## [0.44.2] - 2026-10-23
 
 ### Sécurité
