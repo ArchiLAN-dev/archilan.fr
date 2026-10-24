@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellRing } from "lucide-react";
 
 import { useAuth } from "@/features/auth/auth-context";
-import { fetchGameFollow, setGameFollow } from "./game-follow-api";
+import { FOLLOWED_GAMES_KEY, fetchGameFollow, gameFollowKey, setGameFollow } from "./game-follow-api";
 
 /**
  * Follow a game from its page (story 38.22): the member is told in the notification center each time
@@ -13,7 +13,7 @@ import { fetchGameFollow, setGameFollow } from "./game-follow-api";
 export function GameFollowButton({ gameId }: { gameId: string }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const queryKey = ["game-follow", gameId] as const;
+  const queryKey = gameFollowKey(gameId);
 
   const { data: following } = useQuery({
     enabled: user !== null,
@@ -26,6 +26,8 @@ export function GameFollowButton({ gameId }: { gameId: string }) {
     mutationFn: (follow: boolean) => setGameFollow(gameId, follow),
     onSuccess: (settled) => {
       if (settled !== null) queryClient.setQueryData(queryKey, settled);
+      // Story 38.23: the account's list of followed games reads the change on its next view.
+      void queryClient.invalidateQueries({ queryKey: FOLLOWED_GAMES_KEY });
     },
   });
 

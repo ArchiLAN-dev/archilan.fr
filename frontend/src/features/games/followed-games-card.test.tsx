@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { FOLLOWED_GAMES_KEY, FollowedGamesCard } from "./followed-games-card";
-import { isFollowedGamesPayload, type FollowedGame } from "./game-follow-api";
+import { FollowedGamesCard } from "./followed-games-card";
+import { FOLLOWED_GAMES_KEY, isFollowedGamesPayload, type FollowedGame } from "./game-follow-api";
 
 function render(games: FollowedGame[]): string {
   const client = new QueryClient();

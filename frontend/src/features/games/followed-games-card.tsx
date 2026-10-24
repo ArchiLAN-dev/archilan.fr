@@ -6,9 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing } from "lucide-react";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import { fetchFollowedGames, setGameFollow, type FollowedGame } from "./game-follow-api";
-
-export const FOLLOWED_GAMES_KEY = ["followed-games"] as const;
+import { FOLLOWED_GAMES_KEY, fetchFollowedGames, gameFollowKey, setGameFollow, type FollowedGame } from "./game-follow-api";
 
 /**
  * Story 38.23: the games the member follows, each with a way to stop. Following starts from a game's page; an empty
@@ -31,6 +29,7 @@ export function FollowedGamesCard() {
     setFailed(following === null);
     if (following === false) {
       queryClient.setQueryData<FollowedGame[]>(FOLLOWED_GAMES_KEY, (games) => games?.filter((game) => game.gameId !== gameId));
+      queryClient.setQueryData(gameFollowKey(gameId), false);
     }
   }
 

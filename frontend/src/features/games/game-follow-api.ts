@@ -36,6 +36,11 @@ export async function setGameFollow(gameId: string, follow: boolean): Promise<bo
   }
 }
 
+/** Shared by the follow button and the list, so a change on one side refreshes the other (story 38.23). */
+export const FOLLOWED_GAMES_KEY = ["followed-games"] as const;
+
+export const gameFollowKey = (gameId: string) => ["game-follow", gameId] as const;
+
 export type FollowedGame = { gameId: string; gameName: string; gameSlug: string };
 
 function isFollowedGame(v: unknown): v is FollowedGame {
