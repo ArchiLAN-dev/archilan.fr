@@ -305,12 +305,6 @@ final class SessionLifecycleTest extends FunctionalTestCase
         self::assertSame(Session::STATUS_DRAFT, $session->getStatus());
     }
 
-    public function testRunnerCallbackLogsStatusReturns404ForUnknownSession(): void
-    {
-        $this->callbackAs('nonexistent', 'logs');
-        self::assertResponseStatusCodeSame(404);
-    }
-
     public function testStoppedAtIsSetOnTerminalTransitions(): void
     {
         $admin = $this->createAdmin();

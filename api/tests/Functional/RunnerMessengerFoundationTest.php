@@ -23,7 +23,7 @@ final class RunnerMessengerFoundationTest extends FunctionalTestCase
         $this->client->jsonRequest(
             'POST',
             sprintf('/api/v1/internal/sessions/%s/runner-callback', $session->getId()),
-            ['status' => 'logs'],
+            ['status' => 'archived'],
         );
         self::assertResponseStatusCodeSame(401);
 
@@ -34,7 +34,7 @@ final class RunnerMessengerFoundationTest extends FunctionalTestCase
             [],
             [],
             ['HTTP_X_INTERNAL_SECRET' => 'wrong', 'CONTENT_TYPE' => 'application/json'],
-            json_encode(['status' => 'logs', 'output' => ''], JSON_THROW_ON_ERROR),
+            json_encode(['status' => 'archived'], JSON_THROW_ON_ERROR),
         );
         self::assertResponseStatusCodeSame(401);
     }
@@ -49,13 +49,6 @@ final class RunnerMessengerFoundationTest extends FunctionalTestCase
         $data = $this->jsonResponse()['data'];
         self::assertIsArray($data);
         self::assertSame(true, $data['ok']);
-    }
-
-    public function testRunnerCallbackLogsStatusReturns404ForUnknownSession(): void
-    {
-        $this->sendCallback('no-such-session', ['status' => 'logs', 'output' => '']);
-
-        self::assertResponseStatusCodeSame(404);
     }
 
     public function testRunnerCallbackIncludesExtraFieldsGracefully(): void

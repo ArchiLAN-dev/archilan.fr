@@ -29,7 +29,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
 import type { GenerationFile } from "@/features/games/required-files";
 
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME, REALTIME_STALE_TIME } from "@/lib/query-client";
@@ -49,9 +48,10 @@ import {
   fetchAdminSessionDetail,
   generateSession,
   fetchContainerLogs,
-  fetchContainerState,
+  forceLaunchSession,
   type AdminSessionDetailResult,
-  type ContainerState,
+  type ForceLaunchResult,
+  type SessionContainer,
   type Session,
   type SessionSlot,
   type SessionStatus,
@@ -924,7 +924,7 @@ function SessionDetail({
     { id: "overview", label: "Vue d'ensemble" },
     { id: "slots", label: "Progression" },
     { id: "terminal", label: "Terminal" },
-    { id: "container", label: "Container" },
+    { id: "container", label: "Logs" },
   ];
   const VALID_TABS = new Set<string>(TABS.map((t) => t.id));
   const rawTab = searchParams.get("tab");
@@ -1806,291 +1806,117 @@ function TermFeedLine({ type, text, timestamp }: { type: string; text: string; t
 
 // ─── LogPanel ────────────────────────────────────────────────────────────────
 
-const CONTAINER_ACTIONS = [
-  { key: "start",   label: "Démarrer",  Icon: Play,      cls: "text-success"                   },
-  { key: "stop",    label: "Arrêter",   Icon: Square,    cls: "text-[var(--color-danger)]"      },
-  { key: "restart", label: "Relancer",  Icon: RefreshCw, cls: "text-[var(--color-accent-warm)]" },
-  { key: "rm",      label: "Supprimer", Icon: XCircle,   cls: "text-[var(--color-danger)]"      },
-] as const;
-
-type ContainerActionResult = { action: string; success: boolean; output: string };
-
-const CONTAINER_STATUS_STYLE: Record<string, { dot: string; badge: string; label: string }> = {
-  running:    { dot: "bg-success animate-pulse", badge: "border-success/30 bg-success/10 text-success",                               label: "En cours" },
-  paused:     { dot: "bg-[var(--color-accent-warm)]", badge: "border-[var(--color-accent-warm)]/30 bg-[var(--color-accent-warm)]/10 text-[var(--color-accent-warm)]", label: "En pause" },
-  restarting: { dot: "bg-[var(--color-accent-warm)] animate-pulse", badge: "border-[var(--color-accent-warm)]/30 bg-[var(--color-accent-warm)]/10 text-[var(--color-accent-warm)]", label: "Redémarrage…" },
-  exited:     { dot: "bg-muted-foreground", badge: "border-border bg-surface text-muted-foreground",                                   label: "Arrêté" },
-  dead:       { dot: "bg-[var(--color-danger)]", badge: "border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 text-[var(--color-danger)]", label: "Mort" },
-  not_found:  { dot: "bg-border", badge: "border-border bg-surface text-muted-foreground",                                             label: "Introuvable" },
-};
-
-function ContainerStateCard({ state, loading }: { state: ContainerState | null; loading: boolean }) {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!state?.running) return;
-    const id = setInterval(() => { setNow(Date.now()); }, 1000);
-    return () => { clearInterval(id); };
-  }, [state?.running]);
-
-  if (loading && !state) {
-    return (
-      <div className="flex items-center gap-3 rounded border border-border bg-surface p-4">
-        <div className="size-2.5 animate-pulse rounded-full bg-surface-2" />
-        <div className="h-4 w-24 animate-pulse rounded bg-surface-2" />
-        <div className="ml-auto h-3 w-32 animate-pulse rounded bg-surface-2" />
-      </div>
-    );
-  }
-
-  if (!state) return null;
-
-  const key = state.found ? state.status : "not_found";
-  const style = CONTAINER_STATUS_STYLE[key] ?? CONTAINER_STATUS_STYLE["not_found"];
-
-  let uptime = "";
-  if (state.running && state.started_at) {
-    try {
-      const secs = Math.floor((now - new Date(state.started_at).getTime()) / 1000);
-      if (secs < 60) uptime = `${secs}s`;
-      else if (secs < 3600) uptime = `${Math.floor(secs / 60)}min`;
-      else uptime = `${Math.floor(secs / 3600)}h${Math.floor((secs % 3600) / 60)}min`;
-    } catch { /* ignore */ }
-  }
-
-  const finishedAt = !state.running && state.finished_at && !state.finished_at.startsWith("0001") ? state.finished_at : null;
-
-  return (
-    <div className={`flex flex-wrap items-center gap-3 rounded border p-4 ${style.badge}`}>
-      <span className={`size-2.5 shrink-0 rounded-full ${style.dot}`} />
-      <span className="font-semibold">{style.label}</span>
-      {state.exit_code !== null && !state.running ? (
-        <span className="font-mono text-xs opacity-70">exit {state.exit_code}</span>
-      ) : null}
-      {state.error ? (
-        <span className="font-mono text-xs opacity-70">{state.error}</span>
-      ) : null}
-      <div className="ml-auto flex items-center gap-4 text-xs opacity-70">
-        {uptime ? <span>Uptime : {uptime}</span> : null}
-        {finishedAt ? (
-          <span>
-            Arrêté :{" "}
-            {new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(finishedAt))}
-          </span>
-        ) : null}
-      </div>
-    </div>
-  );
-}
+// Story 17.33: the containers the orchestrator creates for a session, read through it.
+const LOG_CONTAINERS: { id: SessionContainer; label: string }[] = [
+  { id: "ap", label: "Serveur AP" },
+  { id: "bridge", label: "Bridge" },
+  { id: "gen", label: "Génération" },
+];
 
 function LogPanel({ sessionId, active }: { sessionId: string; active: boolean }) {
-  const queryClient = useQueryClient();
-  const [open, setOpen] = useState(true);
-  const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [actionOutput, setActionOutput] = useState<ContainerActionResult | null>(null);
-  const [loadingCreate, setLoadingCreate] = useState(false);
-  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [container, setContainer] = useState<SessionContainer>("ap");
+  const [launching, setLaunching] = useState(false);
+  const [launchResult, setLaunchResult] = useState<ForceLaunchResult | null>(null);
   const preRef = useRef<HTMLPreElement>(null);
 
-  // 5 s container-state poll; the queryFn throws on failure so the last known state stays
-  // displayed instead of being cleared.
-  const containerQuery = useQuery({
-    queryKey: ["admin-session-container", sessionId],
-    queryFn: async () => {
-      const state = await fetchContainerState(sessionId);
-      if (state === null) throw new Error("container-state-unavailable");
-      return state;
-    },
-    staleTime: REALTIME_STALE_TIME,
-    retry: false,
-    refetchInterval: 5_000,
-  });
-  const containerState = containerQuery.data ?? null;
-
-  // 10 s log poll while the log card is open (enabled also stops the interval when closed);
-  // same throw-on-failure so the last fetched logs stay visible.
+  // 5 s poll while the session runs; a stopped session's containers do not write anymore.
   const logsQuery = useQuery({
-    queryKey: ["admin-session-logs", sessionId],
-    queryFn: async () => {
-      const logs = await fetchContainerLogs(sessionId);
-      if (logs === null) throw new Error("container-logs-unavailable");
-      return logs;
-    },
-    enabled: open,
+    queryKey: ["admin-session-logs", sessionId, container],
+    queryFn: () => fetchContainerLogs(sessionId, container),
     staleTime: REALTIME_STALE_TIME,
     retry: false,
-    refetchInterval: 10_000,
+    refetchInterval: active ? 5_000 : false,
   });
-  const logs = logsQuery.data ?? "";
+  const result = logsQuery.data;
+  const logs = result?.kind === "ok" ? result.data.logs : "";
 
-  function refreshContainerState() {
-    void queryClient.invalidateQueries({ queryKey: ["admin-session-container", sessionId] });
-  }
-
-  async function createContainer() {
-    setLoadingCreate(true);
-    setActionOutput(null);
-    try {
-      const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${sessionId}/force-launch`, { method: "POST" });
-      const json = (await res.json()) as { data?: { status?: string }; error?: { message?: string } | string; message?: string };
-      const success = res.ok;
-      const err = json.error;
-      const errStr = typeof err === "string" ? err : (err as { message?: string } | undefined)?.message;
-      const output = errStr ?? json.message ?? json.data?.status ?? (success ? "Lancement en cours…" : "Erreur inconnue.");
-      setActionOutput({ action: "create", success, output: String(output) });
-    } catch {
-      setActionOutput({ action: "create", success: false, output: "Erreur réseau." });
-    } finally {
-      setLoadingCreate(false);
-      refreshContainerState();
-    }
-  }
-
-  async function execContainer(action: string) {
-    setLoadingAction(action);
-    setActionOutput(null);
-    try {
-      const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${sessionId}/container`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      const json = (await res.json()) as { data: ContainerActionResult };
-      setActionOutput(json.data);
-      if (action === "logs" && json.data.output) {
-        queryClient.setQueryData(["admin-session-logs", sessionId], json.data.output);
-      }
-    } catch {
-      setActionOutput({ action, success: false, output: "Erreur réseau." });
-    } finally {
-      setLoadingAction(null);
-      setConfirmingRemove(false);
-      refreshContainerState();
-    }
+  async function forceLaunch() {
+    setLaunching(true);
+    setLaunchResult(null);
+    setLaunchResult(await forceLaunchSession(sessionId));
+    setLaunching(false);
   }
 
   useEffect(() => {
     if (preRef.current) preRef.current.scrollTop = preRef.current.scrollHeight;
   }, [logs]);
 
+  let body: string;
+  if (result === undefined) body = "";
+  else if (result.kind === "unavailable") body = "L'orchestrateur ne donne pas les logs (injoignable, ou trop ancien pour cette fonction).";
+  else if (result.kind === "error") body = "Impossible de charger les logs.";
+  else if (!result.data.found) body = `Le conteneur ${result.data.container} n'existe pas (pas encore lancé, ou supprimé depuis).`;
+  else body = result.data.logs || "Aucun log pour l'instant.";
+
   return (
     <div className="grid gap-4">
-      {/* ── État du container ── */}
-      <ContainerStateCard loading={containerQuery.isPending} state={containerState} />
-
-      {/* ── Actions container ── */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          className="flex items-center gap-1.5 rounded border border-[var(--color-accent-text)]/40 bg-[var(--color-accent-text)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-accent-text)] hover:bg-[var(--color-accent-text)]/20 disabled:opacity-50"
-          disabled={loadingCreate || loadingAction !== null}
-          onClick={() => { void createContainer(); }}
-          type="button"
-        >
-          {loadingCreate ? (
-            <Loader2 aria-hidden="true" className="size-3.5 animate-spin" />
-          ) : (
-            <Zap aria-hidden="true" className="size-3.5" />
-          )}
-          Créer
-        </button>
-
-        <span aria-hidden="true" className="h-4 w-px bg-border" />
-
-        {CONTAINER_ACTIONS.map(({ key, label, Icon, cls }) => {
-          const isLoading = loadingAction === key;
-          return (
-            <button
-              className={`flex items-center gap-1.5 rounded border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-surface-2 disabled:opacity-50 ${cls}`}
-              disabled={loadingAction !== null || loadingCreate}
-              key={key}
-              onClick={() => {
-                if (key === "rm") setConfirmingRemove(true);
-                else void execContainer(key);
-              }}
-              type="button"
-            >
-              {isLoading ? (
-                <Loader2 aria-hidden="true" className="size-3.5 animate-spin" />
-              ) : (
-                <Icon aria-hidden="true" className="size-3.5" />
-              )}
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      {actionOutput ? (
-        <div className={`rounded border p-2 font-mono text-xs ${actionOutput.success ? "border-success/30 bg-success/5 text-success/80" : "border-[var(--color-danger)]/30 bg-[var(--color-danger)]/5 text-[var(--color-danger)]/80"}`}>
-          <div className="mb-1 flex items-center justify-between">
-            <span className="font-semibold">{actionOutput.action} - {actionOutput.success ? "OK" : "Erreur"}</span>
-            <button
-              aria-label="Fermer"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={() => { setActionOutput(null); }}
-              type="button"
-            >
-              ×
-            </button>
-          </div>
-          {actionOutput.output ? (
-            <pre className="max-h-32 overflow-y-auto whitespace-pre-wrap">{actionOutput.output}</pre>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* ── Log card ── */}
       <div className="overflow-hidden rounded border border-border">
-        <div className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2">
           <h3 className="flex items-center gap-2 font-heading text-sm font-semibold text-foreground">
             <Terminal aria-hidden="true" className="size-4 text-success/80" />
-            Logs du container
-            {active && open ? (
-              <span className="animate-pulse text-xs font-semibold text-success">LIVE</span>
-            ) : null}
+            Logs
+            {active ? <span className="animate-pulse text-xs font-semibold text-success">LIVE</span> : null}
           </h3>
-          <button
-            className="text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => { setOpen((v) => !v); }}
-            type="button"
-          >
-            {open ? "Masquer" : "Afficher"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex overflow-hidden rounded border border-border" role="group" aria-label="Conteneur">
+              {LOG_CONTAINERS.map((c) => (
+                <button
+                  aria-pressed={container === c.id}
+                  className={`px-3 py-1 text-xs font-medium ${container === c.id ? "bg-[var(--color-accent-text)]/15 text-[var(--color-accent-text)]" : "bg-surface text-muted-foreground hover:bg-surface-2 hover:text-foreground"}`}
+                  key={c.id}
+                  onClick={() => { setContainer(c.id); }}
+                  type="button"
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            <button
+              className="flex items-center gap-1.5 rounded border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
+              disabled={logsQuery.isFetching}
+              onClick={() => { void logsQuery.refetch(); }}
+              type="button"
+            >
+              <RefreshCw aria-hidden="true" className={`size-3.5 ${logsQuery.isFetching ? "animate-spin" : ""}`} />
+              Rafraîchir
+            </button>
+          </div>
         </div>
 
-        {open ? (
-          <div className="bg-[var(--color-bg)] p-4">
-            {logsQuery.isPending ? (
-              <div aria-hidden="true" className="grid gap-1.5">
-                {[0, 1, 2].map((i) => (
-                  <div className="h-3 animate-pulse rounded bg-surface-2" key={i} style={{ width: `${70 + i * 10}%` }} />
-                ))}
-              </div>
-            ) : (
-              <pre
-                className="h-64 overflow-y-auto font-mono text-xs text-success/80 whitespace-pre-wrap"
-                ref={preRef}
-              >
-                {logs || "Aucun log disponible pour l'instant."}
-              </pre>
-            )}
-          </div>
-        ) : null}
+        <div className="bg-[var(--color-bg)] p-4">
+          {logsQuery.isPending ? (
+            <div aria-hidden="true" className="grid gap-1.5">
+              {[0, 1, 2].map((i) => (
+                <div className="h-3 animate-pulse rounded bg-surface-2" key={i} style={{ width: `${70 + i * 10}%` }} />
+              ))}
+            </div>
+          ) : (
+            <pre
+              className={`h-96 overflow-y-auto whitespace-pre-wrap font-mono text-xs ${result?.kind === "ok" && result.data.found ? "text-success/80" : "text-muted-foreground"}`}
+              ref={preRef}
+            >
+              {body}
+            </pre>
+          )}
+        </div>
       </div>
 
-      <ConfirmDialog
-        confirmLabel="Supprimer"
-        description="Le container de la session est supprimé. Cette action est irréversible."
-        onConfirm={() => { void execContainer("rm"); }}
-        onOpenChange={(open) => {
-          if (!open && loadingAction === null) setConfirmingRemove(false);
-        }}
-        open={confirmingRemove}
-        pending={loadingAction === "rm"}
-        icon={XCircle}
-        title="Supprimer le container ?"
-        tone="danger"
-      />
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          className="flex items-center gap-1.5 rounded border border-[var(--color-accent-text)]/40 bg-[var(--color-accent-text)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-accent-text)] hover:bg-[var(--color-accent-text)]/20 disabled:opacity-50"
+          disabled={launching}
+          onClick={() => { void forceLaunch(); }}
+          type="button"
+        >
+          {launching ? <Loader2 aria-hidden="true" className="size-3.5 animate-spin" /> : <Zap aria-hidden="true" className="size-3.5" />}
+          Forcer le lancement
+        </button>
+        {launchResult ? (
+          <span className={`font-mono text-xs ${launchResult.success ? "text-success/80" : "text-[var(--color-danger)]/80"}`}>
+            {launchResult.output}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }

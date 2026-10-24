@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Domain\Entity\User;
+use App\Sessions\Application\Exception\SessionLogsUnavailableException;
 use App\Sessions\Application\Message\ArchiveRunJob;
-use App\Sessions\Application\Message\FetchLogsJob;
+use App\Sessions\Application\Port\SessionContainerLogsInterface;
+use App\Sessions\Application\Support\SessionContainerLogs;
 use App\Sessions\Domain\Entity\RunAuditLog;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
@@ -78,52 +80,80 @@ final class AdminServerCommandsTest extends FunctionalTestCase
         self::assertSame('bridge_unavailable', $errorData['code']);
     }
 
-    public function testLogsFetchDispatchesFetchLogsJob(): void
+    // ─── container logs through the orchestrator (story 17.33) ────────────────
+
+    public function testLogsReadTheServerContainerByDefault(): void
     {
         $session = $this->createRunningSession('run-logs-1', 'evt-001');
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
+        $this->loginAs($this->createAdmin());
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/admin/sessions/%s/logs', $session->getId()));
+
         self::assertResponseStatusCodeSame(200);
-
-        $response = $this->decodedJsonResponse();
-        $responseData = $response['data'];
-        self::assertIsArray($responseData);
-        self::assertSame('', $responseData['logs']);
-        self::assertArrayHasKey('fetched_at', $responseData);
-
-        /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.run_server');
-        $enveloped = iterator_to_array($transport->get(), false);
-        self::assertCount(1, $enveloped);
-        $firstMessage = $enveloped[0]->getMessage();
-        self::assertInstanceOf(FetchLogsJob::class, $firstMessage);
-        self::assertSame($session->getId(), $firstMessage->sessionId);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertSame('ap-run-logs-1', $data['container'] ?? null);
+        self::assertTrue($data['found'] ?? null);
+        self::assertSame("logs of ap (last 500 lines)\n", $data['logs'] ?? null);
+        self::assertArrayHasKey('fetched_at', $data);
     }
 
-    public function testLogsCallbackStoresOutput(): void
+    public function testLogsReadTheContainerAsked(): void
     {
-        $session = $this->createRunningSession('run-logs-cb-1', 'evt-001');
-        $logOutput = "[2026-05-06T10:00:00Z] Server started\n[2026-05-06T10:00:01Z] Player connected";
+        $session = $this->createRunningSession('run-logs-2', 'evt-001');
+        $this->loginAs($this->createAdmin());
 
-        $this->client->jsonRequest(
-            'POST',
-            sprintf('/api/v1/internal/sessions/%s/runner-callback', $session->getId()),
-            ['status' => 'logs', 'output' => $logOutput],
-            ['HTTP_X-Internal-Secret' => 'test-runner-secret'],
-        );
+        $this->client->jsonRequest('GET', sprintf('/api/v1/admin/sessions/%s/logs?container=bridge', $session->getId()));
+
         self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertSame('bridge-run-logs-2', $data['container'] ?? null);
+    }
 
-        $response = $this->decodedJsonResponse();
-        $responseData = $response['data'];
-        self::assertIsArray($responseData);
-        self::assertSame(true, $responseData['ok']);
+    public function testLogsRefuseAnUnknownContainer(): void
+    {
+        $session = $this->createRunningSession('run-logs-3', 'evt-001');
+        $this->loginAs($this->createAdmin());
 
-        $this->entityManager->clear();
-        $refreshed = $this->entityManager->find(Session::class, $session->getId());
-        self::assertInstanceOf(Session::class, $refreshed);
-        self::assertSame($logOutput, $refreshed->getLastLogs());
+        $this->client->jsonRequest('GET', sprintf('/api/v1/admin/sessions/%s/logs?container=db', $session->getId()));
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    public function testLogsOfAnUnknownSessionAreNotFound(): void
+    {
+        $this->loginAs($this->createAdmin());
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/sessions/no-such-session/logs');
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testLogsSayWhenTheOrchestratorCannotAnswer(): void
+    {
+        $session = $this->createRunningSession('run-logs-4', 'evt-001');
+        $this->loginAs($this->createAdmin());
+        self::getContainer()->set(SessionContainerLogsInterface::class, new class implements SessionContainerLogsInterface {
+            public function read(string $sessionId, string $container, int $tail): SessionContainerLogs
+            {
+                throw new SessionLogsUnavailableException('GET /sessions/{id}/logs is not available');
+            }
+        });
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/admin/sessions/%s/logs', $session->getId()));
+
+        self::assertResponseStatusCodeSame(503);
+    }
+
+    public function testLogsAreForAdminsOnly(): void
+    {
+        $session = $this->createRunningSession('run-logs-5', 'evt-001');
+        $this->loginAs($this->createUser('player@example.org', ['ROLE_USER'], 'Player'));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/admin/sessions/%s/logs', $session->getId()));
+
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testForceEndTransitionsToFinished(): void
