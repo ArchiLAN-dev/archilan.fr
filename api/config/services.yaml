@@ -90,6 +90,12 @@ services:
     App\Wallet\Domain\Repository\PelleMovementRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrinePelleMovementRepository'
     App\Wallet\Domain\Repository\ShopRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
     App\Wallet\Domain\Repository\QuestRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineQuestRepository'
+    App\Wallet\Domain\Repository\BlindTestSettingRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineBlindTestSettingRepository'
+    # Story 41.40: the blind test app and the secret both sides sign with; empty = blind test unavailable.
+    App\Wallet\Application\Support\BlindTestLink:
+        arguments:
+            $appUrl: '%env(default:default_empty_string:BLIND_TEST_APP_URL)%'
+            $secret: '%env(default:default_empty_string:BLIND_TEST_SHARED_SECRET)%'
     # Stories 41.24, 41.26: the week's quests on Discord, told by the bot in a channel (no channel or no bot = nowhere).
     App\Wallet\Application\Port\QuestAnnouncementChannelInterface:
         factory: ['App\Wallet\Infrastructure\Adapter\QuestAnnouncementChannelFactory', 'create']

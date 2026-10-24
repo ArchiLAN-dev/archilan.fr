@@ -55,6 +55,23 @@ final readonly class DoctrinePelleMovementRepository implements PelleMovementRep
         return is_numeric($sum) ? (int) $sum : 0;
     }
 
+    public function totalOfReason(string $userId, string $eventId, PelleReason $reason): int
+    {
+        $sum = $this->entityManager->getConnection()->createQueryBuilder()
+            ->select('COALESCE(SUM(m.amount), 0)')
+            ->from('pelle_movement', 'm')
+            ->where('m.user_id = :userId')
+            ->andWhere('m.event_id = :eventId')
+            ->andWhere('m.reason = :reason')
+            ->setParameter('userId', $userId)
+            ->setParameter('eventId', $eventId)
+            ->setParameter('reason', $reason->value)
+            ->executeQuery()
+            ->fetchOne();
+
+        return is_numeric($sum) ? (int) $sum : 0;
+    }
+
     public function bronzeBalancesOfRun(string $runId): array
     {
         $rows = $this->bronzeOfRun($runId)

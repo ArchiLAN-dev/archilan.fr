@@ -6,6 +6,7 @@ namespace App\Wallet\Domain\Repository;
 
 use App\Wallet\Domain\Entity\PelleMovement;
 use App\Wallet\Domain\Enum\PelleKind;
+use App\Wallet\Domain\Enum\PelleReason;
 
 interface PelleMovementRepositoryInterface
 {
@@ -38,6 +39,9 @@ interface PelleMovementRepositoryInterface
      * @return array<string, array{burned: int, burns: int, restored: int, restores: int}>
      */
     public function bronzeBurnsOfRun(string $runId): array;
+
+    /** Story 41.40: what one reason moved for a member within an event, e.g. what the blind test earned them. */
+    public function totalOfReason(string $userId, string $eventId, PelleReason $reason): int;
 
     public function findByUniqueKey(string $uniqueKey): ?PelleMovement;
 
