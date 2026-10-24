@@ -9,6 +9,7 @@ import { ConfirmDialog, ConfirmFigure } from "@/components/ui/confirm-dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount, pellesLabel } from "./pelle-amount";
 import { distributeEventPelles, fetchEventPelles, type EventPelles } from "./event-pelles-api";
+import { AdminBlindTestCard } from "./admin-blind-test-card";
 
 const MAX_AMOUNT = 1000;
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
@@ -196,6 +197,8 @@ export function EventPellesView({ data }: { data: EventPelles }) {
           ) : null}
         </form>
       )}
+
+      {data.ended ? null : <AdminBlindTestCard eventId={data.eventId} />}
 
       <section aria-labelledby="event-pelles-members" className="grid gap-3">
         <h2 className="font-heading text-lg font-semibold text-foreground" id="event-pelles-members">
