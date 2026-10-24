@@ -52,6 +52,39 @@ docker compose up -d
 `api-migrations` joue les migrations Doctrine et s'arrête ; c'est un service à cycle court, pas un
 démon.
 
+## Blind test d'un événement (stories 41.40 à 41.43)
+
+L'app de blind test (dépôt `archilan-blind-test`) ne tourne que pour un événement : ses deux services sont dans le
+profil `blind-test` et ne démarrent pas avec le reste.
+
+Une fois :
+
+1. DNS : `BLIND_TEST_DOMAIN` (ex. `blindtest.archilan.fr`) vers le serveur.
+2. `envs/blind-test.env` depuis `envs/blind-test.env.example` : `APP_SECRET`, `REGIE_TOKEN`,
+   `BLIND_TEST_SHARED_SECRET`.
+3. `envs/api.env` : `BLIND_TEST_SHARED_SECRET` (même valeur) et
+   `BLIND_TEST_APP_URL=https://<BLIND_TEST_DOMAIN>/rejoindre` (avec le chemin `/rejoindre` : le site y ajoute le
+   jeton du joueur). Redémarrer `api-web`.
+
+Pour l'événement :
+
+```bash
+# les fichiers audio de la playlist dans BLIND_TEST_AUDIO_DIR, la playlist YAML à côté
+docker compose --profile blind-test pull
+docker compose --profile blind-test up -d blind-test blind-test-credits
+docker compose cp playlist.yml blind-test:/tmp/playlist.yml
+docker compose exec blind-test php bin/console app:partie:charger <id de l'événement> /tmp/playlist.yml
+```
+
+- Régie : `https://<BLIND_TEST_DOMAIN>/regie?token=<REGIE_TOKEN>` sur le PC de la sono, un clic sur « Démarrer ».
+- Écran de salle : `https://<BLIND_TEST_DOMAIN>/ecran?token=<REGIE_TOKEN>`.
+- Admin du site : ouvrir le blind test dans les pelles de l'événement (interrupteur, pelles par source, plafond).
+  Les inscrits voient alors « Jouer au blind test » sur la page de l'événement.
+
+Après l'événement : `docker compose --profile blind-test stop blind-test blind-test-credits`. La base (volume
+`blind-test-data`) garde les parties et les crédits ; `docker compose --profile blind-test logs blind-test-credits`
+montre les crédits restés en attente.
+
 ## Décisions explicites
 
 - **Postgres est publié sur l'hôte en `5434:5432`, et c'est voulu** (Jean, 2026-08-14). La base est
