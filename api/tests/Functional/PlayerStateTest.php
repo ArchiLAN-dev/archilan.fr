@@ -320,7 +320,7 @@ final class PlayerStateTest extends FunctionalTestCase
      */
     private function privateRunWithHiddenSpheres(User $owner): array
     {
-        $run = Run::create($owner->getId(), 'Run de test', new DateTimeImmutable('2026-10-24T10:00:00+00:00'));
+        $run = Run::create($owner->getId(), 'Run de test', new \DateTimeImmutable('2026-10-24T10:00:00+00:00'));
         $this->entityManager->persist($run);
         $session = $this->createRunningSession('run-spheres-private', $run->getId());
         $run->attachSession($session->getId());
