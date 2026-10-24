@@ -223,6 +223,51 @@ services:
         image: ghcr.io/archilan-dev/bridge:${BRIDGE_VERSION}
         profiles: ["images"]
 
+    # ─── Blind test (story 41.43) ─────────────────────────────────────────────
+    # App séparée (dépôt archilan-blind-test), lancée seulement pour un événement :
+    # `docker compose --profile blind-test up -d`. Elle crédite les pelles par l'API, sur le réseau interne.
+
+    blind-test:
+        image: ghcr.io/archilan-dev/blind-test:${BLIND_TEST_VERSION:-latest}
+        container_name: archilan-blind-test
+        profiles: ["blind-test"]
+        restart: unless-stopped
+        env_file: envs/blind-test.env
+        environment:
+            SITE_API_URL: http://api-web
+        networks:
+            - default
+            - traefik
+        labels:
+            - "traefik.enable=true"
+            - "traefik.docker.network=traefik"
+            - "traefik.http.routers.blind-test.rule=Host(`${BLIND_TEST_DOMAIN}`)"
+            - "traefik.http.routers.blind-test.entrypoints=websecure"
+            - "traefik.http.routers.blind-test.tls.certresolver=https"
+            - "traefik.http.services.blind-test.loadbalancer.server.port=80"
+            - "traefik.http.routers.blind-test-http.rule=Host(`${BLIND_TEST_DOMAIN}`)"
+            - "traefik.http.routers.blind-test-http.entrypoints=web"
+            - "traefik.http.routers.blind-test-http.middlewares=redirect-https"
+        volumes:
+            - blind-test-data:/data
+            - ${BLIND_TEST_AUDIO_DIR:-./blind-test-audio}:/audio:ro
+
+    blind-test-credits:
+        image: ghcr.io/archilan-dev/blind-test:${BLIND_TEST_VERSION:-latest}
+        container_name: archilan-blind-test-credits
+        profiles: ["blind-test"]
+        restart: unless-stopped
+        depends_on:
+            - blind-test
+        env_file: envs/blind-test.env
+        environment:
+            SITE_API_URL: http://api-web
+        command: ["php", "bin/console", "app:credits:renvoyer", "--boucle"]
+        networks:
+            - default
+        volumes:
+            - blind-test-data:/data
+
 networks:
     default: {}
     # Réseau du reverse proxy, créé par son propre compose. C'est aussi celui que les conteneurs
@@ -237,3 +282,4 @@ volumes:
     orchestrateur-data:
     api-workspace:
     api-archives:
+    blind-test-data:
