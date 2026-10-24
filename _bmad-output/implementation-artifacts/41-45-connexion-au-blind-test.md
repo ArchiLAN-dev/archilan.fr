@@ -47,3 +47,9 @@ afin de jouer sous mon compte sans qu'un lien copié permette à quelqu'un d'aut
   chaque nouvelle émission. L'échange revérifie les règles d'accès de la 41.40.
 - La page `/blind-test/connexion` renvoie vers `/connexion?returnTo=` (query comprise) pour un visiteur déconnecté.
 - Fonctionnels du site (`BlindTestTest`) laissés à la CI : Postgres local éteint.
+- Revue : `/blind-test/access` répond `{url: null}` (200) quand le joueur ne peut pas jouer, sans appel pour un
+  visiteur ; `qrPath` partagé dans `lib/qr-code.ts`. App : identité d'un autre événement refusée, jusqu'à 5 connexions
+  en attente par navigateur.
+- Limite connue, hors périmètre : la connexion par Discord perd `returnTo` sur tout le site ; un joueur qui se connecte
+  ainsi retombe sur l'accueil et doit relancer le blind test. À traiter dans une story à part.
+
