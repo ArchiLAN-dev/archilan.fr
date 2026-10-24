@@ -153,7 +153,6 @@ services:
         volumes:
             - api-workspace:/var/archilan/workspace
             - api-archives:/var/archilan/archives
-            - /var/run/docker.sock:/var/run/docker.sock
         networks:
             - default
 
@@ -170,7 +169,6 @@ services:
         volumes:
             - api-workspace:/var/archilan/workspace
             - api-archives:/var/archilan/archives
-            - /var/run/docker.sock:/var/run/docker.sock
         networks:
             - default
 
