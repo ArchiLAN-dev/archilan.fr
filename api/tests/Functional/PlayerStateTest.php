@@ -297,23 +297,41 @@ final class PlayerStateTest extends FunctionalTestCase
     public function testThePrivateRunOwnerSeesTheSpheresTheyHid(): void
     {
         $owner = $this->createPlayer('owner@example.org', 'Owner');
-        $run = Run::create($owner->getId(), 'Run de test', new \DateTimeImmutable('2026-10-24T10:00:00+00:00'));
+        $this->loginAs($owner);
+
+        self::assertTrue($this->privateRunWithHiddenSpheres($owner)['spheresVisible'] ?? null);
+    }
+
+    public function testAnyoneElseLosesTheSpheresAPrivateRunHid(): void
+    {
+        $owner = $this->createPlayer('owner@example.org', 'Owner');
+        $this->loginAs($this->createPlayer('guest@example.org', 'Guest'));
+
+        $body = $this->privateRunWithHiddenSpheres($owner);
+
+        self::assertFalse($body['spheresVisible'] ?? null);
+        $data = $body['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertArrayNotHasKey('spheres', $data);
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    private function privateRunWithHiddenSpheres(User $owner): array
+    {
+        $run = Run::create($owner->getId(), 'Run de test', new DateTimeImmutable('2026-10-24T10:00:00+00:00'));
         $this->entityManager->persist($run);
         $session = $this->createRunningSession('run-spheres-private', $run->getId());
         $run->attachSession($session->getId());
         $this->entityManager->flush();
         $this->overrideConfig($run->getId(), ['spheresVisible' => false]);
-        // Two requests: a fresh response each time (a single MockResponse is consumed by the first).
-        $this->httpClient->setResponseFactory(fn (): MockResponse => new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
+        $this->httpClient->setResponseFactory(new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
         self::assertResponseStatusCodeSame(200);
-        self::assertFalse($this->decodedJsonResponse()['spheresVisible'] ?? null, 'anyone else');
 
-        $this->loginAs($owner);
-        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
-        self::assertResponseStatusCodeSame(200);
-        self::assertTrue($this->decodedJsonResponse()['spheresVisible'] ?? null, 'the owner');
+        return $this->decodedJsonResponse();
     }
 
     private function reachableWithSpheres(): string
