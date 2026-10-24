@@ -1,3 +1,6 @@
+/** Story 16.25: one master gain for the goal fanfare and its preview, so the preview plays the real level. */
+export const FANFARE_GAIN = 0.12;
+
 export type NoteSpec = [freq: number, start: number, duration: number, type: OscillatorType, vol: number];
 
 // Ultimate Bowser Clear (SM64) - full MIDI extraction, ~17s

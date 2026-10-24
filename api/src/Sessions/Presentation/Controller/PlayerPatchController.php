@@ -4,27 +4,32 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
-use App\Sessions\Application\Query\PlayerSessionConnection;
+use App\Sessions\Application\Port\SessionOutputArtifactReaderInterface;
+use App\Sessions\Application\Query\RegistrationPatchQuery;
+use App\Sessions\Application\Support\SlotPatchFile;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\PatchDownloadUrl;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
+/**
+ * Lets an event registrant download the patch(es) generated for their own slots, read from the
+ * session's durable output archive like a private run (story 17.32): available once generated,
+ * whatever the session's state. The multidata, the spoiler and other players' patches never leave.
+ */
 final readonly class PlayerPatchController
 {
     use RequiresAuthTrait;
-    private const array ALLOWED_STATUSES = ['running', 'stopped', 'finished'];
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private PlayerSessionConnection $playerSessionConnection,
+        private RegistrationPatchQuery $patchQuery,
+        private SessionOutputArtifactReaderInterface $reader,
         private PatchDownloadUrl $signedUrl,
-        private string $workspaceDir,
     ) {
     }
 
@@ -36,28 +41,22 @@ final readonly class PlayerPatchController
             return $user;
         }
 
-        $connection = $this->playerSessionConnection->getConnection($registrationId, $user->getId());
-        if (null === $connection) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Inscription introuvable.', 404);
-        }
-
-        $session = $connection['session'] ?? null;
-        if (null === $session || !\in_array($session->status, self::ALLOWED_STATUSES, true)) {
+        $context = $this->patchQuery->forRegistration($registrationId, $user->getId());
+        if (null === $context) {
             return new JsonResponse(['data' => ['files' => []]]);
         }
 
-        $slotNames = array_map(
-            static fn (array $s): string => $s['slotName'],
-            $connection['slots'],
-        );
-
-        $files = $this->findPatchFiles($session->id, $slotNames);
+        $files = array_values(array_filter(
+            $this->reader->listEntries($context['outputKey']),
+            fn (string $filename): bool => SlotPatchFile::belongsTo($filename, $context['slotNames'], $context['allSlotNames']),
+        ));
+        sort($files);
 
         // Lien public signé par fichier (story 16.16), pour que le joueur puisse l'envoyer.
         return new JsonResponse(['data' => ['files' => array_map(
             fn (string $filename): array => [
                 'name' => $filename,
-                'url' => $this->signedUrl->forWorkspace($session->id, $filename),
+                'url' => $this->signedUrl->forArchive($context['outputKey'], $filename),
             ],
             $files,
         )]]);
@@ -71,86 +70,29 @@ final readonly class PlayerPatchController
             return $user;
         }
 
-        $connection = $this->playerSessionConnection->getConnection($registrationId, $user->getId());
-        if (null === $connection) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Inscription introuvable.', 404);
+        $context = $this->patchQuery->forRegistration($registrationId, $user->getId());
+        if (null === $context) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
         }
 
-        $session = $connection['session'] ?? null;
-        if (null === $session) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Aucune session active.', 404);
-        }
-
-        if (!\in_array($session->status, self::ALLOWED_STATUSES, true)) {
-            return $this->apiAccessGuard->errorResponse('forbidden', "La session n'est pas encore lancée.", 403);
-        }
-
-        // Reject .archipelago seed files
-        $ext = strtolower(pathinfo($filename, \PATHINFO_EXTENSION));
-        if ('archipelago' === $ext) {
-            return $this->apiAccessGuard->errorResponse('forbidden', 'Fichier non autorisé.', 403);
-        }
-
-        // Verify the file stem matches one of the player's slots
-        $stem = pathinfo($filename, \PATHINFO_FILENAME);
-        $slotNames = array_map(
-            static fn (array $s): string => $s['slotName'],
-            $connection['slots'],
-        );
-
-        if (!\in_array($stem, $slotNames, true)) {
+        if (!SlotPatchFile::belongsTo($filename, $context['slotNames'], $context['allSlotNames'])) {
             return $this->apiAccessGuard->errorResponse('forbidden', "Ce fichier n'appartient pas à votre inscription.", 403);
         }
 
-        // Resolve path and prevent traversal
-        $outputDir = realpath($this->workspaceDir.'/'.$session->id.'/output');
-        if (false === $outputDir) {
+        $artifact = $this->reader->extractEntry($context['outputKey'], $filename);
+        if (null === $artifact) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
         }
 
-        $filePath = realpath($outputDir.'/'.$filename);
-        if (false === $filePath || !str_starts_with($filePath, $outputDir.\DIRECTORY_SEPARATOR)) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
-        }
+        $contents = $artifact->contents;
+        $safeFilename = basename($artifact->filename);
 
-        if (!is_file($filePath)) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
-        }
+        $streamed = new StreamedResponse(static function () use ($contents): void {
+            echo $contents;
+        });
+        $streamed->headers->set('Content-Type', 'application/octet-stream');
+        $streamed->headers->set('Content-Disposition', 'attachment; filename="'.$safeFilename.'"');
 
-        $response = new BinaryFileResponse($filePath);
-        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $filename);
-
-        return $response;
-    }
-
-    /**
-     * @param list<string> $slotNames
-     *
-     * @return list<string>
-     */
-    private function findPatchFiles(string $sessionId, array $slotNames): array
-    {
-        $outputDir = $this->workspaceDir.'/'.$sessionId.'/output';
-        if (!is_dir($outputDir)) {
-            return [];
-        }
-
-        $files = [];
-        foreach (glob($outputDir.'/*') ?: [] as $path) {
-            if (!is_file($path)) {
-                continue;
-            }
-            if ('archipelago' === strtolower(pathinfo($path, \PATHINFO_EXTENSION))) {
-                continue;
-            }
-            $stem = pathinfo($path, \PATHINFO_FILENAME);
-            if (\in_array($stem, $slotNames, true)) {
-                $files[] = basename($path);
-            }
-        }
-
-        sort($files);
-
-        return $files;
+        return $streamed;
     }
 }

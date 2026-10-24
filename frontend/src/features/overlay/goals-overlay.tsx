@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import type { PlayersSlot, PlayersState } from "./overlay-api";
 import { fetchSlotGoalStats, isPlayersState } from "./overlay-api";
-import type { OverlayParams } from "./overlay-params";
+import { goalsFanfare, type OverlayParams } from "./overlay-params";
 import { useOverlayStream } from "./use-overlay-stream";
 
 const GOAL_STATUS = 30;
@@ -120,6 +120,7 @@ export function GoalsOverlay({
     <GoalCelebration
       bare
       checksPercent={current.checksPercent}
+      fanfare={goalsFanfare(params)}
       gameName={current.gameName}
       itemsPercent={current.itemsPercent}
       key={current.id}

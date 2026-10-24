@@ -17,6 +17,8 @@ export const sessionConfigHelp: Record<string, string> = {
   pelleBounties:
     "Permet aux joueurs d'offrir des pelles à qui leur enverra un objet précis (en partie privée, des pelles de bronze de la partie) ; 10 % de la prime sont détruits au versement.",
   pelleItemHintPrice: "Prix en pelles d'un indice sur un objet (où se trouve tel objet).",
+  spheresVisible:
+    "Affiche aux joueurs l'onglet Sphères de leur slot : les lieux classés par sphère de progression, sans l'objet caché derrière chacun.",
   bronzeStart: "Pelles de bronze données à chaque joueur au lancement de la partie. 0 coupe ce gain.",
   bronzePerCheck: "Pelles de bronze gagnées par les joueurs d'un slot à chaque check de ce slot. 0 coupe ce gain.",
   bronzePerGoal: "Pelles de bronze gagnées par les joueurs d'un slot quand il atteint son objectif. 0 coupe ce gain.",

@@ -5,6 +5,7 @@ import type { ArchipelagoClient } from "./archipelago-client-api";
 import { availabilityConfig } from "./game-card";
 import { CreateRunWithGameButton } from "./create-run-with-game-button";
 import { GameContributionForm } from "./game-contribution-form";
+import { GameFollowButton } from "./game-follow-button";
 import { GameOwnedBadge } from "./game-owned-badge";
 import { GamePlannedButton } from "./game-planned-button";
 import { InstallStepsView } from "./install-steps-view";
@@ -64,6 +65,7 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
             <>
               <GameOwnedBadge gameId={game.id} steamAppId={game.steamAppId} />
               <GamePlannedButton gameId={game.id} />
+              <GameFollowButton gameId={game.id} />
             </>
           )}
           <AdminEditLink className="ml-auto" href={`/admin/jeux/${game.id}`} label="Modifier ce jeu" />

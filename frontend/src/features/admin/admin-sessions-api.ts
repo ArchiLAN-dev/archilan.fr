@@ -2,7 +2,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { requiredFilesForm } from "@/features/games/required-file-check";
 import { asGenerationFiles, type GenerationFile } from "@/features/games/required-files";
-import { hasBooleanProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasStringProp } from "@/lib/type-guards";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,8 +35,12 @@ export type Session = {
   password: string | null;
   serverPassword?: string | null;
   createdAt: string;
+  /** Last launch: moves on every relaunch, crash restart or resume (story 32.24). */
   startedAt: string | null;
+  /** First launch, never moved afterwards. Absent from an API that predates story 32.24. */
+  firstLaunchedAt?: string | null;
   stoppedAt: string | null;
+  finishedAt?: string | null;
   lastActivityAt?: string | null;
   pausedWithoutSave?: boolean;
   error?: string | null;
@@ -54,17 +58,16 @@ export type SessionSlot = {
   slotId: string | null;
 };
 
-export type ContainerState = {
-  found: boolean;
-  status: string;
-  running: boolean;
-  paused: boolean;
-  restarting: boolean;
-  exit_code: number | null;
-  error: string;
-  started_at: string | null;
-  finished_at: string | null;
-};
+/** Story 17.33: the containers of a session the orchestrator reads the logs of. */
+export type SessionContainer = "ap" | "bridge" | "gen";
+
+export type ContainerLogs = { container: string; found: boolean; logs: string };
+
+/** Distinct failures so the panel can tell an old orchestrator from a network error. */
+export type ContainerLogsResult =
+  | { kind: "ok"; data: ContainerLogs }
+  | { kind: "unavailable" }
+  | { kind: "error" };
 
 // ── Guards ───────────────────────────────────────────────────────────────────
 
@@ -95,25 +98,10 @@ function isEventTitlePayload(v: unknown): v is { data: { title: string } } {
   return hasStringProp(v.data, "title");
 }
 
-function isContainerState(v: unknown): v is ContainerState {
-  if (typeof v !== "object" || v === null) return false;
-  return (
-    hasBooleanProp(v, "found") &&
-    hasStringProp(v, "status") &&
-    hasBooleanProp(v, "running") &&
-    hasBooleanProp(v, "paused") &&
-    hasBooleanProp(v, "restarting") &&
-    "exit_code" in v && (v.exit_code === null || typeof v.exit_code === "number") &&
-    hasStringProp(v, "error") &&
-    hasNullableStringProp(v, "started_at") &&
-    hasNullableStringProp(v, "finished_at")
-  );
-}
-
-function isLogsPayload(v: unknown): v is { data: { logs: string } } {
+function isLogsPayload(v: unknown): v is { data: ContainerLogs } {
   if (typeof v !== "object" || v === null) return false;
   if (!("data" in v) || typeof v.data !== "object" || v.data === null) return false;
-  return hasStringProp(v.data, "logs");
+  return hasStringProp(v.data, "container") && hasBooleanProp(v.data, "found") && hasStringProp(v.data, "logs");
 }
 
 // ── Fetches ──────────────────────────────────────────────────────────────────
@@ -213,28 +201,38 @@ export async function fetchAdminEventTitle(eventId: string): Promise<string | nu
   }
 }
 
-export async function fetchContainerState(sessionId: string): Promise<ContainerState | null> {
+export type ForceLaunchResult = { success: boolean; output: string };
+
+function errorMessageOf(payload: unknown): string | null {
+  if (typeof payload !== "object" || payload === null || !("error" in payload)) return null;
+  const err = payload.error;
+  if (typeof err === "string") return err;
+  return typeof err === "object" && err !== null && hasStringProp(err, "message") ? err.message : null;
+}
+
+/** Relaunch the session through the orchestrator whatever its state, with what the API said about it. */
+export async function forceLaunchSession(sessionId: string): Promise<ForceLaunchResult> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${sessionId}/container`);
-    if (!res.ok) return null;
-    const payload: unknown = await res.json();
-    if (typeof payload !== "object" || payload === null || !("data" in payload) || !isContainerState(payload.data)) {
-      return null;
-    }
-    return payload.data;
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${sessionId}/force-launch`, { method: "POST" });
+    const payload: unknown = await res.json().catch(() => null);
+    const status = typeof payload === "object" && payload !== null && "data" in payload && typeof payload.data === "object" && payload.data !== null && hasStringProp(payload.data, "status") ? payload.data.status : null;
+    return { success: res.ok, output: errorMessageOf(payload) ?? status ?? (res.ok ? "Lancement en cours…" : "Erreur inconnue.") };
   } catch {
-    return null;
+    return { success: false, output: "Erreur réseau." };
   }
 }
 
-export async function fetchContainerLogs(sessionId: string): Promise<string | null> {
+/** Story 17.33: the last lines of one container, read by the orchestrator. A 503 is an orchestrator that cannot. */
+export async function fetchContainerLogs(sessionId: string, container: SessionContainer): Promise<ContainerLogsResult> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${sessionId}/logs`);
-    if (!res.ok) return null;
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${sessionId}/logs?container=${container}`);
+    if (res.status === 503) return { kind: "unavailable" };
+    if (!res.ok) return { kind: "error" };
     const payload: unknown = await res.json();
-    if (!isLogsPayload(payload)) return null;
-    return payload.data.logs;
+    if (!isLogsPayload(payload)) return { kind: "error" };
+    const { container: name, found, logs } = payload.data;
+    return { kind: "ok", data: { container: name, found, logs } };
   } catch {
-    return null;
+    return { kind: "error" };
   }
 }

@@ -59,10 +59,10 @@ final readonly class RunResultsQuery
 
         $slotData = $this->buildSlotData($slotsList, $session, $isPersonalRun);
 
-        $startedAt = $session->getStartedAt();
+        $startedAt = self::runStart($session);
         $finishedAt = $session->getFinishedAt();
         $durationSeconds = (null !== $startedAt && null !== $finishedAt)
-            ? $finishedAt->getTimestamp() - $startedAt->getTimestamp()
+            ? self::elapsed($startedAt, $finishedAt)
             : null;
 
         return [
@@ -73,6 +73,22 @@ final readonly class RunResultsQuery
             'durationSeconds' => $durationSeconds,
             'slots' => $slotData,
         ];
+    }
+
+    /**
+     * A run's times start at the server's first launch (story 32.24): `startedAt` is the last launch and moves
+     * on every relaunch, which put goals and the end before it. Sessions launched before the column existed
+     * fall back to `startedAt` until the migration backfills them.
+     */
+    private static function runStart(Session $session): ?\DateTimeImmutable
+    {
+        return $session->getFirstLaunchedAt() ?? $session->getStartedAt();
+    }
+
+    /** Never negative: inconsistent data (an instant before the launch) reads as zero, not as a minus sign. */
+    private static function elapsed(\DateTimeImmutable $from, \DateTimeImmutable $to): int
+    {
+        return max(0, $to->getTimestamp() - $from->getTimestamp());
     }
 
     /** @return array{string, bool} */
@@ -110,10 +126,10 @@ final readonly class RunResultsQuery
             $game = $gameById[$slot->getGameId()] ?? null;
 
             $completionSeconds = null;
-            $startedAt = $session->getStartedAt();
+            $startedAt = self::runStart($session);
             $goalAt = $slot->getGoalReachedAt();
             if (null !== $goalAt && null !== $startedAt) {
-                $completionSeconds = $goalAt->getTimestamp() - $startedAt->getTimestamp();
+                $completionSeconds = self::elapsed($startedAt, $goalAt);
             }
 
             $isInvalidated = $slot->isWasReleased() && null === $goalAt;

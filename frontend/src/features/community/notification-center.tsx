@@ -334,6 +334,13 @@ export function messageFor(item: NotificationItem): string {
         ? `${problem} : ${item.data.gameName}`
         : "Un apworld est en échec";
     }
+    case "game_apworld_updated": {
+      // Story 38.22: a followed game got a new apworld on the site, or its first one.
+      const game = hasStringProp(item.data, "gameName") && item.data.gameName !== "" ? item.data.gameName : "Un jeu suivi";
+      if (item.data.first === true) return `${game} est jouable sur le site`;
+      const version = hasStringProp(item.data, "version") && item.data.version !== "" ? ` (${item.data.version})` : "";
+      return `Nouvel apworld pour ${game}${version}`;
+    }
     case "slot_yaml_needs_review": {
       // Story 38.7: the game switched apworld and the player's own YAML no longer holds.
       const game = hasStringProp(item.data, "gameName") && item.data.gameName !== "" ? item.data.gameName : "Un jeu";
@@ -388,6 +395,9 @@ export function hrefFor(item: NotificationItem): string {
     || item.type === "run_recap_ready"
   ) {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte/parties";
+  }
+  if (item.type === "game_apworld_updated") {
+    return hasStringProp(item.data, "gameSlug") && item.data.gameSlug !== "" ? `/jeux/${item.data.gameSlug}` : "/jeux";
   }
   if (item.type === "friend_activity") {
     // Story 43.11b: the event or the run when the member may open it, else the friend's profile.

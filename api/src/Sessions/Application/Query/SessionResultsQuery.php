@@ -56,7 +56,8 @@ final readonly class SessionResultsQuery
             'session' => [
                 'id' => $session->getId(),
                 'status' => $session->getStatus(),
-                'startedAt' => $session->payload()->startedAt,
+                // The results' start is the first launch, like the recap's (story 32.24).
+                'startedAt' => $session->payload()->firstLaunchedAt ?? $session->payload()->startedAt,
                 'finishedAt' => $session->payload()->finishedAt,
             ],
             'slots' => $this->buildSlotRows($slotsList),

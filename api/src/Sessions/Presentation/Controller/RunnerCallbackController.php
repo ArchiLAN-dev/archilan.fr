@@ -31,17 +31,6 @@ final readonly class RunnerCallbackController
         $body = $this->jsonBody($request);
         $newStatus = is_string($body['status'] ?? null) ? $body['status'] : '';
 
-        if ('logs' === $newStatus) {
-            $output = is_string($body['output'] ?? null) ? $body['output'] : '';
-            $result = $this->sessionLifecycleManager->storeLogs($sessionId, $output);
-
-            if (!$result['found']) {
-                return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
-            }
-
-            return new JsonResponse(['data' => ['ok' => true]]);
-        }
-
         if ('archived' === $newStatus) {
             $archivedSavePath = is_string($body['archived_save_path'] ?? null) ? $body['archived_save_path'] : null;
             $archivedSpoilerPath = is_string($body['archived_spoiler_path'] ?? null) ? $body['archived_spoiler_path'] : null;

@@ -57,6 +57,10 @@ describe("buildRecapKeyFigures", () => {
     expect(valueOf(figures, "duration")).toBe("3 h 10");
   });
 
+  it("reads a negative duration as zero, never with a minus sign (story 32.24)", () => {
+    expect(valueOf(buildRecapKeyFigures(recapWith([], -90), []), "duration")).toBe("0 min");
+  });
+
   it("reports the headline counts", () => {
     const figures = buildRecapKeyFigures(recapWith([{ checksDone: 30 }, { checksDone: 12 }], 3 * 3600 + 600), [
       item(1),

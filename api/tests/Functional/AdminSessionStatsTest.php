@@ -106,7 +106,8 @@ final class AdminSessionStatsTest extends FunctionalTestCase
         $this->entityManager->persist(Session::create($id, $eventId, new \DateTimeImmutable($startedAt)));
         $this->entityManager->flush();
         $this->entityManager->getConnection()->executeStatement(
-            'UPDATE session SET status = :status, started_at = :at WHERE id = :id',
+            // A real launch sets both instants (story 32.24); the stats count the first one.
+            'UPDATE session SET status = :status, started_at = :at, first_launched_at = :at WHERE id = :id',
             ['status' => $status, 'at' => $startedAt, 'id' => $id],
         );
     }

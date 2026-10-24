@@ -40,6 +40,7 @@ final readonly class SessionView
         public ?string $archivedSavePath,
         public ?string $archivedSpoilerPath,
         public ?string $adminPassword,
+        public ?string $firstLaunchedAt = null,
     ) {
     }
 }

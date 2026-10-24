@@ -41,6 +41,7 @@ final readonly class SessionConfigOverride
         public ?int $bronzeStart = null,
         public ?int $bronzePerCheck = null,
         public ?int $bronzePerGoal = null,
+        public ?bool $spheresVisible = null,
     ) {
     }
 
@@ -71,6 +72,7 @@ final readonly class SessionConfigOverride
             bronzeStart: $c->server->bronzeStart,
             bronzePerCheck: $c->server->bronzePerCheck,
             bronzePerGoal: $c->server->bronzePerGoal,
+            spheresVisible: $c->server->spheresVisible,
         );
     }
 
@@ -138,6 +140,9 @@ final readonly class SessionConfigOverride
                 $out[$key] = $amount;
             }
         }
+        if (null !== $this->spheresVisible) {
+            $out['spheresVisible'] = $this->spheresVisible;
+        }
 
         return $out;
     }
@@ -182,6 +187,7 @@ final readonly class SessionConfigOverride
             bronzeStart: self::bounded($data, 'bronzeStart', 0, SessionServerConfig::MAX_BRONZE_AMOUNT, 'invalid_bronze_amount'),
             bronzePerCheck: self::bounded($data, 'bronzePerCheck', 0, SessionServerConfig::MAX_BRONZE_AMOUNT, 'invalid_bronze_amount'),
             bronzePerGoal: self::bounded($data, 'bronzePerGoal', 0, SessionServerConfig::MAX_BRONZE_AMOUNT, 'invalid_bronze_amount'),
+            spheresVisible: isset($data['spheresVisible']) && is_bool($data['spheresVisible']) ? $data['spheresVisible'] : null,
         );
     }
 
@@ -225,6 +231,7 @@ final readonly class SessionConfigOverride
             && null === $this->pelleBounties
             && null === $this->bronzeStart
             && null === $this->bronzePerCheck
-            && null === $this->bronzePerGoal;
+            && null === $this->bronzePerGoal
+            && null === $this->spheresVisible;
     }
 }

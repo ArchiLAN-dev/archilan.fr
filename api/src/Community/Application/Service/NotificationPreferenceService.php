@@ -36,6 +36,8 @@ final readonly class NotificationPreferenceService
         // Story 16.23: every player of the member's draft run is ready, the moment to launch.
         'run_all_ready' => NotificationChannel::BellAndPush,
         'run_recap_ready' => NotificationChannel::Bell,
+        // Story 38.22: a followed game got a new apworld on the site.
+        'game_apworld_updated' => NotificationChannel::Bell,
     ];
 
     /**

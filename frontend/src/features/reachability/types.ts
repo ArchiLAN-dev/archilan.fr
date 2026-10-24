@@ -107,14 +107,24 @@ export function reachabilityOf(payload: unknown): ReachabilityData | null {
  * result when there is one, and the new result reaches the page through the live push.
  */
 export type ReachableAnswer =
-  | { kind: "data"; data: ReachabilityData; computing: boolean }
+  | { kind: "data"; data: ReachabilityData; computing: boolean; spheresVisible: boolean }
   | { kind: "computing" }
   | { kind: "invalid" };
 
 export function reachableAnswerOf(status: number, payload: unknown): ReachableAnswer {
   const data = reachabilityOf(payload);
-  if (status === 202) return data ? { kind: "data", data, computing: true } : { kind: "computing" };
-  return data ? { kind: "data", data, computing: false } : { kind: "invalid" };
+  const spheresVisible = spheresVisibleOf(payload);
+  if (status === 202) return data ? { kind: "data", data, computing: true, spheresVisible } : { kind: "computing" };
+  return data ? { kind: "data", data, computing: false, spheresVisible } : { kind: "invalid" };
+}
+
+/**
+ * Story 27.12: whether the run lets this viewer see the Spheres tab. The live push carries the raw computation, so
+ * the page keeps what the API answered rather than reading the presence of `spheres` in a frame.
+ */
+export function spheresVisibleOf(payload: unknown): boolean {
+  if (typeof payload !== "object" || payload === null || !("spheresVisible" in payload)) return false;
+  return payload.spheresVisible === true;
 }
 
 /** Story 17.28: while computing, the page asks again this often in case the live push is not connected. */

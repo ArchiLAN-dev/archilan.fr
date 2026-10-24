@@ -139,6 +139,13 @@ final class Session
 
         #[ORM\Column(name: 'generated_output_key', type: Types::STRING, length: 500, nullable: true)]
         private ?string $generatedOutputKey = null,
+
+        /**
+         * First time the server reached `running`, never moved afterwards (story 32.24): the recap's
+         * start. `startedAt` is the last launch.
+         */
+        #[ORM\Column(type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $firstLaunchedAt = null,
     ) {
     }
 
@@ -194,6 +201,7 @@ final class Session
             stoppedAt: null,
             lastHeartbeatAt: $now,
             lastActivityAt: $now,
+            firstLaunchedAt: $now,
         );
     }
 
@@ -244,6 +252,7 @@ final class Session
             $this->serverPassword = $serverPassword;
             $this->bridgePort = $bridgePort;
             $this->startedAt = $now;
+            $this->firstLaunchedAt ??= $now;
             $this->lastHeartbeatAt = $now;
         }
 
@@ -327,7 +336,9 @@ final class Session
         $this->bridgePort = $bridgePort;
         $this->lastActivityAt = $now;
         $this->lastHeartbeatAt = $now;
-        // Keep existing startedAt (not reset on resume)
+        // A resume is a launch like any other: startedAt is the last launch on every path (story 32.24).
+        $this->startedAt = $now;
+        $this->firstLaunchedAt ??= $now;
     }
 
     /**
@@ -477,9 +488,16 @@ final class Session
         return $this->lastHeartbeatAt;
     }
 
+    /** Last time the server reached `running` (launch, relaunch, crash restart or resume). */
     public function getStartedAt(): ?\DateTimeImmutable
     {
         return $this->startedAt;
+    }
+
+    /** First time the server reached `running`, never moved afterwards: where a run's times start. */
+    public function getFirstLaunchedAt(): ?\DateTimeImmutable
+    {
+        return $this->firstLaunchedAt;
     }
 
     /** The last time the server stopped (idle, crash, stop), kept across a resume (story 40.3). */
@@ -633,6 +651,7 @@ final class Session
             $this->archivedSavePath,
             $this->archivedSpoilerPath,
             $this->adminPassword,
+            $this->firstLaunchedAt?->format(\DateTimeInterface::ATOM),
         );
     }
 }

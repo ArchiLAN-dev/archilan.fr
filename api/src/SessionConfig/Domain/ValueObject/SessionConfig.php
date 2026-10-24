@@ -42,6 +42,7 @@ final readonly class SessionConfig
         $server['bronzeStart'] = $this->server->bronzeStart;
         $server['bronzePerCheck'] = $this->server->bronzePerCheck;
         $server['bronzePerGoal'] = $this->server->bronzePerGoal;
+        $server['spheresVisible'] = $this->server->spheresVisible;
 
         return [
             'server' => $server,
@@ -90,6 +91,8 @@ final readonly class SessionConfig
                 bronzeStart: self::optInt($server, 'bronzeStart') ?? SessionServerConfig::DEFAULT_BRONZE_START,
                 bronzePerCheck: self::optInt($server, 'bronzePerCheck') ?? SessionServerConfig::DEFAULT_BRONZE_PER_CHECK,
                 bronzePerGoal: self::optInt($server, 'bronzePerGoal') ?? SessionServerConfig::DEFAULT_BRONZE_PER_GOAL,
+                // A profile stored before story 27.12 carries none: spheres are visible by default.
+                spheresVisible: self::optBool($server, 'spheresVisible') ?? true,
             ),
             new SessionGenerationConfig(
                 $plando,
@@ -274,6 +277,7 @@ final readonly class SessionConfig
                 bronzeStart: $o->bronzeStart ?? $this->server->bronzeStart,
                 bronzePerCheck: $o->bronzePerCheck ?? $this->server->bronzePerCheck,
                 bronzePerGoal: $o->bronzePerGoal ?? $this->server->bronzePerGoal,
+                spheresVisible: $o->spheresVisible ?? $this->server->spheresVisible,
             ),
             new SessionGenerationConfig(
                 plandoOptions: $o->plandoOptions ?? $this->generation->plandoOptions,

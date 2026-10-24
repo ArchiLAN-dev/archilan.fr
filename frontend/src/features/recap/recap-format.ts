@@ -14,7 +14,9 @@ export function formatSuperlativeValue(value: number | string): string {
   return value;
 }
 
-export function formatDuration(totalSeconds: number): string {
+export function formatDuration(rawSeconds: number): string {
+  // Never a minus sign: an instant before the launch is inconsistent data, read as zero (story 32.24).
+  const totalSeconds = Math.max(0, rawSeconds);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;

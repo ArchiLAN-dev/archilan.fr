@@ -5,6 +5,7 @@ import { type CSSProperties, useEffect, useState } from "react";
 import { GravWave } from "./grav-wave";
 import { PixelTrophy } from "./pixel-trophy";
 import { useChiptune } from "./use-chiptune";
+import type { FanfarePref } from "./use-fanfare-preference";
 
 // ─── Particle types ───────────────────────────────────────────────────────────
 
@@ -170,6 +171,7 @@ export function GoalCelebration({
     itemsPercent,
     onDismiss,
     bare = false,
+    fanfare,
 }: {
     slotName: string;
     playerAlias?: string;
@@ -180,6 +182,8 @@ export function GoalCelebration({
     // When true (OBS overlay), drop the opaque dark backdrop and the white flash so only the card +
     // particles render over a transparent page. Modal usages (in-app) leave this false.
     bare?: boolean;
+    // Imposes the fanfare instead of the player's stored choice (story 16.24: the overlay's `sound` parameter).
+    fanfare?: FanfarePref;
 }) {
     const [pieces] = useState<Piece[]>(() => generatePieces(100));
     const [sparks] = useState<Spark[]>(() => generateSparks(24));
@@ -187,7 +191,7 @@ export function GoalCelebration({
     const [mounted, setMounted] = useState(false);
     const [leaving, setLeaving] = useState(false);
 
-    useChiptune();
+    useChiptune(fanfare);
 
     useEffect(() => {
         const raf = requestAnimationFrame(() => setMounted(true));

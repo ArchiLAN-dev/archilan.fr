@@ -291,6 +291,13 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
       const sentence = fallback.split(" : ")[0] ?? fallback;
       return base("action", "Action requise", icon("puzzle"), game !== "" ? [{ text: `${sentence} : ` }, strong(game)] : [{ text: fallback }]);
     }
+    case "game_apworld_updated": {
+      // Story 38.22: a followed game got a new apworld on the site, or its first one.
+      const game = text(data, "gameName") || "Un jeu suivi";
+      const version = text(data, "version");
+      if (data.first === true) return base("run", "Jeu suivi", icon("puzzle"), [strong(game), { text: " est jouable sur le site" }]);
+      return { ...base("run", "Jeu suivi", icon("puzzle"), [{ text: "Nouvel apworld pour " }, strong(game)]), detail: version !== "" ? `Version ${version}` : null };
+    }
     case "slot_yaml_needs_review": {
       const game = text(data, "gameName") || "Un jeu";
       const where = text(data, "runTitle") || text(data, "eventTitle");

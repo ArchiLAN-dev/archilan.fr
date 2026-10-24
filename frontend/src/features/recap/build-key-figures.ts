@@ -57,7 +57,8 @@ export function buildRecapKeyFigures(recap: SessionRecap, feed: FeedEvent[]): Ke
  * the same duration in the header just above: rounding here printed "3 h 11" fifteen pixels under a
  * header reading "3 h 10 min".
  */
-function formatCompactDuration(seconds: number): string {
+function formatCompactDuration(rawSeconds: number): string {
+  const seconds = Math.max(0, rawSeconds);
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   if (hours === 0) return `${minutes} min`;
