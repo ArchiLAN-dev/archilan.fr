@@ -19,11 +19,13 @@ final readonly class ApworldPromoted
         public ?string $previousHash,
         public string $newHash,
         public ?string $previousDefaultYaml,
+        // Story 38.22: the release tag it now serves, when known, for the followers of the game.
+        public ?string $newVersion = null,
     ) {
     }
 
     public static function of(ApworldPromotion $promotion): self
     {
-        return new self($promotion->gameId, $promotion->previousHash, $promotion->newHash, $promotion->previousDefaultYaml);
+        return new self($promotion->gameId, $promotion->previousHash, $promotion->newHash, $promotion->previousDefaultYaml, $promotion->newVersion);
     }
 }

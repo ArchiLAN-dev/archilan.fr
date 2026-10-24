@@ -18,6 +18,7 @@ use App\GameSelection\Domain\Entity\GameCatalogSync;
 use App\GameSelection\Domain\Enum\ApworldCandidateOrigin;
 use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
 use App\GameSelection\Domain\Repository\ApworldCandidateRepositoryInterface;
+use App\GameSelection\Domain\Repository\GameFollowRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\Service\ArchipelagoImageFreshness;
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
@@ -55,6 +56,7 @@ final readonly class AdminGameLibrary
         private SubmitApworldCandidate $submitCandidate,
         private ApworldCandidateRepositoryInterface $candidates,
         private RequiredGenerationFiles $requiredGenerationFiles,
+        private GameFollowRepositoryInterface $follows,
     ) {
     }
 
@@ -857,6 +859,7 @@ final readonly class AdminGameLibrary
         }
 
         $this->gameRepository->remove($game);
+        $this->follows->deleteByGameId($gameId);
 
         $this->logger->info('game.removed', ['gameId' => $gameId]);
 

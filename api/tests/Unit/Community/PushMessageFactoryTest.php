@@ -20,6 +20,19 @@ final class PushMessageFactoryTest extends TestCase
         self::assertNull(PushMessageFactory::forNotification('friend_request_received', []));
     }
 
+    /** Story 38.22: a followed game got a new apworld, or its first one. */
+    public function testANewApworldOfAFollowedGameLeadsToTheGame(): void
+    {
+        $update = PushMessageFactory::forNotification('game_apworld_updated', ['gameId' => 'g1', 'gameName' => 'Hollow Knight', 'gameSlug' => 'hollow-knight', 'version' => 'v1.2.0', 'first' => false]);
+        $first = PushMessageFactory::forNotification('game_apworld_updated', ['gameId' => 'g1', 'gameName' => 'Hollow Knight', 'gameSlug' => 'hollow-knight', 'version' => null, 'first' => true]);
+
+        self::assertNotNull($update);
+        self::assertSame('Nouvel apworld pour Hollow Knight (v1.2.0)', $update->body);
+        self::assertSame('/jeux/hollow-knight', $update->url);
+        self::assertNotNull($first);
+        self::assertSame('Hollow Knight est jouable sur le site', $first->body);
+    }
+
     public function testAnUnblockedSlotSaysWhereAndLeadsToTheRun(): void
     {
         $message = PushMessageFactory::forNotification('slot_unblocked', [

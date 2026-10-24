@@ -15,6 +15,7 @@ use App\GameSelection\Application\Support\GamePlatformResolver;
 use App\GameSelection\Application\Support\GameTutorialSeeder;
 use App\GameSelection\Application\Support\InstallStepsNormalizer;
 use App\GameSelection\Application\Support\InstallStepsReader;
+use App\GameSelection\Domain\Repository\GameFollowRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Service\RequiredGenerationFiles;
@@ -55,6 +56,7 @@ trait BuildsAdminGameLibrary
             $submit ?? new SubmitApworldCandidate(self::createStub(GameRepositoryInterface::class), new InMemoryApworldCandidateRepository(), self::createStub(RunnerGatewayInterface::class), self::createStub(MinioStorageInterface::class), new MockClock(), new NullLogger(), 'apworlds'),
             $candidates ?? new InMemoryApworldCandidateRepository(),
             new RequiredGenerationFiles($runner),
+            self::createStub(GameFollowRepositoryInterface::class),
         );
     }
 }
