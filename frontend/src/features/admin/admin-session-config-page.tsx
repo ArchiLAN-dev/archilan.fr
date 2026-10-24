@@ -244,6 +244,14 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
             onChange={(c) => patchServer({ disableItemCheat: c })}
           />
         </div>
+        <div className="mt-4">
+          <SwitchRow
+            checked={server.spheresVisible}
+            description={sessionConfigHelp.spheresVisible}
+            label="Sphères visibles par les joueurs"
+            onChange={(c) => patchServer({ spheresVisible: c })}
+          />
+        </div>
         <p className="mt-3 text-xs text-muted-foreground">
           Le mot de passe de connexion n&apos;est pas défini ici : un mot de passe aléatoire est
           généré par run. Il peut être fixé ponctuellement via un override.

@@ -224,6 +224,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
   const canToggleSpoilers = isAdminUser || isOwner;
   const [spoilersVisible, setSpoilersVisible] = useState(false);
   const hideSpoilers = canToggleSpoilers ? !spoilersVisible : true;
+  // Story 27.12: the run's setting, as the API answered it (always on for an admin or the run's owner).
+  const [spheresVisible, setSpheresVisible] = useState(false);
 
   type TabId = "checks" | "spheres" | "indices" | "items" | "action";
   const ALL_TABS: { id: TabId; label: string; icon: ElementType }[] = [
@@ -235,7 +237,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
   ];
   const TABS = ALL_TABS.filter((t) => {
     if (t.id === "action" && !isAdminUser) return false;
-    if (t.id === "spheres" && hideSpoilers) return false;
+    if (t.id === "spheres" && !spheresVisible) return false;
     return true;
   });
   const VALID_TABS = new Set<string>(TABS.map((t) => t.id));
@@ -333,6 +335,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
         return;
       }
       const data = answer.data;
+      setSpheresVisible(answer.spheresVisible);
       setComputingTick((tick) => (answer.computing ? tick + 1 : 0));
       setState({ kind: "data", data });
       if (prevItemsRef.current.size === 0) {
@@ -1031,7 +1034,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
             {/* Sphères tab */}
             {activeTab === "spheres" ? (
               state.data.spheres && state.data.spheres.length > 0 ? (
-                <SphereLine currentSlot={Number(slotIndex)} spheres={state.data.spheres} />
+                <SphereLine currentSlot={Number(slotIndex)} hideItems={hideSpoilers} spheres={state.data.spheres} />
               ) : (
                 <p className="text-sm text-muted-foreground">Aucune donnée de sphères disponible.</p>
               )

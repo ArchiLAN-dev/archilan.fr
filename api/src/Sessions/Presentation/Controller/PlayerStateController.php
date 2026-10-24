@@ -8,6 +8,7 @@ use App\Identity\Domain\Entity\User;
 use App\Sessions\Application\Query\PlayersSnapshotQuery;
 use App\Sessions\Application\Query\SessionQuery;
 use App\Sessions\Application\Query\SessionSlotOwnersQuery;
+use App\Sessions\Application\Query\SlotSpheresVisibilityQuery;
 use App\Sessions\Domain\Entity\Session;
 use App\Shared\Application\Support\BridgeEndpoint;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
@@ -37,6 +38,7 @@ final readonly class PlayerStateController
         private SessionQuery $sessionQuery,
         private PlayersSnapshotQuery $playersSnapshotQuery,
         private SessionSlotOwnersQuery $slotOwnersQuery,
+        private SlotSpheresVisibilityQuery $spheresVisibility,
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
         private BridgeClientPool $bridgeClientPool,
@@ -600,23 +602,43 @@ final readonly class PlayerStateController
 
             $optionalUser = $this->apiAccessGuard->optionalUser($request);
             $isAdmin = $optionalUser instanceof User && in_array('ROLE_ADMIN', $optionalUser->getRoles(), true);
+            // Story 27.12: the run's setting decides whether a player gets the spheres at all.
+            $spheresVisible = $isAdmin || $this->spheresVisibility->visibleTo($sessionId, $optionalUser instanceof User ? $optionalUser->getId() : null);
 
             // Story 17.28: the bridge does not hold the request while its daemon starts - it answers
             // « computing » with the slot's last result (or none), and pushes the new one once ready.
             if (202 === $response->getStatusCode()) {
                 $previous = is_array($data['previous'] ?? null) ? $data['previous'] : null;
 
-                return new JsonResponse(['data' => null === $previous || $isAdmin ? $previous : $this->stripItemRewards($previous), 'computing' => true], 202);
+                return new JsonResponse([
+                    'data' => null === $previous || $isAdmin ? $previous : $this->forPlayer($previous, $spheresVisible),
+                    'computing' => true,
+                    'spheresVisible' => $spheresVisible,
+                ], 202);
             }
 
             if (!$isAdmin) {
-                $data = $this->stripItemRewards($data);
+                $data = $this->forPlayer($data, $spheresVisible);
             }
 
-            return new JsonResponse(['data' => $data]);
+            return new JsonResponse(['data' => $data, 'spheresVisible' => $spheresVisible]);
         } catch (\Throwable $e) {
             return $this->bridgeFailure($e, $sessionId, $slotIndex, 'reachable');
         }
+    }
+
+    /**
+     * @param array<mixed> $data
+     *
+     * @return array<mixed>
+     */
+    private function forPlayer(array $data, bool $spheresVisible): array
+    {
+        if (!$spheresVisible) {
+            unset($data['spheres']);
+        }
+
+        return $this->stripItemRewards($data);
     }
 
     /**

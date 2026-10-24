@@ -32,6 +32,8 @@ export type SessionServerConfig = {
   bronzeStart: number;
   bronzePerCheck: number;
   bronzePerGoal: number;
+  /** Story 27.12: players see their slot's spheres (items stripped). */
+  spheresVisible: boolean;
 };
 
 export type SessionGenerationConfig = {
@@ -180,6 +182,7 @@ function isServerConfig(v: unknown): v is SessionServerConfig {
   if (!("bronzeStart" in v) || typeof v.bronzeStart !== "number") return false;
   if (!("bronzePerCheck" in v) || typeof v.bronzePerCheck !== "number") return false;
   if (!("bronzePerGoal" in v) || typeof v.bronzePerGoal !== "number") return false;
+  if (!("spheresVisible" in v) || typeof v.spheresVisible !== "boolean") return false;
   if (!("joinPassword" in v)) return false;
   return v.joinPassword === null || typeof v.joinPassword === "string";
 }
