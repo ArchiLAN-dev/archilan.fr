@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Loader2, Maximize2, QrCode, RefreshCw, UserPlus, X } from "lucide-react";
 import { Dialog as RadixDialog } from "radix-ui";
-import { create as createQrCode } from "qrcode";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { env } from "@/lib/env";
+import { qrPath } from "@/lib/qr-code";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   addFriendFromLink,
@@ -25,21 +25,6 @@ export const MY_FRIEND_LINK_KEY = ["community-friend-link"];
 
 export function friendLinkUrl(code: string): string {
   return `${env.appUrl}/ami/${code}`;
-}
-
-/**
- * The dark modules of a QR code as one SVG path, a unit square each (story 43.3). Drawn here, without a network
- * call nor an image: the code never leaves the page.
- */
-export function qrPath(value: string): { size: number; d: string } {
-  const { size, data } = createQrCode(value, { errorCorrectionLevel: "M" }).modules;
-  let d = "";
-  for (let row = 0; row < size; row++) {
-    for (let col = 0; col < size; col++) {
-      if (data[row * size + col] === 1) d += `M${col} ${row}h1v1h-1z`;
-    }
-  }
-  return { size, d };
 }
 
 // The 4-module margin of the QR spec: the code also sits on the dark site background.

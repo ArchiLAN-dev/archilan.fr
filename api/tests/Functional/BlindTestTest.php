@@ -140,8 +140,8 @@ final class BlindTestTest extends FunctionalTestCase
         $this->loginAs($this->carol);
         $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/blind-test/access', $this->event->getId()));
 
-        self::assertResponseStatusCodeSame(403);
-        self::assertSame('not_registered', $this->errorCode());
+        self::assertResponseStatusCodeSame(200, 'every event page asks: « not now » is an answer, not an error');
+        self::assertSame(['data' => ['url' => null]], $this->decodedJsonResponse());
     }
 
     public function testAOneTimeCodeTellsTheAppWhoPlaysOnce(): void

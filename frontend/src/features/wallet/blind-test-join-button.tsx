@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Music, QrCode } from "lucide-react";
 
-import { qrPath } from "@/features/community/friend-link";
+import { useAuth } from "@/features/auth/auth-context";
+import { qrPath } from "@/lib/qr-code";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchBlindTestEntryUrl } from "./blind-test-api";
 
@@ -16,8 +17,11 @@ const QUIET_ZONE = 4;
  * plays through a one-time code: nothing in this address identifies the member.
  */
 export function BlindTestJoinButton({ eventId }: { eventId: string }) {
+  const { user } = useAuth();
   const [showQr, setShowQr] = useState(false);
   const { data: url } = useQuery({
+    // A visitor cannot play: no call, no 401 to refresh.
+    enabled: user !== null,
     queryKey: ["blind-test-entry", eventId],
     queryFn: () => fetchBlindTestEntryUrl(eventId),
     staleTime: DEFAULT_STALE_TIME,
