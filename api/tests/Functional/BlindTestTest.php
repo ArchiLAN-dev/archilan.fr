@@ -126,32 +126,88 @@ final class BlindTestTest extends FunctionalTestCase
         self::assertSame('invalid_blind_test_credit', $this->errorCode());
     }
 
-    public function testARegistrantGetsASignedLinkToTheApp(): void
+    public function testARegistrantIsShownTheWayIntoTheApp(): void
     {
         $this->loginAs($this->alice);
-        $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/blind-test/join', $this->event->getId()));
+        $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/blind-test/access', $this->event->getId()));
 
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['data' => ['url' => 'https://blindtest.example.test/connexion']], $this->decodedJsonResponse());
+    }
+
+    public function testSomeoneNotRegisteredIsNotShownTheWayIn(): void
+    {
+        $this->loginAs($this->carol);
+        $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/blind-test/access', $this->event->getId()));
+
+        self::assertResponseStatusCodeSame(200, 'every event page asks: « not now » is an answer, not an error');
+        self::assertSame(['data' => ['url' => null]], $this->decodedJsonResponse());
+    }
+
+    public function testAOneTimeCodeTellsTheAppWhoPlaysOnce(): void
+    {
+        $code = $this->loginCode($this->alice, 'state-of-the-app-1234');
+
+        $this->sendSigned('/api/v1/integrations/blind-test/codes/echange', json_encode(['code' => $code], \JSON_THROW_ON_ERROR));
         self::assertResponseStatusCodeSame(200);
         $data = $this->decodedJsonResponse()['data'] ?? null;
         self::assertIsArray($data);
-        $url = $data['url'] ?? null;
-        self::assertIsString($url);
-        self::assertStringStartsWith('https://blindtest.example.test/play?token=', $url);
+        self::assertSame($this->alice->getId(), $data['userId'] ?? null);
+        self::assertSame('Alice', $data['displayName'] ?? null);
+        self::assertSame('state-of-the-app-1234', $data['state'] ?? null);
+        self::assertSame($this->event->getEndsAt()->getTimestamp(), $data['exp'] ?? null);
 
-        [$payload, $signature] = explode('.', rawurldecode(substr($url, strlen('https://blindtest.example.test/play?token='))));
-        self::assertSame(hash_hmac('sha256', $payload, self::SECRET), $signature);
-        $claims = json_decode((string) base64_decode(strtr($payload, '-_', '+/'), true), true);
-        self::assertIsArray($claims);
-        self::assertSame($this->alice->getId(), $claims['userId'] ?? null);
-        self::assertSame('Alice', $claims['displayName'] ?? null);
+        $this->sendSigned('/api/v1/integrations/blind-test/codes/echange', json_encode(['code' => $code], \JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(404, 'a code is served once');
     }
 
-    public function testSomeoneNotRegisteredGetsNoLink(): void
+    public function testTheReturnAddressComesFromTheConfigurationOnly(): void
+    {
+        $this->loginAs($this->alice);
+        $this->client->jsonRequest('POST', sprintf('/api/v1/events/%s/blind-test/codes', $this->event->getId()), ['state' => 'state-of-the-app-1234', 'redirect' => 'https://evil.example']);
+
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $redirect = $data['redirect'] ?? null;
+        self::assertIsString($redirect);
+        self::assertStringStartsWith('https://blindtest.example.test/connexion/retour?code=', $redirect);
+        self::assertStringEndsWith('&state=state-of-the-app-1234', $redirect);
+    }
+
+    public function testAnExpiredCodeIsWorthNothing(): void
+    {
+        $code = $this->loginCode($this->alice, 'state-of-the-app-1234');
+        $this->entityManager->getConnection()->executeStatement("UPDATE blind_test_login_code SET expires_at = '2020-01-01T00:00:00+00:00'");
+
+        $this->sendSigned('/api/v1/integrations/blind-test/codes/echange', json_encode(['code' => $code], \JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testACodeIsOnlyIssuedForTheAppsOwnState(): void
+    {
+        $this->loginAs($this->alice);
+        $this->client->jsonRequest('POST', sprintf('/api/v1/events/%s/blind-test/codes', $this->event->getId()), ['state' => 'short']);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('invalid_state', $this->errorCode());
+    }
+
+    public function testSomeoneNotRegisteredGetsNoCode(): void
     {
         $this->loginAs($this->carol);
-        $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/blind-test/join', $this->event->getId()));
+        $this->client->jsonRequest('POST', sprintf('/api/v1/events/%s/blind-test/codes', $this->event->getId()), ['state' => 'state-of-the-app-1234']);
 
         self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testAnUnsignedExchangeIsRefused(): void
+    {
+        $code = $this->loginCode($this->alice, 'state-of-the-app-1234');
+
+        $this->sendSigned('/api/v1/integrations/blind-test/codes/echange', json_encode(['code' => $code], \JSON_THROW_ON_ERROR), signature: str_repeat('0', 64));
+
+        self::assertResponseStatusCodeSame(401);
     }
 
     public function testAnAdminTunesTheBlindTest(): void
@@ -189,10 +245,31 @@ final class BlindTestTest extends FunctionalTestCase
 
     private function sendCredit(string $body, ?string $timestamp = null, ?string $signature = null): void
     {
+        $this->sendSigned('/api/v1/integrations/blind-test/credits', $body, $timestamp, $signature);
+    }
+
+    private function loginCode(User $member, string $state): string
+    {
+        $this->loginAs($member);
+        $this->client->jsonRequest('POST', sprintf('/api/v1/events/%s/blind-test/codes', $this->event->getId()), ['state' => $state]);
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $redirect = $data['redirect'] ?? null;
+        self::assertIsString($redirect);
+        parse_str((string) parse_url($redirect, \PHP_URL_QUERY), $query);
+        $code = $query['code'] ?? null;
+        self::assertIsString($code);
+
+        return $code;
+    }
+
+    private function sendSigned(string $path, string $body, ?string $timestamp = null, ?string $signature = null): void
+    {
         $timestamp ??= (string) time();
         $this->client->request(
             'POST',
-            '/api/v1/integrations/blind-test/credits',
+            $path,
             [],
             [],
             [

@@ -2,7 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import type { FriendLinkResult } from "./community-friends-api";
-import { FriendLinkPage, MY_FRIEND_LINK_KEY, MyFriendLink, friendLinkStatus, friendLinkUrl, qrPath } from "./friend-link";
+import { qrPath } from "@/lib/qr-code";
+import { FriendLinkPage, MY_FRIEND_LINK_KEY, MyFriendLink, friendLinkStatus, friendLinkUrl } from "./friend-link";
 
 function render(node: React.ReactNode, seed: (client: QueryClient) => void): string {
   const client = new QueryClient();

@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Wallet\Application\Support;
 
 /**
- * The secret the site shares with the blind test app (story 41.40), and the app's address. Both sides sign with
- * HMAC-SHA256: the site its participation tokens, the app its credits. Without a secret or an address the blind
- * test is unavailable.
+ * The secret the site shares with the blind test app (story 41.40), and the app's address. The app signs its calls
+ * (credits, login code exchange) with HMAC-SHA256. Without a secret or an address the blind test is unavailable.
  */
 final readonly class BlindTestLink
 {
+    public const int MAX_CLOCK_SKEW_SECONDS = 300;
+
     public function __construct(
         private string $appUrl,
         private string $secret,
@@ -33,16 +34,29 @@ final readonly class BlindTestLink
     }
 
     /**
-     * The address a member opens to play: the app, carrying `{userId, eventId, displayName, exp}` and its signature.
-     *
-     * @param array{userId: string, eventId: string, displayName: string, exp: int} $claims
+     * A request the app signed (story 41.45): `{timestamp}.{body}` under the shared secret, sent within 5 minutes.
      */
-    public function joinUrl(array $claims): string
+    public function verifyRequest(string $timestamp, string $signature, string $body, \DateTimeImmutable $now): bool
     {
-        $payload = rtrim(strtr(base64_encode(json_encode($claims, \JSON_THROW_ON_ERROR)), '+/', '-_'), '=');
-        $token = $payload.'.'.$this->sign($payload);
-        $base = rtrim($this->appUrl, '/');
+        return ctype_digit($timestamp)
+            && abs($now->getTimestamp() - (int) $timestamp) <= self::MAX_CLOCK_SKEW_SECONDS
+            && $this->verify($timestamp.'.'.$body, $signature);
+    }
 
-        return $base.(str_contains($base, '?') ? '&' : '?').'token='.rawurlencode($token);
+    /** Where a member enters the app: it starts the login from there (story 41.45). */
+    public function entryUrl(): string
+    {
+        return $this->base().'/connexion';
+    }
+
+    /** Where the site sends the member back with their one-time code. Built from the configuration, never a request. */
+    public function callbackUrl(string $code, string $state): string
+    {
+        return $this->base().'/connexion/retour?'.http_build_query(['code' => $code, 'state' => $state]);
+    }
+
+    private function base(): string
+    {
+        return rtrim(trim($this->appUrl), '/');
     }
 }

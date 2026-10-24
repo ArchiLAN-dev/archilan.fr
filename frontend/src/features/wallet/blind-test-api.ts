@@ -3,8 +3,8 @@ import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 /**
- * Story 41.40: the blind test of an event. Its app credits event pelles for the sources found; the site hands
- * registrants a signed link into it and lets the admins tune it. Every function returns a value instead of throwing
+ * Stories 41.40, 41.45: the blind test of an event. Its app credits event pelles for the sources found; the site
+ * shows registrants the way in, tells the app who they are through a one-time code, and lets the admins tune it. Every function returns a value instead of throwing
  * (AC-API2).
  */
 export type BlindTestSettings = { enabled: boolean; pellesPerSource: number; capPerPlayer: number };
@@ -25,15 +25,42 @@ function dataOf(payload: unknown): unknown {
   return typeof payload === "object" && payload !== null && "data" in payload ? payload.data : null;
 }
 
-/** The signed link into the app, or null when the member may not play (signed out, not registered, closed). */
-export async function fetchBlindTestJoinUrl(eventId: string): Promise<string | null> {
+/** Where the member enters the app (story 41.45), or null when they may not play now (signed out, not registered, closed). */
+export async function fetchBlindTestEntryUrl(eventId: string): Promise<string | null> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/events/${eventId}/blind-test/join`);
+    const res = await apiFetch(`${env.apiBaseUrl}/events/${eventId}/blind-test/access`);
     if (!res.ok) return null;
     const data = dataOf(await res.json());
     return typeof data === "object" && data !== null && hasStringProp(data, "url") ? data.url : null;
   } catch {
     return null;
+  }
+}
+
+export type BlindTestLoginResult = { kind: "ok"; redirect: string } | { kind: "error"; message: string };
+
+/**
+ * The site's half of the login (story 41.45): a one-time code for the app, which the browser carries back to it. The
+ * return address comes from the server; the state is the app's own.
+ */
+export async function requestBlindTestLogin(eventId: string, state: string): Promise<BlindTestLoginResult> {
+  const failure = "Connexion au blind test impossible. Relance-la depuis l'app.";
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/blind-test/codes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state }),
+    });
+    const payload: unknown = await res.json();
+    const data = dataOf(payload);
+    if (res.ok && typeof data === "object" && data !== null && hasStringProp(data, "redirect")) {
+      return { kind: "ok", redirect: data.redirect };
+    }
+    const error = typeof payload === "object" && payload !== null && "error" in payload ? payload.error : null;
+    const message = typeof error === "object" && error !== null && hasStringProp(error, "message") ? error.message : null;
+    return { kind: "error", message: message ?? failure };
+  } catch {
+    return { kind: "error", message: failure };
   }
 }
 

@@ -5,7 +5,8 @@ import { server } from "@/tests/setup";
 import { TEST_API_BASE_URL } from "@/tests/constants";
 import { BlindTestJoinButton } from "./blind-test-join-button";
 import { wholeNumber } from "./admin-blind-test-card";
-import { fetchBlindTestJoinUrl, isBlindTestSettings, saveBlindTestSettings } from "./blind-test-api";
+import { fetchBlindTestEntryUrl, isBlindTestSettings, requestBlindTestLogin, saveBlindTestSettings } from "./blind-test-api";
+import { blindTestLoginReturnTo } from "./blind-test-login-bridge";
 
 describe("blind test (story 41.40)", () => {
   it("reads the settings shape", () => {
@@ -19,14 +20,33 @@ describe("blind test (story 41.40)", () => {
     expect(wholeNumber("")).toBeNull();
   });
 
-  it("gets the signed link, or nothing when the member may not play", async () => {
+  it("gets the way into the app, or nothing when the member may not play", async () => {
     server.use(
-      http.get(`${TEST_API_BASE_URL}/events/e-1/blind-test/join`, () => HttpResponse.json({ data: { url: "https://bt.test/play?token=abc" } })),
-      http.get(`${TEST_API_BASE_URL}/events/e-2/blind-test/join`, () => HttpResponse.json({ error: { code: "not_registered" } }, { status: 403 })),
+      http.get(`${TEST_API_BASE_URL}/events/e-1/blind-test/access`, () => HttpResponse.json({ data: { url: "https://bt.test/connexion" } })),
+      http.get(`${TEST_API_BASE_URL}/events/e-2/blind-test/access`, () => HttpResponse.json({ error: { code: "not_registered" } }, { status: 403 })),
     );
 
-    await expect(fetchBlindTestJoinUrl("e-1")).resolves.toBe("https://bt.test/play?token=abc");
-    await expect(fetchBlindTestJoinUrl("e-2")).resolves.toBeNull();
+    await expect(fetchBlindTestEntryUrl("e-1")).resolves.toBe("https://bt.test/connexion");
+    await expect(fetchBlindTestEntryUrl("e-2")).resolves.toBeNull();
+  });
+
+  it("follows the return address the server gives, and relays its refusals (story 41.45)", async () => {
+    server.use(
+      http.post(`${TEST_API_BASE_URL}/events/e-1/blind-test/codes`, () => HttpResponse.json({ data: { redirect: "https://bt.test/connexion/retour?code=c&state=s" } })),
+      http.post(`${TEST_API_BASE_URL}/events/e-2/blind-test/codes`, () =>
+        HttpResponse.json({ error: { code: "not_registered", message: "Seuls les inscrits de l'événement jouent au blind test." } }, { status: 403 }),
+      ),
+    );
+
+    await expect(requestBlindTestLogin("e-1", "state-of-the-app-1234")).resolves.toEqual({ kind: "ok", redirect: "https://bt.test/connexion/retour?code=c&state=s" });
+    await expect(requestBlindTestLogin("e-2", "state-of-the-app-1234")).resolves.toEqual({
+      kind: "error",
+      message: "Seuls les inscrits de l'événement jouent au blind test.",
+    });
+  });
+
+  it("comes back to the same login after signing in", () => {
+    expect(blindTestLoginReturnTo("e-1", "abc_DEF-123")).toBe("/blind-test/connexion?event=e-1&state=abc_DEF-123");
   });
 
   it("relays the server's message when the settings are refused", async () => {
@@ -44,7 +64,7 @@ describe("blind test (story 41.40)", () => {
 
   it("shows the button only with a link", () => {
     const client = new QueryClient();
-    client.setQueryData(["blind-test-join", "e-1"], "https://bt.test/play?token=abc");
+    client.setQueryData(["blind-test-entry", "e-1"], "https://bt.test/connexion");
     const html = renderToStaticMarkup(
       <QueryClientProvider client={client}>
         <BlindTestJoinButton eventId="e-1" />
@@ -53,6 +73,6 @@ describe("blind test (story 41.40)", () => {
     );
 
     expect(html.match(/Jouer au blind test/g)).toHaveLength(1);
-    expect(html).toContain('href="https://bt.test/play?token=abc"');
+    expect(html).toContain('href="https://bt.test/connexion"');
   });
 });

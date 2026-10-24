@@ -24,7 +24,6 @@ use Psr\Clock\ClockInterface;
  */
 final readonly class CreditBlindTestSource
 {
-    public const int MAX_CLOCK_SKEW_SECONDS = 300;
     public const string KEY_PREFIX = 'blindtest:';
     private const int MAX_KEY_LENGTH = 120;
     private const int MAX_SOURCE_LENGTH = 120;
@@ -41,9 +40,7 @@ final readonly class CreditBlindTestSource
     public function credit(string $timestamp, string $signature, string $body): BlindTestCredit
     {
         $now = $this->clock->now();
-        if (!ctype_digit($timestamp)
-            || abs($now->getTimestamp() - (int) $timestamp) > self::MAX_CLOCK_SKEW_SECONDS
-            || !$this->link->verify($timestamp.'.'.$body, $signature)) {
+        if (!$this->link->verifyRequest($timestamp, $signature, $body, $now)) {
             throw new BlindTestSignatureException();
         }
 
