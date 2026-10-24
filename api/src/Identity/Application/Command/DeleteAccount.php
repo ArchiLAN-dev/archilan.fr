@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Command;
 
+use App\GameSelection\Domain\Repository\GameFollowRepositoryInterface;
 use App\Identity\Domain\Entity\DeletionAudit;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\DeletionAuditRepositoryInterface;
@@ -18,6 +19,7 @@ final readonly class DeleteAccount
         private UserRepositoryInterface $userRepository,
         private DeletionAuditRepositoryInterface $auditRepository,
         private YamlTemplateRepositoryInterface $yamlTemplates,
+        private GameFollowRepositoryInterface $gameFollows,
         private ClockInterface $clock,
         private string $emailHashSecret,
         private LoggerInterface $logger,
@@ -38,6 +40,8 @@ final readonly class DeleteAccount
 
         // Personal data the member created (named YAML templates) is hard-deleted on erasure.
         $this->yamlTemplates->deleteByUserId($user->getId());
+        // Story 38.22: an erased member follows no game anymore.
+        $this->gameFollows->deleteByUserId($user->getId());
 
         $this->auditRepository->save($audit);
         $this->userRepository->save($user);

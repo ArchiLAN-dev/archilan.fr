@@ -55,7 +55,7 @@ final class TriageApworldCandidateTest extends TestCase
         self::assertEquals([
             new PostApworldPromotionToStaffChannelJob($candidate->getId(), 'v1'),
             new ApworldPromoted($this->game->getId(), 'hash-old', 'hash-new', 'old
-'),
+', 'v2'),
         ], $bus->messages());
     }
 

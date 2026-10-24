@@ -144,7 +144,7 @@ final class ReconcileApworldIncidentsHandlerTest extends TestCase
                 new PostApworldPromotionToStaffChannelJob($candidate->getId(), 'CrystalProject-v0.17.0'),
                 // Story 38.7: the slots of runs not yet launched follow the game.
                 new ApworldPromoted($game->getId(), 'hash-old', 'hash-new', 'game: Crystal Project
-'),
+', 'v2'),
             ],
             $bus->messages(),
         );

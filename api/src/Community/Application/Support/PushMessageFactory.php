@@ -20,6 +20,8 @@ final class PushMessageFactory
         'run_joined', 'run_games_chosen', 'run_started', 'run_recap_ready',
         // Story 16.23.
         'run_all_ready',
+        // Story 38.22 (pushed only for a member who asks, see the preferences).
+        'game_apworld_updated',
     ];
 
     public static function isPushable(string $type): bool
@@ -38,6 +40,7 @@ final class PushMessageFactory
             'friend_activity' => self::friendActivity($payload),
             'run_nudge' => self::runNudge($payload),
             'run_joined', 'run_games_chosen', 'run_started', 'run_recap_ready', 'run_all_ready' => self::runMoment($type, $payload),
+            'game_apworld_updated' => self::gameApworldUpdated($payload),
             default => null,
         };
     }
@@ -178,6 +181,26 @@ final class PushMessageFactory
             $body,
             null !== $runId ? '/runs/'.$runId : '/compte/parties',
             sprintf('%s-%s-%s', $type, $runId ?? 'run', self::text($payload, 'fromUserId') ?? 'all'),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private static function gameApworldUpdated(array $payload): WebPushMessage
+    {
+        $game = self::text($payload, 'gameName') ?? 'Un jeu suivi';
+        $version = self::text($payload, 'version');
+        $body = true === ($payload['first'] ?? false)
+            ? sprintf('%s est jouable sur le site', $game)
+            : sprintf('Nouvel apworld pour %s%s', $game, null !== $version ? ' ('.$version.')' : '');
+        $slug = self::text($payload, 'gameSlug');
+
+        return new WebPushMessage(
+            self::TITLE,
+            $body,
+            null !== $slug ? '/jeux/'.$slug : '/jeux',
+            sprintf('game_apworld_updated-%s-%s', self::text($payload, 'gameId') ?? 'game', $version ?? 'new'),
         );
     }
 
