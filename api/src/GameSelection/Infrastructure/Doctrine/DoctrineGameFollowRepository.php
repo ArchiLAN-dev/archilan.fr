@@ -29,6 +29,16 @@ final readonly class DoctrineGameFollowRepository implements GameFollowRepositor
         return $ids;
     }
 
+    public function followedGameIds(string $userId): array
+    {
+        $ids = [];
+        foreach ($this->entityManager->getRepository(GameFollow::class)->findBy(['userId' => $userId]) as $follow) {
+            $ids[] = $follow->getGameId();
+        }
+
+        return $ids;
+    }
+
     public function save(GameFollow $follow): void
     {
         $this->entityManager->persist($follow);

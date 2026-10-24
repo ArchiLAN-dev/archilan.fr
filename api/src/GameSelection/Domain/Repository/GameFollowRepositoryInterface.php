@@ -17,6 +17,13 @@ interface GameFollowRepositoryInterface
      */
     public function followerIds(string $gameId): array;
 
+    /**
+     * The games a member follows (story 38.23).
+     *
+     * @return list<string>
+     */
+    public function followedGameIds(string $userId): array;
+
     public function save(GameFollow $follow): void;
 
     public function remove(GameFollow $follow): void;

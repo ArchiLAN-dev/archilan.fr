@@ -43,6 +43,17 @@ final readonly class GameFollowController
         return new JsonResponse(['data' => ['following' => $following]]);
     }
 
+    #[Route('/api/v1/me/followed-games', name: 'api_me_followed_games', methods: ['GET'])]
+    public function followed(Request $request): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        return new JsonResponse(['data' => $this->followQuery->followedBy($user->getId())]);
+    }
+
     #[Route('/api/v1/games/{gameId}/follow', name: 'api_games_follow', methods: ['PUT'])]
     public function follow(Request $request, string $gameId): JsonResponse
     {

@@ -143,6 +143,34 @@ final class GameFollowTest extends FunctionalTestCase
         self::assertCount(1, $this->entityManager->getRepository(GameFollow::class)->findBy(['userId' => $alice->getId()]), 'the other game stays followed');
     }
 
+    public function testAMemberListsTheGamesTheyFollowByName(): void
+    {
+        $hollow = $this->createGame('Hollow Knight', 'hollow-knight');
+        $celeste = $this->createGame('Celeste', 'celeste');
+        $this->createGame('Tunic', 'tunic');
+        $alice = $this->member('alice@example.org');
+        $bob = $this->member('bob@example.org');
+        $this->follow($alice, $hollow);
+        $this->follow($alice, $celeste);
+        $this->follow($bob, $hollow);
+        $this->loginAs($alice);
+
+        $this->client->jsonRequest('GET', '/api/v1/me/followed-games');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['data' => [
+            ['gameId' => $celeste->getId(), 'gameName' => 'Celeste', 'gameSlug' => 'celeste'],
+            ['gameId' => $hollow->getId(), 'gameName' => 'Hollow Knight', 'gameSlug' => 'hollow-knight'],
+        ]], $this->decodedJsonResponse());
+    }
+
+    public function testAVisitorHasNoFollowedGames(): void
+    {
+        $this->client->jsonRequest('GET', '/api/v1/me/followed-games');
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
     private function member(string $email): User
     {
         return $this->createUser($email, ['ROLE_USER'], ucfirst(strstr($email, '@', true) ?: 'Membre'));
