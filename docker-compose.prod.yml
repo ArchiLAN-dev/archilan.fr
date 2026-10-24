@@ -250,7 +250,6 @@ services:
             - "traefik.http.routers.blind-test-http.middlewares=redirect-https"
         volumes:
             - blind-test-data:/data
-            - ${BLIND_TEST_AUDIO_DIR:-./blind-test-audio}:/audio:ro
 
     blind-test-credits:
         image: ghcr.io/archilan-dev/blind-test:${BLIND_TEST_VERSION:-latest}

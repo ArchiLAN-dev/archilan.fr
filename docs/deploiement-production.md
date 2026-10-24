@@ -52,7 +52,7 @@ docker compose up -d
 `api-migrations` joue les migrations Doctrine et s'arrête ; c'est un service à cycle court, pas un
 démon.
 
-## Blind test d'un événement (stories 41.40 à 41.43)
+## Blind test d'un événement (stories 41.40 à 41.44)
 
 L'app de blind test (dépôt `archilan-blind-test`) ne tourne que pour un événement : ses deux services sont dans le
 profil `blind-test` et ne démarrent pas avec le reste.
@@ -66,17 +66,28 @@ Une fois :
    `BLIND_TEST_APP_URL=https://<BLIND_TEST_DOMAIN>/rejoindre` (avec le chemin `/rejoindre` : le site y ajoute le
    jeton du joueur). Redémarrer `api-web`.
 
-Pour l'événement :
+Avant l'événement (la playlist, tirée du wiki SiIvaGunner) :
 
 ```bash
-# les fichiers audio de la playlist dans BLIND_TEST_AUDIO_DIR, la playlist YAML à côté
 docker compose --profile blind-test pull
 docker compose --profile blind-test up -d blind-test blind-test-credits
-docker compose cp playlist.yml blind-test:/tmp/playlist.yml
-docker compose exec blind-test php bin/console app:partie:charger <id de l'événement> /tmp/playlist.yml
+# environ 48 h ; relire ensuite le fichier (alias, type des sources `other`)
+docker compose exec blind-test php bin/console app:playlist:importer-wiki /data/playlist.yml --nombre=900
+# la veille : retire les vidéos supprimées ou non intégrables
+docker compose exec blind-test php bin/console app:playlist:verifier /data/playlist.yml --sortie=/data/playlist.yml
+docker compose exec blind-test php bin/console app:partie:charger <id de l'événement> /data/playlist.yml
 ```
 
-- Régie : `https://<BLIND_TEST_DOMAIN>/regie?token=<REGIE_TOKEN>` sur le PC de la sono, un clic sur « Démarrer ».
+Pour relire la playlist sur un poste : `docker compose cp blind-test:/data/playlist.yml .`, puis la recopier après
+correction (`docker compose cp playlist.yml blind-test:/data/playlist.yml`) avant `app:partie:charger`.
+
+Pour l'événement :
+
+- Régie : `https://<BLIND_TEST_DOMAIN>/regie?token=<REGIE_TOKEN>` sur le PC de la sono, **jamais projetée** (le
+  titre et les images des vidéos donnent les réponses). Compte YouTube Premium connecté dans ce navigateur, cookies
+  tiers autorisés pour youtube.com (sinon le lecteur intégré ignore le compte et les pubs reviennent). Un clic sur
+  « Démarrer ». Le lecteur fait foi : un morceau ne compte qu'une fois sa vidéo lancée, et une régie silencieuse plus
+  de 15 s suspend les propositions.
 - Écran de salle : `https://<BLIND_TEST_DOMAIN>/ecran?token=<REGIE_TOKEN>`.
 - Admin du site : ouvrir le blind test dans les pelles de l'événement (interrupteur, pelles par source, plafond).
   Les inscrits voient alors « Jouer au blind test » sur la page de l'événement.
