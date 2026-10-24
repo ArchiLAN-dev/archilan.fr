@@ -33,7 +33,6 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
   const [platform, setPlatform] = useState<string>("");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [selectedOnly, setSelectedOnly] = useState(false);
-  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -142,33 +141,16 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
   }
 
   function selectAllFiltered() {
-    const next = new Set(selectedGameIds);
-    let skipped = 0;
-    for (const game of filteredGames) {
-      if (next.has(game.id)) continue;
-      if (maxGames !== null && next.size >= maxGames) {
-        skipped += 1;
-        continue;
-      }
-      next.add(game.id);
-    }
-    setSelectedGameIds(next);
-    setBulkNotice(
-      skipped > 0
-        ? `Limite de ${maxGames} atteinte, ${skipped} jeu${skipped > 1 ? "x" : ""} non ajouté${skipped > 1 ? "s" : ""}.`
-        : null,
-    );
+    setSelectedGameIds(withAllFiltered(selectedGameIds, filteredGames));
   }
 
   function deselectAllFiltered() {
     const filteredIds = new Set(filteredGames.map((g) => g.id));
     setSelectedGameIds(new Set([...selectedGameIds].filter((id) => !filteredIds.has(id))));
-    setBulkNotice(null);
   }
 
   function clearSelection() {
     setSelectedGameIds(new Set());
-    setBulkNotice(null);
   }
 
   function toggleAllFiltered() {
@@ -298,7 +280,7 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
                       setMaxGames(Number.isFinite(v) && v > 0 ? v : null);
                     }}
                   />
-                  <span className="text-xs font-normal text-muted-foreground">Laisser vide pour illimité</span>
+                  <span className="text-xs font-normal text-muted-foreground">Jeux qu&apos;un joueur peut choisir, pas la taille du catalogue. Vide = illimité.</span>
                 </div>
               </label>
             </div>
@@ -320,14 +302,14 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
               <div className="flex gap-0.5 rounded border border-border p-0.5">
                 <button
                   className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${scope === "available" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={() => { setScope("available"); setBulkNotice(null); }}
+                  onClick={() => { setScope("available"); }}
                   type="button"
                 >
                   Disponibles
                 </button>
                 <button
                   className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${scope === "available_experimental" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={() => { setScope("available_experimental"); setBulkNotice(null); }}
+                  onClick={() => { setScope("available_experimental"); }}
                   type="button"
                 >
                   + Expérimentaux
@@ -341,13 +323,13 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
                 placeholder="Rechercher par nom ou slug…"
                 type="search"
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setBulkNotice(null); }}
+                onChange={(e) => { setSearch(e.target.value); }}
               />
               <select
                 aria-label="Filtrer par disponibilité apworld"
                 className="min-h-10 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent"
                 value={apworldFilter}
-                onChange={(e) => { setApworldFilter(e.target.value as ApworldFilter); setBulkNotice(null); }}
+                onChange={(e) => { setApworldFilter(e.target.value as ApworldFilter); }}
               >
                 <option value="all">Apworld : tous</option>
                 <option value="ready">Apworld prêt</option>
@@ -357,7 +339,7 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
                 aria-label="Filtrer par plateforme"
                 className="min-h-10 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent"
                 value={platform}
-                onChange={(e) => { setPlatform(e.target.value); setBulkNotice(null); }}
+                onChange={(e) => { setPlatform(e.target.value); }}
               >
                 <option value="">Plateforme : toutes</option>
                 {platformOptions.map((family) => (
@@ -412,9 +394,6 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
                 <Trash2 aria-hidden="true" className="size-3.5" />
                 Vider la sélection
               </button>
-              {bulkNotice ? (
-                <span className="text-xs text-accent-warm" role="status">{bulkNotice}</span>
-              ) : null}
             </div>
 
             {filteredGames.length === 0 ? (
@@ -557,4 +536,13 @@ function Checkbox({
       </span>
     </span>
   );
+}
+
+/** Story 3.14: the catalogue has no cap - the slot limit only bounds what one registrant picks. */
+export function withAllFiltered(selected: ReadonlySet<string>, filtered: readonly { id: string }[]): Set<string> {
+  const next = new Set(selected);
+  for (const game of filtered) {
+    next.add(game.id);
+  }
+  return next;
 }
