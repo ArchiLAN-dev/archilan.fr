@@ -62,9 +62,13 @@ Une fois :
 1. DNS : `BLIND_TEST_DOMAIN` (ex. `blindtest.archilan.fr`) vers le serveur.
 2. `envs/blind-test.env` depuis `envs/blind-test.env.example` : `APP_SECRET`, `REGIE_TOKEN`,
    `BLIND_TEST_SHARED_SECRET`.
-3. `envs/api.env` : `BLIND_TEST_SHARED_SECRET` (même valeur) et
-   `BLIND_TEST_APP_URL=https://<BLIND_TEST_DOMAIN>/rejoindre` (avec le chemin `/rejoindre` : le site y ajoute le
-   jeton du joueur). Redémarrer `api-web`.
+3. `envs/api.env` : `BLIND_TEST_SHARED_SECRET` (même valeur) et `BLIND_TEST_APP_URL=https://<BLIND_TEST_DOMAIN>`
+   (l'adresse de base, sans chemin). Redémarrer `api-web`.
+
+Connexion d'un joueur (story 41.45) : le bouton ou le QR code de la page de l'événement ouvre l'app, qui renvoie
+sur `archilan.fr/blind-test/connexion` ; le site (après connexion au besoin) rend un code à usage unique valable
+60 s, que l'app échange contre l'identité, de serveur à serveur. Le cookie du site reste `__Host-` ; aucun lien ne
+permet de jouer à la place de quelqu'un.
 
 Avant l'événement (la playlist, tirée du wiki SiIvaGunner) :
 
@@ -90,7 +94,7 @@ Pour l'événement :
   de 15 s suspend les propositions.
 - Écran de salle : `https://<BLIND_TEST_DOMAIN>/ecran?token=<REGIE_TOKEN>`.
 - Admin du site : ouvrir le blind test dans les pelles de l'événement (interrupteur, pelles par source, plafond).
-  Les inscrits voient alors « Jouer au blind test » sur la page de l'événement.
+  Les inscrits voient alors « Jouer au blind test » et un QR code sur la page de l'événement.
 
 Après l'événement : `docker compose --profile blind-test stop blind-test blind-test-credits`. La base (volume
 `blind-test-data`) garde les parties et les crédits ; `docker compose --profile blind-test logs blind-test-credits`
