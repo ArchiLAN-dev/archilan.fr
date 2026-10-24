@@ -52,5 +52,5 @@ afin d'être notifié quand le site met en place un nouvel apworld pour ce jeu (
 - `ApworldPromoted` porte désormais `newVersion` (le tag de release du candidat, nul s'il n'en a pas) ; deux tests
   unitaires qui comparaient le message entier attendent `v2`.
 - Le gate `lint:container` (env test) échoue déjà sur develop (`DiscordModerationForum`), sans lien.
-- Fonctionnels (`GameFollowTest`, 7 cas, préférences dans `FriendActivityTest`) laissés à la CI : Postgres local
+- Fonctionnels (`GameFollowTest`, 9 cas dont le ménage à l'effacement du compte et à la suppression du jeu, préférences dans `FriendActivityTest`) laissés à la CI : Postgres local
   éteint.

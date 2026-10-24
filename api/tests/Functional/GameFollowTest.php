@@ -7,8 +7,10 @@ namespace App\Tests\Functional;
 use App\Community\Domain\Entity\Notification;
 use App\GameSelection\Application\Handler\NotifyGameFollowersOfApworldPromotionHandler;
 use App\GameSelection\Application\Message\ApworldPromoted;
+use App\GameSelection\Application\Service\AdminGameLibrary;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Entity\GameFollow;
+use App\Identity\Application\Command\DeleteAccount;
 use App\Identity\Domain\Entity\User;
 
 /**
@@ -106,6 +108,39 @@ final class GameFollowTest extends FunctionalTestCase
         self::assertTrue($payload['first'] ?? null);
         self::assertArrayHasKey('version', $payload);
         self::assertNull($payload['version']);
+    }
+
+    public function testAnErasedAccountFollowsNothingAnymore(): void
+    {
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $alice = $this->member('alice@example.org');
+        $bob = $this->member('bob@example.org');
+        $this->follow($alice, $game);
+        $this->follow($bob, $game);
+
+        $deleteAccount = self::getContainer()->get(DeleteAccount::class);
+        self::assertInstanceOf(DeleteAccount::class, $deleteAccount);
+        $deleteAccount->delete($alice);
+
+        self::assertSame([], $this->entityManager->getRepository(GameFollow::class)->findBy(['userId' => $alice->getId()]));
+        self::assertCount(1, $this->entityManager->getRepository(GameFollow::class)->findBy(['userId' => $bob->getId()]), 'the others keep theirs');
+    }
+
+    public function testARemovedGameTakesItsFollowsWithIt(): void
+    {
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $other = $this->createGame('Celeste', 'celeste');
+        $alice = $this->member('alice@example.org');
+        $this->follow($alice, $game);
+        $this->follow($alice, $other);
+        $gameId = $game->getId();
+
+        $library = self::getContainer()->get(AdminGameLibrary::class);
+        self::assertInstanceOf(AdminGameLibrary::class, $library);
+        self::assertSame(['found' => true, 'errors' => []], $library->remove($gameId));
+
+        self::assertSame([], $this->entityManager->getRepository(GameFollow::class)->findBy(['gameId' => $gameId]));
+        self::assertCount(1, $this->entityManager->getRepository(GameFollow::class)->findBy(['userId' => $alice->getId()]), 'the other game stays followed');
     }
 
     private function member(string $email): User
