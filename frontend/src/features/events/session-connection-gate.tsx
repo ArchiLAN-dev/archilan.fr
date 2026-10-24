@@ -35,6 +35,8 @@ type SessionConnectionQueryData = Exclude<SessionConnectionResult, { kind: "erro
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const PRE_LAUNCH_STATUSES = ["draft", "validating", "ready", "generating", "generated", "launching"];
+// Story 17.32: the patches come from the generation archive, so they are there from `generated` on.
+const GENERATED_STATUSES = ["generated", "launching", "running", "idle", "restarting", "stopped", "crashed", "finished"];
 
 // ─── Main gate ───────────────────────────────────────────────────────────────
 
@@ -226,7 +228,7 @@ function ConnectionView({
         />
       ) : null}
 
-      {session && ["running", "stopped", "finished"].includes(session.status) ? (
+      {session && GENERATED_STATUSES.includes(session.status) ? (
         <PatchFilesSection registrationId={registrationId} />
       ) : null}
 
