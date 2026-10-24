@@ -1056,22 +1056,6 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         return ['found' => true];
     }
 
-    /** @return array{found: bool} */
-    public function storeLogs(string $sessionId, string $output): array
-    {
-        $session = $this->sessions->findById($sessionId);
-        if (!$session instanceof Session) {
-            return ['found' => false];
-        }
-
-        $session->recordLogs($output);
-        $this->sessions->flush();
-
-        $this->logger->info('session.logs.stored', ['sessionId' => $sessionId, 'length' => strlen($output)]);
-
-        return ['found' => true];
-    }
-
     private function publish(Session $session): void
     {
         $update = new Update(

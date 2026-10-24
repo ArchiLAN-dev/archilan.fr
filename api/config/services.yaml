@@ -159,6 +159,12 @@ services:
 
     App\Sessions\Application\Port\RunnerGatewayInterface: '@App\Sessions\Infrastructure\Http\RunnerGateway'
 
+    App\Sessions\Application\Port\SessionContainerLogsInterface: '@App\Sessions\Infrastructure\Adapter\OrchestratorSessionContainerLogs'
+
+    App\Sessions\Infrastructure\Adapter\OrchestratorSessionContainerLogs:
+        arguments:
+            $client: '@archilan.orchestrateur_client'
+
     App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Adapter\S3MinioStorage'
 
     App\Shared\Infrastructure\Adapter\S3MinioStorage:
@@ -240,15 +246,6 @@ services:
     App\Sessions\Presentation\Controller\TraefikConfigController:
         arguments:
             $traefikToken: '%env(TRAEFIK_TOKEN)%'
-
-    App\Shared\Infrastructure\Http\DockerSocketClient:
-        arguments:
-            $dockerHost: '%env(DOCKER_HOST)%'
-        autowire: false
-
-    App\Sessions\Application\Handler\FetchLogsJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
 
     App\Sessions\Application\Handler\ArchiveRunJobHandler:
         arguments:
@@ -563,6 +560,9 @@ when@test:
 
         App\Sessions\Application\Port\SeedArchiveGatewayInterface:
             class: App\Sessions\Infrastructure\Double\StubSeedArchiveGateway
+
+        App\Sessions\Application\Port\SessionContainerLogsInterface:
+            class: App\Sessions\Infrastructure\Double\StubSessionContainerLogs
 
         App\Sessions\Infrastructure\Double\SpyPelleHintGateway:
             public: true
