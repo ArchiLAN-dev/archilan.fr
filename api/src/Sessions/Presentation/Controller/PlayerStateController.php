@@ -11,6 +11,7 @@ use App\Sessions\Application\Query\SessionSlotOwnersQuery;
 use App\Sessions\Application\Query\SlotSpheresVisibilityQuery;
 use App\Sessions\Domain\Entity\Session;
 use App\Shared\Application\Support\BridgeEndpoint;
+use App\Shared\Application\Support\ReachabilityForPlayer;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Archilan\BridgeClient\Enum\HintStatus;
@@ -39,6 +40,7 @@ final readonly class PlayerStateController
         private PlayersSnapshotQuery $playersSnapshotQuery,
         private SessionSlotOwnersQuery $slotOwnersQuery,
         private SlotSpheresVisibilityQuery $spheresVisibility,
+        private ReachabilityForPlayer $reachability,
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
         private BridgeClientPool $bridgeClientPool,
@@ -213,7 +215,13 @@ final readonly class PlayerStateController
 
         $ttl = 3600;
         $expiresAt = new \DateTimeImmutable('+'.$ttl.' seconds');
-        $topic = 'runs/'.$runId.'/slots/'.$slotIndex.'/reachable';
+        // Story 27.13: the topic carries what this reader may see - raw for an admin, the player's view otherwise.
+        $topic = $this->reachability->topic(
+            $runId,
+            $slotIndex,
+            $this->isAdmin($user),
+            $this->spheresVisibility->visibleTo($session['id'], $user->getId()),
+        );
 
         $factory = $this->mercureHub->getFactory();
         if (null === $factory) {
@@ -611,71 +619,20 @@ final readonly class PlayerStateController
                 $previous = is_array($data['previous'] ?? null) ? $data['previous'] : null;
 
                 return new JsonResponse([
-                    'data' => null === $previous || $isAdmin ? $previous : $this->forPlayer($previous, $spheresVisible),
+                    'data' => null === $previous || $isAdmin ? $previous : $this->reachability->forPlayer($previous, $spheresVisible),
                     'computing' => true,
                     'spheresVisible' => $spheresVisible,
                 ], 202);
             }
 
             if (!$isAdmin) {
-                $data = $this->forPlayer($data, $spheresVisible);
+                $data = $this->reachability->forPlayer($data, $spheresVisible);
             }
 
             return new JsonResponse(['data' => $data, 'spheresVisible' => $spheresVisible]);
         } catch (\Throwable $e) {
             return $this->bridgeFailure($e, $sessionId, $slotIndex, 'reachable');
         }
-    }
-
-    /**
-     * @param array<mixed> $data
-     *
-     * @return array<mixed>
-     */
-    private function forPlayer(array $data, bool $spheresVisible): array
-    {
-        if (!$spheresVisible) {
-            unset($data['spheres']);
-        }
-
-        return $this->stripItemRewards($data);
-    }
-
-    /**
-     * @param array<mixed> $data
-     *
-     * @return array<mixed>
-     */
-    private function stripItemRewards(array $data): array
-    {
-        $strip = (static fn (array $locations): array => array_map(static function (mixed $entry): mixed {
-            if (is_array($entry)) {
-                unset($entry['item']);
-            }
-
-            return $entry;
-        }, $locations));
-
-        foreach (['reachable_unchecked', 'reachable_checked', 'unreachable_unchecked', 'checked_unreachable'] as $key) {
-            if (isset($data[$key]) && is_array($data[$key])) {
-                $data[$key] = $strip($data[$key]);
-            }
-        }
-
-        if (isset($data['spheres']) && is_array($data['spheres'])) {
-            $data['spheres'] = array_map(static function (mixed $sphere) use ($strip): mixed {
-                if (!is_array($sphere)) {
-                    return $sphere;
-                }
-                if (isset($sphere['locations']) && is_array($sphere['locations'])) {
-                    $sphere['locations'] = $strip($sphere['locations']);
-                }
-
-                return $sphere;
-            }, $data['spheres']);
-        }
-
-        return $data;
     }
 
     private function isAuthorized(User $user, string $sessionId, string $eventId): bool

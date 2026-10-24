@@ -5,6 +5,44 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.46.0] - 2026-10-24
+
+Le suivi en direct ne dévoile plus le contenu des emplacements, le détail d'une inscription s'ouvre de nouveau, et
+le site est prêt pour le blind test de mashups du prochain événement.
+
+### Ajouté
+
+- **Blind test de mashups, côté site** (41.40) : l'admin des pelles d'un événement gagne un bloc « Blind test »
+  (interrupteur, pelles par source trouvée, plafond par membre). Un inscrit voit « Jouer au blind test » sur la page
+  de l'événement pendant qu'il se joue ; le lien est signé par le site. L'app du blind test (service à part) crédite
+  des pelles d'événement par un endpoint signé, idempotent et plafonné. Sans `BLIND_TEST_APP_URL` ni
+  `BLIND_TEST_SHARED_SECRET`, le blind test reste indisponible.
+- **Jeux que je suis** (38.23) : sur `/compte/notifications`, la liste des jeux suivis, avec « Ne plus suivre ».
+
+### Corrigé
+
+- **Fuite du suivi en direct** (27.13) : le push Mercure du suivi d'un slot publiait l'objet de chaque emplacement
+  (et les sphères même désactivées) sur un topic ouvert à tous les participants de la session, et en anonyme via
+  l'overlay de stream. Il publie maintenant une vue brute pour l'admin et la vue joueur, sans contenu, pour les
+  autres. En attendant la story 27.14, les toasts « objet reçu » des joueurs s'affichent sans couleur.
+- **Détail d'inscription admin** (5.8) : la page plantait dès qu'une inscription avait des jeux (elle lisait
+  encore les anciennes options) ; elle affiche le YAML de chaque slot. Déjà sur `main` par le hotfix #902.
+- **« Tout sélectionner » du catalogue d'événement** (3.14) : la limite de slots par inscription ne bride plus
+  l'ajout en masse de jeux au catalogue.
+
+### Sécurité
+
+- **L'API ne monte plus le socket Docker** (17.34) : `api-worker` et `api-migrations` n'y ont plus accès ; seul
+  l'orchestrateur pilote Docker.
+
+### Mise en prod
+
+1. API et frontend 0.46.0. Migration (jouée par `api-migrations`) : `Version20261024110000` (`blind_test_setting`).
+2. Recréer `api-worker` (fin du montage du socket Docker) ; retirer `DOCKER_HOST` de `envs/api.env` (sans effet
+   s'il reste).
+3. Blind test : poser `BLIND_TEST_APP_URL` et `BLIND_TEST_SHARED_SECRET` dans `envs/api.env` le jour où l'app est
+   déployée, puis redémarrer `api-web`.
+
 ## [0.45.0] - 2026-10-24
 
 On peut suivre un jeu pour être prévenu de ses nouveaux apworlds, les sphères sont visibles sans spoil, et les

@@ -37,4 +37,6 @@ enum PelleReason: string
     case BronzeGoal = 'bronze_goal';
     case BronzeExpired = 'bronze_expired';
     case BronzeRestored = 'bronze_restored';
+    // Story 41.40: a source found at the blind test of an event, credited by its app.
+    case BlindTest = 'blind_test';
 }
