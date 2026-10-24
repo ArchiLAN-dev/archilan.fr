@@ -9,24 +9,14 @@ import { env } from "@/lib/env";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type OptionDetail = {
-  key: string;
-  label: string;
-  inputType: string;
-  required: boolean;
-  isVisible: boolean;
-  currentValue: boolean | number | string | null;
-  isComplete: boolean;
-};
-
-type GameDetail = {
+export type GameDetail = {
   slotId: string;
   slotOrder: number;
   gameId: string;
   gameName: string;
   isComplete: boolean;
   warnings: string[];
-  options: OptionDetail[];
+  playerYaml: string | null;
 };
 
 type PaymentDetail = {
@@ -758,12 +748,11 @@ function MessageForm({
 
 // ─── GameCard ─────────────────────────────────────────────────────────────────
 
-function GameCard({ game }: { game: GameDetail }) {
-  const visibleOptions = game.options.filter((o) => o.isVisible);
-  const hiddenOptions = game.options.filter((o) => !o.isVisible);
+export function GameCard({ game }: { game: GameDetail }) {
   const statusLabel = game.warnings.length > 0
     ? "Avertissement"
-    : "Options requises manquantes";
+    : "YAML manquant";
+  const hasYaml = game.playerYaml !== null && game.playerYaml.trim() !== "";
 
   return (
     <div className="border border-border bg-surface">
@@ -792,64 +781,18 @@ function GameCard({ game }: { game: GameDetail }) {
         </div>
       ) : null}
 
-      {visibleOptions.length > 0 ? (
-        <table className="w-full border-collapse text-sm">
-          <thead className="border-b border-border text-muted-foreground">
-            <tr>
-              <th className="px-5 py-2 text-left font-medium">Option</th>
-              <th className="px-5 py-2 text-left font-medium">Valeur</th>
-              <th className="px-5 py-2 text-left font-medium">Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleOptions.map((option) => (
-              <tr className="border-b border-border last:border-b-0" key={option.key}>
-                <td className="px-5 py-3">
-                  <span className="font-medium text-foreground">{option.label}</span>
-                  {option.required ? (
-                    <span className="ml-1 text-xs text-danger">*</span>
-                  ) : null}
-                </td>
-                <td className="px-5 py-3 font-mono text-sm text-foreground">
-                  {option.currentValue === null ? (
-                    <span className="text-muted-foreground">-</span>
-                  ) : (
-                    String(option.currentValue)
-                  )}
-                </td>
-                <td className="px-5 py-3">
-                  {option.isComplete ? (
-                    <CheckCircle2 aria-label="Complet" className="size-4 text-success" />
-                  ) : (
-                    <XCircle aria-label="Incomplet" className="size-4 text-danger" />
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className="px-5 py-4 text-sm text-muted-foreground">Aucune option visible configurée pour ce jeu.</p>
-      )}
-
-      {hiddenOptions.length > 0 ? (
-        <details className="border-t border-border px-5 py-3">
+      {hasYaml ? (
+        <details className="px-5 py-3">
           <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-            {hiddenOptions.length} option{hiddenOptions.length > 1 ? "s" : ""} masquée{hiddenOptions.length > 1 ? "s" : ""}
+            YAML du joueur
           </summary>
-          <ul className="mt-2 grid gap-1.5">
-            {hiddenOptions.map((option) => (
-              <li className="flex items-center gap-3 text-xs text-muted-foreground" key={option.key}>
-                <span className="font-mono">{option.key}</span>
-                <span>{option.label}</span>
-                <span className="ml-auto font-mono">
-                  {option.currentValue === null ? "-" : String(option.currentValue)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <pre className="mt-2 max-h-96 overflow-auto border border-border bg-background p-3 font-mono text-xs text-foreground">
+            {game.playerYaml}
+          </pre>
         </details>
-      ) : null}
+      ) : (
+        <p className="px-5 py-4 text-sm text-muted-foreground">Aucun YAML enregistré pour ce slot.</p>
+      )}
     </div>
   );
 }
@@ -887,7 +830,25 @@ function formatCents(cents: number) {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(cents / 100);
 }
 
-function isDetailPayload(payload: unknown): payload is { data: RegistrationDetail } {
+function isGameDetail(value: unknown): value is GameDetail {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const game = value as Record<string, unknown>;
+
+  return (
+    typeof game.slotId === "string" &&
+    typeof game.gameId === "string" &&
+    typeof game.gameName === "string" &&
+    typeof game.isComplete === "boolean" &&
+    Array.isArray(game.warnings) &&
+    game.warnings.every((warning) => typeof warning === "string") &&
+    (game.playerYaml === null || typeof game.playerYaml === "string")
+  );
+}
+
+export function isDetailPayload(payload: unknown): payload is { data: RegistrationDetail } {
   const data =
     payload && typeof payload === "object" && "data" in payload
       ? (payload as { data: unknown }).data
@@ -900,6 +861,8 @@ function isDetailPayload(payload: unknown): payload is { data: RegistrationDetai
       "status" in data &&
       "participant" in data &&
       "games" in data &&
+      Array.isArray(data.games) &&
+      data.games.every(isGameDetail) &&
       "payment" in data,
   );
 }
