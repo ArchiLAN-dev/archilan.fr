@@ -91,6 +91,7 @@ services:
     App\Wallet\Domain\Repository\ShopRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
     App\Wallet\Domain\Repository\QuestRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineQuestRepository'
     App\Wallet\Domain\Repository\BlindTestSettingRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineBlindTestSettingRepository'
+    App\Wallet\Domain\Repository\BlindTestLoginCodeRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineBlindTestLoginCodeRepository'
     # Story 41.40: the blind test app and the secret both sides sign with; empty = blind test unavailable.
     App\Wallet\Application\Support\BlindTestLink:
         arguments:
