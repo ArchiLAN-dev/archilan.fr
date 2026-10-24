@@ -6,6 +6,7 @@ namespace App\WeeklyRuns\Presentation\Controller;
 
 use App\Identity\Domain\Entity\User;
 use App\Shared\Application\Support\BridgeEndpoint;
+use App\Shared\Application\Support\ReachabilityForPlayer;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use App\WeeklyRuns\Application\Query\WeeklyRunSlotQuery;
@@ -24,6 +25,7 @@ final readonly class WeeklyRunSlotStateController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private WeeklyRunSlotQuery $weeklyRunSlotQuery,
+        private ReachabilityForPlayer $reachability,
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
         private BridgeClientPool $bridgeClientPool,
@@ -59,13 +61,13 @@ final readonly class WeeklyRunSlotStateController
                 $previous = is_array($data['previous'] ?? null) ? $data['previous'] : null;
 
                 return new JsonResponse([
-                    'data' => null === $previous ? null : $this->forPlayer($previous, $spheresVisible),
+                    'data' => null === $previous ? null : $this->reachability->forPlayer($previous, $spheresVisible),
                     'computing' => true,
                     'spheresVisible' => $spheresVisible,
                 ], 202);
             }
 
-            return new JsonResponse(['data' => $this->forPlayer($data, $spheresVisible), 'spheresVisible' => $spheresVisible]);
+            return new JsonResponse(['data' => $this->reachability->forPlayer($data, $spheresVisible), 'spheresVisible' => $spheresVisible]);
         } catch (\Throwable) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
@@ -271,8 +273,9 @@ final readonly class WeeklyRunSlotStateController
             return $this->errorFromStatus($info['status']);
         }
 
+        // Story 27.13: the player's view, like the REST read of a weekly slot (admins included).
         return $this->buildMercureToken(
-            'runs/'.$info['externalSessionId'].'/slots/'.$slotIndex.'/reachable',
+            $this->reachability->topic($info['externalSessionId'], $slotIndex, false, $this->weeklyRunSlotQuery->spheresVisible($runId)),
         );
     }
 
@@ -377,56 +380,5 @@ final readonly class WeeklyRunSlotStateController
     private function isAdmin(User $user): bool
     {
         return in_array('ROLE_ADMIN', $user->getRoles(), true);
-    }
-
-    /**
-     * @param array<mixed> $data
-     *
-     * @return array<mixed>
-     */
-    private function forPlayer(array $data, bool $spheresVisible): array
-    {
-        if (!$spheresVisible) {
-            unset($data['spheres']);
-        }
-
-        return $this->stripItemRewards($data);
-    }
-
-    /**
-     * @param array<mixed> $data
-     *
-     * @return array<mixed>
-     */
-    private function stripItemRewards(array $data): array
-    {
-        $strip = (static fn (array $locations): array => array_map(static function (mixed $entry): mixed {
-            if (is_array($entry)) {
-                unset($entry['item']);
-            }
-
-            return $entry;
-        }, $locations));
-
-        foreach (['reachable_unchecked', 'reachable_checked', 'unreachable_unchecked', 'checked_unreachable'] as $key) {
-            if (isset($data[$key]) && is_array($data[$key])) {
-                $data[$key] = $strip($data[$key]);
-            }
-        }
-
-        if (isset($data['spheres']) && is_array($data['spheres'])) {
-            $data['spheres'] = array_map(static function (mixed $sphere) use ($strip): mixed {
-                if (!is_array($sphere)) {
-                    return $sphere;
-                }
-                if (isset($sphere['locations']) && is_array($sphere['locations'])) {
-                    $sphere['locations'] = $strip($sphere['locations']);
-                }
-
-                return $sphere;
-            }, $data['spheres']);
-        }
-
-        return $data;
     }
 }
