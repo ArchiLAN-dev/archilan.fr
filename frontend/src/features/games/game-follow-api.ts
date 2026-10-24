@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { hasBooleanProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasStringProp } from "@/lib/type-guards";
 
 /**
  * Following a game, to be told of its new apworlds (story 38.22). Every function returns a value
@@ -31,6 +31,30 @@ export async function setGameFollow(gameId: string, follow: boolean): Promise<bo
     if (!res.ok) return null;
     const payload: unknown = await res.json();
     return isFollowPayload(payload) ? payload.data.following : null;
+  } catch {
+    return null;
+  }
+}
+
+export type FollowedGame = { gameId: string; gameName: string; gameSlug: string };
+
+function isFollowedGame(v: unknown): v is FollowedGame {
+  if (typeof v !== "object" || v === null) return false;
+  return hasStringProp(v, "gameId") && hasStringProp(v, "gameName") && hasStringProp(v, "gameSlug");
+}
+
+export function isFollowedGamesPayload(v: unknown): v is { data: FollowedGame[] } {
+  if (typeof v !== "object" || v === null || !("data" in v)) return false;
+  return Array.isArray(v.data) && v.data.every(isFollowedGame);
+}
+
+/** The games the member follows, by name (story 38.23). Null when it could not be read. */
+export async function fetchFollowedGames(): Promise<FollowedGame[] | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/me/followed-games`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    return isFollowedGamesPayload(payload) ? payload.data : null;
   } catch {
     return null;
   }
