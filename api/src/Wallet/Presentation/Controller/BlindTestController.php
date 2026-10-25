@@ -44,7 +44,7 @@ final readonly class BlindTestController
             return $user;
         }
 
-        return new JsonResponse(['data' => ['url' => $this->entry->entryUrl($user->getId(), $eventId)]]);
+        return new JsonResponse(['data' => ['url' => $this->entry->entryUrl($eventId)]]);
     }
 
     #[Route('/api/v1/events/{eventId}/blind-test/codes', name: 'api_wallet_blind_test_code', methods: ['POST'])]

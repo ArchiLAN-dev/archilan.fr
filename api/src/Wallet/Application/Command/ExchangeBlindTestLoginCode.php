@@ -64,7 +64,7 @@ final readonly class ExchangeBlindTestLoginCode
 
             return new BlindTestIdentity($member->getId(), null, $member->getDisplayName(), $found->getState(), $now->getTimestamp() + self::ANIMATION_SECONDS, BlindTestIdentity::ANIMATOR);
         }
-        $opening = $this->gate->open($eventId, $member->getId(), $now);
+        $opening = $this->gate->open($eventId, $now);
 
         return new BlindTestIdentity($member->getId(), $eventId, $member->getDisplayName(), $found->getState(), $opening->endsAt->getTimestamp());
     }

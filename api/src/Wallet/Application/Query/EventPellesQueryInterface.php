@@ -22,7 +22,8 @@ interface EventPellesQueryInterface
 
     /**
      * The admin page of an event's pelles (story 41.2 AC1), or null when the event does not exist. Gold pelles
-     * converted at the end are counted from the conversion lines, destroyed ones from the expiry lines.
+     * converted at the end are counted from the conversion lines, destroyed ones from the expiry lines. The members are
+     * the active registrants and anyone else who held pelles of the event, a blind test player say (story 41.54).
      *
      * @return array{
      *     eventId: string,
@@ -33,7 +34,7 @@ interface EventPellesQueryInterface
      *     inCirculation: int,
      *     converted: int,
      *     destroyed: int,
-     *     participants: list<array{userId: string, displayName: string, balance: int, banned: bool}>
+     *     participants: list<array{userId: string, displayName: string, balance: int, banned: bool, registered: bool}>
      * }|null
      */
     public function eventPage(string $eventId, \DateTimeImmutable $now): ?array;

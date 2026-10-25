@@ -7,7 +7,7 @@ import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } f
  * shows registrants the way in, tells the app who they are through a one-time code, and lets the admins tune it. Every function returns a value instead of throwing
  * (AC-API2).
  */
-export type BlindTestSettingsInput = { enabled: boolean; pellesPerSource: number; capPerPlayer: number };
+export type BlindTestSettingsInput = { enabled: boolean; pellesPerSource: number; capPerPlayer: number; pellesForUnregistered: boolean };
 
 /** The settings as the server gives them back, with the app's console for the event (story 41.46; null when not configured). */
 export type BlindTestSettings = BlindTestSettingsInput & { consoleUrl: string | null };
@@ -21,6 +21,7 @@ export function isBlindTestSettings(v: unknown): v is BlindTestSettings {
     hasBooleanProp(v, "enabled") &&
     hasNumberProp(v, "pellesPerSource") &&
     hasNumberProp(v, "capPerPlayer") &&
+    hasBooleanProp(v, "pellesForUnregistered") &&
     hasNullableStringProp(v, "consoleUrl")
   );
 }

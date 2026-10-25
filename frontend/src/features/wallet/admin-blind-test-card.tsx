@@ -15,7 +15,7 @@ export function wholeNumber(value: string): number | null {
 /**
  * Story 41.40: the event's blind test, admin side. Off by default; each source found is worth a fixed amount of event
  * pelles, up to a cap per member over the event. Story 41.46: the event's id, which the app's console asks for, and the
- * way to that console.
+ * way to that console. Story 41.54: members not registered play too, and earn unless the admin switches that off.
  */
 export function AdminBlindTestCard({ eventId }: { eventId: string }) {
   const { data } = useQuery({
@@ -34,6 +34,7 @@ function AdminBlindTestForm({ eventId, initial }: { eventId: string; initial: Bl
   const [enabled, setEnabled] = useState(initial.enabled);
   const [perSource, setPerSource] = useState(String(initial.pellesPerSource));
   const [cap, setCap] = useState(String(initial.capPerPlayer));
+  const [pellesForUnregistered, setPellesForUnregistered] = useState(initial.pellesForUnregistered);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -45,7 +46,7 @@ function AdminBlindTestForm({ eventId, initial }: { eventId: string; initial: Bl
   async function submit() {
     if (pellesPerSource === null || capPerPlayer === null) return;
     setPending(true);
-    const result = await saveBlindTestSettings(eventId, { enabled, pellesPerSource, capPerPlayer });
+    const result = await saveBlindTestSettings(eventId, { enabled, pellesPerSource, capPerPlayer, pellesForUnregistered });
     setPending(false);
     if (result.kind === "ok") {
       queryClient.setQueryData(["admin-blind-test", eventId], result.settings);
@@ -70,8 +71,8 @@ function AdminBlindTestForm({ eventId, initial }: { eventId: string; initial: Bl
         Blind test
       </h2>
       <p className="text-sm text-muted-foreground sm:col-span-2">
-        L&apos;app du blind test crédite des pelles d&apos;événement pour chaque source trouvée par un inscrit, pendant
-        l&apos;événement. La couper arrête aussitôt les crédits et les liens.
+        Tout membre connecté peut jouer pendant l&apos;événement, inscrit ou non. Chaque source trouvée rapporte des
+        pelles d&apos;événement. Couper le blind test arrête aussitôt les crédits et les liens.
       </p>
       <div className="flex flex-wrap items-center gap-2 text-sm sm:col-span-2">
         <span className="text-muted-foreground">Identifiant pour l&apos;app :</span>
@@ -104,6 +105,10 @@ function AdminBlindTestForm({ eventId, initial }: { eventId: string; initial: Bl
       <label className="flex items-center gap-2 text-sm font-medium text-foreground sm:col-span-2">
         <input checked={enabled} onChange={(e) => setEnabled(e.target.checked)} type="checkbox" />
         Blind test ouvert
+      </label>
+      <label className="flex items-center gap-2 text-sm font-medium text-foreground sm:col-span-2">
+        <input checked={pellesForUnregistered} onChange={(e) => setPellesForUnregistered(e.target.checked)} type="checkbox" />
+        Les non-inscrits gagnent des pelles (sinon ils jouent pour le classement seulement)
       </label>
       <label className="grid gap-1 text-sm">
         <span className="font-medium text-foreground">Pelles par source trouvée (1 à 100)</span>

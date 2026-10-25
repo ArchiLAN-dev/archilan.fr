@@ -29,7 +29,7 @@ final readonly class BlindTestSettings
     }
 
     /**
-     * @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int, consoleUrl: string|null}
+     * @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int, pellesForUnregistered: bool, consoleUrl: string|null}
      *
      * @throws NotFoundException when the event does not exist
      */
@@ -41,12 +41,14 @@ final readonly class BlindTestSettings
     }
 
     /**
-     * @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int, consoleUrl: string|null}
+     * @param bool|null $pellesForUnregistered null keeps the current choice
+     *
+     * @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int, pellesForUnregistered: bool, consoleUrl: string|null}
      *
      * @throws NotFoundException   when the event does not exist
      * @throws ValidationException when an amount is out of bounds
      */
-    public function change(string $eventId, bool $enabled, int $pellesPerSource, int $capPerPlayer): array
+    public function change(string $eventId, bool $enabled, int $pellesPerSource, int $capPerPlayer, ?bool $pellesForUnregistered = null): array
     {
         $this->requireEvent($eventId);
         $errors = [];
@@ -61,7 +63,7 @@ final readonly class BlindTestSettings
         }
 
         $setting = $this->settings->find($eventId) ?? BlindTestSetting::off($eventId);
-        $setting->change($enabled, $pellesPerSource, $capPerPlayer);
+        $setting->change($enabled, $pellesPerSource, $capPerPlayer, $pellesForUnregistered ?? $setting->isPellesForUnregistered());
         $this->settings->save($setting);
 
         return $this->view($setting);
@@ -74,13 +76,14 @@ final readonly class BlindTestSettings
         }
     }
 
-    /** @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int, consoleUrl: string|null} */
+    /** @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int, pellesForUnregistered: bool, consoleUrl: string|null} */
     private function view(BlindTestSetting $setting): array
     {
         return [
             'enabled' => $setting->isEnabled(),
             'pellesPerSource' => $setting->getPellesPerSource(),
             'capPerPlayer' => $setting->getCapPerPlayer(),
+            'pellesForUnregistered' => $setting->isPellesForUnregistered(),
             'consoleUrl' => $this->link->consoleUrl($setting->getEventId()),
         ];
     }

@@ -81,9 +81,11 @@ final readonly class DbalEventPellesQuery implements EventPellesQueryInterface
         $rows = $this->connection->fetchAllAssociative(
             "SELECT u.id, u.display_name, u.banned_at,
                     COALESCE((SELECT SUM(m.amount) FROM pelle_movement m
-                               WHERE m.user_id = u.id AND m.kind = :kind AND m.event_id = :eventId), 0) AS balance
+                               WHERE m.user_id = u.id AND m.kind = :kind AND m.event_id = :eventId), 0) AS balance,
+                    u.id IN (SELECT r.user_id FROM registration r WHERE r.event_id = :eventId AND r.status <> :cancelled) AS registered
                FROM {$user} u
               WHERE u.id IN (SELECT r.user_id FROM registration r WHERE r.event_id = :eventId AND r.status <> :cancelled)
+                 OR u.id IN (SELECT m.user_id FROM pelle_movement m WHERE m.kind = :kind AND m.event_id = :eventId)
               ORDER BY lower(u.display_name), u.id",
             ['kind' => PelleKind::Event->value, 'eventId' => $eventId, 'cancelled' => Registration::STATUS_CANCELLED],
         );
@@ -94,6 +96,7 @@ final readonly class DbalEventPellesQuery implements EventPellesQueryInterface
                 'displayName' => $this->string($row['display_name']),
                 'balance' => $this->int($row['balance']),
                 'banned' => null !== $row['banned_at'],
+                'registered' => true === $row['registered'],
             ];
         }
 
