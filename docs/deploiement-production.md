@@ -61,7 +61,8 @@ Une fois :
 
 1. DNS : `BLIND_TEST_DOMAIN` (ex. `blindtest.archilan.fr`) vers le serveur.
 2. `envs/blind-test.env` depuis `envs/blind-test.env.example` : `APP_SECRET`, `REGIE_TOKEN`,
-   `BLIND_TEST_SHARED_SECRET`, `SITE_PUBLIC_URL`.
+   `BLIND_TEST_SHARED_SECRET`, `SITE_PUBLIC_URL` ; facultatif, `YOUTUBE_API_KEY` (clé YouTube Data API v3 : vérification
+   des vidéos par 50 et réglage « Vues minimales »).
 3. `envs/api.env` : `BLIND_TEST_SHARED_SECRET` (même valeur) et `BLIND_TEST_APP_URL=https://<BLIND_TEST_DOMAIN>`
    (l'adresse de base, sans chemin). Redémarrer `api-web`.
 
