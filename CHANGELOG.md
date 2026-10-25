@@ -5,6 +5,22 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.49.0] - 2026-10-25
+
+Le blind test s'ouvre à tous les membres présents à l'événement, inscrits ou non.
+
+### Modifié
+
+- **Blind test sans inscription** (41.54) : tout compte connecté entre dans le blind test pendant l'événement et
+  gagne les mêmes pelles d'événement, sous le même plafond. Elles suivent la conversion commune de fin d'événement
+  (10 % en or). Le code d'erreur `not_registered` du blind test disparaît.
+- **Interrupteur « Les non-inscrits gagnent des pelles »** dans le bloc Blind test de l'admin des pelles, actif par
+  défaut : coupé, les non-inscrits jouent pour le classement seulement (crédits refusés,
+  `unregistered_without_pelles`). Une migration (`Version20261025200000`,
+  `blind_test_setting.pelles_for_unregistered`).
+- **Admin des pelles de l'événement** : la section « Membres » liste aussi les non-inscrits qui détiennent des pelles
+  (mention « non inscrit »), hors distribution.
+
 ## [0.48.0] - 2026-10-25
 
 La partie site du blind test pour sa console d'animation : l'app y trouve les événements à préparer, et les admins
