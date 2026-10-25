@@ -5,6 +5,28 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.48.0] - 2026-10-25
+
+La partie site du blind test pour sa console d'animation : l'app y trouve les événements à préparer, et les admins
+d'archilan.fr y entrent avec leur compte. Le reste (console en 4 étapes, catalogue des œuvres, musique d'origine,
+vues minimales, design du site) est dans l'app `archilan-blind-test`, publiée à part.
+
+### Ajouté
+
+- **Console du blind test depuis l'admin** (41.46) : le bloc « Blind test » de l'admin des pelles affiche
+  l'identifiant de l'événement (copiable) et « Ouvrir la console du blind test » quand l'app est configurée.
+- **Liste des événements pour la console** (41.48) : `GET /api/v1/integrations/blind-test/evenements`, signé comme
+  les autres appels de l'app ; l'animateur choisit l'événement au lieu de taper son identifiant.
+- **Animation par compte admin** (41.53) : page `/blind-test/animation` et code à usage unique réservé aux admins
+  (`POST /api/v1/blind-test/animation/codes`) ; l'échange revérifie le rôle et renvoie désormais `role` (`player` ou
+  `animator`). Une migration (`Version20261025160000`, `blind_test_login_code.event_id` facultatif).
+
+### Modifié
+
+- `envs/blind-test.env.example` et la doc de déploiement : `REGIE_TOKEN` devient un secours facultatif pour les PC
+  de la salle ; nouvelle variable facultative `YOUTUBE_API_KEY` (clé YouTube Data API v3, vues minimales).
+- Stories 41.47 à 41.53 du blind test.
+
 ## [0.47.0] - 2026-10-24
 
 Le blind test de mashups est prêt à être déployé : l'app à part (dépôt `archilan-blind-test`) tourne à côté du site,
