@@ -4,14 +4,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { server } from "@/tests/setup";
 import { TEST_API_BASE_URL } from "@/tests/constants";
 import { BlindTestJoinButton } from "./blind-test-join-button";
-import { wholeNumber } from "./admin-blind-test-card";
-import { fetchBlindTestEntryUrl, isBlindTestSettings, requestBlindTestLogin, saveBlindTestSettings } from "./blind-test-api";
+import { AdminBlindTestCard, wholeNumber } from "./admin-blind-test-card";
+import { fetchBlindTestEntryUrl, isBlindTestSettings, requestBlindTestAnimation, requestBlindTestLogin, saveBlindTestSettings } from "./blind-test-api";
+import { blindTestAnimationReturnTo } from "./blind-test-animation-bridge";
 import { blindTestLoginReturnTo } from "./blind-test-login-bridge";
 
 describe("blind test (story 41.40)", () => {
   it("reads the settings shape", () => {
-    expect(isBlindTestSettings({ enabled: true, pellesPerSource: 1, capPerPlayer: 50 })).toBe(true);
-    expect(isBlindTestSettings({ enabled: "yes", pellesPerSource: 1, capPerPlayer: 50 })).toBe(false);
+    expect(isBlindTestSettings({ enabled: true, pellesPerSource: 1, capPerPlayer: 50, consoleUrl: null })).toBe(true);
+    expect(isBlindTestSettings({ enabled: true, pellesPerSource: 1, capPerPlayer: 50, consoleUrl: "https://bt.test/admin?event=e-1" })).toBe(true);
+    expect(isBlindTestSettings({ enabled: true, pellesPerSource: 1, capPerPlayer: 50 })).toBe(false);
+    expect(isBlindTestSettings({ enabled: "yes", pellesPerSource: 1, capPerPlayer: 50, consoleUrl: null })).toBe(false);
   });
 
   it("takes whole numbers only from the form", () => {
@@ -47,6 +50,21 @@ describe("blind test (story 41.40)", () => {
 
   it("comes back to the same login after signing in", () => {
     expect(blindTestLoginReturnTo("e-1", "abc_DEF-123")).toBe("/blind-test/connexion?event=e-1&state=abc_DEF-123");
+    expect(blindTestAnimationReturnTo("abc_DEF-123")).toBe("/blind-test/animation?state=abc_DEF-123");
+  });
+
+  it("asks an animation code for an admin, and relays the refusal to anyone else (story 41.53)", async () => {
+    server.use(
+      http.post(`${TEST_API_BASE_URL}/blind-test/animation/codes`, async ({ request }) => {
+        const body: unknown = await request.json();
+        return typeof body === "object" && body !== null && "state" in body && body.state === "admin-state-1234567"
+          ? HttpResponse.json({ data: { redirect: "https://bt.test/animation/retour?code=c&state=s" } })
+          : HttpResponse.json({ error: { code: "forbidden", message: "Accès réservé aux administrateurs." } }, { status: 403 });
+      }),
+    );
+
+    await expect(requestBlindTestAnimation("admin-state-1234567")).resolves.toEqual({ kind: "ok", redirect: "https://bt.test/animation/retour?code=c&state=s" });
+    await expect(requestBlindTestAnimation("member-state-123456")).resolves.toEqual({ kind: "error", message: "Accès réservé aux administrateurs." });
   });
 
   it("relays the server's message when the settings are refused", async () => {
@@ -74,5 +92,22 @@ describe("blind test (story 41.40)", () => {
 
     expect(html.match(/Jouer au blind test/g)).toHaveLength(1);
     expect(html).toContain('href="https://bt.test/connexion"');
+  });
+
+  it("gives the admin the event's id and, once the app is configured, its console (story 41.46)", () => {
+    const client = new QueryClient();
+    client.setQueryData(["admin-blind-test", "e-1"], { enabled: true, pellesPerSource: 1, capPerPlayer: 50, consoleUrl: "https://bt.test/admin?event=e-1" });
+    client.setQueryData(["admin-blind-test", "e-2"], { enabled: false, pellesPerSource: 1, capPerPlayer: 50, consoleUrl: null });
+    const render = (eventId: string) =>
+      renderToStaticMarkup(
+        <QueryClientProvider client={client}>
+          <AdminBlindTestCard eventId={eventId} />
+        </QueryClientProvider>,
+      );
+
+    const configured = render("e-1");
+    expect(configured).toContain("<code");
+    expect(configured).toContain('href="https://bt.test/admin?event=e-1"');
+    expect(render("e-2")).not.toContain("Ouvrir la console");
   });
 });

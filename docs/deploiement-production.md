@@ -52,7 +52,7 @@ docker compose up -d
 `api-migrations` joue les migrations Doctrine et s'arrête ; c'est un service à cycle court, pas un
 démon.
 
-## Blind test d'un événement (stories 41.40 à 41.44)
+## Blind test d'un événement (stories 41.40 à 41.46)
 
 L'app de blind test (dépôt `archilan-blind-test`) ne tourne que pour un événement : ses deux services sont dans le
 profil `blind-test` et ne démarrent pas avec le reste.
@@ -61,7 +61,8 @@ Une fois :
 
 1. DNS : `BLIND_TEST_DOMAIN` (ex. `blindtest.archilan.fr`) vers le serveur.
 2. `envs/blind-test.env` depuis `envs/blind-test.env.example` : `APP_SECRET`, `REGIE_TOKEN`,
-   `BLIND_TEST_SHARED_SECRET`.
+   `BLIND_TEST_SHARED_SECRET`, `SITE_PUBLIC_URL` ; facultatif, `YOUTUBE_API_KEY` (clé YouTube Data API v3 : vérification
+   des vidéos par 50 et réglage « Vues minimales »).
 3. `envs/api.env` : `BLIND_TEST_SHARED_SECRET` (même valeur) et `BLIND_TEST_APP_URL=https://<BLIND_TEST_DOMAIN>`
    (l'adresse de base, sans chemin). Redémarrer `api-web`.
 
@@ -70,11 +71,22 @@ sur `archilan.fr/blind-test/connexion` ; le site (après connexion au besoin) re
 60 s, que l'app échange contre l'identité, de serveur à serveur. Le cookie du site reste `__Host-` ; aucun lien ne
 permet de jouer à la place de quelqu'un.
 
-Avant l'événement (la playlist, tirée du wiki SiIvaGunner) :
+Avant l'événement :
 
 ```bash
 docker compose --profile blind-test pull
 docker compose --profile blind-test up -d blind-test blind-test-credits
+```
+
+Puis tout se fait dans la console (story 41.46), ouverte depuis le bloc « Blind test » de l'admin des pelles
+(« Ouvrir la console du blind test » ; « Se connecter avec archilan.fr » avec un compte admin, story 41.53) : importer la playlist du
+wiki SiIvaGunner (900 morceaux, environ 48 h ; la lecture de la catégorie prend une minute), la relire dans l'éditeur
+(alias, type des sources `other`), vérifier les vidéos la veille et retirer les mortes, puis « Charger pour la
+partie ». La console suit ensuite la partie : morceau et réponses, trouvailles, crédits refusés ou en attente.
+
+Les mêmes étapes en ligne de commande :
+
+```bash
 # environ 48 h ; relire ensuite le fichier (alias, type des sources `other`)
 docker compose exec blind-test php bin/console app:playlist:importer-wiki /data/playlist.yml --nombre=900
 # la veille : retire les vidéos supprimées ou non intégrables
@@ -87,12 +99,13 @@ correction (`docker compose cp playlist.yml blind-test:/data/playlist.yml`) avan
 
 Pour l'événement :
 
-- Régie : `https://<BLIND_TEST_DOMAIN>/regie?token=<REGIE_TOKEN>` sur le PC de la sono, **jamais projetée** (le
+- Régie : `https://<BLIND_TEST_DOMAIN>/regie` (compte admin d'archilan.fr, ou le code `REGIE_TOKEN` s'il est configuré, pratique sur un PC sans compte) sur le PC de la sono, **jamais projetée** (le
   titre et les images des vidéos donnent les réponses). Compte YouTube Premium connecté dans ce navigateur, cookies
   tiers autorisés pour youtube.com (sinon le lecteur intégré ignore le compte et les pubs reviennent). Un clic sur
   « Démarrer ». Le lecteur fait foi : un morceau ne compte qu'une fois sa vidéo lancée, et une régie silencieuse plus
   de 15 s suspend les propositions.
-- Écran de salle : `https://<BLIND_TEST_DOMAIN>/ecran?token=<REGIE_TOKEN>`.
+- Écran de salle : `https://<BLIND_TEST_DOMAIN>/ecran` (même code).
+- Console : `https://<BLIND_TEST_DOMAIN>/admin` (même code), **jamais projetée** (elle montre les réponses).
 - Admin du site : ouvrir le blind test dans les pelles de l'événement (interrupteur, pelles par source, plafond).
   Les inscrits voient alors « Jouer au blind test » et un QR code sur la page de l'événement.
 

@@ -8,16 +8,18 @@ use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use App\Wallet\Application\Command\CreditBlindTestSource;
 use App\Wallet\Application\Command\ExchangeBlindTestLoginCode;
+use App\Wallet\Application\Command\IssueBlindTestAnimationCode;
 use App\Wallet\Application\Command\IssueBlindTestLoginCode;
 use App\Wallet\Application\Query\BlindTestEntry;
+use App\Wallet\Application\Query\BlindTestEvents;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * The blind test of an event (stories 41.40, 41.45): where a member enters the app, the one-time code that tells the
- * app who they are, and the app's credits for the sources found. The two `integrations` routes carry no member
- * session - their signature is their authentication.
+ * The blind test of an event (stories 41.40, 41.45, 41.48): where a member enters the app, the one-time code that tells
+ * the app who they are, the app's credits for the sources found, and the events its console may prepare. The
+ * `integrations` routes carry no member session - their signature is their authentication.
  */
 final readonly class BlindTestController
 {
@@ -29,6 +31,8 @@ final readonly class BlindTestController
         private IssueBlindTestLoginCode $issueCode,
         private ExchangeBlindTestLoginCode $exchangeCode,
         private CreditBlindTestSource $credit,
+        private BlindTestEvents $events,
+        private IssueBlindTestAnimationCode $issueAnimationCode,
     ) {
     }
 
@@ -56,6 +60,20 @@ final readonly class BlindTestController
         return new JsonResponse(['data' => ['redirect' => $this->issueCode->issue($user->getId(), $eventId, $state)->url]]);
     }
 
+    /** Story 41.53: an admin asks to animate the blind test; the app learns who they are from the code. */
+    #[Route('/api/v1/blind-test/animation/codes', name: 'api_wallet_blind_test_animation_code', methods: ['POST'])]
+    public function animationCode(Request $request): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+        $payload = json_decode($request->getContent(), true);
+        $state = is_array($payload) && is_string($payload['state'] ?? null) ? $payload['state'] : '';
+
+        return new JsonResponse(['data' => ['redirect' => $this->issueAnimationCode->issue($admin->getId(), $state)->url]]);
+    }
+
     #[Route('/api/v1/integrations/blind-test/codes/echange', name: 'api_wallet_blind_test_code_exchange', methods: ['POST'])]
     public function exchange(Request $request): JsonResponse
     {
@@ -71,6 +89,7 @@ final readonly class BlindTestController
             'displayName' => $identity->displayName,
             'state' => $identity->state,
             'exp' => $identity->expiresAt,
+            'role' => $identity->role,
         ]]);
     }
 
@@ -87,5 +106,14 @@ final readonly class BlindTestController
             ['data' => ['credited' => $result->credited, 'balance' => $result->balance]],
             $result->duplicate ? 200 : 201,
         );
+    }
+
+    #[Route('/api/v1/integrations/blind-test/evenements', name: 'api_wallet_blind_test_events', methods: ['GET'])]
+    public function events(Request $request): JsonResponse
+    {
+        return new JsonResponse(['data' => $this->events->list(
+            $request->headers->get('X-Archilan-Timestamp', ''),
+            $request->headers->get('X-Archilan-Signature', ''),
+        )]);
     }
 }

@@ -1,13 +1,16 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 /**
  * Stories 41.40, 41.45: the blind test of an event. Its app credits event pelles for the sources found; the site
  * shows registrants the way in, tells the app who they are through a one-time code, and lets the admins tune it. Every function returns a value instead of throwing
  * (AC-API2).
  */
-export type BlindTestSettings = { enabled: boolean; pellesPerSource: number; capPerPlayer: number };
+export type BlindTestSettingsInput = { enabled: boolean; pellesPerSource: number; capPerPlayer: number };
+
+/** The settings as the server gives them back, with the app's console for the event (story 41.46; null when not configured). */
+export type BlindTestSettings = BlindTestSettingsInput & { consoleUrl: string | null };
 
 export type SaveBlindTestResult = { kind: "ok"; settings: BlindTestSettings } | { kind: "error"; message: string };
 
@@ -17,7 +20,8 @@ export function isBlindTestSettings(v: unknown): v is BlindTestSettings {
     v !== null &&
     hasBooleanProp(v, "enabled") &&
     hasNumberProp(v, "pellesPerSource") &&
-    hasNumberProp(v, "capPerPlayer")
+    hasNumberProp(v, "capPerPlayer") &&
+    hasNullableStringProp(v, "consoleUrl")
   );
 }
 
@@ -44,9 +48,17 @@ export type BlindTestLoginResult = { kind: "ok"; redirect: string } | { kind: "e
  * return address comes from the server; the state is the app's own.
  */
 export async function requestBlindTestLogin(eventId: string, state: string): Promise<BlindTestLoginResult> {
-  const failure = "Connexion au blind test impossible. Relance-la depuis l'app.";
+  return requestCode(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/blind-test/codes`, state, "Connexion au blind test impossible. Relance-la depuis l'app.");
+}
+
+/** Story 41.53: an admin's one-time code for the app's console, régie and room screen. */
+export async function requestBlindTestAnimation(state: string): Promise<BlindTestLoginResult> {
+  return requestCode(`${env.apiBaseUrl}/blind-test/animation/codes`, state, "Connexion à l'animation impossible. Relance-la depuis l'app.");
+}
+
+async function requestCode(url: string, state: string, failure: string): Promise<BlindTestLoginResult> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/blind-test/codes`, {
+    const res = await apiFetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ state }),
@@ -76,7 +88,7 @@ export async function fetchBlindTestSettings(eventId: string): Promise<BlindTest
 }
 
 /** The server owns the bounds; this relays its message. */
-export async function saveBlindTestSettings(eventId: string, settings: BlindTestSettings): Promise<SaveBlindTestResult> {
+export async function saveBlindTestSettings(eventId: string, settings: BlindTestSettingsInput): Promise<SaveBlindTestResult> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/blind-test`, {
       method: "PUT",

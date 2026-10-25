@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * A one-time code that lets the blind test app learn who a member is (story 41.45). Only its hash is kept; it is
  * served once, within a minute, then deleted. The `state` is the app's own, so a code is only good for the login the
- * app started.
+ * app started. A code tied to no event opens the blind test's animation for an admin (story 41.53).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'blind_test_login_code')]
@@ -21,8 +21,8 @@ final class BlindTestLoginCode
         private string $codeHash,
         #[ORM\Column(name: 'user_id', type: 'string', length: 32)]
         private string $userId,
-        #[ORM\Column(name: 'event_id', type: 'string', length: 32)]
-        private string $eventId,
+        #[ORM\Column(name: 'event_id', type: 'string', length: 32, nullable: true)]
+        private ?string $eventId,
         #[ORM\Column(type: 'string', length: 64)]
         private string $state,
         #[ORM\Column(name: 'expires_at', type: 'datetimetz_immutable')]
@@ -45,9 +45,15 @@ final class BlindTestLoginCode
         return $this->userId;
     }
 
-    public function getEventId(): string
+    public function getEventId(): ?string
     {
         return $this->eventId;
+    }
+
+    /** An animation code (story 41.53): it lets an admin into the console, the régie and the room screen. */
+    public function isAnimation(): bool
+    {
+        return null === $this->eventId;
     }
 
     public function getState(): string
