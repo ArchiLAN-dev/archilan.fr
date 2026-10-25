@@ -218,7 +218,12 @@ final class BlindTestTest extends FunctionalTestCase
         $this->client->jsonRequest('PUT', $path, ['enabled' => true, 'pellesPerSource' => 3, 'capPerPlayer' => 90]);
         self::assertResponseStatusCodeSame(200);
         $this->client->jsonRequest('GET', $path);
-        self::assertSame(['data' => ['enabled' => true, 'pellesPerSource' => 3, 'capPerPlayer' => 90]], $this->decodedJsonResponse());
+        self::assertSame(['data' => [
+            'enabled' => true,
+            'pellesPerSource' => 3,
+            'capPerPlayer' => 90,
+            'consoleUrl' => 'https://blindtest.example.test/admin?event='.$this->event->getId(),
+        ]], $this->decodedJsonResponse());
 
         $this->client->jsonRequest('PUT', $path, ['enabled' => true, 'pellesPerSource' => 0, 'capPerPlayer' => 90]);
         self::assertResponseStatusCodeSame(422);
