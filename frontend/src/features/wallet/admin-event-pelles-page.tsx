@@ -90,7 +90,7 @@ export function EventPellesView({ data }: { data: EventPelles }) {
   // One id per distribution, kept across a retry so a double submit credits nobody twice.
   const requestIdRef = useRef<string | null>(null);
 
-  const eligible = data.participants.filter((p) => !p.banned);
+  const eligible = data.participants.filter((p) => p.registered && !p.banned);
   const recipients = mode === "all" ? eligible.length : selected.size;
   const parsedAmount = Number.parseInt(amount, 10);
   const amountValid = Number.isInteger(parsedAmount) && parsedAmount >= 1 && parsedAmount <= MAX_AMOUNT;
@@ -202,10 +202,10 @@ export function EventPellesView({ data }: { data: EventPelles }) {
 
       <section aria-labelledby="event-pelles-members" className="grid gap-3">
         <h2 className="font-heading text-lg font-semibold text-foreground" id="event-pelles-members">
-          Inscrits ({data.participants.length})
+          Membres ({data.participants.length})
         </h2>
         {data.participants.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun inscrit actif.</p>
+          <p className="text-sm text-muted-foreground">Aucun inscrit actif, aucune pelle gagnée.</p>
         ) : (
           <ul className="divide-y divide-border rounded-xl border border-border">
             {data.participants.map((participant) => (
@@ -214,13 +214,14 @@ export function EventPellesView({ data }: { data: EventPelles }) {
                   {mode === "selection" && !data.ended ? (
                     <input
                       checked={selected.has(participant.userId)}
-                      disabled={participant.banned}
+                      disabled={participant.banned || !participant.registered}
                       onChange={() => toggle(participant.userId)}
                       type="checkbox"
                     />
                   ) : null}
                   <span className="truncate text-foreground">{participant.displayName}</span>
                   {participant.banned ? <span className="text-xs text-danger">banni</span> : null}
+                  {participant.registered ? null : <span className="text-xs text-muted-foreground">non inscrit</span>}
                 </label>
                 <PelleAmount amount={participant.balance} className="shrink-0 font-semibold" />
               </li>

@@ -84,12 +84,34 @@ final class BlindTestTest extends FunctionalTestCase
         self::assertSame([], $this->movements());
     }
 
-    public function testOnlyActiveRegistrantsEarn(): void
+    public function testSomeoneNotRegisteredEarnsToo(): void
     {
         $this->sendCredit($this->body('blindtest:1', 'Celeste', $this->carol));
 
+        self::assertResponseStatusCodeSame(201, 'story 41.54: any member plays, registered or not');
+        self::assertSame(['data' => ['credited' => 2, 'balance' => 2]], $this->decodedJsonResponse());
+        self::assertSame([PelleKind::Event->value => 2], $this->carolsBalances(), 'event pelles, turned into gold at the end like any other');
+    }
+
+    public function testWithThePellesSwitchedOffSomeoneNotRegisteredOnlyPlays(): void
+    {
+        $this->loginAs($this->admin);
+        $path = sprintf('/api/v1/admin/events/%s/blind-test', $this->event->getId());
+        $this->client->jsonRequest('PUT', $path, ['enabled' => true, 'pellesPerSource' => 2, 'capPerPlayer' => 5, 'pellesForUnregistered' => false]);
+        self::assertResponseStatusCodeSame(200);
+        $this->client->jsonRequest('PUT', $path, ['enabled' => true, 'pellesPerSource' => 2, 'capPerPlayer' => 5]);
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertFalse($data['pellesForUnregistered'] ?? null, 'left out, the choice is kept');
+
+        $this->sendCredit($this->body('blindtest:1', 'Celeste', $this->carol));
         self::assertResponseStatusCodeSame(403);
-        self::assertSame('not_registered', $this->errorCode());
+        self::assertSame('unregistered_without_pelles', $this->errorCode());
+        self::assertSame([], $this->carolsBalances());
+
+        $this->sendCredit($this->body('blindtest:2', 'Celeste'));
+        self::assertResponseStatusCodeSame(201, 'a registrant still earns');
     }
 
     public function testASwitchedOffBlindTestCreditsNothing(): void
@@ -135,13 +157,13 @@ final class BlindTestTest extends FunctionalTestCase
         self::assertSame(['data' => ['url' => 'https://blindtest.example.test/connexion']], $this->decodedJsonResponse());
     }
 
-    public function testSomeoneNotRegisteredIsNotShownTheWayIn(): void
+    public function testSomeoneNotRegisteredIsShownTheWayInToo(): void
     {
         $this->loginAs($this->carol);
         $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/blind-test/access', $this->event->getId()));
 
-        self::assertResponseStatusCodeSame(200, 'every event page asks: « not now » is an answer, not an error');
-        self::assertSame(['data' => ['url' => null]], $this->decodedJsonResponse());
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['data' => ['url' => 'https://blindtest.example.test/connexion']], $this->decodedJsonResponse());
     }
 
     public function testAOneTimeCodeTellsTheAppWhoPlaysOnce(): void
@@ -230,12 +252,15 @@ final class BlindTestTest extends FunctionalTestCase
         self::assertSame('invalid_state', $this->errorCode());
     }
 
-    public function testSomeoneNotRegisteredGetsNoCode(): void
+    public function testSomeoneNotRegisteredGetsACodeToo(): void
     {
-        $this->loginAs($this->carol);
-        $this->client->jsonRequest('POST', sprintf('/api/v1/events/%s/blind-test/codes', $this->event->getId()), ['state' => 'state-of-the-app-1234']);
+        $code = $this->loginCode($this->carol, 'state-of-the-app-1234');
 
-        self::assertResponseStatusCodeSame(403);
+        $this->sendSigned('/api/v1/integrations/blind-test/codes/echange', json_encode(['code' => $code], \JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertSame($this->carol->getId(), $data['userId'] ?? null);
     }
 
     public function testAnUnsignedExchangeIsRefused(): void
@@ -293,6 +318,7 @@ final class BlindTestTest extends FunctionalTestCase
             'enabled' => true,
             'pellesPerSource' => 3,
             'capPerPlayer' => 90,
+            'pellesForUnregistered' => true,
             'consoleUrl' => 'https://blindtest.example.test/admin?event='.$this->event->getId(),
         ]], $this->decodedJsonResponse());
 
@@ -379,6 +405,19 @@ final class BlindTestTest extends FunctionalTestCase
         $error = $this->decodedJsonResponse()['error'] ?? null;
 
         return is_array($error) ? ($error['code'] ?? null) : null;
+    }
+
+    /** @return array<string, int> */
+    private function carolsBalances(): array
+    {
+        $balances = [];
+        foreach ($this->entityManager->getRepository(PelleMovement::class)->findBy(['userId' => $this->carol->getId()]) as $movement) {
+            $kind = $movement->getKind()->value;
+            $balances[$kind] = ($balances[$kind] ?? 0) + $movement->getAmount();
+        }
+        ksort($balances);
+
+        return $balances;
     }
 
     /** @return list<PelleMovement> */

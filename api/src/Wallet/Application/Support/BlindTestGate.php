@@ -9,13 +9,13 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ServiceUnavailableException;
-use App\Wallet\Application\Query\EventPellesQueryInterface;
 use App\Wallet\Domain\Entity\BlindTestSetting;
 use App\Wallet\Domain\Repository\BlindTestSettingRepositoryInterface;
 
 /**
- * Who may play the blind test of an event, now (story 41.40): the same rule for the participation link and for each
- * credit, so switching the blind test off or ending the event stops both at once.
+ * Whether the blind test of an event is open, now (story 41.40): the same rule for the participation link and for each
+ * credit, so switching the blind test off or ending the event stops both at once. Any member plays, registered to the
+ * event or not (story 41.54).
  */
 final readonly class BlindTestGate
 {
@@ -23,17 +23,15 @@ final readonly class BlindTestGate
         private BlindTestLink $link,
         private EventRepositoryInterface $events,
         private BlindTestSettingRepositoryInterface $settings,
-        private EventPellesQueryInterface $eventPelles,
     ) {
     }
 
     /**
      * @throws ServiceUnavailableException when the site has no secret or no app address
      * @throws NotFoundException           when the event does not exist
-     * @throws ForbiddenException          when the blind test is off, the event is not running or the member is
-     *                                     not registered
+     * @throws ForbiddenException          when the blind test is off or the event is not running
      */
-    public function open(string $eventId, string $userId, \DateTimeImmutable $now): BlindTestOpening
+    public function open(string $eventId, \DateTimeImmutable $now): BlindTestOpening
     {
         if (!$this->link->isConfigured()) {
             throw new ServiceUnavailableException('Le blind test n\'est pas configuré sur le site.', 'blind_test_unconfigured');
@@ -49,10 +47,7 @@ final readonly class BlindTestGate
         if ($now < $event->getStartsAt() || $now >= $event->getEndsAt()) {
             throw new ForbiddenException('Le blind test se joue pendant l\'événement.', 'event_not_running');
         }
-        if (!in_array($userId, $this->eventPelles->activeRegistrantIds($eventId), true)) {
-            throw new ForbiddenException('Seuls les inscrits de l\'événement jouent au blind test.', 'not_registered');
-        }
 
-        return new BlindTestOpening($setting->getPellesPerSource(), $setting->getCapPerPlayer(), $event->getEndsAt());
+        return new BlindTestOpening($setting->getPellesPerSource(), $setting->getCapPerPlayer(), $event->getEndsAt(), $setting->isPellesForUnregistered());
     }
 }

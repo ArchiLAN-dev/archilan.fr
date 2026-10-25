@@ -21,8 +21,9 @@ const running: EventPelles = {
   converted: 0,
   destroyed: 0,
   participants: [
-    { userId: "u1", displayName: "Alice", balance: 25, banned: false },
-    { userId: "u2", displayName: "Dan", balance: 0, banned: true },
+    { userId: "u1", displayName: "Alice", balance: 25, banned: false, registered: true },
+    { userId: "u2", displayName: "Dan", balance: 0, banned: true, registered: true },
+    { userId: "u3", displayName: "Erin", balance: 4, banned: false, registered: false },
   ],
 };
 
@@ -42,6 +43,8 @@ describe("event pelles page", () => {
     expect(html).toContain("Pelles · ArchiLAN #3");
     expect(html).toContain("Alice");
     expect(html).toContain("banni");
+    expect(html).toContain("Membres (3)");
+    expect(html).toContain("non inscrit");
     expect(html).toContain("Tous les inscrits (1)");
     expect(html).toContain("Distribuer à 1 membre");
     expect(html).not.toContain("Converties en or");

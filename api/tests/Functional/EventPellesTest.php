@@ -180,10 +180,26 @@ final class EventPellesTest extends FunctionalTestCase
         $participants = $body['participants'] ?? null;
         self::assertIsArray($participants);
         self::assertSame(
-            [['userId' => $this->alice->getId(), 'displayName' => 'Alice', 'balance' => 25, 'banned' => false], ['userId' => $this->bob->getId(), 'displayName' => 'Bob', 'balance' => 0, 'banned' => false], ['userId' => $this->dan->getId(), 'displayName' => 'Dan', 'balance' => 0, 'banned' => true]],
+            [['userId' => $this->alice->getId(), 'displayName' => 'Alice', 'balance' => 25, 'banned' => false, 'registered' => true], ['userId' => $this->bob->getId(), 'displayName' => 'Bob', 'balance' => 0, 'banned' => false, 'registered' => true], ['userId' => $this->dan->getId(), 'displayName' => 'Dan', 'balance' => 0, 'banned' => true, 'registered' => true]],
             $participants,
             'active registrants only, by name',
         );
+    }
+
+    public function testTheAdminPageAlsoListsAMemberWhoEarnedWithoutRegistering(): void
+    {
+        $erin = $this->createUser('erin@example.org', ['ROLE_USER'], 'Erin');
+        $this->entityManager->flush();
+        $this->eventPelles($erin, 4);
+        $this->loginAs($this->admin);
+
+        $this->client->request('GET', sprintf('/api/v1/admin/events/%s/pelles', $this->event->getId()));
+
+        self::assertResponseIsSuccessful();
+        $participants = $this->decodedJsonResponse()['participants'] ?? null;
+        self::assertIsArray($participants);
+        self::assertContains(['userId' => $erin->getId(), 'displayName' => 'Erin', 'balance' => 4, 'banned' => false, 'registered' => false], $participants, 'a blind test player not registered (story 41.54)');
+        self::assertCount(4, $participants);
     }
 
     /**

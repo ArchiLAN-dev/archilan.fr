@@ -12,7 +12,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * An event's blind test, admin side (story 41.40): on or off, what a source is worth, the cap per member.
+ * An event's blind test, admin side (story 41.40): on or off, what a source is worth, the cap per member, and
+ * whether members not registered earn (story 41.54).
  */
 final readonly class AdminBlindTestController
 {
@@ -53,6 +54,7 @@ final readonly class AdminBlindTestController
             true === ($payload['enabled'] ?? null),
             is_int($payload['pellesPerSource'] ?? null) ? $payload['pellesPerSource'] : 0,
             is_int($payload['capPerPlayer'] ?? null) ? $payload['capPerPlayer'] : 0,
+            is_bool($payload['pellesForUnregistered'] ?? null) ? $payload['pellesForUnregistered'] : null,
         )]);
     }
 }
