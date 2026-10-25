@@ -6,6 +6,7 @@ namespace App\Wallet\Application\Command;
 
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Wallet\Application\Exception\BlindTestSignatureException;
 use App\Wallet\Application\Support\BlindTestGate;
@@ -21,6 +22,9 @@ use Psr\Clock\ClockInterface;
  */
 final readonly class ExchangeBlindTestLoginCode
 {
+    /** An animator's session lasts a long evening, then they log in again. */
+    public const int ANIMATION_SECONDS = 12 * 3600;
+
     public function __construct(
         private BlindTestLink $link,
         private BlindTestGate $gate,
@@ -47,12 +51,21 @@ final readonly class ExchangeBlindTestLoginCode
             throw new NotFoundException('Code de connexion expiré.', 'login_code_invalid');
         }
 
-        $opening = $this->gate->open($found->getEventId(), $found->getUserId(), $now);
         $member = $this->users->findById($found->getUserId());
         if (!$member instanceof User) {
             throw new NotFoundException('Membre introuvable.', 'member_not_found');
         }
+        $eventId = $found->getEventId();
+        if (null === $eventId) {
+            // Story 41.53: an animation code, for an admin still an admin now.
+            if ($member->isDeleted() || !in_array('ROLE_ADMIN', $member->getRoles(), true)) {
+                throw new ForbiddenException('Réservé aux admins d\'archilan.fr.', 'not_admin');
+            }
 
-        return new BlindTestIdentity($member->getId(), $found->getEventId(), $member->getDisplayName(), $found->getState(), $opening->endsAt->getTimestamp());
+            return new BlindTestIdentity($member->getId(), null, $member->getDisplayName(), $found->getState(), $now->getTimestamp() + self::ANIMATION_SECONDS, BlindTestIdentity::ANIMATOR);
+        }
+        $opening = $this->gate->open($eventId, $member->getId(), $now);
+
+        return new BlindTestIdentity($member->getId(), $eventId, $member->getDisplayName(), $found->getState(), $opening->endsAt->getTimestamp());
     }
 }
