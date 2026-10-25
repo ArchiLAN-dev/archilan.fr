@@ -11,10 +11,11 @@ import { blindTestLoginReturnTo } from "./blind-test-login-bridge";
 
 describe("blind test (story 41.40)", () => {
   it("reads the settings shape", () => {
-    expect(isBlindTestSettings({ enabled: true, pellesPerSource: 1, capPerPlayer: 50, consoleUrl: null })).toBe(true);
-    expect(isBlindTestSettings({ enabled: true, pellesPerSource: 1, capPerPlayer: 50, consoleUrl: "https://bt.test/admin?event=e-1" })).toBe(true);
+    expect(isBlindTestSettings({ enabled: true, pellesPerSource: 1, capPerPlayer: 50, pellesForUnregistered: true, consoleUrl: null })).toBe(true);
+    expect(isBlindTestSettings({ enabled: true, pellesPerSource: 1, capPerPlayer: 50, pellesForUnregistered: true, consoleUrl: "https://bt.test/admin?event=e-1" })).toBe(true);
     expect(isBlindTestSettings({ enabled: true, pellesPerSource: 1, capPerPlayer: 50 })).toBe(false);
-    expect(isBlindTestSettings({ enabled: "yes", pellesPerSource: 1, capPerPlayer: 50, consoleUrl: null })).toBe(false);
+    expect(isBlindTestSettings({ enabled: true, pellesPerSource: 1, capPerPlayer: 50, consoleUrl: null })).toBe(false);
+    expect(isBlindTestSettings({ enabled: "yes", pellesPerSource: 1, capPerPlayer: 50, pellesForUnregistered: true, consoleUrl: null })).toBe(false);
   });
 
   it("takes whole numbers only from the form", () => {
@@ -74,7 +75,7 @@ describe("blind test (story 41.40)", () => {
       ),
     );
 
-    await expect(saveBlindTestSettings("e-1", { enabled: true, pellesPerSource: 0, capPerPlayer: 5 })).resolves.toEqual({
+    await expect(saveBlindTestSettings("e-1", { enabled: true, pellesPerSource: 0, capPerPlayer: 5, pellesForUnregistered: true })).resolves.toEqual({
       kind: "error",
       message: "Réglages du blind test invalides.",
     });
@@ -96,8 +97,8 @@ describe("blind test (story 41.40)", () => {
 
   it("gives the admin the event's id and, once the app is configured, its console (story 41.46)", () => {
     const client = new QueryClient();
-    client.setQueryData(["admin-blind-test", "e-1"], { enabled: true, pellesPerSource: 1, capPerPlayer: 50, consoleUrl: "https://bt.test/admin?event=e-1" });
-    client.setQueryData(["admin-blind-test", "e-2"], { enabled: false, pellesPerSource: 1, capPerPlayer: 50, consoleUrl: null });
+    client.setQueryData(["admin-blind-test", "e-1"], { enabled: true, pellesPerSource: 1, capPerPlayer: 50, pellesForUnregistered: true, consoleUrl: "https://bt.test/admin?event=e-1" });
+    client.setQueryData(["admin-blind-test", "e-2"], { enabled: false, pellesPerSource: 1, capPerPlayer: 50, pellesForUnregistered: true, consoleUrl: null });
     const render = (eventId: string) =>
       renderToStaticMarkup(
         <QueryClientProvider client={client}>
@@ -109,5 +110,6 @@ describe("blind test (story 41.40)", () => {
     expect(configured).toContain("<code");
     expect(configured).toContain('href="https://bt.test/admin?event=e-1"');
     expect(render("e-2")).not.toContain("Ouvrir la console");
+    expect(configured).toContain("Les non-inscrits gagnent des pelles");
   });
 });

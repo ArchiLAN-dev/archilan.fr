@@ -8,7 +8,8 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * The blind test of one event (story 41.40): whether its app may credit pelles, how many a found source is worth and
- * how many one member may earn from it over the event. An event with no row has the blind test off.
+ * how many one member may earn from it over the event. An event with no row has the blind test off. Story 41.54:
+ * whether members not registered to the event earn too or only play.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'blind_test_setting')]
@@ -27,6 +28,8 @@ final class BlindTestSetting
         private int $pellesPerSource,
         #[ORM\Column(name: 'cap_per_player', type: 'integer')]
         private int $capPerPlayer,
+        #[ORM\Column(name: 'pelles_for_unregistered', type: 'boolean', options: ['default' => true])]
+        private bool $pellesForUnregistered = true,
     ) {
     }
 
@@ -35,11 +38,12 @@ final class BlindTestSetting
         return new self($eventId, false, self::DEFAULT_PELLES_PER_SOURCE, self::DEFAULT_CAP_PER_PLAYER);
     }
 
-    public function change(bool $enabled, int $pellesPerSource, int $capPerPlayer): void
+    public function change(bool $enabled, int $pellesPerSource, int $capPerPlayer, bool $pellesForUnregistered): void
     {
         $this->enabled = $enabled;
         $this->pellesPerSource = $pellesPerSource;
         $this->capPerPlayer = $capPerPlayer;
+        $this->pellesForUnregistered = $pellesForUnregistered;
     }
 
     public function getEventId(): string
@@ -60,5 +64,10 @@ final class BlindTestSetting
     public function getCapPerPlayer(): int
     {
         return $this->capPerPlayer;
+    }
+
+    public function isPellesForUnregistered(): bool
+    {
+        return $this->pellesForUnregistered;
     }
 }

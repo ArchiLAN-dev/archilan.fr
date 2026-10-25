@@ -3,7 +3,8 @@ import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 /** Story 41.2: the pelles of one event, admin side. */
-export type EventPelleParticipant = { userId: string; displayName: string; balance: number; banned: boolean };
+// Story 41.54: a member who earned at the blind test without registering is listed too, not a distribution recipient.
+export type EventPelleParticipant = { userId: string; displayName: string; balance: number; banned: boolean; registered: boolean };
 
 export type EventPelles = {
   eventId: string;
@@ -36,7 +37,8 @@ function isParticipant(v: unknown): v is EventPelleParticipant {
     hasStringProp(v, "userId") &&
     hasStringProp(v, "displayName") &&
     hasNumberProp(v, "balance") &&
-    hasBooleanProp(v, "banned")
+    hasBooleanProp(v, "banned") &&
+    hasBooleanProp(v, "registered")
   );
 }
 

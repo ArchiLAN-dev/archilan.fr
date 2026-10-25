@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Wallet\Application\Command;
 
 use App\Shared\Application\Exception\ConflictException;
+use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\ValidationException;
 use App\Wallet\Application\Exception\BlindTestSignatureException;
+use App\Wallet\Application\Query\EventPellesQueryInterface;
 use App\Wallet\Application\Support\BlindTestGate;
 use App\Wallet\Application\Support\BlindTestLink;
 use App\Wallet\Domain\Entity\PelleMovement;
@@ -21,6 +23,10 @@ use Psr\Clock\ClockInterface;
  * The app signs `{timestamp}.{body}`; a stale or wrong signature is refused before anything is read. The amount is
  * the event's setting, never the app's. The key makes a second send of the same find a no-op, and the cap is checked
  * under the member's ledger lock, after the write, so two credits sent together cannot pass it.
+ *
+ * Story 41.54: a member not registered to the event plays too and earns the same event pelles, turned into gold at
+ * the end of the event like everyone's. With the event's pelles for them switched off, they play for the ranking
+ * only: their credits are refused.
  */
 final readonly class CreditBlindTestSource
 {
@@ -33,6 +39,7 @@ final readonly class CreditBlindTestSource
         private BlindTestGate $gate,
         private RecordPelleMovement $record,
         private PelleMovementRepositoryInterface $movements,
+        private EventPellesQueryInterface $eventPelles,
         private ClockInterface $clock,
     ) {
     }
@@ -55,7 +62,10 @@ final readonly class CreditBlindTestSource
             throw new ValidationException('Crédit de blind test invalide.', [], 'invalid_blind_test_credit');
         }
 
-        $opening = $this->gate->open($eventId, $userId, $now);
+        $opening = $this->gate->open($eventId, $now);
+        if (!$opening->pellesForUnregistered && !in_array($userId, $this->eventPelles->activeRegistrantIds($eventId), true)) {
+            throw new ForbiddenException('Les non-inscrits ne gagnent pas de pelles à ce blind test.', 'unregistered_without_pelles');
+        }
         $cap = $opening->capPerPlayer;
         $recorded = $this->record->record(
             new RecordPelleMovementInput(

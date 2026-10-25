@@ -34,7 +34,7 @@ final readonly class IssueBlindTestLoginCode
             throw new ValidationException('Connexion au blind test invalide : relance-la depuis l\'app.', [], 'invalid_state');
         }
         $now = $this->clock->now();
-        $this->gate->open($eventId, $userId, $now);
+        $this->gate->open($eventId, $now);
 
         $this->codes->removeExpired($now);
         $code = bin2hex(random_bytes(32));
