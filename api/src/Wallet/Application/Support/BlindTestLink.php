@@ -55,6 +55,12 @@ final readonly class BlindTestLink
         return $this->base().'/connexion/retour?'.http_build_query(['code' => $code, 'state' => $state]);
     }
 
+    /** The app's console for this event (story 41.46), or null when the app is not configured. */
+    public function consoleUrl(string $eventId): ?string
+    {
+        return $this->isConfigured() ? $this->base().'/admin?'.http_build_query(['event' => $eventId]) : null;
+    }
+
     private function base(): string
     {
         return rtrim(trim($this->appUrl), '/');

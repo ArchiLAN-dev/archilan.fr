@@ -8,11 +8,13 @@ use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ValidationException;
+use App\Wallet\Application\Support\BlindTestLink;
 use App\Wallet\Domain\Entity\BlindTestSetting;
 use App\Wallet\Domain\Repository\BlindTestSettingRepositoryInterface;
 
 /**
- * An event's blind test, admin side (story 41.40): read and tuned from the event's pelles page.
+ * An event's blind test, admin side (story 41.40): read and tuned from the event's pelles page, with the way to the
+ * app's console (story 41.46).
  */
 final readonly class BlindTestSettings
 {
@@ -22,11 +24,12 @@ final readonly class BlindTestSettings
     public function __construct(
         private BlindTestSettingRepositoryInterface $settings,
         private EventRepositoryInterface $events,
+        private BlindTestLink $link,
     ) {
     }
 
     /**
-     * @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int}
+     * @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int, consoleUrl: string|null}
      *
      * @throws NotFoundException when the event does not exist
      */
@@ -38,7 +41,7 @@ final readonly class BlindTestSettings
     }
 
     /**
-     * @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int}
+     * @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int, consoleUrl: string|null}
      *
      * @throws NotFoundException   when the event does not exist
      * @throws ValidationException when an amount is out of bounds
@@ -71,13 +74,14 @@ final readonly class BlindTestSettings
         }
     }
 
-    /** @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int} */
+    /** @return array{enabled: bool, pellesPerSource: int, capPerPlayer: int, consoleUrl: string|null} */
     private function view(BlindTestSetting $setting): array
     {
         return [
             'enabled' => $setting->isEnabled(),
             'pellesPerSource' => $setting->getPellesPerSource(),
             'capPerPlayer' => $setting->getCapPerPlayer(),
+            'consoleUrl' => $this->link->consoleUrl($setting->getEventId()),
         ];
     }
 }
