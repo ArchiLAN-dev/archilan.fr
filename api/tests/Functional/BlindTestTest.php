@@ -156,9 +156,46 @@ final class BlindTestTest extends FunctionalTestCase
         self::assertSame('Alice', $data['displayName'] ?? null);
         self::assertSame('state-of-the-app-1234', $data['state'] ?? null);
         self::assertSame($this->event->getEndsAt()->getTimestamp(), $data['exp'] ?? null);
+        self::assertSame('player', $data['role'] ?? null);
 
         $this->sendSigned('/api/v1/integrations/blind-test/codes/echange', json_encode(['code' => $code], \JSON_THROW_ON_ERROR));
         self::assertResponseStatusCodeSame(404, 'a code is served once');
+    }
+
+    public function testAnAdminIsLetIntoTheAnimation(): void
+    {
+        $code = $this->animationCode($this->admin, 'state-of-the-console-12');
+
+        $this->sendSigned('/api/v1/integrations/blind-test/codes/echange', json_encode(['code' => $code], \JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertSame('animator', $data['role'] ?? null);
+        self::assertSame($this->admin->getId(), $data['userId'] ?? null);
+        self::assertArrayHasKey('eventId', $data);
+        self::assertNull($data['eventId'], 'an animator plays no event');
+        self::assertSame('state-of-the-console-12', $data['state'] ?? null);
+        self::assertIsInt($data['exp'] ?? null);
+        self::assertGreaterThan(time() + 11 * 3600, $data['exp']);
+    }
+
+    public function testOnlyAnAdminIsLetIntoTheAnimation(): void
+    {
+        $this->loginAs($this->alice);
+        $this->client->jsonRequest('POST', '/api/v1/blind-test/animation/codes', ['state' => 'state-of-the-console-12']);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testAnAdminDemotedMeanwhileIsRefusedAtTheExchange(): void
+    {
+        $code = $this->animationCode($this->admin, 'state-of-the-console-12');
+        $this->admin->demoteFromAdmin(new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        $this->sendSigned('/api/v1/integrations/blind-test/codes/echange', json_encode(['code' => $code], \JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testTheReturnAddressComesFromTheConfigurationOnly(): void
@@ -285,6 +322,23 @@ final class BlindTestTest extends FunctionalTestCase
     private function sendCredit(string $body, ?string $timestamp = null, ?string $signature = null): void
     {
         $this->sendSigned('/api/v1/integrations/blind-test/credits', $body, $timestamp, $signature);
+    }
+
+    private function animationCode(User $admin, string $state): string
+    {
+        $this->loginAs($admin);
+        $this->client->jsonRequest('POST', '/api/v1/blind-test/animation/codes', ['state' => $state]);
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $redirect = $data['redirect'] ?? null;
+        self::assertIsString($redirect);
+        self::assertStringStartsWith('https://blindtest.example.test/animation/retour?', $redirect);
+        parse_str((string) parse_url($redirect, \PHP_URL_QUERY), $query);
+        $code = $query['code'] ?? null;
+        self::assertIsString($code);
+
+        return $code;
     }
 
     private function loginCode(User $member, string $state): string

@@ -79,7 +79,7 @@ docker compose --profile blind-test up -d blind-test blind-test-credits
 ```
 
 Puis tout se fait dans la console (story 41.46), ouverte depuis le bloc « Blind test » de l'admin des pelles
-(« Ouvrir la console du blind test » ; le code d'animation demandé est `REGIE_TOKEN`) : importer la playlist du
+(« Ouvrir la console du blind test » ; « Se connecter avec archilan.fr » avec un compte admin, story 41.53) : importer la playlist du
 wiki SiIvaGunner (900 morceaux, environ 48 h ; la lecture de la catégorie prend une minute), la relire dans l'éditeur
 (alias, type des sources `other`), vérifier les vidéos la veille et retirer les mortes, puis « Charger pour la
 partie ». La console suit ensuite la partie : morceau et réponses, trouvailles, crédits refusés ou en attente.
@@ -99,7 +99,7 @@ correction (`docker compose cp playlist.yml blind-test:/data/playlist.yml`) avan
 
 Pour l'événement :
 
-- Régie : `https://<BLIND_TEST_DOMAIN>/regie` (code d'animation : `REGIE_TOKEN`) sur le PC de la sono, **jamais projetée** (le
+- Régie : `https://<BLIND_TEST_DOMAIN>/regie` (compte admin d'archilan.fr, ou le code `REGIE_TOKEN` s'il est configuré, pratique sur un PC sans compte) sur le PC de la sono, **jamais projetée** (le
   titre et les images des vidéos donnent les réponses). Compte YouTube Premium connecté dans ce navigateur, cookies
   tiers autorisés pour youtube.com (sinon le lecteur intégré ignore le compte et les pubs reviennent). Un clic sur
   « Démarrer ». Le lecteur fait foi : un morceau ne compte qu'une fois sa vidéo lancée, et une régie silencieuse plus

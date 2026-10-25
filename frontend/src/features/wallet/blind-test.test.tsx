@@ -5,7 +5,8 @@ import { server } from "@/tests/setup";
 import { TEST_API_BASE_URL } from "@/tests/constants";
 import { BlindTestJoinButton } from "./blind-test-join-button";
 import { AdminBlindTestCard, wholeNumber } from "./admin-blind-test-card";
-import { fetchBlindTestEntryUrl, isBlindTestSettings, requestBlindTestLogin, saveBlindTestSettings } from "./blind-test-api";
+import { fetchBlindTestEntryUrl, isBlindTestSettings, requestBlindTestAnimation, requestBlindTestLogin, saveBlindTestSettings } from "./blind-test-api";
+import { blindTestAnimationReturnTo } from "./blind-test-animation-bridge";
 import { blindTestLoginReturnTo } from "./blind-test-login-bridge";
 
 describe("blind test (story 41.40)", () => {
@@ -49,6 +50,21 @@ describe("blind test (story 41.40)", () => {
 
   it("comes back to the same login after signing in", () => {
     expect(blindTestLoginReturnTo("e-1", "abc_DEF-123")).toBe("/blind-test/connexion?event=e-1&state=abc_DEF-123");
+    expect(blindTestAnimationReturnTo("abc_DEF-123")).toBe("/blind-test/animation?state=abc_DEF-123");
+  });
+
+  it("asks an animation code for an admin, and relays the refusal to anyone else (story 41.53)", async () => {
+    server.use(
+      http.post(`${TEST_API_BASE_URL}/blind-test/animation/codes`, async ({ request }) => {
+        const body: unknown = await request.json();
+        return typeof body === "object" && body !== null && "state" in body && body.state === "admin-state-1234567"
+          ? HttpResponse.json({ data: { redirect: "https://bt.test/animation/retour?code=c&state=s" } })
+          : HttpResponse.json({ error: { code: "forbidden", message: "Accès réservé aux administrateurs." } }, { status: 403 });
+      }),
+    );
+
+    await expect(requestBlindTestAnimation("admin-state-1234567")).resolves.toEqual({ kind: "ok", redirect: "https://bt.test/animation/retour?code=c&state=s" });
+    await expect(requestBlindTestAnimation("member-state-123456")).resolves.toEqual({ kind: "error", message: "Accès réservé aux administrateurs." });
   });
 
   it("relays the server's message when the settings are refused", async () => {

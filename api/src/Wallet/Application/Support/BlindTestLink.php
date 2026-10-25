@@ -55,6 +55,12 @@ final readonly class BlindTestLink
         return $this->base().'/connexion/retour?'.http_build_query(['code' => $code, 'state' => $state]);
     }
 
+    /** Where the site sends an admin back with their animation code (story 41.53). Built from the configuration. */
+    public function animationCallbackUrl(string $code, string $state): string
+    {
+        return $this->base().'/animation/retour?'.http_build_query(['code' => $code, 'state' => $state]);
+    }
+
     /** The app's console for this event (story 41.46), or null when the app is not configured. */
     public function consoleUrl(string $eventId): ?string
     {

@@ -8,6 +8,7 @@ use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use App\Wallet\Application\Command\CreditBlindTestSource;
 use App\Wallet\Application\Command\ExchangeBlindTestLoginCode;
+use App\Wallet\Application\Command\IssueBlindTestAnimationCode;
 use App\Wallet\Application\Command\IssueBlindTestLoginCode;
 use App\Wallet\Application\Query\BlindTestEntry;
 use App\Wallet\Application\Query\BlindTestEvents;
@@ -31,6 +32,7 @@ final readonly class BlindTestController
         private ExchangeBlindTestLoginCode $exchangeCode,
         private CreditBlindTestSource $credit,
         private BlindTestEvents $events,
+        private IssueBlindTestAnimationCode $issueAnimationCode,
     ) {
     }
 
@@ -58,6 +60,20 @@ final readonly class BlindTestController
         return new JsonResponse(['data' => ['redirect' => $this->issueCode->issue($user->getId(), $eventId, $state)->url]]);
     }
 
+    /** Story 41.53: an admin asks to animate the blind test; the app learns who they are from the code. */
+    #[Route('/api/v1/blind-test/animation/codes', name: 'api_wallet_blind_test_animation_code', methods: ['POST'])]
+    public function animationCode(Request $request): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+        $payload = json_decode($request->getContent(), true);
+        $state = is_array($payload) && is_string($payload['state'] ?? null) ? $payload['state'] : '';
+
+        return new JsonResponse(['data' => ['redirect' => $this->issueAnimationCode->issue($admin->getId(), $state)->url]]);
+    }
+
     #[Route('/api/v1/integrations/blind-test/codes/echange', name: 'api_wallet_blind_test_code_exchange', methods: ['POST'])]
     public function exchange(Request $request): JsonResponse
     {
@@ -73,6 +89,7 @@ final readonly class BlindTestController
             'displayName' => $identity->displayName,
             'state' => $identity->state,
             'exp' => $identity->expiresAt,
+            'role' => $identity->role,
         ]]);
     }
 

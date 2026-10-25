@@ -48,9 +48,17 @@ export type BlindTestLoginResult = { kind: "ok"; redirect: string } | { kind: "e
  * return address comes from the server; the state is the app's own.
  */
 export async function requestBlindTestLogin(eventId: string, state: string): Promise<BlindTestLoginResult> {
-  const failure = "Connexion au blind test impossible. Relance-la depuis l'app.";
+  return requestCode(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/blind-test/codes`, state, "Connexion au blind test impossible. Relance-la depuis l'app.");
+}
+
+/** Story 41.53: an admin's one-time code for the app's console, régie and room screen. */
+export async function requestBlindTestAnimation(state: string): Promise<BlindTestLoginResult> {
+  return requestCode(`${env.apiBaseUrl}/blind-test/animation/codes`, state, "Connexion à l'animation impossible. Relance-la depuis l'app.");
+}
+
+async function requestCode(url: string, state: string, failure: string): Promise<BlindTestLoginResult> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/blind-test/codes`, {
+    const res = await apiFetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ state }),
