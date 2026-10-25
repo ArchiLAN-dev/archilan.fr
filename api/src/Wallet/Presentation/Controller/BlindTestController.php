@@ -10,14 +10,15 @@ use App\Wallet\Application\Command\CreditBlindTestSource;
 use App\Wallet\Application\Command\ExchangeBlindTestLoginCode;
 use App\Wallet\Application\Command\IssueBlindTestLoginCode;
 use App\Wallet\Application\Query\BlindTestEntry;
+use App\Wallet\Application\Query\BlindTestEvents;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * The blind test of an event (stories 41.40, 41.45): where a member enters the app, the one-time code that tells the
- * app who they are, and the app's credits for the sources found. The two `integrations` routes carry no member
- * session - their signature is their authentication.
+ * The blind test of an event (stories 41.40, 41.45, 41.48): where a member enters the app, the one-time code that tells
+ * the app who they are, the app's credits for the sources found, and the events its console may prepare. The
+ * `integrations` routes carry no member session - their signature is their authentication.
  */
 final readonly class BlindTestController
 {
@@ -29,6 +30,7 @@ final readonly class BlindTestController
         private IssueBlindTestLoginCode $issueCode,
         private ExchangeBlindTestLoginCode $exchangeCode,
         private CreditBlindTestSource $credit,
+        private BlindTestEvents $events,
     ) {
     }
 
@@ -87,5 +89,14 @@ final readonly class BlindTestController
             ['data' => ['credited' => $result->credited, 'balance' => $result->balance]],
             $result->duplicate ? 200 : 201,
         );
+    }
+
+    #[Route('/api/v1/integrations/blind-test/evenements', name: 'api_wallet_blind_test_events', methods: ['GET'])]
+    public function events(Request $request): JsonResponse
+    {
+        return new JsonResponse(['data' => $this->events->list(
+            $request->headers->get('X-Archilan-Timestamp', ''),
+            $request->headers->get('X-Archilan-Signature', ''),
+        )]);
     }
 }

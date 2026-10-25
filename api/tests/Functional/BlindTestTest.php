@@ -210,6 +210,40 @@ final class BlindTestTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    public function testTheAppListsTheEventsItMayPrepare(): void
+    {
+        $draft = $this->createEvent('Brouillon', new \DateTimeImmutable('+10 days'), new \DateTimeImmutable('+11 days'));
+        $later = $this->createEvent('ArchiLAN #5', new \DateTimeImmutable('+30 days'), new \DateTimeImmutable('+31 days'), published: true);
+
+        $timestamp = (string) time();
+        $this->client->request('GET', '/api/v1/integrations/blind-test/evenements', server: [
+            'HTTP_X_ARCHILAN_TIMESTAMP' => $timestamp,
+            'HTTP_X_ARCHILAN_SIGNATURE' => hash_hmac('sha256', $timestamp.'.', self::SECRET),
+        ]);
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $ids = array_map(static fn (mixed $e): mixed => is_array($e) ? ($e['id'] ?? null) : null, $data);
+        self::assertSame([$this->event->getId(), $later->getId()], $ids, 'published or under way, soonest first');
+        self::assertNotContains($draft->getId(), $ids);
+        self::assertIsArray($data[0]);
+        self::assertSame('ArchiLAN #4', $data[0]['title'] ?? null);
+        self::assertTrue($data[0]['blindTestEnabled'] ?? null);
+        self::assertIsArray($data[1]);
+        self::assertFalse($data[1]['blindTestEnabled'] ?? null);
+    }
+
+    public function testTheEventListNeedsTheSignature(): void
+    {
+        $this->client->request('GET', '/api/v1/integrations/blind-test/evenements', server: [
+            'HTTP_X_ARCHILAN_TIMESTAMP' => (string) time(),
+            'HTTP_X_ARCHILAN_SIGNATURE' => str_repeat('0', 64),
+        ]);
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
     public function testAnAdminTunesTheBlindTest(): void
     {
         $this->loginAs($this->admin);
