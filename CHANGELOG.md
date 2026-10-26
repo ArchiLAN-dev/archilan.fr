@@ -5,6 +5,24 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.50.0] - 2026-10-26
+
+La page des pelles d'un événement passe en onglets, et le blind test gagne une page joueur par morceau.
+
+### Modifié
+
+- **Pelles de l'événement en onglets** (41.57) : « Membres », « Distribuer » et « Blind test » sous l'en-tête et les
+  chiffres, l'onglet ouvert dans l'adresse (`?onglet=`). Destinataires d'une distribution en choix segmenté, la
+  sélection se coche dans l'onglet (tout cocher, tout décocher). Le bloc Blind test se range en « Accès » et « Gains »,
+  avec des interrupteurs. Aucune migration.
+
+### App du blind test (`archilan-blind-test`, image `latest`)
+
+- **Musique sans sa version SiIvaGunner** (41.55) : « Green Hill Zone (Beta Mix) » attend « Green Hill Zone » ; le
+  correcteur ignore la version face à une musique. Rafraîchir le catalogue depuis la console après le déploiement.
+- **Page joueur par morceau** (41.56) : bandeau avec les essais, saisie en tête, puis une carte par morceau (trouvé,
+  manqué, mes erreurs). Migration de l'app `Version20261026090000` (`player_track.misses`).
+
 ## [0.49.0] - 2026-10-25
 
 Le blind test s'ouvre à tous les membres présents à l'événement, inscrits ou non.
