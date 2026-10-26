@@ -5,7 +5,7 @@ import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { messageFor } from "@/features/community/notification-center";
-import { DistributionSummary, EventPellesView, distributionPreview, distributionSummary } from "./admin-event-pelles-page";
+import { DistributionSummary, EventPellesView, distributionPreview, distributionSummary, resolveEventPellesTab, type EventPellesTab } from "./admin-event-pelles-page";
 import { distributeEventPelles, fetchEventPelles, type EventPelles } from "./event-pelles-api";
 import { pelleReasonLabel } from "./wallet-api";
 
@@ -27,10 +27,10 @@ const running: EventPelles = {
   ],
 };
 
-function render(data: EventPelles): string {
+function render(data: EventPelles, tab: EventPellesTab = "membres"): string {
   return renderToStaticMarkup(
     <QueryClientProvider client={new QueryClient()}>
-      <EventPellesView data={data} />
+      <EventPellesView data={data} tab={tab} />
     </QueryClientProvider>,
   );
 }
@@ -43,11 +43,22 @@ describe("event pelles page", () => {
     expect(html).toContain("Pelles · ArchiLAN #3");
     expect(html).toContain("Alice");
     expect(html).toContain("banni");
-    expect(html).toContain("Membres (3)");
+    expect(html).toContain('aria-label="Membres (3)"');
     expect(html).toContain("non inscrit");
-    expect(html).toContain("Tous les inscrits (1)");
-    expect(html).toContain("Distribuer à 1 membre");
     expect(html).not.toContain("Converties en or");
+    expect(html.match(/role="tab"/g)).toHaveLength(3);
+
+    const distribute = render(running, "distribuer");
+    expect(distribute).toContain("Tous les inscrits (1)");
+    expect(distribute).toContain("Distribuer à 1 membre");
+    expect(distribute).not.toContain("Alice");
+  });
+
+  test("story 41.57: the open tab comes from the address, when the event offers it", () => {
+    expect(resolveEventPellesTab("blind-test", false)).toBe("blind-test");
+    expect(resolveEventPellesTab("blind-test", true)).toBe("membres");
+    expect(resolveEventPellesTab("n'importe quoi", false)).toBe("membres");
+    expect(resolveEventPellesTab(null, false)).toBe("membres");
   });
 
   test("an ended event shows what was converted and destroyed, and no form", () => {
@@ -55,7 +66,8 @@ describe("event pelles page", () => {
 
     expect(html).toContain("Converties en or");
     expect(html).toContain("Détruites");
-    expect(html).not.toContain("Distribuer à");
+    expect(render({ ...running, ended: true }, "distribuer")).not.toContain("Distribuer à");
+    expect(html.match(/role="tab"/g)).toHaveLength(1);
   });
 
   test("the confirmation and the outcome in words", () => {
