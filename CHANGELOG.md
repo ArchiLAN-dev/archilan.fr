@@ -5,6 +5,13 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.50.1] - 2026-10-26
+
+### Sécurité
+
+- Images `api-web` et `api-worker` reconstruites pour curl 8.23.0-r0 (CVE-2026-92392, HIGH) : Trivy bloquait la
+  publication de v0.50.0 côté API. Aucun changement de code.
+
 ## [0.50.0] - 2026-10-26
 
 La page des pelles d'un événement passe en onglets, et le blind test gagne une page joueur par morceau.
