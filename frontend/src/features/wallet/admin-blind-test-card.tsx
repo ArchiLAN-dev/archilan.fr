@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, ExternalLink, Loader2, Music } from "lucide-react";
+import { Copy, ExternalLink, Loader2, Music, Shovel } from "lucide-react";
+
+import { Switch } from "@/components/switch";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchBlindTestSettings, saveBlindTestSettings, type BlindTestSettings } from "./blind-test-api";
@@ -16,6 +18,7 @@ export function wholeNumber(value: string): number | null {
  * Story 41.40: the event's blind test, admin side. Off by default; each source found is worth a fixed amount of event
  * pelles, up to a cap per member over the event. Story 41.46: the event's id, which the app's console asks for, and the
  * way to that console. Story 41.54: members not registered play too, and earn unless the admin switches that off.
+ * Story 41.57: in two blocks, access and earnings, with switches; the tab of the page names it.
  */
 export function AdminBlindTestCard({ eventId }: { eventId: string }) {
   const { data } = useQuery({
@@ -60,65 +63,77 @@ function AdminBlindTestForm({ eventId, initial }: { eventId: string; initial: Bl
 
   return (
     <form
-      className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-2"
+      className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
       }}
     >
-      <h2 className="flex items-center gap-2 font-heading text-lg font-semibold text-foreground sm:col-span-2">
-        <Music aria-hidden className="size-5 text-accent-text" />
-        Blind test
-      </h2>
-      <p className="text-sm text-muted-foreground sm:col-span-2">
+      <p className="text-sm text-muted-foreground">
         Tout membre connecté peut jouer pendant l&apos;événement, inscrit ou non. Chaque source trouvée rapporte des
         pelles d&apos;événement. Couper le blind test arrête aussitôt les crédits et les liens.
       </p>
-      <div className="flex flex-wrap items-center gap-2 text-sm sm:col-span-2">
-        <span className="text-muted-foreground">Identifiant pour l&apos;app :</span>
-        <code className="rounded bg-surface px-1.5 py-0.5 text-foreground">{eventId}</code>
-        <button
-          className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-xs font-semibold text-foreground transition-colors hover:border-accent"
-          onClick={() => {
-            void navigator.clipboard.writeText(eventId).then(
-              () => setCopied(true),
-              () => setCopied(false),
-            );
-          }}
-          type="button"
-        >
-          <Copy aria-hidden className="size-3.5" />
-          {copied ? "Copié" : "Copier"}
-        </button>
-        {initial.consoleUrl !== null ? (
-          <a
-            className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-xs font-semibold text-accent-text transition-colors hover:border-accent"
-            href={initial.consoleUrl}
-            rel="noopener noreferrer"
-            target="_blank"
+
+      <fieldset className="grid gap-3 rounded-xl border border-border p-4">
+        <legend className="flex items-center gap-2 px-1 font-heading text-base font-semibold text-foreground">
+          <Music aria-hidden className="size-4 text-accent-text" />
+          Accès
+        </legend>
+        <SwitchRow checked={enabled} hint="Fermé, plus personne n'entre et aucun crédit ne passe." label="Blind test ouvert" onChange={setEnabled} />
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Identifiant pour l&apos;app :</span>
+          <code className="rounded bg-surface px-1.5 py-0.5 text-foreground">{eventId}</code>
+          <button
+            className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-xs font-semibold text-foreground transition-colors hover:border-accent"
+            onClick={() => {
+              void navigator.clipboard.writeText(eventId).then(
+                () => setCopied(true),
+                () => setCopied(false),
+              );
+            }}
+            type="button"
           >
-            <ExternalLink aria-hidden className="size-3.5" />
-            Ouvrir la console du blind test
-          </a>
-        ) : null}
-      </div>
-      <label className="flex items-center gap-2 text-sm font-medium text-foreground sm:col-span-2">
-        <input checked={enabled} onChange={(e) => setEnabled(e.target.checked)} type="checkbox" />
-        Blind test ouvert
-      </label>
-      <label className="flex items-center gap-2 text-sm font-medium text-foreground sm:col-span-2">
-        <input checked={pellesForUnregistered} onChange={(e) => setPellesForUnregistered(e.target.checked)} type="checkbox" />
-        Les non-inscrits gagnent des pelles (sinon ils jouent pour le classement seulement)
-      </label>
-      <label className="grid gap-1 text-sm">
-        <span className="font-medium text-foreground">Pelles par source trouvée (1 à 100)</span>
-        <input className={fieldClass} inputMode="numeric" max={100} min={1} onChange={(e) => setPerSource(e.target.value)} type="number" value={perSource} />
-      </label>
-      <label className="grid gap-1 text-sm">
-        <span className="font-medium text-foreground">Plafond par membre (1 à 10 000)</span>
-        <input className={fieldClass} inputMode="numeric" max={10000} min={1} onChange={(e) => setCap(e.target.value)} type="number" value={cap} />
-      </label>
-      <div className="sm:col-span-2">
+            <Copy aria-hidden className="size-3.5" />
+            {copied ? "Copié" : "Copier"}
+          </button>
+          {initial.consoleUrl !== null ? (
+            <a
+              className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-xs font-semibold text-accent-text transition-colors hover:border-accent"
+              href={initial.consoleUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <ExternalLink aria-hidden className="size-3.5" />
+              Ouvrir la console du blind test
+            </a>
+          ) : null}
+        </div>
+      </fieldset>
+
+      <fieldset className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-2">
+        <legend className="flex items-center gap-2 px-1 font-heading text-base font-semibold text-foreground">
+          <Shovel aria-hidden className="size-4 text-accent-text" />
+          Gains
+        </legend>
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium text-foreground">Pelles par source trouvée (1 à 100)</span>
+          <input className={fieldClass} inputMode="numeric" max={100} min={1} onChange={(e) => setPerSource(e.target.value)} type="number" value={perSource} />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="font-medium text-foreground">Plafond par membre (1 à 10 000)</span>
+          <input className={fieldClass} inputMode="numeric" max={10000} min={1} onChange={(e) => setCap(e.target.value)} type="number" value={cap} />
+        </label>
+        <div className="sm:col-span-2">
+          <SwitchRow
+            checked={pellesForUnregistered}
+            hint="Coupé, ils jouent pour le classement seulement."
+            label="Les non-inscrits gagnent des pelles"
+            onChange={setPellesForUnregistered}
+          />
+        </div>
+      </fieldset>
+
+      <div className="flex flex-wrap items-center gap-3">
         <button
           className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-40"
           disabled={!canSubmit}
@@ -127,10 +142,21 @@ function AdminBlindTestForm({ eventId, initial }: { eventId: string; initial: Bl
           {pending ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
           Enregistrer
         </button>
+        {message !== null ? <p className={`text-sm ${message.tone === "ok" ? "text-success" : "text-danger"}`}>{message.text}</p> : null}
       </div>
-      {message !== null ? (
-        <p className={`text-sm sm:col-span-2 ${message.tone === "ok" ? "text-success" : "text-danger"}`}>{message.text}</p>
-      ) : null}
     </form>
+  );
+}
+
+/** A setting turned on or off (story 41.57): its name, what it changes, and the switch at the end of the line. */
+function SwitchRow({ label, hint, checked, onChange }: { label: string; hint: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="grid gap-0.5">
+        <span className="text-sm font-medium text-foreground">{label}</span>
+        <span className="text-xs text-muted-foreground">{hint}</span>
+      </div>
+      <Switch ariaLabel={label} checked={checked} onChange={onChange} />
+    </div>
   );
 }

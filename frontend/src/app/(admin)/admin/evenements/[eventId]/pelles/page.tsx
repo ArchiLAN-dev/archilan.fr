@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { AdminEventPellesPage } from "@/features/wallet/admin-event-pelles-page";
 
@@ -11,5 +12,10 @@ type Props = {
 };
 
 export default function EventPellesPage({ params }: Props) {
-  return <AdminEventPellesPage params={params} />;
+  return (
+    // The page reads its open tab from the address (story 41.57): useSearchParams needs a Suspense boundary.
+    <Suspense>
+      <AdminEventPellesPage params={params} />
+    </Suspense>
+  );
 }
