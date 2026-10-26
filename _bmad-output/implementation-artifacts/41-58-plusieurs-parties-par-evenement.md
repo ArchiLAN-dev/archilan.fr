@@ -1,6 +1,6 @@
 # Story 41.58: Plusieurs parties de blind test pendant un événement
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Pelles
 **Date:** 2026-10-26
 **Dépôt :** `archilan-blind-test` (app seule, aucun changement sur archilan.fr)
@@ -57,21 +57,34 @@ afin d'enchaîner des manches (thèmes, horaires) sans que les résultats de l'u
 
 ## Tâches
 
-- [ ] Entité `Game` : identifiant propre (entier auto-incrémenté), `eventId` non unique, `number`, `name`,
+- [x] Entité `Game` : identifiant propre (entier auto-incrémenté), `eventId` non unique, `number`, `name`,
       `createdAt` ; reconstruire la table SQLite dans la migration.
-- [ ] `game_id` sur `found_source`, `player_track`, `on_air_entry`, `pending_credit` ; remplissage depuis
+- [x] `game_id` sur `found_source`, `player_track`, `on_air_entry`, `pending_credit` ; remplissage depuis
       `event_id` ; index et contraintes d'unicité par partie.
-- [ ] `GameService` et `GameMonitor` : lectures et écritures par partie ; `load` remplace ou crée ; `create`,
+- [x] `GameService` et `GameMonitor` : lectures et écritures par partie ; `load` remplace ou crée ; `create`,
       `activate`, `rename` ; effacement des résultats au redémarrage.
-- [ ] `Credit::key()` avec le numéro de partie (format historique pour la Partie 1) ; `PendingCredit` le garde.
-- [ ] `AdminController` : routes de liste, création, activation, renommage, consultation d'une partie.
-- [ ] Console (`admin/console.html.twig`) : bloc « Parties » de l'événement.
-- [ ] Page joueur : nom de la partie dans le bandeau.
-- [ ] `LoadGameCommand` : option de nouvelle partie.
-- [ ] Tests fonctionnels et unitaires ; `composer gates`.
+- [x] `Credit::key()` avec le numéro de partie (format historique pour la Partie 1) ; `PendingCredit` le garde.
+- [x] `AdminController` : routes de liste, création, activation, renommage, consultation d'une partie.
+- [x] Console (`admin/console.html.twig`) : bloc « Parties » de l'événement.
+- [x] Page joueur : nom de la partie dans le bandeau.
+- [x] `LoadGameCommand` : option de nouvelle partie.
+- [x] Tests fonctionnels et unitaires ; `composer gates`.
 
 ## Notes
 
 - Le brouillon (`playlist_draft`) reste par événement : c'est l'atelier où l'on tire et vérifie une playlist avant de
   la mettre dans une partie. Pour préparer la manche suivante, on retire un brouillon puis « Nouvelle partie ».
 - Ne pas commiter `src/Repository/` (fichiers locaux non suivis).
+
+## Notes de réalisation (2026-10-26)
+
+- App : branche `feature/41-58-plusieurs-parties`, empilée sur `feature/41-59-autocompletion`.
+- Migration `Version20261026150000` : SQLite ne change pas une clé primaire, les cinq tables sont reconstruites et
+  copiées. Ses requêtes sont testées sur l'ancien schéma (`GamesPerEventTest`), et elle a tourné sur la base locale
+  (schéma ensuite identique aux entités).
+- « Recommencer » efface toutes les lignes de crédit de la partie, réglées ou non : le site garde le registre des
+  pelles, et la même clé empêche tout double versement.
+- Consulter une ancienne partie : le suivi « En direct » de cette partie, avec son classement et ses dernières
+  trouvailles (pas de liste des morceaux).
+- La console liste les parties dans l'onglet « En direct » ; l'étape « Lancer » ajoute « Nouvelle partie avec cette
+  playlist ».
