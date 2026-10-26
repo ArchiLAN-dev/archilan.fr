@@ -271,6 +271,10 @@ final readonly class RegistrationGameSelection
             );
         }
 
+        if (SlotName::isReserved($parsed['name'])) {
+            return sprintf('Le nom « %s » est réservé : choisis-en un autre.', SlotName::RESERVED_NAME);
+        }
+
         return null;
     }
 
