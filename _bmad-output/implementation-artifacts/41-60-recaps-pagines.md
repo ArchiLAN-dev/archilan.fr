@@ -1,6 +1,6 @@
 # Story 41.60: Les morceaux révélés, un par un, à la demande
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Pelles
 **Date:** 2026-10-26
 **Dépôt :** `archilan-blind-test` (app seule)
@@ -37,13 +37,18 @@ lignes `player_track` du joueur, à chaque appel.
 
 ## Tâches
 
-- [ ] `GameService` : `playerState` sans `tracks`, avec `revealed` ; `revealedRecap(position)` et
+- [x] `GameService` : `playerState` sans `tracks`, avec `revealed` ; `revealedRecap(position)` et
       `revealedRecapOfNumber(n)` en requêtes bornées.
-- [ ] `PlayerController` : les deux routes.
-- [ ] `player/play.html.twig` : carte paginée, cache des récaps, saut par numéro.
-- [ ] Tests ; `composer gates`.
+- [x] `PlayerController` : les deux routes.
+- [x] `player/play.html.twig` : carte paginée, cache des récaps, saut par numéro.
+- [x] Tests ; `composer gates`.
 
 ## Notes
 
 - S'appuie sur 41.58 (journal et lignes par partie) : les requêtes filtrent sur la partie active.
 - Index utile : `on_air_entry (game_id, id)`.
+
+## Notes de réalisation (2026-10-26)
+
+- App : PR #18 (empilée sur #17). L'état porte `recaps: {count, latest}`.
+- Le cache du téléphone est vidé à chaque morceau révélé (les places glissent) ; la carte suit le dernier si on le regardait.

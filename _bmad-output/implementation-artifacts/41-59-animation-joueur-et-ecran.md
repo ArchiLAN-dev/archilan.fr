@@ -1,6 +1,6 @@
 # Story 41.59: De l'animation sur le téléphone et sur l'écran de la salle
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Pelles
 **Date:** 2026-10-26
 **Dépôt :** `archilan-blind-test` (app seule)
@@ -71,16 +71,22 @@ afin de sentir l'ambiance d'un jeu en direct plutôt qu'un formulaire.
 
 ## Tâches
 
-- [ ] `work-picker.js` : choix au `click`, garde de 300 ms (AC 1).
-- [ ] `GameService` : fil des trouvailles avec curseur, rang de trouvaille ; compteurs par source et temps du
+- [x] `work-picker.js` : choix au `click`, garde de 300 ms (AC 1).
+- [x] `GameService` : fil des trouvailles avec curseur, rang de trouvaille ; compteurs par source et temps du
       morceau dans les états joueur et écran.
-- [ ] `PlayerController` et `RegieController` : route du fil.
-- [ ] `player/play.html.twig` : barre de temps, animations de trouvaille et d'erreur, toasts, rang animé.
-- [ ] `regie/screen.html.twig` : refonte (égaliseur, pastilles, toasts en file, classement FLIP, révélation).
-- [ ] Tests ; `composer gates` ; vérification visuelle.
+- [x] `PlayerController` et `RegieController` : route du fil.
+- [x] `player/play.html.twig` : barre de temps, animations de trouvaille et d'erreur, toasts, rang animé.
+- [x] `regie/screen.html.twig` : refonte (égaliseur, pastilles, toasts en file, classement FLIP, révélation).
+- [x] Tests ; `composer gates` ; vérification visuelle.
 
 ## Notes
 
 - À livrer de préférence après 41.58 (plusieurs parties), qui range les trouvailles par partie : le fil lit alors la
   partie active. Si 41.59 passe avant, le fil lit l'événement de la partie active, et 41.58 l'ajustera.
 - Le correctif de l'autocomplétion (AC 1) peut partir seul et tout de suite, sans attendre le reste.
+
+## Notes de réalisation (2026-10-26)
+
+- App : correctif de l'autocomplétion (AC 1) en PR #16, le reste en PR #19 (empilée sur #17 et #18).
+- Le fil n'a pas de route à part : `?depuis=` sur `/api/etat` et `/api/ecran/etat`, pour ne pas doubler les appels.
+- Vérification visuelle sur une maquette (fetch simulé), la console et la connexion passant par le site.
