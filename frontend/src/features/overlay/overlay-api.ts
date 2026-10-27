@@ -68,6 +68,10 @@ export type PlayersSlot = {
   goal_reached_at: string | null;
   // Count of reachable-but-unchecked locations, or null until the first reachability computation.
   reachable_now?: number | null;
+  // DeathLink (story 9.59): live from the connected clients' tags (null while nobody plays the slot), and
+  // the setting the seed was generated with (null when the spoiler does not say). Absent from an older bridge.
+  death_link_live?: boolean | null;
+  death_link_option?: boolean | null;
 };
 
 export type PlayersState = {
