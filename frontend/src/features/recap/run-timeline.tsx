@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, ZoomOut } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Skull, ZoomOut } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
 import { buildChecksSeries, combineChecksSeries, type ChecksMeasure, type ChecksMode } from "./build-checks-series";
 import { buildDrySpells } from "./build-dry-spells";
@@ -51,7 +51,7 @@ const PLAYERS_VIEWS: readonly { label: string; value: PlayersView }[] = [
 
 // Exchange-type facet for the log (story 32.11), relative to the shown players: with one player
 // isolated, "Envoyés"/"Reçus" read as "what they sent" / "what they received". "Indices" and
-// "Objectifs" (story 32.12) isolate the hint/goal rows.
+// "Objectifs" (story 32.12) isolate the hint/goal rows, "Morts" the DeathLink deaths (story 32.25).
 const FACETS: readonly { label: string; value: LogFacet }[] = [
   { label: "Tous", value: "all" },
   { label: "Reçus", value: "received" },
@@ -59,6 +59,7 @@ const FACETS: readonly { label: string; value: LogFacet }[] = [
   { label: "Locaux", value: "local" },
   { label: "Indices", value: "hints" },
   { label: "Objectifs", value: "goals" },
+  { label: "Morts", value: "deaths" },
 ];
 
 /**
@@ -386,9 +387,28 @@ const LogRow = memo(function LogRow({
 
 /**
  * One log row's prose, by event type (story 32.12): an item find (the 32.7 shapes), a hint (intent -
- * where an item waits, badged "Indice") or a goal (completion, badged "Objectif").
+ * where an item waits, badged "Indice"), a goal (completion, badged "Objectif") or a DeathLink death (story
+ * 32.25, badged "Mort": who died, the cause, and who probably died with them).
  */
 function LogRowContent({ event }: { event: FeedEvent }) {
+  if (event.type === "death_link") {
+    const victims = event.victims ?? [];
+    return (
+      <>
+        <span className="mr-1.5 inline-flex items-center gap-1 rounded bg-danger/15 px-1.5 py-0.5 text-xs font-semibold text-danger">
+          <Skull aria-hidden className="size-3" />
+          Mort
+        </span>
+        <span className="font-medium text-foreground">{event.sender.name ?? "?"}</span> est mort
+        {event.text !== "" ? <span className="text-muted-foreground"> · {event.text}</span> : null}
+        {victims.length > 0 ? (
+          <>
+            {" "}· emporte <span className="font-medium text-foreground">{victims.join(", ")}</span>
+          </>
+        ) : null}
+      </>
+    );
+  }
   if (event.type === "goal") {
     return (
       <>

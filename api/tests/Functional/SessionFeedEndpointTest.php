@@ -104,6 +104,49 @@ final class SessionFeedEndpointTest extends FunctionalTestCase
         self::assertNull($goal->getLocationId());
     }
 
+    public function testFeedPushPersistsDeathLinkDeathsWithTheirVictims(): void
+    {
+        $sessionId = 'run-feed-persist-death';
+        $uri = sprintf('/api/v1/internal/sessions/%s/feed-push', $sessionId);
+
+        // Story 32.25: the bridge names the one who died and the slots that probably died with them.
+        $this->client->jsonRequest('POST', $uri, [
+            'type' => 'death_link',
+            'source' => 'Alice',
+            'cause' => 'Alice fell into a pit',
+            'timestamp' => '2026-05-01T10:05:00+00:00',
+            'sender' => ['slot' => 1, 'name' => 'Alice', 'game' => 'Celeste'],
+            'victims' => ['Bob', 'Carol', 42],
+        ], ['HTTP_X_INTERNAL_SECRET' => self::SECRET]);
+        self::assertResponseStatusCodeSame(200);
+
+        // An older bridge only gives the source: kept, under that name, with no victims.
+        $this->client->jsonRequest('POST', $uri, [
+            'type' => 'death_link',
+            'source' => 'Bob',
+            'cause' => null,
+            'timestamp' => '2026-05-01T10:06:00+00:00',
+        ], ['HTTP_X_INTERNAL_SECRET' => self::SECRET]);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->entityManager->clear();
+        $stored = $this->entityManager->getRepository(SessionFeedEvent::class)
+            ->findBy(['sessionId' => $sessionId], ['occurredAt' => 'ASC']);
+        self::assertCount(2, $stored);
+
+        [$death, $legacy] = $stored;
+        self::assertSame(SessionFeedEvent::TYPE_DEATH, $death->getType());
+        self::assertSame('Alice fell into a pit', $death->getText());
+        self::assertSame(1, $death->getSenderSlot());
+        self::assertSame('Alice', $death->getSenderName());
+        self::assertSame(['Bob', 'Carol'], $death->getVictimNames());
+
+        self::assertSame('Bob', $legacy->getSenderName());
+        self::assertNull($legacy->getSenderSlot());
+        self::assertSame('', $legacy->getText());
+        self::assertSame([], $legacy->getVictimNames());
+    }
+
     public function testPersonalRunFeedIsPrivateByDefaultButOwnerParticipantAndPublishExposeIt(): void
     {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');

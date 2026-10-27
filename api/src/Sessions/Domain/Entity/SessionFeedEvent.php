@@ -9,7 +9,8 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * A single persisted game feed event (story 32.6): one item send/find, with the item, the origin
- * check, the sender and receiver worlds, and when it happened.
+ * check, the sender and receiver worlds, and when it happened. Hints and goals (story 32.12) and DeathLink
+ * deaths (story 32.25: the sender is the one who died, the text the cause) share the row.
  *
  * Append-only history. The bridge already builds this exact shape for every AP `ItemSend` (including a
  * solo player's self-finds) and broadcasts it live; this row keeps it so a timeline and per-player
@@ -30,9 +31,12 @@ final class SessionFeedEvent
     public const string TYPE_ITEM_RECEIVED = 'item-received';
     public const string TYPE_HINT = 'hint';
     public const string TYPE_GOAL = 'goal';
+    // Story 32.25: a death sent over DeathLink. The bridge's own name, kept as is so the live Mercure relay
+    // (which carries the same event) and the stored row agree.
+    public const string TYPE_DEATH = 'death_link';
 
     /** @var list<string> the only types kept out of the bridge's stream - the rest is noise */
-    public const array PERSISTED_TYPES = [self::TYPE_ITEM_RECEIVED, self::TYPE_HINT, self::TYPE_GOAL];
+    public const array PERSISTED_TYPES = [self::TYPE_ITEM_RECEIVED, self::TYPE_HINT, self::TYPE_GOAL, self::TYPE_DEATH];
 
     public function __construct(
         #[ORM\Id]
@@ -83,6 +87,15 @@ final class SessionFeedEvent
 
         #[ORM\Column(name: 'receiver_game', type: Types::STRING, length: 255, nullable: true)]
         private ?string $receiverGame,
+
+        /**
+         * Story 32.25, deaths only: the slots that probably died with the sender (their client played with
+         * DeathLink at that moment), by name like the other slot columns.
+         *
+         * @var list<string>|null
+         */
+        #[ORM\Column(name: 'victim_names', type: Types::JSON, nullable: true)]
+        private ?array $victimNames = null,
     ) {
     }
 
@@ -165,5 +178,11 @@ final class SessionFeedEvent
     public function getReceiverGame(): ?string
     {
         return $this->receiverGame;
+    }
+
+    /** @return list<string> */
+    public function getVictimNames(): array
+    {
+        return $this->victimNames ?? [];
     }
 }
