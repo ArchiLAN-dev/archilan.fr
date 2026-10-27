@@ -11,7 +11,8 @@ use Doctrine\ORM\Mapping as ORM;
  * The facts of a member as the achievement recompute last built them (story 30.55).
  *
  * The recompute already builds every fact of every member each hour, then throws them away once the rules are
- * evaluated; keeping them makes the public stats page a single read. Replaced as a whole on each recompute.
+ * evaluated; keeping them makes the public stats page a single read. Written as a whole on each recompute, by an
+ * upsert in the repository (read-only here).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'member_stats_snapshot')]
@@ -31,23 +32,6 @@ final class MemberStatsSnapshot
         #[ORM\Column(name: 'computed_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $computedAt,
     ) {
-    }
-
-    /**
-     * @param array<string, int> $facts
-     */
-    public static function record(string $userId, array $facts, \DateTimeImmutable $now): self
-    {
-        return new self($userId, $facts, $now);
-    }
-
-    /**
-     * @param array<string, int> $facts
-     */
-    public function replace(array $facts, \DateTimeImmutable $now): void
-    {
-        $this->facts = $facts;
-        $this->computedAt = $now;
     }
 
     public function getUserId(): string

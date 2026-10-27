@@ -19,9 +19,13 @@ final readonly class DoctrineMemberStatsSnapshotRepository implements MemberStat
         return $this->entityManager->find(MemberStatsSnapshot::class, $userId);
     }
 
-    public function save(MemberStatsSnapshot $snapshot): void
+    public function store(string $userId, array $facts, \DateTimeImmutable $now): void
     {
-        $this->entityManager->persist($snapshot);
-        $this->entityManager->flush();
+        // The primary key arbitrates two recomputes of the same member: the second one updates.
+        $this->entityManager->getConnection()->executeStatement(
+            'INSERT INTO member_stats_snapshot (user_id, facts, computed_at) VALUES (:userId, :facts, :now)
+             ON CONFLICT (user_id) DO UPDATE SET facts = EXCLUDED.facts, computed_at = EXCLUDED.computed_at',
+            ['userId' => $userId, 'facts' => json_encode($facts, \JSON_THROW_ON_ERROR), 'now' => $now->format(\DATE_ATOM)],
+        );
     }
 }

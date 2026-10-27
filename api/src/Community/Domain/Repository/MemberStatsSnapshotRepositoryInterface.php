@@ -10,6 +10,11 @@ interface MemberStatsSnapshotRepositoryInterface
 {
     public function findByUserId(string $userId): ?MemberStatsSnapshot;
 
-    /** Persists and flushes: the recompute that writes it flushes nothing when no achievement is granted. */
-    public function save(MemberStatsSnapshot $snapshot): void;
+    /**
+     * Writes the member's facts, replacing any previous ones, in one statement: two recomputes of a member who has
+     * none yet cannot both insert, and nothing stays managed during the hourly pass over every member.
+     *
+     * @param array<string, int> $facts
+     */
+    public function store(string $userId, array $facts, \DateTimeImmutable $now): void;
 }

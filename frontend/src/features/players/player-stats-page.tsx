@@ -6,8 +6,8 @@ import type { GameStatRow, PlayerStatsPage, StatFact, StatGroup } from "./player
 
 /** Groups whose numbers only exist since the bridge started reporting them (stories 32.25 and 32.26). */
 const GROUP_NOTES: Record<string, string> = {
-  playtime: "Temps où un client de jeu était connecté, AFK compris. Compté depuis le 27 octobre 2026.",
-  deathlink: "Seules les morts partagées par DeathLink sont vues, depuis le 27 octobre 2026. Les joueurs emportés sont une estimation.",
+  playtime: "Temps où un client de jeu était connecté, AFK compris. Compté seulement sur les parties lancées depuis la mise en service du suivi.",
+  deathlink: "Seules les morts partagées par DeathLink sont vues, sur les parties lancées depuis la mise en service du suivi. Les joueurs emportés sont une estimation.",
 };
 
 /**

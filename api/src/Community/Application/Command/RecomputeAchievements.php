@@ -10,7 +10,6 @@ use App\Community\Application\Support\CosmeticRewarder;
 use App\Community\Application\Support\MetricBagBuilder;
 use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Entity\AchievementGrant;
-use App\Community\Domain\Entity\MemberStatsSnapshot;
 use App\Community\Domain\Entity\Notification;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
@@ -72,13 +71,7 @@ final readonly class RecomputeAchievements
         $this->collections->settle($userId, $notify);
 
         // Story 30.55: the facts just built are the member's stats page; keep them rather than build them again.
-        $snapshot = $this->snapshots->findByUserId($userId);
-        if (null === $snapshot) {
-            $snapshot = MemberStatsSnapshot::record($userId, $bag->all(), $now);
-        } else {
-            $snapshot->replace($bag->all(), $now);
-        }
-        $this->snapshots->save($snapshot);
+        $this->snapshots->store($userId, $bag->all(), $now);
 
         return $added;
     }

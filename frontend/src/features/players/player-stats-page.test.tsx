@@ -33,9 +33,13 @@ describe("isPlayerStatsPage (story 30.55)", () => {
     expect(isPlayerStatsPage(stats())).toBe(true);
   });
 
-  it("rejects an unknown unit or a malformed game row", () => {
-    const badUnit = { ...stats(), groups: [{ key: "g", label: "G", facts: [{ key: "x", label: "X", value: 1, unit: "km" }] }] };
-    expect(isPlayerStatsPage(badUnit)).toBe(false);
+  it("keeps a unit it does not know, and reads it as a plain number", () => {
+    const fact = { key: "x", label: "X", value: 1500, unit: "km" };
+    expect(isPlayerStatsPage({ ...stats(), groups: [{ key: "g", label: "G", facts: [fact] }] })).toBe(true);
+    expect(formatFact(fact)).toMatch(/^1\s500$/);
+  });
+
+  it("rejects a malformed game row", () => {
     const badGame = { ...stats(), games: [{ gameId: "g1", name: "HK" }] };
     expect(isPlayerStatsPage(badGame)).toBe(false);
   });

@@ -7,6 +7,7 @@ namespace App\Tests\Functional;
 use App\Community\Application\Command\RecomputeAchievements;
 use App\Community\Application\Support\MemberStatsLayout;
 use App\Community\Domain\Entity\MemberStatsSnapshot;
+use App\Community\Domain\Repository\MemberStatsSnapshotRepositoryInterface;
 use App\Identity\Application\Query\PlayerGameStatsQueryInterface;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use App\Identity\Domain\Entity\User;
@@ -40,6 +41,21 @@ final class MemberStatsTest extends FunctionalTestCase
         self::assertInstanceOf(MemberStatsSnapshot::class, $snapshot);
         self::assertSame(2, $snapshot->getFacts()['runs'] ?? null);
         self::assertSame(1, $snapshot->getFacts()['deathLinkDeaths'] ?? null);
+    }
+
+    public function testStoringTwiceReplacesTheFacts(): void
+    {
+        $repository = self::getContainer()->get(MemberStatsSnapshotRepositoryInterface::class);
+        self::assertInstanceOf(MemberStatsSnapshotRepositoryInterface::class, $repository);
+
+        $repository->store('user-1', ['runs' => 1], new \DateTimeImmutable('2026-10-27T10:00:00+00:00'));
+        $repository->store('user-1', ['runs' => 2, 'goals' => 1], new \DateTimeImmutable('2026-10-27T11:00:00+00:00'));
+
+        $this->entityManager->clear();
+        $snapshot = $repository->findByUserId('user-1');
+        self::assertInstanceOf(MemberStatsSnapshot::class, $snapshot);
+        self::assertSame(['runs' => 2, 'goals' => 1], $snapshot->getFacts());
+        self::assertSame('2026-10-27T11:00:00+00:00', $snapshot->getComputedAt()->format(\DATE_ATOM));
     }
 
     public function testThePageGroupsTheFactsAndListsTheGames(): void

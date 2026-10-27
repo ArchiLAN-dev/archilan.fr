@@ -3,7 +3,8 @@ import { cache } from "react";
 import { env } from "@/lib/env";
 import { hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
-export type StatFact = { key: string; label: string; value: number; unit: "seconds" | null };
+/** `unit` is "seconds" for a duration; anything else (null, or a unit added later) reads as a plain number. */
+export type StatFact = { key: string; label: string; value: number; unit: string | null };
 
 export type StatGroup = { key: string; label: string; facts: StatFact[] };
 
@@ -38,7 +39,7 @@ function isStatFact(v: unknown): v is StatFact {
     hasStringProp(v, "label") &&
     hasNumberProp(v, "value") &&
     "unit" in v &&
-    (v.unit === null || v.unit === "seconds")
+    (v.unit === null || typeof v.unit === "string")
   );
 }
 
