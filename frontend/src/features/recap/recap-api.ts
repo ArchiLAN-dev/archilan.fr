@@ -14,6 +14,9 @@ export type RecapPodiumSlot = {
   completionSeconds: number | null;
   wasReleased: boolean;
   isInvalidated: boolean;
+  // Story 32.26: time a game client held the slot (connected, AFK included). Absent from an API older than the
+  // story, 0 for a run played before it was counted.
+  playedSeconds?: number;
 };
 
 export type RecapNode = {
@@ -75,6 +78,7 @@ function isPodiumSlot(v: unknown): v is RecapPodiumSlot {
   if (!("goalReachedAt" in v) || (v.goalReachedAt !== null && typeof v.goalReachedAt !== "string")) return false;
   if (!("completionSeconds" in v) || (v.completionSeconds !== null && typeof v.completionSeconds !== "number")) return false;
   if (!hasBooleanProp(v, "wasReleased")) return false;
+  if ("playedSeconds" in v && typeof v.playedSeconds !== "number") return false;
   return hasBooleanProp(v, "isInvalidated");
 }
 

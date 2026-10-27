@@ -13,6 +13,7 @@ use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Sessions\Application\Command\RecordSlotPresence;
 use App\Sessions\Application\Message\NotifyGenerationFailureJob;
 use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
@@ -21,6 +22,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Repository\SlotPlaySpanRepositoryInterface;
 use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
@@ -209,6 +211,7 @@ LOG;
             clock: $clock,
             servedApworlds: $served,
             games: self::createStub(GameRepositoryInterface::class),
+            slotPresence: new RecordSlotPresence($sessions, $slotRepository, self::createStub(SlotPlaySpanRepositoryInterface::class), $clock),
         );
     }
 }
