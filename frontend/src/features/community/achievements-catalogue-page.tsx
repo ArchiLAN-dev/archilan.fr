@@ -23,6 +23,13 @@ export function AchievementsCataloguePage({ catalogue }: { catalogue: PlayerAchi
         <ArrowLeft aria-hidden className="size-3.5" />
         Retour au profil
       </Link>
+      {/* Story 30.55: the stats page, the other half of what the site knows of a player. */}
+      <Link
+        className="-mt-4 inline-flex w-fit items-center gap-1 text-sm text-accent-text hover:underline"
+        href={`/joueurs/${catalogue.slug}/stats`}
+      >
+        Voir ses stats
+      </Link>
 
       <header className="flex items-center gap-4 rounded-lg border border-border bg-surface p-5">
         <MemberAvatar

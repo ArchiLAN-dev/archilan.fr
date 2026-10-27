@@ -14,6 +14,7 @@ use App\Community\Domain\AchievementMetricCatalog;
 use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Community\Domain\Repository\MemberStatsSnapshotRepositoryInterface;
 use App\Community\Domain\Service\QuestAchievementDefinitions;
 use Symfony\Component\Clock\MockClock;
 
@@ -43,7 +44,7 @@ final class QuestAchievementsTest extends FunctionalTestCase
                 return ['questsCompleted' => 12, 'questChestStreak' => 4];
             }
         };
-        $recompute = new RecomputeAchievements($definitions, $grants, new MetricBagBuilder([$facts]), $notifier, new MockClock(), $this->rewarder(), $this->collections());
+        $recompute = new RecomputeAchievements($definitions, $grants, new MetricBagBuilder([$facts]), $notifier, new MockClock(), $this->rewarder(), $this->collections(), self::createStub(MemberStatsSnapshotRepositoryInterface::class));
 
         self::assertSame(4, $recompute->recomputeForUser('user-1', notify: false));
         $keys = $grants->grantedKeys('user-1');

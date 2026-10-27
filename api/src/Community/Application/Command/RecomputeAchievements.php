@@ -13,6 +13,7 @@ use App\Community\Domain\Entity\AchievementGrant;
 use App\Community\Domain\Entity\Notification;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Community\Domain\Repository\MemberStatsSnapshotRepositoryInterface;
 use App\Community\Domain\ValueObject\MetricBag;
 use Psr\Clock\ClockInterface;
 
@@ -32,6 +33,7 @@ final readonly class RecomputeAchievements
         private ClockInterface $clock,
         private CosmeticRewarder $rewarder,
         private CollectionCompletionRewarder $collections,
+        private MemberStatsSnapshotRepositoryInterface $snapshots,
     ) {
     }
 
@@ -67,6 +69,9 @@ final readonly class RecomputeAchievements
         // Story 30.52: and the collections now complete - also those an admin just filled with achievements the
         // member already held.
         $this->collections->settle($userId, $notify);
+
+        // Story 30.55: the facts just built are the member's stats page; keep them rather than build them again.
+        $this->snapshots->store($userId, $bag->all(), $now);
 
         return $added;
     }
