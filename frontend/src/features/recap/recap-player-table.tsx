@@ -16,6 +16,9 @@ const SUPERLATIVE_HINTS: Record<string, string> = {
  *
  * "Envoyés" and "reçus" count exchanges with other players; a slot's own finds are the "gardés"
  * column. Same convention as the exchange diagram above and as the superlatives, deliberately.
+ *
+ * "Connecté" (story 32.26) is the time a game client held the slot, AFK included, like Steam's play time. The
+ * column only shows once some slot has any: a run played before the count started would read "0 s" everywhere.
  */
 export function RecapPlayerTable({
   rows,
@@ -27,6 +30,7 @@ export function RecapPlayerTable({
   if (rows.length === 0) {
     return null;
   }
+  const showPlayed = rows.some((row) => row.playedSeconds > 0);
 
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-surface">
@@ -40,6 +44,11 @@ export function RecapPlayerTable({
             <th className="px-4 py-3 text-right font-medium">Reçus</th>
             <th className="px-4 py-3 text-right font-medium">Gardés</th>
             <th className="px-4 py-3 text-right font-medium">Temps</th>
+            {showPlayed ? (
+              <th className="px-4 py-3 text-right font-medium" title="Temps où le jeu était connecté, AFK compris">
+                Connecté
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -87,6 +96,11 @@ export function RecapPlayerTable({
                       ? "Libéré"
                       : "Non terminé"}
               </td>
+              {showPlayed ? (
+                <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                  {row.playedSeconds > 0 ? formatDuration(row.playedSeconds) : "-"}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

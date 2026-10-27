@@ -7,6 +7,7 @@ type SlotSeed = {
   playerName: string;
   checksDone?: number;
   completionSeconds?: number | null;
+  playedSeconds?: number;
   isInvalidated?: boolean;
   wasReleased?: boolean;
 };
@@ -33,6 +34,7 @@ function recap(
       itemsReceived: 0,
       goalReachedAt: null,
       completionSeconds: slot.completionSeconds ?? null,
+      ...(slot.playedSeconds !== undefined ? { playedSeconds: slot.playedSeconds } : {}),
       wasReleased: slot.wasReleased ?? false,
       isInvalidated: slot.isInvalidated ?? false,
     })),
@@ -42,6 +44,17 @@ function recap(
 }
 
 describe("buildPlayerRows", () => {
+  it("carries each slot's connected time, 0 when the API does not give it (story 32.26)", () => {
+    const rows = buildPlayerRows(
+      recap([
+        { slotId: "a", slotName: "LM", playerName: "jean", playedSeconds: 5400 },
+        { slotId: "b", slotName: "P", playerName: "marie" },
+      ]),
+    );
+
+    expect(rows.map((row) => row.playedSeconds)).toEqual([5400, 0]);
+  });
+
   it("counts exchanges with others and keeps own finds in their own column", () => {
     const rows = buildPlayerRows(
       recap([

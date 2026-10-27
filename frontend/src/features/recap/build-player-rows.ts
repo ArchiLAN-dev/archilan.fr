@@ -15,6 +15,8 @@ export type PlayerRow = {
   receivedFromOthers: number;
   kept: number;
   completionSeconds: number | null;
+  /** Connected time of the slot (story 32.26), 0 when unknown. */
+  playedSeconds: number;
   wasReleased: boolean;
   isInvalidated: boolean;
   badges: PlayerBadge[];
@@ -82,6 +84,7 @@ export function buildPlayerRows(recap: SessionRecap): PlayerRow[] {
       isInvalidated: slot.isInvalidated,
       kept: kept.get(slot.slotId) ?? 0,
       label: labels.get(slot.slotId) ?? slot.playerName,
+      playedSeconds: slot.playedSeconds ?? 0,
       rank: ranked ? rank : null,
       receivedFromOthers: received.get(slot.slotId) ?? 0,
       sentToOthers: sent.get(slot.slotId) ?? 0,

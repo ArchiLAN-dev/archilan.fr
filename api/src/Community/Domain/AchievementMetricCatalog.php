@@ -33,6 +33,11 @@ final class AchievementMetricCatalog
     public const string FACT_DEATH_LINK_DEATHS = 'deathLinkDeaths';
     public const string FACT_DEATH_LINK_VICTIMS = 'deathLinkVictims';
     public const string FACT_MAX_DEATH_LINK_DEATHS_IN_SESSION = 'maxDeathLinkDeathsInSession';
+    // Story 32.26: time a game client held the member's slots (connected time, AFK included, like Steam), in
+    // all, the longest stretch without a break, and the most in one session.
+    public const string FACT_PLAYED_HOURS = 'playedHours';
+    public const string FACT_LONGEST_PLAY_SPAN_MINUTES = 'longestPlaySpanMinutes';
+    public const string FACT_MAX_PLAYED_HOURS_IN_SESSION = 'maxPlayedHoursInSession';
 
     // A specific-event fact: `event_goal:{eventId}` = 1 when the player reached a goal in that event.
     // The id part is opaque to the rule engine; the admin layer checks it is a real event (story 30.32).
@@ -68,6 +73,9 @@ final class AchievementMetricCatalog
             self::FACT_DEATH_LINK_DEATHS => 'Morts envoyées par DeathLink (total)',
             self::FACT_DEATH_LINK_VICTIMS => 'Joueurs emportés par DeathLink (total, estimation)',
             self::FACT_MAX_DEATH_LINK_DEATHS_IN_SESSION => 'Morts envoyées par DeathLink en une partie (record)',
+            self::FACT_PLAYED_HOURS => 'Temps connecté sur les parties (heures, total)',
+            self::FACT_LONGEST_PLAY_SPAN_MINUTES => 'Plus longue session de jeu d\'une traite (minutes)',
+            self::FACT_MAX_PLAYED_HOURS_IN_SESSION => 'Temps connecté sur une même partie (heures, record)',
             self::SUPERLATIVE_PREFIX.'most_generous' => 'Superlatif « Le Parrain » (le plus généreux)',
             self::SUPERLATIVE_PREFIX.'biggest_hub' => 'Superlatif « Le Facteur » (le plus grand hub)',
             self::SUPERLATIVE_PREFIX.'first_to_goal' => 'Superlatif « Speedy Gonzales » (premier au but)',
