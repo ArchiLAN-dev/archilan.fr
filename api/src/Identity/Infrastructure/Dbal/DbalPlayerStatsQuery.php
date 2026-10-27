@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Identity\Infrastructure\Dbal;
 
 use App\Events\Domain\Entity\Event;
+use App\Identity\Application\Query\PlayerGameStatsQueryInterface;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use App\Shared\Infrastructure\Dbal\DbalSlotPlayerSource;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
-final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
+final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface, PlayerGameStatsQueryInterface
 {
     private const string SESSION_TABLE = 'session';
     private const string SLOT_TABLE = 'session_slot';
@@ -69,12 +70,55 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
         return $out;
     }
 
+    public function perGameForUser(string $userId): array
+    {
+        /** @var array<string, array{runs: int, goals: int, checks: int}> $out */
+        $out = [];
+        $add = function (mixed $gameId, int $runs, int $goals, int $checks) use (&$out): void {
+            if (!is_string($gameId) || '' === $gameId) {
+                return;
+            }
+            $cur = $out[$gameId] ?? ['runs' => 0, 'goals' => 0, 'checks' => 0];
+            $out[$gameId] = ['runs' => $cur['runs'] + $runs, 'goals' => $cur['goals'] + $goals, 'checks' => $cur['checks'] + $checks];
+        };
+
+        // The same two session passes as computeForUsers, grouped by game (story 30.55).
+        foreach ([true, false] as $eventPath) {
+            foreach ($this->sessionRows($eventPath, [$userId], true) as $row) {
+                if (($row['uid'] ?? null) !== $userId) {
+                    continue;
+                }
+                $add($row['game_id'] ?? null, $this->intVal($row, 'runs_participated'), $this->intVal($row, 'goal_completions'), $this->intVal($row, 'total_checks_done'));
+            }
+        }
+
+        // Completed weekly attempts, through their run's template (one run, one goal each).
+        $qb = $this->connection->createQueryBuilder();
+        $rows = $qb
+            ->select('wt.game_id AS game_id', 'COUNT(*) AS completed_count', 'COALESCE(SUM(we.checks_total), 0) AS total_checks_done')
+            ->from(self::WEEKLY_ENTRY_TABLE, 'we')
+            ->join('we', 'weekly_runs', 'wr', $qb->expr()->eq('wr.id', 'we.weekly_run_id'))
+            ->join('wr', 'weekly_templates', 'wt', $qb->expr()->eq('wt.id', 'wr.template_id'))
+            ->where($qb->expr()->isNotNull('we.goal_reached_at'))
+            ->andWhere($qb->expr()->eq('we.user_id', ':userId'))
+            ->setParameter('userId', $userId)
+            ->groupBy('wt.game_id')
+            ->executeQuery()
+            ->fetchAllAssociative();
+        foreach ($rows as $row) {
+            $completed = $this->intVal($row, 'completed_count');
+            $add($row['game_id'] ?? null, $completed, $completed, $this->intVal($row, 'total_checks_done'));
+        }
+
+        return $out;
+    }
+
     /**
      * @param list<string>|null $userIds
      *
      * @return list<array<string, mixed>>
      */
-    private function sessionRows(bool $eventPath, ?array $userIds): array
+    private function sessionRows(bool $eventPath, ?array $userIds, bool $byGame = false): array
     {
         // A slot counts for everyone who plays it, owner and co-players alike (story 16.17); the
         // surface-scoping join below is what keeps the two passes from counting the same row twice.
@@ -109,6 +153,9 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
 
         if (null !== $userIds) {
             $qb->andWhere($qb->expr()->in($userExpr, ':ids'))->setParameter('ids', $userIds, ArrayParameterType::STRING);
+        }
+        if ($byGame) {
+            $qb->addSelect('slot.game_id AS game_id')->addGroupBy('slot.game_id');
         }
 
         return $qb->executeQuery()->fetchAllAssociative();

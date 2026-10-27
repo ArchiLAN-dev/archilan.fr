@@ -1,4 +1,4 @@
-import { BadgeCheck, ShieldCheck } from "lucide-react";
+import { BadgeCheck, ChevronRight, ShieldCheck } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import Link from "next/link";
 import type {
@@ -137,6 +137,14 @@ export function PlayerProfilePage({
               }
             />
           </div>
+          {/* Story 30.55: everything else the site tracks lives on the stats page. */}
+          <Link
+            className="inline-flex w-fit items-center gap-1 justify-self-end text-sm text-accent-text hover:underline"
+            href={`/joueurs/${profile.slug}/stats`}
+          >
+            Toutes les stats
+            <ChevronRight aria-hidden className="size-3.5" />
+          </Link>
         </div>
       </header>
 
