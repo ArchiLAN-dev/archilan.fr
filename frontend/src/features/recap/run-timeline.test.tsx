@@ -42,6 +42,20 @@ describe("RunTimeline", () => {
     expect(html).toContain("Déroulé de la partie");
   });
 
+  test("a DeathLink death reads as who died, the cause and who went down with them (story 32.25)", () => {
+    const death: FeedEvent = {
+      ...event("2", "death_link", TODAY),
+      text: "Fell into a pit",
+      receiver: { slot: null, name: null, game: null },
+      victims: ["masterkafey", "Zoe"],
+    };
+    const html = renderToStaticMarkup(<RunTimeline events={[event("1", "item-received", TODAY), death]} />);
+
+    expect(html).toContain("Mort");
+    expect(html).toContain("Fell into a pit");
+    expect(html).toContain("masterkafey, Zoe");
+  });
+
   test("a run without any item find still renders nothing", () => {
     expect(renderToStaticMarkup(<RunTimeline events={[event("1", "hint", TODAY)]} />)).toBe("");
   });
