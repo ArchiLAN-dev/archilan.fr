@@ -19,12 +19,20 @@ describe("support ArchiLAN", () => {
   test("three anchored sections, in order, with a summary", () => {
     const html = render(<SupportArchilan forms={{ membership: "https://ha.test/m", donation: "https://ha.test/d", shop: "https://ha.test/s" }} />);
 
-    expect(html.indexOf('id="adhesion"')).toBeLessThan(html.indexOf('id="don"'));
+    expect(html.indexOf('id="adherer"')).toBeLessThan(html.indexOf('id="don"'));
     expect(html.indexOf('id="don"')).toBeLessThan(html.indexOf('id="articles"'));
     expect(html).toContain('href="#don"');
     expect(html).toContain("Payer la cotisation");
     expect(html).toContain("Accéder au formulaire de don");
     expect(html).toContain("Commander");
+  });
+
+  test("no section is named after a word the ad blockers hide (story 41.63)", () => {
+    const html = render(<SupportArchilan forms={{ membership: "https://ha.test/m", donation: null, shop: null }} />);
+
+    // EasyList hides `###adhesion` and `##.adhesion` on every site.
+    expect(html).not.toMatch(/id="adhesion"|href="#adhesion"|class="[^"]*\badhesion\b/);
+    expect(html).toContain('href="#adherer"');
   });
 
   test("a form not configured says so", () => {

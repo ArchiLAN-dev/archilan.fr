@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/features/auth/auth-context";
 import { getAccountMembership } from "@/features/payments/membership-api";
+import { MEMBERSHIP_HREF } from "@/features/payments/support-links";
 import { fetchCurrentWeeklyRuns } from "./weekly-runs-api";
 import type { CurrentWeeklyRun } from "./weekly-runs-api";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -147,7 +148,7 @@ export function MembershipNotice({ loggedIn }: { loggedIn: boolean }) {
       </div>
       <Link
         className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-        href="/boutique?onglet=asso#adhesion"
+        href={MEMBERSHIP_HREF}
       >
         Adhérer
       </Link>

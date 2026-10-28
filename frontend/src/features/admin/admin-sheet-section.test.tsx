@@ -55,7 +55,10 @@ describe("SheetTabs", () => {
 
   test("the open tab comes from the address, else from an old anchor, else « Compte »", () => {
     expect(resolveSheetTab("moderation", "")).toBe("moderation");
-    expect(resolveSheetTab("jeu", "#adhesion")).toBe("jeu");
+    expect(resolveSheetTab("jeu", "#cotisation")).toBe("jeu");
+    // The panel's anchor before story 41.63 still opens its tab.
+    expect(resolveSheetTab(null, "#adhesion")).toBe("association");
+    expect(resolveSheetTab(null, "#cotisation")).toBe("association");
     expect(resolveSheetTab(null, "#pelles")).toBe("jeu");
     expect(resolveSheetTab(null, "#inscriptions")).toBe("association");
     expect(resolveSheetTab(null, "")).toBe("compte");
