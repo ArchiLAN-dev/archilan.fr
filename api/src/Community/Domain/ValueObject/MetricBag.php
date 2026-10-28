@@ -21,4 +21,14 @@ final readonly class MetricBag
     {
         return $this->facts[$fact] ?? 0;
     }
+
+    /**
+     * Every fact the providers gave (story 30.55: kept as the member's stats snapshot).
+     *
+     * @return array<string, int>
+     */
+    public function all(): array
+    {
+        return $this->facts;
+    }
 }

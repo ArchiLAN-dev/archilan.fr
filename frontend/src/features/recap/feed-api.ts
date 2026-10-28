@@ -16,6 +16,9 @@ export type FeedEvent = {
   location: { id: number | null; name: string | null };
   sender: { slot: number | null; name: string | null; game: string | null };
   receiver: { slot: number | null; name: string | null; game: string | null };
+  // Story 32.25, `death_link` rows: the slots that probably died with the sender (the text is the cause).
+  // Absent from an API older than the story.
+  victims?: string[];
 };
 
 function isParty(v: unknown): v is FeedEvent["sender"] {
@@ -45,6 +48,9 @@ function isLocationRef(v: unknown): boolean {
 export function isFeedEvent(v: unknown): v is FeedEvent {
   if (typeof v !== "object" || v === null) return false;
   if (!hasStringProp(v, "id") || !hasStringProp(v, "type") || !hasStringProp(v, "text") || !hasStringProp(v, "occurredAt")) {
+    return false;
+  }
+  if ("victims" in v && !(Array.isArray(v.victims) && v.victims.every((name) => typeof name === "string"))) {
     return false;
   }
   return (

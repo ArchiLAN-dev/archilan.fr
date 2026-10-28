@@ -8,7 +8,7 @@ import type { PublicPost } from "@/features/content/content-types";
 import type { DiscordStats } from "@/features/discord/discord-api";
 import { DiscordJoinButton } from "@/features/discord/discord-promo";
 import type { PublicEvent } from "@/features/events/event-types";
-import { SUPPORT_TAB_HREF } from "@/features/payments/support-archilan";
+import { MEMBERSHIP_HREF, SUPPORT_TAB_HREF } from "@/features/payments/support-links";
 import { formatDuration } from "@/features/recap/recap-format";
 import type { CurrentWeeklyRun } from "@/features/weekly-runs/weekly-runs-api";
 
@@ -376,7 +376,7 @@ export function HomeAssociation() {
           faire vivre tout ça.
         </p>
         <div className="mt-1 flex flex-wrap gap-3">
-          <Link className="inline-flex min-h-12 items-center rounded-lg bg-accent px-5 font-semibold text-white hover:bg-accent-hover" href={`${SUPPORT_TAB_HREF}#adhesion`}>
+          <Link className="inline-flex min-h-12 items-center rounded-lg bg-accent px-5 font-semibold text-white hover:bg-accent-hover" href={MEMBERSHIP_HREF}>
             Adhérer
           </Link>
           <Link className="inline-flex min-h-12 items-center rounded-lg border border-border px-5 font-semibold text-foreground hover:border-accent" href={`${SUPPORT_TAB_HREF}#don`}>

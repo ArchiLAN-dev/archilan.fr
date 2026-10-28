@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ChevronRight, Trophy, WifiOff } from "lucide-react";
+import { AlertTriangle, ChevronRight, Skull, Trophy, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -280,6 +280,45 @@ export function PlayerProgressGrid({
   );
 }
 
+// ─── DeathLink (story 9.59) ──────────────────────────────────────────────────
+
+type DeathLinkState = "live" | "setting" | "off-in-client" | null;
+
+/** What to show: the client's live tags win; the seed's setting speaks only while nobody plays the slot. */
+export function deathLinkState(slot: PlayersSlot): DeathLinkState {
+  const live = slot.death_link_live ?? null;
+  const option = slot.death_link_option ?? null;
+  if (live === true) return "live";
+  if (option !== true) return null;
+  return live === null ? "setting" : "off-in-client";
+}
+
+const DEATH_LINK_TITLES: Record<Exclude<DeathLinkState, null>, string> = {
+  live: "DeathLink activé",
+  setting: "DeathLink activé dans les réglages (joueur hors ligne)",
+  "off-in-client": "DeathLink activé dans les réglages, coupé dans le client",
+};
+
+export function DeathLinkBadge({ slot }: { slot: PlayersSlot }) {
+  const state = deathLinkState(slot);
+  if (state === null) return null;
+  const title = DEATH_LINK_TITLES[state];
+  const tone =
+    state === "live"
+      ? "border-danger/40 bg-danger/10 text-danger"
+      : "border-border bg-muted text-muted-foreground opacity-70";
+  return (
+    <span
+      title={title}
+      aria-label={title}
+      className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-semibold ${tone}`}
+    >
+      <Skull aria-hidden="true" className="size-3.5 shrink-0" />
+      <span className={state === "off-in-client" ? "line-through" : undefined}>DeathLink</span>
+    </span>
+  );
+}
+
 // ─── SlotCard ────────────────────────────────────────────────────────────────
 
 function SlotCard({ slot, href }: { slot: PlayersSlot; href?: string }) {
@@ -344,6 +383,7 @@ function SlotCard({ slot, href }: { slot: PlayersSlot; href?: string }) {
             BK
           </span>
         ) : null}
+        <DeathLinkBadge slot={slot} />
       </div>
 
       {/* Progress bar */}

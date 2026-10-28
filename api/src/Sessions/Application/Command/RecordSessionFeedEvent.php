@@ -27,6 +27,11 @@ use Psr\Clock\ClockInterface;
  * client, and the Archipelago server announces it to everyone. The slot is named by the event's `sender`,
  * or by its text on a bridge older than the story. Only that slot leaves the stats; a slot that reached
  * its goal first keeps counting (`SessionSlot::markAsReleased`).
+ *
+ * Story 32.25: a **death_link** (a death sent over DeathLink) is kept too: the bridge names the one who died as
+ * `sender`, its probable `victims` by slot name, and the cause in `cause`, stored as the row's text. A bridge
+ * older than the story, or a source naming no slot, only gives `source`: it becomes the sender name, so the
+ * death is kept without counting for any member.
  */
 final readonly class RecordSessionFeedEvent
 {
@@ -56,12 +61,20 @@ final readonly class RecordSessionFeedEvent
         $location = self::subArray($event, 'location');
         $sender = self::subArray($event, 'sender');
         $receiver = self::subArray($event, 'receiver');
+        $death = SessionFeedEvent::TYPE_DEATH === $type;
+        if ($death && null === self::stringOrNull($sender, 'name')) {
+            $sender = ['name' => self::stringOrNull($event, 'source')];
+        }
+        $text = is_string($event['text'] ?? null) ? $event['text'] : '';
+        if ($death && '' === $text) {
+            $text = self::stringOrNull($event, 'cause') ?? '';
+        }
 
         $this->events->save(new SessionFeedEvent(
             bin2hex(random_bytes(16)),
             $sessionId,
             $type,
-            is_string($event['text'] ?? null) ? $event['text'] : '',
+            $text,
             $this->occurredAt($event),
             self::intOrNull($item, 'id'),
             self::stringOrNull($item, 'name'),
@@ -74,7 +87,20 @@ final readonly class RecordSessionFeedEvent
             self::intOrNull($receiver, 'slot'),
             self::stringOrNull($receiver, 'name'),
             self::stringOrNull($receiver, 'game'),
+            $death ? self::names($event, 'victims') : null,
         ));
+    }
+
+    /**
+     * @param array<array-key, mixed> $event
+     *
+     * @return list<string>
+     */
+    private static function names(array $event, string $key): array
+    {
+        $value = $event[$key] ?? null;
+
+        return is_array($value) ? array_values(array_filter($value, static fn (mixed $name): bool => is_string($name) && '' !== $name)) : [];
     }
 
     /**

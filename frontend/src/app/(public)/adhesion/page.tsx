@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
-import { SUPPORT_TAB_HREF } from "@/features/payments/support-archilan";
+import { MEMBERSHIP_HREF } from "@/features/payments/support-links";
 
 /** Story 41.13: joining lives in the « Soutenir ArchiLAN » tab of the shop. */
 export default function AdhesionPage() {
-  redirect(`${SUPPORT_TAB_HREF}#adhesion`);
+  redirect(MEMBERSHIP_HREF);
 }

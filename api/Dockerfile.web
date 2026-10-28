@@ -5,7 +5,8 @@
 # Patch PHP épinglé dans le tag : `php8-alpine` ne suit PHP que lorsque FrankenPHP reconstruit
 # son image, ce qui a laissé PHP 8.5.11 en place le jour du correctif PHP2Shell
 # (CVE-2026-109618 / CVE-2026-109619, corrigées en 8.5.12).
-FROM dunglas/frankenphp:1.13.1-php8.5.12-alpine
+# 1.13.4 (2026-10-28) : go-jose/v4 4.1.6 dans le binaire, CVE-2026-116587 (HIGH) bloquait la publication.
+FROM dunglas/frankenphp:1.13.4-php8.5.12-alpine
 
 # Les paquets Alpine de l'image de base vieillissent avec le tag FrankenPHP auquel elle est
 # épinglée. `apk upgrade` récupère les correctifs de sécurité publiés depuis.

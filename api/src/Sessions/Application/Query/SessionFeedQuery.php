@@ -11,7 +11,7 @@ use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 
 /**
  * Read facade for a session's persisted game feed (story 32.6): the item, hint and goal events
- * (story 32.12), oldest first.
+ * (story 32.12) and the DeathLink deaths (story 32.25), oldest first.
  *
  * Unlike the recap, there is **no finished check** - the feed accumulates during the game, so it is
  * readable live (a participant watching, an owner reloading) as well as after the run. Access is the
@@ -56,6 +56,8 @@ final readonly class SessionFeedQuery
                     'name' => $event->getReceiverName(),
                     'game' => $event->getReceiverGame(),
                 ],
+                // Story 32.25: who probably died with the sender of a death_link; empty otherwise.
+                'victims' => $event->getVictimNames(),
             ],
             $this->events->findBySessionId($sessionId),
         );

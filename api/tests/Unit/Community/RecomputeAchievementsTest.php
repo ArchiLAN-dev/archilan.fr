@@ -13,6 +13,7 @@ use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Entity\AchievementGrant;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Community\Domain\Repository\MemberStatsSnapshotRepositoryInterface;
 use App\Identity\Application\Query\PlayerHistoryQueryInterface;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use PHPUnit\Framework\TestCase;
@@ -80,7 +81,7 @@ final class RecomputeAchievementsTest extends TestCase
         $builder = new MetricBagBuilder([new StatsMetricProvider($stats, $history)]);
         $definitions = $this->definitionsRepo(deactivate: ['veteran']);
         $grants = $this->inMemoryGrantRepo();
-        $service = new RecomputeAchievements($definitions, $grants, $builder, $this->nullNotifier(), new MockClock(), $this->cosmeticRewarder(), $this->collectionRewarder());
+        $service = new RecomputeAchievements($definitions, $grants, $builder, $this->nullNotifier(), new MockClock(), $this->cosmeticRewarder(), $this->collectionRewarder(), self::createStub(MemberStatsSnapshotRepositoryInterface::class));
 
         $service->recomputeForUser('u3');
 
@@ -102,7 +103,7 @@ final class RecomputeAchievementsTest extends TestCase
 
         $builder = new MetricBagBuilder([new StatsMetricProvider($statsStub, $historyStub)]);
 
-        return new RecomputeAchievements($this->definitionsRepo(), $grants, $builder, $this->nullNotifier(), new MockClock(), $this->cosmeticRewarder(), $this->collectionRewarder());
+        return new RecomputeAchievements($this->definitionsRepo(), $grants, $builder, $this->nullNotifier(), new MockClock(), $this->cosmeticRewarder(), $this->collectionRewarder(), self::createStub(MemberStatsSnapshotRepositoryInterface::class));
     }
 
     /**

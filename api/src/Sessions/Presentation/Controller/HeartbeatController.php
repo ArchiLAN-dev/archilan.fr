@@ -30,7 +30,7 @@ final readonly class HeartbeatController
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret invalide.', 401);
         }
 
-        $result = $this->sessionLifecycleManager->heartbeat($sessionId);
+        $result = $this->sessionLifecycleManager->heartbeat($sessionId, self::connectedSlotNames($request));
 
         if (!$result['found']) {
             // The session ID may belong to a weekly run entry - no heartbeat tracking
@@ -43,5 +43,30 @@ final readonly class HeartbeatController
         }
 
         return new JsonResponse(['data' => ['ok' => true]]);
+    }
+
+    /**
+     * The slots a game client holds, from `{"connected_slots": [{"slot": 3, "name": "Zoe"}]}` (story 32.26). A
+     * bridge older than the story sends no body: nobody.
+     *
+     * @return list<string>
+     */
+    private static function connectedSlotNames(Request $request): array
+    {
+        $body = json_decode($request->getContent(), true);
+        $slots = \is_array($body) ? ($body['connected_slots'] ?? null) : null;
+        if (!\is_array($slots)) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($slots as $slot) {
+            $name = \is_array($slot) ? ($slot['name'] ?? null) : null;
+            if (\is_string($name) && '' !== $name) {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
     }
 }

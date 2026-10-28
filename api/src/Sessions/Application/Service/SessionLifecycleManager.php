@@ -23,6 +23,7 @@ use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Sessions\Application\Command\RecordSlotPresence;
 use App\Sessions\Application\Message\BuildSessionRecapJob;
 use App\Sessions\Application\Message\NotifyGenerationFailureJob;
 use App\Sessions\Application\Message\ResumeRunJob;
@@ -65,6 +66,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         private ClockInterface $clock,
         private ServedApworldsQueryInterface $servedApworlds,
         private GameRepositoryInterface $games,
+        private RecordSlotPresence $slotPresence,
         private string $runnerPublicHost = 'localhost',
     ) {
     }
@@ -364,8 +366,15 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         return $errors;
     }
 
-    /** @return array{found: bool} */
-    public function heartbeat(string $sessionId): array
+    /**
+     * The bridge's heartbeat, which also names the slots a game client holds right now: play time is
+     * counted from it (story 32.26).
+     *
+     * @param list<string> $connectedSlotNames
+     *
+     * @return array{found: bool}
+     */
+    public function heartbeat(string $sessionId, array $connectedSlotNames = []): array
     {
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
@@ -377,6 +386,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         }
 
         $session->updateHeartbeat($this->clock->now());
+        $this->slotPresence->record($sessionId, $connectedSlotNames);
         $this->sessions->flush();
 
         return ['found' => true];

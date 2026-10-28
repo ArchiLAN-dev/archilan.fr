@@ -18,6 +18,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Repository\SlotPlaySpanRepositoryInterface;
 
 final readonly class RunResultsQuery
 {
@@ -29,6 +30,7 @@ final readonly class RunResultsQuery
         private RegistrationRepositoryInterface $registrations,
         private UserRepositoryInterface $users,
         private GameRepositoryInterface $games,
+        private SlotPlaySpanRepositoryInterface $playSpans,
     ) {
     }
 
@@ -118,6 +120,8 @@ final readonly class RunResultsQuery
         $regToUserId = $this->buildRegToUserIdMap($slotsList, $isPersonalRun);
         $userById = $this->loadUsers($regToUserId);
         $gameById = $this->loadGames($slotsList);
+        // Story 32.26: time a game client held the slot, 0 for a session played before it was counted.
+        $playedSeconds = $this->playSpans->playedSecondsBySlotName($session->getId());
 
         $rows = [];
         foreach ($slotsList as $slot) {
@@ -147,6 +151,7 @@ final readonly class RunResultsQuery
                 'completionSeconds' => $completionSeconds,
                 'wasReleased' => $slot->isWasReleased(),
                 'isInvalidated' => $isInvalidated,
+                'playedSeconds' => $playedSeconds[$slot->getSlotName()] ?? 0,
             ];
         }
 

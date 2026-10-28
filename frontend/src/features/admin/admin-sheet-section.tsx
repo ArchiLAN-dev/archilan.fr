@@ -9,7 +9,8 @@ export const SHEET_SECTIONS = [
   { id: "identite", label: "Identité" },
   { id: "acces", label: "Accès et rôles" },
   { id: "moderation", label: "Modération" },
-  { id: "adhesion", label: "Adhésion" },
+  // Not `adhesion`: EasyList hides every `#adhesion` element (story 41.63).
+  { id: "cotisation", label: "Adhésion" },
   { id: "inscriptions", label: "Inscriptions" },
   { id: "pelles", label: "Pelles" },
   { id: "jeu", label: "Jeu" },
@@ -59,7 +60,7 @@ export function SheetSection({ id, title, icon: Icon, description, children }: S
 export const SHEET_TABS = [
   { id: "compte", label: "Compte", icon: IdCard, sections: ["identite", "acces"] },
   { id: "moderation", label: "Modération", icon: Shield, sections: ["moderation"] },
-  { id: "association", label: "Association", icon: CreditCard, sections: ["adhesion", "inscriptions"] },
+  { id: "association", label: "Association", icon: CreditCard, sections: ["cotisation", "inscriptions"] },
   { id: "jeu", label: "Jeu et pelles", icon: Gamepad2, sections: ["pelles", "jeu"] },
   { id: "journal", label: "Journal", icon: History, sections: ["journal"] },
 ] as const satisfies readonly { id: string; label: string; icon: LucideIcon; sections: readonly SheetSectionId[] }[];
@@ -73,10 +74,17 @@ export const SHEET_TAB_PARAM = "onglet";
  * The tab to open: the one named in the address, else the one holding the section an old anchor points to
  * (`#pelles`), else « Compte ».
  */
+/** Panel anchors renamed since, so an old link still opens the right tab. */
+const LEGACY_ANCHORS: Record<string, SheetSectionId> = {
+  // Story 41.63: EasyList hides every `#adhesion` element.
+  adhesion: "cotisation",
+};
+
 export function resolveSheetTab(param: string | null, hash: string): SheetTabId {
   const byParam = SHEET_TABS.find((tab) => tab.id === param);
   if (byParam !== undefined) return byParam.id;
-  const section = hash.replace(/^#/, "");
+  const anchor = hash.replace(/^#/, "");
+  const section = LEGACY_ANCHORS[anchor] ?? anchor;
   const byAnchor = SHEET_TABS.find((tab) => (tab.sections as readonly string[]).includes(section));
   return byAnchor?.id ?? SHEET_TABS[0].id;
 }
