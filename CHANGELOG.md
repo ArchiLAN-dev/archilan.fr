@@ -5,6 +5,50 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.51.0] - 2026-10-28
+
+DeathLink suivi en direct et compté, temps de jeu des joueurs, une page Stats par profil, et la section « Adhérer »
+de nouveau visible avec un bloqueur de pub. Demande le bridge `v0.15.0`.
+
+### Ajouté
+
+- **DeathLink sur les slots** (9.59) : un badge sur chaque slot de l'onglet Progression (événements et parties
+  privées) dit si le joueur a DeathLink, en direct d'après les tags de son client, sinon d'après le réglage de sa
+  seed.
+- **Morts DeathLink gardées** (32.25) : chaque mort partagée est enregistrée avec les joueurs emportés (estimation),
+  affichée dans le journal de la timeline (badge « Mort », filtre « Morts »). Trois faits de succès : morts envoyées,
+  joueurs emportés, record en une partie. Migration `Version20261025200001`.
+- **Temps de jeu** (32.26) : temps où un client de jeu tient le slot (AFK compris, comme Steam), compté au heartbeat
+  du bridge. Colonne « Connecté » dans le tableau des joueurs du recap, trois faits de succès (heures, plus longue
+  session, record sur une partie). Migration `Version20261025200002`.
+- **Page Stats du joueur** (30.55) : `/joueurs/[slug]/stats` rassemble tous les faits suivis par thème (parties,
+  progression, temps de jeu, DeathLink, social, hebdo, recaps), les superlatifs gagnés et un tableau par jeu. Les faits
+  viennent du recalcul horaire des succès (instantané `member_stats_snapshot`, migration `Version20261025200003`) :
+  la page se remplit au recalcul suivant le déploiement (minute 45).
+
+### Corrigé
+
+- **Section « Adhérer » masquée par les bloqueurs de pub** (41.63) : EasyList (uBlock Origin, AdBlock Plus, Brave)
+  cache tout élément `id="adhesion"`. L'ancre devient `#adherer` ; le panneau de la fiche membre admin devient
+  `#cotisation` (l'ancienne ancre ouvre toujours son onglet).
+
+### Bridge `v0.15.0`
+
+- Tags DeathLink suivis par slot (Join, Part, TagsChanged) et réglage lu dans le spoiler (9.59).
+- Connexion avec le tag `DeathLink` pour recevoir les morts, enrichies du mort et des victimes probables (32.25).
+- Présence fiable : type de client lu dans le texte du `Part`, remise à zéro à chaque connexion au serveur AP,
+  resynchronisation par `_read_client_status` ; le heartbeat porte les slots connectés (32.26).
+
+### App du blind test (`archilan-blind-test`, image `latest`)
+
+- Stories 41.58 à 41.61 (plusieurs parties par événement, animation téléphone et écran, morceaux révélés un par un,
+  design du jeu) : documents de story côté site, le code vit dans l'app.
+
+### Déploiement
+
+- Ordre : bridge `v0.15.0` (relever `BRIDGE_VERSION` / `BRIDGE_IMAGE`), puis le site et ses 3 migrations. Morts et
+  temps de jeu ne se comptent que sur les parties lancées après le déploiement du bridge.
+
 ## [0.50.1] - 2026-10-26
 
 ### Sécurité
