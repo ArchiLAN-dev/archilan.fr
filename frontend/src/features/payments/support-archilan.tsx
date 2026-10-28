@@ -6,13 +6,14 @@ import { DonationCheckout } from "./donation-checkout";
 import { MembershipCheckout } from "./membership-checkout";
 import { ShopAnnouncementBanner } from "./shop-announcement-banner";
 import { ShopCheckout } from "./shop-checkout";
+import { MEMBERSHIP_ANCHOR, MEMBERSHIP_HREF, SUPPORT_TAB_HREF } from "./support-links";
 
 export type SupportForms = { membership: string | null; donation: string | null; shop: string | null };
 
-export const SUPPORT_TAB_HREF = "/boutique?onglet=asso";
+export { MEMBERSHIP_ANCHOR, MEMBERSHIP_HREF, SUPPORT_TAB_HREF };
 
 const SECTIONS = [
-  { id: "adhesion", label: "Adhérer", icon: UserPlus },
+  { id: MEMBERSHIP_ANCHOR, label: "Adhérer", icon: UserPlus },
   { id: "don", label: "Faire un don", icon: HeartHandshake },
   { id: "articles", label: "Articles ArchiLAN", icon: ShoppingBag },
 ] as const;
@@ -37,7 +38,7 @@ export function SupportArchilan({ forms }: { forms: SupportForms }) {
         ))}
       </nav>
 
-      <SupportSection id="adhesion" title="Adhérer">
+      <SupportSection id={MEMBERSHIP_ANCHOR} title="Adhérer">
         <p className="text-muted-foreground">
           Deviens membre de l&apos;association et soutiens l&apos;organisation des événements Archipelago. La cotisation annuelle
           est fixée par le bureau de l&apos;association.

@@ -13,6 +13,7 @@ import type { CommunityStats, LeaderboardResponse } from "./community-api";
 import type { CommunityOverview, PlayingNowEntry, RecentAchievement } from "./community-overview-api";
 import type { DirectoryRow } from "./community-directory-api";
 import { TitledName } from "@/features/community/titled-name";
+import { MEMBERSHIP_HREF } from "@/features/payments/support-links";
 
 type Props = {
   overview: CommunityOverview | null;
@@ -170,7 +171,7 @@ export function CommunityHub({
           </a>
           <Link
             className="card-glow rounded-lg border border-border p-6 transition-colors hover:border-accent"
-            href="/boutique?onglet=asso#adhesion"
+            href={MEMBERSHIP_HREF}
           >
             <Trophy aria-hidden className="mb-4 size-7 text-accent-text" />
             <h3 className="font-heading text-lg font-semibold text-foreground">Adhérer à l&apos;association</h3>

@@ -102,7 +102,7 @@ export function AdminUserParticipation({ userId }: { userId: string }) {
 
 function MembershipSection({ children }: { children: React.ReactNode }) {
   return (
-    <SheetSection description="Est-il à jour de sa cotisation ?" icon={CreditCard} id="adhesion" title="Adhésion">
+    <SheetSection description="Est-il à jour de sa cotisation ?" icon={CreditCard} id="cotisation" title="Adhésion">
       {children}
     </SheetSection>
   );
