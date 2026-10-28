@@ -598,6 +598,21 @@ function buildRangeOption(
   };
 }
 
+/** A dict whose rows the player adds, renames and removes. */
+function freeformDict(
+  key: string,
+  label: string,
+  obj: Record<string, unknown>,
+  keys: string[],
+  description: string | undefined,
+): GameOption {
+  return {
+    type: "freeform", kind: "dict", key, label,
+    entries: keys.map((k) => ({ id: uid(), k, v: dumpFreeformValue(obj[k]) })),
+    description,
+  };
+}
+
 function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?: OptionTypesMap | null): GameOption {
   const label = labelFromKey(key);
   const description = extractDescription(yamlStr, key);
@@ -653,6 +668,10 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
   // apworlds introspected before this story, or not introspected at all.
   const declared = optionTypes?.[key]?.type;
 
+  // Known player-composed dicts, before the declared type: `start_inventory` is an `ItemDict`, hence an
+  // `OptionDict` the introspection calls "dict", which would lock its keys (story 9.60).
+  if (FREEFORM_DICT_KEYS.has(key)) return freeformDict(key, label, obj, keys, description);
+
   if (declared === "range") {
     return buildRangeOption(key, label, obj, keys, yamlStr, optionTypes?.[key], description);
   }
@@ -680,14 +699,8 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
     };
   }
 
-  // Known dict keys or empty object → freeform dict
-  if (FREEFORM_DICT_KEYS.has(key) || keys.length === 0) {
-    return {
-      type: "freeform", kind: "dict", key, label,
-      entries: keys.map((k) => ({ id: uid(), k, v: dumpFreeformValue(obj[k]) })),
-      description,
-    };
-  }
+  // Empty object → freeform dict
+  if (keys.length === 0) return freeformDict(key, label, obj, keys, description);
 
   // Literal dict option (e.g. Pokemon `game_options`): a mapping of named sub-settings to
   // literal values, NOT a weighted distribution. Weighted options (toggle/choice/range)

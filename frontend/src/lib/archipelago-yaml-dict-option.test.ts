@@ -156,6 +156,52 @@ G:
     expect(opt.fixedKeys).toBeFalsy();
   });
 
+  describe("start_inventory declared dict by the introspection (story 9.60)", () => {
+    // `StartInventory` is an `ItemDict`, hence an `OptionDict`: introspection says "dict".
+    const types: OptionTypesMap = {
+      start_inventory: { type: "dict", min: 0, max: 0, default: null },
+      start_inventory_from_pool: { type: "dict", min: 0, max: 0, default: null },
+      game_options: { type: "dict", min: 0, max: 0, default: null },
+    };
+    const base = `name: t
+game: G
+G:
+  start_inventory: {}
+  start_inventory_from_pool:
+    Bomb: 1
+  game_options:
+    speed: fast
+`;
+
+    function freeformDict(parsed: ParsedYaml | null, key: string) {
+      const opt = parsed?.options.find((o) => o.key === key);
+      if (opt?.type !== "freeform" || opt.kind !== "dict") throw new Error(`expected freeform dict, got ${opt?.type}`);
+      return opt;
+    }
+
+    test("the item dicts stay editable, empty or not", () => {
+      const parsed = parseDefaultYaml(base, types);
+
+      expect(freeformDict(parsed, "start_inventory").fixedKeys).toBeFalsy();
+      expect(freeformDict(parsed, "start_inventory_from_pool").fixedKeys).toBeFalsy();
+      expect(freeformDict(parsed, "start_inventory_from_pool").entries.map((e) => [e.k, e.v])).toEqual([["Bomb", "1"]]);
+    });
+
+    test("another declared dict keeps its keys locked", () => {
+      expect(freeformDict(parseDefaultYaml(base, types), "game_options").fixedKeys).toBe(true);
+    });
+
+    test("the player's saved items survive the merge and the save", () => {
+      const baseParsed = parseDefaultYaml(base, types);
+      const player = parseDefaultYaml(base.replace("start_inventory: {}", "start_inventory:\n    Sword: 2\n    Shield: 1"), types);
+      if (!baseParsed || !player) throw new Error("parse failed");
+
+      const doc = yaml.load(serializeToYaml(mergePlayerValues(baseParsed, player))) as Record<string, Record<string, unknown>>;
+
+      expect(doc["G"]?.["start_inventory"]).toEqual({ Sword: 2, Shield: 1 });
+    });
+  });
+
   test("merge of a fixedKeys dict keeps base keys and applies only matching player values", () => {
     // The player's saved YAML renamed a key, dropped one, and added a junk key. None of that must
     // leak through: the fixed schema comes from the base default, only matching values are applied.
