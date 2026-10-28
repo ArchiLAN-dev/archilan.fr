@@ -32,6 +32,11 @@ de nouveau visible avec un bloqueur de pub. Demande le bridge `v0.15.0`.
   cache tout élément `id="adhesion"`. L'ancre devient `#adherer` ; le panneau de la fiche membre admin devient
   `#cotisation` (l'ancienne ancre ouvre toujours son onglet).
 
+### Sécurité
+
+- Image `api-web` sur FrankenPHP 1.13.4 : `go-jose/v4` 4.1.6 dans le binaire (CVE-2026-116587, HIGH), qui bloquait
+  la publication de l'image.
+
 ### Bridge `v0.15.0`
 
 - Tags DeathLink suivis par slot (Join, Part, TagsChanged) et réglage lu dans le spoiler (9.59).
