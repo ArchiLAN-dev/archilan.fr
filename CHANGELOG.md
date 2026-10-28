@@ -5,6 +5,20 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.51.1] - 2026-10-28
+
+Correctif des éditeurs de YAML.
+
+### Corrigé
+
+- **`start_inventory` verrouillé dans les éditeurs de YAML** (9.60) : sur les jeux réintrospectés, l'option était
+  rendue à clés figées (aucun ajout ni retrait d'item) et les items de départ enregistrés par un joueur étaient
+  perdus à la réouverture de son YAML. Corrigé sur les éditeurs des événements, des parties privées et des hebdos.
+
+### Déploiement
+
+- Site seul, sans migration ni changement de bridge.
+
 ## [0.51.0] - 2026-10-28
 
 DeathLink suivi en direct et compté, temps de jeu des joueurs, une page Stats par profil, et la section « Adhérer »
