@@ -43,6 +43,21 @@ type Props = {
 };
 
 /**
+ * Whether the frame moves now. With `hoverVideo` off, only a built-in CSS frame moves on hover: a key missing from
+ * the built-in catalogue is a frame uploaded in admin, always a video (story 30.56), so it stays on its still too.
+ */
+export function frameAnimates(
+  frame: string | null,
+  { animate, hovered, hoverVideo }: { animate: "always" | "hover"; hovered: boolean; hoverVideo: boolean },
+): boolean {
+  if (animate === "always") return true;
+  if (!hovered) return false;
+  if (hoverVideo) return true;
+  const builtIn = getAvatarFrame(frame);
+  return builtIn !== null && builtIn.variant !== "video";
+}
+
+/**
  * A member's profile picture, the same everywhere (story 30.47): the rounded square of the profile page, inside the
  * member's frame, with the default-avatar fallback (initials on a per-member gradient) for no photo or a photo that
  * fails to load. A frame's effect may overflow the box around it (it never changes the layout).
@@ -62,7 +77,7 @@ export function MemberAvatar({
   const [hovered, setHovered] = useState(false);
   const motion = useMotionAllowed();
   const animated = animate === "always" || hovered;
-  const frameAnimated = animated && (hoverVideo || animate === "always" || getAvatarFrame(frame)?.variant !== "video");
+  const frameAnimated = frameAnimates(frame, { animate, hovered, hoverVideo });
 
   const style = {
     ...(sizeClassName ? {} : { width: size, height: size }),
