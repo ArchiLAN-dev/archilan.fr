@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { MemberAvatar } from "./member-avatar";
+import { frameAnimates, MemberAvatar } from "./member-avatar";
 
 /**
  * Story 30.47. One avatar everywhere: the profile's rounded square at any size, inside the member's frame, with the
@@ -71,5 +71,24 @@ describe("MemberAvatar", () => {
     expect(video).toContain('src="/avatar-frames/lava-still.webp"');
     expect(video).not.toContain("<video");
     expect(css).toMatch(/class="frame glow/);
+  });
+});
+
+describe("frameAnimates (story 30.56)", () => {
+  const hoveredOff = { animate: "hover", hovered: true, hoverVideo: false } as const;
+
+  test("hoverVideo off: a frame uploaded in admin (not built in) stays on its still when hovered", () => {
+    expect(frameAnimates("neon_runner", hoveredOff)).toBe(false);
+  });
+
+  test("hoverVideo off: a built-in video frame stays still, a built-in CSS frame moves", () => {
+    expect(frameAnimates("lava", hoveredOff)).toBe(false);
+    expect(frameAnimates("neon_cyan", hoveredOff)).toBe(true);
+  });
+
+  test("hoverVideo on, or the profile page: any frame moves; nothing moves before a hover", () => {
+    expect(frameAnimates("neon_runner", { ...hoveredOff, hoverVideo: true })).toBe(true);
+    expect(frameAnimates("neon_runner", { animate: "always", hovered: false, hoverVideo: false })).toBe(true);
+    expect(frameAnimates("neon_cyan", { animate: "hover", hovered: false, hoverVideo: true })).toBe(false);
   });
 });
