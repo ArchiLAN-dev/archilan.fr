@@ -236,8 +236,10 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
         Passer au contenu principal
       </a>
 
+      {/* Opaque, unlike the footer: the header is its own stacking context, and the member's video frame animates in
+          it for good (user menu). At 92% the screen blend shows the video's black box as a darker square (story 30.56). */}
       <header
-        className="sticky top-0 z-50 border-b border-border/80 bg-background/92 backdrop-blur"
+        className="sticky top-0 z-50 border-b border-border/80 bg-background"
         style={{ boxShadow: "0 1px 0 color-mix(in oklab, var(--color-accent) 18%, transparent)" }}
       >
         <nav

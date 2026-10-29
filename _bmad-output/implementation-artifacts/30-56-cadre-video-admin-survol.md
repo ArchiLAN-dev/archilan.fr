@@ -21,6 +21,11 @@ afin que le cadre rende comme les cadres vidéo intégrés.
 - `MemberAvatar` ne reconnaît un cadre vidéo que par le catalogue intégré : `getAvatarFrame(frame)?.variant !== "video"`.
   Un cadre uploadé en admin (story 41.10) n'est pas dans ce catalogue, `getAvatarFrame` rend `null`, il est donc pris
   pour un cadre CSS et sa vidéo se lance au survol malgré `hoverVideo={false}`.
+- L'en-tête (`public-shell.tsx`) est un contexte d'empilement (`z-50`, `backdrop-blur`) à fond `bg-background/92`, et
+  l'avatar du menu utilisateur y anime son cadre en permanence (`animate="always"`). Le fondu `screen` y rend le fond
+  de l'en-tête opaque sous tout le carré de la vidéo : un carré plus sombre que les 8 % de grille qui transparaissent
+  autour (mesuré 38 contre 41 en luminance). Visible surtout avec un cadre fin comme `neon_runner`, présent aussi
+  pour les cadres vidéo intégrés.
 - Les cadres uploadés sont toujours des vidéos (`AvatarFrameDefinition::upload` exige webm, mp4, poster et still).
 
 ## Acceptance Criteria
@@ -28,13 +33,15 @@ afin que le cadre rende comme les cadres vidéo intégrés.
 1. Avec `hoverVideo={false}`, un cadre absent du catalogue intégré (cadre uploadé en admin) reste sur son image fixe,
    même survolé.
 2. Un cadre CSS intégré continue de s'animer au survol, un cadre vidéo intégré reste sur son image fixe (inchangé).
-3. Tests unitaires de la règle ; `pnpm gates` vert.
+3. L'en-tête a un fond opaque : un cadre vidéo n'y dessine plus de carré autour de l'avatar.
+4. Tests unitaires de la règle ; `pnpm gates` vert.
 
 ## Tasks / Subtasks
 
 - [x] `member-avatar.tsx` : règle « le cadre bouge au survol » extraite et testable ; une clé inconnue du catalogue
       intégré est traitée comme un cadre vidéo (AC 1, 2)
-- [x] Tests (AC 3)
+- [x] `public-shell.tsx` : en-tête `bg-background` opaque, sans `backdrop-blur` devenu inutile (AC 3)
+- [x] Tests (AC 4)
 - [x] Gates
 
 ## Dev Agent Record
