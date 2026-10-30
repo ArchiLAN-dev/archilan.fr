@@ -2,9 +2,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import type { EventPartner, Partner } from "./partners-api";
 
 type Props = { partner: Partner };
+
+/**
+ * Story 45.5: the chip under a logo. White by default (a logo is usually drawn for a light background, 45.2), dark
+ * when the admin says the logo is light (white text...). Both colors are fixed on purpose, not theme tokens: the logo
+ * decides, not the visitor's theme.
+ */
+export function logoChipBackground(partner: Pick<Partner, "logoOnDark">): string {
+  return partner.logoOnDark === true ? "bg-neutral-900" : "bg-white";
+}
 
 /**
  * Story 45.2: a partner on the home page and on `/partenaires`. The logo sits on a white chip whatever the theme: a
@@ -19,9 +29,17 @@ export function PartnerCard({ partner }: Props) {
       rel="sponsored noopener noreferrer"
       target="_blank"
     >
-      <span className="flex h-24 items-center justify-center rounded-xl bg-white p-4">
+      {/* Proportional (5:2) so the logo uses the card's width instead of a flat strip, with room around it (45.5). */}
+      <span className={cn("flex aspect-[5/2] items-center justify-center rounded-xl px-10 py-8", logoChipBackground(partner))}>
         {partner.logoUrl !== null ? (
-          <Image alt={`Logo de ${partner.name}`} className="max-h-full max-w-full w-auto object-contain" height={64} src={partner.logoUrl} width={160} />
+          <Image
+            alt={`Logo de ${partner.name}`}
+            className="h-full w-full object-contain"
+            height={240}
+            sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+            src={partner.logoUrl}
+            width={480}
+          />
         ) : null}
       </span>
       <span className="grid gap-1">
@@ -123,7 +141,7 @@ export function EventPartners({ partners, variant }: EventPartnersProps) {
 /** The fixed white chip of {@link PartnerCard}, small enough for a line of logos. */
 function SmallLogoChip({ partner }: { partner: Partner }) {
   return (
-    <span className="flex h-10 w-16 shrink-0 items-center justify-center rounded-lg bg-white p-1.5">
+    <span className={cn("flex h-10 w-16 shrink-0 items-center justify-center rounded-lg p-1.5", logoChipBackground(partner))}>
       {partner.logoUrl !== null ? (
         <Image alt={`Logo de ${partner.name}`} className="max-h-full max-w-full w-auto object-contain" height={28} src={partner.logoUrl} width={56} />
       ) : null}

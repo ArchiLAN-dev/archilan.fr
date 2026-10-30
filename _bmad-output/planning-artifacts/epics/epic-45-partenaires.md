@@ -39,7 +39,7 @@ En tant qu'admin, je veux ajouter, modifier, ordonner et désactiver les partena
 site affiche toujours la bonne liste sans passer par un développeur.
 
 - Entité `Partner` dans `Content` : nom, logo (obligatoire pour être affiché), lien (URL https), description
-  courte (une phrase, ~160 caractères), actif/inactif, position. Pas de niveau.
+  courte (une ou deux phrases, 250 caractères au plus), actif/inactif, position. Pas de niveau.
 - Commande `ManagePartners` (create, edit, delete, reorder, attachLogo, removeLogo, sur le modèle de
   `ManageHomeAnnouncements`) ; upload du logo dans le bucket public (PNG, JPEG ou WebP, **pas de SVG** : risque XSS, un logo
   fourni en SVG est converti avant l'envoi). Un fond transparent est recommandé (le logo s'affiche sur fond clair

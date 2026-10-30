@@ -9,12 +9,14 @@ export type Partner = {
   description: string;
   url: string;
   logoUrl: string | null;
+  /** Story 45.5: the logo is drawn for a dark background, so its chip is dark (absent from older payloads: light). */
+  logoOnDark?: boolean;
 };
 
 /** `visible` = shown by the admin and with a logo: what the public list keeps. */
 export type AdminPartner = Partner & { active: boolean; visible: boolean };
 
-export type PartnerFields = Pick<AdminPartner, "name" | "description" | "url" | "active">;
+export type PartnerFields = Pick<AdminPartner, "name" | "description" | "url" | "active"> & { logoOnDark: boolean };
 
 /** Story 45.3: a partner thanked on an event, by reference, with the event's own mention. */
 export type EventPartnerRef = { partnerId: string; mention: string | null };
@@ -33,7 +35,8 @@ export function isPartner(v: unknown): v is Partner {
     hasStringProp(v, "name") &&
     hasStringProp(v, "description") &&
     hasStringProp(v, "url") &&
-    hasNullableStringProp(v, "logoUrl")
+    hasNullableStringProp(v, "logoUrl") &&
+    (!("logoOnDark" in v) || typeof v.logoOnDark === "boolean")
   );
 }
 

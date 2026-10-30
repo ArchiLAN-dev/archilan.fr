@@ -12,6 +12,8 @@ final readonly class PartnerDraft
         public string $description,
         public string $url,
         public bool $active,
+        /** Story 45.5: the logo needs a dark chip. */
+        public bool $logoOnDark = false,
     ) {
     }
 }

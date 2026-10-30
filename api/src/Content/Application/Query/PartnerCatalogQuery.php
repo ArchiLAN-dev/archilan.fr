@@ -20,7 +20,7 @@ final readonly class PartnerCatalogQuery
     ) {
     }
 
-    /** @return list<array{id: string, name: string, description: string, url: string, logoUrl: ?string}> */
+    /** @return list<array{id: string, name: string, description: string, url: string, logoUrl: ?string, logoOnDark: bool}> */
     public function forVisitors(): array
     {
         return array_values(array_map(
@@ -29,7 +29,7 @@ final readonly class PartnerCatalogQuery
         ));
     }
 
-    /** @return list<array{id: string, name: string, description: string, url: string, logoUrl: ?string, active: bool, visible: bool}> */
+    /** @return list<array{id: string, name: string, description: string, url: string, logoUrl: ?string, logoOnDark: bool, active: bool, visible: bool}> */
     public function forAdmin(): array
     {
         return array_map(
@@ -38,7 +38,7 @@ final readonly class PartnerCatalogQuery
         );
     }
 
-    /** @return array{id: string, name: string, description: string, url: string, logoUrl: ?string} */
+    /** @return array{id: string, name: string, description: string, url: string, logoUrl: ?string, logoOnDark: bool} */
     private function view(Partner $partner): array
     {
         $logoKey = $partner->getLogoKey();
@@ -49,6 +49,7 @@ final readonly class PartnerCatalogQuery
             'description' => $partner->getDescription(),
             'url' => $partner->getUrl(),
             'logoUrl' => null === $logoKey ? null : $this->publicMedia->resolve($logoKey),
+            'logoOnDark' => $partner->isLogoOnDark(),
         ];
     }
 }

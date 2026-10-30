@@ -62,7 +62,7 @@ final class PartnerTest extends FunctionalTestCase
         $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']));
         $id = $this->createPartner('Ludo');
 
-        $this->client->jsonRequest('PUT', sprintf('/api/v1/admin/partners/%s', $id), ['name' => 'Ludothèque', 'description' => 'Des jeux à prêter.', 'url' => 'https://ludo.example/fr', 'active' => false]);
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/admin/partners/%s', $id), ['name' => 'Ludothèque', 'description' => 'Des jeux à prêter.', 'url' => 'https://ludo.example/fr', 'active' => false, 'logoOnDark' => true]);
         self::assertResponseStatusCodeSame(204);
         $this->client->request('GET', '/api/v1/admin/partners');
         $all = $this->decodedJsonResponse()['data'] ?? null;
@@ -72,6 +72,8 @@ final class PartnerTest extends FunctionalTestCase
         self::assertSame('Des jeux à prêter.', $all[0]['description']);
         self::assertSame('https://ludo.example/fr', $all[0]['url']);
         self::assertFalse($all[0]['active']);
+        // Story 45.5: a light logo asks for a dark chip; a partner starts on the white one.
+        self::assertTrue($all[0]['logoOnDark']);
 
         $this->client->request('DELETE', sprintf('/api/v1/admin/partners/%s', $id));
         self::assertResponseStatusCodeSame(204);
