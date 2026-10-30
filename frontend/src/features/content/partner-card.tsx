@@ -21,7 +21,7 @@ export function PartnerCard({ partner }: Props) {
     >
       <span className="flex h-24 items-center justify-center rounded-xl bg-white p-4">
         {partner.logoUrl !== null ? (
-          <Image alt={`Logo de ${partner.name}`} className="max-h-full w-auto object-contain" height={64} src={partner.logoUrl} width={160} />
+          <Image alt={`Logo de ${partner.name}`} className="max-h-full max-w-full w-auto object-contain" height={64} src={partner.logoUrl} width={160} />
         ) : null}
       </span>
       <span className="grid gap-1">
@@ -125,7 +125,7 @@ function SmallLogoChip({ partner }: { partner: Partner }) {
   return (
     <span className="flex h-10 w-16 shrink-0 items-center justify-center rounded-lg bg-white p-1.5">
       {partner.logoUrl !== null ? (
-        <Image alt={`Logo de ${partner.name}`} className="max-h-full w-auto object-contain" height={28} src={partner.logoUrl} width={56} />
+        <Image alt={`Logo de ${partner.name}`} className="max-h-full max-w-full w-auto object-contain" height={28} src={partner.logoUrl} width={56} />
       ) : null}
     </span>
   );

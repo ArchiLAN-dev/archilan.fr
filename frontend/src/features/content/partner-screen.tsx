@@ -112,7 +112,7 @@ export function PartnerOverlay({ current, params }: OverlayProps) {
         {/* Fixed white chip, like the site's cards: a partner's logo is drawn for a light background (45.2). */}
         <span className="flex h-28 w-full items-center justify-center rounded-2xl bg-white p-4 shadow-lg">
           {partner.logoUrl !== null ? (
-            <Image alt={`Logo de ${partner.name}`} className="max-h-full w-auto object-contain" height={80} src={partner.logoUrl} width={240} />
+            <Image alt={`Logo de ${partner.name}`} className="max-h-full max-w-full w-auto object-contain" height={80} src={partner.logoUrl} width={240} />
           ) : null}
         </span>
         <span className="text-center text-lg font-semibold text-white drop-shadow">{partner.name}</span>
@@ -135,7 +135,7 @@ export function PartnerScreenWall({ current, ids }: WallProps) {
             {current.partner.logoUrl !== null ? (
               <Image
                 alt={`Logo de ${current.partner.name}`}
-                className="max-h-full w-auto object-contain"
+                className="max-h-full max-w-full w-auto object-contain"
                 height={200}
                 src={current.partner.logoUrl}
                 width={600}

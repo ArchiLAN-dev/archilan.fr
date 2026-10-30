@@ -206,7 +206,7 @@ function PartnerRow({ partner, isFirst, isLast, pending, onEdit, onMove, onDelet
     <li className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
       <div className="flex size-16 items-center justify-center rounded-lg border border-border bg-background p-1.5">
         {partner.logoUrl !== null ? (
-          <Image alt="" className="max-h-full w-auto object-contain" height={52} src={partner.logoUrl} width={52} />
+          <Image alt="" className="max-h-full max-w-full w-auto object-contain" height={52} src={partner.logoUrl} width={52} />
         ) : (
           <ImageOff aria-hidden className="size-5 text-muted-foreground" />
         )}
