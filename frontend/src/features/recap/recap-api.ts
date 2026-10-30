@@ -53,6 +53,8 @@ export type RecapSuperlative = {
 export type SessionRecap = {
   sessionId: string;
   eventName: string;
+  /** Story 45.3: the event of an event party, null for a personal run (optional: older payloads lack it). */
+  eventId?: string | null;
   startedAt: string | null;
   finishedAt: string | null;
   durationSeconds: number | null;
@@ -139,6 +141,7 @@ function isRecapPayload(payload: unknown): payload is { data: SessionRecap } {
   const data = payload.data;
   if (!hasStringProp(data, "sessionId")) return false;
   if (!hasStringProp(data, "eventName")) return false;
+  if ("eventId" in data && data.eventId !== null && typeof data.eventId !== "string") return false;
   if (!("startedAt" in data) || (data.startedAt !== null && typeof data.startedAt !== "string")) return false;
   if (!("finishedAt" in data) || (data.finishedAt !== null && typeof data.finishedAt !== "string")) return false;
   if (!("durationSeconds" in data) || (data.durationSeconds !== null && typeof data.durationSeconds !== "number")) return false;

@@ -21,6 +21,10 @@ final class Event
         self::STATUS_COMPLETED,
     ];
 
+    /** Story 45.3: the epic's ceiling of five partners also holds per event. */
+    public const int MAX_PARTNERS = 5;
+    public const int PARTNER_MENTION_MAX_LENGTH = 120;
+
     /**
      * @return list<string>
      */
@@ -86,6 +90,9 @@ final class Event
         private ?array $photoGallery = null,
         #[ORM\Column(name: 'cover_image_key', type: 'string', length: 500, nullable: true)]
         private ?string $coverImageKey = null,
+        /** @var list<mixed>|null Story 45.3: partner references, joined to the Content partners by id on read. */
+        #[ORM\Column(name: 'partners', type: Types::JSON, nullable: true)]
+        private ?array $partners = null,
     ) {
     }
 
@@ -364,6 +371,59 @@ final class Event
         $this->vodUrl = $vodUrl;
         $this->recapPostSlug = $recapPostSlug;
         $this->updatedAt = $now;
+    }
+
+    /**
+     * Story 45.3: the partners thanked on this event, in the admin's order. A reference only: a partner hidden or
+     * deleted on the Content side simply drops out at display.
+     *
+     * @param list<array{partnerId: string, mention: string|null}> $partners
+     */
+    public function choosePartners(array $partners, \DateTimeImmutable $now): void
+    {
+        if (count($partners) > self::MAX_PARTNERS) {
+            throw new \DomainException('event_partners_too_many');
+        }
+
+        $normalized = [];
+        $seen = [];
+        foreach ($partners as $partner) {
+            $partnerId = trim($partner['partnerId']);
+            if (1 !== preg_match('/^[a-f0-9]{32}$/', $partnerId)) {
+                throw new \DomainException('event_partner_id_invalid');
+            }
+            if (isset($seen[$partnerId])) {
+                throw new \DomainException('event_partner_duplicate');
+            }
+            $seen[$partnerId] = true;
+
+            $mention = self::nullableTrim($partner['mention']);
+            if (null !== $mention && mb_strlen($mention) > self::PARTNER_MENTION_MAX_LENGTH) {
+                throw new \DomainException('event_partner_mention_too_long');
+            }
+
+            $normalized[] = ['partnerId' => $partnerId, 'mention' => $mention];
+        }
+
+        $this->partners = [] === $normalized ? null : $normalized;
+        $this->updatedAt = $now;
+    }
+
+    /**
+     * @return list<array{partnerId: string, mention: string|null}>
+     */
+    public function getPartners(): array
+    {
+        $result = [];
+        foreach ($this->partners ?? [] as $raw) {
+            if (!is_array($raw) || !is_string($raw['partnerId'] ?? null)) {
+                continue;
+            }
+            $mention = $raw['mention'] ?? null;
+            $result[] = ['partnerId' => $raw['partnerId'], 'mention' => is_string($mention) ? $mention : null];
+        }
+
+        return $result;
     }
 
     public function getVodUrl(): ?string

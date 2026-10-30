@@ -16,6 +16,12 @@ export type AdminPartner = Partner & { active: boolean; visible: boolean };
 
 export type PartnerFields = Pick<AdminPartner, "name" | "description" | "url" | "active">;
 
+/** Story 45.3: a partner thanked on an event, by reference, with the event's own mention. */
+export type EventPartnerRef = { partnerId: string; mention: string | null };
+
+/** An event partner ready to show: the visible partner and the event's mention. */
+export type EventPartner = { partner: Partner; mention: string | null };
+
 /** Story 45.2: the cache tag of every public read of the partners, dropped by the API on each admin write. */
 export const PARTNERS_TAG = "partners";
 
@@ -33,6 +39,22 @@ export function isPartner(v: unknown): v is Partner {
 
 export function isAdminPartner(v: unknown): v is AdminPartner {
   return isPartner(v) && hasBooleanProp(v, "active") && hasBooleanProp(v, "visible");
+}
+
+export function isEventPartnerRef(v: unknown): v is EventPartnerRef {
+  return typeof v === "object" && v !== null && hasStringProp(v, "partnerId") && hasNullableStringProp(v, "mention");
+}
+
+/**
+ * Story 45.3: the event's partners in the event's order, kept only when the partner is visible. A partner hidden,
+ * without a logo or deleted drops out here, so past events follow the admin without any write on their side.
+ */
+export function joinEventPartners(refs: EventPartnerRef[], partners: Partner[]): EventPartner[] {
+  const byId = new Map(partners.map((partner) => [partner.id, partner]));
+  return refs.flatMap((ref) => {
+    const partner = byId.get(ref.partnerId);
+    return partner === undefined ? [] : [{ partner, mention: ref.mention }];
+  });
 }
 
 function dataOf(payload: unknown): unknown {
@@ -63,6 +85,33 @@ export async function fetchAdminPartners(): Promise<AdminPartner[] | null> {
     return Array.isArray(data) ? data.filter(isAdminPartner) : null;
   } catch {
     return null;
+  }
+}
+
+/** Story 45.3: the partners chosen for an event; null when the read failed. */
+export async function fetchAdminEventPartners(eventId: string): Promise<EventPartnerRef[] | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/partners`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return Array.isArray(data) ? data.filter(isEventPartnerRef) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** null on success, the API's message otherwise. */
+export async function saveEventPartners(eventId: string, partners: EventPartnerRef[]): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/partners`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ partners }),
+    });
+    if (res.ok) return null;
+    return errorMessage(await res.json().catch(() => null), "Les partenaires n'ont pas pu être enregistrés.");
+  } catch {
+    return "Impossible de contacter l'API.";
   }
 }
 

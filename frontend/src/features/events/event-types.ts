@@ -1,4 +1,6 @@
 /** Story 4.23: where registrations stand, computed by `eventStatusAt`. */
+import type { EventPartnerRef } from "@/features/content/partners-api";
+
 export type EventStatus = "upcoming" | "open" | "full" | "closed" | "in-progress" | "completed";
 
 export type EventAttendanceMode = "offline" | "online" | "mixed";
@@ -29,6 +31,8 @@ export type PublicEvent = {
   vodUrl?: string;
   checkoutEmbedUrl?: string;
   checkoutUnavailable?: boolean;
+  /** Story 45.3: the partners thanked on the event, by reference (joined to `getPartners()` for display). */
+  partners?: EventPartnerRef[];
   stats?: {
     players: number;
     games: number;
