@@ -12,7 +12,7 @@ use App\Notes\Domain\Enum\NoteTargetType;
  * @phpstan-type Author array{id: string, displayName: string|null}
  * @phpstan-type FollowUpView array{id: string, kind: string, body: string, author: Author, createdAt: string}
  * @phpstan-type NoteView array{id: string, body: string, status: string, author: Author, createdAt: string, updatedAt: string, edited: bool, followUps: list<FollowUpView>}
- * @phpstan-type RevisionView array{previousBody: string, editor: Author, editedAt: string}
+ * @phpstan-type RevisionView array{id: string, previousBody: string, editor: Author, editedAt: string}
  */
 interface AdminNoteQueryInterface
 {

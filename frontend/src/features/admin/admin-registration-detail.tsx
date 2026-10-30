@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, ChevronLeft, Clock, CreditCard, Lock, Mail
 import Link from "next/link";
 import { use, useEffect, useId, useState } from "react";
 
+import { AdminNotesPanel } from "@/features/notes/admin-notes-panel";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
@@ -284,6 +285,7 @@ function DetailBody({
         detail={detail}
         onCancelRequested={onCancelRequested}
       />
+      <AdminNotesPanel targetId={detail.registrationId} targetType="registration" />
       {cancelState === "confirming" ? (
         <CancelDialog
           onCancel={onCancelDismissed}
