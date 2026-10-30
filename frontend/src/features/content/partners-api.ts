@@ -76,6 +76,21 @@ export async function getPartners(): Promise<Partner[]> {
   }
 }
 
+/**
+ * Story 45.4: the visible partners read from the browser, for the OBS / LAN screen that stays open for hours and
+ * re-reads the list itself. null when the read failed, so the screen keeps what it shows.
+ */
+export async function fetchPartners(): Promise<Partner[] | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/partners`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return Array.isArray(data) ? data.filter(isPartner) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The admin list, in display order; null when the read failed. */
 export async function fetchAdminPartners(): Promise<AdminPartner[] | null> {
   try {

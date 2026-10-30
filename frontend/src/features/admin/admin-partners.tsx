@@ -17,6 +17,7 @@ import {
   uploadPartnerLogo,
   type AdminPartner,
 } from "@/features/content/partners-api";
+import { PartnerScreenLinks } from "@/features/admin/partner-screen-links";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
 
@@ -146,6 +147,9 @@ export function AdminPartners() {
           ))}
         </ul>
       ) : null}
+
+      {/* Story 45.4: every partner on stream or on the LAN screen, outside any event. */}
+      <PartnerScreenLinks eventId={null} />
 
       <Dialog
         onOpenChange={(open) => {
