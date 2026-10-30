@@ -1,6 +1,6 @@
 # Story 46.1 - Socle des notes (API)
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 46 - Notes admin (`_bmad-output/planning-artifacts/epics/epic-46-notes-admin.md`)
 **Date:** 2026-10-30
 **Branche:** `feature/epic-46-story-1-socle-notes` (depuis `develop`)
@@ -82,6 +82,10 @@ Repères :
    `` `user`.display_name `` (null si le compte n'existe plus).
 10. **Migration** : `Version20261025200008` (la PR #957 de l'epic 45 ajoute `200006` et `200007` ; prendre le
     numéro suivant le dernier présent sur `develop` au moment du commit, en restant après `200007`).
+11. **Identifiants triables dans le temps** (décidé en cours de dev) : les dates sont stockées à la seconde
+    (`datetimetz_immutable`), donc deux écritures dans la même seconde (régler puis rouvrir) se départageaient au
+    hasard. L'id est fait des microsecondes de l'horloge injectée (14 hex) puis de 18 hex aléatoires : trier par
+    date puis par id garde la chronologie.
 
 ## Critères d'acceptation
 
@@ -130,14 +134,14 @@ Repères :
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-3, 13) - Contexte `Notes` (dossiers, `CONTEXTS`, `services.yaml`, `doctrine.yaml`,
+- [x] **Task 1** (AC 1-3, 13) - Contexte `Notes` (dossiers, `CONTEXTS`, `services.yaml`, `doctrine.yaml`,
   `api/CLAUDE.md`), énumérations, entités, tests unitaires.
-- [ ] **Task 2** (AC 4) - Migration.
-- [ ] **Task 3** (AC 5, 7-9) - Dépôts (`Domain/Repository/` + `Infrastructure/Doctrine/`), port
+- [x] **Task 2** (AC 4) - Migration.
+- [x] **Task 3** (AC 5, 7-9) - Dépôts (`Domain/Repository/` + `Infrastructure/Doctrine/`), port
   `NoteTargetInterface` et son adaptateur, `ManageAdminNotes`.
-- [ ] **Task 4** (AC 6, 10, 11) - `AdminNotesQueryInterface` + `DbalAdminNotesQuery`.
-- [ ] **Task 5** (AC 5-12, 14) - `AdminNoteController` (`Presentation/Controller/`) et tests fonctionnels.
-- [ ] **Task 6** (AC 15) - Gates verts, Dev Agent Record.
+- [x] **Task 4** (AC 6, 10, 11) - `AdminNotesQueryInterface` + `DbalAdminNotesQuery`.
+- [x] **Task 5** (AC 5-12, 14) - `AdminNoteController` (`Presentation/Controller/`) et tests fonctionnels.
+- [x] **Task 6** (AC 15) - Gates verts, Dev Agent Record.
 
 ## Dev Notes
 
@@ -170,6 +174,51 @@ Repères :
 
 ### Agent Model Used
 
+Claude Opus 5.5
+
 ### Completion Notes List
 
+- Contexte `Notes` déclaré partout (`DddArchitectureValidator::CONTEXTS`, `services.yaml` : exclusion du domaine et
+  3 alias, `doctrine.yaml`, liste de `api/CLAUDE.md`).
+- Domaine : `AdminNote` (`write`, `edit` qui renvoie la `NoteRevision` ou `null`, `followUp`, `settle`, `reopen`),
+  `NoteFollowUp::record()`, `NoteRevision::record()`, énumérations `NoteTargetType`, `NoteStatus`, `FollowUpKind`.
+- Application : `ManageAdminNotes` (codes du domaine convertis en `ValidationException` 422 ou `ConflictException`
+  409), `AdminNoteQuery` (valide le type de cible et la taille de la liste, 404 sur l'historique d'une note
+  inconnue), `NoteTargetTypes::parse()` partagé, port `NoteTargetInterface`.
+- Infrastructure : `DoctrineAdminNoteRepository` (note et suivi ou révision en un `flush`), `DbalAdminNoteQuery`
+  (3 requêtes pour une cible : notes, suivis groupés, nombre de révisions en sous-requête ; `openCounts` en un
+  `GROUP BY`), `RepositoryNoteTarget` (`match` sur l'énumération, délègue à `RegistrationRepositoryInterface`).
+- Contrôleur : `open-counts` renvoie un objet même vide (`{}`), pour une lecture par id côté front.
+- Décision 11 ajoutée en cours de dev (ids triables dans le temps), révélée par le test du parcours complet.
+- Migration `Version20261025200008` appliquée sur la base de dev locale (`migrations:execute --up`, la branche ne
+  contient pas 200006/200007 de la PR #957).
+- `composer gates` vert : 3353 tests.
+- Tests : 8 unitaires, 7 fonctionnels (parcours complet, ordre, conflits, entrées invalides, 404, `open-counts`,
+  401/403 sur les 8 routes).
+
 ### File List
+
+- `api/migrations/Version20261025200008.php` (nouveau)
+- `api/src/Notes/Domain/Entity/AdminNote.php` (nouveau)
+- `api/src/Notes/Domain/Entity/NoteFollowUp.php` (nouveau)
+- `api/src/Notes/Domain/Entity/NoteRevision.php` (nouveau)
+- `api/src/Notes/Domain/Enum/NoteTargetType.php` (nouveau)
+- `api/src/Notes/Domain/Enum/NoteStatus.php` (nouveau)
+- `api/src/Notes/Domain/Enum/FollowUpKind.php` (nouveau)
+- `api/src/Notes/Domain/Repository/AdminNoteRepositoryInterface.php` (nouveau)
+- `api/src/Notes/Application/Command/ManageAdminNotes.php` (nouveau)
+- `api/src/Notes/Application/Query/AdminNoteQuery.php` (nouveau)
+- `api/src/Notes/Application/Query/AdminNoteQueryInterface.php` (nouveau)
+- `api/src/Notes/Application/Port/NoteTargetInterface.php` (nouveau)
+- `api/src/Notes/Application/Support/NoteTargetTypes.php` (nouveau)
+- `api/src/Notes/Infrastructure/Doctrine/DoctrineAdminNoteRepository.php` (nouveau)
+- `api/src/Notes/Infrastructure/Dbal/DbalAdminNoteQuery.php` (nouveau)
+- `api/src/Notes/Infrastructure/Adapter/RepositoryNoteTarget.php` (nouveau)
+- `api/src/Notes/Presentation/Controller/AdminNoteController.php` (nouveau)
+- `api/src/Shared/Application/Support/DddArchitectureValidator.php` (modifié)
+- `api/config/services.yaml` (modifié)
+- `api/config/packages/doctrine.yaml` (modifié)
+- `api/CLAUDE.md` (modifié)
+- `api/tests/Unit/Notes/AdminNoteTest.php` (nouveau)
+- `api/tests/Unit/DddArchitectureValidatorTest.php` (modifié : `Notes` dans la liste des contextes du projet factice)
+- `api/tests/Functional/AdminNoteTest.php` (nouveau)
