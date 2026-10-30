@@ -28,6 +28,16 @@ final class PartnerTest extends TestCase
         self::assertTrue($partner->isActive());
         self::assertSame(2, $partner->getPosition());
         self::assertNull($partner->getLogoKey());
+        self::assertFalse($partner->isLogoOnDark());
+    }
+
+    public function testALightLogoAsksForADarkChipAndAnEditCanTakeItBack(): void
+    {
+        $partner = Partner::create('p1', 'Minimapperz', '', 'https://minimapperz.example', true, 0, $this->now, logoOnDark: true);
+        self::assertTrue($partner->isLogoOnDark());
+
+        $partner->edit('Minimapperz', '', 'https://minimapperz.example', true, $this->now);
+        self::assertFalse($partner->isLogoOnDark());
     }
 
     public function testAPartnerIsVisibleOnlyWhenShownWithALogo(): void

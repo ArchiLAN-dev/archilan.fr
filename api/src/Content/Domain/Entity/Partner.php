@@ -39,6 +39,9 @@ final class Partner
         private \DateTimeImmutable $updatedAt,
         #[ORM\Column(name: 'logo_key', type: 'string', length: 500, nullable: true)]
         private ?string $logoKey = null,
+        /** Story 45.5: the logo is drawn for a dark background (white text...), so it sits on a dark chip. */
+        #[ORM\Column(name: 'logo_on_dark', type: 'boolean', options: ['default' => false])]
+        private bool $logoOnDark = false,
     ) {
     }
 
@@ -51,16 +54,17 @@ final class Partner
         bool $active,
         int $position,
         \DateTimeImmutable $now,
+        bool $logoOnDark = false,
     ): self {
         $partner = new self($id, '', '', '', false, 0, $now, $now);
-        $partner->edit($name, $description, $url, $active, $now);
+        $partner->edit($name, $description, $url, $active, $now, $logoOnDark);
         $partner->moveTo($position, $now);
 
         return $partner;
     }
 
     /** @throws \DomainException with the code of the first invalid field */
-    public function edit(string $name, string $description, string $url, bool $active, \DateTimeImmutable $now): void
+    public function edit(string $name, string $description, string $url, bool $active, \DateTimeImmutable $now, bool $logoOnDark = false): void
     {
         $name = trim($name);
         $description = trim($description);
@@ -79,6 +83,7 @@ final class Partner
         $this->description = $description;
         $this->url = $url;
         $this->active = $active;
+        $this->logoOnDark = $logoOnDark;
         $this->updatedAt = $now;
     }
 
@@ -148,6 +153,11 @@ final class Partner
     public function getPosition(): int
     {
         return $this->position;
+    }
+
+    public function isLogoOnDark(): bool
+    {
+        return $this->logoOnDark;
     }
 
     public function getLogoKey(): ?string

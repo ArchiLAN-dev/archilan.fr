@@ -50,7 +50,7 @@ final readonly class ManagePartners
     {
         $position = array_reduce($this->partners->all(), static fn (int $max, Partner $partner): int => max($max, $partner->getPosition() + 1), 0);
         try {
-            $partner = Partner::create(bin2hex(random_bytes(16)), $draft->name, $draft->description, $draft->url, $draft->active, $position, $this->clock->now());
+            $partner = Partner::create(bin2hex(random_bytes(16)), $draft->name, $draft->description, $draft->url, $draft->active, $position, $this->clock->now(), $draft->logoOnDark);
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
@@ -68,7 +68,7 @@ final readonly class ManagePartners
     {
         $partner = $this->get($id);
         try {
-            $partner->edit($draft->name, $draft->description, $draft->url, $draft->active, $this->clock->now());
+            $partner->edit($draft->name, $draft->description, $draft->url, $draft->active, $this->clock->now(), $draft->logoOnDark);
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
