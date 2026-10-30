@@ -36,4 +36,10 @@ final readonly class PublicPagesRevalidation
 
         $this->messageBus->dispatch(new RevalidatePublicPagesJob($tags));
     }
+
+    /** The partners changed (story 45.2): the home page, `/partenaires` and the footer of every public page. */
+    public function partnersChanged(): void
+    {
+        $this->messageBus->dispatch(new RevalidatePublicPagesJob([PublicPageCacheInterface::PARTNERS]));
+    }
 }

@@ -10,13 +10,15 @@ use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Application\Exception\ValidationException;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
+use App\Shared\Application\Support\PublicPagesRevalidation;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 /**
  * Creates, edits, orders and deletes the partners of the association, and their logo (story 45.1). A deleted
- * partner's logo stays in the bucket, as an announcement's image does.
+ * partner's logo stays in the bucket, as an announcement's image does. Every saved write drops the cache of the
+ * public pages showing partners (story 45.2); a refused one changes nothing.
  */
 final readonly class ManagePartners
 {
@@ -33,6 +35,7 @@ final readonly class ManagePartners
         private PublicMediaUrlResolver $publicMedia,
         private ClockInterface $clock,
         private LoggerInterface $logger,
+        private PublicPagesRevalidation $revalidation,
     ) {
     }
 
@@ -52,6 +55,7 @@ final readonly class ManagePartners
             throw $this->invalid($e);
         }
         $this->partners->save($partner);
+        $this->revalidation->partnersChanged();
 
         return $partner->getId();
     }
@@ -69,12 +73,14 @@ final readonly class ManagePartners
             throw $this->invalid($e);
         }
         $this->partners->save($partner);
+        $this->revalidation->partnersChanged();
     }
 
     /** @throws NotFoundException when the partner does not exist */
     public function delete(string $id): void
     {
         $this->partners->remove($this->get($id));
+        $this->revalidation->partnersChanged();
     }
 
     /**
@@ -100,6 +106,7 @@ final readonly class ManagePartners
             }
         }
         $this->partners->saveAll($moved);
+        $this->revalidation->partnersChanged();
     }
 
     /**
@@ -125,6 +132,7 @@ final readonly class ManagePartners
         }
         $partner->attachLogo($key, $this->clock->now());
         $this->partners->save($partner);
+        $this->revalidation->partnersChanged();
     }
 
     /** @throws NotFoundException when the partner does not exist */
@@ -133,6 +141,7 @@ final readonly class ManagePartners
         $partner = $this->get($id);
         $partner->removeLogo($this->clock->now());
         $this->partners->save($partner);
+        $this->revalidation->partnersChanged();
     }
 
     private function get(string $id): Partner

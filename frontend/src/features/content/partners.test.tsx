@@ -3,9 +3,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 
 import { ADMIN_PARTNERS_KEY, AdminPartners, displayHost, movedIds, partnerStateLabel, tooManyVisible } from "@/features/admin/admin-partners";
+import { HomePartners } from "@/features/home/home-sections";
+import PartenairesPage from "@/app/(public)/partenaires/page";
+import { PartnerCard, PartnersFooterLink } from "./partner-card";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { isAdminPartner, isPartner, reorderPartners, savePartner, uploadPartnerLogo, type AdminPartner } from "./partners-api";
+import { getPartners, isAdminPartner, isPartner, reorderPartners, savePartner, uploadPartnerLogo, type AdminPartner, type Partner } from "./partners-api";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -101,5 +104,48 @@ describe("partners", () => {
 
     server.use(http.post(`${BASE}/admin/partners/p1/logo`, () => HttpResponse.json({ error: { message: "Type de fichier non supporté." } }, { status: 422 })));
     expect(await uploadPartnerLogo("p1", new File(["<svg/>"], "logo.svg", { type: "image/svg+xml" }))).toBe("Type de fichier non supporté.");
+  });
+
+  const visible: Partner = { id: "p1", name: "Ludothèque", description: "Des jeux à prêter.", url: "https://ludo.example", logoUrl: "http://minio.test/media/content-logos/p1/logo-ab.png" };
+
+  it("reads the visible partners for the public pages, and folds away on a failure", async () => {
+    server.use(http.get(`${BASE}/partners`, () => HttpResponse.json({ data: [visible, { id: "broken" }], meta: {} })));
+    expect(await getPartners()).toEqual([visible]);
+
+    server.use(http.get(`${BASE}/partners`, () => new HttpResponse(null, { status: 500 })));
+    expect(await getPartners()).toEqual([]);
+  });
+
+  it("links a partner out as a partnership, in a new tab", () => {
+    const html = renderToStaticMarkup(<PartnerCard partner={visible} />);
+    expect(html).toContain('href="https://ludo.example"');
+    expect(html).toContain('rel="sponsored noopener noreferrer"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain("Logo de Ludothèque");
+    expect(html).toContain("Des jeux à prêter.");
+  });
+
+  it("shows the home section only with a partner to show", () => {
+    expect(renderToStaticMarkup(<HomePartners partners={[]} />)).toBe("");
+    const html = renderToStaticMarkup(<HomePartners partners={[visible]} />);
+    expect(html).toContain("Ils soutiennent l&#x27;association");
+    expect(html).toContain('href="/partenaires"');
+  });
+
+  it("links the footer to the partners only when one is shown", () => {
+    expect(renderToStaticMarkup(<PartnersFooterLink show={false} />)).toBe("");
+    expect(renderToStaticMarkup(<PartnersFooterLink show />)).toContain('href="/partenaires"');
+  });
+
+  it("lists the partners on their page, and keeps the invitation without any", async () => {
+    server.use(http.get(`${BASE}/partners`, () => HttpResponse.json({ data: [visible], meta: {} })));
+    const filled = renderToStaticMarkup(await PartenairesPage());
+    expect(filled).toContain("Ludothèque");
+    expect(filled).toContain("mailto:contact@archilan.fr");
+
+    server.use(http.get(`${BASE}/partners`, () => HttpResponse.json({ data: [], meta: {} })));
+    const empty = renderToStaticMarkup(await PartenairesPage());
+    expect(empty).toContain("pas encore de partenaire");
+    expect(empty).toContain("mailto:contact@archilan.fr");
   });
 });

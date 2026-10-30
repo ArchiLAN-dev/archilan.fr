@@ -10,6 +10,7 @@ import { getPublicEvents } from "@/features/events/public-events-api";
 import { getPublicPosts } from "@/features/content/public-posts-api";
 import { getHomeAnnouncement } from "@/features/content/home-announcement-api";
 import { HomeAnnouncementModal } from "@/features/content/home-announcement-modal";
+import { getPartners } from "@/features/content/partners-api";
 import { getHomeCommunityStats, getHomeConceptCovers, getHomeRecaps, getHomeWeeklyRuns, newestFirst } from "@/features/home/home-api";
 import {
   HomeAssociation,
@@ -18,6 +19,7 @@ import {
   HomeLan,
   HomeNews,
   HomeNow,
+  HomePartners,
   HomeRecaps,
   HomeStartSteps,
   HomeThisWeek,
@@ -39,13 +41,14 @@ export const revalidate = 300;
 
 export default async function Home() {
   // Story 34.9: everything the sections show, read in parallel and kept five minutes.
-  const [{ upcoming, past: pastAnyOrder }, discord, weeklyRuns, stats, posts, announcement] = await Promise.all([
+  const [{ upcoming, past: pastAnyOrder }, discord, weeklyRuns, stats, posts, announcement, partners] = await Promise.all([
     getPublicEvents(),
     fetchDiscordStats(),
     getHomeWeeklyRuns(),
     getHomeCommunityStats(),
     getPublicPosts(),
     getHomeAnnouncement(),
+    getPartners(),
   ]);
   const past = newestFirst(pastAnyOrder);
   const [recaps, covers] = await Promise.all([getHomeRecaps(past), getHomeConceptCovers(weeklyRuns)]);
@@ -131,6 +134,7 @@ export default async function Home() {
       <HomeRecaps recaps={recaps} />
       <HomeCommunity discord={discord} stats={stats} />
       <HomeAssociation />
+      <HomePartners partners={partners} />
       <HomeNews posts={posts} />
 
       {/* ArchiLAN en direct */}

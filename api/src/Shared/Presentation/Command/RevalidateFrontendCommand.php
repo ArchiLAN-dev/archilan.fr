@@ -18,7 +18,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 #[AsCommand(
     name: 'app:frontend:revalidate',
-    description: 'Revalidate frontend cache tags (events, event:<id>, posts, post:<slug>).',
+    description: 'Revalidate frontend cache tags (events, event:<id>, posts, post:<slug>, partners).',
 )]
 final class RevalidateFrontendCommand extends Command
 {

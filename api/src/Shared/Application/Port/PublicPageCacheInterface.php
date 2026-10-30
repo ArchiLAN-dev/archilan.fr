@@ -10,9 +10,10 @@ namespace App\Shared\Application\Port;
  */
 interface PublicPageCacheInterface
 {
-    /** Tags the frontend gives its reads: `events`, `event:<id>`, `posts`, `post:<slug>`. */
+    /** Tags the frontend gives its reads: `events`, `event:<id>`, `posts`, `post:<slug>`, `partners`. */
     public const string EVENTS = 'events';
     public const string POSTS = 'posts';
+    public const string PARTNERS = 'partners';
 
     /**
      * @param list<string> $tags

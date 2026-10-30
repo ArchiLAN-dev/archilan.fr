@@ -16,6 +16,9 @@ export type AdminPartner = Partner & { active: boolean; visible: boolean };
 
 export type PartnerFields = Pick<AdminPartner, "name" | "description" | "url" | "active">;
 
+/** Story 45.2: the cache tag of every public read of the partners, dropped by the API on each admin write. */
+export const PARTNERS_TAG = "partners";
+
 export function isPartner(v: unknown): v is Partner {
   return (
     typeof v === "object" &&
@@ -34,6 +37,21 @@ export function isAdminPartner(v: unknown): v is AdminPartner {
 
 function dataOf(payload: unknown): unknown {
   return typeof payload === "object" && payload !== null && "data" in payload ? payload.data : undefined;
+}
+
+/**
+ * The visible partners, in display order, read on the server and kept five minutes like the pages showing them
+ * (ISR). Fails soft: an empty list folds every partner block away.
+ */
+export async function getPartners(): Promise<Partner[]> {
+  try {
+    const res = await fetch(`${env.apiBaseUrl}/partners`, { next: { revalidate: 300, tags: [PARTNERS_TAG] } });
+    if (!res.ok) return [];
+    const data = dataOf(await res.json());
+    return Array.isArray(data) ? data.filter(isPartner) : [];
+  } catch {
+    return [];
+  }
 }
 
 /** The admin list, in display order; null when the read failed. */
