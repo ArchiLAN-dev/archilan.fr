@@ -158,7 +158,7 @@ dans la liste, ids inconnus ignorés). Le front y utilise `@dnd-kit` ; ici, avec
   `savePartner`, `deletePartner`, `reorderPartners`, `uploadPartnerLogo`, `removePartnerLogo`) ;
   `src/features/admin/admin-partners.tsx` ; page `src/app/(admin)/admin/partenaires/page.tsx` ; entrée de menu.
 - [x] **Task 6** (AC 19) - Tests front.
-- [ ] **Task 7** (gates verts ; vérification réelle à faire, voir Dev Agent Record) (AC 20, 21) - Gates verts, vérification réelle, Dev Agent Record.
+- [x] **Task 7** (AC 20, 21) - Gates verts, vérification réelle, Dev Agent Record.
 
 ## Dev Notes
 
@@ -244,8 +244,15 @@ Claude Opus 5.5
   `frontend/.env` local (IP du réseau local), 10 tests SEO existants (sitemap, robots, structured-data) échouent,
   sans lien avec la story.
 - Base de dev migrée (`partner` + 3 migrations de `develop` en attente).
-- **Vérification réelle (AC 21) non faite** : `/admin/partenaires` exige une session admin ; aucun compte de dev dans
-  les fixtures, l'agent ne saisit pas de vrai mot de passe. À faire une fois Jean connecté.
+- **Vérification réelle (AC 21), 2026-10-30, Chrome sur `http://localhost:3000` (session admin de Jean)** : création
+  avec logo PNG (objet servi par MinIO, partenaire dans `GET /api/v1/partners`), second partenaire sans logo
+  (« Masqué : pas de logo »), monter / descendre (flèches désactivées aux extrémités), masquage (liste publique
+  vide), suppression des deux via la confirmation. L'aperçu clair / sombre montre bien qu'un logo noir disparaît sur
+  fond sombre ; il disparaît aussi dans la vignette de la liste (fond du thème), comportement attendu.
+  Non vérifié par l'agent : l'affichage avec uBlock activé (extension non pilotable), à refaire surtout en 45.2 sur
+  les pages publiques.
+- Environnement : sur `http://192.168.1.193:3000` l'admin reste en squelette, l'API de dev n'autorisant en CORS que
+  `http://localhost:3000` (préexistant, toutes les pages admin).
 
 ### File List
 
