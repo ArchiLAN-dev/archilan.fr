@@ -13,6 +13,7 @@ use App\Notes\Domain\Enum\NoteTargetType;
  * @phpstan-type FollowUpView array{id: string, kind: string, body: string, author: Author, createdAt: string}
  * @phpstan-type NoteView array{id: string, body: string, status: string, author: Author, createdAt: string, updatedAt: string, edited: bool, followUps: list<FollowUpView>}
  * @phpstan-type RevisionView array{id: string, previousBody: string, editor: Author, editedAt: string}
+ * @phpstan-type OpenSummary array{count: int, latest: array{body: string, author: Author, createdAt: string}}
  */
 interface AdminNoteQueryInterface
 {
@@ -31,11 +32,12 @@ interface AdminNoteQueryInterface
     public function revisions(string $noteId): ?array;
 
     /**
-     * Open notes per target, in one query. Targets without an open note are left out.
+     * Per target, its number of open notes and the newest one (story 46.3), in one query. Targets without an open
+     * note are left out.
      *
      * @param list<string> $targetIds
      *
-     * @return array<string, int>
+     * @return array<string, OpenSummary>
      */
-    public function openCounts(NoteTargetType $type, array $targetIds): array;
+    public function openSummaries(NoteTargetType $type, array $targetIds): array;
 }

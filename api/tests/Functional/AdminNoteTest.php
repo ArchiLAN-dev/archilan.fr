@@ -130,9 +130,10 @@ final class AdminNoteTest extends FunctionalTestCase
         self::assertSame('note_not_found', $this->errorCode($this->decodedJsonResponse()));
     }
 
-    public function testOpenCountsAreReadInOneCallForAList(): void
+    public function testOpenSummariesAreReadInOneCallForAList(): void
     {
-        $this->loginAs($this->admin());
+        $admin = $this->admin();
+        $this->loginAs($admin);
         $twoOpen = $this->registrationId();
         $oneOpen = $this->registrationId();
         $settledOnly = $this->registrationId();
@@ -144,24 +145,34 @@ final class AdminNoteTest extends FunctionalTestCase
         $other = $this->write($settledOnly, 'Réglée aussi.');
         $this->client->jsonRequest('POST', '/api/v1/admin/notes/'.$other.'/settle', []);
 
-        $this->client->jsonRequest('POST', '/api/v1/admin/notes/open-counts', ['targetType' => 'registration', 'targetIds' => [$twoOpen, $oneOpen, $settledOnly, 'unknown']]);
+        $this->client->jsonRequest('POST', '/api/v1/admin/notes/open-summaries', ['targetType' => 'registration', 'targetIds' => [$twoOpen, $oneOpen, $settledOnly, 'unknown']]);
         self::assertResponseIsSuccessful();
-        $counts = $this->decodedJsonResponse()['data'] ?? null;
-        self::assertIsArray($counts);
-        $expected = [$twoOpen => 2, $oneOpen => 1];
-        ksort($counts);
-        ksort($expected);
-        self::assertSame($expected, $counts);
+        $summaries = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($summaries);
+        $expected = [$twoOpen, $oneOpen];
+        $actual = array_keys($summaries);
+        sort($expected);
+        sort($actual);
+        self::assertSame($expected, $actual);
+        self::assertIsArray($summaries[$twoOpen]);
+        self::assertSame(2, $summaries[$twoOpen]['count']);
+        self::assertIsArray($summaries[$twoOpen]['latest']);
+        self::assertSame('Seconde.', $summaries[$twoOpen]['latest']['body']);
+        self::assertSame(['id' => $admin->getId(), 'displayName' => 'Test User'], $summaries[$twoOpen]['latest']['author']);
+        self::assertIsArray($summaries[$oneOpen]);
+        self::assertSame(1, $summaries[$oneOpen]['count']);
+        self::assertIsArray($summaries[$oneOpen]['latest']);
+        self::assertSame('Une.', $summaries[$oneOpen]['latest']['body']);
 
-        $this->client->jsonRequest('POST', '/api/v1/admin/notes/open-counts', ['targetType' => 'registration', 'targetIds' => []]);
+        $this->client->jsonRequest('POST', '/api/v1/admin/notes/open-summaries', ['targetType' => 'registration', 'targetIds' => []]);
         self::assertResponseIsSuccessful();
         self::assertSame('{"data":{},"meta":[]}', $this->client->getResponse()->getContent());
 
-        $this->client->jsonRequest('POST', '/api/v1/admin/notes/open-counts', ['targetType' => 'registration', 'targetIds' => array_map(static fn (int $i): string => 'r'.$i, range(1, 501))]);
+        $this->client->jsonRequest('POST', '/api/v1/admin/notes/open-summaries', ['targetType' => 'registration', 'targetIds' => array_map(static fn (int $i): string => 'r'.$i, range(1, 501))]);
         self::assertResponseStatusCodeSame(422);
         self::assertSame('note_target_ids_invalid', $this->errorCode($this->decodedJsonResponse()));
 
-        $this->client->jsonRequest('POST', '/api/v1/admin/notes/open-counts', ['targetType' => 'registration', 'targetIds' => [1, 2]]);
+        $this->client->jsonRequest('POST', '/api/v1/admin/notes/open-summaries', ['targetType' => 'registration', 'targetIds' => [1, 2]]);
         self::assertResponseStatusCodeSame(422);
         self::assertSame('note_target_ids_invalid', $this->errorCode($this->decodedJsonResponse()));
     }
@@ -173,7 +184,7 @@ final class AdminNoteTest extends FunctionalTestCase
         $routes = [
             ['GET', '/api/v1/admin/notes?targetType=registration&targetId=x'],
             ['POST', '/api/v1/admin/notes'],
-            ['POST', '/api/v1/admin/notes/open-counts'],
+            ['POST', '/api/v1/admin/notes/open-summaries'],
             ['PATCH', '/api/v1/admin/notes/'.$noteId],
             ['POST', '/api/v1/admin/notes/'.$noteId.'/follow-ups'],
             ['POST', '/api/v1/admin/notes/'.$noteId.'/settle'],

@@ -4,16 +4,22 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
+import { RegistrationList } from "@/features/admin/admin-registration-dashboard";
+import type { AdminRegistration } from "@/features/admin/admin-registration-api";
 import {
   adminNotesKey,
   fetchAdminNotes,
+  fetchOpenNoteSummaries,
+  isOpenNoteSummary,
   fetchNoteRevisions,
   isAdminNote,
   turnAdminNote,
   writeAdminNote,
   type AdminNote,
+  type OpenNoteSummary,
 } from "./admin-notes-api";
 import { AdminNotesPanel, followUpLabel, NoteList } from "./admin-notes-panel";
+import { OpenNotesBadge } from "./open-notes-badge";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -123,5 +129,64 @@ describe("admin notes", () => {
   it("says when the notes could not be read", () => {
     const noop = async () => {};
     expect(render(<NoteList isPending={false} notes={null} onChanged={noop} />)).toContain("Les notes n&#x27;ont pas pu être chargées.");
+  });
+});
+
+const summary: OpenNoteSummary = { count: 2, latest: { body: "Arrive à 14 h, garder sa place à côté de Léa.", author: jean, createdAt: "2026-10-30T10:00:00+01:00" } };
+
+function registration(id: string, displayName: string): AdminRegistration {
+  return {
+    registrationId: id,
+    status: "reserved",
+    usedPrivateAccess: false,
+    createdAt: "2026-10-01T10:00:00+02:00",
+    submittedAt: null,
+    participant: { userId: `u-${id}`, displayName, email: `${id}@example.org` },
+    selectedGames: [],
+    gameSelectionComplete: false,
+    payment: null,
+  };
+}
+
+/** Story 46.3: the open notes catch the eye on the registrations list. */
+describe("open notes on the registrations list", () => {
+  it("reads the summaries of a whole list in one call, and keeps the valid ones", async () => {
+    let sent: unknown = null;
+    server.use(
+      http.post(`${BASE}/admin/notes/open-summaries`, async ({ request }) => {
+        sent = await request.json();
+        return HttpResponse.json({ data: { r1: summary, r2: { count: "2" } }, meta: [] });
+      }),
+    );
+    expect(await fetchOpenNoteSummaries("registration", ["r1", "r2", "r3"])).toEqual({ r1: summary });
+    expect(sent).toEqual({ targetType: "registration", targetIds: ["r1", "r2", "r3"] });
+    expect(await fetchOpenNoteSummaries("registration", [])).toEqual({});
+
+    server.use(http.post(`${BASE}/admin/notes/open-summaries`, () => new HttpResponse(null, { status: 500 })));
+    expect(await fetchOpenNoteSummaries("registration", ["r1"])).toBeNull();
+    expect(isOpenNoteSummary({ count: 1, latest: { body: "x", author: jean } })).toBe(false);
+  });
+
+  it("shows the count and the newest note, and nothing without an open note", () => {
+    expect(renderToStaticMarkup(<OpenNotesBadge summary={undefined} />)).toBe("");
+    const html = renderToStaticMarkup(<OpenNotesBadge summary={summary} />);
+    expect(html).toContain("2 notes ouvertes");
+    expect(html).toContain("Arrive à 14 h, garder sa place à côté de Léa.");
+    expect(html).toContain("Jean : ");
+    expect(renderToStaticMarkup(<OpenNotesBadge summary={{ ...summary, count: 1 }} />)).toContain("1 note ouverte");
+  });
+
+  it("marks only the rows with an open note", () => {
+    const html = renderToStaticMarkup(
+      <RegistrationList
+        eventId="e1"
+        highlightedRegistrationIds={new Set()}
+        openNotes={{ r1: summary }}
+        state={{ kind: "ready", registrations: [registration("r1", "Alice"), registration("r2", "Bob")], total: 2 }}
+      />,
+    );
+    expect(html.match(/notes? ouvertes?/g)).toHaveLength(1);
+    expect(html.match(/border-l-accent-warm/g)).toHaveLength(1);
+    expect(html).toContain("Bob");
   });
 });

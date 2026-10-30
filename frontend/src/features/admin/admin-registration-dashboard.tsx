@@ -5,6 +5,8 @@ import Link from "next/link";
 import { use, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { fetchOpenNoteSummaries, type OpenNoteSummary } from "@/features/notes/admin-notes-api";
+import { OpenNotesBadge } from "@/features/notes/open-notes-badge";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
@@ -50,6 +52,16 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
     retry: false,
   });
   const state: DashboardState = data ?? LOADING_STATE;
+
+  // Story 46.3: the open notes of every row, in one call. Refetched on focus, so a note written on a registration's
+  // page shows here when the admin comes back to the list.
+  const registrationIds = state.kind === "ready" ? state.registrations.map((r) => r.registrationId) : [];
+  const { data: openNotes } = useQuery({
+    queryKey: ["admin-notes-open", eventId, registrationIds.join(",")],
+    queryFn: () => fetchOpenNoteSummaries("registration", registrationIds),
+    enabled: registrationIds.length > 0,
+    staleTime: DEFAULT_STALE_TIME,
+  });
 
   // Re-evaluate stale status whenever a load completes or every 30 s.
   // `dataUpdatedAt` advances each time a fetch resolves (the queryFn never throws), which mirrors
@@ -277,20 +289,22 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
         </div>
       </div>
 
-      <RegistrationList eventId={eventId} highlightedRegistrationIds={highlightedRegistrationIds} state={state} />
+      <RegistrationList eventId={eventId} highlightedRegistrationIds={highlightedRegistrationIds} openNotes={openNotes ?? null} state={state} />
     </section>
   );
 }
 
 // ─── RegistrationList ─────────────────────────────────────────────────────────
 
-function RegistrationList({
+export function RegistrationList({
   eventId,
   highlightedRegistrationIds,
+  openNotes,
   state,
 }: {
   eventId: string;
   highlightedRegistrationIds: Set<string>;
+  openNotes: Record<string, OpenNoteSummary> | null;
   state: DashboardState;
 }) {
   if (state.kind === "loading") {
@@ -360,8 +374,9 @@ function RegistrationList({
               className={`border-b border-border last:border-b-0 ${highlightedRegistrationIds.has(r.registrationId) ? "registration-feed-highlight" : ""}`}
               key={r.registrationId}
             >
-              <td className="px-4 py-4 font-semibold text-foreground">
+              <td className={`px-4 py-4 font-semibold text-foreground ${openNotes?.[r.registrationId] !== undefined ? "border-l-4 border-l-accent-warm" : ""}`}>
                 {r.participant.displayName ?? <span className="font-normal text-muted-foreground">(sans pseudonyme)</span>}
+                <OpenNotesBadge summary={openNotes?.[r.registrationId]} />
               </td>
               <td className="px-4 py-4 text-muted-foreground">{r.participant.email}</td>
               <td className="px-4 py-4">

@@ -14,6 +14,7 @@ use App\Shared\Application\Exception\ValidationException;
  *
  * @phpstan-import-type NoteView from AdminNoteQueryInterface
  * @phpstan-import-type RevisionView from AdminNoteQueryInterface
+ * @phpstan-import-type OpenSummary from AdminNoteQueryInterface
  */
 final readonly class AdminNoteQuery
 {
@@ -47,17 +48,17 @@ final readonly class AdminNoteQuery
     /**
      * @param list<string> $targetIds
      *
-     * @return array<string, int>
+     * @return array<string, OpenSummary>
      *
      * @throws ValidationException when the target type is unknown or the list too long
      */
-    public function openCounts(string $targetType, array $targetIds): array
+    public function openSummaries(string $targetType, array $targetIds): array
     {
         $type = NoteTargetTypes::parse($targetType);
         if (count($targetIds) > self::MAX_TARGET_IDS) {
             throw new ValidationException(sprintf('%d cibles au plus.', self::MAX_TARGET_IDS), [], 'note_target_ids_invalid');
         }
 
-        return $this->query->openCounts($type, array_values(array_unique($targetIds)));
+        return $this->query->openSummaries($type, array_values(array_unique($targetIds)));
     }
 }

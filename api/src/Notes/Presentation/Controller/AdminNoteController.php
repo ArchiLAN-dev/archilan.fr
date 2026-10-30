@@ -60,8 +60,8 @@ final readonly class AdminNoteController
         return new JsonResponse(['data' => ['id' => $id], 'meta' => []], 201);
     }
 
-    #[Route('/api/v1/admin/notes/open-counts', name: 'api_admin_notes_open_counts', methods: ['POST'])]
-    public function openCounts(Request $request): JsonResponse
+    #[Route('/api/v1/admin/notes/open-summaries', name: 'api_admin_notes_open_summaries', methods: ['POST'])]
+    public function openSummaries(Request $request): JsonResponse
     {
         $admin = $this->requireAuthenticatedAdmin($request);
         if ($admin instanceof JsonResponse) {
@@ -78,7 +78,7 @@ final readonly class AdminNoteController
         }
 
         // An empty map encodes as an object, not a list: the client reads it by target id.
-        return new JsonResponse(['data' => (object) $this->query->openCounts($targetType, $targetIds), 'meta' => []]);
+        return new JsonResponse(['data' => (object) $this->query->openSummaries($targetType, $targetIds), 'meta' => []]);
     }
 
     #[Route('/api/v1/admin/notes/{noteId}', name: 'api_admin_notes_edit', methods: ['PATCH'])]
