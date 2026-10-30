@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Query;
 
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
@@ -28,6 +30,7 @@ final readonly class SessionRecapQuery
         private SessionRecapRepositoryInterface $recaps,
         private RunResultsQuery $runResults,
         private SessionRecapAudience $audience,
+        private EventRepositoryInterface $events,
     ) {
     }
 
@@ -35,6 +38,7 @@ final readonly class SessionRecapQuery
      * @return array{
      *     sessionId: string,
      *     eventName: string,
+     *     eventId: string|null,
      *     startedAt: string|null,
      *     finishedAt: string|null,
      *     durationSeconds: int|null,
@@ -74,6 +78,8 @@ final readonly class SessionRecapQuery
         return [
             'sessionId' => $sessionId,
             'eventName' => $podium['eventName'],
+            // Story 45.3: set only for an event session (the id also names personal and weekly runs).
+            'eventId' => $this->events->findById($session->getEventId()) instanceof Event ? $session->getEventId() : null,
             'startedAt' => $podium['startedAt'],
             'finishedAt' => $podium['finishedAt'],
             'durationSeconds' => $podium['durationSeconds'],

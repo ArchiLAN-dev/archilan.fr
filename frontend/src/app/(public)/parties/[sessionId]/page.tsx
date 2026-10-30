@@ -4,6 +4,9 @@ import { getSessionRecap } from "@/features/recap/recap-api.server";
 import { getSessionFeed } from "@/features/recap/feed-api.server";
 import { PrivateRecapFallback } from "@/features/recap/private-recap-fallback";
 import { SessionRecapView } from "@/features/recap/session-recap-page";
+import { getPartners, joinEventPartners, type EventPartner } from "@/features/content/partners-api";
+import { getPublicEvent } from "@/features/events/public-events-api";
+import type { SessionRecap } from "@/features/recap/recap-api";
 
 type Props = {
   params: Promise<{ sessionId: string }>;
@@ -54,5 +57,15 @@ export default async function SessionRecapRoute({ params }: Props) {
     return <PrivateRecapFallback sessionId={sessionId} />;
   }
 
-  return <SessionRecapView feed={feed} recap={recap} />;
+  return <SessionRecapView eventPartners={await recapEventPartners(recap)} feed={feed} recap={recap} />;
+}
+
+/**
+ * Story 45.3: an event party thanks its event's partners. A personal run has none, and a private event reads as
+ * null publicly, so its partners stay off the recap.
+ */
+async function recapEventPartners(recap: SessionRecap): Promise<EventPartner[]> {
+  if (recap.eventId === undefined || recap.eventId === null) return [];
+  const [event, partners] = await Promise.all([getPublicEvent(recap.eventId), getPartners()]);
+  return event === null ? [] : joinEventPartners(event.partners ?? [], partners);
 }

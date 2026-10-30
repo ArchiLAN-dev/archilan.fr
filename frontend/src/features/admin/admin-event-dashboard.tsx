@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarPlus, CheckCircle2, Eye, Gamepad2, KeyRound, Pencil, Play, Plus, RotateCcw, Server, ShieldAlert, Shovel, Users, Video } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Eye, Gamepad2, Handshake, KeyRound, Pencil, Play, Plus, RotateCcw, Server, ShieldAlert, Shovel, Users, Video } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { FormEvent } from "react";
 import Link from "next/link";
@@ -439,6 +439,10 @@ function EventList({
         <Shovel aria-hidden="true" className="size-3.5" />
         Pelles
       </Link>
+      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/partenaires`}>
+        <Handshake aria-hidden="true" className="size-3.5" />
+        Partenaires
+      </Link>
       {event.gameSelectionEnabled ? (
         <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/session`}>
           <Server aria-hidden="true" className="size-3.5" />
@@ -547,6 +551,10 @@ function EventList({
                     <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/pelles`}>
                       <Shovel aria-hidden="true" className="size-3.5" />
                       Pelles
+                    </Link>
+                    <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/partenaires`}>
+                      <Handshake aria-hidden="true" className="size-3.5" />
+                      Partenaires
                     </Link>
                     {event.gameSelectionEnabled ? (
                       <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/session`}>

@@ -23,7 +23,7 @@ final readonly class PublicEventCatalog
     }
 
     /**
-     * @return list<array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, hasPrivateAccessPassword: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, checkoutEmbedUrl: string|null, checkoutUnavailable: bool}>
+     * @return list<array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, hasPrivateAccessPassword: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, checkoutEmbedUrl: string|null, checkoutUnavailable: bool, partners: list<array{partnerId: string, mention: string|null}>}>
      */
     public function list(): array
     {
@@ -35,7 +35,7 @@ final readonly class PublicEventCatalog
     }
 
     /**
-     * @return array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, hasPrivateAccessPassword: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, checkoutEmbedUrl: string|null, checkoutUnavailable: bool}|null
+     * @return array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, hasPrivateAccessPassword: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, checkoutEmbedUrl: string|null, checkoutUnavailable: bool, partners: list<array{partnerId: string, mention: string|null}>}|null
      */
     public function get(string $eventId): ?array
     {
@@ -52,7 +52,7 @@ final readonly class PublicEventCatalog
     }
 
     /**
-     * @return array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, hasPrivateAccessPassword: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, checkoutEmbedUrl: string|null, checkoutUnavailable: bool}
+     * @return array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, hasPrivateAccessPassword: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, checkoutEmbedUrl: string|null, checkoutUnavailable: bool, partners: list<array{partnerId: string, mention: string|null}>}
      */
     private function payload(Event $event): array
     {
@@ -80,6 +80,8 @@ final readonly class PublicEventCatalog
             'photoGallery' => $this->resolvePhotoGallery($event),
             'checkoutEmbedUrl' => $checkoutEmbedUrl,
             'checkoutUnavailable' => $this->isCheckoutUnavailable($event, $confirmedCount, $checkoutEmbedUrl),
+            // Story 45.3: references only, the frontend joins them to the visible partners.
+            'partners' => $event->getPartners(),
         ];
     }
 

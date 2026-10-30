@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Events\Presentation\Controller;
 
 use App\Events\Application\Command\AdminEventRecap;
+use App\Events\Application\Command\ChooseEventPartners;
 use App\Events\Application\Command\VerifyPrivateEventAccess;
 use App\Events\Application\Query\AdminDashboardStats;
+use App\Events\Application\Query\AdminEventPartnersQuery;
 use App\Events\Application\Query\PublicEventCatalog;
 use App\Events\Application\Query\RegistrationEligibility;
 use App\Events\Application\Service\AdminEventDrafts;
@@ -34,6 +36,8 @@ final readonly class AdminEventController
         private VerifyPrivateEventAccess $verifyPrivateEventAccess,
         private TriggerHelloAssoSync $triggerHelloAssoSync,
         private AdminHelloAssoSyncStatus $adminHelloAssoSyncStatus,
+        private AdminEventPartnersQuery $adminEventPartners,
+        private ChooseEventPartners $chooseEventPartners,
     ) {
     }
 
@@ -332,6 +336,39 @@ final readonly class AdminEventController
         $this->adminEventRecap->attach($eventId, $this->jsonPayload($request));
 
         return new JsonResponse(['data' => null, 'meta' => ['message' => 'Récap attaché.']]);
+    }
+
+    #[Route('/api/v1/admin/events/{eventId}/partners', name: 'api_events_admin_partners_get', methods: ['GET'])]
+    public function getPartners(Request $request, string $eventId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $partners = $this->adminEventPartners->forEvent($eventId);
+
+        if (null === $partners) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Événement introuvable.', 404);
+        }
+
+        return new JsonResponse(['data' => $partners, 'meta' => []]);
+    }
+
+    #[Route('/api/v1/admin/events/{eventId}/partners', name: 'api_events_admin_partners_choose', methods: ['PUT'])]
+    public function choosePartners(Request $request, string $eventId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        // Story 45.3: failures (event missing, invalid list) are typed ApplicationFailures mapped to HTTP (epic 35).
+        $this->chooseEventPartners->choose($eventId, $this->jsonPayload($request));
+
+        return new JsonResponse(['data' => null, 'meta' => ['message' => 'Partenaires enregistrés.']]);
     }
 
     /**

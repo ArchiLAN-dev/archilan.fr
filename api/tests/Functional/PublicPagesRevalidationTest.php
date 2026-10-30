@@ -112,6 +112,20 @@ final class PublicPagesRevalidationTest extends FunctionalTestCase
         self::assertSame([], $this->queuedTags());
     }
 
+    public function testChoosingEventPartnersRevalidatesTheEventAndARefusalNothing(): void
+    {
+        $event = $this->createEvent('ArchiLAN #4', new \DateTimeImmutable('2026-11-13 18:00'), new \DateTimeImmutable('2026-11-15 18:00'), published: true);
+        $url = sprintf('/api/v1/admin/events/%s/partners', $event->getId());
+
+        $this->client->jsonRequest('PUT', $url, ['partners' => [['partnerId' => 'not-an-id', 'mention' => null]]]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([], $this->queuedTags());
+
+        $this->client->jsonRequest('PUT', $url, ['partners' => [['partnerId' => str_repeat('a', 32), 'mention' => null]]]);
+        self::assertResponseIsSuccessful();
+        self::assertSame([['events', 'event:'.$event->getId()]], $this->queuedTags());
+    }
+
     private function draftEvent(): Event
     {
         return $this->createEvent('ArchiLAN #4', new \DateTimeImmutable('2026-11-13 18:00'), new \DateTimeImmutable('2026-11-15 18:00'));
