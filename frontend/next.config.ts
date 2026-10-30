@@ -30,6 +30,9 @@ const nextConfig: NextConfig = {
           ] as const)
         : []),
     ],
+    // Next 16 also refuses an upstream that resolves to a private IP (SSRF guard), which is exactly local MinIO:
+    // without this, every local logo and cover 400s. Development only, like the plaintext patterns above.
+    dangerouslyAllowLocalIP: process.env.NODE_ENV === "development",
   },
   async redirects() {
     return [
