@@ -5,7 +5,7 @@ import { http, HttpResponse } from "msw";
 import { ADMIN_PARTNERS_KEY, AdminPartners, displayHost, movedIds, partnerStateLabel, tooManyVisible } from "@/features/admin/admin-partners";
 import { HomePartners } from "@/features/home/home-sections";
 import PartenairesPage from "@/app/(public)/partenaires/page";
-import { PartnerCard, PartnersFooterLink } from "./partner-card";
+import { logoChipBackground, PartnerCard, PartnersFooterLink } from "./partner-card";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { getPartners, isAdminPartner, isPartner, reorderPartners, savePartner, uploadPartnerLogo, type AdminPartner, type Partner } from "./partners-api";
@@ -70,14 +70,14 @@ describe("partners", () => {
 
   it("creates a partner and reads the API's message on a refusal", async () => {
     server.use(http.post(`${BASE}/admin/partners`, () => HttpResponse.json({ data: { id: "new" }, meta: {} }, { status: 201 })));
-    expect(await savePartner({ name: "Ludo", description: "", url: "https://ludo.example", active: true }, null)).toEqual({ ok: true, id: "new" });
+    expect(await savePartner({ name: "Ludo", description: "", url: "https://ludo.example", active: true, logoOnDark: false }, null)).toEqual({ ok: true, id: "new" });
 
     server.use(
       http.put(`${BASE}/admin/partners/p1`, () =>
         HttpResponse.json({ error: { code: "partner_url_invalid", message: "Le lien commence par https://." } }, { status: 422 }),
       ),
     );
-    expect(await savePartner({ name: "Ludo", description: "", url: "http://ludo.example", active: true }, "p1")).toEqual({
+    expect(await savePartner({ name: "Ludo", description: "", url: "http://ludo.example", active: true, logoOnDark: false }, "p1")).toEqual({
       ok: false,
       message: "Le lien commence par https://.",
     });
@@ -147,5 +147,26 @@ describe("partners", () => {
     const empty = renderToStaticMarkup(await PartenairesPage());
     expect(empty).toContain("pas encore de partenaire");
     expect(empty).toContain("mailto:contact@archilan.fr");
+  });
+});
+
+/** Story 45.5: a light logo on a dark chip, and a card that gives the logo room. */
+describe("partner logo chip", () => {
+  it("puts a light logo on a dark chip, everything else on white", () => {
+    expect(logoChipBackground({ logoOnDark: true })).toBe("bg-neutral-900");
+    expect(logoChipBackground({ logoOnDark: false })).toBe("bg-white");
+    expect(logoChipBackground({})).toBe("bg-white");
+  });
+
+  it("accepts the flag, and older payloads without it", () => {
+    expect(isPartner({ id: "p1", name: "Ludo", description: "", url: "https://ludo.example", logoUrl: null, logoOnDark: true })).toBe(true);
+    expect(isPartner({ id: "p1", name: "Ludo", description: "", url: "https://ludo.example", logoUrl: null, logoOnDark: "yes" })).toBe(false);
+  });
+
+  it("draws the card's logo on a proportional chip of the right color", () => {
+    const html = renderToStaticMarkup(<PartnerCard partner={{ ...partner, logoOnDark: true }} />);
+    expect(html).toContain("aspect-[5/2]");
+    expect(html).toContain("bg-neutral-900");
+    expect(html).not.toContain("bg-white");
   });
 });

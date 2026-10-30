@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { parseOverlayParams, posToContainerClasses, posToTransformOrigin, type OverlayParams } from "@/features/overlay/overlay-params";
 import { cn } from "@/lib/utils";
+import { logoChipBackground } from "./partner-card";
 import { fetchPartnerScreen } from "./partner-screen-api";
 import type { EventPartner } from "./partners-api";
 
@@ -110,7 +111,7 @@ export function PartnerOverlay({ current, params }: OverlayProps) {
         style={{ transform: `scale(${params.scale})`, transformOrigin: posToTransformOrigin(params.pos) }}
       >
         {/* Fixed white chip, like the site's cards: a partner's logo is drawn for a light background (45.2). */}
-        <span className="flex h-28 w-full items-center justify-center rounded-2xl bg-white p-4 shadow-lg">
+        <span className={cn("flex h-28 w-full items-center justify-center rounded-2xl p-4 shadow-lg", logoChipBackground(partner))}>
           {partner.logoUrl !== null ? (
             <Image alt={`Logo de ${partner.name}`} className="max-h-full max-w-full w-auto object-contain" height={80} src={partner.logoUrl} width={240} />
           ) : null}
@@ -131,7 +132,7 @@ export function PartnerScreenWall({ current, ids }: WallProps) {
       <h1 className="font-heading text-5xl font-bold text-foreground md:text-7xl">Merci à nos partenaires</h1>
       {current !== null ? (
         <div className="grid w-full max-w-4xl justify-items-center gap-6" key={current.partner.id}>
-          <span className="flex h-64 w-full max-w-2xl items-center justify-center rounded-3xl bg-white p-10">
+          <span className={cn("flex h-64 w-full max-w-2xl items-center justify-center rounded-3xl p-10", logoChipBackground(current.partner))}>
             {current.partner.logoUrl !== null ? (
               <Image
                 alt={`Logo de ${current.partner.name}`}
