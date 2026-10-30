@@ -27,6 +27,9 @@ export const ADMIN_PARTNERS_KEY = ["admin-partners"] as const;
 /** The home page is laid out for this many partners; more only raises a warning. */
 export const HOME_PARTNERS_LIMIT = 5;
 
+/** Same bound as the API (`Partner::MAX_DESCRIPTION`). */
+const PARTNER_DESCRIPTION_MAX = 250;
+
 const fieldClass = "min-h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground";
 
 /** The ids with the one at `from` moved by `delta` (-1 up, +1 down); unchanged at the ends. */
@@ -305,8 +308,8 @@ function PartnerForm({ current, onCreated, onSaved }: FormProps) {
           <input className={fieldClass} maxLength={80} onChange={(e) => setName(e.target.value)} required type="text" value={name} />
         </label>
         <label className="grid gap-1 text-sm">
-          <span className="font-medium text-foreground">Description courte, facultative ({description.length}/160)</span>
-          <textarea className={cn(fieldClass, "min-h-20 py-2")} maxLength={160} onChange={(e) => setDescription(e.target.value)} value={description} />
+          <span className="font-medium text-foreground">Description courte, facultative ({description.length}/{PARTNER_DESCRIPTION_MAX})</span>
+          <textarea className={cn(fieldClass, "min-h-20 py-2")} maxLength={PARTNER_DESCRIPTION_MAX} onChange={(e) => setDescription(e.target.value)} value={description} />
         </label>
         <label className="grid gap-1 text-sm">
           <span className="font-medium text-foreground">Lien vers son site</span>

@@ -24,7 +24,7 @@ final readonly class ManagePartners
 {
     private const array MESSAGES = [
         'partner_name_invalid' => 'Un nom de 1 à 80 caractères.',
-        'partner_description_invalid' => 'Une description de 160 caractères au plus.',
+        'partner_description_invalid' => 'Une description de 250 caractères au plus.',
         'partner_url_invalid' => 'Le lien commence par https://.',
         'partner_position_invalid' => 'Position invalide.',
     ];

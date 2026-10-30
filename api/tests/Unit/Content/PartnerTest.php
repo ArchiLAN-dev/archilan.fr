@@ -61,7 +61,7 @@ final class PartnerTest extends TestCase
     {
         yield 'empty name' => ['  ', '', 'https://ludo.example', 'partner_name_invalid'];
         yield 'name too long' => [str_repeat('a', 81), '', 'https://ludo.example', 'partner_name_invalid'];
-        yield 'description too long' => ['Ludo', str_repeat('é', 161), 'https://ludo.example', 'partner_description_invalid'];
+        yield 'description too long' => ['Ludo', str_repeat('é', 251), 'https://ludo.example', 'partner_description_invalid'];
         yield 'bad url' => ['Ludo', '', 'http://ludo.example', 'partner_url_invalid'];
     }
 
@@ -75,10 +75,10 @@ final class PartnerTest extends TestCase
 
     public function testTheBoundsThemselvesAreAccepted(): void
     {
-        $partner = Partner::create('p1', str_repeat('a', 80), str_repeat('é', 160), 'https://ludo.example', true, 0, $this->now);
+        $partner = Partner::create('p1', str_repeat('a', 80), str_repeat('é', 250), 'https://ludo.example', true, 0, $this->now);
 
         self::assertSame(80, mb_strlen($partner->getName()));
-        self::assertSame(160, mb_strlen($partner->getDescription()));
+        self::assertSame(250, mb_strlen($partner->getDescription()));
     }
 
     /** @return iterable<string, array{string, bool}> */

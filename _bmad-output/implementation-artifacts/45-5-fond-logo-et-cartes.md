@@ -27,6 +27,8 @@ afin que chaque partenaire soit lisible et mis en valeur sur l'accueil et partou
    assumées : c'est le logo qui décide, pas le thème du visiteur.
 3. Carte : pastille proportionnelle (5:2) avec marge intérieure ; le logo remplit la place en restant entier
    (`object-contain`).
+4. Ajout demandé par Jean en cours de revue : la description courte passe de 160 à 250 caractères
+   (`Partner::MAX_DESCRIPTION`, colonne élargie, compteur du formulaire admin).
 
 ## Critères d'acceptation
 
@@ -36,6 +38,7 @@ afin que chaque partenaire soit lisible et mis en valeur sur l'accueil et partou
 3. Carte de l'accueil et de `/partenaires` en 5:2.
 4. Tests API (domaine, aller-retour admin) et front (couleur, garde tolérante, carte).
 5. `composer gates` et `pnpm gates` verts ; vérification réelle.
+6. Description courte jusqu'à 250 caractères (API, colonne, formulaire) ; migration avec `down()`.
 
 ## Tasks / Subtasks
 
@@ -56,6 +59,9 @@ Claude Opus 5.5
 - Front : `logoOnDark?` sur `Partner` (absent = clair), `logoChipBackground()` dans `partner-card.tsx`, appliqué aux
   cartes, au bloc discret, à l'overlay, à l'écran et à la liste admin ; case et aperçu entouré dans le formulaire ;
   carte en 5:2 avec `sizes`.
+- Description à 250 caractères : `Partner::MAX_DESCRIPTION`, colonne `VARCHAR(250)` (migration `Version20261025200007`,
+  `down()` revient à 160 et échouerait si une description plus longue existe), message d'erreur, compteur et
+  `maxLength` du formulaire (`PARTNER_DESCRIPTION_MAX`), bornes du test unitaire.
 - Vérification réelle (Chrome, `localhost:3000`) : Minimapperz coché, logo lisible sur fond sombre sur l'accueil,
   carte proportionnée ; formulaire admin avec la case cochée et la pastille sombre entourée. Minimapperz est laissé
   coché (donnée réelle de Jean).
@@ -63,6 +69,7 @@ Claude Opus 5.5
 ### File List
 
 - `api/migrations/Version20261025200006.php` (nouveau)
+- `api/migrations/Version20261025200007.php` (nouveau)
 - `api/src/Content/Domain/Entity/Partner.php` (modifié)
 - `api/src/Content/Application/Command/PartnerDraft.php` (modifié)
 - `api/src/Content/Application/Command/ManagePartners.php` (modifié)
@@ -75,3 +82,4 @@ Claude Opus 5.5
 - `frontend/src/features/content/partner-screen.tsx` (modifié)
 - `frontend/src/features/content/partners.test.tsx` (modifié)
 - `frontend/src/features/admin/admin-partners.tsx` (modifié)
+- `_bmad-output/planning-artifacts/epics/epic-45-partenaires.md` (modifié)

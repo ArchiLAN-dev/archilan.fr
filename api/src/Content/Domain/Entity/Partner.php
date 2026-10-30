@@ -16,7 +16,7 @@ use Doctrine\ORM\Mapping as ORM;
 final class Partner
 {
     public const int MAX_NAME = 80;
-    public const int MAX_DESCRIPTION = 160;
+    public const int MAX_DESCRIPTION = 250;
     public const int MAX_URL = 500;
 
     private function __construct(
@@ -25,7 +25,7 @@ final class Partner
         private string $id,
         #[ORM\Column(type: 'string', length: 80)]
         private string $name,
-        #[ORM\Column(type: 'string', length: 160)]
+        #[ORM\Column(type: 'string', length: 250)]
         private string $description,
         #[ORM\Column(type: 'string', length: 500)]
         private string $url,
