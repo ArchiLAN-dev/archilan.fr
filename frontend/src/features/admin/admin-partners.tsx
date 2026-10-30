@@ -18,6 +18,7 @@ import {
   type AdminPartner,
 } from "@/features/content/partners-api";
 import { PartnerScreenLinks } from "@/features/admin/partner-screen-links";
+import { logoChipBackground } from "@/features/content/partner-card";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,9 @@ export const ADMIN_PARTNERS_KEY = ["admin-partners"] as const;
 
 /** The home page is laid out for this many partners; more only raises a warning. */
 export const HOME_PARTNERS_LIMIT = 5;
+
+/** Same bound as the API (`Partner::MAX_DESCRIPTION`). */
+const PARTNER_DESCRIPTION_MAX = 250;
 
 const fieldClass = "min-h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground";
 
@@ -204,7 +208,7 @@ type RowProps = {
 function PartnerRow({ partner, isFirst, isLast, pending, onEdit, onMove, onDelete }: RowProps) {
   return (
     <li className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
-      <div className="flex size-16 items-center justify-center rounded-lg border border-border bg-background p-1.5">
+      <div className={cn("flex size-16 items-center justify-center rounded-lg border border-border p-1.5", partner.logoUrl !== null ? logoChipBackground(partner) : "bg-background")}>
         {partner.logoUrl !== null ? (
           <Image alt="" className="max-h-full max-w-full w-auto object-contain" height={52} src={partner.logoUrl} width={52} />
         ) : (
@@ -256,6 +260,7 @@ function PartnerForm({ current, onCreated, onSaved }: FormProps) {
   const [description, setDescription] = useState(current?.description ?? "");
   const [url, setUrl] = useState(current?.url ?? "");
   const [active, setActive] = useState(current?.active ?? true);
+  const [logoOnDark, setLogoOnDark] = useState(current?.logoOnDark ?? false);
   const [file, setFile] = useState<{ file: File; url: string } | null>(null);
   const [dropLogo, setDropLogo] = useState(false);
   // Set once a creation went through but the logo upload failed: the next submit edits it, never creates a twin.
@@ -270,7 +275,7 @@ function PartnerForm({ current, onCreated, onSaved }: FormProps) {
   async function submit(): Promise<void> {
     setPending(true);
     setError(null);
-    const saved = await savePartner({ name, description, url, active }, id);
+    const saved = await savePartner({ name, description, url, active, logoOnDark }, id);
     let failure = saved.ok ? null : saved.message;
     if (saved.ok && file !== null) {
       failure = await uploadPartnerLogo(saved.id, file.file);
@@ -303,8 +308,8 @@ function PartnerForm({ current, onCreated, onSaved }: FormProps) {
           <input className={fieldClass} maxLength={80} onChange={(e) => setName(e.target.value)} required type="text" value={name} />
         </label>
         <label className="grid gap-1 text-sm">
-          <span className="font-medium text-foreground">Description courte, facultative ({description.length}/160)</span>
-          <textarea className={cn(fieldClass, "min-h-20 py-2")} maxLength={160} onChange={(e) => setDescription(e.target.value)} value={description} />
+          <span className="font-medium text-foreground">Description courte, facultative ({description.length}/{PARTNER_DESCRIPTION_MAX})</span>
+          <textarea className={cn(fieldClass, "min-h-20 py-2")} maxLength={PARTNER_DESCRIPTION_MAX} onChange={(e) => setDescription(e.target.value)} value={description} />
         </label>
         <label className="grid gap-1 text-sm">
           <span className="font-medium text-foreground">Lien vers son site</span>
@@ -331,7 +336,7 @@ function PartnerForm({ current, onCreated, onSaved }: FormProps) {
           />
           {logoUrl !== null ? (
             <div className="flex flex-wrap items-center gap-3">
-              <LogoPreview url={logoUrl} />
+              <LogoPreview logoOnDark={logoOnDark} url={logoUrl} />
               <button
                 className={cn(buttonVariants({ variant: "ghost" }), "hover:text-danger")}
                 onClick={() => {
@@ -346,6 +351,11 @@ function PartnerForm({ current, onCreated, onSaved }: FormProps) {
               </button>
             </div>
           ) : null}
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input checked={logoOnDark} className="size-4" onChange={(e) => setLogoOnDark(e.target.checked)} type="checkbox" />
+            Logo clair : l&apos;afficher sur fond sombre
+          </label>
+          <span className="text-xs text-muted-foreground">À cocher quand le logo disparaît sur le fond blanc (texte blanc par exemple).</span>
         </div>
         {error !== null ? (
           <p className="text-sm text-danger" role="alert">
@@ -365,13 +375,20 @@ function PartnerForm({ current, onCreated, onSaved }: FormProps) {
 /**
  * The logo on a light and a dark tile side by side, whatever the admin's theme: a dark logo on a transparent
  * background vanishes in the dark theme, and the admin must see it before publishing. The two tile colors are fixed
- * on purpose, not theme tokens.
+ * on purpose, not theme tokens. Story 45.5: the tile the site will use is outlined.
  */
-function LogoPreview({ url }: { url: string }) {
+function LogoPreview({ url, logoOnDark }: { url: string; logoOnDark: boolean }) {
   return (
     <div className="flex gap-2">
-      {["bg-white", "bg-neutral-900"].map((tile) => (
-        <div className={cn("flex h-20 w-32 items-center justify-center rounded-lg border border-border p-2", tile)} key={tile}>
+      {[false, true].map((dark) => (
+        <div
+          className={cn(
+            "flex h-20 w-32 items-center justify-center rounded-lg border p-2",
+            logoChipBackground({ logoOnDark: dark }),
+            dark === logoOnDark ? "border-accent ring-2 ring-accent" : "border-border",
+          )}
+          key={String(dark)}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element -- a local preview (blob URL) next/image cannot load */}
           <img alt="" className="max-h-full max-w-full object-contain" src={url} />
         </div>

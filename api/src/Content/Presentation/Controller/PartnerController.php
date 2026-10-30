@@ -168,6 +168,6 @@ final readonly class PartnerController
         }
         $text = static fn (string $key): string => is_string($payload[$key] ?? null) ? $payload[$key] : '';
 
-        return new PartnerDraft($text('name'), $text('description'), $text('url'), true === ($payload['active'] ?? false));
+        return new PartnerDraft($text('name'), $text('description'), $text('url'), true === ($payload['active'] ?? false), true === ($payload['logoOnDark'] ?? false));
     }
 }
