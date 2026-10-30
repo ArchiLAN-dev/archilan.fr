@@ -14,6 +14,7 @@ import {
   type EventPartnerRef,
 } from "@/features/content/partners-api";
 import { ADMIN_PARTNERS_KEY, partnerStateLabel } from "@/features/admin/admin-partners";
+import { PartnerScreenLinks } from "@/features/admin/partner-screen-links";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 
 /** The API's ceiling, mirrored to disable « Ajouter » instead of failing on save. */
@@ -77,6 +78,8 @@ export function AdminEventPartnersPage({ params }: { params: Promise<{ eventId: 
         // The draft starts from the first read; a refetch after saving leaves it (and its confirmation) alone.
         <EventPartnersEditor eventId={eventId} initial={chosen.data} partners={partners.data} />
       ) : null}
+      {/* Story 45.4: the event's screen for OBS and the LAN. */}
+      <PartnerScreenLinks eventId={eventId} />
     </div>
   );
 }

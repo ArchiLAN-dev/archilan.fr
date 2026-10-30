@@ -32,7 +32,7 @@ const TEST_TYPES: readonly { value: string; label: string; widget: WidgetKey }[]
 ];
 
 // Checkerboard so a transparent overlay is visible in the preview.
-const CHECKER_STYLE = {
+export const CHECKER_STYLE = {
   width: 320,
   height: 180,
   backgroundColor: "#1a1a22",
