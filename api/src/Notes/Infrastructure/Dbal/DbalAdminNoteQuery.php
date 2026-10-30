@@ -90,32 +90,45 @@ final readonly class DbalAdminNoteQuery implements AdminNoteQueryInterface
         ], $rows);
     }
 
-    public function openCounts(NoteTargetType $type, array $targetIds): array
+    public function openSummaries(NoteTargetType $type, array $targetIds): array
     {
         if ([] === $targetIds) {
             return [];
         }
 
+        // One query: every open note of the targets, each carrying its target's count and its rank (newest first).
         $qb = $this->connection->createQueryBuilder();
         $rows = $qb
-            ->select('n.target_id', 'COUNT(*) AS open_count')
+            ->select('n.target_id', 'n.body', 'n.author_id', 'u.display_name', 'n.created_at')
+            ->addSelect('COUNT(*) OVER (PARTITION BY n.target_id) AS open_count')
+            ->addSelect('ROW_NUMBER() OVER (PARTITION BY n.target_id ORDER BY n.created_at DESC, n.id DESC) AS rank')
             ->from('admin_note', 'n')
+            ->leftJoin('n', $this->userTable, 'u', 'u.id = n.author_id')
             ->where($qb->expr()->eq('n.target_type', ':type'))
             ->andWhere($qb->expr()->eq('n.status', ':open'))
             ->andWhere($qb->expr()->in('n.target_id', ':ids'))
             ->setParameter('type', $type->value)
             ->setParameter('open', NoteStatus::Open->value)
             ->setParameter('ids', $targetIds, ArrayParameterType::STRING)
-            ->groupBy('n.target_id')
             ->executeQuery()
             ->fetchAllAssociative();
 
-        $counts = [];
+        $summaries = [];
         foreach ($rows as $row) {
-            $counts[self::string($row['target_id'])] = self::int($row['open_count']);
+            if (1 !== self::int($row['rank'])) {
+                continue;
+            }
+            $summaries[self::string($row['target_id'])] = [
+                'count' => self::int($row['open_count']),
+                'latest' => [
+                    'body' => self::string($row['body']),
+                    'author' => self::author($row['author_id'], $row['display_name']),
+                    'createdAt' => $this->date($row['created_at']),
+                ],
+            ];
         }
 
-        return $counts;
+        return $summaries;
     }
 
     /**

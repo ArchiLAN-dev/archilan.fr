@@ -137,3 +137,41 @@ function errorMessage(payload: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+/** Story 46.3: what a list row needs to show a target's open notes without opening it. */
+export type OpenNoteSummary = { count: number; latest: { body: string; author: NoteAuthor; createdAt: string } };
+
+export function isOpenNoteSummary(v: unknown): v is OpenNoteSummary {
+  return (
+    isObject(v) &&
+    "count" in v &&
+    typeof v.count === "number" &&
+    "latest" in v &&
+    isObject(v.latest) &&
+    hasStringProp(v.latest, "body") &&
+    "author" in v.latest &&
+    isNoteAuthor(v.latest.author) &&
+    hasStringProp(v.latest, "createdAt")
+  );
+}
+
+/**
+ * Story 46.3: the open notes of a whole list of targets, in one call, keyed by target id. A target without an open
+ * note is absent. null when the read failed.
+ */
+export async function fetchOpenNoteSummaries(targetType: NoteTargetType, targetIds: string[]): Promise<Record<string, OpenNoteSummary> | null> {
+  if (targetIds.length === 0) return {};
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/notes/open-summaries`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetType, targetIds }),
+    });
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    if (!isObject(data) || Array.isArray(data)) return null;
+    return Object.fromEntries(Object.entries(data).filter((entry): entry is [string, OpenNoteSummary] => isOpenNoteSummary(entry[1])));
+  } catch {
+    return null;
+  }
+}
