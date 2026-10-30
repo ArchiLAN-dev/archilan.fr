@@ -41,7 +41,7 @@ purpose: "Token-efficient context for downstream PRD creation"
 - Food and drink sales during in-person events
 - Merchandise (via HelloAsso boutique)
 - Association membership fees (cotisation) - currently only CA members; future: open to public
-- No external sponsorship currently planned
+- External partnerships (up to 5, no tiers) planned from 2026-10 - see epic 45
 - All payments flow through HelloAsso
 
 ## Technical Stack (decided, non-negotiable)
