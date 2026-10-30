@@ -47,6 +47,7 @@ final class AdminNoteTest extends FunctionalTestCase
         self::assertIsArray($revisions);
         self::assertCount(1, $revisions);
         self::assertIsArray($revisions[0]);
+        self::assertIsString($revisions[0]['id']);
         self::assertSame('A payé 15 euros en espèces.', $revisions[0]['previousBody']);
         self::assertSame(['id' => $editor->getId(), 'displayName' => 'Léa'], $revisions[0]['editor']);
     }

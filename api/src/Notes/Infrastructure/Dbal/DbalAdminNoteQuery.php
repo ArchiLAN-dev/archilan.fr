@@ -72,7 +72,7 @@ final readonly class DbalAdminNoteQuery implements AdminNoteQueryInterface
         }
 
         $rows = $this->connection->createQueryBuilder()
-            ->select('r.previous_body', 'r.editor_id', 'u.display_name', 'r.edited_at')
+            ->select('r.id', 'r.previous_body', 'r.editor_id', 'u.display_name', 'r.edited_at')
             ->from('admin_note_revision', 'r')
             ->leftJoin('r', $this->userTable, 'u', 'u.id = r.editor_id')
             ->where('r.note_id = :id')
@@ -83,6 +83,7 @@ final readonly class DbalAdminNoteQuery implements AdminNoteQueryInterface
             ->fetchAllAssociative();
 
         return array_map(fn (array $row): array => [
+            'id' => self::string($row['id']),
             'previousBody' => self::string($row['previous_body']),
             'editor' => self::author($row['editor_id'], $row['display_name']),
             'editedAt' => $this->date($row['edited_at']),
