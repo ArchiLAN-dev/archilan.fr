@@ -31,6 +31,7 @@ final readonly class AdminRegistrationDashboard
      *   registrationId: string,
      *   status: string,
      *   usedPrivateAccess: bool,
+     *   broadcastConsent: bool,
      *   createdAt: string,
      *   submittedAt: string|null,
      *   participant: array{userId: string, displayName: string|null, email: string},
@@ -103,6 +104,8 @@ final readonly class AdminRegistrationDashboard
                 'registrationId' => $registration->getId(),
                 'status' => $registration->getStatus(),
                 'usedPrivateAccess' => isset($privateAccessSet[$registration->getUserId()]),
+                // Story 47.1: the member lets the broadcast show their stream.
+                'broadcastConsent' => $registration->hasBroadcastConsent(),
                 'createdAt' => $registration->getCreatedAt()->format(\DateTimeInterface::ATOM),
                 'submittedAt' => $registration->getSubmittedAt()?->format(\DateTimeInterface::ATOM),
                 'participant' => [
