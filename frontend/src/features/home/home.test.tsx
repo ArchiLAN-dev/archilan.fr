@@ -5,7 +5,7 @@ import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import type { PublicEvent } from "@/features/events/event-types";
 import { getHomeConceptCovers, getHomeRecaps, getHomeWeeklyRuns, newestFirst } from "./home-api";
-import { HomeCommunity, HomeConcept, HomeLan, HomeNews, HomeNow, HomeRecaps } from "./home-sections";
+import { HomeCommunity, HomeConcept, HomeLan, HomeNews, HomeNow, HomeRecaps, homeLanPicks } from "./home-sections";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -103,5 +103,29 @@ describe("home page sections", () => {
     const html = renderToStaticMarkup(<HomeCommunity discord={{ members: 95, online: 45 }} stats={{ totalFinishedSessions: 86, totalChecksDone: 15817, totalGoalsReached: 58 }} />);
     expect(html).toMatch(/15\s817/);
     expect(html).toContain("membres sur le Discord");
+  });
+});
+
+/** Story 3.15: the admin's pick replaces the automatic one, the text speaks of it only while it is ahead. */
+describe("event featured on the home page", () => {
+  const next = event("4", "2026-11-13T17:00:00+00:00", 60, "open");
+  const later = event("5", "2027-03-13T17:00:00+00:00", 60, "upcoming");
+
+  it("keeps the automatic pick without a choice", () => {
+    expect(homeLanPicks([next, later], [lan3])).toEqual({ shown: next, next });
+    expect(homeLanPicks([], [lan3, lan2])).toEqual({ shown: lan3, next: null });
+  });
+
+  it("shows and speaks of a later event when it is picked", () => {
+    const picked = { ...later, featuredOnHome: true };
+    expect(homeLanPicks([next, picked], [lan3])).toEqual({ shown: picked, next: picked });
+    const html = renderToStaticMarkup(<HomeLan past={[lan3]} upcoming={[next, picked]} />);
+    expect(html).toContain('href="/evenements/5"');
+    expect(html).not.toContain('href="/evenements/4"');
+  });
+
+  it("shows a past edition when it is picked, and still speaks of the next LAN", () => {
+    const picked = { ...lan2, featuredOnHome: true };
+    expect(homeLanPicks([next], [lan3, picked])).toEqual({ shown: picked, next });
   });
 });

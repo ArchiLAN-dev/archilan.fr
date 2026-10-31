@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarPlus, CheckCircle2, Eye, Gamepad2, Handshake, KeyRound, Pencil, Play, Plus, RotateCcw, Server, ShieldAlert, Shovel, Users, Video } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Eye, Gamepad2, Handshake, House, KeyRound, Pencil, Play, Plus, RotateCcw, Server, ShieldAlert, Shovel, Users, Video } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { FormEvent } from "react";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
+  featureAdminEventOnHome,
   fetchAdminEvents,
   saveAdminEventRecap,
   updateAdminEventPrivateAccess,
@@ -87,6 +88,22 @@ export function AdminEventDashboard() {
     setMessage(status === "draft" ? "Événement dépublié." : "Statut mis à jour.");
   }
 
+  // Story 3.15: one event at most is featured, so featuring one clears the others in the cached list too.
+  async function toggleFeatured(event: AdminEvent) {
+    const featured = !event.featuredOnHome;
+    const error = await featureAdminEventOnHome(event.id, featured);
+
+    if (error !== null) {
+      setMessage(error);
+      return;
+    }
+
+    patchCachedEvent((item) =>
+      item.id === event.id ? { ...item, featuredOnHome: featured } : featured ? { ...item, featuredOnHome: false } : item,
+    );
+    setMessage(featured ? `${event.title} est mis en avant sur l'accueil.` : `${event.title} n'est plus mis en avant sur l'accueil.`);
+  }
+
   async function configurePrivateAccess(event: AdminEvent, password: string) {
     const updated = await updateAdminEventPrivateAccess(event.id, password);
 
@@ -130,6 +147,7 @@ export function AdminEventDashboard() {
       <EventList
         onConfigurePrivateAccess={(event) => setPendingPrivateAccess({ event })}
         onConfigureRecap={setRecapEvent}
+        onFeature={toggleFeatured}
         onTransition={requestTransition}
         state={state}
       />
@@ -298,14 +316,16 @@ function PrivateAccessDialog({
   );
 }
 
-function EventList({
+export function EventList({
   onConfigurePrivateAccess,
   onConfigureRecap,
+  onFeature,
   onTransition,
   state,
 }: {
   onConfigurePrivateAccess: (event: AdminEvent) => void;
   onConfigureRecap: (event: AdminEvent) => void;
+  onFeature: (event: AdminEvent) => void;
   onTransition: (event: AdminEvent, status: AdminEvent["status"]) => void;
   state: DashboardState;
 }) {
@@ -443,6 +463,17 @@ function EventList({
         <Handshake aria-hidden="true" className="size-3.5" />
         Partenaires
       </Link>
+      {event.status !== "draft" ? (
+        <button
+          className={event.featuredOnHome ? ROW_BTN_ACTIVE : ROW_BTN_NEUTRAL}
+          onClick={() => onFeature(event)}
+          title={event.featuredOnHome ? "Revenir au choix automatique de l'accueil" : "Montrer cet événement sur l'accueil"}
+          type="button"
+        >
+          <House aria-hidden="true" className="size-3.5" />
+          {event.featuredOnHome ? "Retirer de l'accueil" : "Mettre en avant"}
+        </button>
+      ) : null}
       {event.gameSelectionEnabled ? (
         <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/session`}>
           <Server aria-hidden="true" className="size-3.5" />
@@ -494,6 +525,7 @@ function EventList({
               <tr className="border-b border-border last:border-b-0" key={event.id}>
                 <td className="px-4 py-3 font-semibold text-foreground">
                   <span>{event.title}</span>
+                  {featuredPill(event)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">{statusPill(event.status)}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
@@ -538,56 +570,7 @@ function EventList({
                     <span className="text-xs text-muted-foreground">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/modifier`}>
-                      <Pencil aria-hidden="true" className="size-3.5" />
-                      Modifier
-                    </Link>
-                    <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/inscriptions`}>
-                      <Users aria-hidden="true" className="size-3.5" />
-                      Inscrits
-                    </Link>
-                    <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/pelles`}>
-                      <Shovel aria-hidden="true" className="size-3.5" />
-                      Pelles
-                    </Link>
-                    <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/partenaires`}>
-                      <Handshake aria-hidden="true" className="size-3.5" />
-                      Partenaires
-                    </Link>
-                    {event.gameSelectionEnabled ? (
-                      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/session`}>
-                        <Server aria-hidden="true" className="size-3.5" />
-                        Run
-                      </Link>
-                    ) : null}
-                    {transitionActions(event.status).map((action) => {
-                      const Icon = transitionIcon(action.status);
-                      return (
-                        <button
-                          className={ROW_BTN_NEUTRAL}
-                          key={action.status}
-                          onClick={() => onTransition(event, action.status)}
-                          type="button"
-                        >
-                          <Icon aria-hidden="true" className="size-3.5" />
-                          {action.label}
-                        </button>
-                      );
-                    })}
-                    {!event.isPublic ? (
-                      <button
-                        className={ROW_BTN_NEUTRAL}
-                        onClick={() => onConfigurePrivateAccess(event)}
-                        type="button"
-                      >
-                        <KeyRound aria-hidden="true" className="size-3.5" />
-                        {event.hasPrivateAccessPassword ? "Changer accès" : "Config. accès"}
-                      </button>
-                    ) : null}
-                  </div>
-                </td>
+                <td className="px-4 py-3">{renderActions(event)}</td>
               </tr>
             ))}
           </tbody>
@@ -600,7 +583,10 @@ function EventList({
           <li className="space-y-3 p-4" key={event.id}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-semibold text-foreground">{event.title}</p>
+                <p className="font-semibold text-foreground">
+                  {event.title}
+                  {featuredPill(event)}
+                </p>
                 <div className="mt-1">{statusPill(event.status)}</div>
               </div>
               <time className="shrink-0 text-xs text-muted-foreground" dateTime={event.startsAt}>
@@ -747,6 +733,16 @@ function RecapDialog({
       </form>
     </div>
   );
+}
+
+/** Story 3.15: the event the home page shows instead of its automatic pick. */
+function featuredPill(event: AdminEvent) {
+  return event.featuredOnHome ? (
+    <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-accent-warm/50 px-2 py-0.5 align-middle text-xs font-medium text-accent-warm">
+      <House aria-hidden="true" className="size-3" />
+      Accueil
+    </span>
+  ) : null;
 }
 
 function statusLabel(status: AdminEvent["status"]) {

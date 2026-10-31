@@ -41,6 +41,7 @@ final readonly class AdminEventView
         public array $photoGallery,
         public string $createdAt,
         public string $updatedAt,
+        public bool $featuredOnHome,
     ) {
     }
 }

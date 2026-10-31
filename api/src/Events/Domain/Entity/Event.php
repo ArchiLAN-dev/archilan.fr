@@ -93,6 +93,9 @@ final class Event
         /** @var list<mixed>|null Story 45.3: partner references, joined to the Content partners by id on read. */
         #[ORM\Column(name: 'partners', type: Types::JSON, nullable: true)]
         private ?array $partners = null,
+        /** Story 3.15: the admin's pick for the home page; the command keeps at most one event featured. */
+        #[ORM\Column(name: 'featured_on_home', type: 'boolean', options: ['default' => false])]
+        private bool $featuredOnHome = false,
     ) {
     }
 
@@ -190,12 +193,38 @@ final class Event
         }
 
         $this->status = $targetStatus;
+        // Story 3.15: an unpublished event leaves the home page; republishing it does not bring it back.
+        if (self::STATUS_DRAFT === $targetStatus) {
+            $this->featuredOnHome = false;
+        }
         $this->updatedAt = $now;
     }
 
     public function isVisiblePublicly(): bool
     {
         return in_array($this->status, self::PUBLIC_STATUSES, true);
+    }
+
+    /** Story 3.15: only a public event can be featured on the home page; a draft has nothing to show yet. */
+    public function featureOnHome(\DateTimeImmutable $now): void
+    {
+        if (!$this->isVisiblePublicly()) {
+            throw new \DomainException('event_featured_not_public');
+        }
+
+        $this->featuredOnHome = true;
+        $this->updatedAt = $now;
+    }
+
+    public function removeFromHome(\DateTimeImmutable $now): void
+    {
+        $this->featuredOnHome = false;
+        $this->updatedAt = $now;
+    }
+
+    public function isFeaturedOnHome(): bool
+    {
+        return $this->featuredOnHome;
     }
 
     public function configurePrivateAccessPassword(string $passwordHash, \DateTimeImmutable $now): void
