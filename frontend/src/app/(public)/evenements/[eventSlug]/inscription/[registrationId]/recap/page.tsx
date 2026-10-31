@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { RegistrationRecapGate } from "@/features/events/registration-recap-gate";
+import { BroadcastConsentCard } from "@/features/streaming/broadcast-consent-card";
 
 export const metadata: Metadata = {
   title: "Récapitulatif de l'inscription",
@@ -15,6 +16,8 @@ export default function RecapPage({ params }: RecapPageProps) {
   return (
     <div className="mx-auto max-w-content px-4 py-10 sm:px-6">
       <RegistrationRecapGate params={params} />
+      {/* Story 47.1: whether the ArchiLAN broadcast may show the member's stream. */}
+      <BroadcastConsentCard params={params} />
     </div>
   );
 }

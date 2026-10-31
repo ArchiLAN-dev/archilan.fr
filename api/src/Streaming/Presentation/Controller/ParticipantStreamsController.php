@@ -32,6 +32,18 @@ final readonly class ParticipantStreamsController
         return new JsonResponse(['data' => $streams]);
     }
 
+    /** Story 47.1: public like the list above, an OBS source has no session. Only the live members who agreed. */
+    #[Route('/api/v1/events/{eventId}/broadcast-streams', name: 'api_event_broadcast_streams', methods: ['GET'])]
+    public function eventBroadcast(string $eventId): JsonResponse
+    {
+        $streams = $this->view->forEventBroadcast($eventId);
+        if (null === $streams) {
+            return $this->apiAccessGuard->errorResponse('event_not_found', 'Événement introuvable.', 404);
+        }
+
+        return new JsonResponse(['data' => $streams]);
+    }
+
     #[Route('/api/v1/runs/{runId}/participant-streams', name: 'api_run_participant_streams', methods: ['GET'])]
     public function run(string $runId): JsonResponse
     {

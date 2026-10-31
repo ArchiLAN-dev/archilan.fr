@@ -18,6 +18,13 @@ interface ParticipantTwitchLinksQueryInterface
     /** @return list<ParticipantLinkRow>|null */
     public function forEvent(string $eventId): ?array;
 
+    /**
+     * Story 47.1: the same participants, narrowed to those who let the ArchiLAN broadcast show their stream.
+     *
+     * @return list<ParticipantLinkRow>|null
+     */
+    public function forEventBroadcast(string $eventId): ?array;
+
     /** @return list<ParticipantLinkRow>|null */
     public function forPersonalRun(string $runId): ?array;
 
