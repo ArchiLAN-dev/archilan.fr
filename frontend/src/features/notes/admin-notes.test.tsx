@@ -139,6 +139,7 @@ function registration(id: string, displayName: string): AdminRegistration {
     registrationId: id,
     status: "reserved",
     usedPrivateAccess: false,
+    broadcastConsent: false,
     createdAt: "2026-10-01T10:00:00+02:00",
     submittedAt: null,
     participant: { userId: `u-${id}`, displayName, email: `${id}@example.org` },

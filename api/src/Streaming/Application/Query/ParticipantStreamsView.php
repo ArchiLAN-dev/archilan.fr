@@ -41,6 +41,18 @@ final readonly class ParticipantStreamsView
         return $this->present($this->query->forPersonalRun($runId));
     }
 
+    /**
+     * Story 47.1: what the broadcast may show, the live streams of the members who agreed to it.
+     *
+     * @return list<ParticipantStream>|null
+     */
+    public function forEventBroadcast(string $eventId): ?array
+    {
+        $streams = $this->present($this->query->forEventBroadcast($eventId));
+
+        return null === $streams ? null : array_values(array_filter($streams, static fn (array $stream): bool => $stream['live']));
+    }
+
     /** @return list<ParticipantStream>|null */
     public function forWeeklyRun(string $weeklyRunId): ?array
     {

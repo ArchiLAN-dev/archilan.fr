@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Download, Lock, Radio, Shield, ShieldAlert, Users, XCircle } from "lucide-react";
+import { CheckCircle2, Download, Lock, Radio, Shield, ShieldAlert, Users, VideoOff, XCircle } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -376,6 +376,7 @@ export function RegistrationList({
             >
               <td className={`px-4 py-4 font-semibold text-foreground ${openNotes?.[r.registrationId] !== undefined ? "border-l-4 border-l-accent-warm" : ""}`}>
                 {r.participant.displayName ?? <span className="font-normal text-muted-foreground">(sans pseudonyme)</span>}
+                {r.broadcastConsent ? null : <BroadcastRefusedIcon />}
                 <OpenNotesBadge summary={openNotes?.[r.registrationId]} />
               </td>
               <td className="px-4 py-4 text-muted-foreground">{r.participant.email}</td>
@@ -456,6 +457,15 @@ function PaymentSummaryBadge({ payment }: { payment: PaymentSummary | null }) {
         <span className="text-xs font-medium text-accent-warm">Donnees obsoletes</span>
       ) : null}
     </div>
+  );
+}
+
+/** Story 47.1: the broadcast is on by default, so only the members who opted out are marked. */
+function BroadcastRefusedIcon() {
+  return (
+    <span className="ml-2 inline-flex align-middle text-muted-foreground" title="Refuse d'être diffusé par la régie">
+      <VideoOff aria-label="Refuse d'être diffusé par la régie" className="size-4" />
+    </span>
   );
 }
 
