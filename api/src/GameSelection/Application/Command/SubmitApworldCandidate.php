@@ -41,7 +41,8 @@ final readonly class SubmitApworldCandidate
      */
     public function submit(string $gameId, string $fileContents, string $filename, ?string $versionTag, ApworldCandidateOrigin $origin, ?string $submittedBy, bool $holdForApproval = false): ApworldCandidateSubmission
     {
-        if (!$this->games->findById($gameId) instanceof Game) {
+        $game = $this->games->findById($gameId);
+        if (!$game instanceof Game) {
             return new ApworldCandidateSubmission(false, null);
         }
 
@@ -56,7 +57,7 @@ final readonly class SubmitApworldCandidate
             return new ApworldCandidateSubmission(true, null, $errors);
         }
 
-        $result = $this->runnerGateway->uploadApworld($fileContents, $filename);
+        $result = $this->runnerGateway->uploadApworld($fileContents, $filename, $game->testsWithPartner());
         if (isset($result['error'])) {
             $this->logger->error('runner.apworld_upload_failed', ['gameId' => $gameId, 'error' => $result['error'], 'detail' => $result['detail'] ?? null]);
 

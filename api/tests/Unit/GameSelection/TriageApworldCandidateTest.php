@@ -127,7 +127,7 @@ final class TriageApworldCandidateTest extends TestCase
     {
         $candidate = $this->candidate(rejected: true);
         $runner = $this->createMock(RunnerGatewayInterface::class);
-        $runner->expects(self::once())->method('runApworldPreflight')->with('hash-new', [])->willReturn(true);
+        $runner->expects(self::once())->method('runApworldPreflight')->with('hash-new', [], false)->willReturn(true);
 
         $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->retry($this->game->getId());
 
@@ -135,6 +135,19 @@ final class TriageApworldCandidateTest extends TestCase
         self::assertSame(ApworldCandidateStatus::Testing, $candidate->getStatus());
         self::assertEquals($this->clock->now(), $candidate->getSubmittedAt());
         self::assertSame(1, $this->candidates->flushes);
+    }
+
+    // Story 38.30: a meta-game's candidate cannot generate solo either.
+    public function testRetryTestsAMetaGameWithAPartner(): void
+    {
+        $this->candidate(rejected: true);
+        $this->game->changeTestPartner(true);
+        $runner = $this->createMock(RunnerGatewayInterface::class);
+        $runner->expects(self::once())->method('runApworldPreflight')->with('hash-new', [], true)->willReturn(true);
+
+        $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->retry($this->game->getId());
+
+        self::assertSame(ApworldCandidateTriageOutcome::Applied, $outcome);
     }
 
     public function testRetryWhenTheRunnerRefusesChangesNothing(): void
@@ -156,7 +169,7 @@ final class TriageApworldCandidateTest extends TestCase
         $candidate = $this->candidate(rejected: true);
         $runner = $this->createMock(RunnerGatewayInterface::class);
         $runner->expects(self::once())->method('stageRequiredFile')->with('CTRDISettings.rom_file', '/tmp/upload', 'ct.sfc')->willReturn('staged-1');
-        $runner->expects(self::once())->method('runApworldPreflight')->with('hash-new', ['staged-1'])->willReturn(true);
+        $runner->expects(self::once())->method('runApworldPreflight')->with('hash-new', ['staged-1'], false)->willReturn(true);
         $runner->expects(self::never())->method('releaseRequiredFile');
 
         $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->retry($this->game->getId(), [$this->rom()]);
@@ -242,6 +255,7 @@ final class TriageApworldCandidateTest extends TestCase
             $bus,
             $this->clock,
             new RequiredGenerationFiles($runner),
+            $games,
         );
     }
 }

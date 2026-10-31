@@ -88,8 +88,10 @@ final readonly class ReconcileApworldIncidents
         }
 
         $servedHashByGame = [];
+        $withPartner = [];
         foreach ($this->servedApworlds->servedApworlds() as $served) {
             $servedHashByGame[$served->gameId] = $served->apworldHash;
+            $withPartner[$served->apworldHash] = $served->testWithPartner;
 
             $verdict = $verdicts[$served->apworldHash] ?? null;
             if (null === $verdict) {
@@ -173,7 +175,7 @@ final readonly class ReconcileApworldIncidents
 
         // After the commit, like every side effect: the retest's verdict reaches a later pass.
         foreach (array_unique($retried) as $hash) {
-            $this->runnerGateway->runApworldPreflight($hash);
+            $this->runnerGateway->runApworldPreflight($hash, [], $withPartner[$hash] ?? false);
         }
 
         return new ReconcileApworldIncidentsResult(true, $opened, $resolved, $ignored, retriedApworldHashes: array_values(array_unique($retried)));

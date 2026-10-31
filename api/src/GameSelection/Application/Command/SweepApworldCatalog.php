@@ -55,7 +55,9 @@ final readonly class SweepApworldCatalog
         }
 
         $sweepCandidates = [];
+        $withPartner = [];
         foreach ($this->servedApworlds->servedApworlds() as $served) {
+            $withPartner[$served->apworldHash] = $served->testWithPartner;
             $verdict = $verdicts[$served->apworldHash] ?? null;
             $status = $verdict['status'] ?? null;
             $ran = \in_array($status, ['passed', 'failed'], true) && '' !== ($verdict['checkedAt'] ?? '');
@@ -82,7 +84,7 @@ final readonly class SweepApworldCatalog
 
         $launched = [];
         foreach (CatalogSweepPlanner::plan($sweepCandidates, $runtime['apImage'], $runtime['apImageId'], $clamped) as $hash) {
-            if ($this->runnerGateway->runApworldPreflight($hash)) {
+            if ($this->runnerGateway->runApworldPreflight($hash, [], $withPartner[$hash] ?? false)) {
                 $launched[] = $hash;
             } else {
                 $this->logger->warning('apworld_sweep.preflight_not_started', ['hash' => $hash]);

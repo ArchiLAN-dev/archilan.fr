@@ -48,6 +48,8 @@ export type AdminGame = {
   archipelagoRuntime?: { apImage: string; apImageId: string | null } | null;
   apworldPreflightOnCurrentImage?: boolean | null;
   apworldCandidate?: ApworldCandidate | null;
+  // Story 38.30: its test generations add a partner player (a meta-game cannot generate solo). Absent on older payloads.
+  testWithPartner?: boolean;
   // Story 9.47: true when `platforms` comes from an admin choice instead of IGDB.
   platformsOverridden?: boolean;
   // Curated families an admin can pick from. Absent on older payloads.
@@ -164,6 +166,8 @@ export type ApworldPreflight = {
   warning?: string;
   // Story 44.6: the test was given the file its world reads, which only an admin can provide.
   withRequiredFiles?: boolean;
+  // Story 38.30: the test had a partner player beside the tested one.
+  withPartner?: boolean;
   // Story 38.16: a failed verdict in one line (GenerationFailureParser), `error` being the raw tail.
   summary?: string;
 };
@@ -358,6 +362,22 @@ export async function overrideApworldPreflight(gameId: string, overridden: boole
     const data: unknown = payload.data;
     if (typeof data !== "object" || data === null || !("preflight" in data)) return null;
     return isApworldPreflight(data.preflight) ? data.preflight : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Story 38.30: whether the test generations of a meta-game add a partner player. Null on failure. */
+export async function changeApworldTestPartner(gameId: string, withPartner: boolean): Promise<AdminGame | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/apworld-test-partner`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ withPartner }),
+    });
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    return isAdminGamePayload(payload) ? payload.data : null;
   } catch {
     return null;
   }

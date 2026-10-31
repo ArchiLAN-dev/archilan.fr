@@ -44,6 +44,13 @@ final class Game
     #[ORM\Column(name: 'required_files', type: 'json', nullable: true)]
     private ?array $requiredFiles = null;
 
+    /**
+     * A meta-game (Tombola) places its progression in the other worlds of the multiworld, so it cannot
+     * generate solo: its test generations add a partner player (story 38.30). An admin's call, off by default.
+     */
+    #[ORM\Column(name: 'test_with_partner', type: 'boolean', options: ['default' => false])]
+    private bool $testWithPartner = false;
+
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(type: 'string', length: 32)]
@@ -416,6 +423,17 @@ final class Game
     public function needsAFileAtGeneration(): bool
     {
         return array_any($this->getRequiredFiles(), static fn (array $file): bool => $file['neededAtGeneration']);
+    }
+
+    /** Whether its test generations add a partner player (story 38.30). */
+    public function testsWithPartner(): bool
+    {
+        return $this->testWithPartner;
+    }
+
+    public function changeTestPartner(bool $withPartner): void
+    {
+        $this->testWithPartner = $withPartner;
     }
 
     /** Whether the world declares this setting or a generation proved it (story 44.3). */

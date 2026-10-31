@@ -89,7 +89,7 @@ final class AdminApworldCandidateControllerTest extends FunctionalTestCase
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame([['setting' => 'DK3Settings.rom_file', 'filename' => 'dkc3.sfc', 'content' => 'rom bytes']], NullRunnerGateway::$stagedFiles);
-        self::assertSame([['hash' => 'hash-new', 'requiredFileIds' => ['staged-1']]], NullRunnerGateway::$apworldPreflightRuns);
+        self::assertSame([['hash' => 'hash-new', 'requiredFileIds' => ['staged-1'], 'withPartner' => false]], NullRunnerGateway::$apworldPreflightRuns);
         $this->entityManager->clear();
         self::assertSame(ApworldCandidateStatus::Testing, $this->entityManager->find(ApworldCandidate::class, 'candidate-1')?->getStatus());
     }
