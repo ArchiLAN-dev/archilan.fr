@@ -56,11 +56,12 @@ interface RunnerGatewayInterface
     /**
      * Static location names introspected from an uploaded apworld (the World class's
      * location_name_to_id keys); a free-text suggestion hint for location-typed YAML options
-     * (story 4.14). Empty when the apworld has not been introspected yet.
+     * (story 4.14). Empty for a world that declares none (story 38.31); null when the orchestrator does not
+     * answer, or holds no readable introspection for that apworld.
      *
-     * @return list<string>
+     * @return list<string>|null
      */
-    public function fetchLocationNames(string $hash): array;
+    public function fetchLocationNames(string $hash): ?array;
 
     /**
      * Static item names and item groups introspected from an uploaded apworld (story 9.58): a hint for the

@@ -36,17 +36,20 @@ final readonly class PromoteApworldCandidate
 
     /**
      * Reads the candidate's option types and location names, before anything moves. Null when the
-     * orchestrator gave none: that is an orchestrator that did not answer, not a world without options.
+     * orchestrator gave no options, or no readable location list: that is an orchestrator that did not answer,
+     * not a world without options. An empty location list is a world that declares none (story 38.31): it
+     * goes ahead.
      */
     public function introspect(ApworldCandidate $candidate): ?ApworldIntrospection
     {
         // Same validation as the upload used to apply, the story 9.51 dict rule included.
         $optionTypes = ApworldIntrospectionNormalizer::optionTypes($this->runnerGateway->fetchOptionTypes($candidate->getApworldHash()));
-        $locationNames = ApworldIntrospectionNormalizer::locationNames($this->runnerGateway->fetchLocationNames($candidate->getApworldHash()));
+        $rawLocationNames = $this->runnerGateway->fetchLocationNames($candidate->getApworldHash());
 
-        if ([] === $optionTypes || [] === $locationNames) {
+        if ([] === $optionTypes || null === $rawLocationNames) {
             return null;
         }
+        $locationNames = ApworldIntrospectionNormalizer::locationNames($rawLocationNames);
         // Story 9.58: optional - an older orchestrator knows no items, the promotion goes ahead without them.
         $items = ApworldIntrospectionNormalizer::items($this->runnerGateway->fetchItems($candidate->getApworldHash()));
 
