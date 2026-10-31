@@ -8,6 +8,7 @@ use App\Identity\Domain\Entity\User;
 use App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 
 /**
@@ -31,6 +32,17 @@ final readonly class DbalParticipantTwitchLinksQuery implements ParticipantTwitc
 
     public function forEvent(string $eventId): ?array
     {
+        return $this->eventParticipants($eventId, false);
+    }
+
+    public function forEventBroadcast(string $eventId): ?array
+    {
+        return $this->eventParticipants($eventId, true);
+    }
+
+    /** @return list<array{userId: string, slug: string, displayName: string|null, socialLinks: list<array{label: string, url: string}>}>|null */
+    private function eventParticipants(string $eventId, bool $broadcastOnly): ?array
+    {
         if (!$this->sessionExists('event', $eventId)) {
             return null;
         }
@@ -42,7 +54,7 @@ final readonly class DbalParticipantTwitchLinksQuery implements ParticipantTwitc
         }
 
         $qb = $this->connection->createQueryBuilder();
-        $rows = $this->select($qb)
+        $this->select($qb)
             ->from('registration', 'r')
             ->join('r', $this->userTable, 'u', $qb->expr()->eq('u.id', 'r.user_id'))
             ->join('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
@@ -51,9 +63,12 @@ final readonly class DbalParticipantTwitchLinksQuery implements ParticipantTwitc
             ->andWhere($qb->expr()->eq('r.status', ':reserved'))
             ->andWhere($qb->expr()->isNull('u.deleted_at'))
             ->setParameter('id', $eventId)
-            ->setParameter('reserved', 'reserved')
-            ->executeQuery()
-            ->fetchAllAssociative();
+            ->setParameter('reserved', 'reserved');
+        if ($broadcastOnly) {
+            $qb->andWhere($qb->expr()->eq('r.broadcast_consent', ':consent'))
+                ->setParameter('consent', true, ParameterType::BOOLEAN);
+        }
+        $rows = $qb->executeQuery()->fetchAllAssociative();
 
         return $this->mapRows($rows);
     }
