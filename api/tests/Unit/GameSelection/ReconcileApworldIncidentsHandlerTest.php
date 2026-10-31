@@ -204,7 +204,7 @@ final class ReconcileApworldIncidentsHandlerTest extends TestCase
         $record = new RecordApworldIncident($this->incidents, $clock);
 
         $handler = new ReconcileApworldIncidentsHandler(
-            new DecideApworldCandidates($this->candidates, $runner, new PromoteApworldCandidate($games, $this->incidents, $runner, $clock), $record, $clock, new InMemoryExclusivePassLock()),
+            new DecideApworldCandidates($this->candidates, $runner, new PromoteApworldCandidate($games, $this->incidents, $runner, $clock), $record, new RecordGenerationRequiredFile(self::createStub(GameRepositoryInterface::class), new NullLogger()), $clock, new InMemoryExclusivePassLock()),
             $runner,
             new ReconcileApworldIncidents($servedQuery, $runner, $this->incidents, $record, $clock, new InMemoryExclusivePassLock(), new InMemoryApworldHealthRepository(), new RecordGenerationRequiredFile(self::createStub(GameRepositoryInterface::class), new NullLogger())),
             new ApworldIncidentAlertDispatcher($bus),

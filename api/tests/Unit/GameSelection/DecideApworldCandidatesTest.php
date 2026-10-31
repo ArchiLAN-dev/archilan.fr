@@ -8,6 +8,7 @@ use App\GameSelection\Application\Command\DecideApworldCandidates;
 use App\GameSelection\Application\Command\DecideApworldCandidatesResult;
 use App\GameSelection\Application\Command\PromoteApworldCandidate;
 use App\GameSelection\Application\Command\RecordApworldIncident;
+use App\GameSelection\Application\Command\RecordGenerationRequiredFile;
 use App\GameSelection\Domain\Entity\ApworldCandidate;
 use App\GameSelection\Domain\Entity\ApworldIncident;
 use App\GameSelection\Domain\Entity\Game;
@@ -18,6 +19,7 @@ use App\GameSelection\Domain\Enum\ApworldIncidentType;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 
 final class DecideApworldCandidatesTest extends TestCase
@@ -225,6 +227,32 @@ final class DecideApworldCandidatesTest extends TestCase
         self::assertSame(ApworldCandidateStatus::Rejected, $candidate->getStatus());
     }
 
+    /** Story 38.28: a game with no version online learns its ROM from the refused candidate, or never asks for it. */
+    public function testACandidateRefusedForWantOfAFileTeachesItsGameTheFile(): void
+    {
+        $candidate = $this->candidate('hash-new', 'v0.0.4');
+        $error = "FileNotFoundError: Chrono Trigger (USA).sfc does not exist, but CTRDISettings.rom_file is required\n"
+            .'###ARCHILAN-FAILURE### {"type": "FileNotFoundError", "message": "Chrono Trigger (USA).sfc does not exist, but CTRDISettings.rom_file is required", "requiredFile": {"setting": "CTRDISettings.rom_file", "file": "Chrono Trigger (USA).sfc", "extension": ".sfc", "md5s": ["a2bc447961e52fd2227baed164f729dc"]}}';
+
+        $this->decide(['hash-new' => $this->verdict('failed', $error)]);
+
+        self::assertSame(ApworldCandidateStatus::Rejected, $candidate->getStatus());
+        self::assertTrue($this->game->needsAFileAtGeneration());
+        $files = $this->game->getRequiredFiles();
+        self::assertCount(1, $files);
+        self::assertSame('CTRDISettings.rom_file', $files[0]['setting']);
+        self::assertSame(['a2bc447961e52fd2227baed164f729dc'], $files[0]['md5s']);
+    }
+
+    public function testAnOrdinaryFailureTeachesNoFile(): void
+    {
+        $this->candidate('hash-new', 'v2');
+
+        $this->decide(['hash-new' => $this->verdict('failed', 'Fill.FillError: boom')]);
+
+        self::assertFalse($this->game->needsAFileAtGeneration());
+    }
+
     private function candidate(string $hash, ?string $tag, bool $hold = false): ApworldCandidate
     {
         $candidate = ApworldCandidate::submit(
@@ -255,6 +283,7 @@ final class DecideApworldCandidatesTest extends TestCase
     {
         $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturnCallback(fn (string $id): ?Game => $id === $this->game->getId() ? $this->game : null);
+        $games->method('findByIds')->willReturnCallback(fn (array $ids): array => \in_array($this->game->getId(), $ids, true) ? [$this->game] : []);
         $runner = self::createStub(RunnerGatewayInterface::class);
         $runner->method('fetchApworldPreflights')->willReturn($verdicts);
         $runner->method('fetchOptionTypes')->willReturn($optionTypes ?? ['accessibility' => ['type' => 'choice', 'values' => ['full', 'minimal']]]);
@@ -265,6 +294,7 @@ final class DecideApworldCandidatesTest extends TestCase
             $runner,
             new PromoteApworldCandidate($games, $this->incidents, $runner, $this->clock),
             new RecordApworldIncident($this->incidents, $this->clock),
+            new RecordGenerationRequiredFile($games, new NullLogger()),
             $this->clock,
             new InMemoryExclusivePassLock(held: $lockHeld),
         );

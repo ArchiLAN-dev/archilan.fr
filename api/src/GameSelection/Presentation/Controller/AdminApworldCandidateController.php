@@ -52,7 +52,13 @@ final readonly class AdminApworldCandidateController
             return $admin;
         }
 
-        return $this->respond($this->triage->retry($gameId));
+        // Story 38.28: the files a world reads at generation (a ROM), multipart as for the served apworld's test.
+        $provided = RequiredGenerationFilesRequest::read($request);
+        if ([] !== $provided['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', $provided['errors'][0], 422, ['requiredFiles' => $provided['errors']]);
+        }
+
+        return $this->respond($this->triage->retry($gameId, $provided['files']));
     }
 
     #[Route('/api/v1/admin/games/{gameId}/apworld-candidate/approve', name: 'api_admin_game_apworld_candidate_approve', methods: ['POST'])]
@@ -124,6 +130,7 @@ final readonly class AdminApworldCandidateController
             ApworldCandidateTriageOutcome::NoCandidate => $this->apiAccessGuard->errorResponse('no_candidate', 'Aucune nouvelle version en test ou rejetée pour ce jeu.', 404),
             ApworldCandidateTriageOutcome::Forbidden => $this->apiAccessGuard->errorResponse($forbiddenCode, $forbiddenMessage, 409),
             ApworldCandidateTriageOutcome::RunnerUnavailable => $this->apiAccessGuard->errorResponse('runner_unavailable', 'Le runner est indisponible, rien n\'a été changé. Réessaie plus tard.', 503),
+            ApworldCandidateTriageOutcome::FileRefused => $this->apiAccessGuard->errorResponse('required_file_refused', 'Le fichier n\'a pas pu être transmis. Réessaie dans un instant.', 422, ['requiredFiles' => ['Le fichier n\'a pas pu être transmis. Réessaie dans un instant.']]),
         };
     }
 }

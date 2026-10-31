@@ -398,9 +398,9 @@ function apiErrorMessage(json: unknown, fallback: string): string {
   return typeof error === "object" && error !== null && hasStringProp(error, "message") ? error.message : fallback;
 }
 
-async function candidateAction(gameId: string, action: "promote" | "retry" | "approve"): Promise<ApworldCandidateActionResult> {
+async function candidateAction(gameId: string, action: "promote" | "retry" | "approve", body?: FormData): Promise<ApworldCandidateActionResult> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${encodeURIComponent(gameId)}/apworld-candidate/${action}`, { method: "POST" });
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${encodeURIComponent(gameId)}/apworld-candidate/${action}`, { method: "POST", body });
     if (res.ok) return { ok: true };
     const json: unknown = await res.json().catch(() => null);
     return { ok: false, message: apiErrorMessage(json, CANDIDATE_ACTION_ERROR) };
@@ -414,9 +414,12 @@ export function forceApworldCandidate(gameId: string): Promise<ApworldCandidateA
   return candidateAction(gameId, "promote");
 }
 
-/** Run the test of a rejected candidate again, typically after a transient failure. */
-export function retryApworldCandidate(gameId: string): Promise<ApworldCandidateActionResult> {
-  return candidateAction(gameId, "retry");
+/**
+ * Run the test of a rejected candidate again, typically after a transient failure. Story 38.28: with the files its
+ * world reads (a ROM), sent for this test only - without them, such a version could never pass.
+ */
+export function retryApworldCandidate(gameId: string, files: Record<string, File> = {}): Promise<ApworldCandidateActionResult> {
+  return candidateAction(gameId, "retry", Object.keys(files).length > 0 ? requiredFilesForm(files) : undefined);
 }
 
 /** Story 38.14: put online a candidate held for approval, once its test passed. */

@@ -45,6 +45,7 @@ final class ReconcileApworldIncidentsAlreadyRunningTest extends TestCase
             $runner,
             new PromoteApworldCandidate(self::createStub(GameRepositoryInterface::class), $incidents, $runner, $clock),
             new RecordApworldIncident($incidents, $clock),
+            new RecordGenerationRequiredFile(self::createStub(GameRepositoryInterface::class), new NullLogger()),
             $clock,
             new InMemoryExclusivePassLock(held: true),
         );

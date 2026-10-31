@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { rerunApworldPreflight, startApworldCandidateYamlTest } from "./admin-games-api";
+import { rerunApworldPreflight, retryApworldCandidate, startApworldCandidateYamlTest } from "./admin-games-api";
 import { passedWithFilesLabel, testFilesBlocker, testFilesOfGame } from "./admin-game-test-files";
 
 const BASE = TEST_API_BASE_URL;
@@ -76,5 +76,26 @@ describe("admin tests with a provided file", () => {
 
     expect(await startApworldCandidateYamlTest("game-1", "name: Jean\n", { "DK3Settings.rom_file": new File(["rom"], "dkc3.sfc") })).toEqual({ ok: true, jobId: "job-1" });
     expect(fields).toEqual({ yaml: "name: Jean\n", "requiredFiles[DK3Settings.rom_file]": "file:dkc3.sfc" });
+  });
+
+  it("story 38.28: retries a new version's test with the file, and plainly without one", async () => {
+    const seen: string[][] = [];
+    server.use(
+      http.post(`${BASE}/admin/games/:gameId/apworld-candidate/retry`, async ({ request }) => {
+        const type = request.headers.get("content-type");
+        seen.push(type?.startsWith("multipart/") ? [...(await request.formData()).keys()] : []);
+        return HttpResponse.json({ data: { outcome: "applied" } });
+      }),
+    );
+
+    expect(await retryApworldCandidate("game-1", { "DK3Settings.rom_file": new File(["rom"], "dkc3.sfc") })).toEqual({ ok: true });
+    expect(await retryApworldCandidate("game-1")).toEqual({ ok: true });
+    expect(seen).toEqual([["requiredFiles[DK3Settings.rom_file]"], []]);
+  });
+
+  it("story 38.28: a retried test also asks for the files the world only declares", () => {
+    const declared = { ...rom, setting: "DK3Settings.other", neededAtGeneration: false };
+
+    expect(testFilesOfGame([rom, declared], { includeDeclared: true }).map((f) => f.setting)).toEqual(["DK3Settings.rom_file", "DK3Settings.other"]);
   });
 });

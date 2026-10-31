@@ -18,7 +18,10 @@ use App\GameSelection\Domain\Enum\ApworldCandidateOrigin;
 use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
 use App\GameSelection\Domain\Enum\ApworldIncidentType;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
+use App\Sessions\Application\Support\ProvidedGenerationFile;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 
@@ -124,7 +127,7 @@ final class TriageApworldCandidateTest extends TestCase
     {
         $candidate = $this->candidate(rejected: true);
         $runner = $this->createMock(RunnerGatewayInterface::class);
-        $runner->expects(self::once())->method('runApworldPreflight')->with('hash-new')->willReturn(true);
+        $runner->expects(self::once())->method('runApworldPreflight')->with('hash-new', [])->willReturn(true);
 
         $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->retry($this->game->getId());
 
@@ -147,6 +150,49 @@ final class TriageApworldCandidateTest extends TestCase
         self::assertSame(0, $this->candidates->flushes);
     }
 
+    /** Story 38.28: a version whose world reads a ROM can only pass its test with it. */
+    public function testRetryHandsTheProvidedFilesToTheTest(): void
+    {
+        $candidate = $this->candidate(rejected: true);
+        $runner = $this->createMock(RunnerGatewayInterface::class);
+        $runner->expects(self::once())->method('stageRequiredFile')->with('CTRDISettings.rom_file', '/tmp/upload', 'ct.sfc')->willReturn('staged-1');
+        $runner->expects(self::once())->method('runApworldPreflight')->with('hash-new', ['staged-1'])->willReturn(true);
+        $runner->expects(self::never())->method('releaseRequiredFile');
+
+        $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->retry($this->game->getId(), [$this->rom()]);
+
+        self::assertSame(ApworldCandidateTriageOutcome::Applied, $outcome);
+        self::assertSame(ApworldCandidateStatus::Testing, $candidate->getStatus());
+    }
+
+    public function testRetryReleasesTheFilesWhenTheRunnerRefusesTheTest(): void
+    {
+        $candidate = $this->candidate(rejected: true);
+        $runner = $this->createMock(RunnerGatewayInterface::class);
+        $runner->method('stageRequiredFile')->willReturn('staged-1');
+        $runner->method('runApworldPreflight')->willReturn(false);
+        $runner->expects(self::once())->method('releaseRequiredFile')->with('staged-1');
+
+        $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->retry($this->game->getId(), [$this->rom()]);
+
+        self::assertSame(ApworldCandidateTriageOutcome::RunnerUnavailable, $outcome);
+        self::assertSame(ApworldCandidateStatus::Rejected, $candidate->getStatus());
+    }
+
+    public function testRetryWithARefusedFileChangesNothing(): void
+    {
+        $candidate = $this->candidate(rejected: true);
+        $runner = $this->createMock(RunnerGatewayInterface::class);
+        $runner->method('stageRequiredFile')->willThrowException(new RequiredGenerationFileRefusedException());
+        $runner->expects(self::never())->method('runApworldPreflight');
+
+        $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->retry($this->game->getId(), [$this->rom()]);
+
+        self::assertSame(ApworldCandidateTriageOutcome::FileRefused, $outcome);
+        self::assertSame(ApworldCandidateStatus::Rejected, $candidate->getStatus());
+        self::assertSame(0, $this->candidates->flushes);
+    }
+
     public function testRetryingACandidateStillInTestIsForbidden(): void
     {
         $this->candidate(rejected: false);
@@ -154,6 +200,11 @@ final class TriageApworldCandidateTest extends TestCase
         $outcome = $this->triage(self::createStub(RunnerGatewayInterface::class), new SpyMessageBus($this->incidents))->retry($this->game->getId());
 
         self::assertSame(ApworldCandidateTriageOutcome::Forbidden, $outcome);
+    }
+
+    private function rom(): ProvidedGenerationFile
+    {
+        return new ProvidedGenerationFile('CTRDISettings.rom_file', '/tmp/upload', 'ct.sfc');
     }
 
     private function candidate(bool $rejected): ApworldCandidate
@@ -190,6 +241,7 @@ final class TriageApworldCandidateTest extends TestCase
             new PromoteApworldCandidate($games, $this->incidents, $runner, $this->clock),
             $bus,
             $this->clock,
+            new RequiredGenerationFiles($runner),
         );
     }
 }
