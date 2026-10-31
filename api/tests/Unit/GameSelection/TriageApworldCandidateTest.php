@@ -103,6 +103,33 @@ final class TriageApworldCandidateTest extends TestCase
         self::assertSame('hash-old', $this->game->getApworldHash());
     }
 
+    public function testForcingWhenTheLocationListCannotBeReadChangesNothing(): void
+    {
+        // Story 38.31: an unreadable introspection (Chrono Trigger) is not a world without locations.
+        $candidate = $this->candidate(rejected: true);
+        $runner = $this->createMock(RunnerGatewayInterface::class);
+        $runner->expects(self::never())->method('overrideApworldPreflight');
+        $runner->method('fetchOptionTypes')->willReturn(['accessibility' => ['type' => 'choice', 'values' => ['full', 'minimal']]]);
+        $runner->method('fetchLocationNames')->willReturn(null);
+
+        $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->forcePromote($this->game->getId(), 'admin-1');
+
+        self::assertSame(ApworldCandidateTriageOutcome::RunnerUnavailable, $outcome);
+        self::assertSame(ApworldCandidateStatus::Rejected, $candidate->getStatus());
+    }
+
+    public function testAWorldWithoutLocationsCanBeForced(): void
+    {
+        // Story 38.31: Minecraft Modded declares no static location; the introspection answered, it goes ahead.
+        $candidate = $this->candidate(rejected: true);
+
+        $outcome = $this->triage($this->runner(overrideAnswers: true, locations: []), new SpyMessageBus($this->incidents))->forcePromote($this->game->getId(), 'admin-1');
+
+        self::assertSame(ApworldCandidateTriageOutcome::Applied, $outcome);
+        self::assertSame(ApworldCandidateStatus::Promoted, $candidate->getStatus());
+        self::assertSame('hash-new', $this->game->getApworldHash());
+    }
+
     public function testForcingAnnouncesTheUpdateIncidentsItSettles(): void
     {
         // Story 38.6 review: the automatic path posted these, the forced one did not.
@@ -231,14 +258,17 @@ final class TriageApworldCandidateTest extends TestCase
         return $candidate;
     }
 
-    private function runner(bool $overrideAnswers, ?string $expectedOverride = null): RunnerGatewayInterface
+    /**
+     * @param list<string>|null $locations
+     */
+    private function runner(bool $overrideAnswers, ?string $expectedOverride = null, ?array $locations = ['Spawning Meadows Chest']): RunnerGatewayInterface
     {
         $runner = $this->createMock(RunnerGatewayInterface::class);
         $runner->expects(self::atMost(1))->method('overrideApworldPreflight')
             ->with($expectedOverride ?? self::anything(), true)
             ->willReturn($overrideAnswers ? ['status' => 'failed', 'error' => '', 'checkedAt' => '', 'overridden' => true, 'blocks' => false] : null);
         $runner->method('fetchOptionTypes')->willReturn(['accessibility' => ['type' => 'choice', 'values' => ['full', 'minimal']]]);
-        $runner->method('fetchLocationNames')->willReturn(['Spawning Meadows Chest']);
+        $runner->method('fetchLocationNames')->willReturn($locations);
 
         return $runner;
     }

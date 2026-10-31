@@ -129,7 +129,7 @@ final readonly class AdminApworldCandidateController
             ApworldCandidateTriageOutcome::Applied => new JsonResponse(['data' => ['outcome' => $outcome->value]]),
             ApworldCandidateTriageOutcome::NoCandidate => $this->apiAccessGuard->errorResponse('no_candidate', 'Aucune nouvelle version en test ou rejetée pour ce jeu.', 404),
             ApworldCandidateTriageOutcome::Forbidden => $this->apiAccessGuard->errorResponse($forbiddenCode, $forbiddenMessage, 409),
-            ApworldCandidateTriageOutcome::RunnerUnavailable => $this->apiAccessGuard->errorResponse('runner_unavailable', 'Le runner est indisponible, rien n\'a été changé. Réessaie plus tard.', 503),
+            ApworldCandidateTriageOutcome::RunnerUnavailable => $this->apiAccessGuard->errorResponse('runner_unavailable', 'Le runner ne répond pas, ou l\'introspection de cette version est illisible : rien n\'a été changé. Réessaie plus tard, ou réimporte la version.', 503),
             ApworldCandidateTriageOutcome::FileRefused => $this->apiAccessGuard->errorResponse('required_file_refused', 'Le fichier n\'a pas pu être transmis. Réessaie dans un instant.', 422, ['requiredFiles' => ['Le fichier n\'a pas pu être transmis. Réessaie dans un instant.']]),
         };
     }
