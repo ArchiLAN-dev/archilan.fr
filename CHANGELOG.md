@@ -5,6 +5,17 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.53.1] - 2026-10-31
+
+Une version d'apworld dont l'introspection est illisible, ou qui ne déclare aucun lieu, peut de nouveau être forcée.
+
+### Corrigé
+
+- **Introspection fiable** (38.31) : un apworld qui écrit sur la sortie standard à l'import (Chrono Trigger)
+  corrompait son introspection, et le forçage répondait « runner indisponible ». Avec archipelago v0.20.3 et
+  orchestrateur v0.24.1, l'introspection ne garde que son JSON. Un world sans lieu statique (Minecraft Modded) peut
+  être forcé ; le message d'échec du forçage nomme les deux causes et propose de réimporter la version.
+
 ## [0.53.0] - 2026-10-31
 
 La régie multistream des LAN, l'événement mis en avant sur l'accueil, et deux outils pour les mises à jour
