@@ -10,38 +10,38 @@ use PHPUnit\Framework\TestCase;
 /** Story 47.1: the member lets the ArchiLAN broadcast show their stream. */
 final class RegistrationBroadcastConsentTest extends TestCase
 {
-    public function testConsentIsOffByDefaultThenFollowsTheMember(): void
+    public function testConsentIsOnByDefaultThenFollowsTheMember(): void
     {
         $registration = $this->registration();
-        self::assertFalse($registration->hasBroadcastConsent());
+        self::assertTrue($registration->hasBroadcastConsent());
 
         $now = new \DateTimeImmutable('2026-10-21 18:00');
-        $registration->chooseBroadcastConsent(true, $now);
-        self::assertTrue($registration->hasBroadcastConsent());
-        self::assertEquals($now, $registration->getUpdatedAt());
-
         $registration->chooseBroadcastConsent(false, $now);
         self::assertFalse($registration->hasBroadcastConsent());
+        self::assertEquals($now, $registration->getUpdatedAt());
+
+        $registration->chooseBroadcastConsent(true, $now);
+        self::assertTrue($registration->hasBroadcastConsent());
     }
 
-    public function testACancelledSeatCannotConsent(): void
+    public function testACancelledSeatCannotChangeIt(): void
     {
         $registration = $this->registration();
         $registration->cancel(new \DateTimeImmutable('2026-10-20 09:00'));
 
         $this->expectException(\DomainException::class);
-        $registration->chooseBroadcastConsent(true, new \DateTimeImmutable('2026-10-21 18:00'));
+        $registration->chooseBroadcastConsent(false, new \DateTimeImmutable('2026-10-21 18:00'));
     }
 
-    public function testRegisteringAgainStartsWithoutConsent(): void
+    public function testRegisteringAgainStartsBackWithConsent(): void
     {
         $registration = $this->registration();
-        $registration->chooseBroadcastConsent(true, new \DateTimeImmutable('2026-10-19 11:00'));
+        $registration->chooseBroadcastConsent(false, new \DateTimeImmutable('2026-10-19 11:00'));
         $registration->cancel(new \DateTimeImmutable('2026-10-20 09:00'));
 
         $registration->reactivate(new \DateTimeImmutable('2026-10-21 18:00'));
 
-        self::assertFalse($registration->hasBroadcastConsent());
+        self::assertTrue($registration->hasBroadcastConsent());
     }
 
     private function registration(): Registration

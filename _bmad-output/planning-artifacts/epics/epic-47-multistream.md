@@ -16,8 +16,9 @@ un événement, pour que la régie diffuse tout le monde pendant les pauses.
 
 ## Principes
 
-1. **Consentement avant rediffusion.** Rediffuser un stream sur la chaîne ArchiLAN, c'est diffuser le contenu de
-   quelqu'un d'autre. L'écran régie ne montre que les joueurs qui l'ont accepté, inscription par inscription. La vue
+1. **Chaîne renseignée = accord, refus possible.** Rediffuser un stream sur la chaîne ArchiLAN, c'est diffuser le
+   contenu de quelqu'un d'autre. Un joueur qui a mis sa chaîne Twitch dans son profil est diffusable par défaut,
+   mais peut refuser, inscription par inscription (décision de Jean le 2026-10-31). La vue
    publique, elle, montre le lecteur Twitch du joueur lui-même, comme la liste actuelle : pas de consentement en plus.
 2. **On réutilise la lecture existante** (participant-streams) : pas de second appel à Twitch, pas de nouveau cache.
 3. **L'écran régie suit le modèle de `/o/partenaires`** (épic 45) : une page sans habillage du site, pensée pour une
@@ -29,15 +30,15 @@ un événement, pour que la régie diffuse tout le monde pendant les pauses.
 
 ### 47.1 - Le joueur accepte que la régie diffuse son stream
 
-- Une case par inscription, décochée par défaut : « La régie ArchiLAN peut diffuser mon stream Twitch pendant
-  l'événement ». Le joueur la coche ou la décoche lui-même tant que l'événement n'est pas terminé.
-- La lecture participant-streams porte l'information ; une lecture dédiée à la régie ne renvoie que les lives qui ont
-  accepté.
-- L'admin voit qui a accepté sur la liste des inscriptions de l'événement.
+- Une case par inscription, cochée par défaut : « La régie ArchiLAN peut diffuser mon stream Twitch pendant
+  l'événement ». Le joueur la décoche lui-même s'il refuse, tant que l'événement n'est pas terminé.
+- La lecture participant-streams porte l'information ; une lecture dédiée à la régie renvoie les lives, sauf
+  ceux qui ont refusé.
+- L'admin voit qui a refusé sur la liste des inscriptions de l'événement.
 
 ### 47.2 - L'écran régie : tous les lives en mosaïque
 
-- `/o/streams?event=<id>` : mosaïque automatique des lives qui ont accepté (1, 2, 4, 6 ou 9 cases selon le nombre),
+- `/o/streams?event=<id>` : mosaïque automatique des lives (hors refus) (1, 2, 4, 6 ou 9 cases selon le nombre),
   pseudo sur chaque case, lecteurs muets, liste relue toutes les minutes.
 - Option `?mode=rotation&duree=<s>` : un stream en grand, les autres en vignettes, qui tourne à intervalle régulier.
 - Au-delà du plafond, les cases tournent par groupes.

@@ -59,8 +59,8 @@ export function BroadcastConsentForm({ consent, registrationId }: { consent: boo
         <span>La régie ArchiLAN peut diffuser mon stream Twitch pendant l&apos;événement</span>
       </label>
       <p className="text-xs text-muted-foreground">
-        Seulement si ta chaîne Twitch est dans les liens de ton profil. Tu peux changer d&apos;avis jusqu&apos;à la fin de
-        l&apos;événement.
+        Si ta chaîne Twitch est dans les liens de ton profil, la régie peut montrer ton stream pendant les pauses. Décoche
+        si tu préfères ne pas passer à l&apos;antenne, tu peux changer d&apos;avis jusqu&apos;à la fin de l&apos;événement.
       </p>
       {error ? (
         <p className="text-sm text-danger" role="alert">

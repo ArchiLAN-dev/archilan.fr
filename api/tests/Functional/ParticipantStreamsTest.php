@@ -69,9 +69,9 @@ final class ParticipantStreamsTest extends FunctionalTestCase
         $refused = $this->createTwitchMember('refused@x.test', 'bcrefused', 'Bob', 'bob-bc');
         $offline = $this->createTwitchMember('offline@x.test', 'bcoffline', 'Carol', 'carol-bc');
 
-        $this->createRegistration($event->getId(), $agreed->getId())->chooseBroadcastConsent(true, $this->now);
-        $this->createRegistration($event->getId(), $refused->getId());
-        $this->createRegistration($event->getId(), $offline->getId())->chooseBroadcastConsent(true, $this->now);
+        $this->createRegistration($event->getId(), $agreed->getId());
+        $this->createRegistration($event->getId(), $refused->getId())->chooseBroadcastConsent(false, $this->now);
+        $this->createRegistration($event->getId(), $offline->getId());
         $this->entityManager->flush();
         $this->fakeLive(['bcagreed' => 12, 'bcrefused' => 30]);
 

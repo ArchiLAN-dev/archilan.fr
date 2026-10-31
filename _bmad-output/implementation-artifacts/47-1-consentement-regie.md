@@ -26,8 +26,10 @@ afin de construire l'écran OBS de la story 47.2.
 
 ## Décisions
 
-1. **Le consentement vit sur l'inscription**, pas sur le compte : on accepte pour un événement donné. Colonne
-   `registration.broadcast_consent`, `false` par défaut ; les inscriptions existantes partent à `false`.
+1. **Le consentement vit sur l'inscription**, pas sur le compte : on choisit pour un événement donné. Colonne
+   `registration.broadcast_consent`, **`true` par défaut** (décision de Jean le 2026-10-31 : une chaîne Twitch
+   renseignée dans le profil suffit, comme pour la liste des streams ; le joueur décoche s'il refuse). Les
+   inscriptions existantes partent à `true`, une inscription annulée qui repart revient à `true`.
 2. **Le joueur seul le change**, sur sa propre inscription, tant qu'elle est confirmée (`reserved`) et que
    l'événement n'est pas terminé. Route `PUT /api/v1/registrations/{registrationId}/broadcast-consent`
    `{consent: bool}`. Un admin ne le coche pas à la place du joueur.
@@ -35,9 +37,10 @@ afin de construire l'écran OBS de la story 47.2.
    OBS n'a pas de session), qui ne renvoie que les lives ayant accepté, au même format. Elle réutilise
    `ParticipantStreamsView` (même cache Twitch). Événement inconnu 404, terminé liste vide.
 4. **Libellé** de la case sur le récap de l'inscription : « La régie ArchiLAN peut diffuser mon stream Twitch
-   pendant l'événement », avec une ligne d'aide : « Seulement si ta chaîne Twitch est dans les liens de ton profil.
-   Tu peux changer d'avis jusqu'à la fin de l'événement. »
-5. **Admin** : une icône « Diffusable » dans la cellule Participant des inscriptions qui ont accepté, et le champ
+   pendant l'événement », cochée par défaut, avec une ligne d'aide : « Si ta chaîne Twitch est dans les liens de ton
+   profil, la régie peut montrer ton stream pendant les pauses. Décoche si tu préfères ne pas passer à l'antenne, tu
+   peux changer d'avis jusqu'à la fin de l'événement. »
+5. **Admin** : une icône « Refuse d'être diffusé » dans la cellule Participant des inscriptions qui ont décoché, et le champ
    `broadcastConsent` dans la lecture admin des inscriptions.
 
 ## Critères d'acceptation
@@ -46,8 +49,8 @@ afin de construire l'écran OBS de la story 47.2.
 2. La route refuse : un autre utilisateur ou une inscription inconnue (404, comme les autres routes membre, pour ne
    pas révéler qu'une inscription existe), une inscription annulée ou un événement terminé (422), un corps invalide
    (400), sans session (401).
-3. `broadcast-streams` ne renvoie que les inscrits confirmés, en live et qui ont accepté.
-4. L'admin voit l'icône sur les inscriptions qui ont accepté.
+3. `broadcast-streams` renvoie les inscrits confirmés en live, sauf ceux qui ont décoché.
+4. L'admin voit l'icône sur les inscriptions qui ont refusé.
 5. Tests : domaine, fonctionnels (route, refus, lecture régie), front (case, appel, icône admin).
 6. `composer gates` et `pnpm gates` verts ; vérification réelle.
 
@@ -79,6 +82,9 @@ Claude Opus 5.5
 - Vérification réelle (Chrome) : case cochée sur le récap de l'inscription de Jean à la démo 4.23, valeur en base,
   icône dans la liste admin ; `broadcast-streams` répond 200. Valeur remise à `false` ensuite.
 - `composer gates` vert (3368 tests), `pnpm gates` vert (1335 tests).
+- Revue avec Jean le 2026-10-31 : la case passe cochée par défaut (chaîne renseignée = accord, refus explicite).
+  Migration en `DEFAULT true`, `reactivate` remet `true`, icône admin inversée (`VideoOff` sur les refus), texte
+  d'aide réécrit ; tests ajustés.
 
 ### File List
 

@@ -10,7 +10,7 @@ use App\Registrations\Domain\Entity\Registration;
 /** Story 47.1: the member lets the ArchiLAN broadcast show their stream, on their own registration. */
 final class BroadcastConsentTest extends FunctionalTestCase
 {
-    public function testTheMemberGivesThenWithdrawsTheirConsent(): void
+    public function testTheMemberOptsOutThenBackIn(): void
     {
         $event = $this->createEvent('ArchiLAN #4', new \DateTimeImmutable('2026-11-13 18:00'), new \DateTimeImmutable('2026-11-15 18:00'), published: true);
         $member = $this->createUser('member@example.org');
@@ -20,17 +20,17 @@ final class BroadcastConsentTest extends FunctionalTestCase
 
         $this->client->request('GET', $url);
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['consent' => false, 'editable' => true], $this->decodedJsonResponse()['data']);
-
-        $this->client->jsonRequest('PUT', $url, ['consent' => true]);
-        self::assertResponseStatusCodeSame(200);
-        $this->client->request('GET', $url);
         self::assertSame(['consent' => true, 'editable' => true], $this->decodedJsonResponse()['data']);
 
         $this->client->jsonRequest('PUT', $url, ['consent' => false]);
         self::assertResponseStatusCodeSame(200);
         $this->client->request('GET', $url);
         self::assertSame(['consent' => false, 'editable' => true], $this->decodedJsonResponse()['data']);
+
+        $this->client->jsonRequest('PUT', $url, ['consent' => true]);
+        self::assertResponseStatusCodeSame(200);
+        $this->client->request('GET', $url);
+        self::assertSame(['consent' => true, 'editable' => true], $this->decodedJsonResponse()['data']);
     }
 
     public function testAClosedChoiceAndABadBodyAreRefused(): void
@@ -54,7 +54,7 @@ final class BroadcastConsentTest extends FunctionalTestCase
         $url = sprintf('/api/v1/registrations/%s/broadcast-consent', $registration->getId());
 
         $this->client->request('GET', $url);
-        self::assertSame(['consent' => false, 'editable' => false], $this->decodedJsonResponse()['data']);
+        self::assertSame(['consent' => true, 'editable' => false], $this->decodedJsonResponse()['data']);
         $this->client->jsonRequest('PUT', $url, ['consent' => true]);
         self::assertResponseStatusCodeSame(422);
     }

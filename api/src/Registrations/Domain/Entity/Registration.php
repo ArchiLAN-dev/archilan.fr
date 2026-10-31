@@ -42,8 +42,8 @@ final class Registration
         #[ORM\Column(name: 'reminder_sent_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $reminderSentAt = null,
         /** Story 47.1: the member lets the ArchiLAN broadcast show their Twitch stream during this event. */
-        #[ORM\Column(name: 'broadcast_consent', type: 'boolean', options: ['default' => false])]
-        private bool $broadcastConsent = false,
+        #[ORM\Column(name: 'broadcast_consent', type: 'boolean', options: ['default' => true])]
+        private bool $broadcastConsent = true,
     ) {
     }
 
@@ -271,12 +271,12 @@ final class Registration
         $this->gameSlots = [];
         $this->submittedAt = null;
         $this->reminderSentAt = null;
-        $this->broadcastConsent = false;
+        $this->broadcastConsent = true;
         $this->createdAt = $now;
         $this->updatedAt = $now;
     }
 
-    /** Story 47.1: only a confirmed seat may be broadcast; the member alone changes it. */
+    /** Story 47.1: on by default (a Twitch link in the profile is enough), the member alone opts out, only on a confirmed seat. */
     public function chooseBroadcastConsent(bool $consent, \DateTimeImmutable $now): void
     {
         if (!$this->isReserved()) {

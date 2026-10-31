@@ -54,7 +54,7 @@ describe("broadcast consent", () => {
     expect(await saveBroadcastConsent("r2", true)).toContain("plus modifiable");
   });
 
-  it("shows the box ticked as saved", () => {
+  it("shows the box as saved", () => {
     const html = renderToStaticMarkup(
       <QueryClientProvider client={new QueryClient()}>
         <BroadcastConsentForm consent registrationId="r1" />
@@ -64,7 +64,7 @@ describe("broadcast consent", () => {
     expect(html).toContain('checked=""');
   });
 
-  it("marks the members who agreed on the admin registrations list", () => {
+  it("marks the members who opted out on the admin registrations list", () => {
     const html = renderToStaticMarkup(
       <RegistrationList
         eventId="e1"
@@ -73,6 +73,6 @@ describe("broadcast consent", () => {
         state={{ kind: "ready", registrations: [registration("r1", "Alice", true), registration("r2", "Bob", false)], total: 2 }}
       />,
     );
-    expect(html.match(/Accepte d&#x27;être diffusé par la régie/g)).toHaveLength(2);
+    expect(html.match(/Refuse d&#x27;être diffusé par la régie/g)).toHaveLength(2);
   });
 });
