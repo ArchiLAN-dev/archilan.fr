@@ -9,8 +9,10 @@ use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
 use App\GameSelection\Application\Message\StaffAlertEvent;
 use App\GameSelection\Domain\Entity\ApworldCandidate;
+use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
 use App\GameSelection\Domain\Repository\ApworldCandidateRepositoryInterface;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Service\RequiredGenerationFiles;
@@ -31,6 +33,7 @@ final readonly class TriageApworldCandidate
         private MessageBusInterface $messageBus,
         private ClockInterface $clock,
         private RequiredGenerationFiles $requiredGenerationFiles,
+        private GameRepositoryInterface $games,
     ) {
     }
 
@@ -135,7 +138,9 @@ final readonly class TriageApworldCandidate
 
         // The runner first, the candidate after: a candidate changed in memory and left unflushed would
         // still be written by any later flush in the same request.
-        if (!$this->runnerGateway->runApworldPreflight($candidate->getApworldHash(), $fileIds)) {
+        // Story 38.30: a meta-game's candidate is tested with a partner player, like its served version.
+        $withPartner = $this->games->findById($gameId)?->testsWithPartner() ?? false;
+        if (!$this->runnerGateway->runApworldPreflight($candidate->getApworldHash(), $fileIds, $withPartner)) {
             $this->requiredGenerationFiles->release($fileIds);
 
             return ApworldCandidateTriageOutcome::RunnerUnavailable;

@@ -205,6 +205,35 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Notes enregistrées.']]);
     }
 
+    /** Story 38.30: the test generations of a meta-game add a partner player. */
+    #[Route('/api/v1/admin/games/{gameId}/apworld-test-partner', name: 'api_admin_game_apworld_test_partner', methods: ['PATCH'])]
+    public function changeTestPartner(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $withPartner = $this->jsonPayload($request)['withPartner'] ?? null;
+        if (!is_bool($withPartner)) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Le réglage doit être vrai ou faux.', 422, ['withPartner' => ['Format invalide.']]);
+        }
+
+        $result = $this->adminGameLibrary->changeTestPartner($gameId, $withPartner);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('test_partner_save_failed', 'L\'enregistrement du réglage a échoué.', 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => $withPartner ? 'Les tests ajouteront un partenaire.' : 'Les tests se feront en solo.']]);
+    }
+
     /** Story 44.3: a file a failed generation proved needed, judged a false positive by an admin. */
     #[Route('/api/v1/admin/games/{gameId}/required-files/{setting}/needed', name: 'api_admin_game_clear_required_file', methods: ['DELETE'])]
     public function clearRequiredFile(Request $request, string $gameId, string $setting): JsonResponse

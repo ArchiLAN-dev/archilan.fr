@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c1eaa0e9f002ff8fc1c6b055bdc0a8fc",
+    "content-hash": "9085279f27674189a86811000967293c",
     "packages": [
         {
             "name": "archilan/bridge-client",
@@ -89,16 +89,16 @@
         },
         {
             "name": "archilan/orchestrateur-client",
-            "version": "1.16.0",
+            "version": "1.17.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ArchiLAN-dev/archilan-orchestrateur-client.git",
-                "reference": "013f65ed7e8b95bf49e25c3e56d7b429bb4d784e"
+                "reference": "50bb6adf0da30735c77a44661ee8a4bb44674578"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-orchestrateur-client/zipball/013f65ed7e8b95bf49e25c3e56d7b429bb4d784e",
-                "reference": "013f65ed7e8b95bf49e25c3e56d7b429bb4d784e",
+                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-orchestrateur-client/zipball/50bb6adf0da30735c77a44661ee8a4bb44674578",
+                "reference": "50bb6adf0da30735c77a44661ee8a4bb44674578",
                 "shasum": ""
             },
             "require": {
@@ -128,10 +128,10 @@
             ],
             "description": "PHP client for the Archilan orchestrateur REST API.",
             "support": {
-                "source": "https://github.com/ArchiLAN-dev/archilan-orchestrateur-client/tree/v1.16.0",
+                "source": "https://github.com/ArchiLAN-dev/archilan-orchestrateur-client/tree/v1.17.0",
                 "issues": "https://github.com/ArchiLAN-dev/archilan-orchestrateur-client/issues"
             },
-            "time": "2026-10-24T08:24:40+00:00"
+            "time": "2026-10-31T18:26:30+00:00"
         },
         {
             "name": "aws/aws-crt-php",

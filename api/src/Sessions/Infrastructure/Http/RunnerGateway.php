@@ -66,10 +66,10 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
     }
 
-    public function uploadApworld(string $fileContents, string $filename): array
+    public function uploadApworld(string $fileContents, string $filename, bool $withPartner = false): array
     {
         try {
-            $result = $this->client->apworlds()->upload($fileContents, $filename);
+            $result = $this->client->apworlds()->upload($fileContents, $filename, $withPartner);
 
             // Resolve archipelagoGameName: upload response only returns hash + options,
             // so we fetch the apworld list and match by hash. Non-fatal if list() fails.
@@ -348,10 +348,10 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
     }
 
-    public function runApworldPreflight(string $hash, array $requiredFileIds = []): bool
+    public function runApworldPreflight(string $hash, array $requiredFileIds = [], bool $withPartner = false): bool
     {
         try {
-            $this->client->apworlds()->runPreflight($hash, $requiredFileIds);
+            $this->client->apworlds()->runPreflight($hash, $requiredFileIds, $withPartner);
 
             return true;
         } catch (\Throwable $e) {
@@ -373,7 +373,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null, warning: string, withRequiredFiles: bool}
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null, warning: string, withRequiredFiles: bool, withPartner: bool}
      */
     private function preflightPayload(ApworldPreflight $preflight): array
     {
@@ -391,6 +391,8 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
             'warning' => $preflight->warning,
             // Story 44.6: the test was given the file its world reads, which only an admin can provide.
             'withRequiredFiles' => $preflight->withRequiredFiles,
+            // Story 38.30: the test had a partner player, for a meta-game that cannot generate solo.
+            'withPartner' => $preflight->withPartner,
         ];
     }
 

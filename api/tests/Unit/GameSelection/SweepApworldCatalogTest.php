@@ -22,6 +22,8 @@ final class SweepApworldCatalogTest extends TestCase
 
     /** @var list<string> */
     private array $launched = [];
+    /** @var array<string, bool> */
+    private array $launchedWithPartner = [];
     private WarningCollectingLogger $logger;
 
     protected function setUp(): void
@@ -148,6 +150,18 @@ final class SweepApworldCatalogTest extends TestCase
         self::assertSame(['h-1'], $this->launched);
     }
 
+    // Story 38.30: the rolling test of a meta-game asks for a partner player, like every other test of it.
+    public function testAMetaGameIsRetestedWithAPartner(): void
+    {
+        $this->sweep(
+            [new ServedApworld('g-1', 'tombola', testWithPartner: true), new ServedApworld('g-2', 'solo')],
+            ['tombola' => $this->verdict('', '', null, null), 'solo' => $this->verdict('', '', null, null)],
+            25,
+        );
+
+        self::assertSame(['tombola' => true, 'solo' => false], $this->launchedWithPartner);
+    }
+
     /**
      * @param list<ServedApworld>                                                                                                                                                          $served
      * @param array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, withRequiredFiles?: bool}> $verdicts
@@ -161,8 +175,9 @@ final class SweepApworldCatalogTest extends TestCase
         $runner = self::createStub(RunnerGatewayInterface::class);
         $runner->method('fetchRuntime')->willReturn($runtime);
         $runner->method('fetchApworldPreflights')->willReturn($verdicts);
-        $runner->method('runApworldPreflight')->willReturnCallback(function (string $hash): bool {
+        $runner->method('runApworldPreflight')->willReturnCallback(function (string $hash, array $requiredFileIds = [], bool $withPartner = false): bool {
             $this->launched[] = $hash;
+            $this->launchedWithPartner[$hash] = $withPartner;
 
             return true;
         });

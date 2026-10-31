@@ -14,6 +14,8 @@ final readonly class ServedApworld
         public string $apworldHash,
         // Story 38.9: a disabled game is left out of the rolling test.
         public bool $disabled = false,
+        // Story 38.30: its test generations add a partner player (a meta-game cannot generate solo).
+        public bool $testWithPartner = false,
     ) {
     }
 }

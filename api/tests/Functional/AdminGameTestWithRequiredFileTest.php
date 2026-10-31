@@ -43,7 +43,7 @@ final class AdminGameTestWithRequiredFileTest extends FunctionalTestCase
 
         self::assertResponseStatusCodeSame(202);
         self::assertSame([['setting' => 'DK3Settings.rom_file', 'filename' => 'dkc3.sfc', 'content' => 'rom bytes']], NullRunnerGateway::$stagedFiles);
-        self::assertSame([['hash' => 'hash-dkc3', 'requiredFileIds' => ['staged-1']]], NullRunnerGateway::$apworldPreflightRuns);
+        self::assertSame([['hash' => 'hash-dkc3', 'requiredFileIds' => ['staged-1'], 'withPartner' => false]], NullRunnerGateway::$apworldPreflightRuns);
     }
 
     public function testATestWithoutFileRunsAsBefore(): void
@@ -53,7 +53,7 @@ final class AdminGameTestWithRequiredFileTest extends FunctionalTestCase
         $this->client->request('POST', sprintf('/api/v1/admin/games/%s/apworld-preflight', $this->game->getId()));
 
         self::assertResponseStatusCodeSame(202);
-        self::assertSame([['hash' => 'hash-dkc3', 'requiredFileIds' => []]], NullRunnerGateway::$apworldPreflightRuns);
+        self::assertSame([['hash' => 'hash-dkc3', 'requiredFileIds' => [], 'withPartner' => false]], NullRunnerGateway::$apworldPreflightRuns);
         self::assertSame([], NullRunnerGateway::$stagedFiles);
     }
 

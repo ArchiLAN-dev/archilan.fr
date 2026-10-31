@@ -14,6 +14,7 @@ import { requiredFileLabel, type GenerationFile } from "@/features/games/require
 import { parseDefaultYaml, type FreeformDictOption } from "@/lib/archipelago-yaml";
 import {
   approveApworldCandidate,
+  changeApworldTestPartner,
   fetchAdminGame,
   fetchGithubApworldAssets,
   forceApworldCandidate,
@@ -100,12 +101,64 @@ const preflightLabels: Record<ApworldPreflight["status"], { label: string; class
 const DATE_TIME = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const DATE_SHORT = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
-/** The verdict line: the pass obtained with the admin's file names it (story 44.6). */
+/** The partner player of a meta-game's test (story 38.30), a world of the release itself. */
+export const TEST_PARTNER_GAME = "A Short Hike";
+
+/** The verdict line: the pass obtained with the admin's file names it (story 44.6), and with a partner (story 38.30). */
 export function preflightVerdictLabel(preflight: ApworldPreflight | null, game: Pick<AdminGame, "requiredFiles">): { label: string; className: string } {
   if (preflight === null) return { label: "Jamais testé", className: "text-muted-foreground" };
   const withFiles = passedWithFilesLabel(preflight, testFilesOfGame(game.requiredFiles));
   const base = preflightLabels[preflight.status];
+  if (preflight.status === "passed" && preflight.withPartner === true) {
+    const partner = `un partenaire (${TEST_PARTNER_GAME})`;
+    return { label: withFiles !== null ? `${withFiles} et ${partner}` : `${base.label} avec ${partner}`, className: base.className };
+  }
   return withFiles !== null ? { label: withFiles, className: base.className } : base;
+}
+
+/**
+ * Story 38.30: a meta-game (Tombola) places its progression in the other worlds of the multiworld, so it cannot
+ * generate solo. Its tests then add a partner player; the current verdict stays until the next test.
+ */
+export function TestPartnerSetting({ game, onUpdate }: Props) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function change(withPartner: boolean): Promise<void> {
+    setSaving(true);
+    setError(null);
+    const updated = await changeApworldTestPartner(game.id, withPartner);
+    setSaving(false);
+    if (updated !== null) {
+      onUpdate(updated);
+    } else {
+      setError("Le réglage n'a pas pu être enregistré.");
+    }
+  }
+
+  return (
+    <div className="grid gap-1">
+      <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-foreground">
+        <input
+          checked={game.testWithPartner === true}
+          className="size-4 rounded border-border accent-accent"
+          disabled={saving}
+          type="checkbox"
+          onChange={(e) => void change(e.target.checked)}
+        />
+        Tester avec un partenaire ({TEST_PARTNER_GAME})
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Pour un méta-jeu comme Tombola, qui place sa progression dans les autres mondes et ne peut pas se générer seul.
+        S&apos;applique aux prochains tests, y compris ceux des nouvelles versions.
+      </p>
+      {error !== null ? (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function LiveApworldCard({ game, onUpdate }: Props) {
@@ -167,6 +220,7 @@ function LiveApworldCard({ game, onUpdate }: Props) {
         labelId="apworld-live-title"
         title="Version en ligne"
       >
+        <TestPartnerSetting game={game} onUpdate={onUpdate} />
         {replaceDialog}
       </TabCard>
     );
@@ -270,6 +324,8 @@ function LiveApworldCard({ game, onUpdate }: Props) {
           </p>
         ) : null}
       </div>
+
+      <TestPartnerSetting game={game} onUpdate={onUpdate} />
 
       <Dialog
         description="Une génération seule, avec les options par défaut du template et une seule seed."
