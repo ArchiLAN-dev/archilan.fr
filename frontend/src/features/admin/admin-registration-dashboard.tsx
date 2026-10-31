@@ -16,6 +16,7 @@ import {
   type PaymentSummary,
   type RegistrationStatusFilter,
 } from "./admin-registration-api";
+import { BroadcastScreenLinks } from "./broadcast-screen-links";
 
 // ─── Page state ──────────────────────────────────────────────────────────────
 
@@ -290,6 +291,8 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
       </div>
 
       <RegistrationList eventId={eventId} highlightedRegistrationIds={highlightedRegistrationIds} openNotes={openNotes ?? null} state={state} />
+
+      {state.kind === "ready" ? <BroadcastScreenLinks eventId={eventId} /> : null}
     </section>
   );
 }
