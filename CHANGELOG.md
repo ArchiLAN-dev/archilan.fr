@@ -5,6 +5,40 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.52.0] - 2026-10-31
+
+Les partenaires de l'association sur le site, sur les événements et à l'écran pendant la LAN, et des notes internes
+pour les admins sur les inscriptions.
+
+### Ajouté
+
+- **Partenaires gérés en admin** (45.1) : page admin pour créer, ordonner, activer ou retirer jusqu'à 5 partenaires
+  (nom, description courte, lien, logo PNG, JPEG ou WebP de 2 Mo au plus, un SVG est converti en PNG avant l'envoi).
+  Migration `Version20261025200004`.
+- **Partenaires sur le site** (45.2) : section sur l'accueil, page `/partenaires` et lien texte dans le pied de page.
+  Les liens portent `rel="sponsored"`.
+- **Partenaires d'un événement** (45.3) : l'admin choisit les partenaires d'un événement, affichés sur sa page et sur
+  son recap. Migration `Version20261025200005`.
+- **Écran des partenaires** (45.4) : `/o/partenaires` pour OBS ou un écran de la LAN (`?mode=ecran`, `?event=<id>`),
+  relu toutes les 5 minutes.
+- **Logo clair et cartes plus larges** (45.5) : option « logo clair » qui pose le logo sur une pastille sombre, cartes
+  au format 5:2, description courte portée à 250 caractères. Migrations `Version20261025200006` et
+  `Version20261025200007`.
+- **Notes internes sur les inscriptions** (46.1 à 46.3) : sur la fiche admin d'une inscription, un carnet de notes
+  visible des admins seulement. Une note est ouverte ou réglée, peut être rouverte, suivie de commentaires, et garde
+  l'historique de ses modifications ; pas de suppression. Sur la liste des inscriptions d'un événement, une ligne qui
+  a une note ouverte porte une barre orange, le nombre de notes ouvertes et le texte de la dernière. Migration
+  `Version20261025200008`.
+
+### Corrigé
+
+- **Cadre vidéo ajouté en admin** (30.56) : il reste sur son image fixe là où sa vidéo faisait un carré noir.
+
+### Déploiement
+
+- Site seul, services inchangés. 5 migrations (`Version20261025200004` à `Version20261025200008`), aucune nouvelle
+  variable d'environnement. Les logos des partenaires vont dans le bucket public des médias.
+
 ## [0.51.1] - 2026-10-28
 
 Correctif des éditeurs de YAML.

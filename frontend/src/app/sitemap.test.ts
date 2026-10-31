@@ -179,6 +179,6 @@ describe("sitemap", () => {
     expect(result).toContain("http://localhost:3000/");
     expect(result).toContain("http://localhost:3000/aide/archipelago");
     // No dynamic entries survived, but the route did not throw.
-    expect(result).toHaveLength(14);
+    expect(result).toHaveLength(15);
   });
 });

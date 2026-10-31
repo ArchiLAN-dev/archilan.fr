@@ -39,6 +39,7 @@ const STATIC_ROUTES = [
   "/boutique",
   "/boutique?onglet=asso",
   "/aide/archipelago",
+  "/partenaires",
   "/cgu",
   "/cgv",
   "/mentions-legales",

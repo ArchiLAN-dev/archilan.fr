@@ -19,6 +19,7 @@ import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { QueryProvider } from "@/lib/query-provider";
+import { PartnersFooterLink } from "@/features/content/partner-card";
 import type { DiscordStats } from "@/features/discord/discord-api";
 import { DiscordHeaderLink, DiscordIconLink, DiscordJoinButton, DiscordStatsLine } from "@/features/discord/discord-promo";
 
@@ -210,7 +211,11 @@ function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
   );
 }
 
-export function PublicShell({ children, discord = null }: Readonly<{ children: React.ReactNode; discord?: DiscordStats | null }>) {
+export function PublicShell({
+  children,
+  discord = null,
+  hasPartners = false,
+}: Readonly<{ children: React.ReactNode; discord?: DiscordStats | null; hasPartners?: boolean }>) {
   const menuId = useId();
   const pathname = usePathname();
   const [menuState, setMenuState] = useState({ open: false, pathname });
@@ -236,8 +241,10 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
         Passer au contenu principal
       </a>
 
+      {/* Opaque, unlike the footer: the header is its own stacking context, and the member's video frame animates in
+          it for good (user menu). At 92% the screen blend shows the video's black box as a darker square (story 30.56). */}
       <header
-        className="sticky top-0 z-50 border-b border-border/80 bg-background/92 backdrop-blur"
+        className="sticky top-0 z-50 border-b border-border/80 bg-background"
         style={{ boxShadow: "0 1px 0 color-mix(in oklab, var(--color-accent) 18%, transparent)" }}
       >
         <nav
@@ -356,6 +363,8 @@ export function PublicShell({ children, discord = null }: Readonly<{ children: R
             <Link className="inline-flex items-center hover:text-foreground" href="/actualites">
               Actualités
             </Link>
+            {/* Story 45.2: a plain text link, only when a partner is shown; the logos live on the home page. */}
+            <PartnersFooterLink show={hasPartners} />
             <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
             <a
               className="inline-flex items-center hover:text-foreground"

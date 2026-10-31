@@ -32,6 +32,7 @@ final readonly class DddArchitectureValidator
         'SessionConfig',
         'Community',
         'Wallet',
+        'Notes',
     ];
 
     /**

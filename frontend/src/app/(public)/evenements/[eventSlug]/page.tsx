@@ -21,6 +21,8 @@ import { DiscordNudge } from "@/features/discord/discord-promo";
 import { LiveSeatCounter } from "@/features/events/live-seat-counter";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import { getEventRecapIndex } from "@/features/recap/recap-api.server";
+import { EventPartners } from "@/features/content/partner-card";
+import { getPartners, joinEventPartners } from "@/features/content/partners-api";
 
 type EventDetailPageProps = {
   params: Promise<{ eventSlug: string }>;
@@ -144,9 +146,13 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
   if (!event) {
     notFound();
   }
-  const discord = await fetchDiscordStats();
-
-  const recapParties = await getEventRecapIndex(event.id);
+  const [discord, recapParties, partners] = await Promise.all([
+    fetchDiscordStats(),
+    getEventRecapIndex(event.id),
+    getPartners(),
+  ]);
+  // Story 45.3: only the visible partners survive the join, in the event's order.
+  const eventPartners = joinEventPartners(event.partners ?? [], partners);
 
   const status = statusDetails[event.status];
   // "S'inscrire" is moved to the aside below the seat counter.
@@ -285,6 +291,8 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             ) : null}
           </aside>
         </section>
+
+        <EventPartners partners={eventPartners} variant="page" />
 
         {event.status !== "completed" && <ParticipantStreams id={event.id} kind="event" />}
 

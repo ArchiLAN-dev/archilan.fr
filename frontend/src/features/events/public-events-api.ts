@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { isEventPartnerRef, type EventPartnerRef } from "@/features/content/partners-api";
 import type { PublicEvent } from "./event-types";
 import { eventDate, eventStatusAt } from "./event-schedule";
 
@@ -34,6 +35,8 @@ type PublicEventPayload = {
   hasRecap: boolean;
   checkoutEmbedUrl: string | null;
   checkoutUnavailable: boolean;
+  /** Story 45.3: optional so an older API (or a cached payload) still reads; invalid entries are dropped. */
+  partners?: unknown;
 };
 
 export async function getPublicEvents(): Promise<{ upcoming: PublicEvent[]; past: PublicEvent[] }> {
@@ -106,10 +109,15 @@ function toPublicEvent(event: PublicEventPayload): PublicEvent {
     },
     recapAvailable: event.hasRecap,
     checkoutUnavailable: event.checkoutUnavailable,
+    partners: eventPartnerRefs(event.partners),
     ...(event.vodUrl ? { vodUrl: event.vodUrl } : {}),
     ...(event.recapPostSlug ? { recap: event.recapPostSlug } : {}),
     ...(event.checkoutEmbedUrl ? { checkoutEmbedUrl: event.checkoutEmbedUrl } : {}),
   };
+}
+
+function eventPartnerRefs(raw: unknown): EventPartnerRef[] {
+  return Array.isArray(raw) ? raw.filter(isEventPartnerRef) : [];
 }
 
 function fallbackEvents(): { upcoming: PublicEvent[]; past: PublicEvent[] } {

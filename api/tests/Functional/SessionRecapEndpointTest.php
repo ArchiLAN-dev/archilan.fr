@@ -52,6 +52,8 @@ final class SessionRecapEndpointTest extends FunctionalTestCase
 
         self::assertSame($session->getId(), $data['sessionId']);
         self::assertSame('ArchiLAN Recap', $data['eventName']);
+        // Story 45.3: an event session names its event, so the page can thank its partners.
+        self::assertSame($event->getId(), $data['eventId']);
         self::assertSame('https://www.twitch.tv/videos/123456789', $data['vodUrl']);
         self::assertIsString($data['generatedAt']);
 
@@ -188,6 +190,10 @@ final class SessionRecapEndpointTest extends FunctionalTestCase
         $this->loginAs($owner);
         $this->client->request('GET', $recapUrl);
         self::assertResponseStatusCodeSame(200);
+        $ownerView = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($ownerView);
+        // Story 45.3: a personal run is not an event, so no event partners.
+        self::assertNull($ownerView['eventId']);
 
         $this->loginAs($participant);
         $this->client->request('GET', $recapUrl);

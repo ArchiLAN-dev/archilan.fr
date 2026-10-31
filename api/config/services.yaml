@@ -83,6 +83,7 @@ services:
             - '../src/SessionConfig/Domain/'
             - '../src/Community/Domain/'
             - '../src/Wallet/Domain/'
+            - '../src/Notes/Domain/'
 
     App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigProfileRepository'
     App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigOverrideRepository'
@@ -499,6 +500,12 @@ services:
 
     App\Content\Domain\Repository\PostRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrinePostRepository'
     App\Content\Domain\Repository\HomeAnnouncementRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrineHomeAnnouncementRepository'
+    App\Content\Domain\Repository\PartnerRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrinePartnerRepository'
+
+    # Story 46.1: admin notes. The target check lives behind a port, answered by the context owning the target.
+    App\Notes\Domain\Repository\AdminNoteRepositoryInterface: '@App\Notes\Infrastructure\Doctrine\DoctrineAdminNoteRepository'
+    App\Notes\Application\Query\AdminNoteQueryInterface: '@App\Notes\Infrastructure\Dbal\DbalAdminNoteQuery'
+    App\Notes\Application\Port\NoteTargetInterface: '@App\Notes\Infrastructure\Adapter\RepositoryNoteTarget'
 
     App\Events\Domain\Repository\EventRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventRepository'
     App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventPrivateAccessLogRepository'

@@ -5,6 +5,8 @@ import { ArrowRight, Check, ScrollText } from "lucide-react";
 
 import type { CommunityStats } from "@/features/community/community-api";
 import type { PublicPost } from "@/features/content/content-types";
+import { PartnerGrid } from "@/features/content/partner-card";
+import type { Partner } from "@/features/content/partners-api";
 import type { DiscordStats } from "@/features/discord/discord-api";
 import { DiscordJoinButton } from "@/features/discord/discord-promo";
 import type { PublicEvent } from "@/features/events/event-types";
@@ -396,6 +398,23 @@ export function HomeAssociation() {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+/** Story 45.2: the partners of the association, right under it. Absent without a partner to show. */
+export function HomePartners({ partners }: { partners: Partner[] }) {
+  if (partners.length === 0) return null;
+  return (
+    <section aria-labelledby="partenaires-heading" className="grid gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="grid gap-2">
+          <Eyebrow>Partenaires</Eyebrow>
+          <SectionTitle id="partenaires-heading">Ils soutiennent l&apos;association</SectionTitle>
+        </div>
+        <MoreLink href="/partenaires">Tous nos partenaires</MoreLink>
+      </div>
+      <PartnerGrid partners={partners} />
     </section>
   );
 }

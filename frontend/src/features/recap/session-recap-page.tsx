@@ -16,11 +16,20 @@ import { RecapVod } from "@/features/recap/recap-vod";
 import { RecapExchanges } from "@/features/recap/recap-exchanges";
 import { FriendSuggestions } from "@/features/community/friend-suggestions";
 import type { SessionRecap } from "@/features/recap/recap-api";
+import { EventPartners } from "@/features/content/partner-card";
+import type { EventPartner } from "@/features/content/partners-api";
 
 /** Enough to see a pattern, few enough to stay readable; the total is announced next to it. */
 const TOP_ITEMS_LIMIT = 10;
 
-export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: FeedEvent[] }) {
+type Props = {
+  recap: SessionRecap;
+  feed: FeedEvent[];
+  /** Story 45.3: the event's visible partners, thanked quietly at the very end. */
+  eventPartners?: EventPartner[];
+};
+
+export function SessionRecapView({ recap, feed, eventPartners = [] }: Props) {
   const slotLabels = buildSlotLabels(recap.podium);
 
   // One colour per slot, shared with the timeline below so a player keeps a single identity.
@@ -138,6 +147,8 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
           <RecapVod vodUrl={recap.vodUrl} />
         </div>
       ) : null}
+
+      <EventPartners partners={eventPartners} variant="discreet" />
     </section>
   );
 }
