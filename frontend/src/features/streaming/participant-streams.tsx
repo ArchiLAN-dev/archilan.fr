@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Radio, Users } from "lucide-react";
+import { LayoutGrid, List, Radio, Users } from "lucide-react";
 import { FaTwitch } from "react-icons/fa6";
 import { SESSION_STALE_TIME } from "@/lib/query-client";
 import {
@@ -12,6 +12,7 @@ import {
   type ParticipantStreamKind,
 } from "./participant-streams-api";
 import { ParticipantStreamEmbed } from "./participant-stream-embed";
+import { ParticipantStreamsMosaic, reconcileMosaic, toggleInMosaic } from "./participant-streams-mosaic";
 
 type Props = {
   kind: ParticipantStreamKind;
@@ -25,6 +26,8 @@ type Props = {
   variant?: "card" | "section";
   // When true, render every stream with no cap or overflow link (used by the dedicated /streams page).
   showAll?: boolean;
+  // Story 47.3: offer the "Mosaïque" view (several lives side by side) - on the dedicated /streams page only.
+  mosaic?: boolean;
 };
 
 const viewerFormatter = new Intl.NumberFormat("fr-FR");
@@ -56,7 +59,7 @@ const MAX_VISIBLE_STREAMS = 10;
  * clicking a card loads it into a single shared player above the list (swappable). On small viewports a
  * click opens twitch.tv in a new tab instead.
  */
-export function ParticipantStreams({ kind, id, emptyState = "hide", variant = "card", showAll = false }: Props) {
+export function ParticipantStreams({ kind, id, emptyState = "hide", variant = "card", showAll = false, mosaic = false }: Props) {
   const { data = [] } = useQuery({
     queryKey: ["participant-streams", kind, id],
     queryFn: () => fetchParticipantStreams(kind, id),
@@ -65,6 +68,9 @@ export function ParticipantStreams({ kind, id, emptyState = "hide", variant = "c
   });
 
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
+  const [view, setView] = useState<"list" | "mosaic">("list");
+  const [mosaicSelection, setMosaicSelection] = useState<string[] | null>(null);
+  const [focused, setFocused] = useState<string | null>(null);
   const embedViewport = useEmbedViewport();
 
   const live = data.filter((stream) => stream.live);
@@ -79,8 +85,25 @@ export function ParticipantStreams({ kind, id, emptyState = "hide", variant = "c
   const shownOffline = offline.slice(0, offlineBudget);
   const streamsHref = `/streams/${kind}/${id}`;
 
+  // Story 47.3: the mosaic needs two lives and a usable viewport; below that, the list comes back on its own.
+  const canMosaic = mosaic && live.length >= 2 && embedViewport;
+  const showMosaic = canMosaic && view === "mosaic";
+  const mosaicLogins = reconcileMosaic(mosaicSelection, live.map((stream) => stream.twitchLogin));
+  const mosaicStreams = mosaicLogins.flatMap((login) => live.filter((stream) => stream.twitchLogin === login));
+  const focusedLogin = focused !== null && mosaicLogins.includes(focused) ? focused : null;
+
   function handleSelect(login: string): void {
     if (typeof window === "undefined") {
+      return;
+    }
+    if (showMosaic) {
+      // A live card goes in or out of the mosaic; an offline one goes back to the single player.
+      if (live.some((stream) => stream.twitchLogin === login)) {
+        setMosaicSelection(toggleInMosaic(mosaicLogins, login));
+      } else {
+        setView("list");
+        setActiveChannel(login);
+      }
       return;
     }
     // Shared embed on usable viewports; on small screens fall back to opening the channel.
@@ -146,11 +169,17 @@ export function ParticipantStreams({ kind, id, emptyState = "hide", variant = "c
       aria-labelledby="participant-streams-heading"
       className="grid gap-4 rounded-lg border border-border bg-surface p-4 sm:p-6"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <FaTwitch aria-hidden className="size-4 text-accent-text" />
         <h2 className="font-heading text-lg font-semibold text-foreground" id="participant-streams-heading">
           Streams des participants
         </h2>
+        {canMosaic ? (
+          <div aria-label="Affichage des streams" className="ml-auto flex gap-1" role="group">
+            <ViewButton icon={<List aria-hidden className="size-4" />} label="Liste" onClick={() => setView("list")} pressed={!showMosaic} />
+            <ViewButton icon={<LayoutGrid aria-hidden className="size-4" />} label="Mosaïque" onClick={() => setView("mosaic")} pressed={showMosaic} />
+          </div>
+        ) : null}
       </div>
 
       {data.length === 0 ? (
@@ -159,7 +188,7 @@ export function ParticipantStreams({ kind, id, emptyState = "hide", variant = "c
         </p>
       ) : (
         <>
-          {sharedEmbed}
+          {showMosaic ? <ParticipantStreamsMosaic focused={focusedLogin} onFocus={setFocused} streams={mosaicStreams} /> : sharedEmbed}
 
           {shownLive.length > 0 && (
             <div className="grid gap-2">
@@ -167,7 +196,7 @@ export function ParticipantStreams({ kind, id, emptyState = "hide", variant = "c
               <ul className="grid gap-2 sm:grid-cols-2">
                 {shownLive.map((stream) => (
                   <StreamCard
-                    active={stream.twitchLogin === effectiveActive}
+                    active={showMosaic ? mosaicLogins.includes(stream.twitchLogin) : stream.twitchLogin === effectiveActive}
                     key={stream.userId}
                     onSelect={handleSelect}
                     stream={stream}
@@ -203,6 +232,22 @@ export function ParticipantStreams({ kind, id, emptyState = "hide", variant = "c
         </>
       )}
     </section>
+  );
+}
+
+function ViewButton({ icon, label, onClick, pressed }: { icon: ReactNode; label: string; onClick: () => void; pressed: boolean }) {
+  return (
+    <button
+      aria-pressed={pressed}
+      className={`inline-flex min-h-8 items-center gap-1.5 rounded border px-2.5 text-xs font-semibold transition-colors ${
+        pressed ? "border-accent bg-accent/10 text-foreground" : "border-border text-muted-foreground hover:border-accent"
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
