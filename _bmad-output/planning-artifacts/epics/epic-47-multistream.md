@@ -42,7 +42,7 @@ un événement, pour que la régie diffuse tout le monde pendant les pauses.
   pseudo sur chaque case, lecteurs muets, liste relue toutes les minutes.
 - Option `?mode=rotation&duree=<s>` : un stream en grand, les autres en vignettes, qui tourne à intervalle régulier.
 - Au-delà du plafond, les cases tournent par groupes.
-- Rien à l'écran quand personne n'est en live, ou un fond ArchiLAN (choix à faire dans la story).
+- Plafond `?max=` (4 par défaut, jusqu'à 9). Rien à l'écran quand personne n'est en live (la régie garde sa scène).
 
 ### 47.3 - La mosaïque publique
 
