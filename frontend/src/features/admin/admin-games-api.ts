@@ -48,6 +48,8 @@ export type AdminGame = {
   archipelagoRuntime?: { apImage: string; apImageId: string | null } | null;
   apworldPreflightOnCurrentImage?: boolean | null;
   apworldCandidate?: ApworldCandidate | null;
+  // Story 38.30: its test generations add a partner player (a meta-game cannot generate solo). Absent on older payloads.
+  testWithPartner?: boolean;
   // Story 9.47: true when `platforms` comes from an admin choice instead of IGDB.
   platformsOverridden?: boolean;
   // Curated families an admin can pick from. Absent on older payloads.
@@ -164,6 +166,8 @@ export type ApworldPreflight = {
   warning?: string;
   // Story 44.6: the test was given the file its world reads, which only an admin can provide.
   withRequiredFiles?: boolean;
+  // Story 38.30: the test had a partner player beside the tested one.
+  withPartner?: boolean;
   // Story 38.16: a failed verdict in one line (GenerationFailureParser), `error` being the raw tail.
   summary?: string;
 };
@@ -363,6 +367,22 @@ export async function overrideApworldPreflight(gameId: string, overridden: boole
   }
 }
 
+/** Story 38.30: whether the test generations of a meta-game add a partner player. Null on failure. */
+export async function changeApworldTestPartner(gameId: string, withPartner: boolean): Promise<AdminGame | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/apworld-test-partner`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ withPartner }),
+    });
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    return isAdminGamePayload(payload) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
+
 // Story 38.6: a new apworld version is tested before it serves players. The candidate is that version
 // while it waits for its verdict, or once its test refused it.
 export type ApworldCandidate = {
@@ -398,9 +418,9 @@ function apiErrorMessage(json: unknown, fallback: string): string {
   return typeof error === "object" && error !== null && hasStringProp(error, "message") ? error.message : fallback;
 }
 
-async function candidateAction(gameId: string, action: "promote" | "retry" | "approve"): Promise<ApworldCandidateActionResult> {
+async function candidateAction(gameId: string, action: "promote" | "retry" | "approve", body?: FormData): Promise<ApworldCandidateActionResult> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${encodeURIComponent(gameId)}/apworld-candidate/${action}`, { method: "POST" });
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${encodeURIComponent(gameId)}/apworld-candidate/${action}`, { method: "POST", body });
     if (res.ok) return { ok: true };
     const json: unknown = await res.json().catch(() => null);
     return { ok: false, message: apiErrorMessage(json, CANDIDATE_ACTION_ERROR) };
@@ -414,9 +434,12 @@ export function forceApworldCandidate(gameId: string): Promise<ApworldCandidateA
   return candidateAction(gameId, "promote");
 }
 
-/** Run the test of a rejected candidate again, typically after a transient failure. */
-export function retryApworldCandidate(gameId: string): Promise<ApworldCandidateActionResult> {
-  return candidateAction(gameId, "retry");
+/**
+ * Run the test of a rejected candidate again, typically after a transient failure. Story 38.28: with the files its
+ * world reads (a ROM), sent for this test only - without them, such a version could never pass.
+ */
+export function retryApworldCandidate(gameId: string, files: Record<string, File> = {}): Promise<ApworldCandidateActionResult> {
+  return candidateAction(gameId, "retry", Object.keys(files).length > 0 ? requiredFilesForm(files) : undefined);
 }
 
 /** Story 38.14: put online a candidate held for approval, once its test passed. */

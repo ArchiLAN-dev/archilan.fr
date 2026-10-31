@@ -42,6 +42,24 @@ export async function fetchParticipantStreams(
   }
 }
 
+/**
+ * Story 47.2: the lives the ArchiLAN broadcast may show (47.1 opt-outs left out). null when the read failed, so the
+ * OBS screen keeps its last list on air instead of going blank.
+ */
+export async function fetchBroadcastStreams(eventId: string): Promise<ParticipantStream[] | null> {
+  try {
+    const response = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/broadcast-streams`);
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload: unknown = await response.json();
+    return isParticipantStreamsPayload(payload) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
+
 function isParticipantStream(v: unknown): v is ParticipantStream {
   if (typeof v !== "object" || v === null) return false;
   if (!hasStringProp(v, "userId")) return false;

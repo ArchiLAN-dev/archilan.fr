@@ -108,6 +108,27 @@ final readonly class AdminGameLibrary
     }
 
     /**
+     * Whether the test generations of this game add a partner player (story 38.30): a meta-game such as Tombola
+     * cannot generate solo. The current verdict stays until the admin reruns the test.
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function changeTestPartner(string $gameId, bool $withPartner): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $game->changeTestPartner($withPartner);
+        $this->gameRepository->save($game);
+
+        $this->logger->info('game.test_partner_changed', ['gameId' => $gameId, 'withPartner' => $withPartner]);
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
+    }
+
+    /**
      * An admin says a generation does not actually need this file (story 44.3): it stops being mandatory
      * for the launcher. A false positive, e.g. a failure that named the file for another reason.
      *
@@ -352,7 +373,7 @@ final readonly class AdminGameLibrary
                 if ($game->needsAFileAtGeneration()) {
                     $warning = self::RERUN_WITH_FILE;
                 } else {
-                    $this->runnerGateway->runApworldPreflight($hash);
+                    $this->runnerGateway->runApworldPreflight($hash, [], $game->testsWithPartner());
                 }
             } else {
                 $warning = 'Template enregistré, mais le runner est indisponible : le verdict du test reste celui de la version précédente.';
@@ -410,7 +431,7 @@ final readonly class AdminGameLibrary
         if ($game->needsAFileAtGeneration()) {
             $warning = self::RERUN_WITH_FILE;
         } else {
-            $this->runnerGateway->runApworldPreflight($hash);
+            $this->runnerGateway->runApworldPreflight($hash, [], $game->testsWithPartner());
         }
 
         $this->logger->info('game.default_yaml_regenerated', ['gameId' => $gameId, 'hash' => $hash]);
@@ -489,7 +510,7 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['requiredFiles' => ['Le fichier n\'a pas pu être transmis. Réessaie dans un instant.']]];
         }
 
-        if (!$this->runnerGateway->runApworldPreflight($hash, $fileIds)) {
+        if (!$this->runnerGateway->runApworldPreflight($hash, $fileIds, $game->testsWithPartner())) {
             $this->requiredGenerationFiles->release($fileIds);
 
             return ['found' => true, 'errors' => ['apworld' => ['Le runner est indisponible, réessaie plus tard.']]];
@@ -552,7 +573,7 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool, summary: string}|null
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool, withPartner?: bool, summary: string}|null
      */
     private function preflightForGame(Game $game): ?array
     {
@@ -1005,6 +1026,7 @@ final readonly class AdminGameLibrary
             'apworldCheckedAt' => $sync?->getApworldCheckedAt()?->format(\DateTimeInterface::ATOM),
             'apworldReleaseUrl' => $sync?->getApworldReleaseUrl(),
             'availabilityLocked' => $game->isAvailabilityLocked(),
+            'testWithPartner' => $game->testsWithPartner(),
             'igdbId' => $sync?->getIgdbId(),
             'steamAppId' => $sync?->getSteamAppId(),
             'platforms' => $game->platformFamilies(),

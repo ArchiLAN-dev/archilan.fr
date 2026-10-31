@@ -26,6 +26,8 @@ export type AdminRegistration = {
   registrationId: string;
   status: "reserved" | "cancelled";
   usedPrivateAccess: boolean;
+  /** Story 47.1: the member lets the ArchiLAN broadcast show their stream. */
+  broadcastConsent: boolean;
   createdAt: string;
   submittedAt: string | null;
   participant: Participant;

@@ -37,6 +37,8 @@ type PublicEventPayload = {
   checkoutUnavailable: boolean;
   /** Story 45.3: optional so an older API (or a cached payload) still reads; invalid entries are dropped. */
   partners?: unknown;
+  /** Story 3.15: optional for the same reason; only `true` features the event. */
+  featuredOnHome?: unknown;
 };
 
 export async function getPublicEvents(): Promise<{ upcoming: PublicEvent[]; past: PublicEvent[] }> {
@@ -110,6 +112,7 @@ function toPublicEvent(event: PublicEventPayload): PublicEvent {
     recapAvailable: event.hasRecap,
     checkoutUnavailable: event.checkoutUnavailable,
     partners: eventPartnerRefs(event.partners),
+    featuredOnHome: event.featuredOnHome === true,
     ...(event.vodUrl ? { vodUrl: event.vodUrl } : {}),
     ...(event.recapPostSlug ? { recap: event.recapPostSlug } : {}),
     ...(event.checkoutEmbedUrl ? { checkoutEmbedUrl: event.checkoutEmbedUrl } : {}),

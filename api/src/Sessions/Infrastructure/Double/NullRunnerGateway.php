@@ -19,7 +19,7 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** @var array{status: string, bridgePort: ?int, apPort: ?int}|null Canned getSessionInfo() return for reconciliation tests. */
     public static ?array $nextSessionInfo = null;
 
-    /** @var array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}> Canned preflight verdicts by hash (story 9.38 tests). */
+    /** @var array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool, withPartner?: bool}> Canned preflight verdicts by hash (story 9.38 tests). */
     public static array $apworldPreflights = [];
 
     /** @var array{apImage: string, apImageId: string|null}|null Canned image in use (story 38.8 tests); null = runner silent. */
@@ -49,8 +49,11 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** When true, generateSession() reads as an orchestrator that no longer holds the files (story 44.2 tests). */
     public static bool $requiredFilesExpired = false;
 
-    /** @var list<array{hash: string, requiredFileIds: list<string>}> Each runApworldPreflight() call (story 44.6 tests). */
+    /** @var list<array{hash: string, requiredFileIds: list<string>, withPartner: bool}> Each runApworldPreflight() call (stories 44.6, 38.30 tests). */
     public static array $apworldPreflightRuns = [];
+
+    /** @var list<bool> Whether each uploadApworld() call asked for a partner player (story 38.30 tests). */
+    public static array $apworldUploadsWithPartner = [];
 
     /** When true, runApworldPreflight() reads as a runner that did not answer (story 44.6 tests). */
     public static bool $apworldPreflightUnavailable = false;
@@ -66,6 +69,7 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         self::$declaredFiles = [];
         self::$officialDeclaredFiles = null;
         self::$apworldPreflightRuns = [];
+        self::$apworldUploadsWithPartner = [];
         self::$apworldPreflightUnavailable = false;
         self::$stagedFiles = [];
         self::$releasedFileIds = [];
@@ -82,8 +86,9 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         self::$runtime = null;
     }
 
-    public function uploadApworld(string $fileContents, string $filename): array
+    public function uploadApworld(string $fileContents, string $filename, bool $withPartner = false): array
     {
+        self::$apworldUploadsWithPartner[] = $withPartner;
         if (null !== self::$apworldUploadResult) {
             return self::$apworldUploadResult;
         }
@@ -152,18 +157,18 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return self::$runtime;
     }
 
-    public function runApworldPreflight(string $hash, array $requiredFileIds = []): bool
+    public function runApworldPreflight(string $hash, array $requiredFileIds = [], bool $withPartner = false): bool
     {
         if (self::$apworldPreflightUnavailable) {
             return false;
         }
-        self::$apworldPreflightRuns[] = ['hash' => $hash, 'requiredFileIds' => $requiredFileIds];
+        self::$apworldPreflightRuns[] = ['hash' => $hash, 'requiredFileIds' => $requiredFileIds, 'withPartner' => $withPartner];
 
         return true;
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool, withPartner?: bool}
      */
     public function overrideApworldPreflight(string $hash, bool $overridden): array
     {

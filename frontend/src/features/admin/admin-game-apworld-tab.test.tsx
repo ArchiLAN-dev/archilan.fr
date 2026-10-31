@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { ApworldTab, preflightVerdictLabel } from "./admin-game-apworld-tab";
+import { ApworldTab, preflightVerdictLabel, ReplaceApworldForm } from "./admin-game-apworld-tab";
 import type { AdminGame, ApworldPreflight } from "./admin-games-api";
 
 const rom = { setting: "DK3Settings.rom_file", file: "dkc3.sfc", extension: ".sfc", description: "DKC3 (US) ROM File", md5s: [], neededAtGeneration: true };
@@ -94,5 +94,29 @@ describe("ApworldTab", () => {
       "Test de génération réussi avec DKC3 (US) ROM File",
     );
     expect(preflightVerdictLabel(null, {}).label).toBe("Jamais testé");
+  });
+
+  // Story 38.30: a meta-game's pass says it had a partner player.
+  test("the verdict says a pass had a partner", () => {
+    const passed: ApworldPreflight = { ...failed, status: "passed", withPartner: true };
+    expect(preflightVerdictLabel(passed, {}).label).toBe("Test de génération réussi avec un partenaire (A Short Hike)");
+    expect(preflightVerdictLabel({ ...passed, withRequiredFiles: true }, { requiredFiles: [rom] }).label).toBe(
+      "Test de génération réussi avec DKC3 (US) ROM File et un partenaire (A Short Hike)",
+    );
+    expect(preflightVerdictLabel({ ...failed, withPartner: true }, {}).label).toBe("Échec du test de génération");
+  });
+
+  test("the partner setting shows the game's choice", () => {
+    expect(render(game({ testWithPartner: true }))).toMatch(/type="checkbox" checked=""\/>Tester avec un partenaire/);
+    expect(render(game())).toMatch(/type="checkbox"\/>Tester avec un partenaire \(A Short Hike\)/);
+  });
+
+  // Story 38.28: the first test of an import leaves without the file, so the import says so.
+  test("the import warns that a game reading a file fails its first test without it", () => {
+    const warn = (g: AdminGame) => renderToStaticMarkup(<ReplaceApworldForm game={g} onClose={() => undefined} onReplaced={() => undefined} />);
+
+    expect(warn(game({ requiredFiles: [rom] }))).toContain("DKC3 (US) ROM File");
+    expect(warn(game({ requiredFiles: [rom] }))).toContain("échouera");
+    expect(warn(game({ requiredFiles: [{ ...rom, neededAtGeneration: false }] }))).not.toContain("échouera");
   });
 });

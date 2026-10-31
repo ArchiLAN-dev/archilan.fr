@@ -6,6 +6,7 @@ namespace App\Events\Presentation\Controller;
 
 use App\Events\Application\Command\AdminEventRecap;
 use App\Events\Application\Command\ChooseEventPartners;
+use App\Events\Application\Command\FeatureEventOnHome;
 use App\Events\Application\Command\VerifyPrivateEventAccess;
 use App\Events\Application\Query\AdminDashboardStats;
 use App\Events\Application\Query\AdminEventPartnersQuery;
@@ -38,6 +39,7 @@ final readonly class AdminEventController
         private AdminHelloAssoSyncStatus $adminHelloAssoSyncStatus,
         private AdminEventPartnersQuery $adminEventPartners,
         private ChooseEventPartners $chooseEventPartners,
+        private FeatureEventOnHome $featureEventOnHome,
     ) {
     }
 
@@ -369,6 +371,26 @@ final readonly class AdminEventController
         $this->chooseEventPartners->choose($eventId, $this->jsonPayload($request));
 
         return new JsonResponse(['data' => null, 'meta' => ['message' => 'Partenaires enregistrés.']]);
+    }
+
+    #[Route('/api/v1/admin/events/{eventId}/featured', name: 'api_events_admin_featured', methods: ['PUT'])]
+    public function featureOnHome(Request $request, string $eventId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $featured = $this->jsonPayload($request)['featured'] ?? null;
+        if (!is_bool($featured)) {
+            return $this->apiAccessGuard->errorResponse('invalid_json', 'Corps de requête invalide.', 400);
+        }
+
+        // Story 3.15: failures (event missing, draft featured) are typed ApplicationFailures mapped to HTTP (epic 35).
+        $this->featureEventOnHome->choose($eventId, $featured);
+
+        return new JsonResponse(['data' => null, 'meta' => ['message' => $featured ? 'Événement mis en avant.' : 'Événement retiré de l\'accueil.']]);
     }
 
     /**

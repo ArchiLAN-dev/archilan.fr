@@ -219,10 +219,19 @@ function confirmed(event: PublicEvent): number | null {
   return event.capacity ? event.capacity.total - event.capacity.remaining : (event.stats?.players ?? null);
 }
 
-/** The next LAN if one is announced, otherwise the last one; and how the editions grew. `past` is newest first. */
+/**
+ * Story 3.15: the event the section shows (the admin's pick, otherwise the next LAN, otherwise the last one), and the
+ * one its text and button speak of (the pick when it is still ahead, otherwise the next LAN, or none).
+ */
+export function homeLanPicks(upcoming: PublicEvent[], past: PublicEvent[]): { shown: PublicEvent | null; next: PublicEvent | null } {
+  const pick = [...upcoming, ...past].find((event) => event.featuredOnHome === true) ?? null;
+  const next = pick !== null && pick.status !== "completed" ? pick : (upcoming[0] ?? null);
+  return { shown: pick ?? next ?? past[0] ?? null, next };
+}
+
+/** The featured LAN and how the editions grew. `past` is newest first. */
 export function HomeLan({ upcoming, past }: { upcoming: PublicEvent[]; past: PublicEvent[] }) {
-  const next = upcoming[0] ?? null;
-  const featured = next ?? past[0] ?? null;
+  const { shown: featured, next } = homeLanPicks(upcoming, past);
   if (featured === null) return null;
   const editions = past.slice(0, 4).reverse();
 

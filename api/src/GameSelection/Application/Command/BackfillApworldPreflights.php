@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
+use App\GameSelection\Application\Query\ServedApworldsQueryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use Psr\Log\LoggerInterface;
 
@@ -18,6 +19,7 @@ final readonly class BackfillApworldPreflights
 {
     public function __construct(
         private RunnerGatewayInterface $runnerGateway,
+        private ServedApworldsQueryInterface $servedApworlds,
         private LoggerInterface $logger,
     ) {
     }
@@ -25,6 +27,11 @@ final readonly class BackfillApworldPreflights
     public function run(bool $all = false): BackfillApworldPreflightsResult
     {
         $verdicts = $this->runnerGateway->fetchApworldPreflights();
+        // Story 38.30: a meta-game served by a game is tested with a partner player.
+        $withPartner = [];
+        foreach ($this->servedApworlds->servedApworlds() as $served) {
+            $withPartner[$served->apworldHash] = $served->testWithPartner;
+        }
 
         $requested = 0;
         $skipped = 0;
@@ -40,7 +47,7 @@ final readonly class BackfillApworldPreflights
                 ++$skipped;
                 continue;
             }
-            if ($this->runnerGateway->runApworldPreflight($hash)) {
+            if ($this->runnerGateway->runApworldPreflight($hash, [], $withPartner[$hash] ?? false)) {
                 ++$requested;
             } else {
                 ++$failed;

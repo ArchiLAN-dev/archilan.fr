@@ -20,9 +20,11 @@ interface RunnerGatewayInterface
      * On success: returns array with keys storageKey, hash, archipelagoGameName, defaultYaml (all strings).
      * On failure: returns array with key error (string).
      *
+     * $withPartner gives the test generation the upload starts a partner player (story 38.30).
+     *
      * @return array<string, mixed>
      */
-    public function uploadApworld(string $fileContents, string $filename): array;
+    public function uploadApworld(string $fileContents, string $filename, bool $withPartner = false): array;
 
     /**
      * What the apworld says each of its options is, per option key.
@@ -92,7 +94,7 @@ interface RunnerGatewayInterface
      * Returns an empty array when the runner is unreachable - callers MUST fail open (never
      * block on missing data).
      *
-     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}>
+     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool, withPartner?: bool}>
      */
     public function fetchApworldPreflights(): array;
 
@@ -110,14 +112,16 @@ interface RunnerGatewayInterface
      *
      * @param list<string> $requiredFileIds held files the test reads, provided by an admin (story 44.6); the
      *                                      verdict then says withRequiredFiles
+     * @param bool         $withPartner     adds a partner player, for a meta-game that cannot generate solo
+     *                                      (story 38.30); the verdict then says withPartner
      */
-    public function runApworldPreflight(string $hash, array $requiredFileIds = []): bool;
+    public function runApworldPreflight(string $hash, array $requiredFileIds = [], bool $withPartner = false): bool;
 
     /**
      * Toggle the admin "force allow" override on a preflight verdict (story 9.38 AC4).
      * Returns the updated verdict, or null when the runner is unreachable.
      *
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool}|null
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool, withPartner?: bool}|null
      */
     public function overrideApworldPreflight(string $hash, bool $overridden): ?array;
 

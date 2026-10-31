@@ -101,7 +101,7 @@ final class ReconcileApworldIncidentsCommandTest extends TestCase
         $record = new RecordApworldIncident($incidents, $clock);
 
         return new ReconcileApworldIncidentsCommand(
-            new DecideApworldCandidates($candidates ?? new InMemoryApworldCandidateRepository(), $runner, new PromoteApworldCandidate($games, $incidents, $runner, $clock), $record, $clock, new InMemoryExclusivePassLock()),
+            new DecideApworldCandidates($candidates ?? new InMemoryApworldCandidateRepository(), $runner, new PromoteApworldCandidate($games, $incidents, $runner, $clock), $record, new RecordGenerationRequiredFile(self::createStub(GameRepositoryInterface::class), new NullLogger()), $clock, new InMemoryExclusivePassLock()),
             $runner,
             new ReconcileApworldIncidents($served, $runner, $incidents, $record, $clock, new InMemoryExclusivePassLock(), new InMemoryApworldHealthRepository(), new RecordGenerationRequiredFile(self::createStub(GameRepositoryInterface::class), new NullLogger())),
             new ApworldIncidentAlertDispatcher($bus),

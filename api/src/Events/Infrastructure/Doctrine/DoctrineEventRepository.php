@@ -37,6 +37,12 @@ final readonly class DoctrineEventRepository implements EventRepositoryInterface
         return $this->entityManager->getRepository(Event::class)->findBy(['status' => $status], ['startsAt' => 'ASC'], $limit);
     }
 
+    public function findFeaturedOnHome(): array
+    {
+        /* @var list<Event> */
+        return $this->entityManager->getRepository(Event::class)->findBy(['featuredOnHome' => true]);
+    }
+
     public function save(Event $event): void
     {
         $this->entityManager->persist($event);

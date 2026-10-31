@@ -62,6 +62,29 @@ final class ParticipantStreamsTest extends FunctionalTestCase
         self::assertNull($data[1]['viewerCount']);
     }
 
+    public function testTheBroadcastListsOnlyTheLiveMembersWhoAgreed(): void
+    {
+        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'));
+        $agreed = $this->createTwitchMember('agreed@x.test', 'bcagreed', 'Alice', 'alice-bc');
+        $refused = $this->createTwitchMember('refused@x.test', 'bcrefused', 'Bob', 'bob-bc');
+        $offline = $this->createTwitchMember('offline@x.test', 'bcoffline', 'Carol', 'carol-bc');
+
+        $this->createRegistration($event->getId(), $agreed->getId());
+        $this->createRegistration($event->getId(), $refused->getId())->chooseBroadcastConsent(false, $this->now);
+        $this->createRegistration($event->getId(), $offline->getId());
+        $this->entityManager->flush();
+        $this->fakeLive(['bcagreed' => 12, 'bcrefused' => 30]);
+
+        $this->client->request('GET', '/api/v1/events/'.$event->getId().'/broadcast-streams');
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->dataList();
+        self::assertCount(1, $data);
+        self::assertSame('bcagreed', $data[0]['twitchLogin']);
+
+        $this->client->request('GET', '/api/v1/events/unknown/broadcast-streams');
+        self::assertResponseStatusCodeSame(404);
+    }
+
     public function testBannedAndSuspendedParticipantsAreExcluded(): void
     {
         $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'));

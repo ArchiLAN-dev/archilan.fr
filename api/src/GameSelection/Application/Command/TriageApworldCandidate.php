@@ -9,9 +9,14 @@ use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
 use App\GameSelection\Application\Message\StaffAlertEvent;
 use App\GameSelection\Domain\Entity\ApworldCandidate;
+use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
 use App\GameSelection\Domain\Repository\ApworldCandidateRepositoryInterface;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Service\RequiredGenerationFiles;
+use App\Sessions\Application\Support\ProvidedGenerationFile;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -27,6 +32,8 @@ final readonly class TriageApworldCandidate
         private PromoteApworldCandidate $promote,
         private MessageBusInterface $messageBus,
         private ClockInterface $clock,
+        private RequiredGenerationFiles $requiredGenerationFiles,
+        private GameRepositoryInterface $games,
     ) {
     }
 
@@ -106,8 +113,13 @@ final readonly class TriageApworldCandidate
 
     /**
      * Typically after a transient failure: the candidate goes back in test with a fresh deadline.
+     *
+     * Story 38.28: with the files the admin provided (a ROM), handed to the orchestrator for this test only, as the
+     * test of a served apworld does (story 44.6). Without them, a version whose world reads a file could never pass.
+     *
+     * @param list<ProvidedGenerationFile> $files
      */
-    public function retry(string $gameId): ApworldCandidateTriageOutcome
+    public function retry(string $gameId, array $files = []): ApworldCandidateTriageOutcome
     {
         $candidate = $this->undecidedCandidate($gameId);
         if (null === $candidate) {
@@ -118,9 +130,19 @@ final readonly class TriageApworldCandidate
             return ApworldCandidateTriageOutcome::Forbidden;
         }
 
+        try {
+            $fileIds = $this->requiredGenerationFiles->stage($files);
+        } catch (RequiredGenerationFileRefusedException) {
+            return ApworldCandidateTriageOutcome::FileRefused;
+        }
+
         // The runner first, the candidate after: a candidate changed in memory and left unflushed would
         // still be written by any later flush in the same request.
-        if (!$this->runnerGateway->runApworldPreflight($candidate->getApworldHash())) {
+        // Story 38.30: a meta-game's candidate is tested with a partner player, like its served version.
+        $withPartner = $this->games->findById($gameId)?->testsWithPartner() ?? false;
+        if (!$this->runnerGateway->runApworldPreflight($candidate->getApworldHash(), $fileIds, $withPartner)) {
+            $this->requiredGenerationFiles->release($fileIds);
+
             return ApworldCandidateTriageOutcome::RunnerUnavailable;
         }
         $candidate->retry($this->clock->now());

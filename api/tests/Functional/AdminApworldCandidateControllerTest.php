@@ -79,6 +79,38 @@ final class AdminApworldCandidateControllerTest extends FunctionalTestCase
         self::assertSame(ApworldCandidateStatus::Testing, $this->entityManager->find(ApworldCandidate::class, 'candidate-1')?->getStatus());
     }
 
+    /** Story 38.28: the retried test of a version whose world reads a ROM carries it, and only its id travels. */
+    public function testRetryRunsTheTestWithTheProvidedFile(): void
+    {
+        $this->rejectedCandidate();
+        $this->loginAs($this->admin);
+
+        $this->client->request('POST', sprintf('/api/v1/admin/games/%s/apworld-candidate/retry', $this->game->getId()), [], ['requiredFiles' => ['DK3Settings.rom_file' => $this->rom('rom bytes')]]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([['setting' => 'DK3Settings.rom_file', 'filename' => 'dkc3.sfc', 'content' => 'rom bytes']], NullRunnerGateway::$stagedFiles);
+        self::assertSame([['hash' => 'hash-new', 'requiredFileIds' => ['staged-1'], 'withPartner' => false]], NullRunnerGateway::$apworldPreflightRuns);
+        $this->entityManager->clear();
+        self::assertSame(ApworldCandidateStatus::Testing, $this->entityManager->find(ApworldCandidate::class, 'candidate-1')?->getStatus());
+    }
+
+    public function testRetryWithARefusedFileLeavesTheCandidateRejected(): void
+    {
+        $this->rejectedCandidate();
+        NullRunnerGateway::$refuseStagingOf = 'DK3Settings.rom_file';
+        $this->loginAs($this->admin);
+
+        $this->client->request('POST', sprintf('/api/v1/admin/games/%s/apworld-candidate/retry', $this->game->getId()), [], ['requiredFiles' => ['DK3Settings.rom_file' => $this->rom('rom')]]);
+
+        self::assertResponseStatusCodeSame(422);
+        $error = $this->decodedJsonResponse()['error'] ?? null;
+        self::assertIsArray($error);
+        self::assertSame('required_file_refused', $error['code'] ?? null);
+        self::assertSame([], NullRunnerGateway::$apworldPreflightRuns);
+        $this->entityManager->clear();
+        self::assertSame(ApworldCandidateStatus::Rejected, $this->entityManager->find(ApworldCandidate::class, 'candidate-1')?->getStatus());
+    }
+
     public function testRetryingACandidateStillInTestReturns409(): void
     {
         $this->entityManager->persist($this->candidate());

@@ -10,6 +10,7 @@ use App\GameSelection\Domain\Entity\ApworldCandidate;
 use App\GameSelection\Domain\Enum\ApworldIncidentType;
 use App\GameSelection\Domain\Repository\ApworldCandidateRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Support\GenerationFailureParser;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -23,6 +24,9 @@ use Psr\Clock\ClockInterface;
  * whose introspection did not answer waits for the next pass instead of wiping the game's tables.
  *
  * Shares the incident reconciliation's pass lock: two passes never decide the same candidate.
+ *
+ * Story 38.28: a candidate refused for want of a file (a ROM) teaches its game that file, as the reconciliation
+ * does for a served apworld - otherwise a game with no version online would never ask for it.
  */
 final readonly class DecideApworldCandidates
 {
@@ -34,6 +38,7 @@ final readonly class DecideApworldCandidates
         private RunnerGatewayInterface $runnerGateway,
         private PromoteApworldCandidate $promote,
         private RecordApworldIncident $recordIncident,
+        private RecordGenerationRequiredFile $recordRequiredFile,
         private ClockInterface $clock,
         private ExclusivePassLockInterface $lock,
     ) {
@@ -115,6 +120,11 @@ final readonly class DecideApworldCandidates
             };
             if (null === $reason) {
                 continue;
+            }
+
+            $requiredFile = 'failed' === $status ? GenerationFailureParser::requiredFile($reason) : null;
+            if (null !== $requiredFile) {
+                $this->recordRequiredFile->record([$candidate->getGameId()], $requiredFile);
             }
 
             $candidate->reject($reason, $now);
