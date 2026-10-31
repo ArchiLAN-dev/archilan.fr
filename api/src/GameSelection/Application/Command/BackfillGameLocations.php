@@ -53,7 +53,7 @@ final readonly class BackfillGameLocations
     /** Whether the game was updated. */
     private function backfill(Game $game, string $hash): bool
     {
-        $locations = $this->runner->fetchLocationNames($hash);
+        $locations = $this->runner->fetchLocationNames($hash) ?? [];
         $items = ApworldIntrospectionNormalizer::items($this->runner->fetchItems($hash));
         if ([] === $locations && [] === $items['items']) {
             $this->logger->info('game.location_names_backfill_empty', ['gameId' => $game->getId(), 'hash' => $hash]);

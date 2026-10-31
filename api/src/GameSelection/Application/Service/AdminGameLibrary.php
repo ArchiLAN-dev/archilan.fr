@@ -421,7 +421,7 @@ final readonly class AdminGameLibrary
         $game->overrideDefaultYaml($template, $this->clock->now());
         // The regenerated template may expose different options/locations than the edited one.
         $game->recordOptionTypes($this->runnerGateway->fetchOptionTypes($hash));
-        $game->recordLocationNames($this->runnerGateway->fetchLocationNames($hash));
+        $game->recordLocationNames($this->runnerGateway->fetchLocationNames($hash) ?? []);
         $items = ApworldIntrospectionNormalizer::items($this->runnerGateway->fetchItems($hash));
         $game->recordItemNames($items['items'], $items['groups']);
         $game->recordDeclaredRequiredFiles($this->runnerGateway->fetchDeclaredFiles($hash));
