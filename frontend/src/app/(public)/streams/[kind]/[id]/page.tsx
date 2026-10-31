@@ -39,7 +39,7 @@ export default async function ParticipantStreamsPage({ params }: Props) {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-2xl gap-6">
+    <div className="mx-auto grid w-full max-w-5xl gap-6">
       <nav className="text-sm text-muted-foreground">
         <Link className="inline-flex items-center gap-1 hover:text-foreground" href="/">
           <ArrowLeft aria-hidden className="size-3.5" />
@@ -54,7 +54,7 @@ export default async function ParticipantStreamsPage({ params }: Props) {
         </p>
       </header>
 
-      <ParticipantStreams emptyState="message" id={id} kind={kind} showAll />
+      <ParticipantStreams emptyState="message" id={id} kind={kind} mosaic showAll />
     </div>
   );
 }
