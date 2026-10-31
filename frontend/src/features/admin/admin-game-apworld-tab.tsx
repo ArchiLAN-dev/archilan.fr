@@ -10,6 +10,7 @@ import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { hasRefusedFile } from "@/features/games/required-file-check";
 import { RequiredFilesPanel, useProvidedFiles } from "@/features/games/required-files-panel";
 import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
+import { requiredFileLabel, type GenerationFile } from "@/features/games/required-files";
 import { parseDefaultYaml, type FreeformDictOption } from "@/lib/archipelago-yaml";
 import {
   approveApworldCandidate,
@@ -117,6 +118,7 @@ function LiveApworldCard({ game, onUpdate }: Props) {
 
   const preflight: ApworldPreflight | null = game.apworldPreflight ?? null;
   const verdict = preflightVerdictLabel(preflight, game);
+  const liveTestFiles = useMemo(() => testFilesOfGame(game.requiredFiles), [game.requiredFiles]);
 
   async function refreshGame(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: ["admin-game", game.id] });
@@ -276,12 +278,13 @@ function LiveApworldCard({ game, onUpdate }: Props) {
         title="Tester la génération"
       >
         <TestGenerationForm
-          game={game}
           onClose={() => setTesting(false)}
           onLaunched={async () => {
             setTesting(false);
             await refreshGame();
           }}
+          start={(files) => rerunApworldPreflight(game.id, files)}
+          testFiles={liveTestFiles}
         />
       </Dialog>
 
@@ -313,9 +316,18 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** The "Tester la génération" modal: the ROM a ROM game needs (story 44.6), then the launch. */
-function TestGenerationForm({ game, onClose, onLaunched }: { game: AdminGame; onClose: () => void; onLaunched: () => Promise<void> }) {
-  const testFiles = useMemo(() => testFilesOfGame(game.requiredFiles), [game.requiredFiles]);
+type TestGenerationFormProps = {
+  testFiles: GenerationFile[];
+  start: (files: Record<string, File>) => Promise<{ ok: true } | { ok: false; message: string }>;
+  onClose: () => void;
+  onLaunched: () => Promise<void>;
+};
+
+/**
+ * A test generation modal: the ROM a ROM game needs (story 44.6), then the launch. Serves "Tester la génération"
+ * on the served apworld and, story 38.28, "Relancer le test" on a new version.
+ */
+function TestGenerationForm({ testFiles, start, onClose, onLaunched }: TestGenerationFormProps) {
   const provided = useProvidedFiles(testFiles);
   const blocker = testFilesBlocker(provided.states);
   const [sending, setSending] = useState(false);
@@ -324,7 +336,7 @@ function TestGenerationForm({ game, onClose, onLaunched }: { game: AdminGame; on
   async function launch(): Promise<void> {
     setSending(true);
     setError(null);
-    const result = await rerunApworldPreflight(game.id, provided.files);
+    const result = await start(provided.files);
     setSending(false);
     if (result.ok) {
       provided.reset();
@@ -379,7 +391,8 @@ function TestGenerationForm({ game, onClose, onLaunched }: { game: AdminGame; on
 }
 
 /** The "Remplacer l'apworld" modal: the GitHub release or a local file, and whether to hold a passed test. */
-function ReplaceApworldForm({ game, onClose, onReplaced }: { game: AdminGame; onClose: () => void; onReplaced: (game: AdminGame) => void }) {
+export function ReplaceApworldForm({ game, onClose, onReplaced }: { game: AdminGame; onClose: () => void; onReplaced: (game: AdminGame) => void }) {
+  const readFiles = useMemo(() => testFilesOfGame(game.requiredFiles), [game.requiredFiles]);
   const [holdForApproval, setHoldForApproval] = useState(false);
   const [assets, setAssets] = useState<GithubApworldAsset[] | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -480,6 +493,16 @@ function ReplaceApworldForm({ game, onClose, onReplaced }: { game: AdminGame; on
           </span>
         </label>
 
+        {/* Story 38.28: the first test leaves from the orchestrator at upload, without the file. */}
+        {readFiles.length > 0 ? (
+          <p className="flex items-start gap-2 rounded border border-border bg-surface-hover p-3 text-sm text-muted-foreground">
+            <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Ce jeu lit un fichier à la génération ({readFiles.map(requiredFileLabel).join(", ")}). Le premier test de la nouvelle version part
+              sans lui et échouera : relance-le avec le fichier depuis « Nouvelle version ».
+            </span>
+          </p>
+        ) : null}
         {pending === "import" ? (
           <p className="inline-flex items-center gap-2 text-sm text-muted-foreground" role="status">
             <Loader2 aria-hidden className="size-4 animate-spin" /> Import en cours…
@@ -517,6 +540,14 @@ function CandidateCard({ game, onUpdate }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [testingYaml, setTestingYaml] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  // Story 38.28: a world that reads a file (a ROM) fails its retried test without it, so the retry asks for it.
+  const retryFiles = useMemo(() => testFilesOfGame(game.requiredFiles, { includeDeclared: true }), [game.requiredFiles]);
+
+  async function refreshGame(): Promise<void> {
+    const refreshed = await fetchAdminGame(game.id);
+    if (refreshed.kind === "ready") onUpdate(refreshed.game);
+  }
 
   async function run(action: (gameId: string) => Promise<ApworldCandidateActionResult>) {
     setBusy(true);
@@ -524,8 +555,7 @@ function CandidateCard({ game, onUpdate }: Props) {
     const result = await action(game.id);
     if (!result.ok) setError(result.message);
     // The action changed the game (forced) or its candidate (retried): read both back.
-    const refreshed = await fetchAdminGame(game.id);
-    if (refreshed.kind === "ready") onUpdate(refreshed.game);
+    await refreshGame();
     setBusy(false);
   }
 
@@ -546,7 +576,10 @@ function CandidateCard({ game, onUpdate }: Props) {
         candidate={game.apworldCandidate ?? null}
         onApprove={() => void run(approveApworldCandidate)}
         onForce={() => void run(forceApworldCandidate)}
-        onRetry={() => void run(retryApworldCandidate)}
+        onRetry={() => {
+          if (retryFiles.length > 0) setRetrying(true);
+          else void run(retryApworldCandidate);
+        }}
       />
       {error !== null ? (
         <p className="text-sm text-danger" role="alert">
@@ -562,6 +595,22 @@ function CandidateCard({ game, onUpdate }: Props) {
         title="Tester avec un YAML"
       >
         <CandidateYamlTest gameId={game.id} onClose={() => setTestingYaml(false)} requiredFiles={game.requiredFiles} />
+      </Dialog>
+      <Dialog
+        description="Le test de génération de cette nouvelle version, avec le fichier que lit le jeu."
+        onOpenChange={setRetrying}
+        open={retrying}
+        title="Relancer le test"
+      >
+        <TestGenerationForm
+          onClose={() => setRetrying(false)}
+          onLaunched={async () => {
+            setRetrying(false);
+            await refreshGame();
+          }}
+          start={(files) => retryApworldCandidate(game.id, files)}
+          testFiles={retryFiles}
+        />
       </Dialog>
     </TabCard>
   );

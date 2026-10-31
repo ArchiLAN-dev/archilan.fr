@@ -16,4 +16,6 @@ enum ApworldCandidateTriageOutcome: string
     case Forbidden = 'forbidden';
     /** The orchestrator could not record the override or rerun the test: nothing changed. */
     case RunnerUnavailable = 'runner_unavailable';
+    /** Story 38.28: a file provided for the retried test could not be handed to the orchestrator. */
+    case FileRefused = 'file_refused';
 }
