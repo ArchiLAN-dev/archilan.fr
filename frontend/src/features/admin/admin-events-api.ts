@@ -26,6 +26,8 @@ export type AdminEvent = {
   vodUrl: string | null;
   recapPostSlug: string | null;
   hasRecap: boolean;
+  /** Story 3.15: the event featured on the home page (one at most). */
+  featuredOnHome: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -210,6 +212,34 @@ export async function saveAdminEventRecap(
   } catch {
     return { ok: false, reason: "network" };
   }
+}
+
+/** Story 3.15: features the event on the home page, or removes it. Returns null on success, else the message. */
+export async function featureAdminEventOnHome(eventId: string, featured: boolean): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/featured`, {
+      body: JSON.stringify({ featured }),
+      headers: { "Content-Type": "application/json" },
+      method: "PUT",
+    });
+    if (res.ok) return null;
+    const payload: unknown = await res.json().catch(() => null);
+    return featuredErrorMessage(payload);
+  } catch {
+    return "Le serveur est injoignable.";
+  }
+}
+
+function featuredErrorMessage(payload: unknown): string {
+  const fallback = "La mise en avant n'a pas pu être enregistrée.";
+  if (typeof payload !== "object" || payload === null || !("error" in payload)) return fallback;
+  const error: unknown = payload.error;
+  if (typeof error !== "object" || error === null) return fallback;
+  const details: unknown = "details" in error ? error.details : null;
+  if (typeof details === "object" && details !== null && "featured" in details && Array.isArray(details.featured) && typeof details.featured[0] === "string") {
+    return details.featured[0];
+  }
+  return "message" in error && typeof error.message === "string" ? error.message : fallback;
 }
 
 // ─── Type guards & helpers ─────────────────────────────────────────────────────

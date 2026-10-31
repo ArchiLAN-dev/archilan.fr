@@ -412,6 +412,7 @@ final readonly class AdminEventDrafts
             $this->resolvePhotoGallery($event),
             $event->getCreatedAt()->format(\DateTimeInterface::ATOM),
             $event->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            $event->isFeaturedOnHome(),
         );
     }
 

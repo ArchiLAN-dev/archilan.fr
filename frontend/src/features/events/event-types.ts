@@ -33,6 +33,8 @@ export type PublicEvent = {
   checkoutUnavailable?: boolean;
   /** Story 45.3: the partners thanked on the event, by reference (joined to `getPartners()` for display). */
   partners?: EventPartnerRef[];
+  /** Story 3.15: the admin's pick for the home page, which otherwise takes the next event. */
+  featuredOnHome?: boolean;
   stats?: {
     players: number;
     games: number;
