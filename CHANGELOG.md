@@ -5,6 +5,46 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.53.0] - 2026-10-31
+
+La régie multistream des LAN, l'événement mis en avant sur l'accueil, et deux outils pour les mises à jour
+d'apworlds : la ROM au test d'une nouvelle version, et le test des méta-jeux avec un partenaire.
+
+### Ajouté
+
+- **Événement mis en avant** (3.15) : depuis la liste admin, l'admin choisit l'événement montré sur l'accueil, un
+  seul à la fois, sans dépendre de l'ordre des dates. Migration `Version20261031100000`.
+- **Consentement à la régie** (47.1) : sur son inscription, le joueur peut refuser que la régie ArchiLAN rediffuse
+  son stream ; diffusable par défaut. Migration `Version20261031110000`.
+- **Écran régie** (47.2) : `/o/streams`, source navigateur OBS qui montre en mosaïque les joueurs en live sur
+  l'événement, sans ceux qui ont refusé.
+- **Mosaïque publique** (47.3) : sur `/streams/event/<id>`, un bouton « Mosaïque » affiche jusqu'à 4 lives côte à
+  côte.
+- **ROM au test d'une nouvelle version** (38.28) : « Relancer le test » d'une nouvelle version d'apworld accepte le
+  fichier que lit le jeu (une ROM), transmis pour ce test seulement ; l'import prévient que le premier test d'un jeu
+  à ROM échouera sans lui.
+- **Tester un méta-jeu avec un partenaire** (38.30) : réglage « Tester avec un partenaire (A Short Hike) » dans
+  l'onglet APWorld, pour les méta-jeux comme Tombola qui ne peuvent pas se générer seuls. Il s'applique à tous les
+  tests du jeu (relances, nouvelles versions, mise à jour automatique, test tournant) et le verdict le dit.
+  Migration `Version20261031120000`.
+
+### Corrigé (image archipelago v0.20.2)
+
+- **Un échec de sortie ne bloque plus la génération** (38.24).
+- **`as_dict` de toutes les options**, comme le Launcher (38.25).
+- **Une bibliothèque embarquée dans l'apworld** n'est plus remplacée par un bouchon (38.26).
+- **`worlds.__file__` aussi à la génération** (38.27).
+- **Un apworld passe devant le monde intégré du même nom** (38.29) : OoT 9.1, The Messenger 0.16 étaient rejetés
+  (« required version ... is at least X, however world is of version Y »).
+
+### Déploiement
+
+- Ordre : image archipelago `v0.20.2` et orchestrateur `v0.24.0` avant le site. Un orchestrateur plus ancien ignore
+  le réglage « partenaire » et le test reste solo.
+- 3 migrations (`Version20261031100000` à `Version20261031120000`), aucune nouvelle variable d'environnement.
+- Après le déploiement : relancer le test des candidats rejetés à tort (OoT release7, The Messenger, Chrono Trigger
+  avec sa ROM) ; sur Tombola, cocher « Tester avec un partenaire » et relancer le test de la 0.4.
+
 ## [0.52.0] - 2026-10-31
 
 Les partenaires de l'association sur le site, sur les événements et à l'écran pendant la LAN, et des notes internes
