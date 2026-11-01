@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
 
 import type { ApworldCandidate } from "./admin-games-api";
+import { ApworldTestProgress } from "./apworld-test-progress";
 
 type Props = {
   candidate: ApworldCandidate | null;
@@ -16,6 +17,8 @@ type Props = {
   onRetry: () => void;
   /** Story 38.14: put online a candidate awaiting approval. */
   onApprove: () => void;
+  /** Story 38.33: false for a new game, whose first apworld is this candidate - there is no version to keep serving. */
+  servesAVersion?: boolean;
 };
 
 const SHORT_HASH_LENGTH = 16;
@@ -36,7 +39,7 @@ const BUTTON =
  * to put it online (story 38.14). The game keeps serving its current apworld meanwhile: this block says so, and
  * lets an admin overrule the test or validate the version.
  */
-export function ApworldCandidateStatus({ candidate, busy, onForce, onRetry, onApprove }: Props) {
+export function ApworldCandidateStatus({ candidate, busy, onForce, onRetry, onApprove, servesAVersion = true }: Props) {
   const [confirmingForce, setConfirmingForce] = useState(false);
   const [confirmingApprove, setConfirmingApprove] = useState(false);
 
@@ -48,6 +51,9 @@ export function ApworldCandidateStatus({ candidate, busy, onForce, onRetry, onAp
   const expired = candidate.status === "expired";
   const awaiting = candidate.status === "awaiting";
   const decided = rejected || expired;
+  // Story 38.33: a candidate in test whose run the orchestrator lost - nothing would ever come, it can be rerun.
+  const test = candidate.status === "testing" ? (candidate.test ?? null) : null;
+  const lostTest = test?.state === "idle";
   const title = rejected
     ? "Nouvelle version rejetée"
     : expired
@@ -81,9 +87,12 @@ export function ApworldCandidateStatus({ candidate, busy, onForce, onRetry, onAp
             : awaiting
               ? `, test réussi le ${formatDate(candidate.decidedAt)}.`
               : "."}{" "}
-        En attendant, le jeu sert toujours sa version actuelle.
+        {servesAVersion ? "En attendant, le jeu sert toujours sa version actuelle." : "Le jeu n'a pas encore de version en ligne."}
         {candidate.heldForApproval === true && candidate.status === "testing" ? " Une fois le test réussi, tu la mettras en ligne toi-même." : ""}
       </p>
+      {test !== null && (test.state === "running" || test.state === "queued") ? <ApworldTestProgress startedAt={test.startedAt} state={test.state} /> : null}
+      {test?.state === "finished" ? <p className="text-muted-foreground">Test terminé, le verdict arrive sur la fiche.</p> : null}
+      {lostTest ? <p className="font-semibold text-foreground">Aucun test en cours pour cette version : relance-le.</p> : null}
       {decided && candidate.rejectionReason !== null && (
         <GenerationFailureNotice audience="admin" bare message={candidate.rejectionReason} />
       )}
@@ -101,7 +110,7 @@ export function ApworldCandidateStatus({ candidate, busy, onForce, onRetry, onAp
             Mettre en ligne
           </button>
         )}
-        {decided && (
+        {(decided || lostTest) && (
           <button className={BUTTON} disabled={busy} onClick={onRetry} type="button">
             <RotateCcw aria-hidden className="size-4" />
             Relancer le test

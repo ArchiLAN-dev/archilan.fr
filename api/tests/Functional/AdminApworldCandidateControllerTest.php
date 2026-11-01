@@ -111,7 +111,20 @@ final class AdminApworldCandidateControllerTest extends FunctionalTestCase
         self::assertSame(ApworldCandidateStatus::Rejected, $this->entityManager->find(ApworldCandidate::class, 'candidate-1')?->getStatus());
     }
 
-    public function testRetryingACandidateStillInTestReturns409(): void
+    public function testRetryingACandidateWhoseTestIsUnderwayReturns409(): void
+    {
+        $this->entityManager->persist($this->candidate());
+        $this->entityManager->flush();
+        NullRunnerGateway::$apworldPreflights['hash-new'] = ['status' => 'pending', 'error' => '', 'checkedAt' => '', 'overridden' => false, 'blocks' => false];
+        $this->loginAs($this->admin);
+
+        $this->client->request('POST', sprintf('/api/v1/admin/games/%s/apworld-candidate/retry', $this->game->getId()));
+
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    /** Story 38.33: the orchestrator holds no test for a candidate in test (its run was lost): it can be rerun. */
+    public function testACandidateInTestWithoutARunCanBeRetried(): void
     {
         $this->entityManager->persist($this->candidate());
         $this->entityManager->flush();
@@ -119,7 +132,26 @@ final class AdminApworldCandidateControllerTest extends FunctionalTestCase
 
         $this->client->request('POST', sprintf('/api/v1/admin/games/%s/apworld-candidate/retry', $this->game->getId()));
 
-        self::assertResponseStatusCodeSame(409);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([['hash' => 'hash-new', 'requiredFileIds' => [], 'withPartner' => false]], NullRunnerGateway::$apworldPreflightRuns);
+    }
+
+    /** Story 38.33: the page shows a test that generates, and since when. */
+    public function testTheGamePageShowsTheRunningTestOfACandidate(): void
+    {
+        $this->entityManager->persist($this->candidate());
+        $this->entityManager->flush();
+        NullRunnerGateway::$apworldPreflights['hash-new'] = ['status' => 'pending', 'error' => '', 'checkedAt' => '', 'overridden' => false, 'blocks' => false, 'startedAt' => '2026-11-01T12:00:00Z'];
+        $this->loginAs($this->admin);
+
+        $this->client->request('GET', sprintf('/api/v1/admin/games/%s', $this->game->getId()));
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $payload = $data['apworldCandidate'] ?? null;
+        self::assertIsArray($payload);
+        self::assertSame(['state' => 'running', 'startedAt' => '2026-11-01T12:00:00Z'], $payload['test']);
     }
 
     public function testAGameWithoutCandidateReturns404(): void

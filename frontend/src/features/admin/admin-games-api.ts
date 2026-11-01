@@ -170,6 +170,8 @@ export type ApworldPreflight = {
   withPartner?: boolean;
   // Story 38.16: a failed verdict in one line (GenerationFailureParser), `error` being the raw tail.
   summary?: string;
+  // Story 38.33: a pending test that left the queue and is generating, since then; absent or null while it waits.
+  startedAt?: string | null;
 };
 
 export function isApworldPreflight(v: unknown): v is ApworldPreflight {
@@ -398,7 +400,24 @@ export type ApworldCandidate = {
   submittedAt: string;
   decidedAt: string | null;
   rejectionReason: string | null;
+  // Story 38.33: where the test of a candidate in test stands on the orchestrator; null once decided.
+  test?: CandidateTest | null;
 };
+
+/**
+ * Story 38.33: running = the orchestrator generates (since startedAt); queued = it waits for a container slot;
+ * finished = the verdict is in, the decision pass records it shortly; idle = no test is coming, it can be rerun.
+ */
+export type CandidateTest = {
+  state: "running" | "queued" | "finished" | "idle";
+  startedAt: string | null;
+};
+
+function isCandidateTest(v: unknown): v is CandidateTest {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("state" in v) || (v.state !== "running" && v.state !== "queued" && v.state !== "finished" && v.state !== "idle")) return false;
+  return hasNullableStringProp(v, "startedAt");
+}
 
 export function isApworldCandidate(v: unknown): v is ApworldCandidate {
   if (typeof v !== "object" || v === null) return false;
@@ -406,6 +425,7 @@ export function isApworldCandidate(v: unknown): v is ApworldCandidate {
   if (!("status" in v) || (v.status !== "testing" && v.status !== "awaiting" && v.status !== "rejected" && v.status !== "expired")) return false;
   if (!("origin" in v) || (v.origin !== "manual" && v.origin !== "auto")) return false;
   if ("heldForApproval" in v && typeof v.heldForApproval !== "boolean") return false;
+  if ("test" in v && v.test !== null && !isCandidateTest(v.test)) return false;
   return hasNullableStringProp(v, "versionTag") && hasNullableStringProp(v, "decidedAt") && hasNullableStringProp(v, "rejectionReason");
 }
 

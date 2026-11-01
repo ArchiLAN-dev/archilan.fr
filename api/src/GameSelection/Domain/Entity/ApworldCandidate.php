@@ -149,7 +149,8 @@ final class ApworldCandidate
      */
     public function retry(\DateTimeImmutable $now): void
     {
-        $this->assertStatus([ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], 'retried');
+        // Story 38.33: a candidate still in test too, when the orchestrator holds no test for it (the caller checks).
+        $this->assertStatus([ApworldCandidateStatus::Testing, ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], 'retried');
 
         $this->status = ApworldCandidateStatus::Testing;
         $this->submittedAt = $now;
