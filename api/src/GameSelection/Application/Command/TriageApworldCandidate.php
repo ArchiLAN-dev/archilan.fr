@@ -8,6 +8,7 @@ use App\GameSelection\Application\Message\ApworldPromoted;
 use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
 use App\GameSelection\Application\Message\StaffAlertEvent;
+use App\GameSelection\Application\Support\ApworldTestState;
 use App\GameSelection\Domain\Entity\ApworldCandidate;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
@@ -126,7 +127,9 @@ final readonly class TriageApworldCandidate
             return ApworldCandidateTriageOutcome::NoCandidate;
         }
 
-        if (!\in_array($candidate->getStatus(), [ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], true)) {
+        // Story 38.33: a candidate in test is retried only when no test is coming for it (the run was lost).
+        if (ApworldCandidateStatus::Testing === $candidate->getStatus()
+            && ApworldTestState::of($this->runnerGateway->fetchApworldPreflights()[$candidate->getApworldHash()] ?? null)->isUnderway()) {
             return ApworldCandidateTriageOutcome::Forbidden;
         }
 

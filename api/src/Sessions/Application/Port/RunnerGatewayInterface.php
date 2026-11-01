@@ -95,7 +95,7 @@ interface RunnerGatewayInterface
      * Returns an empty array when the runner is unreachable - callers MUST fail open (never
      * block on missing data).
      *
-     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool, withPartner?: bool}>
+     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null, warning?: string, withRequiredFiles?: bool, withPartner?: bool, startedAt?: string|null}>
      */
     public function fetchApworldPreflights(): array;
 
