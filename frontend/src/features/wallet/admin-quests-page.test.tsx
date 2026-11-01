@@ -3,16 +3,16 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { announceQuestWeekOnDiscord, fetchAdminQuests, isAdminQuests, objectivesSummary, pinQuest, type AdminQuests } from "./admin-quests-api";
+import { announceQuestWeekOnDiscord, fetchAdminQuests, isAdminQuests, objectivesSummary, pinQuest, type AdminQuests, type QuestMetricOption } from "./admin-quests-api";
 import { AdminQuestWeeksView, ComingWeekRow, CurrentWeek, DrawPanel, PastWeeks } from "./admin-quest-weeks";
-import { AdminQuestTypesView, questStatsLine, questTermsError } from "./admin-quests-page";
+import { AdminQuestTypesView, aimableScopes, questStatsLine, questTermsError } from "./admin-quests-page";
 import { weekLabel } from "./admin-quests-shared";
 import { AdminQuestsTabs } from "./admin-quests-tabs";
 
-const metrics = [
-  { key: "goals", label: "Goals atteints", unit: "goals", unitOne: "goal", scopable: true, help: "Aide.", duration: false },
-  { key: "checks", label: "Checks faits", unit: "checks", unitOne: "check", scopable: true, help: "Aide.", duration: false },
-  { key: "sessions", label: "Parties jouées", unit: "parties", unitOne: "partie", scopable: true, help: "Aide.", duration: false },
+const metrics: QuestMetricOption[] = [
+  { key: "goals", label: "Goals atteints", unit: "goals", unitOne: "goal", scopable: true, scopes: ["game", "event"], help: "Aide.", duration: false },
+  { key: "checks", label: "Checks faits", unit: "checks", unitOne: "check", scopable: true, scopes: ["game", "event"], help: "Aide.", duration: false },
+  { key: "sessions", label: "Parties jouées", unit: "parties", unitOne: "partie", scopable: true, scopes: ["game", "event"], help: "Aide.", duration: false },
 ];
 
 const data: AdminQuests = {
@@ -65,8 +65,15 @@ describe("admin weekly quests", () => {
     expect(objectivesSummary([{ metric: "goals", target: 1 }], metrics)).toBe("1 goal");
   });
 
+  test("a superlative aims at an event, never a game (story 41.65)", () => {
+    const superlatives: QuestMetricOption = { key: "superlatives", label: "Superlatifs", unit: "superlatifs", unitOne: "superlatif", scopable: true, scopes: ["event"], help: "Aide.", duration: false };
+    const scopes = { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan", title: "LAN #3" }] };
+    expect(aimableScopes(superlatives, scopes)).toEqual({ games: [], events: [{ id: "lan", title: "LAN #3" }] });
+    expect(aimableScopes(metrics[0], scopes)).toEqual(scopes);
+  });
+
   test("time played reads in hours, even for one hour (story 41.64)", () => {
-    const time = { key: "playMinutes", label: "Temps de jeu", unit: "de jeu", unitOne: "de jeu", scopable: true, help: "Saisi en heures.", duration: true };
+    const time: QuestMetricOption = { key: "playMinutes", label: "Temps de jeu", unit: "de jeu", unitOne: "de jeu", scopable: true, scopes: ["game", "event"], help: "Saisi en heures.", duration: true };
     expect(objectivesSummary([{ metric: "playMinutes", target: 360 }], [...metrics, time])).toBe("6 h de jeu");
     expect(objectivesSummary([{ metric: "playMinutes", target: 90 }], [...metrics, time])).toBe("1 h 30 de jeu");
   });

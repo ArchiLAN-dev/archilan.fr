@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
+  NO_SCOPES,
   QUEST_LIMITS,
   editQuest,
   fetchAdminQuests,
@@ -169,7 +170,6 @@ export function QuestDialog({
   const parsedReward = Number.parseInt(reward, 10);
   const terms: QuestTerms = { title: title.trim(), description: description.trim(), reward: parsedReward, objectives, inDraw, drawWeight, cosmetic: cosmetic?.key ? cosmetic : null };
   const error = questTermsError(terms);
-  const hasScopes = scopes.games.length > 0 || scopes.events.length > 0;
 
   function update(rowId: number, next: Partial<QuestObjectiveTerms>): void {
     setRows(rows.map((row) => (row.rowId === rowId ? { ...row, ...next } : row)));
@@ -226,6 +226,7 @@ export function QuestDialog({
             <legend className="mb-1 text-sm font-medium text-foreground">Objectifs</legend>
             {rows.map((row, index) => {
               const metric = metrics.find((candidate) => candidate.key === row.metric);
+              const aimable = metric ? aimableScopes(metric, scopes) : NO_SCOPES;
               return (
                 <div className="flex flex-wrap items-center gap-2" key={row.rowId}>
                   <select
@@ -233,8 +234,8 @@ export function QuestDialog({
                     className={`${fieldClass} min-w-40 flex-1`}
                     onChange={(e) => {
                       const next = metrics.find((candidate) => candidate.key === e.target.value);
-                      // A type that cannot aim at a game or an event drops the target it had.
-                      const scoped = next?.scopable ? {} : { scope: undefined, scopeId: undefined };
+                      // A type that cannot aim where the objective aimed drops its target.
+                      const scoped = row.scope && next?.scopes.includes(row.scope) ? {} : { scope: undefined, scopeId: undefined };
                       // Story 41.64: a target in minutes means nothing as a count, and back; start each from one unit.
                       const target = (next?.duration ?? false) === (metric?.duration ?? false) ? {} : { target: next?.duration ? 60 : 1 };
                       update(row.rowId, { metric: e.target.value, ...scoped, ...target });
@@ -275,7 +276,7 @@ export function QuestDialog({
                       value={row.target === 0 ? "" : row.target}
                     />
                   )}
-                  {metric?.scopable && hasScopes ? (
+                  {metric && hasAimableScopes(aimable) ? (
                     <select
                       aria-label={`Où compte l'objectif ${index + 1}`}
                       className={`${fieldClass} min-w-40 flex-1`}
@@ -286,18 +287,18 @@ export function QuestDialog({
                       value={row.scope && row.scopeId ? `${row.scope}:${row.scopeId}` : ""}
                     >
                       <option value="">Partout</option>
-                      {scopes.games.length > 0 ? (
+                      {aimable.games.length > 0 ? (
                         <optgroup label="Sur un jeu">
-                          {scopes.games.map((game) => (
+                          {aimable.games.map((game) => (
                             <option key={game.id} value={`game:${game.id}`}>
                               {game.name}
                             </option>
                           ))}
                         </optgroup>
                       ) : null}
-                      {scopes.events.length > 0 ? (
+                      {aimable.events.length > 0 ? (
                         <optgroup label="Pendant un événement">
-                          {scopes.events.map((event) => (
+                          {aimable.events.map((event) => (
                             <option key={event.id} value={`event:${event.id}`}>
                               {event.title}
                             </option>
@@ -366,6 +367,18 @@ export function QuestDialog({
 type ObjectiveRow = QuestObjectiveTerms & { rowId: number };
 
 /** What the API would refuse, said before sending; null when the quest can be saved. */
+/** Story 41.65: what an objective of this type may aim at - a superlative an event, never a game. */
+export function aimableScopes(metric: QuestMetricOption, scopes: QuestScopes): QuestScopes {
+  return {
+    games: metric.scopes.includes("game") ? scopes.games : [],
+    events: metric.scopes.includes("event") ? scopes.events : [],
+  };
+}
+
+function hasAimableScopes(scopes: QuestScopes): boolean {
+  return scopes.games.length > 0 || scopes.events.length > 0;
+}
+
 export function questTermsError(terms: QuestTerms): string | null {
   if (terms.title === "" || terms.title.length > QUEST_LIMITS.maxTitle) return `Un titre de 1 à ${QUEST_LIMITS.maxTitle} caractères.`;
   if (!Number.isInteger(terms.reward) || terms.reward < QUEST_LIMITS.minReward || terms.reward > QUEST_LIMITS.maxReward) {

@@ -1,6 +1,6 @@
 # Story 41.65: Métriques de quête - communauté et économie
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-11-01
 
@@ -58,7 +58,33 @@ Chaque métrique a son garde-fou contre un compte bis : une quête paye du jeu r
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-6) - Cas `QuestMetric` et compteurs SQL ; tests fonctionnels par compteur.
-- [ ] **Task 2** (AC 7, 8) - Ciblage, validation ; tests.
-- [ ] **Task 3** (AC 9) - Formulaire, affichages, Discord ; tests jest.
-- [ ] **Task 4** (AC 10) - Gates, vérification dans l'app.
+- [x] **Task 1** (AC 1-6) - Cas `QuestMetric` et compteurs SQL ; tests fonctionnels par compteur.
+- [x] **Task 2** (AC 7, 8) - Ciblage, validation ; tests.
+- [x] **Task 3** (AC 9) - Formulaire, affichages, Discord ; tests jest.
+- [x] **Task 4** (AC 10) - Gates, vérification dans l'app.
+
+## Dev Agent Record
+
+### Notes
+
+- `QuestMetric` gagne `duelsWon`, `superlatives`, `friendsPlayedWith`, `returningPartners`, `bountiesWon`,
+  `blindTestSources`, et `scopes()` (cibles permises par métrique) qui remplace `QuestObjective::SCOPABLE` :
+  les superlatifs n'acceptent qu'un événement. Le payload admin expose `scopes`, le formulaire ne propose que ces
+  cibles (`aimableScopes`).
+- `newPartners`, `returningPartners` et `friendsPlayedWith` partagent une requête (`partners`), seule la condition
+  sur la paire change.
+- Duels : un participant accepté autre que le gagnant doit avoir une tentative avec des checks (`checks_total` ou
+  flux de sa session). Le créateur est lui-même un participant accepté.
+- Superlatifs : date = `session_recap.generated_at` ; mêmes sessions que le succès, au moins 3 membres
+  (`MIN_SUPERLATIVE_PLAYERS`) ; décodage du JSON en PHP, une fois par (membre, session, superlatif). Pas de
+  test de parité : la règle diffère volontairement du succès (2 membres).
+- Primes : `status = paid`, `run_id IS NULL`, `winner_id <> poster_id`, `settled_at` dans la semaine.
+- Blind test : mouvements `blind_test` de clé `blindtest:%` créés dans la semaine.
+
+### File List
+
+- `api/src/Wallet/Domain/Enum/QuestMetric.php`, `api/src/Wallet/Domain/ValueObject/QuestObjective.php`
+- `api/src/Wallet/Application/Query/QuestAdminQuery.php`
+- `api/src/Wallet/Infrastructure/Query/DbalWeeklyQuestsQuery.php`
+- `api/tests/Functional/QuestCommunityMetricsTest.php` (nouveau), `api/tests/Unit/Wallet/QuestMetricTest.php`
+- `frontend/src/features/wallet/admin-quests-api.ts`, `admin-quests-page.tsx` (+ test)
