@@ -1,6 +1,6 @@
 # Story 41.64: Métriques de quête - partage et temps de jeu
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-11-01
 
@@ -55,14 +55,47 @@ qui joue vraiment reste un risque accepté, comme pour `newPartners` : ces métr
   `DbalWeeklyQuestsQuery::counts`.
 - La cible d'un objectif sur les items porte sur l'alias du slot du membre : `scope()` est aujourd'hui câblé sur
   `slot.` ; le paramétrer par alias.
-- Le Wallet n'importe pas Community (`app:architecture:ddd`) : recopier les règles de release et de collect de
-  `DbalItemsFromOthersQuery` dans le Wallet, avec un test de parité qui fait échouer la suite si elles divergent.
+- Le Wallet n'importe pas Community : les règles de release et de collect de `DbalItemsFromOthersQuery` passent
+  dans un fragment partagé (`Shared/Infrastructure/Dbal/DbalFoundItemSource`), lu par le succès et par la quête.
 - `playMinutes` : `LEAST(last_seen_at, fin) - GREATEST(started_at, début)` sur les plages qui chevauchent la semaine.
 - `MAX_TARGET` (10 000) suffit en minutes (166 h). Pas de migration : les objectifs sont du JSON.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-5) - Cas `QuestMetric` et compteurs SQL ; test de parité ; tests fonctionnels.
-- [ ] **Task 2** (AC 6) - Ciblage par alias de slot, validation ; tests.
-- [ ] **Task 3** (AC 7, 8) - Formulaire (heures), affichages membre, notification, Discord ; tests jest et unitaires.
-- [ ] **Task 4** (AC 9) - Gates, vérification dans l'app avec une quête de chaque sorte.
+- [x] **Task 1** (AC 1-5) - Cas `QuestMetric` et compteurs SQL ; test de parité ; tests fonctionnels.
+- [x] **Task 2** (AC 6) - Ciblage par alias de slot, validation ; tests.
+- [x] **Task 3** (AC 7, 8) - Formulaire (heures), affichages membre, notification, Discord ; tests jest et unitaires.
+- [x] **Task 4** (AC 9) - Gates, vérification dans l'app avec une quête de chaque sorte.
+
+## Dev Agent Record
+
+### Notes
+
+- `QuestMetric` gagne `itemsSent`, `itemsReceived`, `playMinutes`, `newGames`, plus `help()` (aide du formulaire,
+  pour toutes les métriques), `isDuration()`, `describe()` et `hours()` (« 2 h 30 »).
+- Règles release / collect extraites dans `DbalFoundItemSource` (fragment SQL partagé, comme `DbalSlotCheckSource`)
+  au lieu d'une copie avec test de parité : `DbalItemsFromOthersQuery` le lit aussi, comportement inchangé (ses
+  tests passent).
+- Items : le slot du membre est aliasé `slot`, donc la cible jeu ou événement porte sur le slot du membre sans
+  toucher à `scope()`. L'autre slot doit avoir un joueur qui n'est pas le membre.
+- Temps de jeu : part de chaque plage dans la semaine, plages dédoublonnées par (plage, membre), seulement pour un
+  slot qui a un check dans la semaine.
+- Jeux jamais joués : premier check à vie par (membre, jeu), sessions par le flux, hebdos par le flux de leur
+  session ou, sans flux, par `launched_at` quand `checks_total > 0`.
+- Payloads : `help` et `duration` sur les métriques admin, `duration` sur les objectifs membre ; Discord passe par
+  `QuestMetric::describe`.
+- Front : `quest-amount.ts` (`formatHours`), barre « 2 h 30 / 6 h de jeu », saisie en heures par demi-heures dans le
+  formulaire (changer entre durée et compte remet la cible à 1 h ou 1), aide sous chaque objectif.
+
+### File List
+
+- `api/src/Shared/Infrastructure/Dbal/DbalFoundItemSource.php` (nouveau)
+- `api/src/Community/Infrastructure/Dbal/DbalItemsFromOthersQuery.php`
+- `api/src/Wallet/Domain/Enum/QuestMetric.php`, `api/src/Wallet/Domain/ValueObject/QuestObjective.php`
+- `api/src/Wallet/Application/Query/QuestAdminQuery.php`, `api/src/Wallet/Application/Query/MyWeeklyQuests.php`,
+  `api/src/Wallet/Application/Support/QuestAnnouncement.php`
+- `api/src/Wallet/Infrastructure/Query/DbalWeeklyQuestsQuery.php`
+- `api/tests/Functional/QuestTradeAndPlayMetricsTest.php` (nouveau), `api/tests/Functional/WeeklyQuestsTest.php`,
+  `api/tests/Unit/Wallet/QuestMetricTest.php` (nouveau), `api/tests/Unit/Wallet/DiscordBotQuestAnnouncementChannelTest.php`
+- `frontend/src/features/wallet/quest-amount.ts` (+ test, nouveaux), `admin-quests-api.ts`, `admin-quests-page.tsx`
+  (+ test), `weekly-quests.tsx` (+ test)

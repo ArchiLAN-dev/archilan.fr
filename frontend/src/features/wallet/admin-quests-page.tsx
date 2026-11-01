@@ -234,7 +234,10 @@ export function QuestDialog({
                     onChange={(e) => {
                       const next = metrics.find((candidate) => candidate.key === e.target.value);
                       // A type that cannot aim at a game or an event drops the target it had.
-                      update(row.rowId, next?.scopable ? { metric: e.target.value } : { metric: e.target.value, scope: undefined, scopeId: undefined });
+                      const scoped = next?.scopable ? {} : { scope: undefined, scopeId: undefined };
+                      // Story 41.64: a target in minutes means nothing as a count, and back; start each from one unit.
+                      const target = (next?.duration ?? false) === (metric?.duration ?? false) ? {} : { target: next?.duration ? 60 : 1 };
+                      update(row.rowId, { metric: e.target.value, ...scoped, ...target });
                     }}
                     value={row.metric}
                   >
@@ -244,16 +247,34 @@ export function QuestDialog({
                       </option>
                     ))}
                   </select>
-                  <input
-                    aria-label={`Cible de l'objectif ${index + 1}`}
-                    className={`${fieldClass} w-24`}
-                    inputMode="numeric"
-                    max={QUEST_LIMITS.maxTarget}
-                    min={QUEST_LIMITS.minTarget}
-                    onChange={(e) => update(row.rowId, { target: Number.parseInt(e.target.value, 10) || 0 })}
-                    type="number"
-                    value={row.target === 0 ? "" : row.target}
-                  />
+                  {metric?.duration ? (
+                    // Story 41.64: time played is stored in minutes, entered in hours by halves.
+                    <label className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <input
+                        aria-label={`Cible de l'objectif ${index + 1}, en heures`}
+                        className={`${fieldClass} w-24`}
+                        inputMode="decimal"
+                        max={QUEST_LIMITS.maxTarget / 60}
+                        min={0.5}
+                        onChange={(e) => update(row.rowId, { target: Math.round((Number.parseFloat(e.target.value) || 0) * 2) * 30 })}
+                        step={0.5}
+                        type="number"
+                        value={row.target === 0 ? "" : row.target / 60}
+                      />
+                      h
+                    </label>
+                  ) : (
+                    <input
+                      aria-label={`Cible de l'objectif ${index + 1}`}
+                      className={`${fieldClass} w-24`}
+                      inputMode="numeric"
+                      max={QUEST_LIMITS.maxTarget}
+                      min={QUEST_LIMITS.minTarget}
+                      onChange={(e) => update(row.rowId, { target: Number.parseInt(e.target.value, 10) || 0 })}
+                      type="number"
+                      value={row.target === 0 ? "" : row.target}
+                    />
+                  )}
                   {metric?.scopable && hasScopes ? (
                     <select
                       aria-label={`Où compte l'objectif ${index + 1}`}
@@ -294,6 +315,7 @@ export function QuestDialog({
                   >
                     <Trash2 aria-hidden className="size-4" />
                   </button>
+                  {metric ? <p className="w-full text-xs text-muted-foreground">{metric.help}</p> : null}
                 </div>
               );
             })}

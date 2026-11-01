@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Wallet\Infrastructure\Query;
 
+use App\Shared\Infrastructure\Dbal\DbalFoundItemSource;
 use App\Shared\Infrastructure\Dbal\DbalSlotCheckSource;
 use App\Shared\Infrastructure\Dbal\DbalSlotPlayerSource;
 use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
@@ -38,6 +39,10 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
                 QuestMetric::NewPartners => $this->newPartners($week),
                 QuestMetric::Sessions => $this->perCheck($week, 'COUNT(DISTINCT f.session_id)', $scope),
                 QuestMetric::DistinctGames => $this->perCheck($week, 'COUNT(DISTINCT slot.game_id)', null),
+                QuestMetric::ItemsSent => $this->itemsTraded($week, $scope, true),
+                QuestMetric::ItemsReceived => $this->itemsTraded($week, $scope, false),
+                QuestMetric::PlayMinutes => $this->playMinutes($week, $scope),
+                QuestMetric::NewGames => $this->newGames($week),
             };
             $counts[$objective->key()] = $this->byMember($rows, $userId);
         }
@@ -306,6 +311,110 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         return $this->connection->fetchAllAssociative(
             "SELECT {$player} AS uid, {$aggregate} AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ".($scope['sql'] ?? '')." GROUP BY {$player}",
             DbalSlotCheckSource::params() + $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
+            DbalSlotCheckSource::types(),
+        );
+    }
+
+    /**
+     * Story 41.64: the items a member found for another member's slot (`$sent`), or received from one, in the week.
+     * The member's slot is `slot`, so a game or event target narrows it: the sender's game for items sent, the
+     * receiver's for items received. An item between two slots of the same member, or with a slot no member
+     * plays, does not count; neither does an item of a release or a collect.
+     *
+     * @param array{sql: string, id: string}|null $scope
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function itemsTraded(QuestWeek $week, ?array $scope, bool $sent): array
+    {
+        $players = DbalSlotPlayerSource::expression('session_slot', 'registration');
+        $slotColumn = DbalSlotPlayerSource::SLOT_COLUMN;
+        $userColumn = DbalSlotPlayerSource::USER_COLUMN;
+        $feed = DbalFoundItemSource::feed('AND fe.occurred_at >= :weekStart AND fe.occurred_at < :weekEnd');
+        [$mine, $theirs] = $sent ? ['sender_name', 'receiver_name'] : ['receiver_name', 'sender_name'];
+        $found = implode(' AND ', array_map(
+            static fn (string $rule): string => '('.$rule.')',
+            $sent ? DbalFoundItemSource::found('f', 'slot', 'other') : DbalFoundItemSource::found('f', 'other', 'slot'),
+        ));
+
+        return $this->connection->fetchAllAssociative(
+            "SELECT mp.{$userColumn} AS uid, COUNT(DISTINCT f.id) AS n
+               FROM {$feed} f
+               JOIN session_slot slot ON slot.session_id = f.session_id AND slot.slot_name = f.{$mine}
+               JOIN session_slot other ON other.session_id = f.session_id AND other.slot_name = f.{$theirs}
+               JOIN {$players} mp ON mp.{$slotColumn} = slot.id
+              WHERE other.id <> slot.id
+                AND NOT EXISTS (SELECT 1 FROM {$players} op WHERE op.{$slotColumn} = other.id AND op.{$userColumn} = mp.{$userColumn})
+                AND EXISTS (SELECT 1 FROM {$players} op WHERE op.{$slotColumn} = other.id AND op.{$userColumn} IS NOT NULL AND op.{$userColumn} <> mp.{$userColumn})
+                AND {$found} ".($scope['sql'] ?? '')."
+              GROUP BY mp.{$userColumn}",
+            DbalFoundItemSource::params() + $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
+        );
+    }
+
+    /**
+     * Story 41.64: the minutes a member was connected in the week, a span across two weeks counting its share in
+     * each. Only the slots that made a check in the week count, so a client left open earns nothing; a slot played
+     * by several members counts its time for each of them, like the achievement. Weekly attempts have no span.
+     *
+     * @param array{sql: string, id: string}|null $scope
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function playMinutes(QuestWeek $week, ?array $scope): array
+    {
+        $players = DbalSlotPlayerSource::expression('session_slot', 'registration');
+        $userColumn = 'sp.'.DbalSlotPlayerSource::USER_COLUMN;
+
+        return $this->connection->fetchAllAssociative(
+            "SELECT spans.uid, CAST(FLOOR(SUM(spans.seconds) / 60) AS integer) AS n FROM (
+                 SELECT DISTINCT p.id, {$userColumn} AS uid,
+                        EXTRACT(EPOCH FROM (LEAST(p.last_seen_at, CAST(:weekEnd AS timestamptz)) - GREATEST(p.started_at, CAST(:weekStart AS timestamptz)))) AS seconds
+                   FROM session_slot_play_span p
+                   JOIN session_slot slot ON slot.session_id = p.session_id AND slot.slot_name = p.slot_name
+                   JOIN {$players} sp ON sp.".DbalSlotPlayerSource::SLOT_COLUMN.' = slot.id
+                  WHERE p.started_at < :weekEnd AND p.last_seen_at > :weekStart
+                    AND EXISTS (SELECT 1 FROM session_feed_event c
+                                 WHERE c.session_id = slot.session_id AND c.sender_name = slot.slot_name AND c.type IN (:checkTypes)
+                                   AND c.occurred_at >= :weekStart AND c.occurred_at < :weekEnd)
+                    '.($scope['sql'] ?? '').'
+             ) spans GROUP BY spans.uid',
+            DbalSlotCheckSource::params() + $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
+            DbalSlotCheckSource::types(),
+        );
+    }
+
+    /**
+     * Story 41.64: the games a member made the first check of their life on, in the week - in a session, or in a
+     * weekly attempt (its game through its run's template). A weekly attempt with no feed on record counts from its
+     * launch when it made checks.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function newGames(QuestWeek $week): array
+    {
+        $checks = DbalSlotCheckSource::from();
+        $player = DbalSlotCheckSource::player();
+
+        return $this->connection->fetchAllAssociative(
+            "WITH played AS (
+                 SELECT {$player} AS uid, slot.game_id AS game, MIN(f.occurred_at) AS first_at {$checks} AND slot.game_id IS NOT NULL
+                  GROUP BY {$player}, slot.game_id
+                 UNION ALL
+                 SELECT we.user_id AS uid, wt.game_id AS game,
+                        COALESCE(
+                            (SELECT MIN(wf.occurred_at) FROM session_feed_event wf WHERE wf.session_id = we.external_session_id AND wf.type IN (:checkTypes)),
+                            CASE WHEN we.checks_total > 0 THEN we.launched_at END
+                        ) AS first_at
+                   FROM weekly_entries we
+                   JOIN weekly_runs wr ON wr.id = we.weekly_run_id
+                   JOIN weekly_templates wt ON wt.id = wr.template_id
+                  WHERE we.launched_at IS NOT NULL
+             ), firsts AS (
+                 SELECT uid, game, MIN(first_at) AS first_at FROM played WHERE first_at IS NOT NULL GROUP BY uid, game
+             )
+             SELECT uid, COUNT(*) AS n FROM firsts WHERE first_at >= :weekStart AND first_at < :weekEnd GROUP BY uid",
+            DbalSlotCheckSource::params() + $this->bounds($week),
             DbalSlotCheckSource::types(),
         );
     }

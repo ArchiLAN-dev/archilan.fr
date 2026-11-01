@@ -91,6 +91,9 @@ final class DiscordBotQuestAnnouncementChannelTest extends TestCase
         self::assertSame('50 checks', QuestAnnouncement::describe(new QuestObjective(QuestMetric::Checks, 50), null));
         self::assertSame('1 partie à LAN #3', QuestAnnouncement::describe(new QuestObjective(QuestMetric::Sessions, 1, QuestObjective::SCOPE_EVENT, 'e3'), 'LAN #3'));
         self::assertSame('1 goal sur une cible retirée', QuestAnnouncement::describe(new QuestObjective(QuestMetric::Goals, 1, QuestObjective::SCOPE_GAME, 'gone'), null));
+        // Story 41.64: time played is stored in minutes and told in hours.
+        self::assertSame('6 h de jeu sur Hollow Knight', QuestAnnouncement::describe(new QuestObjective(QuestMetric::PlayMinutes, 360, QuestObjective::SCOPE_GAME, 'hk'), 'Hollow Knight'));
+        self::assertSame('1 item envoyé', QuestAnnouncement::describe(new QuestObjective(QuestMetric::ItemsSent, 1), null));
     }
 
     /**

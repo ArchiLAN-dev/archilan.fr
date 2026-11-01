@@ -1,10 +1,21 @@
 import { isCosmeticRewardView, type CosmeticReward, type CosmeticRewardView } from "@/features/community/cosmetic-reward-picker";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { formatQuestAmount } from "@/features/wallet/quest-amount";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 /** Story 41.15: an objective type of the catalog (code defined, like the facts of the achievements). */
-export type QuestMetricOption = { key: string; label: string; unit: string; unitOne: string; scopable: boolean };
+export type QuestMetricOption = {
+  key: string;
+  label: string;
+  unit: string;
+  unitOne: string;
+  scopable: boolean;
+  /** Story 41.64: what the type counts, in one line, under the form's select. */
+  help: string;
+  /** Story 41.64: the target is minutes, entered and shown in hours. */
+  duration: boolean;
+};
 
 /** Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. */
 export type QuestScopes = { games: { id: string; name: string }[]; events: { id: string; title: string }[] };
@@ -88,7 +99,12 @@ function isScopes(v: unknown): v is QuestScopes {
 }
 
 function isMetric(v: unknown): v is QuestMetricOption {
-  return isObject(v) && hasStringProp(v, "key") && hasStringProp(v, "label") && hasStringProp(v, "unit") && hasStringProp(v, "unitOne") && hasBooleanProp(v, "scopable");
+  return (
+    isObject(v) && hasStringProp(v, "key") && hasStringProp(v, "label") && hasStringProp(v, "unit") && hasStringProp(v, "unitOne") &&
+    hasBooleanProp(v, "scopable") &&
+    hasStringProp(v, "help") &&
+    hasBooleanProp(v, "duration")
+  );
 }
 
 function isQuest(v: unknown): v is AdminQuest {
@@ -284,8 +300,8 @@ export function objectivesSummary(objectives: QuestObjectiveTerms[], metrics: Qu
   return objectives
     .map((objective) => {
       const metric = metrics.find((candidate) => candidate.key === objective.metric);
-      const unit = metric ? (objective.target === 1 ? metric.unitOne : metric.unit) : objective.metric;
-      return `${objective.target} ${unit}${scopePhrase(objective, scopes)}`;
+      const unit = metric ? (objective.target === 1 && !metric.duration ? metric.unitOne : metric.unit) : objective.metric;
+      return `${formatQuestAmount(objective.target, metric?.duration ?? false)} ${unit}${scopePhrase(objective, scopes)}`;
     })
     .join(" et ");
 }

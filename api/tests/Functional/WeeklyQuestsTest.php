@@ -321,8 +321,8 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertSame('Marathon', $quests[0]['label'] ?? null);
         self::assertFalse($quests[0]['done'] ?? null);
         self::assertSame([
-            ['metric' => 'checks', 'label' => 'Checks faits', 'unit' => 'checks', 'target' => 5, 'current' => 3, 'scope' => null],
-            ['metric' => 'sessions', 'label' => 'Parties jouées', 'unit' => 'parties', 'target' => 2, 'current' => 1, 'scope' => null],
+            ['metric' => 'checks', 'label' => 'Checks faits', 'unit' => 'checks', 'target' => 5, 'current' => 3, 'scope' => null, 'duration' => false],
+            ['metric' => 'sessions', 'label' => 'Parties jouées', 'unit' => 'parties', 'target' => 2, 'current' => 1, 'scope' => null, 'duration' => false],
         ], $quests[0]['objectives'] ?? null);
         self::assertSame(['reward' => 50, 'done' => 0, 'total' => 1, 'paid' => false], $body['chest'] ?? null);
     }
