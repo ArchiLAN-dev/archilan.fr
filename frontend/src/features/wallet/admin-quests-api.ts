@@ -19,9 +19,13 @@ export type QuestMetricOption = {
   duration: boolean;
 };
 
-export type QuestScopeKind = "game" | "event" | "platform" | "recent";
+export type QuestScopeKind = "game" | "event" | "platform" | "recent" | "drawn";
 
-const SCOPE_KINDS: readonly string[] = ["game", "event", "platform", "recent"];
+const SCOPE_KINDS: readonly string[] = ["game", "event", "platform", "recent", "drawn"];
+
+/** Story 41.67: the pools a game is drawn from each week, the catalog or the new releases (`recent:30`). */
+export const DRAW_CATALOG = "catalog";
+export const DRAW_RECENT = "recent:";
 
 function isScopeKind(v: unknown): v is QuestScopeKind {
   return typeof v === "string" && SCOPE_KINDS.includes(v);
@@ -64,7 +68,8 @@ export type QuestStats = { weeksServed: number; lastWeek: string | null; lastMem
 
 export type QuestWeekOrigin = "pinned" | "drawn";
 
-export type ServedQuest = { questId: string; title: string; reward: number; origin: QuestWeekOrigin; retired: boolean };
+/** Story 41.67: `drawnGame`, the game drawn for the week when the quest aims at one. */
+export type ServedQuest = { questId: string; title: string; reward: number; origin: QuestWeekOrigin; retired: boolean; drawnGame: string | null };
 
 export type AdminQuestWeek = { key: string; startsAt: string; endsAt: string; current: boolean; drawn: boolean; quests: ServedQuest[] };
 
@@ -188,7 +193,9 @@ function isServed(v: unknown): v is ServedQuest {
     hasNumberProp(v, "reward") &&
     hasBooleanProp(v, "retired") &&
     "origin" in v &&
-    (v.origin === "pinned" || v.origin === "drawn")
+    (v.origin === "pinned" || v.origin === "drawn") &&
+    "drawnGame" in v &&
+    (v.drawnGame === null || typeof v.drawnGame === "string")
   );
 }
 
@@ -323,7 +330,15 @@ export function scopePhrase(objective: QuestObjectiveTerms, scopes: QuestScopes)
   if (objective.scope === "recent") {
     return ` sur un jeu mis en ligne ces ${objective.scopeId ?? "?"} derniers jours`;
   }
+  if (objective.scope === "drawn") {
+    return ` sur ${drawPoolPhrase(objective.scopeId ?? "")}`;
+  }
   return "";
+}
+
+/** Story 41.67: « un jeu tiré parmi les nouveautés de 30 jours ». */
+export function drawPoolPhrase(pool: string): string {
+  return pool.startsWith(DRAW_RECENT) ? `un jeu tiré parmi les nouveautés de ${pool.slice(DRAW_RECENT.length)} jours` : "un jeu tiré au sort dans le catalogue";
 }
 
 /** Story 41.66: a platform target's families, sorted and without duplicates, as the API keeps them. */

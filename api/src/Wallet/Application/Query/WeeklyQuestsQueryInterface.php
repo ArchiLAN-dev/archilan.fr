@@ -39,6 +39,23 @@ interface WeeklyQuestsQueryInterface
     public function scopeOptions(): array;
 
     /**
+     * Story 41.67: the games a quest's game may be drawn from for the week - the catalog's games online and played
+     * at least once on the site (`catalog`), or those put online in the days before the week (`recent:30`).
+     *
+     * @return list<string> game ids
+     */
+    public function drawableGames(string $pool, QuestWeek $week): array;
+
+    /**
+     * Story 41.67: the name and slug of these games, to name and link a drawn one (never played yet, maybe).
+     *
+     * @param list<string> $gameIds
+     *
+     * @return array<string, array{name: string, slug: string}> by game id
+     */
+    public function gamesNamed(array $gameIds): array;
+
+    /**
      * The quests already paid to the member for the week (their ledger keys `quest:{week}:{quest}:{member}`).
      *
      * @return list<string> quest ids

@@ -10,6 +10,7 @@ use App\Shared\Application\Exception\ConflictException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ValidationException;
 use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
+use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Application\Support\QuestCalendar;
 use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Entity\QuestWeekEntry;
@@ -34,6 +35,7 @@ final readonly class ManageQuests
         private ClockInterface $clock,
         private WeeklyQuestsQueryInterface $targets,
         private CosmeticRewardCatalog $cosmetics,
+        private QuestWeekPlanner $planner,
     ) {
     }
 
@@ -137,7 +139,8 @@ final readonly class ManageQuests
      *
      * @throws ValidationException when the week is past or unknown
      * @throws NotFoundException   when the quest, or the one to replace in that week, does not exist
-     * @throws ConflictException   when the quest is retired or already in the week
+     * @throws ConflictException   when the quest is retired or already in the week, or (story 41.67) has no
+     *                             game to draw for it
      */
     public function pin(string $weekKey, string $questId, ?string $replaces = null): void
     {
@@ -153,13 +156,24 @@ final readonly class ManageQuests
             }
         }
 
+        // Story 41.67: its pool counted from the start of the week, even pinned ahead.
+        if (!$this->planner->canServe($quest, $week)) {
+            throw new ConflictException('Aucun jeu à tirer au sort pour cette semaine : la quête ne peut pas y être servie.', 'quest_draw_pool_empty');
+        }
+
         $position = [] === $entries ? 0 : max(array_map(static fn (QuestWeekEntry $entry): int => $entry->getPosition(), $entries)) + 1;
         if (null !== $replaces) {
             $replaced = $this->entry($entries, $replaces);
             $position = $replaced->getPosition();
             $this->quests->removeEntry($replaced);
         }
-        $this->quests->saveEntry(QuestWeekEntry::serve($week->key, $questId, QuestWeekOrigin::Pinned, $position, $this->clock->now()));
+        $now = $this->clock->now();
+        $entry = QuestWeekEntry::serve($week->key, $questId, QuestWeekOrigin::Pinned, $position, $now);
+        $this->quests->saveEntry($entry);
+        // A week in progress freezes it now; a coming week, when it begins.
+        if ($week->start <= $now) {
+            $this->planner->freeze($week, $quest, $entry);
+        }
     }
 
     /**
@@ -195,7 +209,8 @@ final readonly class ManageQuests
             }
             // Story 41.18: an aimed objective names a game played on the site, or an event out of draft. Story
             // 41.66: a family of the catalog's games; the days of the new releases are checked by the objective.
-            if (null !== $scope && null !== $scopeId && QuestObjective::SCOPE_RECENT !== $scope) {
+            // Story 41.67: a drawn game's pool is checked by the objective too.
+            if (null !== $scope && null !== $scopeId && !\in_array($scope, [QuestObjective::SCOPE_RECENT, QuestObjective::SCOPE_DRAWN], true)) {
                 $targets ??= $this->targets->scopeOptions();
                 $known = match ($scope) {
                     QuestObjective::SCOPE_GAME => array_column($targets['games'], 'id'),
@@ -226,6 +241,7 @@ final readonly class ManageQuests
             'quest_objectives_invalid' => sprintf('De 1 à %d objectifs.', QuestDefinition::MAX_OBJECTIVES),
             'quest_objectives_duplicated' => 'Chaque type d\'objectif une fois au plus par cible.',
             'quest_objective_scope_invalid' => 'Seuls les goals, les checks et les parties peuvent viser un jeu ou un événement.',
+            'quest_draw_pools_mixed' => 'Un seul jeu est tiré par semaine : tous les objectifs à jeu tiré prennent le même panier.',
             'quest_weight_invalid' => sprintf('Un poids de tirage de %d à %d.', QuestDefinition::MIN_WEIGHT, QuestDefinition::MAX_WEIGHT),
             'quest_objective_target_invalid' => sprintf('Une cible de %d à %d.', QuestObjective::MIN_TARGET, QuestObjective::MAX_TARGET),
             default => 'Quête invalide.',

@@ -135,7 +135,7 @@ enum QuestMetric: string
     public function scopes(): array
     {
         return match ($this) {
-            self::Goals, self::Checks, self::Sessions, self::ItemsSent, self::ItemsReceived, self::PlayMinutes => ['game', 'event', 'platform', 'recent'],
+            self::Goals, self::Checks, self::Sessions, self::ItemsSent, self::ItemsReceived, self::PlayMinutes => ['game', 'event', 'platform', 'recent', 'drawn'],
             self::Superlatives => ['event'],
             default => [],
         };

@@ -29,7 +29,7 @@ final class QuestMetricTest extends TestCase
     public function testSuperlativesAimOnlyAtAnEventAndCommunityMetricsAtNothing(): void
     {
         self::assertSame(['event'], QuestMetric::Superlatives->scopes());
-        self::assertSame(['game', 'event', 'platform', 'recent'], QuestMetric::PlayMinutes->scopes());
+        self::assertSame(['game', 'event', 'platform', 'recent', 'drawn'], QuestMetric::PlayMinutes->scopes());
         self::assertSame([], QuestMetric::BountiesWon->scopes());
 
         new QuestObjective(QuestMetric::Superlatives, 1, QuestObjective::SCOPE_EVENT, 'lan-3');

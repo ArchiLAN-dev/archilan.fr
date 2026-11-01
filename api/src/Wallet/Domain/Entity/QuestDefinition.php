@@ -145,13 +145,36 @@ final class QuestDefinition
      */
     public function isAccomplishedWith(array $counts): bool
     {
+        return QuestObjective::allReached($this->getObjectives(), $counts);
+    }
+
+    /** Story 41.67: the pool the quest's game is drawn from each week it is served, null when it aims at no drawn game. */
+    public function drawPool(): ?string
+    {
         foreach ($this->getObjectives() as $objective) {
-            if (!$objective->isReachedBy($counts[$objective->key()] ?? 0)) {
-                return false;
+            if (null !== $objective->pool()) {
+                return $objective->pool();
             }
         }
 
-        return [] !== $this->getObjectives();
+        return null;
+    }
+
+    /**
+     * Story 41.67: the games the quest aims at by name, left out of its draw so the drawn one is another.
+     *
+     * @return list<string>
+     */
+    public function aimedGames(): array
+    {
+        $games = [];
+        foreach ($this->getObjectives() as $objective) {
+            if (QuestObjective::SCOPE_GAME === $objective->scope && null !== $objective->scopeId) {
+                $games[] = $objective->scopeId;
+            }
+        }
+
+        return $games;
     }
 
     /**
@@ -211,6 +234,11 @@ final class QuestDefinition
         $keys = array_map(static fn (QuestObjective $objective): string => $objective->key(), $objectives);
         if (\count(array_unique($keys)) !== \count($keys)) {
             throw new \DomainException('quest_objectives_duplicated');
+        }
+        // Story 41.67: one game drawn a week for the whole quest, so every drawn objective names the same pool.
+        $pools = array_unique(array_filter(array_map(static fn (QuestObjective $objective): ?string => $objective->pool(), $objectives), static fn (?string $pool): bool => null !== $pool));
+        if (\count($pools) > 1) {
+            throw new \DomainException('quest_draw_pools_mixed');
         }
         if ($drawWeight < self::MIN_WEIGHT || $drawWeight > self::MAX_WEIGHT) {
             throw new \DomainException('quest_weight_invalid');

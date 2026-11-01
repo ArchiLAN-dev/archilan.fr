@@ -258,6 +258,8 @@ export function CurrentWeek({
                     {served.retired ? <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">Type retiré</span> : null}
                   </p>
                   {quest ? <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, metrics, scopes)}</p> : null}
+                  {/* Story 41.67: the game drawn for this week; a coming week draws it when it begins. */}
+                  {served.drawnGame ? <p className="text-xs text-foreground">Jeu tiré : {served.drawnGame}</p> : null}
                 </div>
                 <PelleAmount amount={served.reward} className="text-sm font-semibold text-warning" signed />
                 <div className="flex gap-1">
