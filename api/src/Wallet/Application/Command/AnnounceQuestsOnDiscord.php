@@ -75,7 +75,7 @@ final readonly class AnnounceQuestsOnDiscord
      *
      * @param list<ServedQuest> $served
      *
-     * @return list<array{title: string, objectives: string, reward: int}>
+     * @return list<array{title: string, objectives: string, reward: int, tiered: bool}>
      */
     private function inWords(array $served): array
     {
@@ -87,7 +87,9 @@ final readonly class AnnounceQuestsOnDiscord
                 static fn (QuestObjective $objective): string => QuestAnnouncement::describe($objective, $names[$objective->key()] ?? null),
                 $quest->getObjectives(),
             )),
-            'reward' => $quest->getReward(),
+            // Story 41.68: « jusqu'à 60 pelles » for a quest with tiers.
+            'reward' => $quest->maxReward(),
+            'tiered' => [] !== $quest->tiers,
         ], $served);
     }
 

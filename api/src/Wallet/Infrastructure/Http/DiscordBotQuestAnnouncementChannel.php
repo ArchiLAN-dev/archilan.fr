@@ -65,7 +65,7 @@ final readonly class DiscordBotQuestAnnouncementChannel implements QuestAnnounce
     public static function payload(QuestAnnouncement $announcement): array
     {
         $fields = array_map(static fn (array $quest): array => [
-            'name' => mb_substr(sprintf('%s · +%d pelles', $quest['title'], $quest['reward']), 0, 256),
+            'name' => mb_substr(sprintf(true === ($quest['tiered'] ?? false) ? '%s · jusqu\'à %d pelles' : '%s · +%d pelles', $quest['title'], $quest['reward']), 0, 256),
             'value' => mb_substr($quest['objectives'], 0, 1024),
             'inline' => false,
         ], $announcement->quests);

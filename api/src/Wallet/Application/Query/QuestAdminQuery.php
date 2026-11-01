@@ -14,6 +14,7 @@ use App\Wallet\Domain\Entity\QuestWeekEntry;
 use App\Wallet\Domain\Enum\QuestMetric;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestObjective;
+use App\Wallet\Domain\ValueObject\QuestTier;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use Psr\Clock\ClockInterface;
 
@@ -47,7 +48,7 @@ final readonly class QuestAdminQuery
      *   chestReward: int,
      *   metrics: list<array{key: string, label: string, unit: string, unitOne: string, scopable: bool, scopes: list<string>, help: string, duration: bool}>,
      *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>, platforms: list<string>},
-     *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, cosmetic: array{type: string, key: string, label: string}|null, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}}>,
+     *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, tiers: list<array{target: int, reward: int}>|null, cosmetic: array{type: string, key: string, label: string}|null, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, lastTiers: list<int>, pelles: int}}>,
      *   weeks: list<array{key: string, startsAt: string, endsAt: string, current: bool, drawn: bool, quests: list<ServedQuest>}>,
      *   pastWeeks: list<array{key: string, startsAt: string, endsAt: string, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool, drawnGame: string|null, members: int, pelles: int}>, chests: int, pelles: int}>
      * }
@@ -142,10 +143,12 @@ final readonly class QuestAdminQuery
                 'inDraw' => $quest->isInDraw(),
                 'drawWeight' => $quest->getDrawWeight(),
                 // Story 41.28: the cosmetic it unlocks.
+                // Story 41.68: its tiers, the first one being its target and reward.
+                'tiers' => [] === $quest->getTiers() ? null : array_map(static fn (QuestTier $tier): array => $tier->toArray(), $quest->getTiers()),
                 'cosmetic' => $this->cosmetic($quest),
                 'retired' => $quest->isRetired(),
                 'createdAt' => $quest->getCreatedAt()->format(\DATE_ATOM),
-                'stats' => $this->stats($servedWeeks[$quest->getId()] ?? [], $quest->getId(), $current, $payments),
+                'stats' => $this->stats($servedWeeks[$quest->getId()] ?? [], $quest->getId(), $current, $payments, \count($quest->getTiers())),
             ], $all),
             'weeks' => $calendar,
             'pastWeeks' => $history,
@@ -157,12 +160,13 @@ final readonly class QuestAdminQuery
      * How a quest did: the weeks it was served in (up to the current one), the members who accomplished it the
      * last time it was served before this week, and the pelles it paid in all.
      *
-     * @param list<string>                                                                                                 $weeks    the weeks the quest was served in
-     * @param array<string, array{quests: array<string, array{members: int, pelles: int}>, chests: int, chestPelles: int}> $payments
+     * @param list<string>                                                                                                                         $weeks    the weeks the quest was served in
+     * @param array<string, array{quests: array<string, array{members: int, pelles: int, tiers: array<int, int>}>, chests: int, chestPelles: int}> $payments
+     * @param int                                                                                                                                  $tiers    story 41.68: its number of tiers (0: none)
      *
-     * @return array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}
+     * @return array{weeksServed: int, lastWeek: string|null, lastMembers: int, lastTiers: list<int>, pelles: int}
      */
-    private function stats(array $weeks, string $questId, QuestWeek $current, array $payments): array
+    private function stats(array $weeks, string $questId, QuestWeek $current, array $payments, int $tiers = 0): array
     {
         // Week keys (`2026-W41`) sort as their weeks do.
         $served = array_values(array_filter(
@@ -171,11 +175,18 @@ final readonly class QuestAdminQuery
         ));
         $finished = array_values(array_filter($served, static fn (string $week): bool => $week < $current->key));
         $lastWeek = [] === $finished ? null : $finished[\count($finished) - 1];
+        $last = null === $lastWeek ? null : ($payments[$lastWeek]['quests'][$questId] ?? null);
+        // Story 41.68: the members who reached each tier, the first being those who did the quest.
+        $lastTiers = [];
+        for ($tier = 1; $tier <= $tiers; ++$tier) {
+            $lastTiers[] = 1 === $tier ? ($last['members'] ?? 0) : ($last['tiers'][$tier] ?? 0);
+        }
 
         return [
             'weeksServed' => \count($served),
             'lastWeek' => $lastWeek,
-            'lastMembers' => null === $lastWeek ? 0 : ($payments[$lastWeek]['quests'][$questId]['members'] ?? 0),
+            'lastMembers' => $last['members'] ?? 0,
+            'lastTiers' => $lastTiers,
             'pelles' => array_sum(array_map(static fn (array $week): int => $week['quests'][$questId]['pelles'] ?? 0, $payments)),
         ];
     }

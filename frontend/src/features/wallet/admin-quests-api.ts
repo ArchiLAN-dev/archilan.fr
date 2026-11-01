@@ -47,6 +47,11 @@ export const RECENT_WINDOWS = [7, 14, 30, 60, 90] as const;
 
 export type QuestObjectiveTerms = { metric: string; target: number; scope?: QuestScopeKind; scopeId?: string };
 
+/** Story 41.68: a tier of a quest with one objective; the first is the objective's target and the quest's reward. */
+export type QuestTierTerms = { target: number; reward: number };
+
+export const QUEST_TIERS = { min: 2, max: 3 } as const;
+
 export type AdminQuest = {
   id: string;
   title: string;
@@ -58,13 +63,16 @@ export type AdminQuest = {
   drawWeight: number;
   /** Story 41.28: the cosmetic it unlocks the first time (absent from an older API). */
   cosmetic?: CosmeticRewardView | null;
+  /** Story 41.68: its tiers, null for a quest done or not. */
+  tiers: QuestTierTerms[] | null;
   retired: boolean;
   createdAt: string;
   /** Story 41.16: how the quest did. */
   stats: QuestStats;
 };
 
-export type QuestStats = { weeksServed: number; lastWeek: string | null; lastMembers: number; pelles: number };
+/** Story 41.68: `lastTiers`, the members who reached each tier the last time (empty without tiers). */
+export type QuestStats = { weeksServed: number; lastWeek: string | null; lastMembers: number; lastTiers: number[]; pelles: number };
 
 export type QuestWeekOrigin = "pinned" | "drawn";
 
@@ -95,7 +103,20 @@ export type AdminQuests = {
   scopes: QuestScopes;
 };
 
-export type QuestTerms = { title: string; description: string; reward: number; objectives: QuestObjectiveTerms[]; inDraw: boolean; drawWeight: number; cosmetic?: CosmeticReward | null };
+export type QuestTerms = {
+  title: string;
+  description: string;
+  reward: number;
+  objectives: QuestObjectiveTerms[];
+  inDraw: boolean;
+  drawWeight: number;
+  cosmetic?: CosmeticReward | null;
+  tiers?: QuestTierTerms[] | null;
+};
+
+export function isQuestTier(v: unknown): v is QuestTierTerms {
+  return typeof v === "object" && v !== null && hasNumberProp(v, "target") && hasNumberProp(v, "reward");
+}
 
 export const QUEST_LIMITS = { maxTitle: 80, maxDescription: 200, minReward: 1, maxReward: 1000, maxObjectives: 5, minTarget: 1, maxTarget: 10000, minPerWeek: 1, maxPerWeek: 10, maxChest: 1000, minWeight: 1, maxWeight: 5 } as const;
 
@@ -153,7 +174,9 @@ function isQuest(v: unknown): v is AdminQuest {
     "objectives" in v &&
     Array.isArray(v.objectives) &&
     v.objectives.every(isObjectiveTerms) &&
-    (!("cosmetic" in v) || v.cosmetic === null || isCosmeticRewardView(v.cosmetic))
+    (!("cosmetic" in v) || v.cosmetic === null || isCosmeticRewardView(v.cosmetic)) &&
+    "tiers" in v &&
+    (v.tiers === null || (Array.isArray(v.tiers) && v.tiers.every(isQuestTier)))
   );
 }
 
@@ -163,6 +186,9 @@ function isStats(v: unknown): v is QuestStats {
     hasNumberProp(v, "weeksServed") &&
     hasNullableStringProp(v, "lastWeek") &&
     hasNumberProp(v, "lastMembers") &&
+    "lastTiers" in v &&
+    Array.isArray(v.lastTiers) &&
+    v.lastTiers.every((members: unknown) => typeof members === "number") &&
     hasNumberProp(v, "pelles")
   );
 }

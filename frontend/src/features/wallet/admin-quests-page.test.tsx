@@ -5,7 +5,7 @@ import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { announceQuestWeekOnDiscord, fetchAdminQuests, isAdminQuests, objectivesSummary, pinQuest, type AdminQuests, type QuestMetricOption } from "./admin-quests-api";
 import { AdminQuestWeeksView, ComingWeekRow, CurrentWeek, DrawPanel, PastWeeks } from "./admin-quest-weeks";
-import { AdminQuestTypesView, aimableScopes, chosenScope, questStatsLine, questTermsError, scopeValue, toggledFamily } from "./admin-quests-page";
+import { AdminQuestTypesView, aimableScopes, chosenScope, questStatsLine, questTermsError, scopeValue, tiersOf, toggledFamily } from "./admin-quests-page";
 import { weekLabel } from "./admin-quests-shared";
 import { AdminQuestsTabs } from "./admin-quests-tabs";
 
@@ -20,8 +20,8 @@ const data: AdminQuests = {
   chestReward: 50,
   metrics,
   quests: [
-    { id: "q1", title: "Marathon", description: "", reward: 60, objectives: [{ metric: "checks", target: 50 }, { metric: "sessions", target: 2 }], inDraw: true, drawWeight: 3, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 3, lastWeek: "2026-W40", lastMembers: 12, pelles: 480 } },
-    { id: "q2", title: "Spéciale LAN", description: "", reward: 100, objectives: [{ metric: "goals", target: 1 }], inDraw: false, drawWeight: 1, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 0, lastWeek: null, lastMembers: 0, pelles: 0 } },
+    { id: "q1", title: "Marathon", description: "", reward: 60, objectives: [{ metric: "checks", target: 50 }, { metric: "sessions", target: 2 }], inDraw: true, drawWeight: 3, tiers: null, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 3, lastWeek: "2026-W40", lastMembers: 12, lastTiers: [], pelles: 480 } },
+    { id: "q2", title: "Spéciale LAN", description: "", reward: 100, objectives: [{ metric: "goals", target: 1 }], inDraw: false, drawWeight: 1, tiers: null, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 0, lastWeek: null, lastMembers: 0, lastTiers: [], pelles: 0 } },
   ],
   weeks: [
     { key: "2026-W41", startsAt: "2026-10-04T22:00:00+00:00", endsAt: "2026-10-11T22:00:00+00:00", current: true, drawn: true, quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false, drawnGame: null }] },
@@ -184,7 +184,23 @@ describe("admin weekly quests", () => {
 
     expect(questStatsLine(data.quests[0].stats)).toBe("Servie 3 semaines · 12 membres l'ont réussie la dernière fois · 480 pelles versées");
     expect(questStatsLine(data.quests[1].stats)).toBe("Jamais servie pour l'instant.");
-    expect(questStatsLine({ weeksServed: 1, lastWeek: null, lastMembers: 0, pelles: 0 })).toContain("première semaine en cours");
+    expect(questStatsLine({ weeksServed: 1, lastWeek: null, lastMembers: 0, lastTiers: [], pelles: 0 })).toContain("première semaine en cours");
+  });
+
+  test("a quest of one objective climbs tiers within what it pays (story 41.68)", () => {
+    const objectives = [{ metric: "checks", target: 2 }];
+    expect(tiersOf(objectives, 10, [])).toBeNull();
+    expect(tiersOf(objectives, 10, [{ target: 4, reward: 20 }])).toEqual([{ target: 2, reward: 10 }, { target: 4, reward: 20 }]);
+    expect(tiersOf([...objectives, { metric: "goals", target: 1 }], 10, [{ target: 4, reward: 20 }])).toBeNull();
+
+    const terms = { title: "Toujours plus", description: "", reward: 10, objectives, inDraw: true, drawWeight: 1 };
+    expect(questTermsError({ ...terms, tiers: [{ target: 2, reward: 10 }, { target: 2, reward: 20 }] })).toBe("Chaque palier vise plus haut que le précédent et paie au moins une pelle.");
+    expect(questTermsError({ ...terms, tiers: [{ target: 2, reward: 10 }, { target: 4, reward: 995 }] })).toBe("Tous les paliers ensemble paient 1000 pelles au plus.");
+    expect(questTermsError({ ...terms, tiers: [{ target: 2, reward: 10 }, { target: 4, reward: 20 }] })).toBeNull();
+
+    expect(questStatsLine({ weeksServed: 2, lastWeek: "2026-W40", lastMembers: 3, lastTiers: [3, 2, 1], pelles: 120 })).toBe(
+      "Servie 2 semaines · 3 membres l'ont réussie la dernière fois (palier 1 : 3, palier 2 : 2, palier 3 : 1) · 120 pelles versées",
+    );
   });
 
   test("the chest is set in the draw panel", () => {

@@ -14,6 +14,7 @@ import {
   FAMILY_SEPARATOR,
   NO_SCOPES,
   QUEST_LIMITS,
+  QUEST_TIERS,
   RECENT_WINDOWS,
   editQuest,
   fetchAdminQuests,
@@ -27,6 +28,7 @@ import {
   type QuestScopes,
   type QuestStats,
   type QuestTerms,
+  type QuestTierTerms,
 } from "./admin-quests-api";
 import { AdminQuestWeeksView } from "./admin-quest-weeks";
 import { StatusLine, fieldClass, useQuestChange, type ViewProps } from "./admin-quests-shared";
@@ -165,6 +167,8 @@ export function QuestDialog({
     (quest?.objectives ?? [{ metric: metrics[0]?.key ?? "goals", target: 1 }]).map((objective, index) => ({ ...objective, rowId: index })),
   );
   const nextRowId = useRef(rows.length);
+  // Story 41.68: the tiers past the first, which is the objective's target and the quest's reward.
+  const [extraTiers, setExtraTiers] = useState<QuestTierTerms[]>(quest?.tiers?.slice(1) ?? []);
   const [pending, setPending] = useState(false);
 
   const objectives: QuestObjectiveTerms[] = rows.map((row) => ({
@@ -173,7 +177,9 @@ export function QuestDialog({
     ...(row.scope && row.scopeId ? { scope: row.scope, scopeId: row.scopeId } : {}),
   }));
   const parsedReward = Number.parseInt(reward, 10);
-  const terms: QuestTerms = { title: title.trim(), description: description.trim(), reward: parsedReward, objectives, inDraw, drawWeight, cosmetic: cosmetic?.key ? cosmetic : null };
+  const tiers = tiersOf(objectives, parsedReward, extraTiers);
+  const terms: QuestTerms = { title: title.trim(), description: description.trim(), reward: parsedReward, objectives, inDraw, drawWeight, cosmetic: cosmetic?.key ? cosmetic : null, tiers };
+  const tieredMetric = rows.length === 1 ? metrics.find((candidate) => candidate.key === rows[0]?.metric) : undefined;
   const error = questTermsError(terms);
 
   function update(rowId: number, next: Partial<QuestObjectiveTerms>): void {
@@ -368,6 +374,67 @@ export function QuestDialog({
             <p className="text-xs text-muted-foreground">Les goals, les checks et les parties peuvent compter sur un jeu ou pendant un événement précis (hors hebdos).</p>
           </fieldset>
 
+          {rows.length === 1 ? (
+            <fieldset className="grid gap-2">
+              <legend className="mb-1 text-sm font-medium text-foreground">Paliers (facultatifs)</legend>
+              <p className="text-xs text-muted-foreground">
+                Le palier 1 est la cible de l&apos;objectif et la récompense ci-dessus. Chaque palier atteint paie en plus ; la quête compte comme réussie dès le palier 1.
+              </p>
+              {extraTiers.map((tier, index) => (
+                // A tier is its rank: never reordered, only the last one is removed.
+                <div className="flex flex-wrap items-center gap-2 text-sm" key={`palier-${index + 2}`}>
+                  <span className="w-20 text-muted-foreground">Palier {index + 2}</span>
+                  <label className="flex items-center gap-1 text-muted-foreground">
+                    Cible
+                    <input
+                      aria-label={`Cible du palier ${index + 2}${tieredMetric?.duration ? ", en heures" : ""}`}
+                      className={`${fieldClass} w-24`}
+                      inputMode={tieredMetric?.duration ? "decimal" : "numeric"}
+                      min={tieredMetric?.duration ? 0.5 : QUEST_LIMITS.minTarget}
+                      onChange={(e) =>
+                        setExtraTiers(extraTiers.map((candidate, at) => (at === index ? { ...candidate, target: tierTarget(e.target.value, tieredMetric?.duration ?? false) } : candidate)))
+                      }
+                      step={tieredMetric?.duration ? 0.5 : 1}
+                      type="number"
+                      value={tier.target === 0 ? "" : tieredMetric?.duration ? tier.target / 60 : tier.target}
+                    />
+                    {tieredMetric?.duration ? "h" : null}
+                  </label>
+                  <label className="flex items-center gap-1 text-muted-foreground">
+                    Récompense
+                    <input
+                      aria-label={`Récompense du palier ${index + 2}`}
+                      className={`${fieldClass} w-24`}
+                      inputMode="numeric"
+                      min={QUEST_LIMITS.minReward}
+                      onChange={(e) => setExtraTiers(extraTiers.map((candidate, at) => (at === index ? { ...candidate, reward: Number.parseInt(e.target.value, 10) || 0 } : candidate)))}
+                      type="number"
+                      value={tier.reward === 0 ? "" : tier.reward}
+                    />
+                  </label>
+                  {index === extraTiers.length - 1 ? (
+                    <button aria-label={`Supprimer le palier ${index + 2}`} className={buttonVariants({ variant: "ghost" })} onClick={() => setExtraTiers(extraTiers.slice(0, -1))} type="button">
+                      <Trash2 aria-hidden className="size-4" />
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+              {extraTiers.length < QUEST_TIERS.max - 1 ? (
+                <button
+                  className={`${buttonVariants({ variant: "ghost" })} justify-self-start`}
+                  onClick={() => {
+                    const previous = extraTiers[extraTiers.length - 1] ?? { target: rows[0]?.target ?? 1, reward: Number.isInteger(parsedReward) ? parsedReward : 10 };
+                    setExtraTiers([...extraTiers, { target: previous.target * 2, reward: previous.reward }]);
+                  }}
+                  type="button"
+                >
+                  <Plus aria-hidden className="size-4" />
+                  Ajouter un palier
+                </button>
+              ) : null}
+            </fieldset>
+          ) : null}
+
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex items-start gap-2 text-sm">
               <input checked={inDraw} className="mt-1" onChange={(e) => setInDraw(e.target.checked)} type="checkbox" />
@@ -459,6 +526,15 @@ export function questTermsError(terms: QuestTerms): string | null {
   if (terms.objectives.some((objective) => !Number.isInteger(objective.target) || objective.target < QUEST_LIMITS.minTarget || objective.target > QUEST_LIMITS.maxTarget)) {
     return `Une cible de ${QUEST_LIMITS.minTarget} à ${QUEST_LIMITS.maxTarget}.`;
   }
+  if (terms.tiers) {
+    // Story 41.68: each tier higher than the one before, and all of them within what a quest pays.
+    if (terms.tiers.some((tier, index) => tier.reward < QUEST_LIMITS.minReward || tier.target > QUEST_LIMITS.maxTarget || (index > 0 && tier.target <= (terms.tiers?.[index - 1]?.target ?? 0)))) {
+      return "Chaque palier vise plus haut que le précédent et paie au moins une pelle.";
+    }
+    if (terms.tiers.reduce((sum, tier) => sum + tier.reward, 0) > QUEST_LIMITS.maxReward) {
+      return `Tous les paliers ensemble paient ${QUEST_LIMITS.maxReward} pelles au plus.`;
+    }
+  }
   if (terms.objectives.some((objective) => objective.scope === "platform" && splitFamilies(objective.scopeId ?? "").length === 0)) {
     return "Coche au moins une plateforme.";
   }
@@ -476,6 +552,17 @@ export function questTermsError(terms: QuestTerms): string | null {
  * Story 41.16: how a quest did, in one line - « Servie 3 semaines · 12 membres l'ont réussie la dernière fois ·
  * 480 pelles versées ». A quest never served says so.
  */
+/** Story 41.68: the tiers sent with a quest of one objective, the first from its target and reward; null without. */
+export function tiersOf(objectives: QuestObjectiveTerms[], reward: number, extraTiers: QuestTierTerms[]): QuestTierTerms[] | null {
+  const only = objectives.length === 1 ? objectives[0] : undefined;
+  return only && extraTiers.length > 0 ? [{ target: only.target, reward }, ...extraTiers] : null;
+}
+
+/** A tier's target as typed: a count, or hours by halves stored in minutes. */
+function tierTarget(value: string, duration: boolean): number {
+  return duration ? Math.round((Number.parseFloat(value) || 0) * 2) * 30 : Number.parseInt(value, 10) || 0;
+}
+
 export function questStatsLine(stats: QuestStats): string {
   if (stats.weeksServed === 0) return "Jamais servie pour l'instant.";
   const served = `Servie ${stats.weeksServed} semaine${stats.weeksServed > 1 ? "s" : ""}`;
@@ -483,5 +570,7 @@ export function questStatsLine(stats: QuestStats): string {
     stats.lastWeek === null
       ? "première semaine en cours"
       : `${stats.lastMembers} membre${stats.lastMembers > 1 ? "s" : ""} l'${stats.lastMembers > 1 ? "ont" : "a"} réussie la dernière fois`;
-  return `${served} · ${last} · ${stats.pelles} pelle${stats.pelles > 1 ? "s" : ""} versée${stats.pelles > 1 ? "s" : ""}`;
+  // Story 41.68: how far the members went, tier by tier.
+  const tiers = stats.lastWeek && stats.lastTiers.length > 0 ? ` (${stats.lastTiers.map((members, index) => `palier ${index + 1} : ${members}`).join(", ")})` : "";
+  return `${served} · ${last}${tiers} · ${stats.pelles} pelle${stats.pelles > 1 ? "s" : ""} versée${stats.pelles > 1 ? "s" : ""}`;
 }

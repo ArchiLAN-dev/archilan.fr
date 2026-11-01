@@ -190,6 +190,25 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         return $weeks;
     }
 
+    public function rewardedTiers(string $userId, QuestWeek $week): array
+    {
+        $keys = $this->connection->fetchFirstColumn(
+            'SELECT unique_key FROM pelle_movement WHERE user_id = :userId AND reason = :reason AND unique_key LIKE :prefix',
+            ['userId' => $userId, 'reason' => PelleReason::QuestReward->value, 'prefix' => sprintf('quest-tier:%s:%%', $week->key)],
+        );
+
+        $tiers = [];
+        foreach ($keys as $key) {
+            // quest-tier:{week}:{quest}:{user}:{tier}
+            $parts = explode(':', is_string($key) ? $key : '');
+            if (5 === \count($parts) && 1 === preg_match('/^\d+$/', $parts[4])) {
+                $tiers[$parts[2]][] = (int) $parts[4];
+            }
+        }
+
+        return $tiers;
+    }
+
     public function chestPaid(string $userId, QuestWeek $week): bool
     {
         return false !== $this->connection->fetchOne(
@@ -212,13 +231,19 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
             if (!is_string($key) || false === $amount) {
                 continue;
             }
-            // quest:{week}:{quest}:{member} or quest-chest:{week}:{member}
+            // quest:{week}:{quest}:{member}, quest-tier:{week}:{quest}:{member}:{tier} or quest-chest:{week}:{member}
             $parts = explode(':', $key);
             $week = $parts[1] ?? '';
             $weeks[$week] ??= ['quests' => [], 'chests' => 0, 'chestPelles' => 0];
             if ('quest' === $parts[0] && 4 === \count($parts)) {
-                $quest = $weeks[$week]['quests'][$parts[2]] ?? ['members' => 0, 'pelles' => 0];
-                $weeks[$week]['quests'][$parts[2]] = ['members' => $quest['members'] + 1, 'pelles' => $quest['pelles'] + $amount];
+                $quest = $weeks[$week]['quests'][$parts[2]] ?? ['members' => 0, 'pelles' => 0, 'tiers' => []];
+                $weeks[$week]['quests'][$parts[2]] = ['members' => $quest['members'] + 1, 'pelles' => $quest['pelles'] + $amount, 'tiers' => $quest['tiers']];
+            } elseif ('quest-tier' === $parts[0] && 5 === \count($parts)) {
+                // Story 41.68: a tier's pelles go with its quest, its members are counted by tier.
+                $quest = $weeks[$week]['quests'][$parts[2]] ?? ['members' => 0, 'pelles' => 0, 'tiers' => []];
+                $tier = (int) $parts[4];
+                $quest['tiers'][$tier] = ($quest['tiers'][$tier] ?? 0) + 1;
+                $weeks[$week]['quests'][$parts[2]] = ['members' => $quest['members'], 'pelles' => $quest['pelles'] + $amount, 'tiers' => $quest['tiers']];
             } elseif ('quest-chest' === $parts[0] && 3 === \count($parts)) {
                 ++$weeks[$week]['chests'];
                 $weeks[$week]['chestPelles'] += $amount;

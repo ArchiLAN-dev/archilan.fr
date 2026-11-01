@@ -34,7 +34,7 @@ final readonly class MyWeeklyQuests
     }
 
     /**
-     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int, scope: string|null, gameSlug: string|null, duration: bool}>, cosmetic: array{type: string, key: string, label: string}|null}>, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>, streak: array{current: int, best: int, thisWeek: bool}}
+     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, tiers: list<array{target: int, reward: int, reached: bool, paid: bool}>|null, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int, scope: string|null, gameSlug: string|null, duration: bool}>, cosmetic: array{type: string, key: string, label: string}|null}>, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>, streak: array{current: int, best: int, thisWeek: bool}}
      */
     public function of(string $userId): array
     {
@@ -44,6 +44,7 @@ final readonly class MyWeeklyQuests
         [$scopes, $slugs] = $this->scopeNames($served);
         $mine = array_map(static fn (array $byMember): int => $byMember[$userId] ?? 0, $counts);
         $paid = $this->quests->rewardedQuests($userId, $week);
+        $paidTiers = [] === array_filter($served, static fn (ServedQuest $quest): bool => [] !== $quest->tiers) ? [] : $this->quests->rewardedTiers($userId, $week);
 
         $quests = [];
         foreach ($served as $quest) {
@@ -69,6 +70,8 @@ final readonly class MyWeeklyQuests
                 'label' => $quest->getTitle(),
                 'description' => $quest->getDescription(),
                 'reward' => $quest->getReward(),
+                // Story 41.68: done from the first tier; each tier reached, and paid, on the same bar.
+                'tiers' => $this->tiers($quest, $mine, $isPaid, $paidTiers[$quest->getId()] ?? []),
                 'done' => $isPaid || $quest->isAccomplishedWith($mine),
                 'paid' => $isPaid,
                 'objectives' => $objectives,
@@ -186,6 +189,27 @@ final readonly class MyWeeklyQuests
                 'pelles' => $mine['pelles'],
             ];
         }, $weeks);
+    }
+
+    /**
+     * @param array<string, int> $mine      objective key => the member's count
+     * @param list<int>          $paidTiers the tiers past the first already paid
+     *
+     * @return list<array{target: int, reward: int, reached: bool, paid: bool}>|null
+     */
+    private function tiers(ServedQuest $quest, array $mine, bool $isPaid, array $paidTiers): ?array
+    {
+        if ([] === $quest->tiers) {
+            return null;
+        }
+        $reached = $quest->reachedTiers($mine);
+        $tiers = [];
+        foreach ($quest->tiers as $index => $tier) {
+            $paid = 0 === $index ? $isPaid : \in_array($index + 1, $paidTiers, true);
+            $tiers[] = ['target' => $tier->target, 'reward' => $tier->reward, 'reached' => $paid || \in_array($index + 1, $reached, true), 'paid' => $paid];
+        }
+
+        return $tiers;
     }
 
     /**
