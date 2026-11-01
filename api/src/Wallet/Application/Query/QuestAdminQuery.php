@@ -44,7 +44,7 @@ final readonly class QuestAdminQuery
      *   discordEnabled: bool,
      *   chestReward: int,
      *   metrics: list<array{key: string, label: string, unit: string, unitOne: string, scopable: bool, scopes: list<string>, help: string, duration: bool}>,
-     *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>},
+     *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>, platforms: list<string>},
      *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, cosmetic: array{type: string, key: string, label: string}|null, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}}>,
      *   weeks: list<array{key: string, startsAt: string, endsAt: string, current: bool, drawn: bool, quests: list<ServedQuest>}>,
      *   pastWeeks: list<array{key: string, startsAt: string, endsAt: string, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool, members: int, pelles: int}>, chests: int, pelles: int}>

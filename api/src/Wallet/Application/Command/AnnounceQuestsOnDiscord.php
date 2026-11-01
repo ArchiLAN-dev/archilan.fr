@@ -109,7 +109,8 @@ final readonly class AnnounceQuestsOnDiscord
         ];
         $scopes = [];
         foreach ($aimed as $objective) {
-            $name = $names[(string) $objective->scope][(string) $objective->scopeId] ?? null;
+            // Story 41.66: a platform or new-release target names itself.
+            $name = $objective->selfName() ?? $names[(string) $objective->scope][(string) $objective->scopeId] ?? null;
             if (null !== $name) {
                 $scopes[$objective->key()] = $name;
             }

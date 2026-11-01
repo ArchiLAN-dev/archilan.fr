@@ -219,6 +219,38 @@ final class AdminQuestTest extends FunctionalTestCase
         self::assertSame('Hollow Knight', $objectives[0]['scope'] ?? null);
     }
 
+    public function testAnObjectiveAimsAtFamiliesOfTheCatalogOrAtTheNewReleases(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $this->loginAs($admin);
+        $game = $this->createGame('Ocarina', 'ocarina');
+        $game->overridePlatformFamilies(['Nintendo 64'], new \DateTimeImmutable());
+        $other = $this->createGame('Chrono', 'chrono');
+        $other->overridePlatformFamilies(['Super Nintendo'], new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        $scopes = $this->overview()['scopes'] ?? null;
+        self::assertIsArray($scopes);
+        self::assertSame(['Nintendo 64', 'Super Nintendo'], $scopes['platforms'] ?? null);
+
+        $aimed = static fn (string $scope, string $scopeId): array => ['title' => 'Semaine à thème', 'reward' => 40, 'objectives' => [
+            ['metric' => 'goals', 'target' => 1, 'scope' => $scope, 'scopeId' => $scopeId],
+        ]];
+        foreach ([$aimed('platform', 'Dreamcast'), $aimed('platform', 'Nintendo 64|Dreamcast'), $aimed('recent', '120')] as $payload) {
+            $this->client->request('POST', '/api/v1/admin/quests', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode($payload, \JSON_THROW_ON_ERROR));
+            self::assertResponseStatusCodeSame(422, (string) json_encode($payload));
+        }
+
+        // The families are kept in one order, so the same choice is the same objective.
+        $this->write($aimed('platform', 'Super Nintendo|Nintendo 64'));
+        $this->write($aimed('recent', '30'));
+        $quests = $this->overview()['quests'] ?? null;
+        self::assertIsArray($quests);
+        $objectives = array_map(static fn (mixed $quest): mixed => \is_array($quest) && \is_array($quest['objectives'] ?? null) ? $quest['objectives'][0] ?? null : null, $quests);
+        self::assertContains(['metric' => 'goals', 'target' => 1, 'scope' => 'platform', 'scopeId' => 'Nintendo 64|Super Nintendo'], $objectives);
+        self::assertContains(['metric' => 'goals', 'target' => 1, 'scope' => 'recent', 'scopeId' => '30'], $objectives);
+    }
+
     public function testOnlyAnAdminManagesTheQuests(): void
     {
         $this->loginAs($this->createUser('member@example.org', ['ROLE_USER'], 'Member'));

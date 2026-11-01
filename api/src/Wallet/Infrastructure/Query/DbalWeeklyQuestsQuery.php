@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Wallet\Infrastructure\Query;
 
+use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Shared\Infrastructure\Dbal\DbalFoundItemSource;
 use App\Shared\Infrastructure\Dbal\DbalSlotCheckSource;
 use App\Shared\Infrastructure\Dbal\DbalSlotPlayerSource;
@@ -12,6 +13,7 @@ use App\Wallet\Domain\Enum\PelleReason;
 use App\Wallet\Domain\Enum\QuestMetric;
 use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
 /**
@@ -19,6 +21,8 @@ use Doctrine\DBAL\Connection;
  * slot's players), slot goals and weekly attempts. Like the statistics, it reads those tables in plain SQL without
  * making Wallet depend on Sessions or WeeklyRuns. Weekly attempts have no session feed: their checks count through
  * the attempt's own total.
+ *
+ * @phpstan-type ScopeCondition array{sql: string, params: array<string, string|list<string>>, types: array<string, ArrayParameterType>}
  */
 final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
 {
@@ -34,7 +38,7 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         $counts = [];
         foreach ($objectives as $objective) {
             // Story 41.18: an objective on a game or an event counts only that game's or event's sessions.
-            $scope = $this->scope($objective);
+            $scope = $this->scope($objective, $week);
             $rows = match ($objective->metric) {
                 QuestMetric::Goals => $this->goals($week, $scope),
                 QuestMetric::Checks => $this->checks($week, $scope),
@@ -79,7 +83,11 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
             }
         }
 
-        return ['games' => $games, 'events' => $events];
+        // Story 41.66: the platform families of the catalog's games, to aim at a themed week.
+        $platforms = array_values(array_unique(array_merge([], ...array_values($this->catalogFamilies()))));
+        sort($platforms);
+
+        return ['games' => $games, 'events' => $events, 'platforms' => $platforms];
     }
 
     public function rewardedQuests(string $userId, QuestWeek $week): array
@@ -185,7 +193,7 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
     }
 
     /**
-     * @param array{sql: string, id: string}|null $scope
+     * @param ScopeCondition|null $scope
      *
      * @return list<array<string, mixed>>
      */
@@ -206,12 +214,13 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
                   WHERE slot.goal_reached_at >= :weekStart AND slot.goal_reached_at < :weekEnd '.($scope['sql'] ?? '').'
                  '.$weeklies.'
              ) reached GROUP BY uid',
-            $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
+            $this->bounds($week) + ($scope['params'] ?? []),
+            $scope['types'] ?? [],
         );
     }
 
     /**
-     * @param array{sql: string, id: string}|null $scope
+     * @param ScopeCondition|null $scope
      *
      * @return list<array<string, mixed>>
      */
@@ -228,8 +237,8 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
                  SELECT {$player} AS uid, COUNT(*) AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ".($scope['sql'] ?? '')." GROUP BY {$player}
                  {$weeklies}
              ) made GROUP BY uid",
-            DbalSlotCheckSource::params() + $this->bounds($week) + ['attemptsFrom' => $this->attemptsFrom($week->start)] + (null === $scope ? [] : ['scopeId' => $scope['id']]),
-            DbalSlotCheckSource::types(),
+            DbalSlotCheckSource::params() + $this->bounds($week) + ['attemptsFrom' => $this->attemptsFrom($week->start)] + ($scope['params'] ?? []),
+            DbalSlotCheckSource::types() + ($scope['types'] ?? []),
         );
     }
 
@@ -350,7 +359,7 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
      * submitted reservation - but with at least MIN_SUPERLATIVE_PLAYERS members: with two, a second account takes
      * all. A member counts once per session and superlative.
      *
-     * @param array{sql: string, id: string}|null $scope
+     * @param ScopeCondition|null $scope
      *
      * @return list<array<string, mixed>>
      */
@@ -375,7 +384,8 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
                 AND (SELECT COUNT(DISTINCT pc.{$userColumn}) FROM session_slot ps JOIN {$players} pc ON pc.{$slotColumn} = ps.id
                       WHERE ps.session_id = s.id) >= :minPlayers
                 ".($scope['sql'] ?? ''),
-            $this->bounds($week) + ['minPlayers' => self::MIN_SUPERLATIVE_PLAYERS] + (null === $scope ? [] : ['scopeId' => $scope['id']]),
+            $this->bounds($week) + ['minPlayers' => self::MIN_SUPERLATIVE_PLAYERS] + ($scope['params'] ?? []),
+            $scope['types'] ?? [],
         );
 
         /** @var array<string, array<string, true>> $won uid => "session|key" */
@@ -440,7 +450,7 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
     }
 
     /**
-     * @param array{sql: string, id: string}|null $scope
+     * @param ScopeCondition|null $scope
      *
      * @return list<array<string, mixed>>
      */
@@ -451,8 +461,8 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
 
         return $this->connection->fetchAllAssociative(
             "SELECT {$player} AS uid, {$aggregate} AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ".($scope['sql'] ?? '')." GROUP BY {$player}",
-            DbalSlotCheckSource::params() + $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
-            DbalSlotCheckSource::types(),
+            DbalSlotCheckSource::params() + $this->bounds($week) + ($scope['params'] ?? []),
+            DbalSlotCheckSource::types() + ($scope['types'] ?? []),
         );
     }
 
@@ -462,7 +472,7 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
      * receiver's for items received. An item between two slots of the same member, or with a slot no member
      * plays, does not count; neither does an item of a release or a collect.
      *
-     * @param array{sql: string, id: string}|null $scope
+     * @param ScopeCondition|null $scope
      *
      * @return list<array<string, mixed>>
      */
@@ -489,7 +499,8 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
                 AND EXISTS (SELECT 1 FROM {$players} op WHERE op.{$slotColumn} = other.id AND op.{$userColumn} IS NOT NULL AND op.{$userColumn} <> mp.{$userColumn})
                 AND {$found} ".($scope['sql'] ?? '')."
               GROUP BY mp.{$userColumn}",
-            DbalFoundItemSource::params() + $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
+            DbalFoundItemSource::params() + $this->bounds($week) + ($scope['params'] ?? []),
+            $scope['types'] ?? [],
         );
     }
 
@@ -498,7 +509,7 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
      * each. Only the slots that made a check in the week count, so a client left open earns nothing; a slot played
      * by several members counts its time for each of them, like the achievement. Weekly attempts have no span.
      *
-     * @param array{sql: string, id: string}|null $scope
+     * @param ScopeCondition|null $scope
      *
      * @return list<array<string, mixed>>
      */
@@ -520,8 +531,8 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
                                    AND c.occurred_at >= :weekStart AND c.occurred_at < :weekEnd)
                     '.($scope['sql'] ?? '').'
              ) spans GROUP BY spans.uid',
-            DbalSlotCheckSource::params() + $this->bounds($week) + (null === $scope ? [] : ['scopeId' => $scope['id']]),
-            DbalSlotCheckSource::types(),
+            DbalSlotCheckSource::params() + $this->bounds($week) + ($scope['params'] ?? []),
+            DbalSlotCheckSource::types() + ($scope['types'] ?? []),
         );
     }
 
@@ -561,17 +572,91 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
     }
 
     /**
-     * Story 41.18: the condition on the slot (`slot`) that narrows a count to the objective's game or event.
+     * Story 41.18: the condition on the slot (`slot`) that narrows a count to the objective's game or event. Story
+     * 41.66: or to the games of some platform families (resolved like the catalog: the admin's families, else
+     * IGDB's), or to the games put online from N days before the week on - their first promoted apworld, or their
+     * creation for a game older than the candidates' history.
      *
-     * @return array{sql: string, id: string}|null
+     * @return ScopeCondition|null
      */
-    private function scope(QuestObjective $objective): ?array
+    private function scope(QuestObjective $objective, QuestWeek $week): ?array
     {
         return match ($objective->scope) {
-            QuestObjective::SCOPE_GAME => ['sql' => 'AND slot.game_id = :scopeId', 'id' => (string) $objective->scopeId],
-            QuestObjective::SCOPE_EVENT => ['sql' => 'AND slot.session_id IN (SELECT ev.id FROM session ev WHERE ev.event_id = :scopeId)', 'id' => (string) $objective->scopeId],
+            QuestObjective::SCOPE_GAME => ['sql' => 'AND slot.game_id = :scopeId', 'params' => ['scopeId' => (string) $objective->scopeId], 'types' => []],
+            QuestObjective::SCOPE_EVENT => ['sql' => 'AND slot.session_id IN (SELECT ev.id FROM session ev WHERE ev.event_id = :scopeId)', 'params' => ['scopeId' => (string) $objective->scopeId], 'types' => []],
+            QuestObjective::SCOPE_PLATFORM => $this->platformScope($objective->families()),
+            QuestObjective::SCOPE_RECENT => [
+                'sql' => "AND slot.game_id IN (SELECT g.id FROM game g
+                           WHERE COALESCE((SELECT MIN(c.decided_at) FROM apworld_candidate c WHERE c.game_id = g.id AND c.status = 'promoted'), g.created_at) >= :recentSince)",
+                'params' => ['recentSince' => $week->start->modify(sprintf('-%d days', $objective->recentDays() ?? QuestObjective::MAX_RECENT_DAYS))->format(\DATE_ATOM)],
+                'types' => [],
+            ],
             default => null,
         };
+    }
+
+    /**
+     * @param list<string> $families
+     *
+     * @return ScopeCondition
+     */
+    private function platformScope(array $families): array
+    {
+        $games = [];
+        foreach ($this->catalogFamilies() as $gameId => $gameFamilies) {
+            if ([] !== array_intersect($gameFamilies, $families)) {
+                $games[] = $gameId;
+            }
+        }
+
+        return [] === $games
+            ? ['sql' => 'AND FALSE', 'params' => [], 'types' => []]
+            : ['sql' => 'AND slot.game_id IN (:scopeGames)', 'params' => ['scopeGames' => $games], 'types' => ['scopeGames' => ArrayParameterType::STRING]];
+    }
+
+    /**
+     * Story 41.66: each game's platform families, as the catalog shows them.
+     *
+     * @return array<string, list<string>>
+     */
+    private function catalogFamilies(): array
+    {
+        $families = [];
+        foreach ($this->connection->fetchAllAssociative(
+            'SELECT g.id, g.platform_families, sync.platforms FROM game g LEFT JOIN game_catalog_sync sync ON sync.game_id = g.id',
+        ) as $row) {
+            if (is_string($row['id'] ?? null)) {
+                $families[$row['id']] = PlatformCategory::resolve(self::override($row['platform_families'] ?? null), self::igdbPlatforms($row['platforms'] ?? null));
+            }
+        }
+
+        return $families;
+    }
+
+    /** @return list<string>|null */
+    private static function override(mixed $raw): ?array
+    {
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        if (!is_array($decoded)) {
+            return null;
+        }
+        $families = array_values(array_filter($decoded, static fn (mixed $family): bool => is_string($family) && '' !== trim($family)));
+
+        return [] === $families ? null : $families;
+    }
+
+    /** @return list<array{id: int, name: string}> */
+    private static function igdbPlatforms(mixed $raw): array
+    {
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        $platforms = [];
+        foreach (is_array($decoded) ? $decoded : [] as $platform) {
+            if (is_array($platform) && is_int($platform['id'] ?? null) && is_string($platform['name'] ?? null) && '' !== $platform['name']) {
+                $platforms[] = ['id' => $platform['id'], 'name' => $platform['name']];
+            }
+        }
+
+        return $platforms;
     }
 
     /** @return array{weekStart: string, weekEnd: string} */

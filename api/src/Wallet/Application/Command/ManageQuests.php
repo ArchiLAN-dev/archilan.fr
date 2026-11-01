@@ -189,15 +189,22 @@ final readonly class ManageQuests
             $target = \is_int($row['target'] ?? null) ? $row['target'] : 0;
             $scope = \is_string($row['scope'] ?? null) && '' !== $row['scope'] ? $row['scope'] : null;
             $scopeId = \is_string($row['scopeId'] ?? null) && '' !== $row['scopeId'] ? $row['scopeId'] : null;
-            // Story 41.18: an aimed objective names a game played on the site, or an event out of draft.
-            if (null !== $scope && null !== $scopeId) {
+            // Story 41.66: the same families in another order make the same objective.
+            if (QuestObjective::SCOPE_PLATFORM === $scope && null !== $scopeId) {
+                $scopeId = implode(QuestObjective::FAMILY_SEPARATOR, QuestObjective::familiesOf($scopeId));
+            }
+            // Story 41.18: an aimed objective names a game played on the site, or an event out of draft. Story
+            // 41.66: a family of the catalog's games; the days of the new releases are checked by the objective.
+            if (null !== $scope && null !== $scopeId && QuestObjective::SCOPE_RECENT !== $scope) {
                 $targets ??= $this->targets->scopeOptions();
                 $known = match ($scope) {
                     QuestObjective::SCOPE_GAME => array_column($targets['games'], 'id'),
                     QuestObjective::SCOPE_EVENT => array_column($targets['events'], 'id'),
+                    QuestObjective::SCOPE_PLATFORM => $targets['platforms'],
                     default => [],
                 };
-                if (!\in_array($scopeId, $known, true)) {
+                $wanted = QuestObjective::SCOPE_PLATFORM === $scope ? explode(QuestObjective::FAMILY_SEPARATOR, $scopeId) : [$scopeId];
+                if ([] !== array_diff($wanted, $known)) {
                     throw new ValidationException('Ce jeu ou cet événement ne peut pas être visé.', ['objectives' => ['Cible inconnue.']], 'quest_scope_unknown');
                 }
             }
