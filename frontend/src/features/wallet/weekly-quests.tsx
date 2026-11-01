@@ -9,9 +9,19 @@ import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import { PelleAmount } from "./pelle-amount";
+import { formatQuestAmount } from "./quest-amount";
 
 /** Story 41.15: one objective of a quest, and where the member stands on it this week. */
-export type QuestObjectiveProgress = { metric: string; label: string; unit: string; target: number; current: number; scope?: string | null };
+export type QuestObjectiveProgress = {
+  metric: string;
+  label: string;
+  unit: string;
+  target: number;
+  current: number;
+  scope?: string | null;
+  /** Story 41.64: target and current are minutes, shown in hours. */
+  duration: boolean;
+};
 
 /** Story 41.6: one quest of the week. Story 41.15: written by the admins, with 1 to 5 objectives. */
 export type WeeklyQuest = {
@@ -76,6 +86,7 @@ function isObjective(v: unknown): v is QuestObjectiveProgress {
     hasStringProp(v, "unit") &&
     hasNumberProp(v, "target") &&
     hasNumberProp(v, "current") &&
+    hasBooleanProp(v, "duration") &&
     (!("scope" in v) || v.scope === null || typeof v.scope === "string")
   );
 }
@@ -242,7 +253,7 @@ export function ObjectiveBar({ objective, done }: { objective: QuestObjectivePro
           {objective.scope ? <span className="text-foreground"> · {objective.scope}</span> : null}
         </span>
         <span className={`tabular-nums ${reached ? "text-success" : "text-muted-foreground"}`}>
-          {shown} / {objective.target} {objective.unit}
+          {formatQuestAmount(shown, objective.duration)} / {formatQuestAmount(objective.target, objective.duration)} {objective.unit}
         </span>
       </div>
       <div

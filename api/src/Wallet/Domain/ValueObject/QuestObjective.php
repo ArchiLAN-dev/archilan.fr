@@ -20,7 +20,7 @@ final readonly class QuestObjective
     public const string SCOPE_EVENT = 'event';
 
     /** The metrics read from sessions, the only ones a game or an event can narrow. */
-    public const array SCOPABLE = [QuestMetric::Goals, QuestMetric::Checks, QuestMetric::Sessions];
+    public const array SCOPABLE = [QuestMetric::Goals, QuestMetric::Checks, QuestMetric::Sessions, QuestMetric::ItemsSent, QuestMetric::ItemsReceived, QuestMetric::PlayMinutes];
 
     public function __construct(
         public QuestMetric $metric,

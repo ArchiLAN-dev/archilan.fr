@@ -16,6 +16,11 @@ enum QuestMetric: string
     case NewPartners = 'newPartners';
     case Sessions = 'sessions';
     case DistinctGames = 'distinctGames';
+    // Story 41.64: items traded between members, time played and games discovered.
+    case ItemsSent = 'itemsSent';
+    case ItemsReceived = 'itemsReceived';
+    case PlayMinutes = 'playMinutes';
+    case NewGames = 'newGames';
 
     public function label(): string
     {
@@ -26,6 +31,10 @@ enum QuestMetric: string
             self::NewPartners => 'Nouveaux partenaires de jeu',
             self::Sessions => 'Parties jouées',
             self::DistinctGames => 'Jeux différents joués',
+            self::ItemsSent => 'Items envoyés à d\'autres membres',
+            self::ItemsReceived => 'Items reçus d\'autres membres',
+            self::PlayMinutes => 'Temps de jeu',
+            self::NewGames => 'Jeux jamais joués',
         };
     }
 
@@ -39,6 +48,10 @@ enum QuestMetric: string
             self::NewPartners => 'nouveaux partenaires',
             self::Sessions => 'parties',
             self::DistinctGames => 'jeux',
+            self::ItemsSent => 'items envoyés',
+            self::ItemsReceived => 'items reçus',
+            self::PlayMinutes => 'de jeu',
+            self::NewGames => 'nouveaux jeux',
         };
     }
 
@@ -52,6 +65,10 @@ enum QuestMetric: string
             self::NewPartners => 'nouveau partenaire',
             self::Sessions => 'partie',
             self::DistinctGames => 'jeu',
+            self::ItemsSent => 'item envoyé',
+            self::ItemsReceived => 'item reçu',
+            self::PlayMinutes => 'de jeu',
+            self::NewGames => 'nouveau jeu',
         };
     }
 
@@ -59,5 +76,50 @@ enum QuestMetric: string
     public function unitFor(int $target): string
     {
         return 1 === $target ? $this->unitOne() : $this->unit();
+    }
+
+    /** Story 41.64: what the admin form says under the type, so the count holds no surprise. */
+    public function help(): string
+    {
+        return match ($this) {
+            self::Goals => 'Goals atteints en partie ou en hebdo.',
+            self::Checks => 'Checks faits en partie ou en hebdo.',
+            self::Weeklies => 'Hebdos terminées, comptées la semaine où le goal tombe.',
+            self::NewPartners => 'Membres avec qui il n\'avait jamais joué, chacun ayant fait un check dans la partie.',
+            self::Sessions => 'Parties où il a fait au moins un check (hors hebdos).',
+            self::DistinctGames => 'Jeux différents où il a fait au moins un check (hors hebdos).',
+            self::ItemsSent => 'Items trouvés pour le slot d\'un autre membre, hors release et collect.',
+            self::ItemsReceived => 'Items reçus du slot d\'un autre membre, hors release et collect.',
+            self::PlayMinutes => 'Temps connecté sur les slots où il a fait au moins un check (hors hebdos). Saisi en heures.',
+            self::NewGames => 'Jeux où il fait son tout premier check sur le site, parties et hebdos comprises.',
+        };
+    }
+
+    /** Story 41.64: a count of minutes, shown in hours (« 2 h 30 / 6 h »). */
+    public function isDuration(): bool
+    {
+        return self::PlayMinutes === $this;
+    }
+
+    /** « 2 goals », « 6 h de jeu »: an amount of the metric in words. */
+    public function describe(int $amount): string
+    {
+        if ($this->isDuration()) {
+            return sprintf('%s %s', self::hours($amount), $this->unit());
+        }
+
+        return sprintf('%d %s', $amount, $this->unitFor($amount));
+    }
+
+    /** « 6 h », « 2 h 30 », « 45 min ». */
+    public static function hours(int $minutes): string
+    {
+        $h = intdiv(max(0, $minutes), 60);
+        $m = max(0, $minutes) % 60;
+        if (0 === $h) {
+            return sprintf('%d min', $m);
+        }
+
+        return 0 === $m ? sprintf('%d h', $h) : sprintf('%d h %02d', $h, $m);
     }
 }

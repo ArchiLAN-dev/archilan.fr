@@ -29,10 +29,10 @@ final readonly class QuestAnnouncement
         return array_sum(array_column($this->quests, 'reward')) + $this->chestReward;
     }
 
-    /** « 2 goals sur Hollow Knight », « 50 checks » - an objective in words. */
+    /** « 2 goals sur Hollow Knight », « 50 checks », « 6 h de jeu » - an objective in words. */
     public static function describe(QuestObjective $objective, ?string $scopeName): string
     {
-        $text = sprintf('%d %s', $objective->target, $objective->metric->unitFor($objective->target));
+        $text = $objective->metric->describe($objective->target);
         if (null === $objective->scope) {
             return $text;
         }

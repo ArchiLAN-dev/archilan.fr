@@ -10,9 +10,9 @@ import { weekLabel } from "./admin-quests-shared";
 import { AdminQuestsTabs } from "./admin-quests-tabs";
 
 const metrics = [
-  { key: "goals", label: "Goals atteints", unit: "goals", unitOne: "goal", scopable: true },
-  { key: "checks", label: "Checks faits", unit: "checks", unitOne: "check", scopable: true },
-  { key: "sessions", label: "Parties jouées", unit: "parties", unitOne: "partie", scopable: true },
+  { key: "goals", label: "Goals atteints", unit: "goals", unitOne: "goal", scopable: true, help: "Aide.", duration: false },
+  { key: "checks", label: "Checks faits", unit: "checks", unitOne: "check", scopable: true, help: "Aide.", duration: false },
+  { key: "sessions", label: "Parties jouées", unit: "parties", unitOne: "partie", scopable: true, help: "Aide.", duration: false },
 ];
 
 const data: AdminQuests = {
@@ -63,6 +63,12 @@ describe("admin weekly quests", () => {
     expect(weekLabel(data.weeks[0])).toBe("5 oct. - 11 oct.");
     expect(objectivesSummary(data.quests[0].objectives, metrics)).toBe("50 checks et 2 parties");
     expect(objectivesSummary([{ metric: "goals", target: 1 }], metrics)).toBe("1 goal");
+  });
+
+  test("time played reads in hours, even for one hour (story 41.64)", () => {
+    const time = { key: "playMinutes", label: "Temps de jeu", unit: "de jeu", unitOne: "de jeu", scopable: true, help: "Saisi en heures.", duration: true };
+    expect(objectivesSummary([{ metric: "playMinutes", target: 360 }], [...metrics, time])).toBe("6 h de jeu");
+    expect(objectivesSummary([{ metric: "playMinutes", target: 90 }], [...metrics, time])).toBe("1 h 30 de jeu");
   });
 
   test("a coming week is one line: its pinned quests and the places left to the draw", () => {
