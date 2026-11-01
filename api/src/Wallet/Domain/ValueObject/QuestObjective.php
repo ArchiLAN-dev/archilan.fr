@@ -19,9 +19,6 @@ final readonly class QuestObjective
     public const string SCOPE_GAME = 'game';
     public const string SCOPE_EVENT = 'event';
 
-    /** The metrics read from sessions, the only ones a game or an event can narrow. */
-    public const array SCOPABLE = [QuestMetric::Goals, QuestMetric::Checks, QuestMetric::Sessions, QuestMetric::ItemsSent, QuestMetric::ItemsReceived, QuestMetric::PlayMinutes];
-
     public function __construct(
         public QuestMetric $metric,
         public int $target,
@@ -34,7 +31,7 @@ final readonly class QuestObjective
         if ((null === $scope) !== (null === $scopeId) || '' === $scopeId) {
             throw new \DomainException('quest_objective_scope_invalid');
         }
-        if (null !== $scope && (!\in_array($scope, [self::SCOPE_GAME, self::SCOPE_EVENT], true) || !\in_array($metric, self::SCOPABLE, true))) {
+        if (null !== $scope && !\in_array($scope, $metric->scopes(), true)) {
             throw new \DomainException('quest_objective_scope_invalid');
         }
     }

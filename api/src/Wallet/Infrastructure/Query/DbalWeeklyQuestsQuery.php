@@ -22,6 +22,9 @@ use Doctrine\DBAL\Connection;
  */
 final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
 {
+    /** Story 41.65: a recap's superlatives pay a quest from three members on; the achievement takes two. */
+    public const int MIN_SUPERLATIVE_PLAYERS = 3;
+
     public function __construct(private Connection $connection)
     {
     }
@@ -36,13 +39,19 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
                 QuestMetric::Goals => $this->goals($week, $scope),
                 QuestMetric::Checks => $this->checks($week, $scope),
                 QuestMetric::Weeklies => $this->weeklies($week),
-                QuestMetric::NewPartners => $this->newPartners($week),
+                QuestMetric::NewPartners => $this->partners($week, 'new'),
+                QuestMetric::ReturningPartners => $this->partners($week, 'returning'),
+                QuestMetric::FriendsPlayedWith => $this->partners($week, 'friends'),
                 QuestMetric::Sessions => $this->perCheck($week, 'COUNT(DISTINCT f.session_id)', $scope),
                 QuestMetric::DistinctGames => $this->perCheck($week, 'COUNT(DISTINCT slot.game_id)', null),
                 QuestMetric::ItemsSent => $this->itemsTraded($week, $scope, true),
                 QuestMetric::ItemsReceived => $this->itemsTraded($week, $scope, false),
                 QuestMetric::PlayMinutes => $this->playMinutes($week, $scope),
                 QuestMetric::NewGames => $this->newGames($week),
+                QuestMetric::DuelsWon => $this->duelsWon($week),
+                QuestMetric::Superlatives => $this->superlatives($week, $scope),
+                QuestMetric::BountiesWon => $this->bountiesWon($week),
+                QuestMetric::BlindTestSources => $this->blindTestSources($week),
             };
             $counts[$objective->key()] = $this->byMember($rows, $userId);
         }
@@ -273,11 +282,26 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         return ['weekStart' => $since->format(\DATE_ATOM), 'weekEnd' => $until->format(\DATE_ATOM), 'attemptsFrom' => $this->attemptsFrom($since)];
     }
 
-    /** @return list<array<string, mixed>> */
-    private function newPartners(QuestWeek $week): array
+    /**
+     * The members each member played with in the week - a session where both made a check: those never met before
+     * (`new`), those already met (`returning`, story 41.65), or their accepted friends (`friends`, story 41.65; the
+     * friendship as it stands, a payment already made stays).
+     *
+     * @param 'new'|'returning'|'friends' $who
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function partners(QuestWeek $week, string $who): array
     {
         $checks = DbalSlotCheckSource::from();
         $player = DbalSlotCheckSource::player();
+        $met = 'SELECT 1 FROM before x JOIN before y ON y.session_id = x.session_id WHERE x.uid = a.uid AND y.uid = b.uid';
+        $condition = match ($who) {
+            'new' => "NOT EXISTS ({$met})",
+            'returning' => "EXISTS ({$met})",
+            'friends' => "EXISTS (SELECT 1 FROM community_friendship fr WHERE fr.status = 'accepted'
+                            AND ((fr.requester_id = a.uid AND fr.addressee_id = b.uid) OR (fr.requester_id = b.uid AND fr.addressee_id = a.uid)))",
+        };
 
         return $this->connection->fetchAllAssociative(
             "WITH this_week AS (
@@ -288,13 +312,130 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
              SELECT a.uid, COUNT(DISTINCT b.uid) AS n
                FROM this_week a
                JOIN this_week b ON b.session_id = a.session_id AND b.uid <> a.uid
-              WHERE NOT EXISTS (
-                    SELECT 1 FROM before x JOIN before y ON y.session_id = x.session_id
-                     WHERE x.uid = a.uid AND y.uid = b.uid
-              )
+              WHERE {$condition}
               GROUP BY a.uid",
             DbalSlotCheckSource::params() + $this->bounds($week),
             DbalSlotCheckSource::types(),
+        );
+    }
+
+    /**
+     * Story 41.65: the weekly duels a member won, settled in the week, against at least one accepted opponent who
+     * played the weekly - an opponent who accepts and never plays hands nobody a quest.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function duelsWon(QuestWeek $week): array
+    {
+        return $this->connection->fetchAllAssociative(
+            "SELECT d.winner_id AS uid, COUNT(*) AS n
+               FROM weekly_duel d
+              WHERE d.winner_id IS NOT NULL AND d.resolved_at >= :weekStart AND d.resolved_at < :weekEnd
+                AND EXISTS (
+                    SELECT 1 FROM weekly_duel_participant p
+                      JOIN weekly_entries we ON we.weekly_run_id = d.weekly_run_id AND we.user_id = p.user_id
+                     WHERE p.duel_id = d.id AND p.user_id <> d.winner_id AND p.status = 'accepted'
+                       AND (COALESCE(we.checks_total, 0) > 0
+                            OR EXISTS (SELECT 1 FROM session_feed_event wf WHERE wf.session_id = we.external_session_id AND wf.type IN (:checkTypes)))
+                )
+              GROUP BY d.winner_id",
+            DbalSlotCheckSource::params() + $this->bounds($week),
+            DbalSlotCheckSource::types(),
+        );
+    }
+
+    /**
+     * Story 41.65: the recap superlatives a member won, in the week the recap was built (a recap built late still
+     * counts, in the week it appears). Same sessions as the achievement - a personal run, or a public event with a
+     * submitted reservation - but with at least MIN_SUPERLATIVE_PLAYERS members: with two, a second account takes
+     * all. A member counts once per session and superlative.
+     *
+     * @param array{sql: string, id: string}|null $scope
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function superlatives(QuestWeek $week, ?array $scope): array
+    {
+        $players = DbalSlotPlayerSource::expression('session_slot', 'registration');
+        $slotColumn = DbalSlotPlayerSource::SLOT_COLUMN;
+        $userColumn = DbalSlotPlayerSource::USER_COLUMN;
+
+        $rows = $this->connection->fetchAllAssociative(
+            "SELECT sr.session_id, sr.superlatives, COALESCE(slot.slot_id, slot.id) AS slot_ref, sp.{$userColumn} AS uid
+               FROM session_recap sr
+               JOIN session s ON s.id = sr.session_id
+               JOIN session_slot slot ON slot.session_id = s.id
+               JOIN {$players} sp ON sp.{$slotColumn} = slot.id
+               LEFT JOIN event e ON e.id = s.event_id
+               LEFT JOIN registration r ON r.id = slot.registration_id AND r.event_id = s.event_id
+               LEFT JOIN run ON run.id = s.event_id
+              WHERE sr.generated_at >= :weekStart AND sr.generated_at < :weekEnd
+                AND s.status = 'finished'
+                AND (run.id IS NOT NULL OR (e.is_public = TRUE AND r.status = 'reserved' AND r.submitted_at IS NOT NULL))
+                AND (SELECT COUNT(DISTINCT pc.{$userColumn}) FROM session_slot ps JOIN {$players} pc ON pc.{$slotColumn} = ps.id
+                      WHERE ps.session_id = s.id) >= :minPlayers
+                ".($scope['sql'] ?? ''),
+            $this->bounds($week) + ['minPlayers' => self::MIN_SUPERLATIVE_PLAYERS] + (null === $scope ? [] : ['scopeId' => $scope['id']]),
+        );
+
+        /** @var array<string, array<string, true>> $won uid => "session|key" */
+        $won = [];
+        foreach ($rows as $row) {
+            $sessionId = $row['session_id'] ?? null;
+            $slotRef = $row['slot_ref'] ?? null;
+            $uid = $row['uid'] ?? null;
+            $json = $row['superlatives'] ?? null;
+            $superlatives = is_string($json) ? json_decode($json, true) : null;
+            if (!is_string($sessionId) || !is_string($slotRef) || !is_string($uid) || !is_array($superlatives)) {
+                continue;
+            }
+            foreach ($superlatives as $superlative) {
+                if (is_array($superlative) && is_string($superlative['key'] ?? null) && ($superlative['slotId'] ?? null) === $slotRef) {
+                    $won[$uid][$sessionId.'|'.$superlative['key']] = true;
+                }
+            }
+        }
+
+        $rows = [];
+        foreach ($won as $uid => $keys) {
+            $rows[] = ['uid' => $uid, 'n' => \count($keys)];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Story 41.65: the bounties a member won in the week - in gold only (a private run's bronze bounty costs
+     * nothing), and posted by somebody else.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function bountiesWon(QuestWeek $week): array
+    {
+        return $this->connection->fetchAllAssociative(
+            "SELECT winner_id AS uid, COUNT(*) AS n
+               FROM item_bounty
+              WHERE status = 'paid' AND run_id IS NULL AND winner_id IS NOT NULL AND winner_id <> poster_id
+                AND settled_at >= :weekStart AND settled_at < :weekEnd
+              GROUP BY winner_id",
+            $this->bounds($week),
+        );
+    }
+
+    /**
+     * Story 41.65: the sources a member found in an event's blind test - one ledger credit each
+     * (`blindtest:{event}:{track}:{source}:{user}`).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function blindTestSources(QuestWeek $week): array
+    {
+        return $this->connection->fetchAllAssociative(
+            'SELECT user_id AS uid, COUNT(*) AS n
+               FROM pelle_movement
+              WHERE reason = :reason AND unique_key LIKE :prefix AND created_at >= :weekStart AND created_at < :weekEnd
+              GROUP BY user_id',
+            ['reason' => PelleReason::BlindTest->value, 'prefix' => 'blindtest:%'] + $this->bounds($week),
         );
     }
 

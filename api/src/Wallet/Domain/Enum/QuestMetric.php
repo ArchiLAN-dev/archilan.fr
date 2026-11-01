@@ -21,6 +21,13 @@ enum QuestMetric: string
     case ItemsReceived = 'itemsReceived';
     case PlayMinutes = 'playMinutes';
     case NewGames = 'newGames';
+    // Story 41.65: playing together, and the rest of the site.
+    case DuelsWon = 'duelsWon';
+    case Superlatives = 'superlatives';
+    case FriendsPlayedWith = 'friendsPlayedWith';
+    case ReturningPartners = 'returningPartners';
+    case BountiesWon = 'bountiesWon';
+    case BlindTestSources = 'blindTestSources';
 
     public function label(): string
     {
@@ -35,6 +42,12 @@ enum QuestMetric: string
             self::ItemsReceived => 'Items reçus d\'autres membres',
             self::PlayMinutes => 'Temps de jeu',
             self::NewGames => 'Jeux jamais joués',
+            self::DuelsWon => 'Duels hebdo gagnés',
+            self::Superlatives => 'Superlatifs de récap remportés',
+            self::FriendsPlayedWith => 'Amis avec qui jouer',
+            self::ReturningPartners => 'Partenaires retrouvés',
+            self::BountiesWon => 'Primes remportées',
+            self::BlindTestSources => 'Sources trouvées au blind test',
         };
     }
 
@@ -52,6 +65,12 @@ enum QuestMetric: string
             self::ItemsReceived => 'items reçus',
             self::PlayMinutes => 'de jeu',
             self::NewGames => 'nouveaux jeux',
+            self::DuelsWon => 'duels gagnés',
+            self::Superlatives => 'superlatifs',
+            self::FriendsPlayedWith => 'amis',
+            self::ReturningPartners => 'partenaires retrouvés',
+            self::BountiesWon => 'primes',
+            self::BlindTestSources => 'sources trouvées',
         };
     }
 
@@ -69,6 +88,12 @@ enum QuestMetric: string
             self::ItemsReceived => 'item reçu',
             self::PlayMinutes => 'de jeu',
             self::NewGames => 'nouveau jeu',
+            self::DuelsWon => 'duel gagné',
+            self::Superlatives => 'superlatif',
+            self::FriendsPlayedWith => 'ami',
+            self::ReturningPartners => 'partenaire retrouvé',
+            self::BountiesWon => 'prime',
+            self::BlindTestSources => 'source trouvée',
         };
     }
 
@@ -92,6 +117,27 @@ enum QuestMetric: string
             self::ItemsReceived => 'Items reçus du slot d\'un autre membre, hors release et collect.',
             self::PlayMinutes => 'Temps connecté sur les slots où il a fait au moins un check (hors hebdos). Saisi en heures.',
             self::NewGames => 'Jeux où il fait son tout premier check sur le site, parties et hebdos comprises.',
+            self::DuelsWon => 'Duels gagnés contre un adversaire qui a joué l\'hebdo. Un duel se règle à la fin de son hebdo : il peut compter la semaine suivante.',
+            self::Superlatives => 'Superlatifs des récaps construits dans la semaine, parties d\'au moins 3 membres.',
+            self::FriendsPlayedWith => 'Amis différents avec qui il a fait une partie, chacun y ayant fait un check.',
+            self::ReturningPartners => 'Membres avec qui il avait déjà joué, retrouvés dans une partie où chacun fait un check.',
+            self::BountiesWon => 'Primes en or posées par un autre membre et remportées dans la semaine.',
+            self::BlindTestSources => 'Sources trouvées pendant un blind test d\'événement.',
+        };
+    }
+
+    /**
+     * Story 41.65: what an objective of this metric may aim at (story 41.18). Only the metrics read from sessions
+     * can be narrowed, and the superlatives only to an event: a recap has no single game.
+     *
+     * @return list<string>
+     */
+    public function scopes(): array
+    {
+        return match ($this) {
+            self::Goals, self::Checks, self::Sessions, self::ItemsSent, self::ItemsReceived, self::PlayMinutes => ['game', 'event'],
+            self::Superlatives => ['event'],
+            default => [],
         };
     }
 

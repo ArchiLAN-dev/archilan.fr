@@ -43,7 +43,7 @@ final readonly class QuestAdminQuery
      *   questsPerWeek: int,
      *   discordEnabled: bool,
      *   chestReward: int,
-     *   metrics: list<array{key: string, label: string, unit: string, unitOne: string, scopable: bool, help: string, duration: bool}>,
+     *   metrics: list<array{key: string, label: string, unit: string, unitOne: string, scopable: bool, scopes: list<string>, help: string, duration: bool}>,
      *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>},
      *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, cosmetic: array{type: string, key: string, label: string}|null, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}}>,
      *   weeks: list<array{key: string, startsAt: string, endsAt: string, current: bool, drawn: bool, quests: list<ServedQuest>}>,
@@ -121,7 +121,9 @@ final readonly class QuestAdminQuery
                     'unit' => $metric->unit(),
                     'unitOne' => $metric->unitOne(),
                     // Story 41.18: whether an objective of this type may aim at a game or an event.
-                    'scopable' => \in_array($metric, QuestObjective::SCOPABLE, true),
+                    'scopable' => [] !== $metric->scopes(),
+                    // Story 41.65: which of a game or an event it may aim at.
+                    'scopes' => $metric->scopes(),
                     // Story 41.64: what the type counts, and whether its target is minutes, entered in hours.
                     'help' => $metric->help(),
                     'duration' => $metric->isDuration(),

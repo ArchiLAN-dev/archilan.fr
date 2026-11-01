@@ -11,6 +11,8 @@ export type QuestMetricOption = {
   unit: string;
   unitOne: string;
   scopable: boolean;
+  /** Story 41.65: which of a game or an event the type may aim at (the superlatives: an event only). */
+  scopes: ("game" | "event")[];
   /** Story 41.64: what the type counts, in one line, under the form's select. */
   help: string;
   /** Story 41.64: the target is minutes, entered and shown in hours. */
@@ -102,6 +104,9 @@ function isMetric(v: unknown): v is QuestMetricOption {
   return (
     isObject(v) && hasStringProp(v, "key") && hasStringProp(v, "label") && hasStringProp(v, "unit") && hasStringProp(v, "unitOne") &&
     hasBooleanProp(v, "scopable") &&
+    "scopes" in v &&
+    Array.isArray(v.scopes) &&
+    v.scopes.every((scope: unknown) => scope === "game" || scope === "event") &&
     hasStringProp(v, "help") &&
     hasBooleanProp(v, "duration")
   );
