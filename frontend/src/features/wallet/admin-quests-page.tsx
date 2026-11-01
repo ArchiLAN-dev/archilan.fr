@@ -9,12 +9,15 @@ import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
+  FAMILY_SEPARATOR,
   NO_SCOPES,
   QUEST_LIMITS,
+  RECENT_WINDOWS,
   editQuest,
   fetchAdminQuests,
   objectivesSummary,
   setQuestRetired,
+  splitFamilies,
   writeQuest,
   type AdminQuest,
   type QuestMetricOption,
@@ -226,7 +229,7 @@ export function QuestDialog({
             <legend className="mb-1 text-sm font-medium text-foreground">Objectifs</legend>
             {rows.map((row, index) => {
               const metric = metrics.find((candidate) => candidate.key === row.metric);
-              const aimable = metric ? aimableScopes(metric, scopes) : NO_SCOPES;
+              const aimable = metric ? aimableScopes(metric, scopes) : NO_AIM;
               return (
                 <div className="flex flex-wrap items-center gap-2" key={row.rowId}>
                   <select
@@ -280,11 +283,8 @@ export function QuestDialog({
                     <select
                       aria-label={`Où compte l'objectif ${index + 1}`}
                       className={`${fieldClass} min-w-40 flex-1`}
-                      onChange={(e) => {
-                        const [scope, scopeId] = e.target.value.split(":");
-                        update(row.rowId, scope === "game" || scope === "event" ? { scope, scopeId } : { scope: undefined, scopeId: undefined });
-                      }}
-                      value={row.scope && row.scopeId ? `${row.scope}:${row.scopeId}` : ""}
+                      onChange={(e) => update(row.rowId, chosenScope(e.target.value, row))}
+                      value={scopeValue(row)}
                     >
                       <option value="">Partout</option>
                       {aimable.games.length > 0 ? (
@@ -305,7 +305,33 @@ export function QuestDialog({
                           ))}
                         </optgroup>
                       ) : null}
+                      {aimable.platforms.length > 0 ? <option value="platform:">Sur des plateformes...</option> : null}
+                      {aimable.recent ? (
+                        <optgroup label="Sur les nouveautés">
+                          {RECENT_WINDOWS.map((days) => (
+                            <option key={days} value={`recent:${days}`}>
+                              Mis en ligne ces {days} derniers jours
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
                     </select>
+                  ) : null}
+                  {row.scope === "platform" ? (
+                    // Story 41.66: a themed week picks its families, « Semaine Nintendo » = every Nintendo console.
+                    <fieldset className="flex w-full flex-wrap gap-x-3 gap-y-1 text-sm">
+                      <legend className="sr-only">Plateformes de l&apos;objectif {index + 1}</legend>
+                      {aimable.platforms.map((family) => (
+                        <label className="inline-flex items-center gap-1" key={family}>
+                          <input
+                            checked={splitFamilies(row.scopeId ?? "").includes(family)}
+                            onChange={(e) => update(row.rowId, { scopeId: toggledFamily(row.scopeId ?? "", family, e.target.checked) })}
+                            type="checkbox"
+                          />
+                          {family}
+                        </label>
+                      ))}
+                    </fieldset>
                   ) : null}
                   <button
                     aria-label={`Supprimer l'objectif ${index + 1}`}
@@ -367,16 +393,47 @@ export function QuestDialog({
 type ObjectiveRow = QuestObjectiveTerms & { rowId: number };
 
 /** What the API would refuse, said before sending; null when the quest can be saved. */
-/** Story 41.65: what an objective of this type may aim at - a superlative an event, never a game. */
-export function aimableScopes(metric: QuestMetricOption, scopes: QuestScopes): QuestScopes {
+type AimableScopes = QuestScopes & { recent: boolean };
+
+const NO_AIM: AimableScopes = { ...NO_SCOPES, recent: false };
+
+/**
+ * Story 41.65: what an objective of this type may aim at - a superlative an event, never a game. Story 41.66: the
+ * platform families and the new releases too.
+ */
+export function aimableScopes(metric: QuestMetricOption, scopes: QuestScopes): AimableScopes {
   return {
     games: metric.scopes.includes("game") ? scopes.games : [],
     events: metric.scopes.includes("event") ? scopes.events : [],
+    platforms: metric.scopes.includes("platform") ? scopes.platforms : [],
+    recent: metric.scopes.includes("recent"),
   };
 }
 
-function hasAimableScopes(scopes: QuestScopes): boolean {
-  return scopes.games.length > 0 || scopes.events.length > 0;
+function hasAimableScopes(scopes: AimableScopes): boolean {
+  return scopes.games.length > 0 || scopes.events.length > 0 || scopes.platforms.length > 0 || scopes.recent;
+}
+
+/** The select's value for a row: a platform target is one option, whatever families it holds. */
+export function scopeValue(objective: QuestObjectiveTerms): string {
+  if (objective.scope === "platform") return "platform:";
+  return objective.scope && objective.scopeId ? `${objective.scope}:${objective.scopeId}` : "";
+}
+
+/** What picking an option of the select does to the row's target; a platform target keeps its families. */
+export function chosenScope(value: string, current: QuestObjectiveTerms): Partial<QuestObjectiveTerms> {
+  const at = value.indexOf(":");
+  const scope = at < 0 ? "" : value.slice(0, at);
+  const scopeId = at < 0 ? "" : value.slice(at + 1);
+  if (scope === "platform") return { scope, scopeId: current.scope === "platform" ? (current.scopeId ?? "") : "" };
+  if (scope === "game" || scope === "event" || scope === "recent") return { scope, scopeId };
+  return { scope: undefined, scopeId: undefined };
+}
+
+/** A platform target with one family more, or one less. */
+export function toggledFamily(scopeId: string, family: string, on: boolean): string {
+  const families = splitFamilies(scopeId).filter((candidate) => candidate !== family);
+  return (on ? [...families, family].sort() : families).join(FAMILY_SEPARATOR);
 }
 
 export function questTermsError(terms: QuestTerms): string | null {
@@ -387,6 +444,9 @@ export function questTermsError(terms: QuestTerms): string | null {
   if (terms.objectives.length === 0) return "Au moins un objectif.";
   if (terms.objectives.some((objective) => !Number.isInteger(objective.target) || objective.target < QUEST_LIMITS.minTarget || objective.target > QUEST_LIMITS.maxTarget)) {
     return `Une cible de ${QUEST_LIMITS.minTarget} à ${QUEST_LIMITS.maxTarget}.`;
+  }
+  if (terms.objectives.some((objective) => objective.scope === "platform" && splitFamilies(objective.scopeId ?? "").length === 0)) {
+    return "Coche au moins une plateforme.";
   }
   // Story 41.18: a type may come back, aimed elsewhere - never twice at the same place.
   const keys = terms.objectives.map((objective) => `${objective.metric}@${objective.scope ?? ""}:${objective.scopeId ?? ""}`);

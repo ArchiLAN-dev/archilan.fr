@@ -11,20 +11,37 @@ export type QuestMetricOption = {
   unit: string;
   unitOne: string;
   scopable: boolean;
-  /** Story 41.65: which of a game or an event the type may aim at (the superlatives: an event only). */
-  scopes: ("game" | "event")[];
+  /** Story 41.65: what the type may aim at (the superlatives: an event only). Story 41.66: platforms, new releases. */
+  scopes: QuestScopeKind[];
   /** Story 41.64: what the type counts, in one line, under the form's select. */
   help: string;
   /** Story 41.64: the target is minutes, entered and shown in hours. */
   duration: boolean;
 };
 
-/** Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. */
-export type QuestScopes = { games: { id: string; name: string }[]; events: { id: string; title: string }[] };
+export type QuestScopeKind = "game" | "event" | "platform" | "recent";
 
-export const NO_SCOPES: QuestScopes = { games: [], events: [] };
+const SCOPE_KINDS: readonly string[] = ["game", "event", "platform", "recent"];
 
-export type QuestObjectiveTerms = { metric: string; target: number; scope?: "game" | "event"; scopeId?: string };
+function isScopeKind(v: unknown): v is QuestScopeKind {
+  return typeof v === "string" && SCOPE_KINDS.includes(v);
+}
+
+/**
+ * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. Story 41.66:
+ * the platform families of the catalog's games.
+ */
+export type QuestScopes = { games: { id: string; name: string }[]; events: { id: string; title: string }[]; platforms: string[] };
+
+export const NO_SCOPES: QuestScopes = { games: [], events: [], platforms: [] };
+
+/** Story 41.66: a platform target's families travel in one id, `|` between them. */
+export const FAMILY_SEPARATOR = "|";
+
+/** Story 41.66: the windows offered for the new releases, in days. */
+export const RECENT_WINDOWS = [7, 14, 30, 60, 90] as const;
+
+export type QuestObjectiveTerms = { metric: string; target: number; scope?: QuestScopeKind; scopeId?: string };
 
 export type AdminQuest = {
   id: string;
@@ -85,7 +102,7 @@ function isObjectiveTerms(v: unknown): v is QuestObjectiveTerms {
   if (!isObject(v) || !hasStringProp(v, "metric") || !hasNumberProp(v, "target")) return false;
   // Story 41.18: an aimed objective carries its scope and the id of its game or event.
   if (!("scope" in v)) return true;
-  return (v.scope === "game" || v.scope === "event") && hasStringProp(v, "scopeId");
+  return isScopeKind(v.scope) && hasStringProp(v, "scopeId");
 }
 
 function isScopes(v: unknown): v is QuestScopes {
@@ -96,7 +113,10 @@ function isScopes(v: unknown): v is QuestScopes {
     v.games.every((game: unknown) => isObject(game) && hasStringProp(game, "id") && hasStringProp(game, "name")) &&
     "events" in v &&
     Array.isArray(v.events) &&
-    v.events.every((event: unknown) => isObject(event) && hasStringProp(event, "id") && hasStringProp(event, "title"))
+    v.events.every((event: unknown) => isObject(event) && hasStringProp(event, "id") && hasStringProp(event, "title")) &&
+    "platforms" in v &&
+    Array.isArray(v.platforms) &&
+    v.platforms.every((platform: unknown) => typeof platform === "string")
   );
 }
 
@@ -106,7 +126,7 @@ function isMetric(v: unknown): v is QuestMetricOption {
     hasBooleanProp(v, "scopable") &&
     "scopes" in v &&
     Array.isArray(v.scopes) &&
-    v.scopes.every((scope: unknown) => scope === "game" || scope === "event") &&
+    v.scopes.every(isScopeKind) &&
     hasStringProp(v, "help") &&
     hasBooleanProp(v, "duration")
   );
@@ -297,7 +317,24 @@ export function scopePhrase(objective: QuestObjectiveTerms, scopes: QuestScopes)
   if (objective.scope === "event") {
     return ` à ${scopes.events.find((event) => event.id === objective.scopeId)?.title ?? "un événement retiré"}`;
   }
+  if (objective.scope === "platform") {
+    return ` sur un jeu ${familiesPhrase(splitFamilies(objective.scopeId ?? ""))}`;
+  }
+  if (objective.scope === "recent") {
+    return ` sur un jeu mis en ligne ces ${objective.scopeId ?? "?"} derniers jours`;
+  }
   return "";
+}
+
+/** Story 41.66: a platform target's families, sorted and without duplicates, as the API keeps them. */
+export function splitFamilies(scopeId: string): string[] {
+  return [...new Set(scopeId.split(FAMILY_SEPARATOR).map((family) => family.trim()).filter((family) => family !== ""))].sort();
+}
+
+/** « Nintendo 64, Switch ou Super Nintendo ». */
+export function familiesPhrase(families: string[]): string {
+  if (families.length <= 1) return families[0] ?? "";
+  return `${families.slice(0, -1).join(", ")} ou ${families[families.length - 1]}`;
 }
 
 /** « 50 checks et 1 partie sur Hollow Knight » - a quest's objectives in one line, singular for one. */

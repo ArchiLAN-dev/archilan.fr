@@ -139,7 +139,8 @@ final readonly class MyWeeklyQuests
 
         $scopes = [];
         foreach ($aimed as $objective) {
-            $scopes[$objective->key()] = $names[(string) $objective->scope][(string) $objective->scopeId] ?? 'cible retirée';
+            // Story 41.66: a platform or new-release target names itself.
+            $scopes[$objective->key()] = $objective->selfName() ?? $names[(string) $objective->scope][(string) $objective->scopeId] ?? 'cible retirée';
         }
 
         return $scopes;

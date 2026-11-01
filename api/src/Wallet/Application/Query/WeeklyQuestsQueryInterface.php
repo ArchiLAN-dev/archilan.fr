@@ -31,9 +31,10 @@ interface WeeklyQuestsQueryInterface
     public function counts(QuestWeek $week, array $objectives, ?string $userId = null): array;
 
     /**
-     * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft.
+     * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. Story
+     * 41.66: and the platform families of the catalog's games.
      *
-     * @return array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>}
+     * @return array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>, platforms: list<string>}
      */
     public function scopeOptions(): array;
 
