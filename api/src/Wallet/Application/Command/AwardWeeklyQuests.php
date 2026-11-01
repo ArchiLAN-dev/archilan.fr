@@ -14,11 +14,11 @@ use App\Shared\Application\Exception\NotFoundException;
 use App\Wallet\Application\Message\AnnounceQuestsOnDiscordJob;
 use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
 use App\Wallet\Application\Service\QuestWeekPlanner;
-use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Enum\PelleKind;
 use App\Wallet\Domain\Enum\PelleReason;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestWeek;
+use App\Wallet\Domain\ValueObject\ServedQuest;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -74,7 +74,7 @@ final readonly class AwardWeeklyQuests
         $payload = [
             'week' => $week->key,
             'count' => \count($served),
-            'maxPelles' => array_sum(array_map(static fn (QuestDefinition $quest): int => $quest->getReward(), $served)) + $chest,
+            'maxPelles' => array_sum(array_map(static fn (ServedQuest $quest): int => $quest->getReward(), $served)) + $chest,
         ];
         $members = $this->quests->activeMembers($week->start->modify('-4 weeks'), $week->start);
         foreach ($members as $userId) {
@@ -92,7 +92,7 @@ final readonly class AwardWeeklyQuests
         if ([] === $served) {
             return 0;
         }
-        $counts = $this->quests->counts($week, QuestDefinition::objectivesOf($served));
+        $counts = $this->quests->counts($week, ServedQuest::objectivesOf($served));
 
         $paid = 0;
         $doneAll = null;
@@ -124,7 +124,7 @@ final readonly class AwardWeeklyQuests
         return $paid;
     }
 
-    private function cosmeticOf(QuestDefinition $quest): ?CosmeticReward
+    private function cosmeticOf(ServedQuest $quest): ?CosmeticReward
     {
         $cosmetic = $quest->getCosmetic();
         try {
@@ -157,7 +157,7 @@ final readonly class AwardWeeklyQuests
      *
      * @return list<string>
      */
-    private function accomplishers(QuestDefinition $quest, array $counts): array
+    private function accomplishers(ServedQuest $quest, array $counts): array
     {
         $objectives = $quest->getObjectives();
         if ([] === $objectives) {

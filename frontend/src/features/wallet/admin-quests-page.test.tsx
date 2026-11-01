@@ -24,8 +24,8 @@ const data: AdminQuests = {
     { id: "q2", title: "Spéciale LAN", description: "", reward: 100, objectives: [{ metric: "goals", target: 1 }], inDraw: false, drawWeight: 1, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 0, lastWeek: null, lastMembers: 0, pelles: 0 } },
   ],
   weeks: [
-    { key: "2026-W41", startsAt: "2026-10-04T22:00:00+00:00", endsAt: "2026-10-11T22:00:00+00:00", current: true, drawn: true, quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false }] },
-    { key: "2026-W42", startsAt: "2026-10-11T22:00:00+00:00", endsAt: "2026-10-18T22:00:00+00:00", current: false, drawn: false, quests: [{ questId: "q2", title: "Spéciale LAN", reward: 100, origin: "pinned", retired: false }] },
+    { key: "2026-W41", startsAt: "2026-10-04T22:00:00+00:00", endsAt: "2026-10-11T22:00:00+00:00", current: true, drawn: true, quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false, drawnGame: null }] },
+    { key: "2026-W42", startsAt: "2026-10-11T22:00:00+00:00", endsAt: "2026-10-18T22:00:00+00:00", current: false, drawn: false, quests: [{ questId: "q2", title: "Spéciale LAN", reward: 100, origin: "pinned", retired: false, drawnGame: null }] },
   ],
   scopes: { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan3", title: "LAN #3" }], platforms: ["Nintendo 64", "Super Nintendo"] },
   pastWeeks: [
@@ -33,7 +33,7 @@ const data: AdminQuests = {
       key: "2026-W40",
       startsAt: "2026-09-27T22:00:00+00:00",
       endsAt: "2026-10-04T22:00:00+00:00",
-      quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false, members: 12, pelles: 720 }],
+      quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false, drawnGame: null, members: 12, pelles: 720 }],
       chests: 4,
       pelles: 920,
     },
@@ -68,8 +68,19 @@ describe("admin weekly quests", () => {
   test("a superlative aims at an event, never a game (story 41.65)", () => {
     const superlatives: QuestMetricOption = { key: "superlatives", label: "Superlatifs", unit: "superlatifs", unitOne: "superlatif", scopable: true, scopes: ["event"], help: "Aide.", duration: false };
     const scopes = { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan", title: "LAN #3" }], platforms: ["Switch"] };
-    expect(aimableScopes(superlatives, scopes)).toEqual({ games: [], events: [{ id: "lan", title: "LAN #3" }], platforms: [], recent: false });
-    expect(aimableScopes(metrics[0], scopes)).toEqual({ ...scopes, recent: true });
+    expect(aimableScopes(superlatives, scopes)).toEqual({ games: [], events: [{ id: "lan", title: "LAN #3" }], platforms: [], recent: false, drawn: false });
+    expect(aimableScopes(metrics[0], scopes)).toEqual({ ...scopes, recent: true, drawn: false });
+  });
+
+  test("a game drawn each week, from one pool for the whole quest (story 41.67)", () => {
+    const drawn = { metric: "goals", target: 2, scope: "drawn" as const, scopeId: "recent:30" };
+    expect(objectivesSummary([drawn], metrics)).toBe("2 goals sur un jeu tiré parmi les nouveautés de 30 jours");
+    expect(objectivesSummary([{ ...drawn, scopeId: "catalog" }], metrics)).toBe("2 goals sur un jeu tiré au sort dans le catalogue");
+    expect(chosenScope("drawn:recent:30", { metric: "goals", target: 1 })).toEqual({ scope: "drawn", scopeId: "recent:30" });
+    expect(scopeValue(drawn)).toBe("drawn:recent:30");
+    expect(questTermsError({ title: "Mêlé", description: "", reward: 40, objectives: [drawn, { metric: "checks", target: 1, scope: "drawn", scopeId: "catalog" }], inDraw: true, drawWeight: 1 })).toBe(
+      "Un seul jeu est tiré par semaine : choisis le même panier pour chaque objectif à jeu tiré.",
+    );
   });
 
   test("a platform target picks families, and the new releases a window (story 41.66)", () => {

@@ -53,6 +53,9 @@ interface QuestRepositoryInterface
      */
     public function weeksServedByQuest(): array;
 
+    /** Story 41.67: the game drawn for the quest the last time it was served before that week, null if none. */
+    public function lastDrawnGame(string $questId, string $beforeWeekKey): ?string;
+
     public function questsPerWeek(): int;
 
     /** Story 41.16: the extra pelles for accomplishing every quest of a week (0: no chest). */

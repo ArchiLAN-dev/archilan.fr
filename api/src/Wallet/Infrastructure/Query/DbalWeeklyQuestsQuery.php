@@ -26,6 +26,9 @@ use Doctrine\DBAL\Connection;
  */
 final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
 {
+    // Story 41.66: when a game was put online - its apworld promoted, or the game created before the candidates.
+    private const string RELEASED_AT = "COALESCE((SELECT MIN(c.decided_at) FROM apworld_candidate c WHERE c.game_id = g.id AND c.status = 'promoted'), g.created_at)";
+
     /** Story 41.65: a recap's superlatives pay a quest from three members on; the achievement takes two. */
     public const int MIN_SUPERLATIVE_PLAYERS = 3;
 
@@ -88,6 +91,39 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         sort($platforms);
 
         return ['games' => $games, 'events' => $events, 'platforms' => $platforms];
+    }
+
+    public function drawableGames(string $pool, QuestWeek $week): array
+    {
+        $objective = new QuestObjective(QuestMetric::Goals, 1, QuestObjective::SCOPE_DRAWN, $pool);
+        $days = $objective->recentDays();
+        $online = "g.disabled_at IS NULL AND g.availability IN ('available', 'experimental')";
+
+        return $this->ids(null === $days
+            ? $this->connection->fetchFirstColumn("SELECT g.id FROM game g WHERE {$online} AND EXISTS (SELECT 1 FROM session_slot slot WHERE slot.game_id = g.id) ORDER BY g.id")
+            : $this->connection->fetchFirstColumn(
+                sprintf('SELECT g.id FROM game g WHERE %s AND %s >= :recentSince ORDER BY g.id', $online, self::RELEASED_AT),
+                ['recentSince' => $this->recentSince($week, $days)],
+            ));
+    }
+
+    public function gamesNamed(array $gameIds): array
+    {
+        if ([] === $gameIds) {
+            return [];
+        }
+        $games = [];
+        foreach ($this->connection->fetchAllAssociative(
+            'SELECT id, name, slug FROM game WHERE id IN (:ids)',
+            ['ids' => $gameIds],
+            ['ids' => ArrayParameterType::STRING],
+        ) as $row) {
+            if (is_string($row['id'] ?? null) && is_string($row['name'] ?? null) && is_string($row['slug'] ?? null)) {
+                $games[$row['id']] = ['name' => $row['name'], 'slug' => $row['slug']];
+            }
+        }
+
+        return $games;
     }
 
     public function rewardedQuests(string $userId, QuestWeek $week): array
@@ -586,13 +622,20 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
             QuestObjective::SCOPE_EVENT => ['sql' => 'AND slot.session_id IN (SELECT ev.id FROM session ev WHERE ev.event_id = :scopeId)', 'params' => ['scopeId' => (string) $objective->scopeId], 'types' => []],
             QuestObjective::SCOPE_PLATFORM => $this->platformScope($objective->families()),
             QuestObjective::SCOPE_RECENT => [
-                'sql' => "AND slot.game_id IN (SELECT g.id FROM game g
-                           WHERE COALESCE((SELECT MIN(c.decided_at) FROM apworld_candidate c WHERE c.game_id = g.id AND c.status = 'promoted'), g.created_at) >= :recentSince)",
-                'params' => ['recentSince' => $week->start->modify(sprintf('-%d days', $objective->recentDays() ?? QuestObjective::MAX_RECENT_DAYS))->format(\DATE_ATOM)],
+                'sql' => sprintf('AND slot.game_id IN (SELECT g.id FROM game g WHERE %s >= :recentSince)', self::RELEASED_AT),
+                'params' => ['recentSince' => $this->recentSince($week, $objective->recentDays() ?? QuestObjective::MAX_RECENT_DAYS)],
                 'types' => [],
             ],
-            default => null,
+            null => null,
+            // Story 41.67: a drawn game is resolved when the quest is served; counting the template would count
+            // every game, so it never gets this far.
+            default => throw new \LogicException(sprintf('Objective %s has no target to count.', $objective->key())),
         };
+    }
+
+    private function recentSince(QuestWeek $week, int $days): string
+    {
+        return $week->start->modify(sprintf('-%d days', $days))->format(\DATE_ATOM);
     }
 
     /**

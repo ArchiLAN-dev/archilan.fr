@@ -85,6 +85,14 @@ describe("weekly quests", () => {
     expect(html).toContain("0 / 1 goal");
   });
 
+  test("the game aimed at links its page (story 41.67)", () => {
+    const html = renderToStaticMarkup(
+      <ObjectiveBar done={false} objective={{ metric: "goals", label: "Goals atteints", unit: "goals", target: 2, current: 0, duration: false, scope: "Hollow Knight", gameSlug: "hollow-knight" }} />,
+    );
+    expect(html).toContain('href="/jeux/hollow-knight"');
+    expect(html).toContain(">Hollow Knight</a>");
+  });
+
   test("time played shows hours on both sides of its bar (story 41.64)", () => {
     const html = renderToStaticMarkup(
       <ObjectiveBar done={false} objective={{ metric: "playMinutes", label: "Temps de jeu", unit: "de jeu", target: 360, current: 150, duration: true }} />,

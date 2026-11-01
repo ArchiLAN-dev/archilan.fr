@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Wallet\Domain\Entity;
 
 use App\Wallet\Domain\Enum\QuestWeekOrigin;
+use App\Wallet\Domain\ValueObject\QuestObjective;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * A quest served in a week (story 41.15): pinned there by an admin, or drawn when the week was first needed. Once
  * there, it stays - editing or retiring the quest changes nothing to the weeks already served.
+ *
+ * Story 41.67: what it asks and pays is frozen once the week has begun (`objectives`, `reward`), with the game drawn
+ * for it if it aims at one. An entry served before that story, or pinned to a week not begun yet, has none: it reads
+ * its quest.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'quest_week_entry')]
@@ -30,7 +35,47 @@ final class QuestWeekEntry
         private int $position,
         #[ORM\Column(name: 'created_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $createdAt,
+        /** @var list<array{metric: string, target: int, scope?: string, scopeId?: string}>|null */
+        #[ORM\Column(type: 'json', nullable: true)]
+        private ?array $objectives = null,
+        #[ORM\Column(type: 'integer', nullable: true)]
+        private ?int $reward = null,
+        #[ORM\Column(name: 'drawn_game_id', type: 'string', length: 32, nullable: true)]
+        private ?string $drawnGameId = null,
     ) {
+    }
+
+    /**
+     * Story 41.67: freezes what the quest asks and pays for this week.
+     *
+     * @param list<QuestObjective> $objectives
+     */
+    public function freeze(array $objectives, int $reward, ?string $drawnGameId): void
+    {
+        $this->objectives = array_map(static fn (QuestObjective $objective): array => $objective->toArray(), $objectives);
+        $this->reward = $reward;
+        $this->drawnGameId = $drawnGameId;
+    }
+
+    public function isFrozen(): bool
+    {
+        return null !== $this->objectives && null !== $this->reward;
+    }
+
+    /** @return list<QuestObjective>|null the frozen objectives, null when not frozen */
+    public function getObjectives(): ?array
+    {
+        return null === $this->objectives ? null : QuestObjective::listFromArray($this->objectives);
+    }
+
+    public function getReward(): ?int
+    {
+        return $this->reward;
+    }
+
+    public function getDrawnGameId(): ?string
+    {
+        return $this->drawnGameId;
     }
 
     public static function serve(string $weekKey, string $questId, QuestWeekOrigin $origin, int $position, \DateTimeImmutable $now): self

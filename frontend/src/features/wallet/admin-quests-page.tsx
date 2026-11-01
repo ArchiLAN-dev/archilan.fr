@@ -9,6 +9,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
+  DRAW_CATALOG,
+  DRAW_RECENT,
   FAMILY_SEPARATOR,
   NO_SCOPES,
   QUEST_LIMITS,
@@ -315,6 +317,17 @@ export function QuestDialog({
                           ))}
                         </optgroup>
                       ) : null}
+                      {aimable.drawn ? (
+                        // Story 41.67: a game drawn each week the quest is served.
+                        <optgroup label="Un jeu tiré au sort chaque semaine">
+                          <option value={`drawn:${DRAW_CATALOG}`}>Parmi le catalogue</option>
+                          {RECENT_WINDOWS.map((days) => (
+                            <option key={days} value={`drawn:${DRAW_RECENT}${days}`}>
+                              Parmi les nouveautés de {days} jours
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
                     </select>
                   ) : null}
                   {row.scope === "platform" ? (
@@ -393,9 +406,9 @@ export function QuestDialog({
 type ObjectiveRow = QuestObjectiveTerms & { rowId: number };
 
 /** What the API would refuse, said before sending; null when the quest can be saved. */
-type AimableScopes = QuestScopes & { recent: boolean };
+type AimableScopes = QuestScopes & { recent: boolean; drawn: boolean };
 
-const NO_AIM: AimableScopes = { ...NO_SCOPES, recent: false };
+const NO_AIM: AimableScopes = { ...NO_SCOPES, recent: false, drawn: false };
 
 /**
  * Story 41.65: what an objective of this type may aim at - a superlative an event, never a game. Story 41.66: the
@@ -407,11 +420,12 @@ export function aimableScopes(metric: QuestMetricOption, scopes: QuestScopes): A
     events: metric.scopes.includes("event") ? scopes.events : [],
     platforms: metric.scopes.includes("platform") ? scopes.platforms : [],
     recent: metric.scopes.includes("recent"),
+    drawn: metric.scopes.includes("drawn"),
   };
 }
 
 function hasAimableScopes(scopes: AimableScopes): boolean {
-  return scopes.games.length > 0 || scopes.events.length > 0 || scopes.platforms.length > 0 || scopes.recent;
+  return scopes.games.length > 0 || scopes.events.length > 0 || scopes.platforms.length > 0 || scopes.recent || scopes.drawn;
 }
 
 /** The select's value for a row: a platform target is one option, whatever families it holds. */
@@ -426,7 +440,7 @@ export function chosenScope(value: string, current: QuestObjectiveTerms): Partia
   const scope = at < 0 ? "" : value.slice(0, at);
   const scopeId = at < 0 ? "" : value.slice(at + 1);
   if (scope === "platform") return { scope, scopeId: current.scope === "platform" ? (current.scopeId ?? "") : "" };
-  if (scope === "game" || scope === "event" || scope === "recent") return { scope, scopeId };
+  if (scope === "game" || scope === "event" || scope === "recent" || scope === "drawn") return { scope, scopeId };
   return { scope: undefined, scopeId: undefined };
 }
 
@@ -447,6 +461,10 @@ export function questTermsError(terms: QuestTerms): string | null {
   }
   if (terms.objectives.some((objective) => objective.scope === "platform" && splitFamilies(objective.scopeId ?? "").length === 0)) {
     return "Coche au moins une plateforme.";
+  }
+  // Story 41.67: one game drawn a week for the whole quest.
+  if (new Set(terms.objectives.filter((objective) => objective.scope === "drawn").map((objective) => objective.scopeId)).size > 1) {
+    return "Un seul jeu est tiré par semaine : choisis le même panier pour chaque objectif à jeu tiré.";
   }
   // Story 41.18: a type may come back, aimed elsewhere - never twice at the same place.
   const keys = terms.objectives.map((objective) => `${objective.metric}@${objective.scope ?? ""}:${objective.scopeId ?? ""}`);

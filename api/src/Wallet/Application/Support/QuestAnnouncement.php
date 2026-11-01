@@ -40,7 +40,7 @@ final readonly class QuestAnnouncement
         return match ($objective->scope) {
             QuestObjective::SCOPE_GAME => sprintf('%s sur %s', $text, $scopeName ?? 'une cible retirée'),
             // Story 41.66: « 3 goals sur un jeu Super Nintendo ou Nintendo 64 ».
-            QuestObjective::SCOPE_PLATFORM, QuestObjective::SCOPE_RECENT => sprintf('%s sur un %s', $text, $objective->selfName() ?? 'jeu retiré'),
+            QuestObjective::SCOPE_PLATFORM, QuestObjective::SCOPE_RECENT, QuestObjective::SCOPE_DRAWN => sprintf('%s sur un %s', $text, $objective->selfName() ?? 'jeu retiré'),
             default => sprintf('%s à %s', $text, $scopeName ?? 'une cible retirée'),
         };
     }

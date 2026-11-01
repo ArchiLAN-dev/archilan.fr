@@ -12,10 +12,10 @@ use App\Wallet\Application\Port\QuestAnnouncementChannelInterface;
 use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
 use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Application\Support\QuestAnnouncement;
-use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
+use App\Wallet\Domain\ValueObject\ServedQuest;
 
 /**
  * Tells a week's quests on Discord (story 41.24), through the bot (story 41.26): the week's message is updated
@@ -73,7 +73,7 @@ final readonly class AnnounceQuestsOnDiscord
     /**
      * Each quest with its objectives in words, « 50 checks et 1 partie sur Hollow Knight ».
      *
-     * @param list<QuestDefinition> $served
+     * @param list<ServedQuest> $served
      *
      * @return list<array{title: string, objectives: string, reward: int}>
      */
@@ -81,7 +81,7 @@ final readonly class AnnounceQuestsOnDiscord
     {
         $names = $this->scopeNames($served);
 
-        return array_map(static fn (QuestDefinition $quest): array => [
+        return array_map(static fn (ServedQuest $quest): array => [
             'title' => $quest->getTitle(),
             'objectives' => implode(' et ', array_map(
                 static fn (QuestObjective $objective): string => QuestAnnouncement::describe($objective, $names[$objective->key()] ?? null),
@@ -92,20 +92,24 @@ final readonly class AnnounceQuestsOnDiscord
     }
 
     /**
-     * @param list<QuestDefinition> $quests
+     * @param list<ServedQuest> $quests
      *
      * @return array<string, string> objective key => name of its game or event
      */
     private function scopeNames(array $quests): array
     {
-        $aimed = array_filter(QuestDefinition::objectivesOf($quests), static fn (QuestObjective $objective): bool => null !== $objective->scope);
+        $aimed = array_filter(ServedQuest::objectivesOf($quests), static fn (QuestObjective $objective): bool => null !== $objective->scope);
         if ([] === $aimed) {
             return [];
         }
-        $options = $this->quests->scopeOptions();
+        // Story 41.67: a drawn game may be one nobody played yet - named from the whole catalog.
+        $games = array_map(static fn (array $game): string => $game['name'], $this->quests->gamesNamed(array_values(array_unique(array_map(
+            static fn (QuestObjective $objective): string => (string) $objective->scopeId,
+            array_filter($aimed, static fn (QuestObjective $objective): bool => QuestObjective::SCOPE_GAME === $objective->scope),
+        )))));
         $names = [
-            QuestObjective::SCOPE_GAME => array_column($options['games'], 'name', 'id'),
-            QuestObjective::SCOPE_EVENT => array_column($options['events'], 'title', 'id'),
+            QuestObjective::SCOPE_GAME => $games,
+            QuestObjective::SCOPE_EVENT => array_column($this->quests->scopeOptions()['events'], 'title', 'id'),
         ];
         $scopes = [];
         foreach ($aimed as $objective) {

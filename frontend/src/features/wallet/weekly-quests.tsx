@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { CheckCircle2, Circle, Flame, Gift, Sparkles } from "lucide-react";
 
 import { isCosmeticRewardView, type CosmeticRewardView } from "@/features/community/cosmetic-reward-picker";
@@ -19,6 +20,8 @@ export type QuestObjectiveProgress = {
   target: number;
   current: number;
   scope?: string | null;
+  /** Story 41.67: the game aimed at (drawn for the week, maybe), to link its page. */
+  gameSlug?: string | null;
   /** Story 41.64: target and current are minutes, shown in hours. */
   duration: boolean;
 };
@@ -87,7 +90,8 @@ function isObjective(v: unknown): v is QuestObjectiveProgress {
     hasNumberProp(v, "target") &&
     hasNumberProp(v, "current") &&
     hasBooleanProp(v, "duration") &&
-    (!("scope" in v) || v.scope === null || typeof v.scope === "string")
+    (!("scope" in v) || v.scope === null || typeof v.scope === "string") &&
+    (!("gameSlug" in v) || v.gameSlug === null || typeof v.gameSlug === "string")
   );
 }
 
@@ -250,7 +254,17 @@ export function ObjectiveBar({ objective, done }: { objective: QuestObjectivePro
         <span className="text-muted-foreground">
           {objective.label}
           {/* Story 41.18: the game or event the objective counts in. */}
-          {objective.scope ? <span className="text-foreground"> · {objective.scope}</span> : null}
+          {/* Story 41.67: a game links its page - the drawn one is often new to the member. */}
+          {objective.scope && objective.gameSlug ? (
+            <span className="text-foreground">
+              {" · "}
+              <Link className="underline-offset-2 hover:underline" href={`/jeux/${encodeURIComponent(objective.gameSlug)}`}>
+                {objective.scope}
+              </Link>
+            </span>
+          ) : objective.scope ? (
+            <span className="text-foreground"> · {objective.scope}</span>
+          ) : null}
         </span>
         <span className={`tabular-nums ${reached ? "text-success" : "text-muted-foreground"}`}>
           {formatQuestAmount(shown, objective.duration)} / {formatQuestAmount(objective.target, objective.duration)} {objective.unit}

@@ -22,7 +22,9 @@ use Psr\Clock\ClockInterface;
  * week, and the current and coming weeks with what each serves. The current week is frozen first, so the page shows
  * the quests the members see. Story 41.16: the chest, what each quest paid, and the weeks just past.
  *
- * @phpstan-type ServedQuest array{questId: string, title: string, reward: int, origin: string, retired: bool}
+ * Story 41.67: what each week served pays as frozen there, and the game drawn for it.
+ *
+ * @phpstan-type ServedQuest array{questId: string, title: string, reward: int, origin: string, retired: bool, drawnGame: string|null}
  */
 final readonly class QuestAdminQuery
 {
@@ -47,7 +49,7 @@ final readonly class QuestAdminQuery
      *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>, platforms: list<string>},
      *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, cosmetic: array{type: string, key: string, label: string}|null, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}}>,
      *   weeks: list<array{key: string, startsAt: string, endsAt: string, current: bool, drawn: bool, quests: list<ServedQuest>}>,
-     *   pastWeeks: list<array{key: string, startsAt: string, endsAt: string, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool, members: int, pelles: int}>, chests: int, pelles: int}>
+     *   pastWeeks: list<array{key: string, startsAt: string, endsAt: string, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool, drawnGame: string|null, members: int, pelles: int}>, chests: int, pelles: int}>
      * }
      */
     public function overview(): array
@@ -74,6 +76,7 @@ final readonly class QuestAdminQuery
         $drawn = $this->quests->drawnWeeks($keys);
         $payments = $this->ledger->payments();
         $servedWeeks = $this->quests->weeksServedByQuest();
+        $drawnGames = $this->drawnGames($entries);
 
         $calendar = [];
         foreach ($weeks as $index => $week) {
@@ -81,19 +84,19 @@ final readonly class QuestAdminQuery
                 ...$this->bounds($week),
                 'current' => 0 === $index,
                 'drawn' => \in_array($week->key, $drawn, true),
-                'quests' => $this->served($entries[$week->key] ?? [], $byId),
+                'quests' => $this->served($entries[$week->key] ?? [], $byId, $drawnGames),
             ];
         }
 
         $history = [];
         foreach ($past as $week) {
             $paid = $payments[$week->key] ?? ['quests' => [], 'chests' => 0, 'chestPelles' => 0];
-            $served = $this->served($entries[$week->key] ?? [], $byId);
+            $served = $this->served($entries[$week->key] ?? [], $byId, $drawnGames);
             // Weeks paid before story 41.15 served nothing on record: their quests come back from the ledger.
             foreach (array_keys($paid['quests']) as $questId) {
                 $quest = $byId[$questId] ?? null;
                 if (null !== $quest && !\in_array($questId, array_column($served, 'questId'), true)) {
-                    $served[] = ['questId' => $questId, 'title' => $quest->getTitle(), 'reward' => $quest->getReward(), 'origin' => 'drawn', 'retired' => $quest->isRetired()];
+                    $served[] = ['questId' => $questId, 'title' => $quest->getTitle(), 'reward' => $quest->getReward(), 'origin' => 'drawn', 'retired' => $quest->isRetired(), 'drawnGame' => null];
                 }
             }
             $quests = array_map(static fn (array $served): array => [
@@ -184,12 +187,34 @@ final readonly class QuestAdminQuery
     }
 
     /**
+     * Story 41.67: the names of the games drawn in these weeks.
+     *
+     * @param array<string, list<QuestWeekEntry>> $entries
+     *
+     * @return array<string, string> game id => name
+     */
+    private function drawnGames(array $entries): array
+    {
+        $ids = [];
+        foreach ($entries as $week) {
+            foreach ($week as $entry) {
+                if (null !== $entry->getDrawnGameId()) {
+                    $ids[] = $entry->getDrawnGameId();
+                }
+            }
+        }
+
+        return array_map(static fn (array $game): string => $game['name'], $this->ledger->gamesNamed(array_values(array_unique($ids))));
+    }
+
+    /**
      * @param list<QuestWeekEntry>           $entries
      * @param array<string, QuestDefinition> $byId
+     * @param array<string, string>          $drawnGames game id => name
      *
      * @return list<ServedQuest>
      */
-    private function served(array $entries, array $byId): array
+    private function served(array $entries, array $byId, array $drawnGames): array
     {
         $served = [];
         foreach ($entries as $entry) {
@@ -200,9 +225,10 @@ final readonly class QuestAdminQuery
             $served[] = [
                 'questId' => $quest->getId(),
                 'title' => $quest->getTitle(),
-                'reward' => $quest->getReward(),
+                'reward' => $entry->getReward() ?? $quest->getReward(),
                 'origin' => $entry->getOrigin()->value,
                 'retired' => $quest->isRetired(),
+                'drawnGame' => null === $entry->getDrawnGameId() ? null : ($drawnGames[$entry->getDrawnGameId()] ?? 'jeu retiré'),
             ];
         }
 

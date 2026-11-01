@@ -1,6 +1,6 @@
 # Story 41.67: Quêtes figées à la semaine et jeu tiré au sort
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-11-01
 
@@ -53,7 +53,46 @@ paiement, le coffre et Discord relisent les objectifs **en direct** sur la défi
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1) - Migration, instantané à la mise en service, lecteurs adaptés ; tests de non-régression.
-- [ ] **Task 2** (AC 2, 3, 4) - Panier, tirage, garde-fou ; tests.
-- [ ] **Task 3** (AC 5, 6) - Formulaire, affichages membre, admin et Discord ; tests jest.
-- [ ] **Task 4** (AC 7) - Gates, vérification dans l'app sur deux semaines.
+- [x] **Task 1** (AC 1) - Migration, instantané à la mise en service, lecteurs adaptés ; tests de non-régression.
+- [x] **Task 2** (AC 2, 3, 4) - Panier, tirage, garde-fou ; tests.
+- [x] **Task 3** (AC 5, 6) - Formulaire, affichages membre, admin et Discord ; tests jest.
+- [x] **Task 4** (AC 7) - Gates, vérification dans l'app sur deux semaines.
+
+## Dev Agent Record
+
+### Implementation
+
+- Migration `Version20261031120001` : `quest_week_entry.objectives` (JSON), `reward`, `drawn_game_id`, tous nullables.
+- `QuestWeekEntry::freeze()` fige objectifs, récompense et jeu tiré. `ServedQuest` (Domain/ValueObject) est ce que
+  `QuestWeekPlanner::served()` renvoie désormais : instantané s'il existe, sinon la définition ; titre, description et
+  cosmétique restent lus sur la quête. Paiement, coffre, notification, page membre, Discord et admin le lisent.
+- Cible `drawn` (`scopeId` = `catalog` ou `recent:N`) ouverte aux mêmes métriques que `game`. Un seul panier par
+  quête (`quest_draw_pools_mixed`), donc un seul jeu tiré pour tous ses objectifs ; les jeux déjà visés par la quête
+  sont écartés du tirage, comme le jeu tiré la dernière fois qu'elle a été servie (`lastDrawnGame`).
+- Panier : `WeeklyQuestsQueryInterface::drawableGames()` (en ligne = `available`/`experimental`, non désactivé ;
+  catalogue = joué au moins une fois ; nouveautés = fenêtre 41.66 comptée depuis le début de la semaine servie).
+- Une quête au panier vide sort des candidats du tirage ; l'épinglage est refusé (`quest_draw_pool_empty`).
+- `DbalWeeklyQuestsQuery::scope()` lève une `LogicException` sur une cible non résolue au lieu de tout compter.
+- Membre : nom du jeu tiré (lu sur tout le catalogue via `gamesNamed`, pas seulement les jeux joués) et `gameSlug`
+  pour le lien vers `/jeux/{slug}`. Admin : modèle dans Types (« un jeu tiré parmi les nouveautés de 30 jours »),
+  « Jeu tiré : X » dans Semaines (`drawnGame`).
+
+### Écarts
+
+- **Moment du gel** : une entrée est figée la première fois que la semaine **en cours** est lue (ou à l'épinglage
+  dans une semaine commencée), pas à l'épinglage d'une semaine à venir. Ainsi une modification de la quête s'applique
+  bien à ses semaines à venir, épinglées comprises, et le panier se lit au début de la semaine. L'épinglage à
+  l'avance vérifie seulement qu'un jeu est tirable à la date de début de la semaine. Si le panier s'est vidé entre-temps,
+  la quête est sautée cette semaine-là.
+- Une entrée non figée d'une semaine passée lit la définition (comportement d'avant). Si cette définition vise
+  désormais un jeu tiré, la quête n'est pas servie plutôt que de compter une cible non résolue.
+- Pas de port `QuestGameCatalog` séparé : le panier et les noms passent par `WeeklyQuestsQueryInterface`, déjà
+  injecté partout où il faut.
+
+### Tests
+
+- `QuestDrawnGameTest` : instantané contre une modification en cours de semaine, entrée sans instantané, tirage figé
+  (deux objectifs, même jeu), non-répétition, panier vide (tirage et épinglage), épinglage à l'avance, garde-fou sur
+  les compteurs.
+- `AdminQuestTest::testAQuestAimsAtAGameDrawnForTheWeekThatTheMemberSeesByName`, `QuestDefinitionTest`, jest
+  (`admin-quests-page`, `weekly-quests`).
