@@ -16,12 +16,14 @@ final readonly class ServedQuest
 {
     /**
      * @param list<QuestObjective> $objectives
+     * @param list<QuestTier>      $tiers      story 41.68: none, or the tiers of its only objective
      */
     private function __construct(
         public QuestDefinition $quest,
         public array $objectives,
         public int $reward,
         public ?string $drawnGameId,
+        public array $tiers,
     ) {
     }
 
@@ -31,8 +33,29 @@ final readonly class ServedQuest
         $reward = $entry->getReward();
 
         return null === $objectives || null === $reward
-            ? new self($quest, $quest->getObjectives(), $quest->getReward(), null)
-            : new self($quest, $objectives, $reward, $entry->getDrawnGameId());
+            ? new self($quest, $quest->getObjectives(), $quest->getReward(), null, $quest->getTiers())
+            : new self($quest, $objectives, $reward, $entry->getDrawnGameId(), $entry->getTiers());
+    }
+
+    /** Story 41.68: the most a member earns with it - every tier, or its reward. */
+    public function maxReward(): int
+    {
+        return [] === $this->tiers ? $this->reward : array_sum(array_map(static fn (QuestTier $tier): int => $tier->reward, $this->tiers));
+    }
+
+    /**
+     * Story 41.68: the tiers (1-based) a member reached, with what they did over the week; none for a quest
+     * without tiers.
+     *
+     * @param array<string, int> $counts objective key => count
+     *
+     * @return list<int>
+     */
+    public function reachedTiers(array $counts): array
+    {
+        $objective = $this->objectives[0] ?? null;
+
+        return [] === $this->tiers || null === $objective ? [] : QuestTier::reachedBy($this->tiers, $counts[$objective->key()] ?? 0);
     }
 
     public function getId(): string

@@ -227,7 +227,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $handler(new AnnounceQuestsOnDiscordJob($week->key));
 
         self::assertCount(1, $spy->posted);
-        self::assertSame([['title' => 'Marathon', 'objectives' => '50 checks et 1 partie', 'reward' => 60]], $spy->posted[0]->quests);
+        self::assertSame([['title' => 'Marathon', 'objectives' => '50 checks et 1 partie', 'reward' => 60, 'tiered' => false]], $spy->posted[0]->quests);
         self::assertSame(60 + 50, $spy->posted[0]->maxPelles());
         self::assertStringEndsWith('/compte/pelles', $spy->posted[0]->url);
     }
