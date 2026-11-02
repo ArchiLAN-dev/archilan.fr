@@ -5,6 +5,43 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.54.0] - 2026-11-02
+
+Des quêtes hebdo bien plus variées : nouveaux types d'objectifs, semaines à thème, jeu tiré au sort, paliers et une
+quête collective pour toute la communauté. Et un test d'apworld qu'on voit vraiment tourner.
+
+### Ajouté
+
+- **Nouveaux objectifs de quête** (41.64) : items envoyés à d'autres membres, items reçus, temps de jeu, jeux jamais
+  joués.
+- **Objectifs communautaires** (41.65) : duels hebdo gagnés, superlatifs de récap, amis avec qui jouer, partenaires
+  retrouvés, primes remportées, sources trouvées au blind test.
+- **Semaines à thème** (41.66) : un objectif peut viser des plateformes (« Semaine Nintendo ») ou les jeux mis en
+  ligne ces derniers jours.
+- **Quêtes figées à la semaine et jeu tiré au sort** (41.67) : une semaine garde les termes de ses quêtes même si
+  l'admin les modifie ensuite ; « Fais 2 goals sur {un jeu} » tire un jeu différent chaque semaine. Migration
+  `Version20261031120001`.
+- **Quêtes à paliers** (41.68) : une quête à un objectif peut payer un premier palier puis davantage aux suivants.
+  Migration `Version20261031120002`.
+- **Quête collective** (41.69, 41.70) : un objectif commun à toute la communauté (« 500 checks à nous tous »),
+  compté sans doublon, épinglé à une semaine par l'admin, hors tirage et hors coffre. Chaque membre dont la part
+  atteint le seuil fixé est payé si l'objectif est atteint. Jauge membre dans les quêtes, jauge publique sur
+  `/communaute`, présentée à part sur Discord. Migration `Version20261031120003`.
+- **Test d'apworld en cours visible** (38.33) : la fiche d'une nouvelle version distingue l'attente d'une place et
+  la génération en cours, et dit depuis quand elle tourne. Demande l'orchestrateur v0.25.0 (client v1.18.0).
+
+### Modifié
+
+- **Plus de slot observateur injecté** (9.56, partie site) : le nom « Bridge » est réservé aux joueurs, et les
+  écrans cachent les slots spectateurs par leur type plutôt que par leur nom. Compatible avec les parties générées
+  avant ; les parties orchestrateur et bridge de la story ne sont pas encore livrées.
+- Dépendances frontend (19 mises à jour mineures, #988).
+
+### Documentation
+
+- Stories 38.32 (manifeste lu à la racine du zip, correctif dans archipelago v0.20.4) et 41.62 (défilement des
+  réponses sur l'écran du blind test, dans l'app blind test).
+
 ## [0.53.1] - 2026-10-31
 
 Une version d'apworld dont l'introspection est illisible, ou qui ne déclare aucun lieu, peut de nouveau être forcée.
