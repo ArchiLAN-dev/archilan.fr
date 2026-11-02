@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { use, useRef, useState, type KeyboardEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Music, Send, Shovel, Users, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Compass, Loader2, Music, Send, Shovel, Users, type LucideIcon } from "lucide-react";
 
 import { ConfirmDialog, ConfirmFigure } from "@/components/ui/confirm-dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -12,6 +12,8 @@ import { PelleAmount, pellesLabel } from "./pelle-amount";
 import { distributeEventPelles, fetchEventPelles, type EventPelles } from "./event-pelles-api";
 import { AdminBlindTestCard } from "./admin-blind-test-card";
 import { fetchBlindTestSettings } from "./blind-test-api";
+import { AdminMinimapperzCard } from "./admin-minimapperz-card";
+import { fetchMinimapperzSettings } from "./minimapperz-api";
 
 const MAX_AMOUNT = 1000;
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
@@ -54,8 +56,8 @@ export function distributionSummary(result: { credited: number; skipped: number;
   return `${parts.join(", ")}.`;
 }
 
-/** The tabs of the page (story 41.57); distributing and the blind test end with the event. */
-export type EventPellesTab = "membres" | "distribuer" | "blind-test";
+/** The tabs of the page (story 41.57); distributing, the blind test and Minimapperz (story 49.1) end with the event. */
+export type EventPellesTab = "membres" | "distribuer" | "blind-test" | "minimapperz";
 
 const TAB_PARAM = "onglet";
 
@@ -63,11 +65,12 @@ const TAB_META: Record<EventPellesTab, { label: string; icon: LucideIcon }> = {
   membres: { label: "Membres", icon: Users },
   distribuer: { label: "Distribuer", icon: Send },
   "blind-test": { label: "Blind test", icon: Music },
+  minimapperz: { label: "Minimapperz", icon: Compass },
 };
 
 /** The tabs an event offers, in order: once it is over, only its members are left to look at. */
 export function eventPellesTabs(ended: boolean): EventPellesTab[] {
-  return ended ? ["membres"] : ["membres", "distribuer", "blind-test"];
+  return ended ? ["membres"] : ["membres", "distribuer", "blind-test", "minimapperz"];
 }
 
 /** The tab to open: the one in the address when the event offers it, else « Membres ». */
@@ -122,6 +125,12 @@ export function EventPellesView({ data, tab = "membres", onTab }: { data: EventP
     staleTime: DEFAULT_STALE_TIME,
     enabled: !data.ended,
   });
+  const { data: minimapperz } = useQuery({
+    queryKey: ["admin-minimapperz", data.eventId],
+    queryFn: () => fetchMinimapperzSettings(data.eventId),
+    staleTime: DEFAULT_STALE_TIME,
+    enabled: !data.ended,
+  });
 
   return (
     <div className="grid gap-6">
@@ -146,7 +155,7 @@ export function EventPellesView({ data, tab = "membres", onTab }: { data: EventP
 
       <EventPellesTabs
         active={active}
-        badges={{ membres: String(data.participants.length), "blind-test": blindTest?.enabled === true ? "ouvert" : undefined }}
+        badges={{ membres: String(data.participants.length), "blind-test": blindTest?.enabled === true ? "ouvert" : undefined, minimapperz: minimapperz?.enabled === true ? "activé" : undefined }}
         onSelect={select}
         tabs={eventPellesTabs(data.ended)}
       />
@@ -155,6 +164,7 @@ export function EventPellesView({ data, tab = "membres", onTab }: { data: EventP
         {active === "membres" ? <MembersPanel data={data} /> : null}
         {active === "distribuer" ? <DistributePanel data={data} /> : null}
         {active === "blind-test" ? <AdminBlindTestCard eventId={data.eventId} /> : null}
+        {active === "minimapperz" ? <AdminMinimapperzCard eventId={data.eventId} /> : null}
       </div>
     </div>
   );
