@@ -3,9 +3,9 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { groupLine } from "./admin-quest-weeks";
-import { suggestedContribution } from "./admin-quests-api";
-import { questStatsLine, questTermsError } from "./admin-quests-page";
+import { groupLine, weekSummary } from "./admin-quest-weeks";
+import { suggestedContribution, type QuestMetricOption } from "./admin-quests-api";
+import { contributionHint, questStatsLine, questTermsError } from "./admin-quests-page";
 import { CollectiveQuestRow, CommunityCollectiveQuestSection, shareLine, type CollectiveQuestProgress } from "./collective-quest";
 import { fetchCommunityCollectiveQuest, type CommunityCollectiveQuest } from "./collective-quest-api";
 import { WeeklyQuestsView, isWeeklyQuests, type WeeklyQuests } from "./weekly-quests";
@@ -105,5 +105,21 @@ describe("collective quest (story 41.69)", () => {
     expect(questStatsLine({ weeksServed: 2, lastWeek: "2026-W44", lastMembers: 12, lastTiers: [], pelles: 480 }, true)).toBe(
       "Servie 2 semaines · 12 contributeurs récompensés la dernière fois · 480 pelles versées",
     );
+  });
+
+  it("leaves the collective quest out of the week's number and most, and adds it after (story 41.70)", () => {
+    const served = (questId: string, reward: number, collective = false) => ({ questId, title: questId, reward, origin: "drawn" as const, retired: false, drawnGame: null, collective });
+    const week = { key: "2026-W45", startsAt: "", endsAt: "", current: true, drawn: true, quests: [served("a", 30), served("b", 40), served("c", 30), served("together", 40, true)] };
+
+    expect(weekSummary(week, 50)).toEqual({ quests: 3, total: 150, chest: true, collective: 40 });
+    expect(weekSummary({ ...week, quests: [served("together", 40, true)] }, 50)).toEqual({ quests: 0, total: 0, chest: false, collective: 40 });
+    expect(weekSummary({ ...week, quests: [served("a", 30)] }, 50)).toEqual({ quests: 1, total: 80, chest: true, collective: null });
+  });
+
+  it("suggests the share in the metric's unit, singular for one (story 41.70)", () => {
+    const goals: QuestMetricOption = { key: "goals", label: "Goals atteints", unit: "goals", unitOne: "goal", scopable: true, scopes: [], help: "", duration: false };
+    expect(contributionHint(20, goals)).toBe("1 goal");
+    expect(contributionHint(500, { ...goals, unit: "checks", unitOne: "check" })).toBe("10 checks");
+    expect(contributionHint(6000, { ...goals, duration: true })).toBe("2 h");
   });
 });

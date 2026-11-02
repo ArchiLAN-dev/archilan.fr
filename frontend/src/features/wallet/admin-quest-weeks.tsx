@@ -188,6 +188,23 @@ export function OriginBadge({ origin }: { origin: ServedQuest["origin"] }) {
   );
 }
 
+/**
+ * Story 41.16: the most a member can earn this week, chest included. Story 41.70: the collective quest is not one of
+ * the week's number nor of that most (as on Discord), it comes after: « 3 quêtes · jusqu'à 150 par membre, coffre
+ * compris · collective en plus : +40 ».
+ */
+export function weekSummary(week: AdminQuestWeek, chestReward: number): { quests: number; total: number; chest: boolean; collective: number | null } {
+  const regular = week.quests.filter((served) => !served.collective);
+  const chest = regular.length > 0 ? chestReward : 0;
+  const collective = week.quests.find((served) => served.collective);
+  return {
+    quests: regular.length,
+    total: regular.reduce((sum, quest) => sum + quest.reward, 0) + chest,
+    chest: chest > 0,
+    collective: collective ? collective.reward : null,
+  };
+}
+
 /** Story 41.69: « Collective : 312 / 500, en cours », or reached, or not counted yet. */
 export function groupLine(served: ServedQuest, ongoing = false): string {
   if (served.groupTotal === null || served.groupTotal === undefined) return "Collective : pas encore comptée";
@@ -221,9 +238,7 @@ export function CurrentWeek({
   onReplace: (quest: ServedQuest) => void;
   onRemove: (quest: ServedQuest) => void;
 }) {
-  // Story 41.16: the most a member can earn this week, chest included.
-  const chest = week.quests.length > 0 ? chestReward : 0;
-  const total = week.quests.reduce((sum, quest) => sum + quest.reward, 0) + chest;
+  const summary = weekSummary(week, chestReward);
 
   return (
     <section aria-labelledby="current-week" className="grid gap-3 rounded-xl border border-accent/40 bg-accent/5 p-5">
@@ -234,7 +249,14 @@ export function CurrentWeek({
             <span className="text-sm font-normal text-muted-foreground">{weekLabel(week)}</span>
           </h2>
           <p className="text-xs text-muted-foreground">
-            {week.quests.length} quête{week.quests.length > 1 ? "s" : ""} · jusqu&apos;à <PelleAmount amount={total} className="font-semibold text-warning" /> par membre{chest > 0 ? ", coffre compris" : ""}
+            {summary.quests} quête{summary.quests > 1 ? "s" : ""} · jusqu&apos;à <PelleAmount amount={summary.total} className="font-semibold text-warning" /> par membre
+            {summary.chest ? ", coffre compris" : ""}
+            {summary.collective !== null ? (
+              <>
+                {" "}
+                · collective en plus : <PelleAmount amount={summary.collective} className="font-semibold text-warning" signed />
+              </>
+            ) : null}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -398,7 +420,11 @@ export function PickQuestDialog({
                   <span className="grid min-w-0 flex-1 gap-0.5">
                     <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
                       {candidate.title}
-                      {candidate.inDraw ? null : <span className="rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">Hors tirage</span>}
+                      {candidate.collective ? (
+                        <span className="rounded-full border border-accent/40 px-2 py-0.5 text-xs font-normal text-accent-text">Collective</span>
+                      ) : candidate.inDraw ? null : (
+                        <span className="rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">Hors tirage</span>
+                      )}
                     </span>
                     <span className="text-xs text-muted-foreground">{objectivesSummary(candidate.objectives, metrics, scopes)}</span>
                   </span>
