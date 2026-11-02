@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { CollectiveQuestRow, type CollectiveQuestProgress } from "./collective-quest";
 import { PelleAmount } from "./pelle-amount";
 import { formatQuestAmount } from "./quest-amount";
 
@@ -56,6 +57,8 @@ export type WeeklyQuests = {
   week: string;
   renewsAt: string;
   quests: WeeklyQuest[];
+  /** Story 41.69: the week's collective quest, apart; null (or absent from an older API) without one. */
+  collective?: CollectiveQuestProgress | null;
   chest: QuestChest | null;
   history: QuestWeekHistory[];
   /** Absent from an older API. */
@@ -77,6 +80,30 @@ function isHistory(v: unknown): v is QuestWeekHistory {
     hasNumberProp(v, "served") &&
     hasBooleanProp(v, "chest") &&
     hasNumberProp(v, "pelles")
+  );
+}
+
+export function isCollectiveQuest(v: unknown): v is CollectiveQuestProgress {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "key") &&
+    hasStringProp(v, "label") &&
+    hasStringProp(v, "description") &&
+    hasNumberProp(v, "reward") &&
+    hasStringProp(v, "metric") &&
+    hasStringProp(v, "unit") &&
+    hasNumberProp(v, "target") &&
+    hasNumberProp(v, "total") &&
+    hasNumberProp(v, "mine") &&
+    hasNumberProp(v, "minContribution") &&
+    "scope" in v &&
+    (v.scope === null || typeof v.scope === "string") &&
+    "gameSlug" in v &&
+    (v.gameSlug === null || typeof v.gameSlug === "string") &&
+    hasBooleanProp(v, "duration") &&
+    hasBooleanProp(v, "done") &&
+    hasBooleanProp(v, "paid")
   );
 }
 
@@ -135,6 +162,7 @@ export function isWeeklyQuests(v: unknown): v is WeeklyQuests {
     "quests" in v &&
     Array.isArray(v.quests) &&
     v.quests.every(isQuest) &&
+    (!("collective" in v) || v.collective === null || isCollectiveQuest(v.collective)) &&
     "chest" in v &&
     (v.chest === null || isChest(v.chest)) &&
     "history" in v &&
@@ -187,7 +215,7 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
         </h2>
         <p className="text-xs text-muted-foreground">Nouvelles quêtes le {renewFormatter.format(new Date(quests.renewsAt))}</p>
       </div>
-      {quests.quests.length === 0 ? (
+      {quests.quests.length === 0 && !quests.collective ? (
         <p className="text-sm text-muted-foreground">Pas de quête cette semaine.</p>
       ) : (
         <ul className="grid gap-4">
@@ -230,6 +258,8 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
         </ul>
       )}
       {quests.chest ? <ChestRow chest={quests.chest} /> : null}
+      {/* Story 41.69: after the chest it does not count for. */}
+      {quests.collective ? <CollectiveQuestRow quest={quests.collective} /> : null}
       {quests.streak && (quests.chest || quests.streak.current > 0) ? <StreakRow streak={quests.streak} /> : null}
     </section>
   );

@@ -260,7 +260,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $notices = $this->entityManager->getRepository(Notification::class)->findBy(['type' => Notification::TYPE_QUESTS_RENEWED]);
         self::assertCount(1, $notices);
         self::assertSame($alice->getId(), $notices[0]->getRecipientId());
-        self::assertSame(['week' => $week->key, 'count' => 1, 'maxPelles' => 40 + 50], $notices[0]->getPayload());
+        self::assertSame(['week' => $week->key, 'count' => 1, 'collective' => null, 'maxPelles' => 40 + 50], $notices[0]->getPayload());
     }
 
     public function testTheWalletShowsTheWeeksBeforeAndTheFactsCountTheQuests(): void

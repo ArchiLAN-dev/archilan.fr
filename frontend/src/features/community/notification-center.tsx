@@ -284,7 +284,9 @@ export function messageFor(item: NotificationItem): string {
       const max = hasNumberProp(item.data, "maxPelles") ? item.data.maxPelles : 0;
       const quests = count > 0 ? ` : ${count} ${count > 1 ? "quêtes" : "quête"}` : "";
       const pelles = max > 0 ? `, jusqu'à ${max} pelles` : "";
-      return `Nouvelles quêtes de la semaine${quests}${pelles}`;
+      // Story 41.69: the collective quest, apart.
+      const collective = hasStringProp(item.data, "collective") && item.data.collective !== "" ? `, et une quête collective : ${item.data.collective}` : "";
+      return `Nouvelles quêtes de la semaine${quests}${pelles}${collective}`;
     }
     case "moderation_warning":
       return hasStringProp(item.data, "reason") && item.data.reason !== ""

@@ -259,7 +259,10 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
       const count = hasNumberProp(data, "count") ? data.count : 0;
       const max = hasNumberProp(data, "maxPelles") ? data.maxPelles : 0;
       const parts = [count > 0 ? `${count} ${count > 1 ? "quêtes" : "quête"}` : "", max > 0 ? `jusqu'à ${max} pelles` : ""].filter((p) => p !== "");
-      return { ...base("reward", "Quêtes", icon("quests"), [strong("Nouvelles quêtes de la semaine")]), detail: parts.length > 0 ? `${parts.join(", ")}.` : null };
+      // Story 41.69: the collective quest, apart.
+      const collective = text(data, "collective");
+      const detail = [parts.length > 0 ? `${parts.join(", ")}.` : "", collective !== "" ? `Quête collective : ${collective}.` : ""].filter((p) => p !== "").join(" ");
+      return { ...base("reward", "Quêtes", icon("quests"), [strong("Nouvelles quêtes de la semaine")]), detail: detail !== "" ? detail : null };
     }
     case "moderation_warning":
       return { ...base("moderation", "Modération", icon("shield"), [strong("Avertissement"), { text: " de la modération" }]), detail: text(data, "reason") || null };

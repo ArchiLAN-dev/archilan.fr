@@ -4,6 +4,7 @@ import { fetchCommunityStats, fetchLeaderboard } from "@/features/community/comm
 import { fetchCommunityOverview } from "@/features/community/community-overview-api";
 import { fetchDirectoryServerSide } from "@/features/community/community-directory-api";
 import { CommunityHub } from "@/features/community/community-hub";
+import { fetchCommunityCollectiveQuest } from "@/features/wallet/collective-quest-api";
 
 export const metadata = buildPageMetadata({
   title: "Communauté",
@@ -20,12 +21,13 @@ export default async function CommunautePage() {
 
   // Every fetcher resolves to null/empty on failure, so one dead endpoint hides its section instead of
   // failing the page.
-  const [overview, stats, leaderboard, eventsData, memberPreview] = await Promise.all([
+  const [overview, stats, leaderboard, eventsData, memberPreview, collectiveQuest] = await Promise.all([
     fetchCommunityOverview(),
     fetchCommunityStats(),
     fetchLeaderboard("goals", 20),
     getPublicEvents(),
     fetchDirectoryServerSide({ sort: "xp", search: "", friendsOnly: false, page: 1 }),
+    fetchCommunityCollectiveQuest(),
   ]);
 
   const events = [...eventsData.upcoming, ...eventsData.past].map((event) => ({
@@ -36,6 +38,7 @@ export default async function CommunautePage() {
   return (
     <div className="mx-auto w-full max-w-content">
       <CommunityHub
+        collectiveQuest={collectiveQuest}
         events={events}
         leaderboard={leaderboard}
         leaderboardFetchedAt={leaderboardFetchedAt}

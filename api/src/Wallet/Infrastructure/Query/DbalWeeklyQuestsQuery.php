@@ -66,6 +66,58 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         return $counts;
     }
 
+    public function groupTotal(QuestWeek $week, QuestObjective $objective): int
+    {
+        $scope = $this->scope($objective, $week);
+        $where = $scope['sql'] ?? '';
+        $params = $this->bounds($week) + ($scope['params'] ?? []);
+        $types = $scope['types'] ?? [];
+        $checkTypes = DbalSlotCheckSource::params();
+        $feed = 'FROM session_feed_event f JOIN session_slot slot ON slot.session_id = f.session_id AND slot.slot_name = f.sender_name
+                 WHERE f.type IN (:checkTypes) AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ';
+
+        [$sql, $params, $types] = match ($objective->metric) {
+            // A weekly attempt belongs to no game or event: a scoped objective counts sessions only, as for a member.
+            QuestMetric::Goals => [
+                'SELECT (SELECT COUNT(*) FROM session_slot slot WHERE slot.goal_reached_at >= :weekStart AND slot.goal_reached_at < :weekEnd '.$where.')'
+                .(null === $scope ? ' + (SELECT COUNT(*) FROM weekly_entries WHERE goal_reached_at >= :weekStart AND goal_reached_at < :weekEnd)' : ''),
+                $params, $types,
+            ],
+            QuestMetric::Checks => [
+                'SELECT (SELECT COUNT(*) '.$feed.$where.')'
+                .(null === $scope ? ' + (SELECT COALESCE(SUM(wc.n), 0) FROM ('.self::weeklyChecks().') wc)' : ''),
+                $checkTypes + $params + (null === $scope ? ['attemptsFrom' => $this->attemptsFrom($week->start)] : []),
+                DbalSlotCheckSource::types() + $types,
+            ],
+            QuestMetric::Sessions => ['SELECT COUNT(DISTINCT f.session_id) '.$feed.$where, $checkTypes + $params, DbalSlotCheckSource::types() + $types],
+            QuestMetric::PlayMinutes => [
+                "SELECT CAST(FLOOR(COALESCE(SUM(spans.seconds), 0) / 60) AS integer) FROM (
+                     SELECT p.id, EXTRACT(EPOCH FROM (LEAST(p.last_seen_at, CAST(:weekEnd AS timestamptz)) - GREATEST(p.started_at, CAST(:weekStart AS timestamptz)))) AS seconds
+                       FROM session_slot_play_span p
+                       JOIN session_slot slot ON slot.session_id = p.session_id AND slot.slot_name = p.slot_name
+                      WHERE p.started_at < :weekEnd AND p.last_seen_at > :weekStart
+                        AND EXISTS (SELECT 1 FROM session_feed_event c
+                                     WHERE c.session_id = slot.session_id AND c.sender_name = slot.slot_name AND c.type IN (:checkTypes)
+                                       AND c.occurred_at >= :weekStart AND c.occurred_at < :weekEnd)
+                        {$where}
+                 ) spans",
+                $checkTypes + $params, DbalSlotCheckSource::types() + $types,
+            ],
+            QuestMetric::ItemsSent => [$this->itemsBetweenMembers($where), DbalFoundItemSource::params() + $params, $types],
+            QuestMetric::BountiesWon => [
+                "SELECT COUNT(*) FROM item_bounty
+                  WHERE status = 'paid' AND run_id IS NULL AND winner_id IS NOT NULL AND winner_id <> poster_id
+                    AND settled_at >= :weekStart AND settled_at < :weekEnd",
+                $this->bounds($week), [],
+            ],
+            default => throw new \LogicException(sprintf('Objective %s does not add up for the community.', $objective->key())),
+        };
+
+        $total = filter_var($this->connection->fetchOne($sql, $params, $types), \FILTER_VALIDATE_INT);
+
+        return false === $total ? 0 : max(0, $total);
+    }
+
     public function scopeOptions(): array
     {
         $games = [];
@@ -175,7 +227,8 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
             if (!is_string($key) || false === $amount) {
                 continue;
             }
-            // quest:{week}:{quest}:{member} or quest-chest:{week}:{member}
+            // quest:{week}:{quest}:{member} or quest-chest:{week}:{member}; a tier (story 41.68) or a collective
+            // quest (quest-group:{week}:{quest}:{member}, story 41.69) adds its pelles to the week only.
             $parts = explode(':', $key);
             $week = $parts[1] ?? '';
             $weeks[$week] ??= ['quests' => [], 'pelles' => 0, 'chest' => false];
@@ -209,6 +262,14 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         return $tiers;
     }
 
+    public function groupPaid(string $userId, QuestWeek $week, string $questId): bool
+    {
+        return false !== $this->connection->fetchOne(
+            'SELECT 1 FROM pelle_movement WHERE user_id = :userId AND reason = :reason AND unique_key = :key',
+            ['userId' => $userId, 'reason' => PelleReason::QuestReward->value, 'key' => sprintf('quest-group:%s:%s:%s', $week->key, $questId, $userId)],
+        );
+    }
+
     public function chestPaid(string $userId, QuestWeek $week): bool
     {
         return false !== $this->connection->fetchOne(
@@ -231,11 +292,12 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
             if (!is_string($key) || false === $amount) {
                 continue;
             }
-            // quest:{week}:{quest}:{member}, quest-tier:{week}:{quest}:{member}:{tier} or quest-chest:{week}:{member}
+            // quest:{week}:{quest}:{member}, quest-tier:{week}:{quest}:{member}:{tier}, quest-chest:{week}:{member}
+            // or (story 41.69) quest-group:{week}:{quest}:{member}
             $parts = explode(':', $key);
             $week = $parts[1] ?? '';
             $weeks[$week] ??= ['quests' => [], 'chests' => 0, 'chestPelles' => 0];
-            if ('quest' === $parts[0] && 4 === \count($parts)) {
+            if (\in_array($parts[0], ['quest', 'quest-group'], true) && 4 === \count($parts)) {
                 $quest = $weeks[$week]['quests'][$parts[2]] ?? ['members' => 0, 'pelles' => 0, 'tiers' => []];
                 $weeks[$week]['quests'][$parts[2]] = ['members' => $quest['members'] + 1, 'pelles' => $quest['pelles'] + $amount, 'tiers' => $quest['tiers']];
             } elseif ('quest-tier' === $parts[0] && 5 === \count($parts)) {
@@ -563,6 +625,30 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
             DbalFoundItemSource::params() + $this->bounds($week) + ($scope['params'] ?? []),
             $scope['types'] ?? [],
         );
+    }
+
+    /**
+     * Story 41.69: the items found by a member for another member's slot in the week, each once - the rules of
+     * {@see itemsTraded()}, the sender's slot being `slot`.
+     */
+    private function itemsBetweenMembers(string $where): string
+    {
+        $players = DbalSlotPlayerSource::expression('session_slot', 'registration');
+        $slotColumn = DbalSlotPlayerSource::SLOT_COLUMN;
+        $userColumn = DbalSlotPlayerSource::USER_COLUMN;
+        $feed = DbalFoundItemSource::feed('AND fe.occurred_at >= :weekStart AND fe.occurred_at < :weekEnd');
+        $found = implode(' AND ', array_map(static fn (string $rule): string => '('.$rule.')', DbalFoundItemSource::found('f', 'slot', 'other')));
+
+        return "SELECT COUNT(DISTINCT f.id)
+                  FROM {$feed} f
+                  JOIN session_slot slot ON slot.session_id = f.session_id AND slot.slot_name = f.sender_name
+                  JOIN session_slot other ON other.session_id = f.session_id AND other.slot_name = f.receiver_name
+                 WHERE other.id <> slot.id
+                   AND EXISTS (SELECT 1 FROM {$players} mp
+                                WHERE mp.{$slotColumn} = slot.id AND mp.{$userColumn} IS NOT NULL
+                                  AND NOT EXISTS (SELECT 1 FROM {$players} op WHERE op.{$slotColumn} = other.id AND op.{$userColumn} = mp.{$userColumn})
+                                  AND EXISTS (SELECT 1 FROM {$players} op WHERE op.{$slotColumn} = other.id AND op.{$userColumn} IS NOT NULL AND op.{$userColumn} <> mp.{$userColumn}))
+                   AND {$found} {$where}";
     }
 
     /**

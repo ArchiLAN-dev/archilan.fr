@@ -15,6 +15,8 @@ import {
   NO_SCOPES,
   QUEST_LIMITS,
   QUEST_TIERS,
+  COLLECTIVE_METRICS,
+  suggestedContribution,
   RECENT_WINDOWS,
   editQuest,
   fetchAdminQuests,
@@ -33,6 +35,7 @@ import {
 import { AdminQuestWeeksView } from "./admin-quest-weeks";
 import { StatusLine, fieldClass, useQuestChange, type ViewProps } from "./admin-quests-shared";
 import { PelleAmount } from "./pelle-amount";
+import { formatQuestAmount } from "./quest-amount";
 
 const QUERY_KEY = ["admin-quests"] as const;
 
@@ -91,9 +94,14 @@ export function AdminQuestTypesView({ data, onChange }: ViewProps) {
               <div className="grid min-w-0 flex-1 gap-0.5">
                 <p className={`flex flex-wrap items-center gap-2 font-semibold ${quest.retired ? "text-muted-foreground" : "text-foreground"}`}>
                   {quest.title}
-                  <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${quest.inDraw ? "border-accent/40 text-accent-text" : "border-border text-muted-foreground"}`}>
-                    {quest.inDraw ? "Dans le tirage" : "Hors tirage"}
-                  </span>
+                  {quest.collective ? (
+                    // Story 41.69: pinned beside the week's quests, never drawn.
+                    <span className="rounded-full border border-accent/40 px-2 py-0.5 text-xs font-medium text-accent-text">Collective</span>
+                  ) : (
+                    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${quest.inDraw ? "border-accent/40 text-accent-text" : "border-border text-muted-foreground"}`}>
+                      {quest.inDraw ? "Dans le tirage" : "Hors tirage"}
+                    </span>
+                  )}
                   {quest.inDraw && quest.drawWeight > 1 ? (
                     <span className="rounded-full border border-accent/40 px-2 py-0.5 text-xs font-medium text-accent-text">×{quest.drawWeight}</span>
                   ) : null}
@@ -101,7 +109,7 @@ export function AdminQuestTypesView({ data, onChange }: ViewProps) {
                 </p>
                 {quest.description !== "" ? <p className="text-xs text-muted-foreground">{quest.description}</p> : null}
                 <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, data.metrics, data.scopes)}</p>
-                <p className="text-xs text-muted-foreground">{questStatsLine(quest.stats)}</p>
+                <p className="text-xs text-muted-foreground">{questStatsLine(quest.stats, quest.collective ?? false)}</p>
               </div>
               <PelleAmount amount={quest.reward} className="text-xs font-semibold text-warning" signed />
               <div className="flex gap-1">
@@ -169,6 +177,9 @@ export function QuestDialog({
   const nextRowId = useRef(rows.length);
   // Story 41.68: the tiers past the first, which is the objective's target and the quest's reward.
   const [extraTiers, setExtraTiers] = useState<QuestTierTerms[]>(quest?.tiers?.slice(1) ?? []);
+  // Story 41.69: chosen when the quest is written, never changed after - the weeks it was served in read it so.
+  const [collective, setCollective] = useState(quest?.collective ?? false);
+  const [minContribution, setMinContribution] = useState(quest?.minContribution ?? 0);
   const [pending, setPending] = useState(false);
 
   const objectives: QuestObjectiveTerms[] = rows.map((row) => ({
@@ -177,9 +188,21 @@ export function QuestDialog({
     ...(row.scope && row.scopeId ? { scope: row.scope, scopeId: row.scopeId } : {}),
   }));
   const parsedReward = Number.parseInt(reward, 10);
-  const tiers = tiersOf(objectives, parsedReward, extraTiers);
-  const terms: QuestTerms = { title: title.trim(), description: description.trim(), reward: parsedReward, objectives, inDraw, drawWeight, cosmetic: cosmetic?.key ? cosmetic : null, tiers };
+  const tiers = collective ? null : tiersOf(objectives, parsedReward, extraTiers);
+  const terms: QuestTerms = {
+    title: title.trim(),
+    description: description.trim(),
+    reward: parsedReward,
+    objectives,
+    inDraw: inDraw && !collective,
+    drawWeight,
+    cosmetic: cosmetic?.key ? cosmetic : null,
+    tiers,
+    collective,
+    minContribution: collective ? minContribution : null,
+  };
   const tieredMetric = rows.length === 1 ? metrics.find((candidate) => candidate.key === rows[0]?.metric) : undefined;
+  const offeredMetrics = collective ? metrics.filter((candidate) => COLLECTIVE_METRICS.some((key) => key === candidate.key)) : metrics;
   const error = questTermsError(terms);
 
   function update(rowId: number, next: Partial<QuestObjectiveTerms>): void {
@@ -232,6 +255,31 @@ export function QuestDialog({
               value={reward}
             />
           </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              checked={collective}
+              className="mt-1"
+              disabled={quest !== null}
+              onChange={(e) => {
+                setCollective(e.target.checked);
+                if (e.target.checked) {
+                  // One objective on a type that adds up for the whole community, no tier.
+                  const first = rows[0];
+                  const metric = first && COLLECTIVE_METRICS.some((key) => key === first.metric) ? first.metric : "checks";
+                  setRows([{ ...(first ?? { target: 1 }), metric, rowId: first?.rowId ?? 0 }]);
+                  setExtraTiers([]);
+                }
+              }}
+              type="checkbox"
+            />
+            <span>
+              <span className="font-medium text-foreground">Quête collective</span>
+              <span className="block text-xs text-muted-foreground">
+                Un objectif pour toute la communauté, chaque check compté une fois. Elle ne sort jamais au tirage : on l&apos;épingle à une semaine, une au plus, à
+                côté des quêtes de la semaine et hors coffre.{quest !== null ? " Ce choix ne change plus une fois la quête créée." : ""}
+              </span>
+            </span>
+          </label>
 
           <fieldset className="grid gap-2">
             <legend className="mb-1 text-sm font-medium text-foreground">Objectifs</legend>
@@ -253,7 +301,7 @@ export function QuestDialog({
                     }}
                     value={row.metric}
                   >
-                    {metrics.map((candidate) => (
+                    {offeredMetrics.map((candidate) => (
                       <option key={candidate.key} value={candidate.key}>
                         {candidate.label}
                       </option>
@@ -365,7 +413,7 @@ export function QuestDialog({
                 </div>
               );
             })}
-            {rows.length < QUEST_LIMITS.maxObjectives ? (
+            {rows.length < QUEST_LIMITS.maxObjectives && !collective ? (
               <button className={`${buttonVariants({ variant: "ghost" })} justify-self-start`} onClick={addRow} type="button">
                 <Plus aria-hidden className="size-4" />
                 Ajouter un objectif
@@ -374,7 +422,27 @@ export function QuestDialog({
             <p className="text-xs text-muted-foreground">Les goals, les checks et les parties peuvent compter sur un jeu ou pendant un événement précis (hors hebdos).</p>
           </fieldset>
 
-          {rows.length === 1 ? (
+          {collective ? (
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium text-foreground">Part minimale pour être récompensé{tieredMetric?.duration ? " (en heures)" : ""}</span>
+              <input
+                className={`${fieldClass} w-32`}
+                inputMode={tieredMetric?.duration ? "decimal" : "numeric"}
+                min={tieredMetric?.duration ? 0.5 : 1}
+                onChange={(e) => setMinContribution(tierTarget(e.target.value, tieredMetric?.duration ?? false))}
+                step={tieredMetric?.duration ? 0.5 : 1}
+                type="number"
+                value={minContribution === 0 ? "" : tieredMetric?.duration ? minContribution / 60 : minContribution}
+              />
+              <span className="text-xs text-muted-foreground">
+                Obligatoire : un compte bis qui fait un check ne doit rien toucher. Suggestion : environ 2 % de l&apos;objectif, soit{" "}
+                {formatQuestAmount(suggestedContribution(rows[0]?.target ?? 1, tieredMetric?.duration ?? false), tieredMetric?.duration ?? false)}
+                {tieredMetric && !tieredMetric.duration ? ` ${tieredMetric.unit}` : ""}.
+              </span>
+            </label>
+          ) : null}
+
+          {rows.length === 1 && !collective ? (
             <fieldset className="grid gap-2">
               <legend className="mb-1 text-sm font-medium text-foreground">Paliers (facultatifs)</legend>
               <p className="text-xs text-muted-foreground">
@@ -435,7 +503,7 @@ export function QuestDialog({
             </fieldset>
           ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 sm:grid-cols-2 ${collective ? "hidden" : ""}`}>
             <label className="flex items-start gap-2 text-sm">
               <input checked={inDraw} className="mt-1" onChange={(e) => setInDraw(e.target.checked)} type="checkbox" />
               <span>
@@ -526,6 +594,15 @@ export function questTermsError(terms: QuestTerms): string | null {
   if (terms.objectives.some((objective) => !Number.isInteger(objective.target) || objective.target < QUEST_LIMITS.minTarget || objective.target > QUEST_LIMITS.maxTarget)) {
     return `Une cible de ${QUEST_LIMITS.minTarget} à ${QUEST_LIMITS.maxTarget}.`;
   }
+  if (terms.collective) {
+    // Story 41.69: one objective that adds up for the community, and the share that pays it.
+    const only = terms.objectives.length === 1 ? terms.objectives[0] : undefined;
+    if (!only || !COLLECTIVE_METRICS.some((key) => key === only.metric) || terms.tiers) {
+      return "Une quête collective a un seul objectif, sans palier, sur des goals, des checks, des parties, du temps de jeu, des items envoyés ou des primes.";
+    }
+    const share = terms.minContribution ?? 0;
+    if (!Number.isInteger(share) || share < 1 || share > only.target) return "La part minimale va de 1 à la cible de l'objectif.";
+  }
   if (terms.tiers) {
     // Story 41.68: each tier higher than the one before, and all of them within what a quest pays.
     if (terms.tiers.some((tier, index) => tier.reward < QUEST_LIMITS.minReward || tier.target > QUEST_LIMITS.maxTarget || (index > 0 && tier.target <= (terms.tiers?.[index - 1]?.target ?? 0)))) {
@@ -563,13 +640,17 @@ function tierTarget(value: string, duration: boolean): number {
   return duration ? Math.round((Number.parseFloat(value) || 0) * 2) * 30 : Number.parseInt(value, 10) || 0;
 }
 
-export function questStatsLine(stats: QuestStats): string {
+export function questStatsLine(stats: QuestStats, collective = false): string {
   if (stats.weeksServed === 0) return "Jamais servie pour l'instant.";
   const served = `Servie ${stats.weeksServed} semaine${stats.weeksServed > 1 ? "s" : ""}`;
+  const plural = stats.lastMembers > 1;
   const last =
     stats.lastWeek === null
       ? "première semaine en cours"
-      : `${stats.lastMembers} membre${stats.lastMembers > 1 ? "s" : ""} l'${stats.lastMembers > 1 ? "ont" : "a"} réussie la dernière fois`;
+      : collective
+        ? // Story 41.69: the contributors paid, the goal being the community's.
+          `${stats.lastMembers} contributeur${plural ? "s" : ""} récompensé${plural ? "s" : ""} la dernière fois`
+        : `${stats.lastMembers} membre${plural ? "s" : ""} l'${plural ? "ont" : "a"} réussie la dernière fois`;
   // Story 41.68: how far the members went, tier by tier.
   const tiers = stats.lastWeek && stats.lastTiers.length > 0 ? ` (${stats.lastTiers.map((members, index) => `palier ${index + 1} : ${members}`).join(", ")})` : "";
   return `${served} · ${last}${tiers} · ${stats.pelles} pelle${stats.pelles > 1 ? "s" : ""} versée${stats.pelles > 1 ? "s" : ""}`;

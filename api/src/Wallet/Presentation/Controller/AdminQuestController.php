@@ -49,7 +49,7 @@ final readonly class AdminQuestController
             return $this->apiAccessGuard->errorResponse('invalid_json', 'Corps de requête invalide.', 400);
         }
 
-        $written = $this->manage->write(...$this->terms($payload));
+        $written = $this->manage->write(...$this->terms($payload), collective: true === ($payload['collective'] ?? false));
 
         return new JsonResponse(['id' => $written->id], 201);
     }
@@ -177,7 +177,7 @@ final readonly class AdminQuestController
     /**
      * @param array<mixed> $payload
      *
-     * @return array{0: string, 1: string, 2: int, 3: array<mixed>, 4: bool, 5: int, 6: mixed, 7: mixed}
+     * @return array{0: string, 1: string, 2: int, 3: array<mixed>, 4: bool, 5: int, 6: mixed, 7: mixed, 8: int|null}
      */
     private function terms(array $payload): array
     {
@@ -193,6 +193,8 @@ final readonly class AdminQuestController
             $payload['cosmetic'] ?? null,
             // Story 41.68: the tiers, `[{target, reward}]` or null.
             $payload['tiers'] ?? null,
+            // Story 41.69: the share a member needs to be paid by a collective quest.
+            is_int($payload['minContribution'] ?? null) ? $payload['minContribution'] : null,
         ];
     }
 }

@@ -14,6 +14,8 @@ import type { CommunityOverview, PlayingNowEntry, RecentAchievement } from "./co
 import type { DirectoryRow } from "./community-directory-api";
 import { TitledName } from "@/features/community/titled-name";
 import { MEMBERSHIP_HREF } from "@/features/payments/support-links";
+import type { CommunityCollectiveQuest } from "@/features/wallet/collective-quest-api";
+import { CommunityCollectiveQuestSection } from "@/features/wallet/collective-quest";
 
 type Props = {
   overview: CommunityOverview | null;
@@ -22,6 +24,8 @@ type Props = {
   leaderboardFetchedAt: number;
   events: Pick<PublicEvent, "id" | "title">[];
   memberPreview: DirectoryRow[];
+  /** Story 41.69: the week's collective quest, null without one (absent: hidden). */
+  collectiveQuest?: CommunityCollectiveQuest | null;
 };
 
 /**
@@ -38,6 +42,7 @@ export function CommunityHub({
   leaderboardFetchedAt,
   events,
   memberPreview,
+  collectiveQuest = null,
 }: Props) {
   const playing = overview?.playingNow ?? [];
   const achievements = overview?.recentAchievements ?? [];
@@ -66,6 +71,8 @@ export function CommunityHub({
         {/* Story 43.21: the runs listed for every member (story 43.17), put forward. */}
         <RunListingsSpotlight />
       </section>
+
+      {collectiveQuest ? <CommunityCollectiveQuestSection quest={collectiveQuest} /> : null}
 
       {playing.length > 0 ? (
         <section aria-labelledby="playing-now" className="grid gap-5 border-t border-border pt-12">

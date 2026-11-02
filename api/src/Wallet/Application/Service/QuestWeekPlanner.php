@@ -24,6 +24,9 @@ use Random\Randomizer;
  * Story 41.67: a quest is frozen in its week the first time the week in progress is needed (or when pinned to it):
  * its objectives and reward as they are then, and the game drawn for it when it aims at one. A quest whose pool has
  * no game for the week is left out of the draw, and out of the week if it was pinned there.
+ *
+ * Story 41.69: a collective quest is served beside the week's quests, never among them: it is not drawn, it does not
+ * count in the week's number, and `served()` leaves it out - `collective()` gives it.
  */
 final readonly class QuestWeekPlanner
 {
@@ -36,9 +39,42 @@ final readonly class QuestWeekPlanner
     }
 
     /**
-     * @return list<ServedQuest> the week's quests, by position
+     * @return list<ServedQuest> the week's quests, by position (story 41.69: its collective quest left out)
      */
     public function served(QuestWeek $week): array
+    {
+        return array_values(array_filter($this->all($week), static fn (ServedQuest $quest): bool => !$quest->isCollective()));
+    }
+
+    /** Story 41.69: the week's collective quest, null when it has none. */
+    public function collective(QuestWeek $week): ?ServedQuest
+    {
+        foreach ($this->all($week) as $quest) {
+            if ($quest->isCollective()) {
+                return $quest;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Story 41.69: keeps the community's total of the week's collective quest, for the public gauge.
+     */
+    public function recordGroupTotal(QuestWeek $week, ServedQuest $quest, int $total): void
+    {
+        foreach ($this->quests->entriesOfWeeks([$week->key])[$week->key] ?? [] as $entry) {
+            if ($entry->getQuestId() === $quest->getId()) {
+                $entry->countGroup($total, $this->clock->now());
+                $this->quests->saveEntry($entry);
+            }
+        }
+    }
+
+    /**
+     * @return list<ServedQuest> every quest of the week, collective included, by position
+     */
+    private function all(QuestWeek $week): array
     {
         $now = $this->clock->now();
         if ($week->start <= $now && [] === $this->quests->drawnWeeks([$week->key])) {
@@ -100,6 +136,7 @@ final readonly class QuestWeekPlanner
             $quest->getReward(),
             $gameId,
             $quest->getTiers(),
+            $quest->getMinContribution(),
         );
         $this->quests->saveEntry($entry);
 
@@ -139,7 +176,11 @@ final readonly class QuestWeekPlanner
         $previous = $week->previous()->key;
         $weeks = $this->quests->entriesOfWeeks([$week->key, $previous]);
         $entries = $weeks[$week->key] ?? [];
-        $pinned = array_map(static fn (QuestWeekEntry $entry): string => $entry->getQuestId(), $entries);
+        // Story 41.69: a collective quest pinned there is not one of the week's quests.
+        $pinned = array_values(array_map(
+            static fn (QuestWeekEntry $entry): string => $entry->getQuestId(),
+            array_filter($entries, fn (QuestWeekEntry $entry): bool => true !== $this->quests->findQuest($entry->getQuestId())?->isCollective()),
+        ));
         // Story 41.18: the week before's quests come last, so a quest does not come back two weeks in a row.
         $recent = array_map(static fn (QuestWeekEntry $entry): string => $entry->getQuestId(), $weeks[$previous] ?? []);
 

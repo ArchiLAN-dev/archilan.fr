@@ -24,6 +24,8 @@ final readonly class ServedQuest
         public int $reward,
         public ?string $drawnGameId,
         public array $tiers,
+        // Story 41.69: the share that pays a collective quest, null for any other.
+        public ?int $minContribution,
     ) {
     }
 
@@ -33,8 +35,14 @@ final readonly class ServedQuest
         $reward = $entry->getReward();
 
         return null === $objectives || null === $reward
-            ? new self($quest, $quest->getObjectives(), $quest->getReward(), null, $quest->getTiers())
-            : new self($quest, $objectives, $reward, $entry->getDrawnGameId(), $entry->getTiers());
+            ? new self($quest, $quest->getObjectives(), $quest->getReward(), null, $quest->getTiers(), $quest->getMinContribution())
+            : new self($quest, $objectives, $reward, $entry->getDrawnGameId(), $entry->getTiers(), $entry->getMinContribution() ?? $quest->getMinContribution());
+    }
+
+    /** Story 41.69: a goal for the whole community, beside the week's quests. */
+    public function isCollective(): bool
+    {
+        return $this->quest->isCollective();
     }
 
     /** Story 41.68: the most a member earns with it - every tier, or its reward. */

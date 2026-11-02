@@ -13,7 +13,8 @@ use App\Wallet\Domain\ValueObject\QuestObjective;
 final readonly class QuestAnnouncement
 {
     /**
-     * @param list<array{title: string, objectives: string, reward: int, tiered?: bool}> $quests the most each pays (story 41.68: every tier when `tiered`)
+     * @param list<array{title: string, objectives: string, reward: int, tiered?: bool}> $quests     the most each pays (story 41.68: every tier when `tiered`)
+     * @param array{title: string, objectives: string, reward: int, share: string}|null  $collective story 41.69: the community's goal, apart - `share` is what a member does to be paid
      */
     public function __construct(
         public string $weekKey,
@@ -21,6 +22,7 @@ final readonly class QuestAnnouncement
         public int $chestReward,
         public \DateTimeImmutable $renewsAt,
         public string $url,
+        public ?array $collective = null,
     ) {
     }
 

@@ -37,6 +37,11 @@ describe("notification content", () => {
     expect(contentFor(item({ type: "achievement_unlocked" }), "").title).toEqual([{ text: "Nouveau succès débloqué" }]);
   });
 
+  test("the new week's notice tells the collective quest apart (story 41.69)", () => {
+    const content = contentFor(item({ type: "quests_renewed", data: { count: 3, maxPelles: 150, collective: "Tous ensemble" } }), "");
+    expect(content.detail).toBe("3 quêtes, jusqu'à 150 pelles. Quête collective : Tous ensemble.");
+  });
+
   test("a title won is drawn at its rarity, with where it comes from and a way to wear it", () => {
     const title = item({
       type: "cosmetic_unlocked",
