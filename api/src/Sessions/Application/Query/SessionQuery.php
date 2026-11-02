@@ -111,9 +111,9 @@ final readonly class SessionQuery
      *
      * $slotIndex is the *Archipelago* slot number, the key the bridge indexes its state by and the
      * one the slot pages carry in their URL. It is decided at generation time, by Archipelago, from
-     * the casefolded yaml filenames - and the orchestrator injects a `_bridge_observer.yaml`
-     * spectator slot that sorts before every player name, so slot 1 is always the bridge and real
-     * players start at 2.
+     * the casefolded yaml filenames. A multiworld generated before story 9.56 also carries an injected
+     * `_bridge_observer.yaml` spectator slot that sorts first, so its players start at 2; one generated
+     * since has no such slot and its players start at 1.
      *
      * This used to be compared against SessionSlot::getSlotOrder(), which is a different number
      * entirely: the rank of a game inside *one* participant's own list (`$idx + 1`, see

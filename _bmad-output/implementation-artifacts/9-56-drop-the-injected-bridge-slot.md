@@ -1,6 +1,6 @@
 # Story 9.56: Supprimer le slot observateur `Bridge` injecte dans chaque partie generee
 
-**Status:** draft
+**Status:** review
 **Epic:** 9 - Archipelago session management
 **Date:** 2026-08-28
 **Leve un heritage de :** [9.12](9-12-bridge-py-realtime-observer-service.md) (conception d'origine
@@ -106,16 +106,15 @@ reachability) et verifier qu'aucun ne compare des index entre parties.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC7). Recenser les persistances d'index de slot avant toute modification. Si l'une
-      compare des index entre parties, la story s'arrete et devient un prealable.
-- [ ] **Task 2** (AC1). Orchestrateur : retirer l'injection, et le test qui l'attend.
-- [ ] **Task 3** (AC2, AC4). Bridge : retirer le repli litteral, echouer clairement sur roster vide,
-      verifier que la connexion permanente ne touche pas aux indices.
-- [ ] **Task 4** (AC5). Frontend : simplifier `isRealPlayerSlot` en gardant l'exclusion des slots de
-      groupe.
-- [ ] **Task 5** (AC3, AC6). Verification sur un banc : une partie generee neuve, et une partie
-      lancee avant le changement.
-- [ ] **Task 6** (AC8). Gates verts sur les trois depots.
+- [x] **Task 1** (AC7). Recensement (2026-10-16) : aucun index de slot n'est comparé entre parties ; tout ce qui
+      agrège (classement, succès, recaps, historique partagé) joint par `session_id` + nom de slot. Trois points
+      ajoutés à la story (voir Dev Agent Record).
+- [x] **Task 2** (AC1). Orchestrateur : plus d'injection à la génération ; roster lu dans la sortie générée.
+- [x] **Task 3** (AC2, AC4). Bridge : plus de repli `"Bridge"`, roster vide = erreur journalisée ; la console
+      refuse les commandes qui agiraient pour le joueur connecté.
+- [x] **Task 4** (AC5). Frontend : `isRealPlayerSlot` ne garde que `slot_type`.
+- [ ] **Task 5** (AC3, AC6). Vérification sur banc : à faire (images locales à reconstruire).
+- [x] **Task 6** (AC8). Gates verts.
 
 ## Dev Notes
 
@@ -144,8 +143,41 @@ reachability) et verifier qu'aucun ne compare des index entre parties.
 - [Source: _bmad-output/implementation-artifacts/9-30-paid-hint-via-connect-as-slot.md (la connexion temporaire en tant que slot)]
 - [Source: docs/archipelago-web-clients.md (`ConnectionRefused: ["InvalidSlot"]`)]
 
+## Dev Agent Record
+
+### Completion Notes
+
+- **Roster du bridge.** L'API n'envoyait la liste des slots que pour une seed importée. L'orchestrateur la lit
+  désormais lui-même dans la sortie générée (`read_multidata`), au démarrage d'une partie lancée sans liste, et
+  la range avec les options de la session (relance depuis la sauvegarde). Une archive générée avant la story
+  liste encore son observateur en premier (`{"slot":1,"name":"Bridge","game":"Archipelago","type":0}`, vérifié
+  sur une vraie archive) : le bridge continue de s'y attacher.
+- **AC6, dossier `yamls/`.** Il est reconstruit à chaque lancement depuis une archive (`LaunchFromFile`, runs
+  hebdo, seeds importées). Le yaml de l'observateur n'y est remis que si l'archive en contient un ; sans cela, la
+  reconstruction du suivi exact ne retrouverait pas le même monde.
+- **AC4.** La console admin passe par la connexion permanente, désormais posée sur un vrai joueur : `!hint`,
+  `!hint_location`, `!release`, `!collect`, `!getitem`, `!alias`, `!ready` y sont refusés (422
+  `slot_command_refused`) ; `!admin ...`, le texte et les commandes de lecture passent. Exemples de la console
+  corrigés.
+- **Nom réservé.** Les écrans masquent encore le slot « Bridge » par son nom pour les anciennes parties :
+  `SlotName::isReserved` refuse ce nom à un joueur (message dédié) et le générateur de noms l'écarte.
+- **Parties solo.** Elles deviennent de vrais mondes à un joueur (`mw.players == 1`), comme chez un joueur qui
+  génère chez lui.
+
+### File List
+
+- `orchestrateur` : `internal/service/{service.go,session.go,session_roster.go,session_roster_test.go}`,
+  `internal/docker/client.go`
+- `bridge` : `core/{ap_client.py,commands.py,rest_session.py,ws_server.py}`, `tests/{test_api.py,test_commands.py}`
+- `archilan.fr` : `api/src/Shared/Domain/ValueObject/SlotName.php`, `api/src/PersonalRuns/Application/Service/PersonalRunGameSelection.php`,
+  `api/src/Registrations/Application/Service/RegistrationGameSelection.php`, `api/src/Sessions/Application/Support/SlotNameGenerator.php`,
+  `api/src/Sessions/Application/Query/SessionQuery.php`, `api/tests/Unit/Shared/SlotNameTest.php`,
+  `frontend/src/features/overlay/overlay-api.ts`, `frontend/src/features/overlay/overlay-real-player-slot.test.ts`,
+  `frontend/src/features/admin/admin-session-page.tsx`
+
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
 | 2026-08-28 | Creee. Le slot observateur injecte est un heritage : la conception d'origine (9.12) n'en prevoyait pas, la bifurcation n'est documentee que par un commentaire de code, et 16.18 a leve le verrou sans retirer le slot. Status: draft. |
+| 2026-10-16 | Implémentée (orchestrateur, bridge, API, front) ; banc AC3/AC6 restant. Status: review. |
