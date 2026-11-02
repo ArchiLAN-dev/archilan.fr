@@ -45,12 +45,12 @@ final readonly class ManageQuests
      *
      * @throws ValidationException when the text, reward, weight or objectives are invalid
      */
-    public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null, mixed $tiers = null): WrittenQuest
+    public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null, mixed $tiers = null, ?int $minContribution = null, bool $collective = false): WrittenQuest
     {
         $parsed = $this->objectives($objectives);
         $unlocks = $this->cosmetic($cosmetic);
         try {
-            $quest = QuestDefinition::write($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->clock->now(), tiers: $this->tiers($tiers));
+            $quest = QuestDefinition::write($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->clock->now(), tiers: $this->tiers($tiers), collective: $collective, minContribution: $minContribution);
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
@@ -66,13 +66,13 @@ final readonly class ManageQuests
      * @throws NotFoundException   when the quest does not exist
      * @throws ValidationException when the text, reward, weight or objectives are invalid
      */
-    public function edit(string $questId, string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null, mixed $tiers = null): void
+    public function edit(string $questId, string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null, mixed $tiers = null, ?int $minContribution = null): void
     {
         $quest = $this->quest($questId);
         $parsed = $this->objectives($objectives);
         $unlocks = $this->cosmetic($cosmetic);
         try {
-            $quest->edit($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->tiers($tiers));
+            $quest->edit($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->tiers($tiers), $minContribution);
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
@@ -141,7 +141,7 @@ final readonly class ManageQuests
      * @throws ValidationException when the week is past or unknown
      * @throws NotFoundException   when the quest, or the one to replace in that week, does not exist
      * @throws ConflictException   when the quest is retired or already in the week, or (story 41.67) has no
-     *                             game to draw for it
+     *                             game to draw for it, or (story 41.69) is a second collective quest for the week
      */
     public function pin(string $weekKey, string $questId, ?string $replaces = null): void
     {
@@ -154,6 +154,15 @@ final readonly class ManageQuests
         foreach ($entries as $entry) {
             if ($entry->getQuestId() === $questId) {
                 throw new ConflictException('Cette quête est déjà dans la semaine.', 'quest_already_in_week');
+            }
+        }
+
+        // Story 41.69: one collective quest a week at most - unless it takes the place of the one there.
+        if ($quest->isCollective()) {
+            foreach ($entries as $entry) {
+                if ($entry->getQuestId() !== $replaces && true === $this->quests->findQuest($entry->getQuestId())?->isCollective()) {
+                    throw new ConflictException('La semaine a déjà sa quête collective.', 'quest_collective_taken');
+                }
             }
         }
 
@@ -271,6 +280,8 @@ final readonly class ManageQuests
             'quest_draw_pools_mixed' => 'Un seul jeu est tiré par semaine : tous les objectifs à jeu tiré prennent le même panier.',
             'quest_tiers_invalid' => sprintf('De %d à %d paliers sur une quête à un seul objectif, le premier à sa cible et sa récompense, chacun plus haut que le précédent.', QuestDefinition::MIN_TIERS, QuestDefinition::MAX_TIERS),
             'quest_tiers_reward_invalid' => sprintf('Tous les paliers ensemble paient %d pelles au plus.', QuestDefinition::MAX_REWARD),
+            'quest_collective_invalid' => 'Une quête collective a un seul objectif, sans palier, sur des goals, des checks, des parties, du temps de jeu, des items envoyés ou des primes.',
+            'quest_contribution_invalid' => 'Une quête collective paie à partir d\'une part minimale, de 1 à la cible.',
             'quest_weight_invalid' => sprintf('Un poids de tirage de %d à %d.', QuestDefinition::MIN_WEIGHT, QuestDefinition::MAX_WEIGHT),
             'quest_objective_target_invalid' => sprintf('Une cible de %d à %d.', QuestObjective::MIN_TARGET, QuestObjective::MAX_TARGET),
             default => 'Quête invalide.',

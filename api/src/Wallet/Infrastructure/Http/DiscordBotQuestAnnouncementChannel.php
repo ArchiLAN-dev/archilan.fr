@@ -72,6 +72,14 @@ final readonly class DiscordBotQuestAnnouncementChannel implements QuestAnnounce
         if ($announcement->chestReward > 0) {
             $fields[] = ['name' => sprintf('Coffre de la semaine · +%d pelles', $announcement->chestReward), 'value' => 'Pour qui fait toutes les quêtes.', 'inline' => false];
         }
+        // Story 41.69: the community's goal, after the chest it does not count for.
+        if (null !== $announcement->collective) {
+            $fields[] = [
+                'name' => mb_substr(sprintf('Quête collective · %s · +%d pelles', $announcement->collective['title'], $announcement->collective['reward']), 0, 256),
+                'value' => mb_substr(sprintf('%s à nous tous. Payée à qui en fait au moins %s.', $announcement->collective['objectives'], $announcement->collective['share']), 0, 1024),
+                'inline' => false,
+            ];
+        }
 
         return [
             'allowed_mentions' => ['parse' => []],

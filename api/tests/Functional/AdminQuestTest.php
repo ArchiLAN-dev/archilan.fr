@@ -37,7 +37,7 @@ final class AdminQuestTest extends FunctionalTestCase
         self::assertCount(9, $weeks, 'the current week and 8 coming ones');
         self::assertTrue($weeks[0]['current'] ?? null);
         self::assertTrue($weeks[0]['drawn'] ?? null);
-        self::assertSame([['questId' => $id, 'title' => 'Marathon', 'reward' => 60, 'origin' => 'drawn', 'retired' => false, 'drawnGame' => null]], $weeks[0]['quests'] ?? null);
+        self::assertSame([['questId' => $id, 'title' => 'Marathon', 'reward' => 60, 'origin' => 'drawn', 'retired' => false, 'drawnGame' => null, 'collective' => false, 'groupTotal' => null, 'groupTarget' => null]], $weeks[0]['quests'] ?? null);
         self::assertFalse($weeks[1]['drawn'] ?? null, 'a coming week is drawn when it starts');
     }
 
@@ -149,7 +149,7 @@ final class AdminQuestTest extends FunctionalTestCase
         self::assertCount(4, $past);
         self::assertIsArray($past[0]);
         self::assertSame($lastWeek->key, $past[0]['key'] ?? null);
-        self::assertSame([['questId' => $id, 'title' => 'Un goal', 'reward' => 40, 'origin' => 'drawn', 'retired' => false, 'drawnGame' => null, 'members' => 1, 'pelles' => 40]], $past[0]['quests'] ?? null);
+        self::assertSame([['questId' => $id, 'title' => 'Un goal', 'reward' => 40, 'origin' => 'drawn', 'retired' => false, 'drawnGame' => null, 'collective' => false, 'groupTotal' => null, 'groupTarget' => null, 'members' => 1, 'pelles' => 40]], $past[0]['quests'] ?? null);
         self::assertSame(1, $past[0]['chests'] ?? null);
         self::assertSame(120, $past[0]['pelles'] ?? null);
     }
@@ -171,7 +171,7 @@ final class AdminQuestTest extends FunctionalTestCase
         self::assertIsArray($past);
         self::assertIsArray($past[2] ?? null);
         self::assertSame($old->key, $past[2]['key'] ?? null);
-        self::assertSame([['questId' => $id, 'title' => 'Un goal', 'reward' => 40, 'origin' => 'drawn', 'retired' => false, 'drawnGame' => null, 'members' => 1, 'pelles' => 40]], $past[2]['quests'] ?? null);
+        self::assertSame([['questId' => $id, 'title' => 'Un goal', 'reward' => 40, 'origin' => 'drawn', 'retired' => false, 'drawnGame' => null, 'collective' => false, 'groupTotal' => null, 'groupTarget' => null, 'members' => 1, 'pelles' => 40]], $past[2]['quests'] ?? null);
         self::assertSame(40, $past[2]['pelles'] ?? null);
     }
 

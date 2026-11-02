@@ -57,6 +57,7 @@ final readonly class AnnounceQuestsOnDiscord
             $this->settings->chestReward(),
             $week->end,
             rtrim($this->siteUrl, '/').'/compte/pelles',
+            $this->collective($week),
         );
 
         $previous = $this->settings->discordMessageOf($week->key);
@@ -91,6 +92,27 @@ final readonly class AnnounceQuestsOnDiscord
             'reward' => $quest->maxReward(),
             'tiered' => [] !== $quest->tiers,
         ], $served);
+    }
+
+    /**
+     * Story 41.69: the week's collective quest in words, null when it has none.
+     *
+     * @return array{title: string, objectives: string, reward: int, share: string}|null
+     */
+    private function collective(QuestWeek $week): ?array
+    {
+        $quest = $this->planner->collective($week);
+        $objective = $quest?->getObjectives()[0] ?? null;
+        if (null === $quest || null === $objective) {
+            return null;
+        }
+
+        return [
+            'title' => $quest->getTitle(),
+            'objectives' => QuestAnnouncement::describe($objective, $this->scopeNames([$quest])[$objective->key()] ?? null),
+            'reward' => $quest->getReward(),
+            'share' => $objective->metric->describe($quest->minContribution ?? $objective->target),
+        ];
     }
 
     /**

@@ -65,6 +65,10 @@ export type AdminQuest = {
   cosmetic?: CosmeticRewardView | null;
   /** Story 41.68: its tiers, null for a quest done or not. */
   tiers: QuestTierTerms[] | null;
+  /** Story 41.69: a goal for the whole community, pinned beside the week's quests (absent from an older API). */
+  collective?: boolean;
+  /** Story 41.69: the share a member needs to be paid by a collective quest, null for any other. */
+  minContribution?: number | null;
   retired: boolean;
   createdAt: string;
   /** Story 41.16: how the quest did. */
@@ -77,7 +81,18 @@ export type QuestStats = { weeksServed: number; lastWeek: string | null; lastMem
 export type QuestWeekOrigin = "pinned" | "drawn";
 
 /** Story 41.67: `drawnGame`, the game drawn for the week when the quest aims at one. */
-export type ServedQuest = { questId: string; title: string; reward: number; origin: QuestWeekOrigin; retired: boolean; drawnGame: string | null };
+export type ServedQuest = {
+  questId: string;
+  title: string;
+  reward: number;
+  origin: QuestWeekOrigin;
+  retired: boolean;
+  drawnGame: string | null;
+  /** Story 41.69: the week's collective quest, with the community's total as last counted and its target. */
+  collective?: boolean;
+  groupTotal?: number | null;
+  groupTarget?: number | null;
+};
 
 export type AdminQuestWeek = { key: string; startsAt: string; endsAt: string; current: boolean; drawn: boolean; quests: ServedQuest[] };
 
@@ -112,7 +127,25 @@ export type QuestTerms = {
   drawWeight: number;
   cosmetic?: CosmeticReward | null;
   tiers?: QuestTierTerms[] | null;
+  /** Story 41.69: set when the quest is written, never changed after. */
+  collective?: boolean;
+  minContribution?: number | null;
 };
+
+/** Story 41.69: the types a collective quest may count - those that add up without doubles. */
+export const COLLECTIVE_METRICS = ["goals", "checks", "sessions", "playMinutes", "itemsSent", "bountiesWon"] as const;
+
+/**
+ * Story 41.69: the share the form suggests, about 2 % of the goal, so an alt account's one check earns nothing. Time
+ * played is typed by half hours.
+ */
+export function suggestedContribution(target: number, duration = false): number {
+  return duration ? Math.max(30, Math.round((target * 0.02) / 30) * 30) : Math.max(1, Math.round(target * 0.02));
+}
+
+function isOptionalNumber(value: unknown): boolean {
+  return value === undefined || value === null || typeof value === "number";
+}
 
 export function isQuestTier(v: unknown): v is QuestTierTerms {
   return typeof v === "object" && v !== null && hasNumberProp(v, "target") && hasNumberProp(v, "reward");
@@ -176,7 +209,9 @@ function isQuest(v: unknown): v is AdminQuest {
     v.objectives.every(isObjectiveTerms) &&
     (!("cosmetic" in v) || v.cosmetic === null || isCosmeticRewardView(v.cosmetic)) &&
     "tiers" in v &&
-    (v.tiers === null || (Array.isArray(v.tiers) && v.tiers.every(isQuestTier)))
+    (v.tiers === null || (Array.isArray(v.tiers) && v.tiers.every(isQuestTier))) &&
+    (!("collective" in v) || typeof v.collective === "boolean") &&
+    isOptionalNumber("minContribution" in v ? v.minContribution : undefined)
   );
 }
 
@@ -221,7 +256,10 @@ function isServed(v: unknown): v is ServedQuest {
     "origin" in v &&
     (v.origin === "pinned" || v.origin === "drawn") &&
     "drawnGame" in v &&
-    (v.drawnGame === null || typeof v.drawnGame === "string")
+    (v.drawnGame === null || typeof v.drawnGame === "string") &&
+    (!("collective" in v) || typeof v.collective === "boolean") &&
+    isOptionalNumber("groupTotal" in v ? v.groupTotal : undefined) &&
+    isOptionalNumber("groupTarget" in v ? v.groupTarget : undefined)
   );
 }
 

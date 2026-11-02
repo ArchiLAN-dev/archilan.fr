@@ -188,6 +188,14 @@ export function OriginBadge({ origin }: { origin: ServedQuest["origin"] }) {
   );
 }
 
+/** Story 41.69: « Collective : 312 / 500, en cours », or reached, or not counted yet. */
+export function groupLine(served: ServedQuest, ongoing = false): string {
+  if (served.groupTotal === null || served.groupTotal === undefined) return "Collective : pas encore comptée";
+  const target = served.groupTarget ?? 0;
+  const state = target > 0 && served.groupTotal >= target ? "réussie" : ongoing ? "en cours" : "pas atteinte";
+  return `Collective : ${served.groupTotal} / ${target}, ${state}`;
+}
+
 /** The week the members are living: each quest with its objectives, and what pinning changes now. */
 export function CurrentWeek({
   week,
@@ -255,11 +263,14 @@ export function CurrentWeek({
                   <p className="flex flex-wrap items-center gap-2 font-semibold text-foreground">
                     {served.title}
                     <OriginBadge origin={served.origin} />
+                    {served.collective ? <span className="rounded-full border border-accent/40 px-2 py-0.5 text-xs font-medium text-accent-text">Collective</span> : null}
                     {served.retired ? <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">Type retiré</span> : null}
                   </p>
                   {quest ? <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, metrics, scopes)}</p> : null}
                   {/* Story 41.67: the game drawn for this week; a coming week draws it when it begins. */}
                   {served.drawnGame ? <p className="text-xs text-foreground">Jeu tiré : {served.drawnGame}</p> : null}
+                  {/* Story 41.69: the community's total, as the hourly run last counted it. */}
+                  {served.collective ? <p className="text-xs text-foreground">{groupLine(served, true)}</p> : null}
                 </div>
                 <PelleAmount amount={served.reward} className="text-sm font-semibold text-warning" signed />
                 <div className="flex gap-1">
@@ -294,7 +305,8 @@ export function ComingWeekRow({
   onPin: () => void;
   onUnpin: (quest: ServedQuest) => void;
 }) {
-  const toDraw = week.drawn ? 0 : Math.max(0, perWeek - week.quests.length);
+  // Story 41.69: a collective quest is not one of the week's number.
+  const toDraw = week.drawn ? 0 : Math.max(0, perWeek - week.quests.filter((served) => !served.collective).length);
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
@@ -605,6 +617,7 @@ export function PastWeeks({ weeks }: { weeks: PastQuestWeek[] }) {
               {week.quests.map((quest) => (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground" key={quest.questId}>
                   {quest.title}
+                  {quest.collective ? <span className="text-muted-foreground">({groupLine(quest)})</span> : null}
                   <span className={`inline-flex items-center gap-0.5 font-semibold tabular-nums ${quest.members > 0 ? "text-success" : "text-muted-foreground"}`}>
                     <Users aria-hidden className="size-3" />
                     {quest.members}

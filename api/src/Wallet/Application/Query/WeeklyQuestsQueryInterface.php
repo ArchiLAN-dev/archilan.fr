@@ -31,6 +31,13 @@ interface WeeklyQuestsQueryInterface
     public function counts(QuestWeek $week, array $objectives, ?string $userId = null): array;
 
     /**
+     * Story 41.69: what the whole community did over the week for a collective objective, each thing once - a check,
+     * a goal or a minute of a slot played by several members, a session whatever its players, an item between two
+     * members. Not the sum of the members' counts. What a banned or erased member played counts: it happened.
+     */
+    public function groupTotal(QuestWeek $week, QuestObjective $objective): int;
+
+    /**
      * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. Story
      * 41.66: and the platform families of the catalog's games.
      *
@@ -76,6 +83,9 @@ interface WeeklyQuestsQueryInterface
      * @return array<string, array{quests: list<string>, pelles: int, chest: bool}> by week key
      */
     public function earnedBy(string $userId): array;
+
+    /** Story 41.69: whether the week's collective quest paid the member (key `quest-group:{week}:{quest}:{member}`). */
+    public function groupPaid(string $userId, QuestWeek $week, string $questId): bool;
 
     /** Story 41.16: whether the member's chest of the week is paid (key `quest-chest:{week}:{member}`). */
     /**

@@ -16,6 +16,9 @@ use Doctrine\ORM\Mapping as ORM;
  * Story 41.67: what it asks and pays is frozen once the week has begun (`objectives`, `reward`), with the game drawn
  * for it if it aims at one. An entry served before that story, or pinned to a week not begun yet, has none: it reads
  * its quest.
+ *
+ * Story 41.69: a collective quest freezes the share that pays too, and keeps the community's total as the hourly
+ * run last counted it (`groupTotal`), which the public gauge reads without counting anything.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'quest_week_entry')]
@@ -46,6 +49,12 @@ final class QuestWeekEntry
         /** @var list<array{target: int, reward: int}>|null */
         #[ORM\Column(type: 'json', nullable: true)]
         private ?array $tiers = null,
+        #[ORM\Column(name: 'min_contribution', type: 'integer', nullable: true)]
+        private ?int $minContribution = null,
+        #[ORM\Column(name: 'group_total', type: 'integer', nullable: true)]
+        private ?int $groupTotal = null,
+        #[ORM\Column(name: 'group_counted_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $groupCountedAt = null,
     ) {
     }
 
@@ -55,8 +64,9 @@ final class QuestWeekEntry
      * @param list<QuestObjective> $objectives
      * @param list<QuestTier>      $tiers
      */
-    public function freeze(array $objectives, int $reward, ?string $drawnGameId, array $tiers = []): void
+    public function freeze(array $objectives, int $reward, ?string $drawnGameId, array $tiers = [], ?int $minContribution = null): void
     {
+        $this->minContribution = $minContribution;
         $this->objectives = array_map(static fn (QuestObjective $objective): array => $objective->toArray(), $objectives);
         $this->reward = $reward;
         $this->drawnGameId = $drawnGameId;
@@ -67,6 +77,29 @@ final class QuestWeekEntry
     public function getTiers(): array
     {
         return null === $this->tiers ? [] : QuestTier::listFromArray($this->tiers);
+    }
+
+    /** Story 41.69: the frozen share that pays a collective quest. */
+    public function getMinContribution(): ?int
+    {
+        return $this->minContribution;
+    }
+
+    /** Story 41.69: the community's total of a collective quest, as counted at that instant. */
+    public function countGroup(int $total, \DateTimeImmutable $at): void
+    {
+        $this->groupTotal = max(0, $total);
+        $this->groupCountedAt = $at;
+    }
+
+    public function getGroupTotal(): ?int
+    {
+        return $this->groupTotal;
+    }
+
+    public function getGroupCountedAt(): ?\DateTimeImmutable
+    {
+        return $this->groupCountedAt;
     }
 
     public function isFrozen(): bool

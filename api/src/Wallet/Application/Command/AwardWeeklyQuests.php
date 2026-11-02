@@ -27,6 +27,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * the quest and the member), so the hourly run can pass again and again. The week just ended is paid too, for a
  * quest done in its last hour. A banned or erased member earns nothing. Story 41.15: the quests are those the week
  * serves, accomplished when every objective is reached. Story 41.16: doing them all opens the week's chest.
+ * Story 41.69: the week's collective quest is counted for the whole community at each run (the public gauge reads
+ * that total), and once reached pays each member whose share reaches its threshold - outside the chest.
  */
 final readonly class AwardWeeklyQuests
 {
@@ -71,9 +73,12 @@ final readonly class AwardWeeklyQuests
         $this->settings->markAnnounced($week->key);
 
         $chest = $this->settings->chestReward();
+        $collective = $this->planner->collective($week);
         $payload = [
             'week' => $week->key,
             'count' => \count($served),
+            // Story 41.69: told apart, outside the most a member earns with the week's quests.
+            'collective' => $collective?->getTitle(),
             // Story 41.68: a quest with tiers counts every one of them.
             'maxPelles' => array_sum(array_map(static fn (ServedQuest $quest): int => $quest->maxReward(), $served)) + $chest,
         ];
@@ -89,13 +94,13 @@ final readonly class AwardWeeklyQuests
 
     public function awardWeek(QuestWeek $week): int
     {
+        $paid = $this->awardCollective($week);
         $served = $this->planner->served($week);
         if ([] === $served) {
-            return 0;
+            return $paid;
         }
         $counts = $this->quests->counts($week, ServedQuest::objectivesOf($served));
 
-        $paid = 0;
         $doneAll = null;
         foreach ($served as $quest) {
             $accomplishers = $this->accomplishers($quest, $counts);
@@ -145,6 +150,37 @@ final readonly class AwardWeeklyQuests
             $paid += $this->pay(
                 $userId, $step->reward, sprintf('Quête : %s (palier %d)', $quest->getTitle(), $tier),
                 sprintf('quest-tier:%s:%s:%s:%d', $week->key, $quest->getId(), $userId, $tier), sprintf('quête « %s », palier %d', $quest->getTitle(), $tier),
+            );
+        }
+
+        return $paid;
+    }
+
+    /**
+     * Story 41.69: counts the community's total, keeps it for the public gauge, and once the goal is reached pays
+     * each member whose share reaches the threshold, once (`quest-group:{week}:{quest}:{member}`).
+     */
+    private function awardCollective(QuestWeek $week): int
+    {
+        $quest = $this->planner->collective($week);
+        $objective = $quest?->getObjectives()[0] ?? null;
+        if (null === $quest || null === $objective) {
+            return 0;
+        }
+        $total = $this->quests->groupTotal($week, $objective);
+        $this->planner->recordGroupTotal($week, $quest, $total);
+        if ($total < $objective->target) {
+            return 0;
+        }
+
+        $threshold = $quest->minContribution ?? $objective->target;
+        $paid = 0;
+        $shares = $this->quests->counts($week, [$objective])[$objective->key()] ?? [];
+        // A member id made of digits comes back as an integer key.
+        foreach (array_map(strval(...), array_keys(array_filter($shares, static fn (int $share): bool => $share >= $threshold))) as $userId) {
+            $paid += $this->pay(
+                $userId, $quest->getReward(), sprintf('Quête collective : %s', $quest->getTitle()),
+                sprintf('quest-group:%s:%s:%s', $week->key, $quest->getId(), $userId), sprintf('quête collective « %s »', $quest->getTitle()),
             );
         }
 

@@ -23,9 +23,10 @@ use Psr\Clock\ClockInterface;
  * week, and the current and coming weeks with what each serves. The current week is frozen first, so the page shows
  * the quests the members see. Story 41.16: the chest, what each quest paid, and the weeks just past.
  *
- * Story 41.67: what each week served pays as frozen there, and the game drawn for it.
+ * Story 41.67: what each week served pays as frozen there, and the game drawn for it. Story 41.69: a collective
+ * quest with the community's total as last counted and its target; its members are the contributors paid.
  *
- * @phpstan-type ServedQuest array{questId: string, title: string, reward: int, origin: string, retired: bool, drawnGame: string|null}
+ * @phpstan-type ServedQuest array{questId: string, title: string, reward: int, origin: string, retired: bool, drawnGame: string|null, collective: bool, groupTotal: int|null, groupTarget: int|null}
  */
 final readonly class QuestAdminQuery
 {
@@ -48,9 +49,9 @@ final readonly class QuestAdminQuery
      *   chestReward: int,
      *   metrics: list<array{key: string, label: string, unit: string, unitOne: string, scopable: bool, scopes: list<string>, help: string, duration: bool}>,
      *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>, platforms: list<string>},
-     *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, tiers: list<array{target: int, reward: int}>|null, cosmetic: array{type: string, key: string, label: string}|null, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, lastTiers: list<int>, pelles: int}}>,
+     *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, tiers: list<array{target: int, reward: int}>|null, collective: bool, minContribution: int|null, cosmetic: array{type: string, key: string, label: string}|null, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, lastTiers: list<int>, pelles: int}}>,
      *   weeks: list<array{key: string, startsAt: string, endsAt: string, current: bool, drawn: bool, quests: list<ServedQuest>}>,
-     *   pastWeeks: list<array{key: string, startsAt: string, endsAt: string, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool, drawnGame: string|null, members: int, pelles: int}>, chests: int, pelles: int}>
+     *   pastWeeks: list<array{key: string, startsAt: string, endsAt: string, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool, drawnGame: string|null, collective: bool, groupTotal: int|null, groupTarget: int|null, members: int, pelles: int}>, chests: int, pelles: int}>
      * }
      */
     public function overview(): array
@@ -97,7 +98,7 @@ final readonly class QuestAdminQuery
             foreach (array_keys($paid['quests']) as $questId) {
                 $quest = $byId[$questId] ?? null;
                 if (null !== $quest && !\in_array($questId, array_column($served, 'questId'), true)) {
-                    $served[] = ['questId' => $questId, 'title' => $quest->getTitle(), 'reward' => $quest->getReward(), 'origin' => 'drawn', 'retired' => $quest->isRetired(), 'drawnGame' => null];
+                    $served[] = ['questId' => $questId, 'title' => $quest->getTitle(), 'reward' => $quest->getReward(), 'origin' => 'drawn', 'retired' => $quest->isRetired(), 'drawnGame' => null, 'collective' => $quest->isCollective(), 'groupTotal' => null, 'groupTarget' => null];
                 }
             }
             $quests = array_map(static fn (array $served): array => [
@@ -145,6 +146,9 @@ final readonly class QuestAdminQuery
                 // Story 41.28: the cosmetic it unlocks.
                 // Story 41.68: its tiers, the first one being its target and reward.
                 'tiers' => [] === $quest->getTiers() ? null : array_map(static fn (QuestTier $tier): array => $tier->toArray(), $quest->getTiers()),
+                // Story 41.69: a goal for the whole community, and the share that pays it.
+                'collective' => $quest->isCollective(),
+                'minContribution' => $quest->getMinContribution(),
                 'cosmetic' => $this->cosmetic($quest),
                 'retired' => $quest->isRetired(),
                 'createdAt' => $quest->getCreatedAt()->format(\DATE_ATOM),
@@ -240,6 +244,9 @@ final readonly class QuestAdminQuery
                 'origin' => $entry->getOrigin()->value,
                 'retired' => $quest->isRetired(),
                 'drawnGame' => null === $entry->getDrawnGameId() ? null : ($drawnGames[$entry->getDrawnGameId()] ?? 'jeu retiré'),
+                'collective' => $quest->isCollective(),
+                'groupTotal' => $quest->isCollective() ? $entry->getGroupTotal() : null,
+                'groupTarget' => $quest->isCollective() ? (($entry->getObjectives() ?? $quest->getObjectives())[0] ?? null)?->target : null,
             ];
         }
 

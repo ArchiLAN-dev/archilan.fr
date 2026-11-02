@@ -133,6 +133,23 @@ final class DiscordBotQuestAnnouncementChannelTest extends TestCase
         self::assertStringContainsString("Toujours plus · jusqu'à 60 pelles", (string) json_encode($payload, \JSON_UNESCAPED_UNICODE));
     }
 
+    public function testTheCollectiveQuestComesApartAndOutOfTheMostToEarn(): void
+    {
+        $payload = DiscordBotQuestAnnouncementChannel::payload(new QuestAnnouncement(
+            '2026-W45',
+            [['title' => 'Un check', 'objectives' => '1 check', 'reward' => 10]],
+            50,
+            new \DateTimeImmutable('2026-11-08T23:00:00+00:00'),
+            'https://archilan.fr/compte/pelles',
+            ['title' => 'Tous ensemble', 'objectives' => '500 checks', 'reward' => 40, 'share' => '10 checks'],
+        ));
+
+        $json = (string) json_encode($payload, \JSON_UNESCAPED_UNICODE);
+        self::assertStringContainsString('Quête collective · Tous ensemble · +40 pelles', $json);
+        self::assertStringContainsString('500 checks à nous tous. Payée à qui en fait au moins 10 checks.', $json);
+        self::assertStringContainsString('Jusqu\'à 60 pelles à gagner', $json);
+    }
+
     private function announcement(): QuestAnnouncement
     {
         return new QuestAnnouncement(

@@ -141,6 +141,15 @@ enum QuestMetric: string
         };
     }
 
+    /**
+     * Story 41.69: whether the community's play adds up to one count without doubles - a check, a goal or a minute
+     * of a slot played by several members once, a session once whatever its players. Those a collective quest aims at.
+     */
+    public function isCollective(): bool
+    {
+        return \in_array($this, [self::Goals, self::Checks, self::Sessions, self::PlayMinutes, self::ItemsSent, self::BountiesWon], true);
+    }
+
     /** Story 41.64: a count of minutes, shown in hours (« 2 h 30 / 6 h »). */
     public function isDuration(): bool
     {

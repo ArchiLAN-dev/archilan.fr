@@ -1,6 +1,6 @@
 # Story 41.69: Quête collective de la semaine
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-11-01
 
@@ -49,7 +49,52 @@ additionne ce que la communauté joue. Dépend de l'instantané de la 41.67.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1, 2) - Domaine, migration, requête agrégée, service hors tirage ; tests.
-- [ ] **Task 2** (AC 3, 6) - Paiement des contributeurs, lecteurs du registre ; tests.
-- [ ] **Task 3** (AC 4, 5, 7) - Jauge stockée, jauges membre et publique, admin, Discord ; tests jest.
+- [x] **Task 1** (AC 1, 2) - Domaine, migration, requête agrégée, service hors tirage ; tests.
+- [x] **Task 2** (AC 3, 6) - Paiement des contributeurs, lecteurs du registre ; tests.
+- [x] **Task 3** (AC 4, 5, 7) - Jauge stockée, jauges membre et publique, admin, Discord ; tests jest.
 - [ ] **Task 4** (AC 8) - Gates, vérification dans l'app.
+
+## Dev Agent Record
+
+### Implementation
+
+- `QuestDefinition.collective` (bool) et `min_contribution`, `QuestWeekEntry.min_contribution` (gelé avec la
+  quête), `group_total` et `group_counted_at` (migration `Version20261031120003`). Une quête collective a un seul
+  objectif sur une métrique additive (`QuestMetric::isCollective()` : goals, checks, parties, temps de jeu, items
+  envoyés, primes), sans palier, et une part minimale obligatoire entre 1 et la cible (`quest_collective_invalid`,
+  `quest_contribution_invalid`). Le caractère collectif se choisit à la création et ne change plus (les semaines
+  servies le lisent ainsi) ; elle n'est jamais dans le tirage (`isDrawable()` faux, `inDraw` forcé à faux).
+- `QuestWeekPlanner` : `served()` laisse la quête collective de côté, `collective()` la donne, le tirage ne la compte
+  pas dans le nombre de quêtes de la semaine ; `recordGroupTotal()` garde le total sur l'entrée. `pin` refuse une
+  deuxième quête collective dans la même semaine (`quest_collective_taken`), sauf en remplacement.
+- Total commun : `WeeklyQuestsQueryInterface::groupTotal()`, une requête par métrique sans passer par les joueurs
+  (un check, un goal, une minute ou une partie compte une fois ; un item entre deux membres une fois). Le jeu d'un
+  membre banni ou supprimé compte. La part d'un membre reprend `counts()`.
+- Paiement (`AwardWeeklyQuests::awardCollective`) à chaque passage horaire, semaine en cours et précédente : total
+  recalculé et stocké, puis si l'objectif est atteint, `quest-group:{semaine}:{quête}:{membre}` pour chaque membre
+  dont la part atteint le seuil (motif `quest_reward`, notification). Hors coffre et hors `maxPelles`.
+- Registre : `payments()` compte `quest-group:` comme une quête (contributeurs payés, pelles) ; `earnedBy` compte
+  ses pelles dans la semaine ; nouveau `groupPaid()`. Le succès « Quêtes hebdo réussies » ne lit que `quest:`.
+- Notification `quests_renewed` : champ `collective` (titre) ; Discord : champ « Quête collective · titre · +N
+  pelles » après le coffre, avec la part qui paie.
+- Membre (`/me/quests`) : `collective` (total en direct, part du membre, seuil, payé) ; bloc « Quête collective »
+  après le coffre. Historique : la quête collective ne compte pas dans les quêtes servies.
+- Public : `GET /api/v1/community/collective-quest` (`CommunityQuestGauge`), lit le total stocké de la semaine en
+  cours, sans tirage ni gel ni comptage, sans nom de membre ; section sur `/communaute`.
+- Admin : case « Quête collective » à la création (métriques restreintes, un objectif, pas de paliers ni de
+  tirage), part minimale avec suggestion d'environ 2 % de la cible ; badge « Collective » ; total commun et cible
+  dans les semaines (en cours, réussie, pas atteinte) ; « N contributeurs récompensés » dans les stats.
+
+### Écarts
+
+- La jauge membre lit le total en direct (comme sa part), la jauge publique le total stocké par la tâche horaire.
+- Les stats admin donnent le total atteint dans l'onglet des semaines (4 semaines passées), pas dans la ligne de
+  stats de la quête.
+
+### Tests
+
+- `QuestCollectiveTest` : slot partagé compté une fois et seuil, paiement unique, coffre et nombre de quêtes sans la
+  quête collective, échec sans paiement, lecture publique sans tirage ni gel, banni compté et non payé,
+  notification et admin, validation et épinglage HTTP, total par métrique et par cible.
+- `DiscordBotQuestAnnouncementChannelTest::testTheCollectiveQuestComesApartAndOutOfTheMostToEarn`.
+- jest : `collective-quest.test.tsx`, `notification-center.test.ts`, `notification-content.test.tsx`.

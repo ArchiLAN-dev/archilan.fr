@@ -15,6 +15,10 @@ use Doctrine\ORM\Mapping as ORM;
  *
  * Story 41.68: a quest with one objective may have 2 or 3 tiers, each with a higher target and its own reward. The
  * first tier is the quest's target and reward, so the code that knows no tiers stays right.
+ *
+ * Story 41.69: a collective quest has one objective the whole community counts towards, on a metric that adds up
+ * (see QuestMetric::isCollective()), and pays its reward to each member whose share reaches `minContribution`. It
+ * never comes out of a draw: an admin pins it, one a week at most, beside the week's quests.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'quest_definition')]
@@ -62,6 +66,10 @@ final class QuestDefinition
         /** @var list<array{target: int, reward: int}>|null */
         #[ORM\Column(type: 'json', nullable: true)]
         private ?array $tiers = null,
+        #[ORM\Column(type: 'boolean', options: ['default' => false])]
+        private bool $collective = false,
+        #[ORM\Column(name: 'min_contribution', type: 'integer', nullable: true)]
+        private ?int $minContribution = null,
     ) {
     }
 
@@ -80,25 +88,34 @@ final class QuestDefinition
 
     /**
      * @param list<QuestObjective> $objectives
-     * @param list<QuestTier>      $tiers      none, or 2 to 3 tiers whose first is the objective's target and reward
+     * @param list<QuestTier>      $tiers           none, or 2 to 3 tiers whose first is the objective's target and reward
+     * @param int|null             $minContribution story 41.69: the share a member needs to be paid by a collective quest
      */
-    public static function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, \DateTimeImmutable $now, ?string $id = null, array $tiers = []): self
+    public static function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, \DateTimeImmutable $now, ?string $id = null, array $tiers = [], bool $collective = false, ?int $minContribution = null): self
     {
         [$title, $description] = self::assertTerms($title, $description, $reward, $objectives, $drawWeight, $tiers);
+        self::assertCollective($collective, $minContribution, $objectives, $tiers);
 
-        return new self($id ?? bin2hex(random_bytes(16)), $title, $description, $reward, self::stored($objectives), $inDraw, $now, drawWeight: $drawWeight, tiers: self::storedTiers($tiers));
+        return new self(
+            $id ?? bin2hex(random_bytes(16)), $title, $description, $reward, self::stored($objectives), $inDraw && !$collective, $now,
+            drawWeight: $drawWeight, tiers: self::storedTiers($tiers), collective: $collective, minContribution: $collective ? $minContribution : null,
+        );
     }
 
     /**
      * @param list<QuestObjective> $objectives
      * @param list<QuestTier>      $tiers
      */
-    public function edit(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, array $tiers = []): void
+    public function edit(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, array $tiers = [], ?int $minContribution = null): void
     {
-        [$this->title, $this->description] = self::assertTerms($title, $description, $reward, $objectives, $drawWeight, $tiers);
+        [$title, $description] = self::assertTerms($title, $description, $reward, $objectives, $drawWeight, $tiers);
+        // Story 41.69: a quest stays collective or not - the weeks it was served in read it so.
+        self::assertCollective($this->collective, $minContribution, $objectives, $tiers);
+        [$this->title, $this->description] = [$title, $description];
         $this->reward = $reward;
         $this->objectives = self::stored($objectives);
-        $this->inDraw = $inDraw;
+        $this->inDraw = $inDraw && !$this->collective;
+        $this->minContribution = $this->collective ? $minContribution : null;
         $this->drawWeight = $drawWeight;
         $this->tiers = self::storedTiers($tiers);
     }
@@ -124,10 +141,22 @@ final class QuestDefinition
         return null !== $this->retiredAt;
     }
 
-    /** May come out of a Monday draw. */
+    /** May come out of a Monday draw - story 41.69: never a collective quest. */
     public function isDrawable(): bool
     {
-        return $this->inDraw && !$this->isRetired();
+        return $this->inDraw && !$this->collective && !$this->isRetired();
+    }
+
+    /** Story 41.69: a goal for the whole community. */
+    public function isCollective(): bool
+    {
+        return $this->collective;
+    }
+
+    /** Story 41.69: the share a member needs to be paid by a collective quest, null for any other. */
+    public function getMinContribution(): ?int
+    {
+        return $this->minContribution;
     }
 
     public function getId(): string
@@ -293,6 +322,26 @@ final class QuestDefinition
         }
         if (array_sum(array_map(static fn (QuestTier $tier): int => $tier->reward, $tiers)) > self::MAX_REWARD) {
             throw new \DomainException('quest_tiers_reward_invalid');
+        }
+    }
+
+    /**
+     * Story 41.69: a collective quest counts one metric that adds up, has no tiers, and pays from a share between 1
+     * and its target - required, so an alt account that makes one check earns nothing.
+     *
+     * @param list<QuestObjective> $objectives
+     * @param list<QuestTier>      $tiers
+     */
+    private static function assertCollective(bool $collective, ?int $minContribution, array $objectives, array $tiers): void
+    {
+        if (!$collective) {
+            return;
+        }
+        if (1 !== \count($objectives) || !$objectives[0]->metric->isCollective() || [] !== $tiers) {
+            throw new \DomainException('quest_collective_invalid');
+        }
+        if (null === $minContribution || $minContribution < 1 || $minContribution > $objectives[0]->target) {
+            throw new \DomainException('quest_contribution_invalid');
         }
     }
 
