@@ -7,10 +7,12 @@ namespace App\Wallet\Application\Port;
 use App\Wallet\Application\Exception\MinimapperzUnauthorizedException;
 use App\Wallet\Application\Exception\MinimapperzUnavailableException;
 use App\Wallet\Application\Support\MinimapperzEvent;
+use App\Wallet\Application\Support\MinimapperzGame;
+use App\Wallet\Application\Support\MinimapperzPlayer;
 
 /**
- * Minimapperz's organiser API (epic 49), read only, one API key per event. Story 49.1 reads the event itself; the
- * games, players and ranking come with stories 49.3 and 49.4.
+ * Minimapperz's organiser API (epic 49), read only, one API key per event. Story 49.1 reads the event itself, story
+ * 49.3 its finished games and its players.
  */
 interface MinimapperzClientInterface
 {
@@ -19,4 +21,24 @@ interface MinimapperzClientInterface
      * @throws MinimapperzUnavailableException  when Minimapperz cannot be read
      */
     public function event(string $slug, string $apiKey): MinimapperzEvent;
+
+    /**
+     * The finished games of the event, newest first; with `$since`, only those that ended after it.
+     *
+     * @return list<MinimapperzGame>
+     *
+     * @throws MinimapperzUnauthorizedException when the key does not open this event
+     * @throws MinimapperzUnavailableException  when Minimapperz cannot be read
+     */
+    public function games(string $slug, string $apiKey, ?\DateTimeImmutable $since): array;
+
+    /**
+     * Everyone who joined the event.
+     *
+     * @return list<MinimapperzPlayer>
+     *
+     * @throws MinimapperzUnauthorizedException when the key does not open this event
+     * @throws MinimapperzUnavailableException  when Minimapperz cannot be read
+     */
+    public function players(string $slug, string $apiKey): array;
 }

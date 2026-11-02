@@ -45,6 +45,7 @@ final class MinimapperzSettingsTest extends FunctionalTestCase
             'pellesPerGame' => MinimapperzSetting::DEFAULT_PELLES_PER_GAME,
             'pellesPerWin' => MinimapperzSetting::DEFAULT_PELLES_PER_WIN,
             'capPerPlayer' => MinimapperzSetting::DEFAULT_CAP_PER_PLAYER,
+            'collection' => ['at' => null, 'status' => null, 'games' => 0, 'credited' => 0, 'until' => null],
         ]], $this->decodedJsonResponse());
     }
 
@@ -62,6 +63,7 @@ final class MinimapperzSettingsTest extends FunctionalTestCase
             'pellesPerGame' => 1,
             'pellesPerWin' => 3,
             'capPerPlayer' => 60,
+            'collection' => ['at' => null, 'status' => null, 'games' => 0, 'credited' => 0, 'until' => null],
         ]];
         self::assertSame($expected, $this->decodedJsonResponse());
         $this->client->jsonRequest('GET', $this->path());

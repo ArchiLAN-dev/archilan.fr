@@ -14,6 +14,7 @@ import { AdminBlindTestCard } from "./admin-blind-test-card";
 import { fetchBlindTestSettings } from "./blind-test-api";
 import { AdminMinimapperzCard } from "./admin-minimapperz-card";
 import { AdminMinimapperzCodes } from "./admin-minimapperz-codes";
+import { AdminMinimapperzPlayers } from "./admin-minimapperz-players";
 import { fetchMinimapperzSettings } from "./minimapperz-api";
 
 const MAX_AMOUNT = 1000;
@@ -167,6 +168,7 @@ export function EventPellesView({ data, tab = "membres", onTab }: { data: EventP
         {active === "blind-test" ? <AdminBlindTestCard eventId={data.eventId} /> : null}
         {active === "minimapperz" ? <AdminMinimapperzCard eventId={data.eventId} /> : null}
         {active === "minimapperz" ? <AdminMinimapperzCodes eventId={data.eventId} /> : null}
+        {active === "minimapperz" ? <AdminMinimapperzPlayers eventId={data.eventId} /> : null}
       </div>
     </div>
   );

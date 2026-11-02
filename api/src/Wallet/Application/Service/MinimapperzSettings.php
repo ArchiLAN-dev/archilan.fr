@@ -21,7 +21,10 @@ use Psr\Log\LoggerInterface;
  * that the key opens the event. The key is written, never read back: the admin only learns that one is set and how
  * it ends.
  *
- * @phpstan-type MinimapperzSettingsView array{enabled: bool, slug: string|null, apiKeySet: bool, apiKeyEnd: string|null, pellesPerGame: int, pellesPerWin: int, capPerPlayer: int}
+ * Story 49.3: with where the collection of the games stands.
+ *
+ * @phpstan-type MinimapperzCollectionView array{at: string|null, status: string|null, games: int, credited: int, until: string|null}
+ * @phpstan-type MinimapperzSettingsView array{enabled: bool, slug: string|null, apiKeySet: bool, apiKeyEnd: string|null, pellesPerGame: int, pellesPerWin: int, capPerPlayer: int, collection: MinimapperzCollectionView}
  * @phpstan-type MinimapperzEventView array{slug: string, name: string, opensAt: string, closesAt: string, isOpen: bool}
  * @phpstan-type MinimapperzCheckView array{status: 'ok'|'not_configured'|'unauthorized'|'unreachable', event: MinimapperzEventView|null}
  */
@@ -178,6 +181,18 @@ final readonly class MinimapperzSettings
             'pellesPerGame' => $setting->getPellesPerGame(),
             'pellesPerWin' => $setting->getPellesPerWin(),
             'capPerPlayer' => $setting->getCapPerPlayer(),
+            'collection' => [
+                'at' => self::atom($setting->getLastCollectAt()),
+                'status' => $setting->getLastCollectStatus(),
+                'games' => $setting->getLastCollectGames(),
+                'credited' => $setting->getLastCollectCredited(),
+                'until' => self::atom($setting->getCollectedUntil()),
+            ],
         ];
+    }
+
+    private static function atom(?\DateTimeImmutable $date): ?string
+    {
+        return $date?->setTimezone(new \DateTimeZone('UTC'))->format(\DateTimeInterface::ATOM);
     }
 }

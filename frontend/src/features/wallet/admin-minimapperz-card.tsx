@@ -8,7 +8,14 @@ import { Switch } from "@/components/switch";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { wholeNumber } from "./admin-blind-test-card";
-import { checkMinimapperzConnection, fetchMinimapperzSettings, saveMinimapperzSettings, type MinimapperzCheck, type MinimapperzSettings } from "./minimapperz-api";
+import {
+  checkMinimapperzConnection,
+  fetchMinimapperzSettings,
+  saveMinimapperzSettings,
+  type MinimapperzCheck,
+  type MinimapperzCollectionState,
+  type MinimapperzSettings,
+} from "./minimapperz-api";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
 
@@ -27,6 +34,23 @@ export function minimapperzCheckMessage(check: MinimapperzCheck | null): { tone:
       return { tone: "error", text: "Minimapperz refuse la clé : vérifie la clé et le slug de l'event." };
     case "unreachable":
       return { tone: "error", text: "Minimapperz ne répond pas. Réessaie dans un moment." };
+  }
+}
+
+/** Story 49.3: how the last collection went, in words (null before the first pass). */
+export function minimapperzCollectionMessage(collection: MinimapperzCollectionState): { tone: "ok" | "error"; text: string } | null {
+  if (collection.at === null || collection.status === null) return null;
+  const at = dateFormatter.format(new Date(collection.at));
+  switch (collection.status) {
+    case "ok":
+      return {
+        tone: "ok",
+        text: `Dernière lecture le ${at} : ${collection.games} partie${collection.games > 1 ? "s" : ""} lue${collection.games > 1 ? "s" : ""}, ${collection.credited} pelle${collection.credited > 1 ? "s" : ""} créditée${collection.credited > 1 ? "s" : ""}.`,
+      };
+    case "unauthorized":
+      return { tone: "error", text: `Le ${at}, Minimapperz a refusé la clé : la collecte est coupée. Corrige la clé puis réactive.` };
+    default:
+      return { tone: "error", text: `Le ${at}, Minimapperz n'a pas répondu. Nouvel essai à la prochaine lecture.` };
   }
 }
 
@@ -101,6 +125,7 @@ function AdminMinimapperzForm({ eventId, initial }: { eventId: string; initial: 
     setCheck(minimapperzCheckMessage(result));
   }
 
+  const collection = minimapperzCollectionMessage(settings.collection);
   const fieldClass = "min-h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground";
   const buttonClass =
     "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-40";
@@ -114,8 +139,9 @@ function AdminMinimapperzForm({ eventId, initial }: { eventId: string; initial: 
       }}
     >
       <p className="text-sm text-muted-foreground">
-        Relie l&apos;événement à sa LAN Minimapperz. Le site lit les parties terminées et crédite des pelles d&apos;événement
-        aux inscrits qui ont joué avec leur code.
+        Relie l&apos;événement à sa LAN Minimapperz. Pendant l&apos;événement, le site lit chaque minute les parties terminées et
+        crédite des pelles d&apos;événement aux inscrits qui ont joué avec leur code. Termine la LAN Minimapperz avant la fin de
+        l&apos;événement : une partie finie après n&apos;est pas créditée.
       </p>
 
       <fieldset className="grid gap-3 rounded-xl border border-border p-4">
@@ -163,6 +189,7 @@ function AdminMinimapperzForm({ eventId, initial }: { eventId: string; initial: 
           ) : null}
         </div>
         {check !== null ? <p className={`text-sm ${check.tone === "ok" ? "text-success" : "text-danger"}`}>{check.text}</p> : null}
+        {collection !== null ? <p className={`text-sm ${collection.tone === "ok" ? "text-muted-foreground" : "text-danger"}`}>{collection.text}</p> : null}
       </fieldset>
 
       <fieldset className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-3">

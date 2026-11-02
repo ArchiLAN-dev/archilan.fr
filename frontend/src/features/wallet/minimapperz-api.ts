@@ -6,6 +6,9 @@ import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } f
  * Story 49.1: an event's link to Minimapperz, admin side. The API key is written, never read back: the server only
  * says whether one is set and how it ends. Every function returns a value instead of throwing (AC-API2).
  */
+/** Story 49.3: how the last collection of the games went (status null before the first pass). */
+export type MinimapperzCollectionState = { at: string | null; status: string | null; games: number; credited: number; until: string | null };
+
 export type MinimapperzSettings = {
   enabled: boolean;
   slug: string | null;
@@ -14,6 +17,7 @@ export type MinimapperzSettings = {
   pellesPerGame: number;
   pellesPerWin: number;
   capPerPlayer: number;
+  collection: MinimapperzCollectionState;
 };
 
 /** What the form sends: `apiKey` empty keeps the key on file, `clearApiKey` removes it. */
@@ -47,7 +51,21 @@ export function isMinimapperzSettings(v: unknown): v is MinimapperzSettings {
     hasNullableStringProp(v, "apiKeyEnd") &&
     hasNumberProp(v, "pellesPerGame") &&
     hasNumberProp(v, "pellesPerWin") &&
-    hasNumberProp(v, "capPerPlayer")
+    hasNumberProp(v, "capPerPlayer") &&
+    "collection" in v &&
+    isMinimapperzCollectionState(v.collection)
+  );
+}
+
+function isMinimapperzCollectionState(v: unknown): v is MinimapperzCollectionState {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasNullableStringProp(v, "at") &&
+    hasNullableStringProp(v, "status") &&
+    hasNumberProp(v, "games") &&
+    hasNumberProp(v, "credited") &&
+    hasNullableStringProp(v, "until")
   );
 }
 
@@ -246,6 +264,47 @@ export async function claimMinimapperzCode(eventId: string): Promise<Minimapperz
     if (!res.ok) return null;
     const data = dataOf(await res.json());
     return isMinimapperzCodeClaim(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Story 49.3: a player seen on Minimapperz, and the member their code belongs to (linked = an active registrant). */
+export type MinimapperzPlayerRow = { username: string; code: string | null; games: number; wins: number; member: string | null; linked: boolean };
+
+export type MinimapperzPlayers = { status: "ok" | "not_configured" | "unauthorized" | "unreachable"; players: MinimapperzPlayerRow[] };
+
+function isMinimapperzPlayerRow(v: unknown): v is MinimapperzPlayerRow {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "username") &&
+    hasNullableStringProp(v, "code") &&
+    hasNumberProp(v, "games") &&
+    hasNumberProp(v, "wins") &&
+    hasNullableStringProp(v, "member") &&
+    hasBooleanProp(v, "linked")
+  );
+}
+
+export function isMinimapperzPlayers(v: unknown): v is MinimapperzPlayers {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "status") &&
+    ["ok", "not_configured", "unauthorized", "unreachable"].includes(v.status) &&
+    "players" in v &&
+    Array.isArray(v.players) &&
+    v.players.every(isMinimapperzPlayerRow)
+  );
+}
+
+export async function fetchMinimapperzPlayers(eventId: string): Promise<MinimapperzPlayers | null> {
+  try {
+    const res = await apiFetch(`${settingsUrl(eventId)}/players`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return isMinimapperzPlayers(data) ? data : null;
   } catch {
     return null;
   }
