@@ -9,11 +9,20 @@ import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
+  DRAW_CATALOG,
+  DRAW_RECENT,
+  FAMILY_SEPARATOR,
+  NO_SCOPES,
   QUEST_LIMITS,
+  QUEST_TIERS,
+  COLLECTIVE_METRICS,
+  suggestedContribution,
+  RECENT_WINDOWS,
   editQuest,
   fetchAdminQuests,
   objectivesSummary,
   setQuestRetired,
+  splitFamilies,
   writeQuest,
   type AdminQuest,
   type QuestMetricOption,
@@ -21,10 +30,12 @@ import {
   type QuestScopes,
   type QuestStats,
   type QuestTerms,
+  type QuestTierTerms,
 } from "./admin-quests-api";
 import { AdminQuestWeeksView } from "./admin-quest-weeks";
 import { StatusLine, fieldClass, useQuestChange, type ViewProps } from "./admin-quests-shared";
 import { PelleAmount } from "./pelle-amount";
+import { formatQuestAmount } from "./quest-amount";
 
 const QUERY_KEY = ["admin-quests"] as const;
 
@@ -83,9 +94,14 @@ export function AdminQuestTypesView({ data, onChange }: ViewProps) {
               <div className="grid min-w-0 flex-1 gap-0.5">
                 <p className={`flex flex-wrap items-center gap-2 font-semibold ${quest.retired ? "text-muted-foreground" : "text-foreground"}`}>
                   {quest.title}
-                  <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${quest.inDraw ? "border-accent/40 text-accent-text" : "border-border text-muted-foreground"}`}>
-                    {quest.inDraw ? "Dans le tirage" : "Hors tirage"}
-                  </span>
+                  {quest.collective ? (
+                    // Story 41.69: pinned beside the week's quests, never drawn.
+                    <span className="rounded-full border border-accent/40 px-2 py-0.5 text-xs font-medium text-accent-text">Collective</span>
+                  ) : (
+                    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${quest.inDraw ? "border-accent/40 text-accent-text" : "border-border text-muted-foreground"}`}>
+                      {quest.inDraw ? "Dans le tirage" : "Hors tirage"}
+                    </span>
+                  )}
                   {quest.inDraw && quest.drawWeight > 1 ? (
                     <span className="rounded-full border border-accent/40 px-2 py-0.5 text-xs font-medium text-accent-text">×{quest.drawWeight}</span>
                   ) : null}
@@ -93,7 +109,7 @@ export function AdminQuestTypesView({ data, onChange }: ViewProps) {
                 </p>
                 {quest.description !== "" ? <p className="text-xs text-muted-foreground">{quest.description}</p> : null}
                 <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, data.metrics, data.scopes)}</p>
-                <p className="text-xs text-muted-foreground">{questStatsLine(quest.stats)}</p>
+                <p className="text-xs text-muted-foreground">{questStatsLine(quest.stats, quest.collective ?? false)}</p>
               </div>
               <PelleAmount amount={quest.reward} className="text-xs font-semibold text-warning" signed />
               <div className="flex gap-1">
@@ -159,6 +175,11 @@ export function QuestDialog({
     (quest?.objectives ?? [{ metric: metrics[0]?.key ?? "goals", target: 1 }]).map((objective, index) => ({ ...objective, rowId: index })),
   );
   const nextRowId = useRef(rows.length);
+  // Story 41.68: the tiers past the first, which is the objective's target and the quest's reward.
+  const [extraTiers, setExtraTiers] = useState<QuestTierTerms[]>(quest?.tiers?.slice(1) ?? []);
+  // Story 41.69: chosen when the quest is written, never changed after - the weeks it was served in read it so.
+  const [collective, setCollective] = useState(quest?.collective ?? false);
+  const [minContribution, setMinContribution] = useState(quest?.minContribution ?? 0);
   const [pending, setPending] = useState(false);
 
   const objectives: QuestObjectiveTerms[] = rows.map((row) => ({
@@ -167,9 +188,22 @@ export function QuestDialog({
     ...(row.scope && row.scopeId ? { scope: row.scope, scopeId: row.scopeId } : {}),
   }));
   const parsedReward = Number.parseInt(reward, 10);
-  const terms: QuestTerms = { title: title.trim(), description: description.trim(), reward: parsedReward, objectives, inDraw, drawWeight, cosmetic: cosmetic?.key ? cosmetic : null };
+  const tiers = collective ? null : tiersOf(objectives, parsedReward, extraTiers);
+  const terms: QuestTerms = {
+    title: title.trim(),
+    description: description.trim(),
+    reward: parsedReward,
+    objectives,
+    inDraw: inDraw && !collective,
+    drawWeight,
+    cosmetic: cosmetic?.key ? cosmetic : null,
+    tiers,
+    collective,
+    minContribution: collective ? minContribution : null,
+  };
+  const tieredMetric = rows.length === 1 ? metrics.find((candidate) => candidate.key === rows[0]?.metric) : undefined;
+  const offeredMetrics = collective ? metrics.filter((candidate) => COLLECTIVE_METRICS.some((key) => key === candidate.key)) : metrics;
   const error = questTermsError(terms);
-  const hasScopes = scopes.games.length > 0 || scopes.events.length > 0;
 
   function update(rowId: number, next: Partial<QuestObjectiveTerms>): void {
     setRows(rows.map((row) => (row.rowId === rowId ? { ...row, ...next } : row)));
@@ -221,11 +255,42 @@ export function QuestDialog({
               value={reward}
             />
           </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              checked={collective}
+              className="mt-1"
+              disabled={quest !== null}
+              onChange={(e) => {
+                setCollective(e.target.checked);
+                if (e.target.checked) {
+                  // One objective on a type that adds up for the whole community, no tier.
+                  const first = rows[0];
+                  const metric = first && COLLECTIVE_METRICS.some((key) => key === first.metric) ? first.metric : "checks";
+                  setRows([{ ...(first ?? { target: 1 }), metric, rowId: first?.rowId ?? 0 }]);
+                  setExtraTiers([]);
+                  // Story 41.70: the suggested share from the start, rather than an error before anything is typed.
+                  if (minContribution === 0) {
+                    const duration = metrics.find((candidate) => candidate.key === metric)?.duration ?? false;
+                    setMinContribution(suggestedContribution(first?.target ?? 1, duration));
+                  }
+                }
+              }}
+              type="checkbox"
+            />
+            <span>
+              <span className="font-medium text-foreground">Quête collective</span>
+              <span className="block text-xs text-muted-foreground">
+                Un objectif pour toute la communauté, chaque check compté une fois. Elle ne sort jamais au tirage : on l&apos;épingle à une semaine, une au plus, à
+                côté des quêtes de la semaine et hors coffre.{quest !== null ? " Ce choix ne change plus une fois la quête créée." : ""}
+              </span>
+            </span>
+          </label>
 
           <fieldset className="grid gap-2">
             <legend className="mb-1 text-sm font-medium text-foreground">Objectifs</legend>
             {rows.map((row, index) => {
               const metric = metrics.find((candidate) => candidate.key === row.metric);
+              const aimable = metric ? aimableScopes(metric, scopes) : NO_AIM;
               return (
                 <div className="flex flex-wrap items-center gap-2" key={row.rowId}>
                   <select
@@ -233,57 +298,112 @@ export function QuestDialog({
                     className={`${fieldClass} min-w-40 flex-1`}
                     onChange={(e) => {
                       const next = metrics.find((candidate) => candidate.key === e.target.value);
-                      // A type that cannot aim at a game or an event drops the target it had.
-                      update(row.rowId, next?.scopable ? { metric: e.target.value } : { metric: e.target.value, scope: undefined, scopeId: undefined });
+                      // A type that cannot aim where the objective aimed drops its target.
+                      const scoped = row.scope && next?.scopes.includes(row.scope) ? {} : { scope: undefined, scopeId: undefined };
+                      // Story 41.64: a target in minutes means nothing as a count, and back; start each from one unit.
+                      const target = (next?.duration ?? false) === (metric?.duration ?? false) ? {} : { target: next?.duration ? 60 : 1 };
+                      update(row.rowId, { metric: e.target.value, ...scoped, ...target });
                     }}
                     value={row.metric}
                   >
-                    {metrics.map((candidate) => (
+                    {offeredMetrics.map((candidate) => (
                       <option key={candidate.key} value={candidate.key}>
                         {candidate.label}
                       </option>
                     ))}
                   </select>
-                  <input
-                    aria-label={`Cible de l'objectif ${index + 1}`}
-                    className={`${fieldClass} w-24`}
-                    inputMode="numeric"
-                    max={QUEST_LIMITS.maxTarget}
-                    min={QUEST_LIMITS.minTarget}
-                    onChange={(e) => update(row.rowId, { target: Number.parseInt(e.target.value, 10) || 0 })}
-                    type="number"
-                    value={row.target === 0 ? "" : row.target}
-                  />
-                  {metric?.scopable && hasScopes ? (
+                  {metric?.duration ? (
+                    // Story 41.64: time played is stored in minutes, entered in hours by halves.
+                    <label className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <input
+                        aria-label={`Cible de l'objectif ${index + 1}, en heures`}
+                        className={`${fieldClass} w-24`}
+                        inputMode="decimal"
+                        max={QUEST_LIMITS.maxTarget / 60}
+                        min={0.5}
+                        onChange={(e) => update(row.rowId, { target: Math.round((Number.parseFloat(e.target.value) || 0) * 2) * 30 })}
+                        step={0.5}
+                        type="number"
+                        value={row.target === 0 ? "" : row.target / 60}
+                      />
+                      h
+                    </label>
+                  ) : (
+                    <input
+                      aria-label={`Cible de l'objectif ${index + 1}`}
+                      className={`${fieldClass} w-24`}
+                      inputMode="numeric"
+                      max={QUEST_LIMITS.maxTarget}
+                      min={QUEST_LIMITS.minTarget}
+                      onChange={(e) => update(row.rowId, { target: Number.parseInt(e.target.value, 10) || 0 })}
+                      type="number"
+                      value={row.target === 0 ? "" : row.target}
+                    />
+                  )}
+                  {metric && hasAimableScopes(aimable) ? (
                     <select
                       aria-label={`Où compte l'objectif ${index + 1}`}
                       className={`${fieldClass} min-w-40 flex-1`}
-                      onChange={(e) => {
-                        const [scope, scopeId] = e.target.value.split(":");
-                        update(row.rowId, scope === "game" || scope === "event" ? { scope, scopeId } : { scope: undefined, scopeId: undefined });
-                      }}
-                      value={row.scope && row.scopeId ? `${row.scope}:${row.scopeId}` : ""}
+                      onChange={(e) => update(row.rowId, chosenScope(e.target.value, row))}
+                      value={scopeValue(row)}
                     >
                       <option value="">Partout</option>
-                      {scopes.games.length > 0 ? (
+                      {aimable.games.length > 0 ? (
                         <optgroup label="Sur un jeu">
-                          {scopes.games.map((game) => (
+                          {aimable.games.map((game) => (
                             <option key={game.id} value={`game:${game.id}`}>
                               {game.name}
                             </option>
                           ))}
                         </optgroup>
                       ) : null}
-                      {scopes.events.length > 0 ? (
+                      {aimable.events.length > 0 ? (
                         <optgroup label="Pendant un événement">
-                          {scopes.events.map((event) => (
+                          {aimable.events.map((event) => (
                             <option key={event.id} value={`event:${event.id}`}>
                               {event.title}
                             </option>
                           ))}
                         </optgroup>
                       ) : null}
+                      {aimable.platforms.length > 0 ? <option value="platform:">Sur des plateformes...</option> : null}
+                      {aimable.recent ? (
+                        <optgroup label="Sur les nouveautés">
+                          {RECENT_WINDOWS.map((days) => (
+                            <option key={days} value={`recent:${days}`}>
+                              Mis en ligne ces {days} derniers jours
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {aimable.drawn ? (
+                        // Story 41.67: a game drawn each week the quest is served.
+                        <optgroup label="Un jeu tiré au sort chaque semaine">
+                          <option value={`drawn:${DRAW_CATALOG}`}>Parmi le catalogue</option>
+                          {RECENT_WINDOWS.map((days) => (
+                            <option key={days} value={`drawn:${DRAW_RECENT}${days}`}>
+                              Parmi les nouveautés de {days} jours
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
                     </select>
+                  ) : null}
+                  {row.scope === "platform" ? (
+                    // Story 41.66: a themed week picks its families, « Semaine Nintendo » = every Nintendo console.
+                    <fieldset className="flex w-full flex-wrap gap-x-3 gap-y-1 text-sm">
+                      <legend className="sr-only">Plateformes de l&apos;objectif {index + 1}</legend>
+                      {aimable.platforms.map((family) => (
+                        <label className="inline-flex items-center gap-1" key={family}>
+                          <input
+                            checked={splitFamilies(row.scopeId ?? "").includes(family)}
+                            onChange={(e) => update(row.rowId, { scopeId: toggledFamily(row.scopeId ?? "", family, e.target.checked) })}
+                            type="checkbox"
+                          />
+                          {family}
+                        </label>
+                      ))}
+                    </fieldset>
                   ) : null}
                   <button
                     aria-label={`Supprimer l'objectif ${index + 1}`}
@@ -294,10 +414,11 @@ export function QuestDialog({
                   >
                     <Trash2 aria-hidden className="size-4" />
                   </button>
+                  {metric ? <p className="w-full text-xs text-muted-foreground">{metric.help}</p> : null}
                 </div>
               );
             })}
-            {rows.length < QUEST_LIMITS.maxObjectives ? (
+            {rows.length < QUEST_LIMITS.maxObjectives && !collective ? (
               <button className={`${buttonVariants({ variant: "ghost" })} justify-self-start`} onClick={addRow} type="button">
                 <Plus aria-hidden className="size-4" />
                 Ajouter un objectif
@@ -306,7 +427,87 @@ export function QuestDialog({
             <p className="text-xs text-muted-foreground">Les goals, les checks et les parties peuvent compter sur un jeu ou pendant un événement précis (hors hebdos).</p>
           </fieldset>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          {collective ? (
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium text-foreground">Part minimale pour être récompensé{tieredMetric?.duration ? " (en heures)" : ""}</span>
+              <input
+                className={`${fieldClass} w-32`}
+                inputMode={tieredMetric?.duration ? "decimal" : "numeric"}
+                min={tieredMetric?.duration ? 0.5 : 1}
+                onChange={(e) => setMinContribution(tierTarget(e.target.value, tieredMetric?.duration ?? false))}
+                step={tieredMetric?.duration ? 0.5 : 1}
+                type="number"
+                value={minContribution === 0 ? "" : tieredMetric?.duration ? minContribution / 60 : minContribution}
+              />
+              <span className="text-xs text-muted-foreground">
+                Obligatoire : un compte bis qui fait un check ne doit rien toucher. Suggestion : environ 2 % de l&apos;objectif, soit{" "}
+                {contributionHint(rows[0]?.target ?? 1, tieredMetric)}.
+              </span>
+            </label>
+          ) : null}
+
+          {rows.length === 1 && !collective ? (
+            <fieldset className="grid gap-2">
+              <legend className="mb-1 text-sm font-medium text-foreground">Paliers (facultatifs)</legend>
+              <p className="text-xs text-muted-foreground">
+                Le palier 1 est la cible de l&apos;objectif et la récompense ci-dessus. Chaque palier atteint paie en plus ; la quête compte comme réussie dès le palier 1.
+              </p>
+              {extraTiers.map((tier, index) => (
+                // A tier is its rank: never reordered, only the last one is removed.
+                <div className="flex flex-wrap items-center gap-2 text-sm" key={`palier-${index + 2}`}>
+                  <span className="w-20 text-muted-foreground">Palier {index + 2}</span>
+                  <label className="flex items-center gap-1 text-muted-foreground">
+                    Cible
+                    <input
+                      aria-label={`Cible du palier ${index + 2}${tieredMetric?.duration ? ", en heures" : ""}`}
+                      className={`${fieldClass} w-24`}
+                      inputMode={tieredMetric?.duration ? "decimal" : "numeric"}
+                      min={tieredMetric?.duration ? 0.5 : QUEST_LIMITS.minTarget}
+                      onChange={(e) =>
+                        setExtraTiers(extraTiers.map((candidate, at) => (at === index ? { ...candidate, target: tierTarget(e.target.value, tieredMetric?.duration ?? false) } : candidate)))
+                      }
+                      step={tieredMetric?.duration ? 0.5 : 1}
+                      type="number"
+                      value={tier.target === 0 ? "" : tieredMetric?.duration ? tier.target / 60 : tier.target}
+                    />
+                    {tieredMetric?.duration ? "h" : null}
+                  </label>
+                  <label className="flex items-center gap-1 text-muted-foreground">
+                    Récompense
+                    <input
+                      aria-label={`Récompense du palier ${index + 2}`}
+                      className={`${fieldClass} w-24`}
+                      inputMode="numeric"
+                      min={QUEST_LIMITS.minReward}
+                      onChange={(e) => setExtraTiers(extraTiers.map((candidate, at) => (at === index ? { ...candidate, reward: Number.parseInt(e.target.value, 10) || 0 } : candidate)))}
+                      type="number"
+                      value={tier.reward === 0 ? "" : tier.reward}
+                    />
+                  </label>
+                  {index === extraTiers.length - 1 ? (
+                    <button aria-label={`Supprimer le palier ${index + 2}`} className={buttonVariants({ variant: "ghost" })} onClick={() => setExtraTiers(extraTiers.slice(0, -1))} type="button">
+                      <Trash2 aria-hidden className="size-4" />
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+              {extraTiers.length < QUEST_TIERS.max - 1 ? (
+                <button
+                  className={`${buttonVariants({ variant: "ghost" })} justify-self-start`}
+                  onClick={() => {
+                    const previous = extraTiers[extraTiers.length - 1] ?? { target: rows[0]?.target ?? 1, reward: Number.isInteger(parsedReward) ? parsedReward : 10 };
+                    setExtraTiers([...extraTiers, { target: previous.target * 2, reward: previous.reward }]);
+                  }}
+                  type="button"
+                >
+                  <Plus aria-hidden className="size-4" />
+                  Ajouter un palier
+                </button>
+              ) : null}
+            </fieldset>
+          ) : null}
+
+          <div className={`grid gap-3 sm:grid-cols-2 ${collective ? "hidden" : ""}`}>
             <label className="flex items-start gap-2 text-sm">
               <input checked={inDraw} className="mt-1" onChange={(e) => setInDraw(e.target.checked)} type="checkbox" />
               <span>
@@ -344,6 +545,50 @@ export function QuestDialog({
 type ObjectiveRow = QuestObjectiveTerms & { rowId: number };
 
 /** What the API would refuse, said before sending; null when the quest can be saved. */
+type AimableScopes = QuestScopes & { recent: boolean; drawn: boolean };
+
+const NO_AIM: AimableScopes = { ...NO_SCOPES, recent: false, drawn: false };
+
+/**
+ * Story 41.65: what an objective of this type may aim at - a superlative an event, never a game. Story 41.66: the
+ * platform families and the new releases too.
+ */
+export function aimableScopes(metric: QuestMetricOption, scopes: QuestScopes): AimableScopes {
+  return {
+    games: metric.scopes.includes("game") ? scopes.games : [],
+    events: metric.scopes.includes("event") ? scopes.events : [],
+    platforms: metric.scopes.includes("platform") ? scopes.platforms : [],
+    recent: metric.scopes.includes("recent"),
+    drawn: metric.scopes.includes("drawn"),
+  };
+}
+
+function hasAimableScopes(scopes: AimableScopes): boolean {
+  return scopes.games.length > 0 || scopes.events.length > 0 || scopes.platforms.length > 0 || scopes.recent || scopes.drawn;
+}
+
+/** The select's value for a row: a platform target is one option, whatever families it holds. */
+export function scopeValue(objective: QuestObjectiveTerms): string {
+  if (objective.scope === "platform") return "platform:";
+  return objective.scope && objective.scopeId ? `${objective.scope}:${objective.scopeId}` : "";
+}
+
+/** What picking an option of the select does to the row's target; a platform target keeps its families. */
+export function chosenScope(value: string, current: QuestObjectiveTerms): Partial<QuestObjectiveTerms> {
+  const at = value.indexOf(":");
+  const scope = at < 0 ? "" : value.slice(0, at);
+  const scopeId = at < 0 ? "" : value.slice(at + 1);
+  if (scope === "platform") return { scope, scopeId: current.scope === "platform" ? (current.scopeId ?? "") : "" };
+  if (scope === "game" || scope === "event" || scope === "recent" || scope === "drawn") return { scope, scopeId };
+  return { scope: undefined, scopeId: undefined };
+}
+
+/** A platform target with one family more, or one less. */
+export function toggledFamily(scopeId: string, family: string, on: boolean): string {
+  const families = splitFamilies(scopeId).filter((candidate) => candidate !== family);
+  return (on ? [...families, family].sort() : families).join(FAMILY_SEPARATOR);
+}
+
 export function questTermsError(terms: QuestTerms): string | null {
   if (terms.title === "" || terms.title.length > QUEST_LIMITS.maxTitle) return `Un titre de 1 à ${QUEST_LIMITS.maxTitle} caractères.`;
   if (!Number.isInteger(terms.reward) || terms.reward < QUEST_LIMITS.minReward || terms.reward > QUEST_LIMITS.maxReward) {
@@ -352,6 +597,31 @@ export function questTermsError(terms: QuestTerms): string | null {
   if (terms.objectives.length === 0) return "Au moins un objectif.";
   if (terms.objectives.some((objective) => !Number.isInteger(objective.target) || objective.target < QUEST_LIMITS.minTarget || objective.target > QUEST_LIMITS.maxTarget)) {
     return `Une cible de ${QUEST_LIMITS.minTarget} à ${QUEST_LIMITS.maxTarget}.`;
+  }
+  if (terms.collective) {
+    // Story 41.69: one objective that adds up for the community, and the share that pays it.
+    const only = terms.objectives.length === 1 ? terms.objectives[0] : undefined;
+    if (!only || !COLLECTIVE_METRICS.some((key) => key === only.metric) || terms.tiers) {
+      return "Une quête collective a un seul objectif, sans palier, sur des goals, des checks, des parties, du temps de jeu, des items envoyés ou des primes.";
+    }
+    const share = terms.minContribution ?? 0;
+    if (!Number.isInteger(share) || share < 1 || share > only.target) return "La part minimale va de 1 à la cible de l'objectif.";
+  }
+  if (terms.tiers) {
+    // Story 41.68: each tier higher than the one before, and all of them within what a quest pays.
+    if (terms.tiers.some((tier, index) => tier.reward < QUEST_LIMITS.minReward || tier.target > QUEST_LIMITS.maxTarget || (index > 0 && tier.target <= (terms.tiers?.[index - 1]?.target ?? 0)))) {
+      return "Chaque palier vise plus haut que le précédent et paie au moins une pelle.";
+    }
+    if (terms.tiers.reduce((sum, tier) => sum + tier.reward, 0) > QUEST_LIMITS.maxReward) {
+      return `Tous les paliers ensemble paient ${QUEST_LIMITS.maxReward} pelles au plus.`;
+    }
+  }
+  if (terms.objectives.some((objective) => objective.scope === "platform" && splitFamilies(objective.scopeId ?? "").length === 0)) {
+    return "Coche au moins une plateforme.";
+  }
+  // Story 41.67: one game drawn a week for the whole quest.
+  if (new Set(terms.objectives.filter((objective) => objective.scope === "drawn").map((objective) => objective.scopeId)).size > 1) {
+    return "Un seul jeu est tiré par semaine : choisis le même panier pour chaque objectif à jeu tiré.";
   }
   // Story 41.18: a type may come back, aimed elsewhere - never twice at the same place.
   const keys = terms.objectives.map((objective) => `${objective.metric}@${objective.scope ?? ""}:${objective.scopeId ?? ""}`);
@@ -363,12 +633,38 @@ export function questTermsError(terms: QuestTerms): string | null {
  * Story 41.16: how a quest did, in one line - « Servie 3 semaines · 12 membres l'ont réussie la dernière fois ·
  * 480 pelles versées ». A quest never served says so.
  */
-export function questStatsLine(stats: QuestStats): string {
+/** Story 41.68: the tiers sent with a quest of one objective, the first from its target and reward; null without. */
+export function tiersOf(objectives: QuestObjectiveTerms[], reward: number, extraTiers: QuestTierTerms[]): QuestTierTerms[] | null {
+  const only = objectives.length === 1 ? objectives[0] : undefined;
+  return only && extraTiers.length > 0 ? [{ target: only.target, reward }, ...extraTiers] : null;
+}
+
+/** A tier's target as typed: a count, or hours by halves stored in minutes. */
+function tierTarget(value: string, duration: boolean): number {
+  return duration ? Math.round((Number.parseFloat(value) || 0) * 2) * 30 : Number.parseInt(value, 10) || 0;
+}
+
+/** Story 41.70: « 10 checks », « 1 goal », « 2 h » - the suggested share, singular for one. */
+export function contributionHint(target: number, metric: QuestMetricOption | undefined): string {
+  const duration = metric?.duration ?? false;
+  const share = suggestedContribution(target, duration);
+  const amount = formatQuestAmount(share, duration);
+  if (!metric || duration) return amount;
+  return `${amount} ${share === 1 ? metric.unitOne : metric.unit}`;
+}
+
+export function questStatsLine(stats: QuestStats, collective = false): string {
   if (stats.weeksServed === 0) return "Jamais servie pour l'instant.";
   const served = `Servie ${stats.weeksServed} semaine${stats.weeksServed > 1 ? "s" : ""}`;
+  const plural = stats.lastMembers > 1;
   const last =
     stats.lastWeek === null
       ? "première semaine en cours"
-      : `${stats.lastMembers} membre${stats.lastMembers > 1 ? "s" : ""} l'${stats.lastMembers > 1 ? "ont" : "a"} réussie la dernière fois`;
-  return `${served} · ${last} · ${stats.pelles} pelle${stats.pelles > 1 ? "s" : ""} versée${stats.pelles > 1 ? "s" : ""}`;
+      : collective
+        ? // Story 41.69: the contributors paid, the goal being the community's.
+          `${stats.lastMembers} contributeur${plural ? "s" : ""} récompensé${plural ? "s" : ""} la dernière fois`
+        : `${stats.lastMembers} membre${plural ? "s" : ""} l'${plural ? "ont" : "a"} réussie la dernière fois`;
+  // Story 41.68: how far the members went, tier by tier.
+  const tiers = stats.lastWeek && stats.lastTiers.length > 0 ? ` (${stats.lastTiers.map((members, index) => `palier ${index + 1} : ${members}`).join(", ")})` : "";
+  return `${served} · ${last}${tiers} · ${stats.pelles} pelle${stats.pelles > 1 ? "s" : ""} versée${stats.pelles > 1 ? "s" : ""}`;
 }

@@ -227,7 +227,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $handler(new AnnounceQuestsOnDiscordJob($week->key));
 
         self::assertCount(1, $spy->posted);
-        self::assertSame([['title' => 'Marathon', 'objectives' => '50 checks et 1 partie', 'reward' => 60]], $spy->posted[0]->quests);
+        self::assertSame([['title' => 'Marathon', 'objectives' => '50 checks et 1 partie', 'reward' => 60, 'tiered' => false]], $spy->posted[0]->quests);
         self::assertSame(60 + 50, $spy->posted[0]->maxPelles());
         self::assertStringEndsWith('/compte/pelles', $spy->posted[0]->url);
     }
@@ -260,7 +260,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $notices = $this->entityManager->getRepository(Notification::class)->findBy(['type' => Notification::TYPE_QUESTS_RENEWED]);
         self::assertCount(1, $notices);
         self::assertSame($alice->getId(), $notices[0]->getRecipientId());
-        self::assertSame(['week' => $week->key, 'count' => 1, 'maxPelles' => 40 + 50], $notices[0]->getPayload());
+        self::assertSame(['week' => $week->key, 'count' => 1, 'collective' => null, 'maxPelles' => 40 + 50], $notices[0]->getPayload());
     }
 
     public function testTheWalletShowsTheWeeksBeforeAndTheFactsCountTheQuests(): void
@@ -321,8 +321,8 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertSame('Marathon', $quests[0]['label'] ?? null);
         self::assertFalse($quests[0]['done'] ?? null);
         self::assertSame([
-            ['metric' => 'checks', 'label' => 'Checks faits', 'unit' => 'checks', 'target' => 5, 'current' => 3, 'scope' => null],
-            ['metric' => 'sessions', 'label' => 'Parties jouées', 'unit' => 'parties', 'target' => 2, 'current' => 1, 'scope' => null],
+            ['metric' => 'checks', 'label' => 'Checks faits', 'unit' => 'checks', 'target' => 5, 'current' => 3, 'scope' => null, 'gameSlug' => null, 'duration' => false],
+            ['metric' => 'sessions', 'label' => 'Parties jouées', 'unit' => 'parties', 'target' => 2, 'current' => 1, 'scope' => null, 'gameSlug' => null, 'duration' => false],
         ], $quests[0]['objectives'] ?? null);
         self::assertSame(['reward' => 50, 'done' => 0, 'total' => 1, 'paid' => false], $body['chest'] ?? null);
     }

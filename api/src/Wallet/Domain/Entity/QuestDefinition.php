@@ -5,12 +5,20 @@ declare(strict_types=1);
 namespace App\Wallet\Domain\Entity;
 
 use App\Wallet\Domain\ValueObject\QuestObjective;
+use App\Wallet\Domain\ValueObject\QuestTier;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * A weekly quest written by the admins (story 41.15): a title, a reward in gold pelles, and 1 to 5 objectives that
  * must all be reached in the week. In the draw, it may come out any Monday; out of it, it only comes when pinned to
  * a week. Retired, it neither comes out nor pins, and the weeks it was served in stay as they were.
+ *
+ * Story 41.68: a quest with one objective may have 2 or 3 tiers, each with a higher target and its own reward. The
+ * first tier is the quest's target and reward, so the code that knows no tiers stays right.
+ *
+ * Story 41.69: a collective quest has one objective the whole community counts towards, on a metric that adds up
+ * (see QuestMetric::isCollective()), and pays its reward to each member whose share reaches `minContribution`. It
+ * never comes out of a draw: an admin pins it, one a week at most, beside the week's quests.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'quest_definition')]
@@ -24,6 +32,8 @@ final class QuestDefinition
     // Story 41.18: how much more often the quest comes out of a draw than a weight-1 one.
     public const int MIN_WEIGHT = 1;
     public const int MAX_WEIGHT = 5;
+    public const int MIN_TIERS = 2;
+    public const int MAX_TIERS = 3;
 
     /**
      * @param list<array{metric: string, target: int, scope?: string, scopeId?: string}> $objectives
@@ -53,6 +63,13 @@ final class QuestDefinition
         private ?string $cosmeticType = null,
         #[ORM\Column(name: 'cosmetic_key', type: 'string', length: 64, nullable: true)]
         private ?string $cosmeticKey = null,
+        /** @var list<array{target: int, reward: int}>|null */
+        #[ORM\Column(type: 'json', nullable: true)]
+        private ?array $tiers = null,
+        #[ORM\Column(type: 'boolean', options: ['default' => false])]
+        private bool $collective = false,
+        #[ORM\Column(name: 'min_contribution', type: 'integer', nullable: true)]
+        private ?int $minContribution = null,
     ) {
     }
 
@@ -71,24 +88,42 @@ final class QuestDefinition
 
     /**
      * @param list<QuestObjective> $objectives
+     * @param list<QuestTier>      $tiers           none, or 2 to 3 tiers whose first is the objective's target and reward
+     * @param int|null             $minContribution story 41.69: the share a member needs to be paid by a collective quest
      */
-    public static function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, \DateTimeImmutable $now, ?string $id = null): self
+    public static function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, \DateTimeImmutable $now, ?string $id = null, array $tiers = [], bool $collective = false, ?int $minContribution = null): self
     {
-        [$title, $description] = self::assertTerms($title, $description, $reward, $objectives, $drawWeight);
+        [$title, $description] = self::assertTerms($title, $description, $reward, $objectives, $drawWeight, $tiers);
+        self::assertCollective($collective, $minContribution, $objectives, $tiers);
 
-        return new self($id ?? bin2hex(random_bytes(16)), $title, $description, $reward, self::stored($objectives), $inDraw, $now, drawWeight: $drawWeight);
+        return new self(
+            $id ?? bin2hex(random_bytes(16)), $title, $description, $reward, self::stored($objectives), $inDraw && !$collective, $now,
+            drawWeight: $drawWeight, tiers: self::storedTiers($tiers), collective: $collective, minContribution: $collective ? $minContribution : null,
+        );
     }
 
     /**
      * @param list<QuestObjective> $objectives
+     * @param list<QuestTier>      $tiers
      */
-    public function edit(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight): void
+    public function edit(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, array $tiers = [], ?int $minContribution = null): void
     {
-        [$this->title, $this->description] = self::assertTerms($title, $description, $reward, $objectives, $drawWeight);
+        [$title, $description] = self::assertTerms($title, $description, $reward, $objectives, $drawWeight, $tiers);
+        // Story 41.69: a quest stays collective or not - the weeks it was served in read it so.
+        self::assertCollective($this->collective, $minContribution, $objectives, $tiers);
+        [$this->title, $this->description] = [$title, $description];
         $this->reward = $reward;
         $this->objectives = self::stored($objectives);
-        $this->inDraw = $inDraw;
+        $this->inDraw = $inDraw && !$this->collective;
+        $this->minContribution = $this->collective ? $minContribution : null;
         $this->drawWeight = $drawWeight;
+        $this->tiers = self::storedTiers($tiers);
+    }
+
+    /** @return list<QuestTier> story 41.68: the tiers, none for a quest done or not */
+    public function getTiers(): array
+    {
+        return null === $this->tiers ? [] : QuestTier::listFromArray($this->tiers);
     }
 
     public function retire(\DateTimeImmutable $now): void
@@ -106,10 +141,22 @@ final class QuestDefinition
         return null !== $this->retiredAt;
     }
 
-    /** May come out of a Monday draw. */
+    /** May come out of a Monday draw - story 41.69: never a collective quest. */
     public function isDrawable(): bool
     {
-        return $this->inDraw && !$this->isRetired();
+        return $this->inDraw && !$this->collective && !$this->isRetired();
+    }
+
+    /** Story 41.69: a goal for the whole community. */
+    public function isCollective(): bool
+    {
+        return $this->collective;
+    }
+
+    /** Story 41.69: the share a member needs to be paid by a collective quest, null for any other. */
+    public function getMinContribution(): ?int
+    {
+        return $this->minContribution;
     }
 
     public function getId(): string
@@ -145,13 +192,36 @@ final class QuestDefinition
      */
     public function isAccomplishedWith(array $counts): bool
     {
+        return QuestObjective::allReached($this->getObjectives(), $counts);
+    }
+
+    /** Story 41.67: the pool the quest's game is drawn from each week it is served, null when it aims at no drawn game. */
+    public function drawPool(): ?string
+    {
         foreach ($this->getObjectives() as $objective) {
-            if (!$objective->isReachedBy($counts[$objective->key()] ?? 0)) {
-                return false;
+            if (null !== $objective->pool()) {
+                return $objective->pool();
             }
         }
 
-        return [] !== $this->getObjectives();
+        return null;
+    }
+
+    /**
+     * Story 41.67: the games the quest aims at by name, left out of its draw so the drawn one is another.
+     *
+     * @return list<string>
+     */
+    public function aimedGames(): array
+    {
+        $games = [];
+        foreach ($this->getObjectives() as $objective) {
+            if (QuestObjective::SCOPE_GAME === $objective->scope && null !== $objective->scopeId) {
+                $games[] = $objective->scopeId;
+            }
+        }
+
+        return $games;
     }
 
     /**
@@ -191,10 +261,11 @@ final class QuestDefinition
 
     /**
      * @param list<QuestObjective> $objectives
+     * @param list<QuestTier>      $tiers
      *
      * @return array{0: string, 1: string} the trimmed title and description
      */
-    private static function assertTerms(string $title, string $description, int $reward, array $objectives, int $drawWeight): array
+    private static function assertTerms(string $title, string $description, int $reward, array $objectives, int $drawWeight, array $tiers = []): array
     {
         $title = trim($title);
         $description = trim($description);
@@ -212,11 +283,76 @@ final class QuestDefinition
         if (\count(array_unique($keys)) !== \count($keys)) {
             throw new \DomainException('quest_objectives_duplicated');
         }
+        // Story 41.67: one game drawn a week for the whole quest, so every drawn objective names the same pool.
+        $pools = array_unique(array_filter(array_map(static fn (QuestObjective $objective): ?string => $objective->pool(), $objectives), static fn (?string $pool): bool => null !== $pool));
+        if (\count($pools) > 1) {
+            throw new \DomainException('quest_draw_pools_mixed');
+        }
         if ($drawWeight < self::MIN_WEIGHT || $drawWeight > self::MAX_WEIGHT) {
             throw new \DomainException('quest_weight_invalid');
         }
+        if ([] !== $tiers) {
+            self::assertTiers($reward, $objectives, $tiers);
+        }
 
         return [$title, $description];
+    }
+
+    /**
+     * Story 41.68: 2 or 3 tiers on the only objective, the first its target and reward, each further one higher, and
+     * all of them together within the most a quest pays.
+     *
+     * @param list<QuestObjective> $objectives
+     * @param list<QuestTier>      $tiers
+     */
+    private static function assertTiers(int $reward, array $objectives, array $tiers): void
+    {
+        if (1 !== \count($objectives) || \count($tiers) < self::MIN_TIERS || \count($tiers) > self::MAX_TIERS) {
+            throw new \DomainException('quest_tiers_invalid');
+        }
+        if ($tiers[0]->target !== $objectives[0]->target || $tiers[0]->reward !== $reward) {
+            throw new \DomainException('quest_tiers_invalid');
+        }
+        $previous = 0;
+        foreach ($tiers as $tier) {
+            if ($tier->target <= $previous || $tier->target > QuestObjective::MAX_TARGET || $tier->reward < self::MIN_REWARD) {
+                throw new \DomainException('quest_tiers_invalid');
+            }
+            $previous = $tier->target;
+        }
+        if (array_sum(array_map(static fn (QuestTier $tier): int => $tier->reward, $tiers)) > self::MAX_REWARD) {
+            throw new \DomainException('quest_tiers_reward_invalid');
+        }
+    }
+
+    /**
+     * Story 41.69: a collective quest counts one metric that adds up, has no tiers, and pays from a share between 1
+     * and its target - required, so an alt account that makes one check earns nothing.
+     *
+     * @param list<QuestObjective> $objectives
+     * @param list<QuestTier>      $tiers
+     */
+    private static function assertCollective(bool $collective, ?int $minContribution, array $objectives, array $tiers): void
+    {
+        if (!$collective) {
+            return;
+        }
+        if (1 !== \count($objectives) || !$objectives[0]->metric->isCollective() || [] !== $tiers) {
+            throw new \DomainException('quest_collective_invalid');
+        }
+        if (null === $minContribution || $minContribution < 1 || $minContribution > $objectives[0]->target) {
+            throw new \DomainException('quest_contribution_invalid');
+        }
+    }
+
+    /**
+     * @param list<QuestTier> $tiers
+     *
+     * @return list<array{target: int, reward: int}>|null
+     */
+    private static function storedTiers(array $tiers): ?array
+    {
+        return [] === $tiers ? null : array_map(static fn (QuestTier $tier): array => $tier->toArray(), $tiers);
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Shared\Application\Exception\ConflictException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ValidationException;
 use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
+use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Application\Support\QuestCalendar;
 use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Entity\QuestWeekEntry;
@@ -17,6 +18,7 @@ use App\Wallet\Domain\Enum\QuestMetric;
 use App\Wallet\Domain\Enum\QuestWeekOrigin;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestObjective;
+use App\Wallet\Domain\ValueObject\QuestTier;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use Psr\Clock\ClockInterface;
 
@@ -34,6 +36,7 @@ final readonly class ManageQuests
         private ClockInterface $clock,
         private WeeklyQuestsQueryInterface $targets,
         private CosmeticRewardCatalog $cosmetics,
+        private QuestWeekPlanner $planner,
     ) {
     }
 
@@ -42,12 +45,12 @@ final readonly class ManageQuests
      *
      * @throws ValidationException when the text, reward, weight or objectives are invalid
      */
-    public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null): WrittenQuest
+    public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null, mixed $tiers = null, ?int $minContribution = null, bool $collective = false): WrittenQuest
     {
         $parsed = $this->objectives($objectives);
         $unlocks = $this->cosmetic($cosmetic);
         try {
-            $quest = QuestDefinition::write($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->clock->now());
+            $quest = QuestDefinition::write($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->clock->now(), tiers: $this->tiers($tiers), collective: $collective, minContribution: $minContribution);
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
@@ -63,13 +66,13 @@ final readonly class ManageQuests
      * @throws NotFoundException   when the quest does not exist
      * @throws ValidationException when the text, reward, weight or objectives are invalid
      */
-    public function edit(string $questId, string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null): void
+    public function edit(string $questId, string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null, mixed $tiers = null, ?int $minContribution = null): void
     {
         $quest = $this->quest($questId);
         $parsed = $this->objectives($objectives);
         $unlocks = $this->cosmetic($cosmetic);
         try {
-            $quest->edit($title, $description, $reward, $parsed, $inDraw, $drawWeight);
+            $quest->edit($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->tiers($tiers), $minContribution);
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
@@ -137,7 +140,8 @@ final readonly class ManageQuests
      *
      * @throws ValidationException when the week is past or unknown
      * @throws NotFoundException   when the quest, or the one to replace in that week, does not exist
-     * @throws ConflictException   when the quest is retired or already in the week
+     * @throws ConflictException   when the quest is retired or already in the week, or (story 41.67) has no
+     *                             game to draw for it, or (story 41.69) is a second collective quest for the week
      */
     public function pin(string $weekKey, string $questId, ?string $replaces = null): void
     {
@@ -153,13 +157,33 @@ final readonly class ManageQuests
             }
         }
 
+        // Story 41.69: one collective quest a week at most - unless it takes the place of the one there.
+        if ($quest->isCollective()) {
+            foreach ($entries as $entry) {
+                if ($entry->getQuestId() !== $replaces && true === $this->quests->findQuest($entry->getQuestId())?->isCollective()) {
+                    throw new ConflictException('La semaine a déjà sa quête collective.', 'quest_collective_taken');
+                }
+            }
+        }
+
+        // Story 41.67: its pool counted from the start of the week, even pinned ahead.
+        if (!$this->planner->canServe($quest, $week)) {
+            throw new ConflictException('Aucun jeu à tirer au sort pour cette semaine : la quête ne peut pas y être servie.', 'quest_draw_pool_empty');
+        }
+
         $position = [] === $entries ? 0 : max(array_map(static fn (QuestWeekEntry $entry): int => $entry->getPosition(), $entries)) + 1;
         if (null !== $replaces) {
             $replaced = $this->entry($entries, $replaces);
             $position = $replaced->getPosition();
             $this->quests->removeEntry($replaced);
         }
-        $this->quests->saveEntry(QuestWeekEntry::serve($week->key, $questId, QuestWeekOrigin::Pinned, $position, $this->clock->now()));
+        $now = $this->clock->now();
+        $entry = QuestWeekEntry::serve($week->key, $questId, QuestWeekOrigin::Pinned, $position, $now);
+        $this->quests->saveEntry($entry);
+        // A week in progress freezes it now; a coming week, when it begins.
+        if ($week->start <= $now) {
+            $this->planner->freeze($week, $quest, $entry);
+        }
     }
 
     /**
@@ -189,15 +213,23 @@ final readonly class ManageQuests
             $target = \is_int($row['target'] ?? null) ? $row['target'] : 0;
             $scope = \is_string($row['scope'] ?? null) && '' !== $row['scope'] ? $row['scope'] : null;
             $scopeId = \is_string($row['scopeId'] ?? null) && '' !== $row['scopeId'] ? $row['scopeId'] : null;
-            // Story 41.18: an aimed objective names a game played on the site, or an event out of draft.
-            if (null !== $scope && null !== $scopeId) {
+            // Story 41.66: the same families in another order make the same objective.
+            if (QuestObjective::SCOPE_PLATFORM === $scope && null !== $scopeId) {
+                $scopeId = implode(QuestObjective::FAMILY_SEPARATOR, QuestObjective::familiesOf($scopeId));
+            }
+            // Story 41.18: an aimed objective names a game played on the site, or an event out of draft. Story
+            // 41.66: a family of the catalog's games; the days of the new releases are checked by the objective.
+            // Story 41.67: a drawn game's pool is checked by the objective too.
+            if (null !== $scope && null !== $scopeId && !\in_array($scope, [QuestObjective::SCOPE_RECENT, QuestObjective::SCOPE_DRAWN], true)) {
                 $targets ??= $this->targets->scopeOptions();
                 $known = match ($scope) {
                     QuestObjective::SCOPE_GAME => array_column($targets['games'], 'id'),
                     QuestObjective::SCOPE_EVENT => array_column($targets['events'], 'id'),
+                    QuestObjective::SCOPE_PLATFORM => $targets['platforms'],
                     default => [],
                 };
-                if (!\in_array($scopeId, $known, true)) {
+                $wanted = QuestObjective::SCOPE_PLATFORM === $scope ? explode(QuestObjective::FAMILY_SEPARATOR, $scopeId) : [$scopeId];
+                if ([] !== array_diff($wanted, $known)) {
                     throw new ValidationException('Ce jeu ou cet événement ne peut pas être visé.', ['objectives' => ['Cible inconnue.']], 'quest_scope_unknown');
                 }
             }
@@ -211,6 +243,32 @@ final readonly class ManageQuests
         return $objectives;
     }
 
+    /**
+     * Story 41.68: the tiers from the form, `[{target, reward}]`, or none.
+     *
+     * @return list<QuestTier>
+     *
+     * @throws ValidationException
+     */
+    private function tiers(mixed $raw): array
+    {
+        if (null === $raw || [] === $raw) {
+            return [];
+        }
+        if (!\is_array($raw)) {
+            throw $this->invalid(new \DomainException('quest_tiers_invalid'));
+        }
+        $tiers = [];
+        foreach ($raw as $row) {
+            if (!\is_array($row) || !\is_int($row['target'] ?? null) || !\is_int($row['reward'] ?? null)) {
+                throw $this->invalid(new \DomainException('quest_tiers_invalid'));
+            }
+            $tiers[] = new QuestTier($row['target'], $row['reward']);
+        }
+
+        return $tiers;
+    }
+
     private function invalid(\DomainException $e): ValidationException
     {
         $message = match ($e->getMessage()) {
@@ -219,6 +277,11 @@ final readonly class ManageQuests
             'quest_objectives_invalid' => sprintf('De 1 à %d objectifs.', QuestDefinition::MAX_OBJECTIVES),
             'quest_objectives_duplicated' => 'Chaque type d\'objectif une fois au plus par cible.',
             'quest_objective_scope_invalid' => 'Seuls les goals, les checks et les parties peuvent viser un jeu ou un événement.',
+            'quest_draw_pools_mixed' => 'Un seul jeu est tiré par semaine : tous les objectifs à jeu tiré prennent le même panier.',
+            'quest_tiers_invalid' => sprintf('De %d à %d paliers sur une quête à un seul objectif, le premier à sa cible et sa récompense, chacun plus haut que le précédent.', QuestDefinition::MIN_TIERS, QuestDefinition::MAX_TIERS),
+            'quest_tiers_reward_invalid' => sprintf('Tous les paliers ensemble paient %d pelles au plus.', QuestDefinition::MAX_REWARD),
+            'quest_collective_invalid' => 'Une quête collective a un seul objectif, sans palier, sur des goals, des checks, des parties, du temps de jeu, des items envoyés ou des primes.',
+            'quest_contribution_invalid' => 'Une quête collective paie à partir d\'une part minimale, de 1 à la cible.',
             'quest_weight_invalid' => sprintf('Un poids de tirage de %d à %d.', QuestDefinition::MIN_WEIGHT, QuestDefinition::MAX_WEIGHT),
             'quest_objective_target_invalid' => sprintf('Une cible de %d à %d.', QuestObjective::MIN_TARGET, QuestObjective::MAX_TARGET),
             default => 'Quête invalide.',

@@ -3,15 +3,15 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { ChestRow, ObjectiveBar, QuestHistory, StreakRow, WeeklyQuestsView, fetchMyQuests, type WeeklyQuests } from "./weekly-quests";
+import { ChestRow, ObjectiveBar, QuestHistory, StreakRow, WeeklyQuestsView, fetchMyQuests, questMaxReward, type WeeklyQuests } from "./weekly-quests";
 import { pelleReasonLabel } from "./wallet-api";
 
 const quests: WeeklyQuests = {
   week: "2026-W40",
   renewsAt: "2026-10-04T22:00:00+00:00",
   quests: [
-    { key: "reach_a_goal", label: "Atteindre un goal", description: "", reward: 40, done: true, paid: true, objectives: [{ metric: "goals", label: "Goals atteints", unit: "goals", target: 1, current: 1 }] },
-    { key: "play_with_someone_new", label: "Jouer avec quelqu'un de nouveau", description: "", reward: 30, done: true, paid: false, objectives: [{ metric: "newPartners", label: "Nouveaux partenaires de jeu", unit: "nouveaux partenaires", target: 1, current: 1 }] },
+    { key: "reach_a_goal", label: "Atteindre un goal", description: "", reward: 40, done: true, paid: true, objectives: [{ metric: "goals", label: "Goals atteints", unit: "goals", target: 1, current: 1, duration: false }] },
+    { key: "play_with_someone_new", label: "Jouer avec quelqu'un de nouveau", description: "", reward: 30, done: true, paid: false, objectives: [{ metric: "newPartners", label: "Nouveaux partenaires de jeu", unit: "nouveaux partenaires", target: 1, current: 1, duration: false }] },
     {
       key: "marathon",
       label: "Marathon",
@@ -19,7 +19,7 @@ const quests: WeeklyQuests = {
       reward: 60,
       done: false,
       paid: false,
-      objectives: [{ metric: "checks", label: "Checks faits", unit: "checks", target: 50, current: 12 }, { metric: "sessions", label: "Parties jouées", unit: "parties", target: 2, current: 3 }],
+      objectives: [{ metric: "checks", label: "Checks faits", unit: "checks", target: 50, current: 12, duration: false }, { metric: "sessions", label: "Parties jouées", unit: "parties", target: 2, current: 3, duration: false }],
     },
   ],
   chest: { reward: 50, done: 2, total: 3, paid: false },
@@ -78,11 +78,40 @@ describe("weekly quests", () => {
 
   test("an objective aimed at a game says which (story 41.18)", () => {
     const html = renderToStaticMarkup(
-      <ObjectiveBar done={false} objective={{ metric: "goals", label: "Goals atteints", unit: "goal", target: 1, current: 0, scope: "Hollow Knight" }} />,
+      <ObjectiveBar done={false} objective={{ metric: "goals", label: "Goals atteints", unit: "goal", target: 1, current: 0, duration: false, scope: "Hollow Knight" }} />,
     );
     expect(html).toContain("Goals atteints");
     expect(html).toContain(" · Hollow Knight");
     expect(html).toContain("0 / 1 goal");
+  });
+
+  test("the game aimed at links its page (story 41.67)", () => {
+    const html = renderToStaticMarkup(
+      <ObjectiveBar done={false} objective={{ metric: "goals", label: "Goals atteints", unit: "goals", target: 2, current: 0, duration: false, scope: "Hollow Knight", gameSlug: "hollow-knight" }} />,
+    );
+    expect(html).toContain('href="/jeux/hollow-knight"');
+    expect(html).toContain(">Hollow Knight</a>");
+  });
+
+  test("a quest with tiers shows each one on the same bar (story 41.68)", () => {
+    const tiers = [
+      { target: 2, reward: 10, reached: true, paid: true },
+      { target: 4, reward: 20, reached: false, paid: false },
+    ];
+    const html = renderToStaticMarkup(
+      <ObjectiveBar done objective={{ metric: "checks", label: "Checks faits", unit: "checks", target: 2, current: 3, duration: false }} tiers={tiers} />,
+    );
+    expect(html).toContain("3 / 4 checks");
+    expect(html).toContain("Palier atteint : ");
+    expect(html).toContain('aria-label="Paliers"');
+    expect(questMaxReward({ key: "q", label: "Toujours plus", description: "", reward: 10, done: true, paid: true, objectives: [], tiers })).toBe(30);
+  });
+
+  test("time played shows hours on both sides of its bar (story 41.64)", () => {
+    const html = renderToStaticMarkup(
+      <ObjectiveBar done={false} objective={{ metric: "playMinutes", label: "Temps de jeu", unit: "de jeu", target: 360, current: 150, duration: true }} />,
+    );
+    expect(html).toContain("2 h 30 / 6 h de jeu");
   });
 
   test("reads the quests, and the reason has a label", async () => {

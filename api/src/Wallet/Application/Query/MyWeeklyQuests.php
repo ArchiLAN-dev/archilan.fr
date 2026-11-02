@@ -8,17 +8,18 @@ use App\Community\Application\Support\CosmeticRewardCatalog;
 use App\Community\Application\Support\QuestMetricProvider;
 use App\Community\Domain\ValueObject\CosmeticReward;
 use App\Wallet\Application\Service\QuestWeekPlanner;
-use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
+use App\Wallet\Domain\ValueObject\ServedQuest;
 use Psr\Clock\ClockInterface;
 
 /**
  * The quests of the week as the wallet page shows them (story 41.6): what each pays, whether it is done, whether it
  * is already paid (the hourly run pays it within the hour), and when the quests renew. Story 41.15: the quests the
  * week serves, each objective with where the member stands. Story 41.16: the chest for doing them all. Story 41.17: the weeks before.
- * Story 41.34: the run of weeks with the chest opened.
+ * Story 41.34: the run of weeks with the chest opened. Story 41.69: the week's collective quest, apart - the
+ * community's total, the member's share and the share that pays.
  */
 final readonly class MyWeeklyQuests
 {
@@ -34,16 +35,17 @@ final readonly class MyWeeklyQuests
     }
 
     /**
-     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int, scope: string|null}>, cosmetic: array{type: string, key: string, label: string}|null}>, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>, streak: array{current: int, best: int, thisWeek: bool}}
+     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, tiers: list<array{target: int, reward: int, reached: bool, paid: bool}>|null, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int, scope: string|null, gameSlug: string|null, duration: bool}>, cosmetic: array{type: string, key: string, label: string}|null}>, collective: array{key: string, label: string, description: string, reward: int, metric: string, unit: string, target: int, total: int, mine: int, minContribution: int, scope: string|null, gameSlug: string|null, duration: bool, done: bool, paid: bool}|null, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>, streak: array{current: int, best: int, thisWeek: bool}}
      */
     public function of(string $userId): array
     {
         $week = QuestWeek::containing($this->clock->now());
         $served = $this->planner->served($week);
-        $counts = [] === $served ? [] : $this->quests->counts($week, QuestDefinition::objectivesOf($served), $userId);
-        $scopes = $this->scopeNames($served);
+        $counts = [] === $served ? [] : $this->quests->counts($week, ServedQuest::objectivesOf($served), $userId);
+        [$scopes, $slugs] = $this->scopeNames($served);
         $mine = array_map(static fn (array $byMember): int => $byMember[$userId] ?? 0, $counts);
         $paid = $this->quests->rewardedQuests($userId, $week);
+        $paidTiers = [] === array_filter($served, static fn (ServedQuest $quest): bool => [] !== $quest->tiers) ? [] : $this->quests->rewardedTiers($userId, $week);
 
         $quests = [];
         foreach ($served as $quest) {
@@ -58,6 +60,10 @@ final readonly class MyWeeklyQuests
                     'current' => $mine[$objective->key()] ?? 0,
                     // Story 41.18: the game or event the objective aims at, by name.
                     'scope' => $scopes[$objective->key()] ?? null,
+                    // Story 41.67: the game aimed at (drawn or named), to link its page.
+                    'gameSlug' => $slugs[$objective->key()] ?? null,
+                    // Story 41.64: target and current are minutes, shown in hours.
+                    'duration' => $objective->metric->isDuration(),
                 ];
             }
             $quests[] = [
@@ -65,6 +71,8 @@ final readonly class MyWeeklyQuests
                 'label' => $quest->getTitle(),
                 'description' => $quest->getDescription(),
                 'reward' => $quest->getReward(),
+                // Story 41.68: done from the first tier; each tier reached, and paid, on the same bar.
+                'tiers' => $this->tiers($quest, $mine, $isPaid, $paidTiers[$quest->getId()] ?? []),
                 'done' => $isPaid || $quest->isAccomplishedWith($mine),
                 'paid' => $isPaid,
                 'objectives' => $objectives,
@@ -88,6 +96,7 @@ final readonly class MyWeeklyQuests
             'week' => $week->key,
             'renewsAt' => $week->end->format(\DATE_ATOM),
             'quests' => $quests,
+            'collective' => $this->collective($week, $userId),
             'chest' => $chest,
             'history' => $this->history($week, $earned),
             'streak' => self::streak($chestWeeks, $week),
@@ -117,30 +126,37 @@ final readonly class MyWeeklyQuests
     }
 
     /**
-     * Story 41.18: the name of the game or event each aimed objective of these quests counts.
+     * Story 41.18: the name of the game or event each aimed objective of these quests counts. Story 41.67: and the
+     * slug of the game, drawn maybe among games nobody played yet.
      *
-     * @param list<QuestDefinition> $quests
+     * @param list<ServedQuest> $quests
      *
-     * @return array<string, string> objective key => name
+     * @return array{0: array<string, string>, 1: array<string, string>} objective key => name, objective key => game slug
      */
     private function scopeNames(array $quests): array
     {
-        $aimed = array_filter(QuestDefinition::objectivesOf($quests), static fn (QuestObjective $objective): bool => null !== $objective->scope);
+        $aimed = array_filter(ServedQuest::objectivesOf($quests), static fn (QuestObjective $objective): bool => null !== $objective->scope);
         if ([] === $aimed) {
-            return [];
+            return [[], []];
         }
-        $options = $this->quests->scopeOptions();
-        $names = [
-            QuestObjective::SCOPE_GAME => array_column($options['games'], 'name', 'id'),
-            QuestObjective::SCOPE_EVENT => array_column($options['events'], 'title', 'id'),
-        ];
+        $games = $this->quests->gamesNamed(array_values(array_unique(array_map(
+            static fn (QuestObjective $objective): string => (string) $objective->scopeId,
+            array_filter($aimed, static fn (QuestObjective $objective): bool => QuestObjective::SCOPE_GAME === $objective->scope),
+        ))));
+        $events = array_column($this->quests->scopeOptions()['events'], 'title', 'id');
 
         $scopes = [];
+        $slugs = [];
         foreach ($aimed as $objective) {
-            $scopes[$objective->key()] = $names[(string) $objective->scope][(string) $objective->scopeId] ?? 'cible retirée';
+            $game = QuestObjective::SCOPE_GAME === $objective->scope ? ($games[(string) $objective->scopeId] ?? null) : null;
+            if (null !== $game) {
+                $slugs[$objective->key()] = $game['slug'];
+            }
+            // Story 41.66: a platform or new-release target names itself.
+            $scopes[$objective->key()] = $objective->selfName() ?? $game['name'] ?? (QuestObjective::SCOPE_EVENT === $objective->scope ? $events[(string) $objective->scopeId] ?? null : null) ?? 'cible retirée';
         }
 
-        return $scopes;
+        return [$scopes, $slugs];
     }
 
     /**
@@ -161,9 +177,11 @@ final readonly class MyWeeklyQuests
         }
         $entries = $this->settings->entriesOfWeeks(array_map(static fn (QuestWeek $week): string => $week->key, $weeks));
 
-        return array_map(static function (QuestWeek $week) use ($entries, $earned): array {
+        return array_map(function (QuestWeek $week) use ($entries, $earned): array {
             $mine = $earned[$week->key] ?? ['quests' => [], 'pelles' => 0, 'chest' => false];
             $served = array_map(static fn ($entry): string => $entry->getQuestId(), $entries[$week->key] ?? []);
+            // Story 41.69: a collective quest is not one of the week's quests.
+            $served = array_filter($served, fn (string $questId): bool => true !== $this->settings->findQuest($questId)?->isCollective());
 
             return [
                 'week' => $week->key,
@@ -178,11 +196,68 @@ final readonly class MyWeeklyQuests
     }
 
     /**
+     * Story 41.69: the week's collective quest as the member sees it - the community's total counted now, the
+     * member's share, and the share that pays.
+     *
+     * @return array{key: string, label: string, description: string, reward: int, metric: string, unit: string, target: int, total: int, mine: int, minContribution: int, scope: string|null, gameSlug: string|null, duration: bool, done: bool, paid: bool}|null
+     */
+    private function collective(QuestWeek $week, string $userId): ?array
+    {
+        $quest = $this->planner->collective($week);
+        $objective = $quest?->getObjectives()[0] ?? null;
+        if (null === $quest || null === $objective) {
+            return null;
+        }
+        $total = $this->quests->groupTotal($week, $objective);
+        $mine = $this->quests->counts($week, [$objective], $userId)[$objective->key()][$userId] ?? 0;
+        [$scopes, $slugs] = $this->scopeNames([$quest]);
+
+        return [
+            'key' => $quest->getId(),
+            'label' => $quest->getTitle(),
+            'description' => $quest->getDescription(),
+            'reward' => $quest->getReward(),
+            'metric' => $objective->metric->value,
+            'unit' => $objective->metric->unitFor($objective->target),
+            'target' => $objective->target,
+            'total' => $total,
+            'mine' => $mine,
+            'minContribution' => $quest->minContribution ?? $objective->target,
+            'scope' => $scopes[$objective->key()] ?? null,
+            'gameSlug' => $slugs[$objective->key()] ?? null,
+            'duration' => $objective->metric->isDuration(),
+            'done' => $total >= $objective->target,
+            'paid' => $this->quests->groupPaid($userId, $week, $quest->getId()),
+        ];
+    }
+
+    /**
+     * @param array<string, int> $mine      objective key => the member's count
+     * @param list<int>          $paidTiers the tiers past the first already paid
+     *
+     * @return list<array{target: int, reward: int, reached: bool, paid: bool}>|null
+     */
+    private function tiers(ServedQuest $quest, array $mine, bool $isPaid, array $paidTiers): ?array
+    {
+        if ([] === $quest->tiers) {
+            return null;
+        }
+        $reached = $quest->reachedTiers($mine);
+        $tiers = [];
+        foreach ($quest->tiers as $index => $tier) {
+            $paid = 0 === $index ? $isPaid : \in_array($index + 1, $paidTiers, true);
+            $tiers[] = ['target' => $tier->target, 'reward' => $tier->reward, 'reached' => $paid || \in_array($index + 1, $reached, true), 'paid' => $paid];
+        }
+
+        return $tiers;
+    }
+
+    /**
      * Story 41.28: the cosmetic a quest unlocks, in words.
      *
      * @return array{type: string, key: string, label: string}|null
      */
-    private function cosmetic(QuestDefinition $quest): ?array
+    private function cosmetic(ServedQuest $quest): ?array
     {
         $cosmetic = $quest->getCosmetic();
         try {

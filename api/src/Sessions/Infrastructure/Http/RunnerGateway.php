@@ -393,6 +393,8 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
             'withRequiredFiles' => $preflight->withRequiredFiles,
             // Story 38.30: the test had a partner player, for a meta-game that cannot generate solo.
             'withPartner' => $preflight->withPartner,
+            // Story 38.33: a pending test that left the queue and is generating, since then; null while it waits.
+            'startedAt' => $preflight->startedAt,
         ];
     }
 

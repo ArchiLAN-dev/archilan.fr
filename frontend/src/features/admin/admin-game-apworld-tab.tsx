@@ -36,6 +36,7 @@ import {
 import { AdminGameRequiredFiles } from "./admin-game-required-files";
 import { passedWithFilesLabel, TEST_FILES_INTRO, testFilesBlocker, testFilesOfGame } from "./admin-game-test-files";
 import { ApworldCandidateStatus } from "./apworld-candidate-status";
+import { ApworldTestProgress } from "./apworld-test-progress";
 import { ApworldPreflightImage } from "./apworld-preflight-image";
 import { overrideIsActive } from "./apworld-preflight-override";
 import { ApworldPreflightWarning } from "./apworld-preflight-warning";
@@ -272,12 +273,16 @@ function LiveApworldCard({ game, onUpdate }: Props) {
 
       <div className="grid gap-2">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <p className={`text-sm font-semibold ${verdict.className}`}>
-            {verdict.label}
-            {preflight?.checkedAt ? (
-              <span className="ml-2 text-xs font-normal text-muted-foreground">le {DATE_SHORT.format(new Date(preflight.checkedAt))}</span>
-            ) : null}
-          </p>
+          {preflight?.status === "pending" ? (
+            <ApworldTestProgress startedAt={preflight.startedAt ?? null} state={preflight.startedAt ? "running" : "queued"} />
+          ) : (
+            <p className={`text-sm font-semibold ${verdict.className}`}>
+              {verdict.label}
+              {preflight?.checkedAt ? (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">le {DATE_SHORT.format(new Date(preflight.checkedAt))}</span>
+              ) : null}
+            </p>
+          )}
           {canOverride ? (
             <button
               className={buttonVariants({ variant: "ghost" })}
@@ -636,6 +641,7 @@ function CandidateCard({ game, onUpdate }: Props) {
           if (retryFiles.length > 0) setRetrying(true);
           else void run(retryApworldCandidate);
         }}
+        servesAVersion={game.isApworldReady}
       />
       {error !== null ? (
         <p className="text-sm text-danger" role="alert">

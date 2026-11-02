@@ -38,4 +38,12 @@ final class SlotNameTest extends TestCase
         self::assertFalse(SlotName::isValid(str_repeat('a', SlotName::MAX_LENGTH + 1)));
         self::assertTrue(SlotName::isValid(str_repeat('a', SlotName::MAX_LENGTH)));
     }
+
+    // Story 9.56: "Bridge" stays hidden by name for the multiworlds generated with the observer.
+    public function testBridgeIsReservedWhateverItsCase(): void
+    {
+        self::assertTrue(SlotName::isReserved('Bridge'));
+        self::assertTrue(SlotName::isReserved('bridge'));
+        self::assertFalse(SlotName::isReserved('Bridget'));
+    }
 }

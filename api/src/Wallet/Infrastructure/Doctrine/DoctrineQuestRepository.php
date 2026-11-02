@@ -95,6 +95,16 @@ final readonly class DoctrineQuestRepository implements QuestRepositoryInterface
         return $weeks;
     }
 
+    public function lastDrawnGame(string $questId, string $beforeWeekKey): ?string
+    {
+        $game = $this->entityManager->getConnection()->fetchOne(
+            'SELECT drawn_game_id FROM quest_week_entry WHERE quest_id = :quest AND week_key < :week AND drawn_game_id IS NOT NULL ORDER BY week_key DESC LIMIT 1',
+            ['quest' => $questId, 'week' => $beforeWeekKey],
+        );
+
+        return is_string($game) ? $game : null;
+    }
+
     public function questsPerWeek(): int
     {
         return $this->intSetting(WalletSetting::QUESTS_PER_WEEK, self::DEFAULT_QUESTS_PER_WEEK);

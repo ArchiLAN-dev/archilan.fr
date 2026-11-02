@@ -70,7 +70,7 @@ final class SlotNameGenerator
      */
     private function isUsableCustomName(string $name): bool
     {
-        return !str_contains($name, '{') && SlotName::isValid($name);
+        return !str_contains($name, '{') && SlotName::isValid($name) && !SlotName::isReserved($name);
     }
 
     private function abbreviate(string $gameName): string

@@ -37,7 +37,7 @@ final class AdminQuestTest extends FunctionalTestCase
         self::assertCount(9, $weeks, 'the current week and 8 coming ones');
         self::assertTrue($weeks[0]['current'] ?? null);
         self::assertTrue($weeks[0]['drawn'] ?? null);
-        self::assertSame([['questId' => $id, 'title' => 'Marathon', 'reward' => 60, 'origin' => 'drawn', 'retired' => false]], $weeks[0]['quests'] ?? null);
+        self::assertSame([['questId' => $id, 'title' => 'Marathon', 'reward' => 60, 'origin' => 'drawn', 'retired' => false, 'drawnGame' => null, 'collective' => false, 'groupTotal' => null, 'groupTarget' => null]], $weeks[0]['quests'] ?? null);
         self::assertFalse($weeks[1]['drawn'] ?? null, 'a coming week is drawn when it starts');
     }
 
@@ -142,14 +142,14 @@ final class AdminQuestTest extends FunctionalTestCase
         $quests = $overview['quests'] ?? null;
         self::assertIsArray($quests);
         self::assertIsArray($quests[0] ?? null);
-        self::assertSame(['weeksServed' => 2, 'lastWeek' => $lastWeek->key, 'lastMembers' => 1, 'pelles' => 40], $quests[0]['stats'] ?? null, 'last week and this one');
+        self::assertSame(['weeksServed' => 2, 'lastWeek' => $lastWeek->key, 'lastMembers' => 1, 'lastTiers' => [], 'pelles' => 40], $quests[0]['stats'] ?? null, 'last week and this one');
 
         $past = $overview['pastWeeks'] ?? null;
         self::assertIsArray($past);
         self::assertCount(4, $past);
         self::assertIsArray($past[0]);
         self::assertSame($lastWeek->key, $past[0]['key'] ?? null);
-        self::assertSame([['questId' => $id, 'title' => 'Un goal', 'reward' => 40, 'origin' => 'drawn', 'retired' => false, 'members' => 1, 'pelles' => 40]], $past[0]['quests'] ?? null);
+        self::assertSame([['questId' => $id, 'title' => 'Un goal', 'reward' => 40, 'origin' => 'drawn', 'retired' => false, 'drawnGame' => null, 'collective' => false, 'groupTotal' => null, 'groupTarget' => null, 'members' => 1, 'pelles' => 40]], $past[0]['quests'] ?? null);
         self::assertSame(1, $past[0]['chests'] ?? null);
         self::assertSame(120, $past[0]['pelles'] ?? null);
     }
@@ -171,7 +171,7 @@ final class AdminQuestTest extends FunctionalTestCase
         self::assertIsArray($past);
         self::assertIsArray($past[2] ?? null);
         self::assertSame($old->key, $past[2]['key'] ?? null);
-        self::assertSame([['questId' => $id, 'title' => 'Un goal', 'reward' => 40, 'origin' => 'drawn', 'retired' => false, 'members' => 1, 'pelles' => 40]], $past[2]['quests'] ?? null);
+        self::assertSame([['questId' => $id, 'title' => 'Un goal', 'reward' => 40, 'origin' => 'drawn', 'retired' => false, 'drawnGame' => null, 'collective' => false, 'groupTotal' => null, 'groupTarget' => null, 'members' => 1, 'pelles' => 40]], $past[2]['quests'] ?? null);
         self::assertSame(40, $past[2]['pelles'] ?? null);
     }
 
@@ -217,6 +217,77 @@ final class AdminQuestTest extends FunctionalTestCase
         self::assertIsArray($objectives);
         self::assertIsArray($objectives[0] ?? null);
         self::assertSame('Hollow Knight', $objectives[0]['scope'] ?? null);
+    }
+
+    public function testAQuestAimsAtAGameDrawnForTheWeekThatTheMemberSeesByName(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $this->loginAs($admin);
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $this->entityManager->persist(Session::create('s-hk', 'event-hk', new \DateTimeImmutable('2026-09-01T12:00:00+00:00')));
+        $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), 's-hk', 'reg-hk', $game->getId(), 'P', 1, 'slot-hk'));
+        $this->entityManager->flush();
+
+        $this->client->request('POST', '/api/v1/admin/quests', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode(['title' => 'Mêlé', 'reward' => 10, 'objectives' => [
+            ['metric' => 'goals', 'target' => 1, 'scope' => 'drawn', 'scopeId' => 'catalog'],
+            ['metric' => 'checks', 'target' => 1, 'scope' => 'drawn', 'scopeId' => 'recent:30'],
+        ]], \JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(422, 'one game drawn a week: one pool');
+
+        $id = $this->write(['title' => 'Jeu de la semaine', 'reward' => 40, 'inDraw' => true, 'objectives' => [
+            ['metric' => 'goals', 'target' => 2, 'scope' => 'drawn', 'scopeId' => 'catalog'],
+        ]]);
+
+        $overview = $this->overview();
+        $quests = $overview['quests'] ?? null;
+        self::assertIsArray($quests);
+        self::assertIsArray($quests[0] ?? null);
+        self::assertSame([['metric' => 'goals', 'target' => 2, 'scope' => 'drawn', 'scopeId' => 'catalog']], $quests[0]['objectives'] ?? null, 'the template');
+        self::assertSame('Hollow Knight', $this->served($this->weeks($overview)[0])[0]['drawnGame'] ?? null, 'the game drawn');
+
+        $this->loginAs($this->createUser('alice@example.org', ['ROLE_USER'], 'Alice'));
+        $this->client->request('GET', '/api/v1/me/quests');
+        self::assertResponseIsSuccessful();
+        $mine = $this->decodedJsonResponse()['quests'] ?? null;
+        self::assertIsArray($mine);
+        self::assertIsArray($mine[0] ?? null);
+        self::assertSame($id, $mine[0]['key'] ?? null);
+        self::assertIsArray($mine[0]['objectives'] ?? null);
+        self::assertIsArray($mine[0]['objectives'][0] ?? null);
+        self::assertSame('Hollow Knight', $mine[0]['objectives'][0]['scope'] ?? null);
+        self::assertSame('hollow-knight', $mine[0]['objectives'][0]['gameSlug'] ?? null);
+    }
+
+    public function testAnObjectiveAimsAtFamiliesOfTheCatalogOrAtTheNewReleases(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
+        $this->loginAs($admin);
+        $game = $this->createGame('Ocarina', 'ocarina');
+        $game->overridePlatformFamilies(['Nintendo 64'], new \DateTimeImmutable());
+        $other = $this->createGame('Chrono', 'chrono');
+        $other->overridePlatformFamilies(['Super Nintendo'], new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        $scopes = $this->overview()['scopes'] ?? null;
+        self::assertIsArray($scopes);
+        self::assertSame(['Nintendo 64', 'Super Nintendo'], $scopes['platforms'] ?? null);
+
+        $aimed = static fn (string $scope, string $scopeId): array => ['title' => 'Semaine à thème', 'reward' => 40, 'objectives' => [
+            ['metric' => 'goals', 'target' => 1, 'scope' => $scope, 'scopeId' => $scopeId],
+        ]];
+        foreach ([$aimed('platform', 'Dreamcast'), $aimed('platform', 'Nintendo 64|Dreamcast'), $aimed('recent', '120')] as $payload) {
+            $this->client->request('POST', '/api/v1/admin/quests', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode($payload, \JSON_THROW_ON_ERROR));
+            self::assertResponseStatusCodeSame(422, (string) json_encode($payload));
+        }
+
+        // The families are kept in one order, so the same choice is the same objective.
+        $this->write($aimed('platform', 'Super Nintendo|Nintendo 64'));
+        $this->write($aimed('recent', '30'));
+        $quests = $this->overview()['quests'] ?? null;
+        self::assertIsArray($quests);
+        $objectives = array_map(static fn (mixed $quest): mixed => \is_array($quest) && \is_array($quest['objectives'] ?? null) ? $quest['objectives'][0] ?? null : null, $quests);
+        self::assertContains(['metric' => 'goals', 'target' => 1, 'scope' => 'platform', 'scopeId' => 'Nintendo 64|Super Nintendo'], $objectives);
+        self::assertContains(['metric' => 'goals', 'target' => 1, 'scope' => 'recent', 'scopeId' => '30'], $objectives);
     }
 
     public function testOnlyAnAdminManagesTheQuests(): void

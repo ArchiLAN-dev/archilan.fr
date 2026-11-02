@@ -45,6 +45,37 @@ describe("ApworldCandidateStatus", () => {
     expect(html).not.toContain("Relancer le test");
   });
 
+  // Story 38.33: a test that generates, one that waits, one that is over, none at all.
+  test("a test that generates shows a spinner, and no retry", () => {
+    const html = render(candidate({ test: { state: "running", startedAt: "2026-11-01T12:00:00Z" } }));
+
+    expect(html).toContain("animate-spin");
+    expect(html).toContain("Test de génération en cours");
+    expect(html).not.toContain("Relancer le test");
+  });
+
+  test("a test waiting for the runner says so", () => {
+    expect(render(candidate({ test: { state: "queued", startedAt: null } }))).toContain("En file d&#x27;attente");
+  });
+
+  test("a finished test says the verdict is coming", () => {
+    expect(render(candidate({ test: { state: "finished", startedAt: null } }))).toContain("Test terminé");
+  });
+
+  test("a candidate in test that no test is coming for can be retried", () => {
+    const html = render(candidate({ test: { state: "idle", startedAt: null } }));
+
+    expect(html).toContain("Aucun test en cours pour cette version");
+    expect(html).toContain("Relancer le test");
+  });
+
+  test("a new game's first version does not claim a current one", () => {
+    const html = renderToStaticMarkup(<ApworldCandidateStatus busy={false} candidate={candidate()} onApprove={noop} onForce={noop} onRetry={noop} servesAVersion={false} />);
+
+    expect(html).toContain("Le jeu n&#x27;a pas encore de version en ligne.");
+    expect(html).not.toContain("version actuelle");
+  });
+
   test("an automatic candidate says where it comes from", () => {
     expect(render(candidate({ origin: "auto" }))).toContain("Mise à jour automatique");
   });

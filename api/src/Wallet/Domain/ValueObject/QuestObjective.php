@@ -18,9 +18,19 @@ final readonly class QuestObjective
 
     public const string SCOPE_GAME = 'game';
     public const string SCOPE_EVENT = 'event';
+    // Story 41.66: the games of some platform families (`scopeId`: the families, `|` between them), or the games
+    // put online in the last days before the week (`scopeId`: the number of days).
+    public const string SCOPE_PLATFORM = 'platform';
+    public const string SCOPE_RECENT = 'recent';
+    // Story 41.67: a game drawn each week the quest is served, from a pool (`scopeId`: `catalog`, or `recent:{days}`
+    // for the new releases). Only the template says it: once served, the objective aims at the drawn game.
+    public const string SCOPE_DRAWN = 'drawn';
+    public const string POOL_CATALOG = 'catalog';
+    public const string POOL_RECENT = 'recent:';
 
-    /** The metrics read from sessions, the only ones a game or an event can narrow. */
-    public const array SCOPABLE = [QuestMetric::Goals, QuestMetric::Checks, QuestMetric::Sessions];
+    public const string FAMILY_SEPARATOR = '|';
+    public const int MIN_RECENT_DAYS = 7;
+    public const int MAX_RECENT_DAYS = 90;
 
     public function __construct(
         public QuestMetric $metric,
@@ -34,9 +44,107 @@ final readonly class QuestObjective
         if ((null === $scope) !== (null === $scopeId) || '' === $scopeId) {
             throw new \DomainException('quest_objective_scope_invalid');
         }
-        if (null !== $scope && (!\in_array($scope, [self::SCOPE_GAME, self::SCOPE_EVENT], true) || !\in_array($metric, self::SCOPABLE, true))) {
+        if (null !== $scope && !\in_array($scope, $metric->scopes(), true)) {
             throw new \DomainException('quest_objective_scope_invalid');
         }
+        if ((self::SCOPE_RECENT === $scope || self::SCOPE_DRAWN === $scope) && null === $this->recentDays() && self::POOL_CATALOG !== $this->pool()) {
+            throw new \DomainException('quest_objective_scope_invalid');
+        }
+        if (self::SCOPE_PLATFORM === $scope && [] === $this->families()) {
+            throw new \DomainException('quest_objective_scope_invalid');
+        }
+    }
+
+    /**
+     * Story 41.66: the platform families an objective aims at, sorted and without duplicates, so the same choice
+     * always makes the same key.
+     *
+     * @return list<string>
+     */
+    public function families(): array
+    {
+        return self::SCOPE_PLATFORM === $this->scope && null !== $this->scopeId ? self::familiesOf($this->scopeId) : [];
+    }
+
+    /**
+     * The families of a platform target's `scopeId`, sorted and without duplicates.
+     *
+     * @return list<string>
+     */
+    public static function familiesOf(string $scopeId): array
+    {
+        $families = array_values(array_unique(array_filter(array_map(trim(...), explode(self::FAMILY_SEPARATOR, $scopeId)), static fn (string $family): bool => '' !== $family)));
+        sort($families);
+
+        return $families;
+    }
+
+    /**
+     * Story 41.66: how many days before the week a game may have been put online to count, null when not a number in
+     * bounds. Story 41.67: the same window for a game drawn among the new releases.
+     */
+    public function recentDays(): ?int
+    {
+        $days = match ($this->scope) {
+            self::SCOPE_RECENT => $this->scopeId,
+            self::SCOPE_DRAWN => null !== $this->scopeId && str_starts_with($this->scopeId, self::POOL_RECENT) ? substr($this->scopeId, \strlen(self::POOL_RECENT)) : null,
+            default => null,
+        };
+        if (null === $days || 1 !== preg_match('/^\d{1,3}$/', $days)) {
+            return null;
+        }
+        $days = (int) $days;
+
+        return $days >= self::MIN_RECENT_DAYS && $days <= self::MAX_RECENT_DAYS ? $days : null;
+    }
+
+    /**
+     * Story 41.66: the name of a target that needs no lookup - « jeu Super Nintendo ou Nintendo 64 », « jeu mis en
+     * ligne ces 30 derniers jours » -, null for a game or an event (named by the catalog).
+     */
+    public function selfName(): ?string
+    {
+        $families = $this->families();
+        if ([] !== $families) {
+            $last = array_pop($families);
+
+            return 'jeu '.([] === $families ? $last : implode(', ', $families).' ou '.$last);
+        }
+        $days = $this->recentDays();
+        if (self::SCOPE_DRAWN === $this->scope) {
+            return null === $days ? 'jeu tiré au sort dans le catalogue' : sprintf('jeu tiré au sort parmi les nouveautés de %d jours', $days);
+        }
+
+        return null === $days ? null : sprintf('jeu mis en ligne ces %d derniers jours', $days);
+    }
+
+    /** Story 41.67: the pool a drawn game comes from (`catalog`, `recent:30`), null for another target. */
+    public function pool(): ?string
+    {
+        return self::SCOPE_DRAWN === $this->scope ? $this->scopeId : null;
+    }
+
+    /** Story 41.67: the objective as served, aimed at the game drawn for the week. */
+    public function drawnOn(string $gameId): self
+    {
+        return self::SCOPE_DRAWN === $this->scope ? new self($this->metric, $this->target, self::SCOPE_GAME, $gameId) : $this;
+    }
+
+    /**
+     * Every objective reached with what the member did over the week (none: never).
+     *
+     * @param list<self>         $objectives
+     * @param array<string, int> $counts     objective key => count
+     */
+    public static function allReached(array $objectives, array $counts): bool
+    {
+        foreach ($objectives as $objective) {
+            if (!$objective->isReachedBy($counts[$objective->key()] ?? 0)) {
+                return false;
+            }
+        }
+
+        return [] !== $objectives;
     }
 
     /** What the objective counts: its metric, narrowed to its game or event (`checks@game:{id}`). */

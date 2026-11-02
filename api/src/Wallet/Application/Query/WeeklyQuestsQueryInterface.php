@@ -31,11 +31,36 @@ interface WeeklyQuestsQueryInterface
     public function counts(QuestWeek $week, array $objectives, ?string $userId = null): array;
 
     /**
-     * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft.
+     * Story 41.69: what the whole community did over the week for a collective objective, each thing once - a check,
+     * a goal or a minute of a slot played by several members, a session whatever its players, an item between two
+     * members. Not the sum of the members' counts. What a banned or erased member played counts: it happened.
+     */
+    public function groupTotal(QuestWeek $week, QuestObjective $objective): int;
+
+    /**
+     * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. Story
+     * 41.66: and the platform families of the catalog's games.
      *
-     * @return array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>}
+     * @return array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>, platforms: list<string>}
      */
     public function scopeOptions(): array;
+
+    /**
+     * Story 41.67: the games a quest's game may be drawn from for the week - the catalog's games online and played
+     * at least once on the site (`catalog`), or those put online in the days before the week (`recent:30`).
+     *
+     * @return list<string> game ids
+     */
+    public function drawableGames(string $pool, QuestWeek $week): array;
+
+    /**
+     * Story 41.67: the name and slug of these games, to name and link a drawn one (never played yet, maybe).
+     *
+     * @param list<string> $gameIds
+     *
+     * @return array<string, array{name: string, slug: string}> by game id
+     */
+    public function gamesNamed(array $gameIds): array;
 
     /**
      * The quests already paid to the member for the week (their ledger keys `quest:{week}:{quest}:{member}`).
@@ -59,13 +84,23 @@ interface WeeklyQuestsQueryInterface
      */
     public function earnedBy(string $userId): array;
 
+    /** Story 41.69: whether the week's collective quest paid the member (key `quest-group:{week}:{quest}:{member}`). */
+    public function groupPaid(string $userId, QuestWeek $week, string $questId): bool;
+
     /** Story 41.16: whether the member's chest of the week is paid (key `quest-chest:{week}:{member}`). */
+    /**
+     * Story 41.68: the tiers past the first already paid to the member this week.
+     *
+     * @return array<string, list<int>> quest id => tier numbers
+     */
+    public function rewardedTiers(string $userId, QuestWeek $week): array;
+
     public function chestPaid(string $userId, QuestWeek $week): bool;
 
     /**
      * Story 41.16: what the quests and chests paid, by week, read from the ledger keys.
      *
-     * @return array<string, array{quests: array<string, array{members: int, pelles: int}>, chests: int, chestPelles: int}> by week key
+     * @return array<string, array{quests: array<string, array{members: int, pelles: int, tiers: array<int, int>}>, chests: int, chestPelles: int}> by week key
      */
     public function payments(): array;
 }

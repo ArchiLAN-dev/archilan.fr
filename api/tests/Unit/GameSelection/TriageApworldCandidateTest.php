@@ -233,13 +233,30 @@ final class TriageApworldCandidateTest extends TestCase
         self::assertSame(0, $this->candidates->flushes);
     }
 
-    public function testRetryingACandidateStillInTestIsForbidden(): void
+    public function testRetryingACandidateWhoseTestIsUnderwayIsForbidden(): void
     {
         $this->candidate(rejected: false);
+        $runner = $this->createMock(RunnerGatewayInterface::class);
+        $runner->method('fetchApworldPreflights')->willReturn(['hash-new' => ['status' => 'pending', 'error' => '', 'checkedAt' => '', 'overridden' => false, 'blocks' => false]]);
+        $runner->expects(self::never())->method('runApworldPreflight');
 
-        $outcome = $this->triage(self::createStub(RunnerGatewayInterface::class), new SpyMessageBus($this->incidents))->retry($this->game->getId());
+        $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->retry($this->game->getId());
 
         self::assertSame(ApworldCandidateTriageOutcome::Forbidden, $outcome);
+    }
+
+    public function testACandidateInTestWhoseRunWasLostCanBeRetried(): void
+    {
+        // Story 38.33: the orchestrator holds no test for it (a restart lost the run): nothing would ever come.
+        $candidate = $this->candidate(rejected: false);
+        $runner = $this->createMock(RunnerGatewayInterface::class);
+        $runner->method('fetchApworldPreflights')->willReturn([]);
+        $runner->expects(self::once())->method('runApworldPreflight')->with('hash-new', [], false)->willReturn(true);
+
+        $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->retry($this->game->getId());
+
+        self::assertSame(ApworldCandidateTriageOutcome::Applied, $outcome);
+        self::assertSame(ApworldCandidateStatus::Testing, $candidate->getStatus());
     }
 
     private function rom(): ProvidedGenerationFile

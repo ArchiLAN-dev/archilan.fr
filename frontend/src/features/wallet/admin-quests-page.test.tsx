@@ -3,16 +3,16 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { announceQuestWeekOnDiscord, fetchAdminQuests, isAdminQuests, objectivesSummary, pinQuest, type AdminQuests } from "./admin-quests-api";
+import { announceQuestWeekOnDiscord, fetchAdminQuests, isAdminQuests, objectivesSummary, pinQuest, type AdminQuests, type QuestMetricOption } from "./admin-quests-api";
 import { AdminQuestWeeksView, ComingWeekRow, CurrentWeek, DrawPanel, PastWeeks } from "./admin-quest-weeks";
-import { AdminQuestTypesView, questStatsLine, questTermsError } from "./admin-quests-page";
+import { AdminQuestTypesView, aimableScopes, chosenScope, questStatsLine, questTermsError, scopeValue, tiersOf, toggledFamily } from "./admin-quests-page";
 import { weekLabel } from "./admin-quests-shared";
 import { AdminQuestsTabs } from "./admin-quests-tabs";
 
-const metrics = [
-  { key: "goals", label: "Goals atteints", unit: "goals", unitOne: "goal", scopable: true },
-  { key: "checks", label: "Checks faits", unit: "checks", unitOne: "check", scopable: true },
-  { key: "sessions", label: "Parties jouées", unit: "parties", unitOne: "partie", scopable: true },
+const metrics: QuestMetricOption[] = [
+  { key: "goals", label: "Goals atteints", unit: "goals", unitOne: "goal", scopable: true, scopes: ["game", "event", "platform", "recent"], help: "Aide.", duration: false },
+  { key: "checks", label: "Checks faits", unit: "checks", unitOne: "check", scopable: true, scopes: ["game", "event", "platform", "recent"], help: "Aide.", duration: false },
+  { key: "sessions", label: "Parties jouées", unit: "parties", unitOne: "partie", scopable: true, scopes: ["game", "event", "platform", "recent"], help: "Aide.", duration: false },
 ];
 
 const data: AdminQuests = {
@@ -20,20 +20,20 @@ const data: AdminQuests = {
   chestReward: 50,
   metrics,
   quests: [
-    { id: "q1", title: "Marathon", description: "", reward: 60, objectives: [{ metric: "checks", target: 50 }, { metric: "sessions", target: 2 }], inDraw: true, drawWeight: 3, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 3, lastWeek: "2026-W40", lastMembers: 12, pelles: 480 } },
-    { id: "q2", title: "Spéciale LAN", description: "", reward: 100, objectives: [{ metric: "goals", target: 1 }], inDraw: false, drawWeight: 1, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 0, lastWeek: null, lastMembers: 0, pelles: 0 } },
+    { id: "q1", title: "Marathon", description: "", reward: 60, objectives: [{ metric: "checks", target: 50 }, { metric: "sessions", target: 2 }], inDraw: true, drawWeight: 3, tiers: null, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 3, lastWeek: "2026-W40", lastMembers: 12, lastTiers: [], pelles: 480 } },
+    { id: "q2", title: "Spéciale LAN", description: "", reward: 100, objectives: [{ metric: "goals", target: 1 }], inDraw: false, drawWeight: 1, tiers: null, retired: false, createdAt: "2026-10-05T10:00:00+00:00", stats: { weeksServed: 0, lastWeek: null, lastMembers: 0, lastTiers: [], pelles: 0 } },
   ],
   weeks: [
-    { key: "2026-W41", startsAt: "2026-10-04T22:00:00+00:00", endsAt: "2026-10-11T22:00:00+00:00", current: true, drawn: true, quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false }] },
-    { key: "2026-W42", startsAt: "2026-10-11T22:00:00+00:00", endsAt: "2026-10-18T22:00:00+00:00", current: false, drawn: false, quests: [{ questId: "q2", title: "Spéciale LAN", reward: 100, origin: "pinned", retired: false }] },
+    { key: "2026-W41", startsAt: "2026-10-04T22:00:00+00:00", endsAt: "2026-10-11T22:00:00+00:00", current: true, drawn: true, quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false, drawnGame: null }] },
+    { key: "2026-W42", startsAt: "2026-10-11T22:00:00+00:00", endsAt: "2026-10-18T22:00:00+00:00", current: false, drawn: false, quests: [{ questId: "q2", title: "Spéciale LAN", reward: 100, origin: "pinned", retired: false, drawnGame: null }] },
   ],
-  scopes: { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan3", title: "LAN #3" }] },
+  scopes: { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan3", title: "LAN #3" }], platforms: ["Nintendo 64", "Super Nintendo"] },
   pastWeeks: [
     {
       key: "2026-W40",
       startsAt: "2026-09-27T22:00:00+00:00",
       endsAt: "2026-10-04T22:00:00+00:00",
-      quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false, members: 12, pelles: 720 }],
+      quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false, drawnGame: null, members: 12, pelles: 720 }],
       chests: 4,
       pelles: 920,
     },
@@ -63,6 +63,47 @@ describe("admin weekly quests", () => {
     expect(weekLabel(data.weeks[0])).toBe("5 oct. - 11 oct.");
     expect(objectivesSummary(data.quests[0].objectives, metrics)).toBe("50 checks et 2 parties");
     expect(objectivesSummary([{ metric: "goals", target: 1 }], metrics)).toBe("1 goal");
+  });
+
+  test("a superlative aims at an event, never a game (story 41.65)", () => {
+    const superlatives: QuestMetricOption = { key: "superlatives", label: "Superlatifs", unit: "superlatifs", unitOne: "superlatif", scopable: true, scopes: ["event"], help: "Aide.", duration: false };
+    const scopes = { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan", title: "LAN #3" }], platforms: ["Switch"] };
+    expect(aimableScopes(superlatives, scopes)).toEqual({ games: [], events: [{ id: "lan", title: "LAN #3" }], platforms: [], recent: false, drawn: false });
+    expect(aimableScopes(metrics[0], scopes)).toEqual({ ...scopes, recent: true, drawn: false });
+  });
+
+  test("a game drawn each week, from one pool for the whole quest (story 41.67)", () => {
+    const drawn = { metric: "goals", target: 2, scope: "drawn" as const, scopeId: "recent:30" };
+    expect(objectivesSummary([drawn], metrics)).toBe("2 goals sur un jeu tiré parmi les nouveautés de 30 jours");
+    expect(objectivesSummary([{ ...drawn, scopeId: "catalog" }], metrics)).toBe("2 goals sur un jeu tiré au sort dans le catalogue");
+    expect(chosenScope("drawn:recent:30", { metric: "goals", target: 1 })).toEqual({ scope: "drawn", scopeId: "recent:30" });
+    expect(scopeValue(drawn)).toBe("drawn:recent:30");
+    expect(questTermsError({ title: "Mêlé", description: "", reward: 40, objectives: [drawn, { metric: "checks", target: 1, scope: "drawn", scopeId: "catalog" }], inDraw: true, drawWeight: 1 })).toBe(
+      "Un seul jeu est tiré par semaine : choisis le même panier pour chaque objectif à jeu tiré.",
+    );
+  });
+
+  test("a platform target picks families, and the new releases a window (story 41.66)", () => {
+    const families = { metric: "goals", target: 3, scope: "platform" as const, scopeId: "Super Nintendo|Nintendo 64" };
+    expect(objectivesSummary([families], metrics)).toBe("3 goals sur un jeu Nintendo 64 ou Super Nintendo");
+    expect(objectivesSummary([{ metric: "sessions", target: 1, scope: "recent", scopeId: "30" }], metrics)).toBe("1 partie sur un jeu mis en ligne ces 30 derniers jours");
+
+    // One option for every platform target; the families stay when the option is picked again.
+    expect(scopeValue(families)).toBe("platform:");
+    expect(chosenScope("platform:", families)).toEqual({ scope: "platform", scopeId: "Super Nintendo|Nintendo 64" });
+    expect(chosenScope("platform:", { metric: "goals", target: 1 })).toEqual({ scope: "platform", scopeId: "" });
+    expect(chosenScope("recent:30", families)).toEqual({ scope: "recent", scopeId: "30" });
+    expect(chosenScope("", families)).toEqual({ scope: undefined, scopeId: undefined });
+
+    expect(toggledFamily("Super Nintendo", "Nintendo 64", true)).toBe("Nintendo 64|Super Nintendo");
+    expect(toggledFamily("Nintendo 64|Super Nintendo", "Nintendo 64", false)).toBe("Super Nintendo");
+    expect(questTermsError({ title: "Semaine Nintendo", description: "", reward: 40, objectives: [{ ...families, scopeId: "" }], inDraw: true, drawWeight: 1 })).toBe("Coche au moins une plateforme.");
+  });
+
+  test("time played reads in hours, even for one hour (story 41.64)", () => {
+    const time: QuestMetricOption = { key: "playMinutes", label: "Temps de jeu", unit: "de jeu", unitOne: "de jeu", scopable: true, scopes: ["game", "event", "platform", "recent"], help: "Saisi en heures.", duration: true };
+    expect(objectivesSummary([{ metric: "playMinutes", target: 360 }], [...metrics, time])).toBe("6 h de jeu");
+    expect(objectivesSummary([{ metric: "playMinutes", target: 90 }], [...metrics, time])).toBe("1 h 30 de jeu");
   });
 
   test("a coming week is one line: its pinned quests and the places left to the draw", () => {
@@ -143,7 +184,23 @@ describe("admin weekly quests", () => {
 
     expect(questStatsLine(data.quests[0].stats)).toBe("Servie 3 semaines · 12 membres l'ont réussie la dernière fois · 480 pelles versées");
     expect(questStatsLine(data.quests[1].stats)).toBe("Jamais servie pour l'instant.");
-    expect(questStatsLine({ weeksServed: 1, lastWeek: null, lastMembers: 0, pelles: 0 })).toContain("première semaine en cours");
+    expect(questStatsLine({ weeksServed: 1, lastWeek: null, lastMembers: 0, lastTiers: [], pelles: 0 })).toContain("première semaine en cours");
+  });
+
+  test("a quest of one objective climbs tiers within what it pays (story 41.68)", () => {
+    const objectives = [{ metric: "checks", target: 2 }];
+    expect(tiersOf(objectives, 10, [])).toBeNull();
+    expect(tiersOf(objectives, 10, [{ target: 4, reward: 20 }])).toEqual([{ target: 2, reward: 10 }, { target: 4, reward: 20 }]);
+    expect(tiersOf([...objectives, { metric: "goals", target: 1 }], 10, [{ target: 4, reward: 20 }])).toBeNull();
+
+    const terms = { title: "Toujours plus", description: "", reward: 10, objectives, inDraw: true, drawWeight: 1 };
+    expect(questTermsError({ ...terms, tiers: [{ target: 2, reward: 10 }, { target: 2, reward: 20 }] })).toBe("Chaque palier vise plus haut que le précédent et paie au moins une pelle.");
+    expect(questTermsError({ ...terms, tiers: [{ target: 2, reward: 10 }, { target: 4, reward: 995 }] })).toBe("Tous les paliers ensemble paient 1000 pelles au plus.");
+    expect(questTermsError({ ...terms, tiers: [{ target: 2, reward: 10 }, { target: 4, reward: 20 }] })).toBeNull();
+
+    expect(questStatsLine({ weeksServed: 2, lastWeek: "2026-W40", lastMembers: 3, lastTiers: [3, 2, 1], pelles: 120 })).toBe(
+      "Servie 2 semaines · 3 membres l'ont réussie la dernière fois (palier 1 : 3, palier 2 : 2, palier 3 : 1) · 120 pelles versées",
+    );
   });
 
   test("the chest is set in the draw panel", () => {

@@ -14,6 +14,7 @@ use App\Wallet\Domain\Entity\QuestWeekEntry;
 use App\Wallet\Domain\Enum\QuestMetric;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestObjective;
+use App\Wallet\Domain\ValueObject\QuestTier;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use Psr\Clock\ClockInterface;
 
@@ -22,7 +23,10 @@ use Psr\Clock\ClockInterface;
  * week, and the current and coming weeks with what each serves. The current week is frozen first, so the page shows
  * the quests the members see. Story 41.16: the chest, what each quest paid, and the weeks just past.
  *
- * @phpstan-type ServedQuest array{questId: string, title: string, reward: int, origin: string, retired: bool}
+ * Story 41.67: what each week served pays as frozen there, and the game drawn for it. Story 41.69: a collective
+ * quest with the community's total as last counted and its target; its members are the contributors paid.
+ *
+ * @phpstan-type ServedQuest array{questId: string, title: string, reward: int, origin: string, retired: bool, drawnGame: string|null, collective: bool, groupTotal: int|null, groupTarget: int|null}
  */
 final readonly class QuestAdminQuery
 {
@@ -43,11 +47,11 @@ final readonly class QuestAdminQuery
      *   questsPerWeek: int,
      *   discordEnabled: bool,
      *   chestReward: int,
-     *   metrics: list<array{key: string, label: string, unit: string, unitOne: string, scopable: bool}>,
-     *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>},
-     *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, cosmetic: array{type: string, key: string, label: string}|null, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}}>,
+     *   metrics: list<array{key: string, label: string, unit: string, unitOne: string, scopable: bool, scopes: list<string>, help: string, duration: bool}>,
+     *   scopes: array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>, platforms: list<string>},
+     *   quests: list<array{id: string, title: string, description: string, reward: int, objectives: list<array{metric: string, target: int, scope?: string, scopeId?: string}>, inDraw: bool, drawWeight: int, tiers: list<array{target: int, reward: int}>|null, collective: bool, minContribution: int|null, cosmetic: array{type: string, key: string, label: string}|null, retired: bool, createdAt: string, stats: array{weeksServed: int, lastWeek: string|null, lastMembers: int, lastTiers: list<int>, pelles: int}}>,
      *   weeks: list<array{key: string, startsAt: string, endsAt: string, current: bool, drawn: bool, quests: list<ServedQuest>}>,
-     *   pastWeeks: list<array{key: string, startsAt: string, endsAt: string, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool, members: int, pelles: int}>, chests: int, pelles: int}>
+     *   pastWeeks: list<array{key: string, startsAt: string, endsAt: string, quests: list<array{questId: string, title: string, reward: int, origin: string, retired: bool, drawnGame: string|null, collective: bool, groupTotal: int|null, groupTarget: int|null, members: int, pelles: int}>, chests: int, pelles: int}>
      * }
      */
     public function overview(): array
@@ -74,6 +78,7 @@ final readonly class QuestAdminQuery
         $drawn = $this->quests->drawnWeeks($keys);
         $payments = $this->ledger->payments();
         $servedWeeks = $this->quests->weeksServedByQuest();
+        $drawnGames = $this->drawnGames($entries);
 
         $calendar = [];
         foreach ($weeks as $index => $week) {
@@ -81,19 +86,19 @@ final readonly class QuestAdminQuery
                 ...$this->bounds($week),
                 'current' => 0 === $index,
                 'drawn' => \in_array($week->key, $drawn, true),
-                'quests' => $this->served($entries[$week->key] ?? [], $byId),
+                'quests' => $this->served($entries[$week->key] ?? [], $byId, $drawnGames),
             ];
         }
 
         $history = [];
         foreach ($past as $week) {
             $paid = $payments[$week->key] ?? ['quests' => [], 'chests' => 0, 'chestPelles' => 0];
-            $served = $this->served($entries[$week->key] ?? [], $byId);
+            $served = $this->served($entries[$week->key] ?? [], $byId, $drawnGames);
             // Weeks paid before story 41.15 served nothing on record: their quests come back from the ledger.
             foreach (array_keys($paid['quests']) as $questId) {
                 $quest = $byId[$questId] ?? null;
                 if (null !== $quest && !\in_array($questId, array_column($served, 'questId'), true)) {
-                    $served[] = ['questId' => $questId, 'title' => $quest->getTitle(), 'reward' => $quest->getReward(), 'origin' => 'drawn', 'retired' => $quest->isRetired()];
+                    $served[] = ['questId' => $questId, 'title' => $quest->getTitle(), 'reward' => $quest->getReward(), 'origin' => 'drawn', 'retired' => $quest->isRetired(), 'drawnGame' => null, 'collective' => $quest->isCollective(), 'groupTotal' => null, 'groupTarget' => null];
                 }
             }
             $quests = array_map(static fn (array $served): array => [
@@ -121,7 +126,12 @@ final readonly class QuestAdminQuery
                     'unit' => $metric->unit(),
                     'unitOne' => $metric->unitOne(),
                     // Story 41.18: whether an objective of this type may aim at a game or an event.
-                    'scopable' => \in_array($metric, QuestObjective::SCOPABLE, true),
+                    'scopable' => [] !== $metric->scopes(),
+                    // Story 41.65: which of a game or an event it may aim at.
+                    'scopes' => $metric->scopes(),
+                    // Story 41.64: what the type counts, and whether its target is minutes, entered in hours.
+                    'help' => $metric->help(),
+                    'duration' => $metric->isDuration(),
                 ],
                 QuestMetric::cases(),
             ),
@@ -134,10 +144,15 @@ final readonly class QuestAdminQuery
                 'inDraw' => $quest->isInDraw(),
                 'drawWeight' => $quest->getDrawWeight(),
                 // Story 41.28: the cosmetic it unlocks.
+                // Story 41.68: its tiers, the first one being its target and reward.
+                'tiers' => [] === $quest->getTiers() ? null : array_map(static fn (QuestTier $tier): array => $tier->toArray(), $quest->getTiers()),
+                // Story 41.69: a goal for the whole community, and the share that pays it.
+                'collective' => $quest->isCollective(),
+                'minContribution' => $quest->getMinContribution(),
                 'cosmetic' => $this->cosmetic($quest),
                 'retired' => $quest->isRetired(),
                 'createdAt' => $quest->getCreatedAt()->format(\DATE_ATOM),
-                'stats' => $this->stats($servedWeeks[$quest->getId()] ?? [], $quest->getId(), $current, $payments),
+                'stats' => $this->stats($servedWeeks[$quest->getId()] ?? [], $quest->getId(), $current, $payments, \count($quest->getTiers())),
             ], $all),
             'weeks' => $calendar,
             'pastWeeks' => $history,
@@ -149,12 +164,13 @@ final readonly class QuestAdminQuery
      * How a quest did: the weeks it was served in (up to the current one), the members who accomplished it the
      * last time it was served before this week, and the pelles it paid in all.
      *
-     * @param list<string>                                                                                                 $weeks    the weeks the quest was served in
-     * @param array<string, array{quests: array<string, array{members: int, pelles: int}>, chests: int, chestPelles: int}> $payments
+     * @param list<string>                                                                                                                         $weeks    the weeks the quest was served in
+     * @param array<string, array{quests: array<string, array{members: int, pelles: int, tiers: array<int, int>}>, chests: int, chestPelles: int}> $payments
+     * @param int                                                                                                                                  $tiers    story 41.68: its number of tiers (0: none)
      *
-     * @return array{weeksServed: int, lastWeek: string|null, lastMembers: int, pelles: int}
+     * @return array{weeksServed: int, lastWeek: string|null, lastMembers: int, lastTiers: list<int>, pelles: int}
      */
-    private function stats(array $weeks, string $questId, QuestWeek $current, array $payments): array
+    private function stats(array $weeks, string $questId, QuestWeek $current, array $payments, int $tiers = 0): array
     {
         // Week keys (`2026-W41`) sort as their weeks do.
         $served = array_values(array_filter(
@@ -163,11 +179,18 @@ final readonly class QuestAdminQuery
         ));
         $finished = array_values(array_filter($served, static fn (string $week): bool => $week < $current->key));
         $lastWeek = [] === $finished ? null : $finished[\count($finished) - 1];
+        $last = null === $lastWeek ? null : ($payments[$lastWeek]['quests'][$questId] ?? null);
+        // Story 41.68: the members who reached each tier, the first being those who did the quest.
+        $lastTiers = [];
+        for ($tier = 1; $tier <= $tiers; ++$tier) {
+            $lastTiers[] = 1 === $tier ? ($last['members'] ?? 0) : ($last['tiers'][$tier] ?? 0);
+        }
 
         return [
             'weeksServed' => \count($served),
             'lastWeek' => $lastWeek,
-            'lastMembers' => null === $lastWeek ? 0 : ($payments[$lastWeek]['quests'][$questId]['members'] ?? 0),
+            'lastMembers' => $last['members'] ?? 0,
+            'lastTiers' => $lastTiers,
             'pelles' => array_sum(array_map(static fn (array $week): int => $week['quests'][$questId]['pelles'] ?? 0, $payments)),
         ];
     }
@@ -179,12 +202,34 @@ final readonly class QuestAdminQuery
     }
 
     /**
+     * Story 41.67: the names of the games drawn in these weeks.
+     *
+     * @param array<string, list<QuestWeekEntry>> $entries
+     *
+     * @return array<string, string> game id => name
+     */
+    private function drawnGames(array $entries): array
+    {
+        $ids = [];
+        foreach ($entries as $week) {
+            foreach ($week as $entry) {
+                if (null !== $entry->getDrawnGameId()) {
+                    $ids[] = $entry->getDrawnGameId();
+                }
+            }
+        }
+
+        return array_map(static fn (array $game): string => $game['name'], $this->ledger->gamesNamed(array_values(array_unique($ids))));
+    }
+
+    /**
      * @param list<QuestWeekEntry>           $entries
      * @param array<string, QuestDefinition> $byId
+     * @param array<string, string>          $drawnGames game id => name
      *
      * @return list<ServedQuest>
      */
-    private function served(array $entries, array $byId): array
+    private function served(array $entries, array $byId, array $drawnGames): array
     {
         $served = [];
         foreach ($entries as $entry) {
@@ -195,9 +240,13 @@ final readonly class QuestAdminQuery
             $served[] = [
                 'questId' => $quest->getId(),
                 'title' => $quest->getTitle(),
-                'reward' => $quest->getReward(),
+                'reward' => $entry->getReward() ?? $quest->getReward(),
                 'origin' => $entry->getOrigin()->value,
                 'retired' => $quest->isRetired(),
+                'drawnGame' => null === $entry->getDrawnGameId() ? null : ($drawnGames[$entry->getDrawnGameId()] ?? 'jeu retiré'),
+                'collective' => $quest->isCollective(),
+                'groupTotal' => $quest->isCollective() ? $entry->getGroupTotal() : null,
+                'groupTarget' => $quest->isCollective() ? (($entry->getObjectives() ?? $quest->getObjectives())[0] ?? null)?->target : null,
             ];
         }
 

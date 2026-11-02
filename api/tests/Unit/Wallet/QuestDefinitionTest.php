@@ -119,6 +119,31 @@ final class QuestDefinitionTest extends TestCase
         self::assertSame(['goals', 'goals@game:hk'], array_map(static fn (QuestObjective $objective): string => $objective->key(), $quest->getObjectives()), 'stored and read back');
     }
 
+    public function testADrawnGameComesFromOnePoolAndIsServedAsThatGame(): void
+    {
+        $drawn = new QuestObjective(QuestMetric::Goals, 2, QuestObjective::SCOPE_DRAWN, 'recent:30');
+        $quest = $this->quest([$drawn, new QuestObjective(QuestMetric::Checks, 1, QuestObjective::SCOPE_GAME, 'hk')]);
+
+        self::assertSame('recent:30', $quest->drawPool());
+        self::assertSame(['hk'], $quest->aimedGames());
+        self::assertSame(30, $drawn->recentDays());
+        self::assertSame('jeu tiré au sort parmi les nouveautés de 30 jours', $drawn->selfName());
+        self::assertSame('jeu tiré au sort dans le catalogue', new QuestObjective(QuestMetric::Goals, 1, QuestObjective::SCOPE_DRAWN, 'catalog')->selfName());
+        self::assertSame('goals@game:celeste', $drawn->drawnOn('celeste')->key());
+
+        foreach (['recent:3', 'recent:x', 'everything'] as $pool) {
+            try {
+                new QuestObjective(QuestMetric::Goals, 1, QuestObjective::SCOPE_DRAWN, $pool);
+                self::fail($pool.' is not a pool');
+            } catch (\DomainException $e) {
+                self::assertSame('quest_objective_scope_invalid', $e->getMessage());
+            }
+        }
+
+        $this->expectExceptionMessage('quest_draw_pools_mixed');
+        $this->quest([$drawn, new QuestObjective(QuestMetric::Checks, 1, QuestObjective::SCOPE_DRAWN, 'catalog')]);
+    }
+
     /**
      * @param list<QuestObjective> $objectives
      */

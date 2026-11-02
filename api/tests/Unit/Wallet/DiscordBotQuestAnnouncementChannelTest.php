@@ -91,6 +91,9 @@ final class DiscordBotQuestAnnouncementChannelTest extends TestCase
         self::assertSame('50 checks', QuestAnnouncement::describe(new QuestObjective(QuestMetric::Checks, 50), null));
         self::assertSame('1 partie à LAN #3', QuestAnnouncement::describe(new QuestObjective(QuestMetric::Sessions, 1, QuestObjective::SCOPE_EVENT, 'e3'), 'LAN #3'));
         self::assertSame('1 goal sur une cible retirée', QuestAnnouncement::describe(new QuestObjective(QuestMetric::Goals, 1, QuestObjective::SCOPE_GAME, 'gone'), null));
+        // Story 41.64: time played is stored in minutes and told in hours.
+        self::assertSame('6 h de jeu sur Hollow Knight', QuestAnnouncement::describe(new QuestObjective(QuestMetric::PlayMinutes, 360, QuestObjective::SCOPE_GAME, 'hk'), 'Hollow Knight'));
+        self::assertSame('1 item envoyé', QuestAnnouncement::describe(new QuestObjective(QuestMetric::ItemsSent, 1), null));
     }
 
     /**
@@ -115,6 +118,36 @@ final class DiscordBotQuestAnnouncementChannelTest extends TestCase
         });
 
         return new DiscordBotQuestAnnouncementChannel(new DiscordBotRest($client, self::TOKEN), '123');
+    }
+
+    public function testAQuestWithTiersSaysTheMostItPays(): void
+    {
+        $payload = DiscordBotQuestAnnouncementChannel::payload(new QuestAnnouncement(
+            '2026-W42',
+            [['title' => 'Toujours plus', 'objectives' => '2 checks', 'reward' => 60, 'tiered' => true]],
+            0,
+            new \DateTimeImmutable('2026-10-18T22:00:00+00:00'),
+            'https://archilan.fr/compte/pelles',
+        ));
+
+        self::assertStringContainsString("Toujours plus · jusqu'à 60 pelles", (string) json_encode($payload, \JSON_UNESCAPED_UNICODE));
+    }
+
+    public function testTheCollectiveQuestComesApartAndOutOfTheMostToEarn(): void
+    {
+        $payload = DiscordBotQuestAnnouncementChannel::payload(new QuestAnnouncement(
+            '2026-W45',
+            [['title' => 'Un check', 'objectives' => '1 check', 'reward' => 10]],
+            50,
+            new \DateTimeImmutable('2026-11-08T23:00:00+00:00'),
+            'https://archilan.fr/compte/pelles',
+            ['title' => 'Tous ensemble', 'objectives' => '500 checks', 'reward' => 40, 'share' => '10 checks'],
+        ));
+
+        $json = (string) json_encode($payload, \JSON_UNESCAPED_UNICODE);
+        self::assertStringContainsString('Quête collective · Tous ensemble · +40 pelles', $json);
+        self::assertStringContainsString('500 checks à nous tous. Payée à qui en fait au moins 10 checks.', $json);
+        self::assertStringContainsString('Jusqu\'à 60 pelles à gagner', $json);
     }
 
     private function announcement(): QuestAnnouncement

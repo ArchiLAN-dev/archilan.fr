@@ -77,6 +77,7 @@ dépendent pas des barèmes ni des cosmétiques.
 | 41.5 | **Contributions validées** : un tutoriel validé rapporte des pelles en or, montant choisi par l'admin à la validation (barème par défaut) |
 | 41.6 | **Quêtes hebdomadaires** : objectifs de la semaine (atteindre un goal, jouer avec quelqu'un de nouveau, participer à 3 hebdos d'affilée), plafond hebdomadaire ; c'est la réponse au farm, plutôt que de payer chaque check |
 | 41.7 | **Boutique de cosmétiques** : cadres, bannières, déblocages permanents, objets **saisonniers** disponibles pendant une fenêtre (ArchiLAN) puis plus jamais |
+| 41.64-41.69 | **Variété des quêtes** (demande de Jean, 2026-11-01) : nouvelles métriques de jeu et de partage (41.64) puis de communauté (41.65), cibles plateforme et nouveautés (41.66), quêtes à jeu tiré au sort (41.67), paliers (41.68), quête collective (41.69). Ordre imposé : 41.67 pose l'instantané des quêtes servies dont 41.68 et 41.69 dépendent |
 | plus tard | Prédictions sur un event, récompenses créées par les organisateurs, kudos entre joueurs, cagnotte communautaire, dépenses d'identité, jetons physiques à QR code, remerciement des dons (voir « Idées en réserve ») |
 
 ## Points durs identifiés à la revue

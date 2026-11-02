@@ -173,4 +173,10 @@ describe("quests renewed notification (story 41.17)", () => {
     expect(hrefFor(notice)).toBe("/compte/pelles");
     expect(messageFor(item("quests_renewed", {}))).toBe("Nouvelles quêtes de la semaine");
   });
+
+  it("tells the collective quest apart (story 41.69)", () => {
+    expect(messageFor(item("quests_renewed", { count: 3, maxPelles: 150, collective: "Tous ensemble" }))).toBe(
+      "Nouvelles quêtes de la semaine : 3 quêtes, jusqu'à 150 pelles, et une quête collective : Tous ensemble",
+    );
+  });
 });

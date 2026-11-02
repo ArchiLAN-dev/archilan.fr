@@ -9,6 +9,7 @@ use App\GameSelection\Application\Command\SubmitApworldCandidate;
 use App\GameSelection\Application\Port\GameUsageCounterInterface;
 use App\GameSelection\Application\Query\AdminGameListQueryInterface;
 use App\GameSelection\Application\Support\ApworldIntrospectionNormalizer;
+use App\GameSelection\Application\Support\ApworldTestState;
 use App\GameSelection\Application\Support\GamePlatformResolver;
 use App\GameSelection\Application\Support\GameTutorialSeeder;
 use App\GameSelection\Application\Support\InstallStepsNormalizer;
@@ -1062,6 +1063,24 @@ final readonly class AdminGameLibrary
             'submittedAt' => $candidate->getSubmittedAt()->format(\DateTimeInterface::ATOM),
             'decidedAt' => $candidate->getDecidedAt()?->format(\DateTimeInterface::ATOM),
             'rejectionReason' => null === $candidate->getRejectionReason() ? null : GenerationFailureParser::summarize($candidate->getRejectionReason()),
+            'test' => ApworldCandidateStatus::Testing === $candidate->getStatus() ? $this->candidateTest($candidate->getApworldHash()) : null,
+        ];
+    }
+
+    /**
+     * Story 38.33: where the test of a candidate in test stands on the orchestrator - generating since when,
+     * waiting for a slot, finished, or not coming at all.
+     *
+     * @return array{state: string, startedAt: string|null}
+     */
+    private function candidateTest(string $hash): array
+    {
+        $verdict = $this->runnerGateway->fetchApworldPreflights()[$hash] ?? null;
+        $state = ApworldTestState::of($verdict);
+
+        return [
+            'state' => $state->value,
+            'startedAt' => ApworldTestState::Running === $state ? ($verdict['startedAt'] ?? null) : null,
         ];
     }
 

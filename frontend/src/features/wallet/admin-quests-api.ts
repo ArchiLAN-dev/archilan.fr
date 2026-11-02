@@ -1,17 +1,56 @@
 import { isCosmeticRewardView, type CosmeticReward, type CosmeticRewardView } from "@/features/community/cosmetic-reward-picker";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { formatQuestAmount } from "@/features/wallet/quest-amount";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 /** Story 41.15: an objective type of the catalog (code defined, like the facts of the achievements). */
-export type QuestMetricOption = { key: string; label: string; unit: string; unitOne: string; scopable: boolean };
+export type QuestMetricOption = {
+  key: string;
+  label: string;
+  unit: string;
+  unitOne: string;
+  scopable: boolean;
+  /** Story 41.65: what the type may aim at (the superlatives: an event only). Story 41.66: platforms, new releases. */
+  scopes: QuestScopeKind[];
+  /** Story 41.64: what the type counts, in one line, under the form's select. */
+  help: string;
+  /** Story 41.64: the target is minutes, entered and shown in hours. */
+  duration: boolean;
+};
 
-/** Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. */
-export type QuestScopes = { games: { id: string; name: string }[]; events: { id: string; title: string }[] };
+export type QuestScopeKind = "game" | "event" | "platform" | "recent" | "drawn";
 
-export const NO_SCOPES: QuestScopes = { games: [], events: [] };
+const SCOPE_KINDS: readonly string[] = ["game", "event", "platform", "recent", "drawn"];
 
-export type QuestObjectiveTerms = { metric: string; target: number; scope?: "game" | "event"; scopeId?: string };
+/** Story 41.67: the pools a game is drawn from each week, the catalog or the new releases (`recent:30`). */
+export const DRAW_CATALOG = "catalog";
+export const DRAW_RECENT = "recent:";
+
+function isScopeKind(v: unknown): v is QuestScopeKind {
+  return typeof v === "string" && SCOPE_KINDS.includes(v);
+}
+
+/**
+ * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. Story 41.66:
+ * the platform families of the catalog's games.
+ */
+export type QuestScopes = { games: { id: string; name: string }[]; events: { id: string; title: string }[]; platforms: string[] };
+
+export const NO_SCOPES: QuestScopes = { games: [], events: [], platforms: [] };
+
+/** Story 41.66: a platform target's families travel in one id, `|` between them. */
+export const FAMILY_SEPARATOR = "|";
+
+/** Story 41.66: the windows offered for the new releases, in days. */
+export const RECENT_WINDOWS = [7, 14, 30, 60, 90] as const;
+
+export type QuestObjectiveTerms = { metric: string; target: number; scope?: QuestScopeKind; scopeId?: string };
+
+/** Story 41.68: a tier of a quest with one objective; the first is the objective's target and the quest's reward. */
+export type QuestTierTerms = { target: number; reward: number };
+
+export const QUEST_TIERS = { min: 2, max: 3 } as const;
 
 export type AdminQuest = {
   id: string;
@@ -24,17 +63,36 @@ export type AdminQuest = {
   drawWeight: number;
   /** Story 41.28: the cosmetic it unlocks the first time (absent from an older API). */
   cosmetic?: CosmeticRewardView | null;
+  /** Story 41.68: its tiers, null for a quest done or not. */
+  tiers: QuestTierTerms[] | null;
+  /** Story 41.69: a goal for the whole community, pinned beside the week's quests (absent from an older API). */
+  collective?: boolean;
+  /** Story 41.69: the share a member needs to be paid by a collective quest, null for any other. */
+  minContribution?: number | null;
   retired: boolean;
   createdAt: string;
   /** Story 41.16: how the quest did. */
   stats: QuestStats;
 };
 
-export type QuestStats = { weeksServed: number; lastWeek: string | null; lastMembers: number; pelles: number };
+/** Story 41.68: `lastTiers`, the members who reached each tier the last time (empty without tiers). */
+export type QuestStats = { weeksServed: number; lastWeek: string | null; lastMembers: number; lastTiers: number[]; pelles: number };
 
 export type QuestWeekOrigin = "pinned" | "drawn";
 
-export type ServedQuest = { questId: string; title: string; reward: number; origin: QuestWeekOrigin; retired: boolean };
+/** Story 41.67: `drawnGame`, the game drawn for the week when the quest aims at one. */
+export type ServedQuest = {
+  questId: string;
+  title: string;
+  reward: number;
+  origin: QuestWeekOrigin;
+  retired: boolean;
+  drawnGame: string | null;
+  /** Story 41.69: the week's collective quest, with the community's total as last counted and its target. */
+  collective?: boolean;
+  groupTotal?: number | null;
+  groupTarget?: number | null;
+};
 
 export type AdminQuestWeek = { key: string; startsAt: string; endsAt: string; current: boolean; drawn: boolean; quests: ServedQuest[] };
 
@@ -60,7 +118,38 @@ export type AdminQuests = {
   scopes: QuestScopes;
 };
 
-export type QuestTerms = { title: string; description: string; reward: number; objectives: QuestObjectiveTerms[]; inDraw: boolean; drawWeight: number; cosmetic?: CosmeticReward | null };
+export type QuestTerms = {
+  title: string;
+  description: string;
+  reward: number;
+  objectives: QuestObjectiveTerms[];
+  inDraw: boolean;
+  drawWeight: number;
+  cosmetic?: CosmeticReward | null;
+  tiers?: QuestTierTerms[] | null;
+  /** Story 41.69: set when the quest is written, never changed after. */
+  collective?: boolean;
+  minContribution?: number | null;
+};
+
+/** Story 41.69: the types a collective quest may count - those that add up without doubles. */
+export const COLLECTIVE_METRICS = ["goals", "checks", "sessions", "playMinutes", "itemsSent", "bountiesWon"] as const;
+
+/**
+ * Story 41.69: the share the form suggests, about 2 % of the goal, so an alt account's one check earns nothing. Time
+ * played is typed by half hours.
+ */
+export function suggestedContribution(target: number, duration = false): number {
+  return duration ? Math.max(30, Math.round((target * 0.02) / 30) * 30) : Math.max(1, Math.round(target * 0.02));
+}
+
+function isOptionalNumber(value: unknown): boolean {
+  return value === undefined || value === null || typeof value === "number";
+}
+
+export function isQuestTier(v: unknown): v is QuestTierTerms {
+  return typeof v === "object" && v !== null && hasNumberProp(v, "target") && hasNumberProp(v, "reward");
+}
 
 export const QUEST_LIMITS = { maxTitle: 80, maxDescription: 200, minReward: 1, maxReward: 1000, maxObjectives: 5, minTarget: 1, maxTarget: 10000, minPerWeek: 1, maxPerWeek: 10, maxChest: 1000, minWeight: 1, maxWeight: 5 } as const;
 
@@ -72,7 +161,7 @@ function isObjectiveTerms(v: unknown): v is QuestObjectiveTerms {
   if (!isObject(v) || !hasStringProp(v, "metric") || !hasNumberProp(v, "target")) return false;
   // Story 41.18: an aimed objective carries its scope and the id of its game or event.
   if (!("scope" in v)) return true;
-  return (v.scope === "game" || v.scope === "event") && hasStringProp(v, "scopeId");
+  return isScopeKind(v.scope) && hasStringProp(v, "scopeId");
 }
 
 function isScopes(v: unknown): v is QuestScopes {
@@ -83,12 +172,23 @@ function isScopes(v: unknown): v is QuestScopes {
     v.games.every((game: unknown) => isObject(game) && hasStringProp(game, "id") && hasStringProp(game, "name")) &&
     "events" in v &&
     Array.isArray(v.events) &&
-    v.events.every((event: unknown) => isObject(event) && hasStringProp(event, "id") && hasStringProp(event, "title"))
+    v.events.every((event: unknown) => isObject(event) && hasStringProp(event, "id") && hasStringProp(event, "title")) &&
+    "platforms" in v &&
+    Array.isArray(v.platforms) &&
+    v.platforms.every((platform: unknown) => typeof platform === "string")
   );
 }
 
 function isMetric(v: unknown): v is QuestMetricOption {
-  return isObject(v) && hasStringProp(v, "key") && hasStringProp(v, "label") && hasStringProp(v, "unit") && hasStringProp(v, "unitOne") && hasBooleanProp(v, "scopable");
+  return (
+    isObject(v) && hasStringProp(v, "key") && hasStringProp(v, "label") && hasStringProp(v, "unit") && hasStringProp(v, "unitOne") &&
+    hasBooleanProp(v, "scopable") &&
+    "scopes" in v &&
+    Array.isArray(v.scopes) &&
+    v.scopes.every(isScopeKind) &&
+    hasStringProp(v, "help") &&
+    hasBooleanProp(v, "duration")
+  );
 }
 
 function isQuest(v: unknown): v is AdminQuest {
@@ -107,7 +207,11 @@ function isQuest(v: unknown): v is AdminQuest {
     "objectives" in v &&
     Array.isArray(v.objectives) &&
     v.objectives.every(isObjectiveTerms) &&
-    (!("cosmetic" in v) || v.cosmetic === null || isCosmeticRewardView(v.cosmetic))
+    (!("cosmetic" in v) || v.cosmetic === null || isCosmeticRewardView(v.cosmetic)) &&
+    "tiers" in v &&
+    (v.tiers === null || (Array.isArray(v.tiers) && v.tiers.every(isQuestTier))) &&
+    (!("collective" in v) || typeof v.collective === "boolean") &&
+    isOptionalNumber("minContribution" in v ? v.minContribution : undefined)
   );
 }
 
@@ -117,6 +221,9 @@ function isStats(v: unknown): v is QuestStats {
     hasNumberProp(v, "weeksServed") &&
     hasNullableStringProp(v, "lastWeek") &&
     hasNumberProp(v, "lastMembers") &&
+    "lastTiers" in v &&
+    Array.isArray(v.lastTiers) &&
+    v.lastTiers.every((members: unknown) => typeof members === "number") &&
     hasNumberProp(v, "pelles")
   );
 }
@@ -147,7 +254,12 @@ function isServed(v: unknown): v is ServedQuest {
     hasNumberProp(v, "reward") &&
     hasBooleanProp(v, "retired") &&
     "origin" in v &&
-    (v.origin === "pinned" || v.origin === "drawn")
+    (v.origin === "pinned" || v.origin === "drawn") &&
+    "drawnGame" in v &&
+    (v.drawnGame === null || typeof v.drawnGame === "string") &&
+    (!("collective" in v) || typeof v.collective === "boolean") &&
+    isOptionalNumber("groupTotal" in v ? v.groupTotal : undefined) &&
+    isOptionalNumber("groupTarget" in v ? v.groupTarget : undefined)
   );
 }
 
@@ -276,7 +388,32 @@ export function scopePhrase(objective: QuestObjectiveTerms, scopes: QuestScopes)
   if (objective.scope === "event") {
     return ` à ${scopes.events.find((event) => event.id === objective.scopeId)?.title ?? "un événement retiré"}`;
   }
+  if (objective.scope === "platform") {
+    return ` sur un jeu ${familiesPhrase(splitFamilies(objective.scopeId ?? ""))}`;
+  }
+  if (objective.scope === "recent") {
+    return ` sur un jeu mis en ligne ces ${objective.scopeId ?? "?"} derniers jours`;
+  }
+  if (objective.scope === "drawn") {
+    return ` sur ${drawPoolPhrase(objective.scopeId ?? "")}`;
+  }
   return "";
+}
+
+/** Story 41.67: « un jeu tiré parmi les nouveautés de 30 jours ». */
+export function drawPoolPhrase(pool: string): string {
+  return pool.startsWith(DRAW_RECENT) ? `un jeu tiré parmi les nouveautés de ${pool.slice(DRAW_RECENT.length)} jours` : "un jeu tiré au sort dans le catalogue";
+}
+
+/** Story 41.66: a platform target's families, sorted and without duplicates, as the API keeps them. */
+export function splitFamilies(scopeId: string): string[] {
+  return [...new Set(scopeId.split(FAMILY_SEPARATOR).map((family) => family.trim()).filter((family) => family !== ""))].sort();
+}
+
+/** « Nintendo 64, Switch ou Super Nintendo ». */
+export function familiesPhrase(families: string[]): string {
+  if (families.length <= 1) return families[0] ?? "";
+  return `${families.slice(0, -1).join(", ")} ou ${families[families.length - 1]}`;
 }
 
 /** « 50 checks et 1 partie sur Hollow Knight » - a quest's objectives in one line, singular for one. */
@@ -284,8 +421,8 @@ export function objectivesSummary(objectives: QuestObjectiveTerms[], metrics: Qu
   return objectives
     .map((objective) => {
       const metric = metrics.find((candidate) => candidate.key === objective.metric);
-      const unit = metric ? (objective.target === 1 ? metric.unitOne : metric.unit) : objective.metric;
-      return `${objective.target} ${unit}${scopePhrase(objective, scopes)}`;
+      const unit = metric ? (objective.target === 1 && !metric.duration ? metric.unitOne : metric.unit) : objective.metric;
+      return `${formatQuestAmount(objective.target, metric?.duration ?? false)} ${unit}${scopePhrase(objective, scopes)}`;
     })
     .join(" et ");
 }

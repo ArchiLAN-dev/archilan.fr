@@ -124,13 +124,26 @@ final class ApworldCandidateTest extends TestCase
         $candidate->promote(new \DateTimeImmutable('2026-09-25 04:20:00+00:00'), 'admin-1');
     }
 
-    public function testOnlyARejectedCandidateCanBeRetried(): void
+    public function testAPromotedCandidateCannotBeRetried(): void
     {
         $candidate = $this->candidate();
+        $candidate->promote(new \DateTimeImmutable('2026-09-25 04:15:00+00:00'), null);
 
         $this->expectException(ApworldCandidateTransitionException::class);
 
         $candidate->retry(new \DateTimeImmutable('2026-09-25 04:20:00+00:00'));
+    }
+
+    /** Story 38.33: a candidate whose test was lost on the orchestrator restarts its test, and its 30 minutes. */
+    public function testACandidateStillInTestCanBeRetried(): void
+    {
+        $candidate = $this->candidate();
+        $retryAt = new \DateTimeImmutable('2026-09-25 04:20:00+00:00');
+
+        $candidate->retry($retryAt);
+
+        self::assertSame(ApworldCandidateStatus::Testing, $candidate->getStatus());
+        self::assertEquals($retryAt, $candidate->getSubmittedAt());
     }
 
     /** Story 38.14: a candidate held for approval waits after a passed test, then an admin puts it online. */
