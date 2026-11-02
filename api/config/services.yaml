@@ -97,6 +97,7 @@ services:
     App\Wallet\Domain\Repository\BlindTestLoginCodeRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineBlindTestLoginCodeRepository'
     # Story 49.1: an event's link to Minimapperz, read through its organiser API (one key per event, stored with it).
     App\Wallet\Domain\Repository\MinimapperzSettingRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineMinimapperzSettingRepository'
+    App\Wallet\Domain\Repository\MinimapperzCodeRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineMinimapperzCodeRepository'
     App\Wallet\Application\Port\MinimapperzClientInterface: '@App\Wallet\Infrastructure\Http\MinimapperzHttpClient'
     App\Wallet\Infrastructure\Http\MinimapperzHttpClient:
         arguments:

@@ -6,6 +6,7 @@ namespace App\Wallet\Presentation\Controller;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
+use App\Wallet\Application\Service\MinimapperzCodes;
 use App\Wallet\Application\Service\MinimapperzSettings;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,7 +14,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * An event's link to Minimapperz, admin side (story 49.1): slug, API key (written, never read back), what a game is
- * worth in pelles, and a connection check.
+ * worth in pelles, and a connection check. Story 49.2: the codes Minimapperz gave, imported and handed to the
+ * registrants.
  */
 final readonly class AdminMinimapperzController
 {
@@ -22,6 +24,7 @@ final readonly class AdminMinimapperzController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private MinimapperzSettings $settings,
+        private MinimapperzCodes $codes,
     ) {
     }
 
@@ -70,5 +73,54 @@ final readonly class AdminMinimapperzController
         }
 
         return new JsonResponse(['data' => $this->settings->checkConnection($eventId)]);
+    }
+
+    #[Route('/api/v1/admin/events/{eventId}/minimapperz/codes', name: 'api_wallet_admin_minimapperz_codes', methods: ['GET'])]
+    public function codes(Request $request, string $eventId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return new JsonResponse(['data' => $this->codes->overview($eventId)]);
+    }
+
+    #[Route('/api/v1/admin/events/{eventId}/minimapperz/codes', name: 'api_wallet_admin_minimapperz_codes_import', methods: ['POST'])]
+    public function importCodes(Request $request, string $eventId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload) || !is_string($payload['codes'] ?? null)) {
+            return $this->apiAccessGuard->errorResponse('invalid_json', 'Corps de requête invalide.', 400);
+        }
+
+        return new JsonResponse(['data' => $this->codes->import($eventId, $payload['codes'])]);
+    }
+
+    #[Route('/api/v1/admin/events/{eventId}/minimapperz/codes/assign', name: 'api_wallet_admin_minimapperz_codes_assign', methods: ['POST'])]
+    public function assignCodes(Request $request, string $eventId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return new JsonResponse(['data' => $this->codes->assignToAll($eventId)]);
+    }
+
+    #[Route('/api/v1/admin/events/{eventId}/minimapperz/codes/{code}/assignment', name: 'api_wallet_admin_minimapperz_code_detach', requirements: ['code' => '.+'], methods: ['DELETE'])]
+    public function detachCode(Request $request, string $eventId, string $code): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return new JsonResponse(['data' => $this->codes->detach($eventId, $code)]);
     }
 }

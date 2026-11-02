@@ -130,3 +130,123 @@ export async function checkMinimapperzConnection(eventId: string): Promise<Minim
     return null;
   }
 }
+
+/** Story 49.2: one code of the event, held by a member or free. */
+export type MinimapperzCodeRow = { code: string; userId: string | null; displayName: string | null; registered: boolean; assignedAt: string | null };
+
+export type MinimapperzCodes = { imported: number; assigned: number; free: number; registrantsWithoutCode: number; codes: MinimapperzCodeRow[] };
+
+export type MinimapperzCodesAction<T> = { kind: "ok"; result: T } | { kind: "error"; message: string };
+
+export type MinimapperzImport = { added: number; duplicates: number; invalid: string[]; overview: MinimapperzCodes };
+
+export type MinimapperzAssignment = { assigned: number; withoutCode: number; overview: MinimapperzCodes };
+
+/** Story 49.2: a registrant's code and where to type it. */
+export type MinimapperzCodeClaim = { code: string; lanUrl: string };
+
+function isMinimapperzCodeRow(v: unknown): v is MinimapperzCodeRow {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "code") &&
+    hasNullableStringProp(v, "userId") &&
+    hasNullableStringProp(v, "displayName") &&
+    hasBooleanProp(v, "registered") &&
+    hasNullableStringProp(v, "assignedAt")
+  );
+}
+
+export function isMinimapperzCodes(v: unknown): v is MinimapperzCodes {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasNumberProp(v, "imported") &&
+    hasNumberProp(v, "assigned") &&
+    hasNumberProp(v, "free") &&
+    hasNumberProp(v, "registrantsWithoutCode") &&
+    "codes" in v &&
+    Array.isArray(v.codes) &&
+    v.codes.every(isMinimapperzCodeRow)
+  );
+}
+
+function isMinimapperzImport(v: unknown): v is MinimapperzImport {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasNumberProp(v, "added") &&
+    hasNumberProp(v, "duplicates") &&
+    "invalid" in v &&
+    Array.isArray(v.invalid) &&
+    v.invalid.every((line) => typeof line === "string") &&
+    "overview" in v &&
+    isMinimapperzCodes(v.overview)
+  );
+}
+
+function isMinimapperzAssignment(v: unknown): v is MinimapperzAssignment {
+  return typeof v === "object" && v !== null && hasNumberProp(v, "assigned") && hasNumberProp(v, "withoutCode") && "overview" in v && isMinimapperzCodes(v.overview);
+}
+
+export function isMinimapperzCodeClaim(v: unknown): v is MinimapperzCodeClaim {
+  return typeof v === "object" && v !== null && hasStringProp(v, "code") && hasStringProp(v, "lanUrl");
+}
+
+function codesUrl(eventId: string): string {
+  return `${settingsUrl(eventId)}/codes`;
+}
+
+export async function fetchMinimapperzCodes(eventId: string): Promise<MinimapperzCodes | null> {
+  try {
+    const res = await apiFetch(codesUrl(eventId));
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return isMinimapperzCodes(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+async function codesAction<T>(url: string, init: RequestInit, guard: (v: unknown) => v is T, failure: string): Promise<MinimapperzCodesAction<T>> {
+  try {
+    const res = await apiFetch(url, init);
+    const payload: unknown = await res.json();
+    const data = dataOf(payload);
+    if (res.ok && guard(data)) return { kind: "ok", result: data };
+    const error = typeof payload === "object" && payload !== null && "error" in payload ? payload.error : null;
+    const message = typeof error === "object" && error !== null && hasStringProp(error, "message") ? error.message : null;
+    return { kind: "error", message: message ?? failure };
+  } catch {
+    return { kind: "error", message: failure };
+  }
+}
+
+export function importMinimapperzCodes(eventId: string, codes: string): Promise<MinimapperzCodesAction<MinimapperzImport>> {
+  return codesAction(
+    codesUrl(eventId),
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codes }) },
+    isMinimapperzImport,
+    "Import impossible. Réessaie.",
+  );
+}
+
+export function assignMinimapperzCodes(eventId: string): Promise<MinimapperzCodesAction<MinimapperzAssignment>> {
+  return codesAction(`${codesUrl(eventId)}/assign`, { method: "POST" }, isMinimapperzAssignment, "Attribution impossible. Réessaie.");
+}
+
+export function detachMinimapperzCode(eventId: string, code: string): Promise<MinimapperzCodesAction<MinimapperzCodes>> {
+  return codesAction(`${codesUrl(eventId)}/${encodeURIComponent(code)}/assignment`, { method: "DELETE" }, isMinimapperzCodes, "Le code n'a pas pu être repris. Réessaie.");
+}
+
+/** A registrant's code (the first call hands one out), or null when there is none to show. */
+export async function claimMinimapperzCode(eventId: string): Promise<MinimapperzCodeClaim | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/minimapperz/code`, { method: "POST" });
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return isMinimapperzCodeClaim(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
