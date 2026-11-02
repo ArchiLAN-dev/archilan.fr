@@ -268,6 +268,11 @@ export function QuestDialog({
                   const metric = first && COLLECTIVE_METRICS.some((key) => key === first.metric) ? first.metric : "checks";
                   setRows([{ ...(first ?? { target: 1 }), metric, rowId: first?.rowId ?? 0 }]);
                   setExtraTiers([]);
+                  // Story 41.70: the suggested share from the start, rather than an error before anything is typed.
+                  if (minContribution === 0) {
+                    const duration = metrics.find((candidate) => candidate.key === metric)?.duration ?? false;
+                    setMinContribution(suggestedContribution(first?.target ?? 1, duration));
+                  }
                 }
               }}
               type="checkbox"
@@ -436,8 +441,7 @@ export function QuestDialog({
               />
               <span className="text-xs text-muted-foreground">
                 Obligatoire : un compte bis qui fait un check ne doit rien toucher. Suggestion : environ 2 % de l&apos;objectif, soit{" "}
-                {formatQuestAmount(suggestedContribution(rows[0]?.target ?? 1, tieredMetric?.duration ?? false), tieredMetric?.duration ?? false)}
-                {tieredMetric && !tieredMetric.duration ? ` ${tieredMetric.unit}` : ""}.
+                {contributionHint(rows[0]?.target ?? 1, tieredMetric)}.
               </span>
             </label>
           ) : null}
@@ -638,6 +642,15 @@ export function tiersOf(objectives: QuestObjectiveTerms[], reward: number, extra
 /** A tier's target as typed: a count, or hours by halves stored in minutes. */
 function tierTarget(value: string, duration: boolean): number {
   return duration ? Math.round((Number.parseFloat(value) || 0) * 2) * 30 : Number.parseInt(value, 10) || 0;
+}
+
+/** Story 41.70: « 10 checks », « 1 goal », « 2 h » - the suggested share, singular for one. */
+export function contributionHint(target: number, metric: QuestMetricOption | undefined): string {
+  const duration = metric?.duration ?? false;
+  const share = suggestedContribution(target, duration);
+  const amount = formatQuestAmount(share, duration);
+  if (!metric || duration) return amount;
+  return `${amount} ${share === 1 ? metric.unitOne : metric.unit}`;
 }
 
 export function questStatsLine(stats: QuestStats, collective = false): string {
