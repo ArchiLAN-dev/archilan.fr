@@ -202,7 +202,13 @@ Project convention, NOT enforced by the preset (the risky `declare_strict_types`
 (`archilan_test1`..`archilan_test8`, created automatically on first use); those databases persisting
 between runs is normal. **`composer test` and `composer gates` stay serial on purpose** - they must
 remain byte-identical to what CI runs. Parallel is stricter than serial, so it is a safe local
-addition, not a replacement.
+addition, not a replacement. `composer gates:fast` is `composer gates` with `test:parallel` as its
+last leg; root `./scripts/gates.sh` runs it next to `pnpm gates`.
+
+**Two parallel runs at once:** ParaTest sets `TEST_TOKEN` itself (1..N), so two parallel runs would
+share `archilan_test1..8` and destroy each other's schema. `TEST_DB_PREFIX` namespaces a whole run:
+the database is `archilan_test<TEST_DB_PREFIX><TEST_TOKEN>` (`TEST_DB_PREFIX=_x` gives
+`archilan_test_x1..8`). `scripts/gates.sh` uses `_gates`, the Stop hook `_stophook`.
 
 **Parallel sessions:** the test DB name is `archilan_test<TEST_TOKEN>` (Doctrine `dbname_suffix`). Parallel agents **must** isolate per worktree with `TEST_TOKEN` in `api/.env.test.local` - handled automatically by `scripts/setup-worktree.sh`. Full flow and rationale (why a shared DB causes the `relation "..." does not exist` mass-failures): root `CLAUDE.md` → "Sessions parallèles", the single authoritative description. For a one-off isolated run in the main tree (no worktree), use `api/scripts/test-isolated.sh [name]` - it exports `TEST_TOKEN` for its process only and runs the full suite against `archilan_test_<name>`.
 

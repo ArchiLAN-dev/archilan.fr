@@ -68,11 +68,13 @@ if has_change "api"; then
     # Full dist config (src + tests) - passing "src" here let test-file
     # violations through locally while CI (composer cs-fixer) rejected them.
     gate "CS Fixer"  "$D" vendor/bin/php-cs-fixer check
-    # Isolated DB (archilan_test_stophook): the Stop hook fires whenever a
+    # Isolated DBs (archilan_test_stophook1..8): the Stop hook fires whenever a
     # session ends, possibly WHILE a foreground/background phpunit is running.
-    # Two suites on one DB destroy each other's schema (rebuilt per test), so
-    # the hook must never share archilan_test with anything else.
-    gate "PHPUnit"   "$D" bash -c 'export TEST_TOKEN=_stophook; php bin/console doctrine:database:create --env=test --if-not-exists --quiet && php bin/phpunit --no-coverage'
+    # Two suites on one DB destroy each other's schema, so the hook must never
+    # share a database with anything else. ParaTest (8 workers, ~5x faster than
+    # serial) sets TEST_TOKEN per worker; TEST_DB_PREFIX namespaces the whole run.
+    # Each worker creates its database on first use (BuildSchemaOnceSubscriber).
+    gate "PHPUnit"   "$D" bash -c 'export TEST_DB_PREFIX=_stophook; php vendor/bin/paratest --processes=8'
     gate "DDD arch"  "$D" php bin/console app:architecture:ddd
 fi
 
