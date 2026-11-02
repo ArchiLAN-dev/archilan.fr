@@ -99,6 +99,7 @@ final readonly class QuestWeekPlanner
             array_map(static fn (QuestObjective $objective): QuestObjective => null === $gameId ? $objective : $objective->drawnOn($gameId), $quest->getObjectives()),
             $quest->getReward(),
             $gameId,
+            $quest->getTiers(),
         );
         $this->quests->saveEntry($entry);
 

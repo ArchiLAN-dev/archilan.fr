@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { ChestRow, ObjectiveBar, QuestHistory, StreakRow, WeeklyQuestsView, fetchMyQuests, type WeeklyQuests } from "./weekly-quests";
+import { ChestRow, ObjectiveBar, QuestHistory, StreakRow, WeeklyQuestsView, fetchMyQuests, questMaxReward, type WeeklyQuests } from "./weekly-quests";
 import { pelleReasonLabel } from "./wallet-api";
 
 const quests: WeeklyQuests = {
@@ -91,6 +91,20 @@ describe("weekly quests", () => {
     );
     expect(html).toContain('href="/jeux/hollow-knight"');
     expect(html).toContain(">Hollow Knight</a>");
+  });
+
+  test("a quest with tiers shows each one on the same bar (story 41.68)", () => {
+    const tiers = [
+      { target: 2, reward: 10, reached: true, paid: true },
+      { target: 4, reward: 20, reached: false, paid: false },
+    ];
+    const html = renderToStaticMarkup(
+      <ObjectiveBar done objective={{ metric: "checks", label: "Checks faits", unit: "checks", target: 2, current: 3, duration: false }} tiers={tiers} />,
+    );
+    expect(html).toContain("3 / 4 checks");
+    expect(html).toContain("Palier atteint : ");
+    expect(html).toContain('aria-label="Paliers"');
+    expect(questMaxReward({ key: "q", label: "Toujours plus", description: "", reward: 10, done: true, paid: true, objectives: [], tiers })).toBe(30);
   });
 
   test("time played shows hours on both sides of its bar (story 41.64)", () => {

@@ -177,7 +177,7 @@ final readonly class AdminQuestController
     /**
      * @param array<mixed> $payload
      *
-     * @return array{0: string, 1: string, 2: int, 3: array<mixed>, 4: bool, 5: int}
+     * @return array{0: string, 1: string, 2: int, 3: array<mixed>, 4: bool, 5: int, 6: mixed, 7: mixed}
      */
     private function terms(array $payload): array
     {
@@ -191,6 +191,8 @@ final readonly class AdminQuestController
             $this->optionalInt($payload, 'drawWeight') ?? 1,
             // Story 41.28: the cosmetic the quest unlocks, `{type, key}` or null.
             $payload['cosmetic'] ?? null,
+            // Story 41.68: the tiers, `[{target, reward}]` or null.
+            $payload['tiers'] ?? null,
         ];
     }
 }

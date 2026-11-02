@@ -18,6 +18,7 @@ use App\Wallet\Domain\Enum\QuestMetric;
 use App\Wallet\Domain\Enum\QuestWeekOrigin;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestObjective;
+use App\Wallet\Domain\ValueObject\QuestTier;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use Psr\Clock\ClockInterface;
 
@@ -44,12 +45,12 @@ final readonly class ManageQuests
      *
      * @throws ValidationException when the text, reward, weight or objectives are invalid
      */
-    public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null): WrittenQuest
+    public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null, mixed $tiers = null): WrittenQuest
     {
         $parsed = $this->objectives($objectives);
         $unlocks = $this->cosmetic($cosmetic);
         try {
-            $quest = QuestDefinition::write($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->clock->now());
+            $quest = QuestDefinition::write($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->clock->now(), tiers: $this->tiers($tiers));
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
@@ -65,13 +66,13 @@ final readonly class ManageQuests
      * @throws NotFoundException   when the quest does not exist
      * @throws ValidationException when the text, reward, weight or objectives are invalid
      */
-    public function edit(string $questId, string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null): void
+    public function edit(string $questId, string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null, mixed $tiers = null): void
     {
         $quest = $this->quest($questId);
         $parsed = $this->objectives($objectives);
         $unlocks = $this->cosmetic($cosmetic);
         try {
-            $quest->edit($title, $description, $reward, $parsed, $inDraw, $drawWeight);
+            $quest->edit($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->tiers($tiers));
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
@@ -233,6 +234,32 @@ final readonly class ManageQuests
         return $objectives;
     }
 
+    /**
+     * Story 41.68: the tiers from the form, `[{target, reward}]`, or none.
+     *
+     * @return list<QuestTier>
+     *
+     * @throws ValidationException
+     */
+    private function tiers(mixed $raw): array
+    {
+        if (null === $raw || [] === $raw) {
+            return [];
+        }
+        if (!\is_array($raw)) {
+            throw $this->invalid(new \DomainException('quest_tiers_invalid'));
+        }
+        $tiers = [];
+        foreach ($raw as $row) {
+            if (!\is_array($row) || !\is_int($row['target'] ?? null) || !\is_int($row['reward'] ?? null)) {
+                throw $this->invalid(new \DomainException('quest_tiers_invalid'));
+            }
+            $tiers[] = new QuestTier($row['target'], $row['reward']);
+        }
+
+        return $tiers;
+    }
+
     private function invalid(\DomainException $e): ValidationException
     {
         $message = match ($e->getMessage()) {
@@ -242,6 +269,8 @@ final readonly class ManageQuests
             'quest_objectives_duplicated' => 'Chaque type d\'objectif une fois au plus par cible.',
             'quest_objective_scope_invalid' => 'Seuls les goals, les checks et les parties peuvent viser un jeu ou un événement.',
             'quest_draw_pools_mixed' => 'Un seul jeu est tiré par semaine : tous les objectifs à jeu tiré prennent le même panier.',
+            'quest_tiers_invalid' => sprintf('De %d à %d paliers sur une quête à un seul objectif, le premier à sa cible et sa récompense, chacun plus haut que le précédent.', QuestDefinition::MIN_TIERS, QuestDefinition::MAX_TIERS),
+            'quest_tiers_reward_invalid' => sprintf('Tous les paliers ensemble paient %d pelles au plus.', QuestDefinition::MAX_REWARD),
             'quest_weight_invalid' => sprintf('Un poids de tirage de %d à %d.', QuestDefinition::MIN_WEIGHT, QuestDefinition::MAX_WEIGHT),
             'quest_objective_target_invalid' => sprintf('Une cible de %d à %d.', QuestObjective::MIN_TARGET, QuestObjective::MAX_TARGET),
             default => 'Quête invalide.',

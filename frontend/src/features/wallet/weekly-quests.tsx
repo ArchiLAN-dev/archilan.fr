@@ -37,7 +37,11 @@ export type WeeklyQuest = {
   objectives: QuestObjectiveProgress[];
   /** Story 41.28: the cosmetic it unlocks the first time (absent from an older API). */
   cosmetic?: CosmeticRewardView | null;
+  /** Story 41.68: its tiers on its only objective, each reached and paid; null (or absent) for a quest done or not. */
+  tiers?: QuestTierProgress[] | null;
 };
+
+export type QuestTierProgress = { target: number; reward: number; reached: boolean; paid: boolean };
 
 /** Story 41.16: the chest for doing every quest of the week; null when there is none. */
 export type QuestChest = { reward: number; done: number; total: number; paid: boolean };
@@ -108,8 +112,18 @@ function isQuest(v: unknown): v is WeeklyQuest {
     "objectives" in v &&
     Array.isArray(v.objectives) &&
     v.objectives.every(isObjective) &&
-    (!("cosmetic" in v) || v.cosmetic === null || isCosmeticRewardView(v.cosmetic))
+    (!("cosmetic" in v) || v.cosmetic === null || isCosmeticRewardView(v.cosmetic)) &&
+    (!("tiers" in v) || v.tiers === null || (Array.isArray(v.tiers) && v.tiers.every(isTier)))
   );
+}
+
+function isTier(v: unknown): v is QuestTierProgress {
+  return typeof v === "object" && v !== null && hasNumberProp(v, "target") && hasNumberProp(v, "reward") && hasBooleanProp(v, "reached") && hasBooleanProp(v, "paid");
+}
+
+/** Story 41.68: the most a quest pays, every tier included. */
+export function questMaxReward(quest: WeeklyQuest): number {
+  return quest.tiers && quest.tiers.length > 0 ? quest.tiers.reduce((sum, tier) => sum + tier.reward, 0) : quest.reward;
 }
 
 export function isWeeklyQuests(v: unknown): v is WeeklyQuests {
@@ -190,7 +204,13 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
                   <span className="sr-only">{quest.done ? "faite" : "à faire"}</span>
                   {quest.done && !quest.paid ? <span className="text-xs text-muted-foreground">(créditée dans quelques minutes)</span> : null}
                 </span>
-                <PelleAmount amount={quest.reward} className="shrink-0 text-xs font-semibold text-warning" signed />
+                {quest.tiers && quest.tiers.length > 0 ? (
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    jusqu&apos;à <PelleAmount amount={questMaxReward(quest)} className="font-semibold text-warning" />
+                  </span>
+                ) : (
+                  <PelleAmount amount={quest.reward} className="shrink-0 text-xs font-semibold text-warning" signed />
+                )}
               </div>
               {quest.description !== "" ? <p className="pl-6 text-xs text-muted-foreground">{quest.description}</p> : null}
               {/* Story 41.28: the cosmetic it unlocks. */}
@@ -202,7 +222,7 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
               ) : null}
               <ul className="grid gap-1.5 pl-6">
                 {quest.objectives.map((objective) => (
-                  <ObjectiveBar done={quest.done} key={objective.metric} objective={objective} />
+                  <ObjectiveBar done={quest.done} key={objective.metric} objective={objective} tiers={quest.tiers ?? null} />
                 ))}
               </ul>
             </li>
@@ -242,11 +262,18 @@ export function StreakRow({ streak }: { streak: QuestStreak }) {
   );
 }
 
-/** « 3 / 5 checks », capped at the target: a paid quest shows full even if the week's count is read later. */
-export function ObjectiveBar({ objective, done }: { objective: QuestObjectiveProgress; done: boolean }) {
-  const shown = done ? objective.target : Math.min(objective.current, objective.target);
-  const percent = objective.target > 0 ? Math.round((shown / objective.target) * 100) : 0;
-  const reached = shown >= objective.target;
+/**
+ * « 3 / 5 checks », capped at the target: a paid quest shows full even if the week's count is read later. Story
+ * 41.68: a quest with tiers goes up to its last tier, each tier marked on the same bar.
+ */
+export function ObjectiveBar({ objective, done, tiers = null }: { objective: QuestObjectiveProgress; done: boolean; tiers?: QuestTierProgress[] | null }) {
+  const steps = tiers && tiers.length > 0 ? tiers : null;
+  const top = steps ? (steps[steps.length - 1]?.target ?? objective.target) : objective.target;
+  // A tier paid shows reached, even if the week's count is read later.
+  const floor = steps ? Math.max(0, ...steps.filter((tier) => tier.paid || tier.reached).map((tier) => tier.target)) : done ? top : 0;
+  const shown = Math.min(Math.max(objective.current, floor), top);
+  const percent = top > 0 ? Math.round((shown / top) * 100) : 0;
+  const reached = shown >= top;
 
   return (
     <li className="grid gap-1">
@@ -267,12 +294,12 @@ export function ObjectiveBar({ objective, done }: { objective: QuestObjectivePro
           ) : null}
         </span>
         <span className={`tabular-nums ${reached ? "text-success" : "text-muted-foreground"}`}>
-          {formatQuestAmount(shown, objective.duration)} / {formatQuestAmount(objective.target, objective.duration)} {objective.unit}
+          {formatQuestAmount(shown, objective.duration)} / {formatQuestAmount(top, objective.duration)} {objective.unit}
         </span>
       </div>
       <div
         aria-label={objective.scope ? `${objective.label} · ${objective.scope}` : objective.label}
-        aria-valuemax={objective.target}
+        aria-valuemax={top}
         aria-valuemin={0}
         aria-valuenow={shown}
         className="h-1.5 overflow-hidden rounded-full bg-surface-2"
@@ -280,6 +307,18 @@ export function ObjectiveBar({ objective, done }: { objective: QuestObjectivePro
       >
         <div className={`h-full rounded-full transition-[width] ${reached ? "bg-success" : "bg-accent"}`} style={{ width: `${percent}%` }} />
       </div>
+      {steps ? (
+        <ol aria-label="Paliers" className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+          {steps.map((tier, index) => (
+            <li className={`inline-flex items-center gap-1 ${tier.reached ? "text-success" : "text-muted-foreground"}`} key={`palier-${index + 1}`}>
+              {tier.reached ? <CheckCircle2 aria-hidden className="size-3" /> : <Circle aria-hidden className="size-3" />}
+              <span className="sr-only">{tier.reached ? "Palier atteint : " : "Palier : "}</span>
+              {formatQuestAmount(tier.target, objective.duration)} {objective.unit}
+              <PelleAmount amount={tier.reward} className="font-semibold text-warning" signed />
+            </li>
+          ))}
+        </ol>
+      ) : null}
     </li>
   );
 }

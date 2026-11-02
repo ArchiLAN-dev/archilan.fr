@@ -13,7 +13,7 @@ use App\Wallet\Domain\ValueObject\QuestObjective;
 final readonly class QuestAnnouncement
 {
     /**
-     * @param list<array{title: string, objectives: string, reward: int}> $quests
+     * @param list<array{title: string, objectives: string, reward: int, tiered?: bool}> $quests the most each pays (story 41.68: every tier when `tiered`)
      */
     public function __construct(
         public string $weekKey,

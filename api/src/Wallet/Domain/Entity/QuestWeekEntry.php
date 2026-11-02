@@ -6,6 +6,7 @@ namespace App\Wallet\Domain\Entity;
 
 use App\Wallet\Domain\Enum\QuestWeekOrigin;
 use App\Wallet\Domain\ValueObject\QuestObjective;
+use App\Wallet\Domain\ValueObject\QuestTier;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -42,19 +43,30 @@ final class QuestWeekEntry
         private ?int $reward = null,
         #[ORM\Column(name: 'drawn_game_id', type: 'string', length: 32, nullable: true)]
         private ?string $drawnGameId = null,
+        /** @var list<array{target: int, reward: int}>|null */
+        #[ORM\Column(type: 'json', nullable: true)]
+        private ?array $tiers = null,
     ) {
     }
 
     /**
-     * Story 41.67: freezes what the quest asks and pays for this week.
+     * Story 41.67: freezes what the quest asks and pays for this week. Story 41.68: its tiers too.
      *
      * @param list<QuestObjective> $objectives
+     * @param list<QuestTier>      $tiers
      */
-    public function freeze(array $objectives, int $reward, ?string $drawnGameId): void
+    public function freeze(array $objectives, int $reward, ?string $drawnGameId, array $tiers = []): void
     {
         $this->objectives = array_map(static fn (QuestObjective $objective): array => $objective->toArray(), $objectives);
         $this->reward = $reward;
         $this->drawnGameId = $drawnGameId;
+        $this->tiers = [] === $tiers ? null : array_map(static fn (QuestTier $tier): array => $tier->toArray(), $tiers);
+    }
+
+    /** @return list<QuestTier> the frozen tiers (none: a quest done or not) */
+    public function getTiers(): array
+    {
+        return null === $this->tiers ? [] : QuestTier::listFromArray($this->tiers);
     }
 
     public function isFrozen(): bool

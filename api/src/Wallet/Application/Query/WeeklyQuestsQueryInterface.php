@@ -78,12 +78,19 @@ interface WeeklyQuestsQueryInterface
     public function earnedBy(string $userId): array;
 
     /** Story 41.16: whether the member's chest of the week is paid (key `quest-chest:{week}:{member}`). */
+    /**
+     * Story 41.68: the tiers past the first already paid to the member this week.
+     *
+     * @return array<string, list<int>> quest id => tier numbers
+     */
+    public function rewardedTiers(string $userId, QuestWeek $week): array;
+
     public function chestPaid(string $userId, QuestWeek $week): bool;
 
     /**
      * Story 41.16: what the quests and chests paid, by week, read from the ledger keys.
      *
-     * @return array<string, array{quests: array<string, array{members: int, pelles: int}>, chests: int, chestPelles: int}> by week key
+     * @return array<string, array{quests: array<string, array{members: int, pelles: int, tiers: array<int, int>}>, chests: int, chestPelles: int}> by week key
      */
     public function payments(): array;
 }

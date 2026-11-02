@@ -142,7 +142,7 @@ final class AdminQuestTest extends FunctionalTestCase
         $quests = $overview['quests'] ?? null;
         self::assertIsArray($quests);
         self::assertIsArray($quests[0] ?? null);
-        self::assertSame(['weeksServed' => 2, 'lastWeek' => $lastWeek->key, 'lastMembers' => 1, 'pelles' => 40], $quests[0]['stats'] ?? null, 'last week and this one');
+        self::assertSame(['weeksServed' => 2, 'lastWeek' => $lastWeek->key, 'lastMembers' => 1, 'lastTiers' => [], 'pelles' => 40], $quests[0]['stats'] ?? null, 'last week and this one');
 
         $past = $overview['pastWeeks'] ?? null;
         self::assertIsArray($past);

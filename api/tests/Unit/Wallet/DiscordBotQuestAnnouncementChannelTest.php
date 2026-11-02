@@ -120,6 +120,19 @@ final class DiscordBotQuestAnnouncementChannelTest extends TestCase
         return new DiscordBotQuestAnnouncementChannel(new DiscordBotRest($client, self::TOKEN), '123');
     }
 
+    public function testAQuestWithTiersSaysTheMostItPays(): void
+    {
+        $payload = DiscordBotQuestAnnouncementChannel::payload(new QuestAnnouncement(
+            '2026-W42',
+            [['title' => 'Toujours plus', 'objectives' => '2 checks', 'reward' => 60, 'tiered' => true]],
+            0,
+            new \DateTimeImmutable('2026-10-18T22:00:00+00:00'),
+            'https://archilan.fr/compte/pelles',
+        ));
+
+        self::assertStringContainsString("Toujours plus · jusqu'à 60 pelles", (string) json_encode($payload, \JSON_UNESCAPED_UNICODE));
+    }
+
     private function announcement(): QuestAnnouncement
     {
         return new QuestAnnouncement(

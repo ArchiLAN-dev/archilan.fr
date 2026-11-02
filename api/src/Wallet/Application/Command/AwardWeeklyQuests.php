@@ -74,7 +74,8 @@ final readonly class AwardWeeklyQuests
         $payload = [
             'week' => $week->key,
             'count' => \count($served),
-            'maxPelles' => array_sum(array_map(static fn (ServedQuest $quest): int => $quest->getReward(), $served)) + $chest,
+            // Story 41.68: a quest with tiers counts every one of them.
+            'maxPelles' => array_sum(array_map(static fn (ServedQuest $quest): int => $quest->maxReward(), $served)) + $chest,
         ];
         $members = $this->quests->activeMembers($week->start->modify('-4 weeks'), $week->start);
         foreach ($members as $userId) {
@@ -111,6 +112,7 @@ final readonly class AwardWeeklyQuests
                 if (1 === $newly && null !== $cosmetic) {
                     $this->rewarder->reward($userId, $cosmetic, CosmeticOwnershipInterface::SOURCE_QUEST, $quest->getTitle());
                 }
+                $paid += $this->payTiers($week, $quest, $userId, $counts);
             }
         }
 
@@ -119,6 +121,31 @@ final readonly class AwardWeeklyQuests
             foreach ($doneAll as $userId) {
                 $paid += $this->pay($userId, $chest, 'Coffre de la semaine', sprintf('quest-chest:%s:%s', $week->key, $userId), 'coffre de la semaine');
             }
+        }
+
+        return $paid;
+    }
+
+    /**
+     * Story 41.68: the tiers past the first one the member reached, each paid once under its own key - the quest's
+     * key stays the first tier's, so the « quests done » achievement counts the quest once.
+     *
+     * @param array<string, array<string, int>> $counts objective key => member => count
+     */
+    private function payTiers(QuestWeek $week, ServedQuest $quest, string $userId, array $counts): int
+    {
+        $paid = 0;
+        $mine = array_map(static fn (array $byMember): int => $byMember[$userId] ?? 0, $counts);
+        $reached = $quest->reachedTiers($mine);
+        foreach ($quest->tiers as $index => $step) {
+            $tier = $index + 1;
+            if (1 === $tier || !\in_array($tier, $reached, true)) {
+                continue;
+            }
+            $paid += $this->pay(
+                $userId, $step->reward, sprintf('Quête : %s (palier %d)', $quest->getTitle(), $tier),
+                sprintf('quest-tier:%s:%s:%s:%d', $week->key, $quest->getId(), $userId, $tier), sprintf('quête « %s », palier %d', $quest->getTitle(), $tier),
+            );
         }
 
         return $paid;
