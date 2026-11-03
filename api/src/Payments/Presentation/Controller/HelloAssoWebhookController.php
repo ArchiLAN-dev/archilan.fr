@@ -41,21 +41,10 @@ final readonly class HelloAssoWebhookController
             return new JsonResponse(null, Response::HTTP_OK);
         }
 
-        $payerEmail = '' !== $payload->data->payer->email ? $payload->data->payer->email : null;
-        $paidAt = null;
-        if ('' !== $payload->data->date) {
-            try {
-                $paidAt = new \DateTimeImmutable($payload->data->date);
-            } catch (\Exception) {
-            }
-        }
-
         $this->handleWebhook->handle(
             $payload->data->id,
             HelloAssoConfig::fromApiFormType($payload->data->formType),
             $payload->data->formSlug,
-            $payerEmail,
-            $paidAt,
         );
 
         return new JsonResponse(null, Response::HTTP_OK);
