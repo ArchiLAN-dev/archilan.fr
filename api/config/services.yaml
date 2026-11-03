@@ -14,8 +14,6 @@ parameters:
     default_minio_sessions_bucket: 'sessions'
     default_minio_presign_ttl: 3600
     default_minio_endpoint: 'http://localhost:9000'
-    default_minio_access_key: 'minioadmin'
-    default_minio_secret_key: 'minioadmin'
     default_empty_string: ''
     # Story 49.1: Minimapperz's organiser API (override with MINIMAPPERZ_API_URL).
     default_minimapperz_api_url: 'https://backendv1-74040419982.us-central1.run.app'
@@ -187,8 +185,8 @@ services:
     App\Shared\Infrastructure\Adapter\S3MinioStorage:
         arguments:
             $endpoint: '%env(default:default_minio_endpoint:MINIO_ENDPOINT)%'
-            $accessKey: '%env(default:default_minio_access_key:MINIO_ACCESS_KEY)%'
-            $secretKey: '%env(default:default_minio_secret_key:MINIO_SECRET_KEY)%'
+            $accessKey: '%env(MINIO_ACCESS_KEY)%'
+            $secretKey: '%env(MINIO_SECRET_KEY)%'
             $presignEndpoint: '%env(default:default_empty_string:MINIO_PRESIGN_ENDPOINT)%'
 
     App\Sessions\Infrastructure\Http\RunnerGateway:
