@@ -22,7 +22,7 @@ final readonly class TraefikConfigController
     #[Route('/api/v1/internal/traefik', methods: ['GET'])]
     public function config(Request $request): JsonResponse
     {
-        $provided = $request->headers->get('x-traefik-token', '') ?? '';
+        $provided = $request->headers->get('x-traefik-token', '');
 
         if ('' === $this->traefikToken || !hash_equals($this->traefikToken, $provided)) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Token Traefik invalide.', 401);

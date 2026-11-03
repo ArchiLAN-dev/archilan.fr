@@ -32,7 +32,7 @@ final readonly class ReachablePushController
     #[Route('/api/v1/internal/sessions/{sessionId}/slots/{slotIndex}/reachable-push', methods: ['POST'])]
     public function push(Request $request, string $sessionId, int $slotIndex): JsonResponse
     {
-        $provided = $request->headers->get('x-internal-secret', '') ?? '';
+        $provided = $request->headers->get('x-internal-secret', '');
 
         if ('' === $this->centralApiSecret || !hash_equals($this->centralApiSecret, $provided)) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret invalide.', 401);

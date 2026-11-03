@@ -22,7 +22,7 @@ final readonly class RunnerCallbackController
     #[Route('/api/v1/internal/sessions/{sessionId}/runner-callback', methods: ['POST'])]
     public function callback(Request $request, string $sessionId): JsonResponse
     {
-        $provided = $request->headers->get('x-internal-secret', '') ?? '';
+        $provided = $request->headers->get('x-internal-secret', '');
 
         if ('' === $this->centralApiSecret || !hash_equals($this->centralApiSecret, $provided)) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret runner invalide.', 401);
