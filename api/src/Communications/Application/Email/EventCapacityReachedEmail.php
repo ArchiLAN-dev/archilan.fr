@@ -11,6 +11,8 @@ final class EventCapacityReachedEmail extends ArchilanEmail
         private readonly ?string $adminDisplayName,
         private readonly string $eventTitle,
         private readonly int $capacity,
+        private readonly string $registrationsUrl = '',
+        private readonly string $siteUrl = '',
     ) {
     }
 
@@ -40,5 +42,17 @@ final class EventCapacityReachedEmail extends ArchilanEmail
 
         L'équipe ArchiLAN
         TEXT;
+    }
+
+    public function htmlBody(): string
+    {
+        $inner = self::heading('Événement complet')
+            .self::paragraph(self::strong($this->eventTitle).' a atteint sa capacité maximale ('.$this->capacity.' places).')
+            .('' !== $this->registrationsUrl
+                ? self::button($this->registrationsUrl, 'Voir les inscriptions')
+                : self::paragraph('Connecte-toi au backoffice pour gérer les inscriptions.'))
+            .self::signature();
+
+        return $this->htmlLayout($inner, "{$this->eventTitle} est complet ({$this->capacity} places).", self::logoUrlFor($this->siteUrl));
     }
 }
