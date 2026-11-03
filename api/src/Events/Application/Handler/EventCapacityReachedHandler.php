@@ -18,6 +18,7 @@ final readonly class EventCapacityReachedHandler
         private UserRepositoryInterface $userRepository,
         private ArchilanMailer $mailer,
         private LoggerInterface $logger,
+        private string $siteUrl = '',
     ) {
     }
 
@@ -41,6 +42,8 @@ final readonly class EventCapacityReachedHandler
                 $user->getDisplayName(),
                 $message->eventTitle,
                 $message->capacity,
+                sprintf('%s/admin/evenements/%s/inscriptions', rtrim($this->siteUrl, '/'), $message->eventId),
+                $this->siteUrl,
             ));
         }
     }

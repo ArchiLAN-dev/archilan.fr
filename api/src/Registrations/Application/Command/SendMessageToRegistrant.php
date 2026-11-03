@@ -22,6 +22,7 @@ final readonly class SendMessageToRegistrant
         private RegistrationAdminMessageRepositoryInterface $adminMessageRepository,
         private ArchilanMailer $mailer,
         private ClockInterface $clock,
+        private string $siteUrl = '',
     ) {
     }
 
@@ -54,6 +55,8 @@ final readonly class SendMessageToRegistrant
             $participant->getDisplayName(),
             $subject,
             $body,
+            sprintf('%s/evenements/%s/inscription/%s/recap', rtrim($this->siteUrl, '/'), $eventId, $registrationId),
+            $this->siteUrl,
         ));
 
         if (!$sent) {

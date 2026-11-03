@@ -9,6 +9,7 @@ final class SessionPausedWithoutSaveEmail extends ArchilanEmail
     public function __construct(
         private readonly string $adminEmail,
         private readonly string $sessionId,
+        private readonly string $siteUrl = '',
     ) {
     }
 
@@ -38,5 +39,15 @@ final class SessionPausedWithoutSaveEmail extends ArchilanEmail
 
         Veuillez vérifier les logs du runner pour plus de détails.
         TEXT;
+    }
+
+    public function htmlBody(): string
+    {
+        $inner = self::heading('⚠ Sauvegarde échouée à la mise en pause')
+            .self::paragraph('La session '.self::strong($this->sessionId).' a été mise en pause automatiquement par le watchdog d\'inactivité, mais la sauvegarde Archipelago a échoué ou n\'a pas pu être envoyée.')
+            .self::paragraph('Aucune progression n\'a été conservée pour cette session. Vérifie les logs du runner pour plus de détails.')
+            .self::note('Alerte automatique ArchiLAN.');
+
+        return $this->htmlLayout($inner, "Session {$this->sessionId} : sauvegarde échouée à la mise en pause.", self::logoUrlFor($this->siteUrl));
     }
 }

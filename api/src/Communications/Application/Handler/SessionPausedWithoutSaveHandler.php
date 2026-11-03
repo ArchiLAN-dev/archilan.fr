@@ -17,12 +17,13 @@ final readonly class SessionPausedWithoutSaveHandler
         private ArchilanMailer $mailer,
         private LoggerInterface $logger,
         private string $mailerSender,
+        private string $siteUrl = '',
     ) {
     }
 
     public function __invoke(SessionPausedWithoutSaveMessage $message): void
     {
-        $sent = $this->mailer->send(new SessionPausedWithoutSaveEmail($this->mailerSender, $message->sessionId));
+        $sent = $this->mailer->send(new SessionPausedWithoutSaveEmail($this->mailerSender, $message->sessionId, $this->siteUrl));
 
         if ($sent) {
             $this->logger->info('session.paused_without_save.email_sent', ['sessionId' => $message->sessionId]);

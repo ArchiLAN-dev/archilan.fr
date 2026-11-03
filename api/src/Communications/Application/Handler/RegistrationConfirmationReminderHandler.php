@@ -12,8 +12,10 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class RegistrationConfirmationReminderHandler
 {
-    public function __construct(private ArchilanMailer $mailer)
-    {
+    public function __construct(
+        private ArchilanMailer $mailer,
+        private string $siteUrl = '',
+    ) {
     }
 
     public function __invoke(RegistrationConfirmationReminderMessage $message): void
@@ -24,6 +26,7 @@ final readonly class RegistrationConfirmationReminderHandler
             $message->eventTitle,
             $message->registrationClosesAt,
             $message->recapUrl,
+            $this->siteUrl,
         ));
     }
 }

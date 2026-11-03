@@ -5,6 +5,31 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.56.0] - 2026-11-03
+
+Des mails enfin à nos couleurs, une sélection de jeux d'event qui ne noie plus le bouton Enregistrer, et un statut de
+YAML qu'on ne prend plus pour une simple info.
+
+### Ajouté
+
+- **Tous les mails en HTML** (4.15) : confirmation d'inscription (date, lieu, jeux, bouton vers le récap), relance de
+  confirmation, place libérée, message de l'admin à un inscrit, partie lancée, et les alertes admin (event complet,
+  pause sans sauvegarde, redémarrage échoué) passent au gabarit ArchiLAN, version texte conservée.
+
+### Modifié
+
+- **Sélection des jeux d'un event, côté admin** (3.16) : barre d'enregistrement toujours visible avec l'état des
+  modifications et une alerte avant de quitter, on reste sur la page après l'enregistrement, catalogue paginé par 50
+  avec filtres collés en haut, panneau « Sélection » (onglet sur mobile) avec alerte sur les jeux sans apworld prêt,
+  actions groupées dont « Ajouter tous les jeux à apworld prêt ».
+- **Statut du YAML dans la sélection de jeux d'une partie perso** (16.26) : un badge d'état honnête (« Options par
+  défaut », « Personnalisé », « À configurer ») et un vrai bouton « Configurer », comme dans le récap d'event. Le YAML
+  par défaut d'un jeu n'est plus compté comme « configuré ».
+
+### Déploiement
+
+- Aucune migration, aucune variable d'env.
+
 ## [0.55.0] - 2026-11-03
 
 Minimapperz, partenaire de l'ArchiLAN #4, branché sur le site : chaque inscrit reçoit son code, ses parties lui

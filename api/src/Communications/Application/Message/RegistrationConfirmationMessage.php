@@ -16,6 +16,9 @@ final readonly class RegistrationConfirmationMessage
         public string $eventStartsAt,
         public string $eventVenue,
         public array $selectedGameNames,
+        // Story 4.15: to link the registration from the mail. Empty for a message queued before the deploy.
+        public string $eventId = '',
+        public string $registrationId = '',
     ) {
     }
 }

@@ -78,6 +78,8 @@ final readonly class RegistrationSubmission
                 eventStartsAt: $event->getStartsAt()->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m/Y \à H\hi'),
                 eventVenue: $event->getVenue(),
                 selectedGameNames: $selectedGameNames,
+                eventId: $event->getId(),
+                registrationId: $registration->getId(),
             ));
         }
 
