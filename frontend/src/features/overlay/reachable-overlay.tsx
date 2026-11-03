@@ -36,8 +36,8 @@ export function ReachableOverlay({
   const [checks, setChecks] = useState<string[]>([]);
   const slot = params.slots[0] ?? null; // reachability is per-slot, like the progression page
 
-  // Snapshot (anonymous GET, same endpoint the progression page uses) + live updates over the slot's
-  // reachable SSE topic. Mirrors the progression page (initial fetch + Mercure stream).
+  // Snapshot (anonymous GET of the last pushed result: an overlay starts no computation) + live updates
+  // over the slot's reachable SSE topic. Mirrors the progression page (initial fetch + Mercure stream).
   useEffect(() => {
     if (params.demo || !sessionId || slot === null) return;
     let cancelled = false;
@@ -47,7 +47,7 @@ export function ReachableOverlay({
     async function snapshot(): Promise<void> {
       try {
         const res = await fetch(
-          `${env.apiBaseUrl}/sessions/${encodeURIComponent(sessionId)}/slots/${encodeURIComponent(String(slot))}/reachable`,
+          `${env.apiBaseUrl}/public/overlay/${encodeURIComponent(sessionId)}/slots/${encodeURIComponent(String(slot))}/reachable`,
         );
         if (!res.ok || cancelled) return;
         const names = parseReachableNames(await res.json());

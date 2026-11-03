@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Streaming\Presentation\Controller;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Streaming\Application\Query\OverlayReachabilityQuery;
 use App\Streaming\Application\Query\OverlaySubscribeQuery;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Mercure\HubInterface;
@@ -22,6 +23,7 @@ final readonly class PublicOverlaySubscribeController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private OverlaySubscribeQuery $overlaySubscribeQuery,
+        private OverlayReachabilityQuery $overlayReachabilityQuery,
         private HubInterface $mercureHub,
     ) {
     }
@@ -51,5 +53,17 @@ final readonly class PublicOverlaySubscribeController
                 'topics' => $topics,
             ],
         ]);
+    }
+
+    /** Story 50.3: the last reachability pushed for a slot, as the overlay shows it. Starts nothing on the bridge. */
+    #[Route('/api/v1/public/overlay/{runId}/slots/{slotIndex}/reachable', requirements: ['slotIndex' => '\d+'], methods: ['GET'])]
+    public function reachable(string $runId, int $slotIndex): JsonResponse
+    {
+        $result = $this->overlayReachabilityQuery->forSlot($runId, $slotIndex);
+        if (null === $result) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Overlay indisponible.', 404);
+        }
+
+        return new JsonResponse(['data' => $result['view']]);
     }
 }

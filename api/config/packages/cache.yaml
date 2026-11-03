@@ -15,5 +15,14 @@ framework:
         #app: cache.adapter.apcu
 
         # Namespaced pools use the above "app" backend by default
-        #pools:
-            #my.dedicated.cache: null
+        pools:
+            # Story 50.3: what a reachable overlay shows, rewritten by each push of the bridge.
+            public_reachability.cache:
+                adapter: cache.app
+                default_lifetime: 604800
+
+# As in rate_limiter.yaml: in memory, gone with the container, so one test never sees another's snapshot.
+when@test:
+    services:
+        public_reachability.cache:
+            class: Symfony\Component\Cache\Adapter\ArrayAdapter
