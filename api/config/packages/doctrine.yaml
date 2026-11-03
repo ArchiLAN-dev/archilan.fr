@@ -114,8 +114,10 @@ doctrine:
 when@test:
     doctrine:
         dbal:
-            # "TEST_TOKEN" is typically set by ParaTest
-            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+            # "TEST_TOKEN" is set by ParaTest (1..N, one database per worker) or by hand for an isolated run.
+            # "TEST_DB_PREFIX" namespaces a whole parallel run, which ParaTest's own TEST_TOKEN would otherwise
+            # collide with: two parallel runs on archilan_test1..8 destroy each other's schema.
+            dbname_suffix: '_test%env(default::TEST_DB_PREFIX)%%env(default::TEST_TOKEN)%'
 
 when@prod:
     doctrine:
