@@ -9,6 +9,7 @@ use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Message\MembershipPaymentUnmatchedMessage;
 use App\Membership\Application\Port\ActivateMembershipInterface;
 use App\Membership\Application\Port\ProcessHelloAssoMembershipPaymentInterface;
+use App\Shared\Application\Support\EmailMask;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -46,7 +47,7 @@ final readonly class ProcessHelloAssoMembershipPayment implements ProcessHelloAs
         if (!$user instanceof User || null !== $user->getDeletedAt()) {
             $this->logger->warning('membership.helloasso_payment_user_not_found', [
                 'helloassoOrderId' => $helloassoOrderId,
-                'payerEmail' => $payerEmail,
+                'payerEmail' => EmailMask::mask($payerEmail),
             ]);
 
             try {

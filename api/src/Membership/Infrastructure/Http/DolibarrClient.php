@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Membership\Infrastructure\Http;
 
 use App\Membership\Application\Port\DolibarrClientInterface;
+use App\Shared\Application\Support\EmailMask;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -26,7 +27,7 @@ final readonly class DolibarrClient implements DolibarrClientInterface
         ?\DateTimeImmutable $expiresAt,
     ): void {
         if ('' === $this->dolibarrApiUrl || '' === $this->dolibarrApiKey) {
-            $this->logger->info('dolibarr.client.skipped_no_config', ['email' => $email]);
+            $this->logger->info('dolibarr.client.skipped_no_config', ['email' => EmailMask::mask($email)]);
 
             return;
         }
@@ -82,6 +83,6 @@ final readonly class DolibarrClient implements DolibarrClientInterface
             return;
         }
 
-        throw new \RuntimeException(sprintf('Dolibarr %s failed for %s with HTTP %d.', $operation, $email, $statusCode));
+        throw new \RuntimeException(sprintf('Dolibarr %s failed for %s with HTTP %d.', $operation, EmailMask::mask($email), $statusCode));
     }
 }
