@@ -17,6 +17,8 @@ parameters:
     default_minio_access_key: 'minioadmin'
     default_minio_secret_key: 'minioadmin'
     default_empty_string: ''
+    # Story 49.1: Minimapperz's organiser API (override with MINIMAPPERZ_API_URL).
+    default_minimapperz_api_url: 'https://backendv1-74040419982.us-central1.run.app'
     default_inactivity_timeout: 3600
     # Nom du certresolver déclaré dans le reverse proxy de production, qui n'est pas versionné ici.
     default_traefik_cert_resolver: 'https'
@@ -93,6 +95,13 @@ services:
     App\Wallet\Domain\Repository\QuestRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineQuestRepository'
     App\Wallet\Domain\Repository\BlindTestSettingRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineBlindTestSettingRepository'
     App\Wallet\Domain\Repository\BlindTestLoginCodeRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineBlindTestLoginCodeRepository'
+    # Story 49.1: an event's link to Minimapperz, read through its organiser API (one key per event, stored with it).
+    App\Wallet\Domain\Repository\MinimapperzSettingRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineMinimapperzSettingRepository'
+    App\Wallet\Domain\Repository\MinimapperzCodeRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineMinimapperzCodeRepository'
+    App\Wallet\Application\Port\MinimapperzClientInterface: '@App\Wallet\Infrastructure\Http\MinimapperzHttpClient'
+    App\Wallet\Infrastructure\Http\MinimapperzHttpClient:
+        arguments:
+            $baseUrl: '%env(default:default_minimapperz_api_url:MINIMAPPERZ_API_URL)%'
     # Story 41.40: the blind test app and the secret both sides sign with; empty = blind test unavailable.
     App\Wallet\Application\Support\BlindTestLink:
         arguments:

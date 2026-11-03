@@ -46,7 +46,7 @@ describe("event pelles page", () => {
     expect(html).toContain('aria-label="Membres (3)"');
     expect(html).toContain("non inscrit");
     expect(html).not.toContain("Converties en or");
-    expect(html.match(/role="tab"/g)).toHaveLength(3);
+    expect(html.match(/role="tab"/g)).toHaveLength(4);
 
     const distribute = render(running, "distribuer");
     expect(distribute).toContain("Tous les inscrits (1)");

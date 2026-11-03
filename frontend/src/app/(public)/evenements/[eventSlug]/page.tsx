@@ -16,6 +16,7 @@ import { EventPartiesSection } from "@/features/events/event-parties";
 import { PrivateEventParties } from "@/features/events/private-event-parties";
 import { EventFriendsBadge } from "@/features/community/event-friends-badge";
 import { BlindTestJoinButton } from "@/features/wallet/blind-test-join-button";
+import { MinimapperzCodeCard } from "@/features/wallet/minimapperz-code-card";
 import { fetchDiscordStats } from "@/features/discord/discord-api";
 import { DiscordNudge } from "@/features/discord/discord-promo";
 import { LiveSeatCounter } from "@/features/events/live-seat-counter";
@@ -213,6 +214,8 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           {event.status !== "completed" ? <EventFriendsBadge eventId={event.id} /> : null}
           {/* Story 41.40: shown only to a registrant while the blind test is open. */}
           {event.status !== "completed" ? <BlindTestJoinButton eventId={event.id} /> : null}
+          {/* Story 49.2: a registrant's Minimapperz code, while the link is on. */}
+          {event.status !== "completed" ? <MinimapperzCodeCard eventId={event.id} /> : null}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {primaryCta ? <DetailCta cta={primaryCta} /> : null}
