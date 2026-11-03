@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Wallet;
 
+use App\Wallet\Application\Command\CollectMinimapperzGames;
 use App\Wallet\Application\Exception\MinimapperzUnauthorizedException;
 use App\Wallet\Application\Exception\MinimapperzUnavailableException;
 use App\Wallet\Infrastructure\Http\MinimapperzHttpClient;
@@ -68,6 +69,51 @@ final class MinimapperzHttpClientTest extends TestCase
         } catch (MinimapperzUnavailableException $e) {
             self::assertStringNotContainsString(self::KEY, $e->getMessage());
         }
+    }
+
+    public function testTheGamesAreReadSinceADateInUtc(): void
+    {
+        $seen = null;
+        $http = new MockHttpClient(static function (string $method, string $url) use (&$seen): MockResponse {
+            $seen = $url;
+
+            return new MockResponse((string) json_encode(['data' => [[
+                'game' => '3f1c0d2e-0000-4000-8000-000000000001',
+                'played_at' => '2026-11-07T18:00:00Z',
+                'rounds' => 5,
+                'players' => [
+                    ['username' => 'alice', 'code' => 'MMZ-A', 'points' => 4200, 'place' => 1, 'won' => true],
+                    ['username' => 'stranger', 'code' => null, 'points' => 100, 'place' => 2, 'won' => false],
+                ],
+            ]], 'count' => 1]));
+        });
+
+        $games = new MinimapperzHttpClient($http, 'https://mmz.test')->games('archilan-4', self::KEY, new \DateTimeImmutable('2026-11-07T19:30:00+01:00'));
+
+        self::assertSame('https://mmz.test/api/v1/organiser/events/archilan-4/games?since=2026-11-07T18:30:00Z', $seen);
+        self::assertCount(1, $games);
+        self::assertSame(5, $games[0]->rounds);
+        self::assertCount(2, $games[0]->players);
+        self::assertTrue($games[0]->players[0]->won);
+        self::assertNull($games[0]->players[1]->code);
+    }
+
+    public function testAGameWithoutItsFieldsIsUnavailable(): void
+    {
+        $client = new MinimapperzHttpClient(new MockHttpClient(new MockResponse('{"data":[{"game":"g1"}],"count":1}')), 'https://mmz.test');
+
+        $this->expectException(MinimapperzUnavailableException::class);
+        $client->games('archilan-4', self::KEY, null);
+    }
+
+    public function testTheUniqueKeyHashesACodeTooLongForIt(): void
+    {
+        $game = '3f1c0d2e-0000-4000-8000-000000000001';
+
+        self::assertSame('minimapperz:'.$game.':MMZ-A', CollectMinimapperzGames::uniqueKey($game, 'MMZ-A'));
+        $long = CollectMinimapperzGames::uniqueKey($game, str_repeat('x', 100));
+        self::assertSame('minimapperz:'.$game.':'.sha1(str_repeat('x', 100)), $long);
+        self::assertLessThanOrEqual(120, strlen($long));
     }
 
     /** @param array<array-key, mixed> $options */

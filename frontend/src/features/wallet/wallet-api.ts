@@ -56,6 +56,7 @@ export const PELLE_REASON_LABELS: Record<string, string> = {
   welcome_reward: "Premiers pas",
   collection_reward: "Collection complète",
   blind_test: "Blind test",
+  minimapperz: "Minimapperz",
   bronze_start: "Départ de la partie",
   bronze_check: "Checks",
   bronze_goal: "Objectif atteint",

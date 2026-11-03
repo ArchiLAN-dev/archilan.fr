@@ -23,4 +23,10 @@ final class MinimapperzSlug
 
         return 1 === preg_match(self::SLUG_PATTERN, $value) ? $value : null;
     }
+
+    /** Story 49.2: where a player joins the LAN on Minimapperz. */
+    public static function lanUrl(string $slug): string
+    {
+        return sprintf('https://app.minimapperz.com/lan/%s/', rawurlencode($slug));
+    }
 }
