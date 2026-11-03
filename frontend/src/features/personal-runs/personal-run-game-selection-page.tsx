@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ExternalLink, FileText, Search, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ExternalLink, Search, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
@@ -23,6 +23,7 @@ import {
   RECENT_FILTER,
 } from "@/features/games/game-picker-filters";
 import { parseNeedsReview, SlotNeedsReview } from "@/features/games/slot-needs-review";
+import { ConfigureSlotYamlLink, resolveSlotYamlStatus, SlotYamlStatusBadge } from "@/features/games/slot-yaml-status";
 import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } from "./personal-runs-api";
 import { useRouter } from "next/navigation";
 import { GeneratedLockNote } from "@/components/run-notes";
@@ -269,7 +270,9 @@ export function PersonalRunGameSelectionPage({
     const savedSlots = savedSlotsByGameId.get(gameId) ?? [];
     const slot = savedSlots[n - 1] ?? null;
     const hasYaml = slot !== null && slot.playerYaml !== null && slot.playerYaml !== "";
-    return { gameId, n, idx, label: total > 1 ? `${name} (monde ${n})` : name, slot, hasYaml };
+    // Story 16.26: a slot starts with its game's default yaml, so "has a yaml" is not "configured".
+    const yamlStatus = slot !== null ? resolveSlotYamlStatus(slot, gameMap.get(gameId)) : null;
+    return { gameId, n, idx, label: total > 1 ? `${name} (monde ${n})` : name, slot, hasYaml, yamlStatus };
   });
 
   // Distinct selected games (name + slug) for the post-selection install nudge (story 31.4).
@@ -420,13 +423,20 @@ export function PersonalRunGameSelectionPage({
           </p>
         ) : (
           <ul className="grid gap-1.5" role="list">
-            {selectionItems.map(({ gameId, n, idx, label, slot, hasYaml }) => (
+            {selectionItems.map(({ gameId, n, idx, label, slot, hasYaml, yamlStatus }) => (
               <li
                 className="rounded border border-border bg-background px-3 py-2"
                 key={`${gameId}-${n}`}
               >
                 <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium text-foreground">{label}</span>
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-foreground">{label}</span>
+                  {yamlStatus !== null && saveState.kind === "saved" && (
+                    <div className="mt-0.5">
+                      <SlotYamlStatusBadge status={yamlStatus} />
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-1.5">
                   {slot !== null && saveState.kind === "saved" && hasYaml && (
                     <SlotPreflightBadge
@@ -449,18 +459,7 @@ export function PersonalRunGameSelectionPage({
                     />
                   )}
                   {slot !== null && saveState.kind === "saved" && (
-                    <Link
-                      className={[
-                        "inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs font-semibold transition-colors",
-                        hasYaml
-                          ? "border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] hover:bg-[color:var(--color-success)]/20"
-                          : "border-border text-muted-foreground hover:text-foreground",
-                      ].join(" ")}
-                      href={`/runs/${runId}/slots/${slot.slotId}`}
-                    >
-                      <FileText aria-hidden className="size-3" />
-                      {hasYaml ? "YAML configuré" : "Config YAML"}
-                    </Link>
+                    <ConfigureSlotYamlLink href={`/runs/${runId}/slots/${slot.slotId}`} label={label} />
                   )}
                   <button
                     aria-label={`Retirer ${label}`}
@@ -498,6 +497,11 @@ export function PersonalRunGameSelectionPage({
           >
             {saveState.kind === "saving" ? "Sauvegarde…" : "Sauvegarder ma sélection"}
           </button>
+          {saveState.kind === "saved" && selectionItems.length > 0 && !locked && (
+            <p className="text-xs text-muted-foreground">
+              Si tu ne configures pas les options d&apos;un jeu, les valeurs par défaut seront utilisées.
+            </p>
+          )}
           {saveState.kind === "error" && (
             <p className="text-xs text-[color:var(--color-danger)]">{saveState.message}</p>
           )}
