@@ -47,7 +47,7 @@ export function EventFriendsBadge({ eventId, eventIds }: Props) {
   const names = friends.map((card) => card.displayName ?? card.slug).join(", ");
 
   return (
-    <p className="inline-flex items-center gap-2 text-sm text-muted-foreground" title={names}>
+    <div className="inline-flex items-center gap-2 text-sm text-muted-foreground" title={names}>
       <span className="flex -space-x-2">
         {friends.slice(0, VISIBLE).map((card) => (
           <MemberAvatar
@@ -67,6 +67,6 @@ export function EventFriendsBadge({ eventId, eventIds }: Props) {
         ) : null}
       </span>
       <span className="font-medium text-foreground">{eventFriendsLine(friends.length)}</span>
-    </p>
+    </div>
   );
 }

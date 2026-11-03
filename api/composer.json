@@ -112,6 +112,13 @@
             "@arch",
             "@rector",
             "@test"
+        ],
+        "gates:fast": [
+            "@phpstan",
+            "@cs-fixer",
+            "@arch",
+            "@rector",
+            "@test:parallel"
         ]
     },
     "conflict": {
