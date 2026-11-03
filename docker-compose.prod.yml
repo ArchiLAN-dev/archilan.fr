@@ -14,7 +14,8 @@ services:
         restart: always
         env_file: envs/postgres.env
         ports:
-            - 5434:5432
+            # Boucle locale seulement : l'administration à distance passe par un tunnel SSH.
+            - 127.0.0.1:5434:5432
         volumes:
             - postgres-data:/var/lib/postgresql/data
         healthcheck:
@@ -65,13 +66,6 @@ services:
             - "traefik.http.routers.minio-web.service=minio-s3"
             - "traefik.http.services.minio-s3.loadbalancer.server.port=9000"
 
-            # Console - sous-domaine séparé
-            - "traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_DOMAIN}`)"
-            - "traefik.http.routers.minio-console.entrypoints=websecure"
-            - "traefik.http.routers.minio-console.tls.certresolver=https"
-            - "traefik.http.routers.minio-console.service=minio-console"
-            - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
-
     createbuckets:
         # Meme raison que le service minio ; pgsty/mc ne publie que `latest`.
         image: pgsty/mc:latest
@@ -86,7 +80,8 @@ services:
             mc mb --ignore-existing local/sessions;
             mc mb --ignore-existing local/media;
             mc mb --ignore-existing local/media-public;
-            mc anonymous set download local/media-public;
+            printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::media-public/*\"]}]}' > /tmp/media-public.json;
+            mc anonymous set-json /tmp/media-public.json local/media-public;
             "
 
     mercure:
@@ -124,6 +119,7 @@ services:
         networks:
             - default
             - traefik
+            - callbacks
         labels:
             - "traefik.enable=true"
             - "traefik.docker.network=traefik"
@@ -171,6 +167,7 @@ services:
             - api-archives:/var/archilan/archives
         networks:
             - default
+            - callbacks
 
     frontend:
         image: ghcr.io/archilan-dev/frontend:${ARCHILAN_VERSION}
@@ -199,16 +196,9 @@ services:
         # GID du groupe docker de l'hôte : l'orchestrateur pilote le démon par sa socket.
         group_add:
             - "${DOCKER_GID:-994}"
+        # Aucune route publique : l'API le joint sur le réseau interne (RUNNER_BASE_URL).
         networks:
             - default
-            - traefik
-        labels:
-            - "traefik.enable=true"
-            - "traefik.docker.network=traefik"
-            - "traefik.http.routers.orchestrateur.rule=Host(`${ORCHESTRATEUR_DOMAIN}`)"
-            - "traefik.http.routers.orchestrateur.entrypoints=websecure"
-            - "traefik.http.routers.orchestrateur.tls.certresolver=https"
-            - "traefik.http.services.orchestrateur.loadbalancer.server.port=8000"
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - orchestrateur-data:/data
@@ -273,6 +263,11 @@ networks:
     # de session doivent rejoindre (PROXY_NETWORK côté orchestrateur).
     traefik:
         external: true
+    # Réseau interne (sans accès à Internet) entre les bridges et l'API. Créé à la main comme les
+    # réseaux des sessions : voir docs/deploiement-production.md, « Cloisonnement des sessions ».
+    callbacks:
+        external: true
+        name: archilan-callbacks
 
 volumes:
     postgres-data:

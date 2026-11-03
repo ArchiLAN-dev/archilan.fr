@@ -5,6 +5,16 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.56.2] - 2026-11-03
+
+Correctif de sécurité, à déployer avec les nouvelles images `orchestrateur`, `archipelago` et `bridge`.
+
+### Sécurité
+
+- **Import de seed** (50.1) : seuls les fichiers `.zip` et `.archipelago` sont acceptés.
+- **Webhook HelloAsso** (50.1) : le payeur, le formulaire et la date viennent uniquement de la commande relue chez
+  HelloAsso, et une commande sans article traité n'est plus déclarée payée.
+
 ## [0.56.1] - 2026-11-03
 
 ### Corrigé
