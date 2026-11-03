@@ -9,6 +9,7 @@ use App\Identity\Application\Command\LinkDiscordToAccount;
 use App\Identity\Application\Command\UnlinkDiscordFromAccount;
 use App\Identity\Application\Port\DiscordOAuthClientInterface;
 use App\Identity\Application\Support\DiscordStateToken;
+use App\Identity\Presentation\Support\DiscordStateCookie;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -19,6 +20,8 @@ use Symfony\Component\Routing\Attribute\Route;
 final readonly class DiscordLinkController
 {
     use RequiresAuthTrait;
+
+    private const string CALLBACK_PATH = '/api/v1/account/discord/link/callback';
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
@@ -40,13 +43,25 @@ final readonly class DiscordLinkController
             return $user;
         }
 
-        $state = $this->stateToken->generate('link', $user->getId());
+        $nonce = $this->stateToken->newNonce();
+        $state = $this->stateToken->generate('link', $nonce, $user->getId());
 
-        return new RedirectResponse($this->discordClient->buildAuthorizationUrl($this->discordRedirectUriLink, $state));
+        $response = new RedirectResponse($this->discordClient->buildAuthorizationUrl($this->discordRedirectUriLink, $state));
+        $response->headers->setCookie(DiscordStateCookie::issue($nonce, self::CALLBACK_PATH));
+
+        return $response;
     }
 
-    #[Route('/api/v1/account/discord/link/callback', name: 'api_identity_discord_link_callback', methods: ['GET'])]
+    #[Route(self::CALLBACK_PATH, name: 'api_identity_discord_link_callback', methods: ['GET'])]
     public function linkCallback(Request $request): RedirectResponse
+    {
+        $response = $this->completeLink($request);
+        DiscordStateCookie::clear($response, self::CALLBACK_PATH);
+
+        return $response;
+    }
+
+    private function completeLink(Request $request): RedirectResponse
     {
         $state = $request->query->getString('state');
         $code = $request->query->getString('code');
@@ -56,7 +71,7 @@ final readonly class DiscordLinkController
             return new RedirectResponse($this->siteUrl.'/compte/securite?discord_link_error=access_denied');
         }
 
-        $userId = $this->stateToken->verify($state, 'link');
+        $userId = $this->stateToken->verify($state, 'link', DiscordStateCookie::read($request));
         if (null === $userId || '' === $userId) {
             return new RedirectResponse($this->siteUrl.'/compte/securite?discord_link_error=access_denied');
         }

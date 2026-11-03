@@ -12,6 +12,7 @@ use App\Identity\Application\Support\DiscordStateToken;
 use App\Identity\Application\Support\ModerationContactPass;
 use App\Identity\Application\Support\RefreshTokenFactory;
 use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
+use App\Identity\Presentation\Support\DiscordStateCookie;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,6 +20,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class DiscordAuthController
 {
+    private const string CALLBACK_PATH = '/api/v1/auth/discord/callback';
+
     public function __construct(
         private DiscordOAuthClientInterface $discordClient,
         private DiscordStateToken $stateToken,
@@ -35,19 +38,31 @@ final readonly class DiscordAuthController
     #[Route('/api/v1/auth/discord', name: 'api_identity_discord_auth', methods: ['GET'])]
     public function redirect(): RedirectResponse
     {
-        $state = $this->stateToken->generate('auth');
+        $nonce = $this->stateToken->newNonce();
+        $state = $this->stateToken->generate('auth', $nonce);
 
-        return new RedirectResponse($this->discordClient->buildAuthorizationUrl($this->discordRedirectUriAuth, $state));
+        $response = new RedirectResponse($this->discordClient->buildAuthorizationUrl($this->discordRedirectUriAuth, $state));
+        $response->headers->setCookie(DiscordStateCookie::issue($nonce, self::CALLBACK_PATH));
+
+        return $response;
     }
 
-    #[Route('/api/v1/auth/discord/callback', name: 'api_identity_discord_callback', methods: ['GET'])]
+    #[Route(self::CALLBACK_PATH, name: 'api_identity_discord_callback', methods: ['GET'])]
     public function callback(Request $request): RedirectResponse
+    {
+        $response = $this->completeSignIn($request);
+        DiscordStateCookie::clear($response, self::CALLBACK_PATH);
+
+        return $response;
+    }
+
+    private function completeSignIn(Request $request): RedirectResponse
     {
         $state = $request->query->getString('state');
         $code = $request->query->getString('code');
         $error = $request->query->getString('error');
 
-        if ('' !== $error || null === $this->stateToken->verify($state, 'auth')) {
+        if ('' !== $error || null === $this->stateToken->verify($state, 'auth', DiscordStateCookie::read($request))) {
             return new RedirectResponse($this->siteUrl.'/connexion?discord_error=access_denied');
         }
 
