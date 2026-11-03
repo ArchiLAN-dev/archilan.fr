@@ -26,6 +26,7 @@ use App\Registrations\Application\Message\ProcessUnconfirmedRegistrationsMessage
 use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\Wallet\Application\Message\AwardWeeklyQuestsMessage;
+use App\Wallet\Application\Message\CollectMinimapperzGamesMessage;
 use App\Wallet\Application\Message\ExpireEventPellesMessage;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
 use App\WeeklyRuns\Application\Message\ResolveWeeklyDuelsMessage;
@@ -85,6 +86,11 @@ final readonly class Schedule implements ScheduleProviderInterface
             ->add(
                 // Les pelles d'un événement terminé : 10 % en or, le reste détruit (story 41.2).
                 RecurringMessage::cron('50 * * * *', new ExpireEventPellesMessage()),
+            )
+            ->add(
+                // Story 49.3: the Minimapperz games of the running events, credited in event pelles. A pull: their
+                // organiser API has no webhook. Async, the HTTP call never holds the scheduler.
+                RecurringMessage::every('1 minute', new CollectMinimapperzGamesMessage()),
             )
             ->add(
                 // Les primes encore ouvertes d'une partie terminée sont rendues à leur poseur (story 41.4).

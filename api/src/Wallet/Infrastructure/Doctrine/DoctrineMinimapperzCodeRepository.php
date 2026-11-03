@@ -31,6 +31,16 @@ final readonly class DoctrineMinimapperzCodeRepository implements MinimapperzCod
         return $added;
     }
 
+    public function holderOf(string $eventId, string $code): ?string
+    {
+        $userId = $this->connection->fetchOne(
+            'SELECT user_id FROM minimapperz_code WHERE event_id = :event AND code = :code',
+            ['event' => $eventId, 'code' => $code],
+        );
+
+        return is_string($userId) ? $userId : null;
+    }
+
     public function codeOf(string $eventId, string $userId): ?string
     {
         $code = $this->connection->fetchOne(

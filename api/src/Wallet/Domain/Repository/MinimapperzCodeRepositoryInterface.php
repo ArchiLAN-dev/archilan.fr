@@ -19,6 +19,9 @@ interface MinimapperzCodeRepositoryInterface
      */
     public function addCodes(string $eventId, array $codes, \DateTimeImmutable $now): int;
 
+    /** Story 49.3: the member a code of the event was handed to, if any. */
+    public function holderOf(string $eventId, string $code): ?string;
+
     /** The code the member holds for the event, if any. */
     public function codeOf(string $eventId, string $userId): ?string;
 

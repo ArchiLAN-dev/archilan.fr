@@ -19,6 +19,11 @@ final readonly class DoctrineMinimapperzSettingRepository implements Minimapperz
         return $this->entityManager->find(MinimapperzSetting::class, $eventId);
     }
 
+    public function findEnabled(): array
+    {
+        return $this->entityManager->getRepository(MinimapperzSetting::class)->findBy(['enabled' => true], ['eventId' => 'ASC']);
+    }
+
     public function save(MinimapperzSetting $setting): void
     {
         $this->entityManager->persist($setting);

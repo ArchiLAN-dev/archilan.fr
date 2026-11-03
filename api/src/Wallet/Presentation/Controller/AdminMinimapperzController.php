@@ -6,6 +6,7 @@ namespace App\Wallet\Presentation\Controller;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
+use App\Wallet\Application\Query\MinimapperzPlayers;
 use App\Wallet\Application\Service\MinimapperzCodes;
 use App\Wallet\Application\Service\MinimapperzSettings;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * An event's link to Minimapperz, admin side (story 49.1): slug, API key (written, never read back), what a game is
  * worth in pelles, and a connection check. Story 49.2: the codes Minimapperz gave, imported and handed to the
- * registrants.
+ * registrants. Story 49.3: the players seen on Minimapperz, and who among them is linked to no registrant.
  */
 final readonly class AdminMinimapperzController
 {
@@ -25,6 +26,7 @@ final readonly class AdminMinimapperzController
         private ApiAccessGuard $apiAccessGuard,
         private MinimapperzSettings $settings,
         private MinimapperzCodes $codes,
+        private MinimapperzPlayers $players,
     ) {
     }
 
@@ -122,5 +124,16 @@ final readonly class AdminMinimapperzController
         }
 
         return new JsonResponse(['data' => $this->codes->detach($eventId, $code)]);
+    }
+
+    #[Route('/api/v1/admin/events/{eventId}/minimapperz/players', name: 'api_wallet_admin_minimapperz_players', methods: ['GET'])]
+    public function players(Request $request, string $eventId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return new JsonResponse(['data' => $this->players->of($eventId)]);
     }
 }

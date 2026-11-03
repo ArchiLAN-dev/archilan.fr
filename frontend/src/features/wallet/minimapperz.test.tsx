@@ -3,9 +3,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { server } from "@/tests/setup";
 import { TEST_API_BASE_URL } from "@/tests/constants";
-import { AdminMinimapperzCard, minimapperzCheckMessage } from "./admin-minimapperz-card";
+import { AdminMinimapperzCard, minimapperzCheckMessage, minimapperzCollectionMessage } from "./admin-minimapperz-card";
+import { PlayersBody } from "./admin-minimapperz-players";
+import { pelleReasonLabel } from "./wallet-api";
 import { resolveEventPellesTab } from "./admin-event-pelles-page";
-import { checkMinimapperzConnection, isMinimapperzCheck, isMinimapperzSettings, saveMinimapperzSettings, type MinimapperzSettings } from "./minimapperz-api";
+import {
+  checkMinimapperzConnection,
+  fetchMinimapperzPlayers,
+  isMinimapperzCheck,
+  isMinimapperzPlayers,
+  isMinimapperzSettings,
+  saveMinimapperzSettings,
+  type MinimapperzSettings,
+} from "./minimapperz-api";
 
 const settings: MinimapperzSettings = {
   enabled: true,
@@ -15,6 +25,7 @@ const settings: MinimapperzSettings = {
   pellesPerGame: 1,
   pellesPerWin: 2,
   capPerPlayer: 50,
+  collection: { at: null, status: null, games: 0, credited: 0, until: null },
 };
 
 const event = { slug: "archilan-test", name: "ArchiLAN test", opensAt: "2026-11-02T20:25:00+00:00", closesAt: "2026-11-07T20:25:00+00:00", isOpen: true };
@@ -105,5 +116,40 @@ describe("Minimapperz (story 49.1)", () => {
   it("is a tab of the event's pelles while the event runs", () => {
     expect(resolveEventPellesTab("minimapperz", false)).toBe("minimapperz");
     expect(resolveEventPellesTab("minimapperz", true)).toBe("membres");
+  });
+});
+
+describe("Minimapperz collection (story 49.3)", () => {
+  it("tells how the last collection went", () => {
+    expect(minimapperzCollectionMessage({ at: null, status: null, games: 0, credited: 0, until: null })).toBeNull();
+    const ok = minimapperzCollectionMessage({ at: "2026-11-07T18:00:00+00:00", status: "ok", games: 3, credited: 7, until: "2026-11-07T17:59:00+00:00" });
+    expect(ok?.tone).toBe("ok");
+    expect(ok?.text).toContain("3 parties lues, 7 pelles créditées.");
+    expect(minimapperzCollectionMessage({ at: "2026-11-07T18:00:00+00:00", status: "unauthorized", games: 0, credited: 0, until: null })?.text).toContain("la collecte est coupée");
+    expect(minimapperzCollectionMessage({ at: "2026-11-07T18:00:00+00:00", status: "unreachable", games: 0, credited: 0, until: null })?.tone).toBe("error");
+  });
+
+  it("reads the players and lists the unlinked ones first", async () => {
+    const players = {
+      status: "ok",
+      players: [
+        { username: "stranger", code: null, games: 1, wins: 0, member: null, linked: false },
+        { username: "alice_mmz", code: "MMZ-A", games: 2, wins: 1, member: "Alice", linked: true },
+      ],
+    };
+    expect(isMinimapperzPlayers(players)).toBe(true);
+    expect(isMinimapperzPlayers({ status: "boom", players: [] })).toBe(false);
+    server.use(http.get(`${TEST_API_BASE_URL}/admin/events/e-1/minimapperz/players`, () => HttpResponse.json({ data: players })));
+    await expect(fetchMinimapperzPlayers("e-1")).resolves.toEqual(players);
+
+    const html = renderToStaticMarkup(<PlayersBody data={isMinimapperzPlayers(players) ? players : null} isFetching={false} />);
+    expect(html).toContain("1 joueur sans code d&#x27;inscrit");
+    expect(html).toContain("Non relié");
+    expect(html).toContain("Alice");
+    expect(renderToStaticMarkup(<PlayersBody data={{ status: "unauthorized", players: [] }} isFetching={false} />)).toContain("refuse la clé");
+  });
+
+  it("names the reason in the wallet history", () => {
+    expect(pelleReasonLabel("minimapperz")).toBe("Minimapperz");
   });
 });

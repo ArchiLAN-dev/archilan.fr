@@ -39,4 +39,6 @@ enum PelleReason: string
     case BronzeRestored = 'bronze_restored';
     // Story 41.40: a source found at the blind test of an event, credited by its app.
     case BlindTest = 'blind_test';
+    // Story 49.3: a Minimapperz game played (or won) at the LAN of an event, read from Minimapperz's API.
+    case Minimapperz = 'minimapperz';
 }
