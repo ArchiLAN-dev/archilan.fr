@@ -76,6 +76,12 @@ final readonly class PersonalRunSeedImport
             return $this->result(found: true, errors: ['file' => ['Le fichier dépasse la taille maximale autorisée.']]);
         }
 
+        // The name decides where the file lands in the session volume, and that directory is also
+        // where the bridge reads saves from: anything but an output archive stays out of it.
+        if (1 !== preg_match('/\.(zip|archipelago)$/i', $this->safeFilename($filename))) {
+            return $this->result(found: true, errors: ['file' => ['Seuls les fichiers .zip et .archipelago sont acceptés.']]);
+        }
+
         $inspection = $this->seeds->inspect($contents, $this->safeFilename($filename));
         if (isset($inspection['error'])) {
             return $this->result(found: true, errors: ['file' => [$this->message($inspection['error'])]]);

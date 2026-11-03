@@ -35,7 +35,7 @@ final class HandleHelloAssoWebhookTest extends TestCase
         $client = self::createStub(HelloAssoClientInterface::class);
         $client->method('getAccessToken')->willThrowException(new \RuntimeException('401 Unauthorized'));
 
-        $this->webhook($client)->handle(42, HelloAssoConfig::FORM_TYPE_MEMBERSHIP, self::MEMBERSHIP_SLUG, 'payer@example.org', new \DateTimeImmutable('2026-09-27'));
+        $this->webhook($client)->handle(42, HelloAssoConfig::FORM_TYPE_MEMBERSHIP, self::MEMBERSHIP_SLUG);
 
         self::assertSame([], $this->bus->messagesOf(HelloAssoOrderPaidMessage::class), 'an unverified order is not reported paid');
         $syncs = $this->bus->messagesOf(SyncHelloAssoFormMessage::class);
@@ -49,7 +49,7 @@ final class HandleHelloAssoWebhookTest extends TestCase
         $client->method('getAccessToken')->willReturn('token');
         $client->method('fetchOrder')->willReturn(null);
 
-        $this->webhook($client)->handle(42, HelloAssoConfig::FORM_TYPE_MEMBERSHIP, self::MEMBERSHIP_SLUG, 'payer@example.org', new \DateTimeImmutable('2026-09-27'));
+        $this->webhook($client)->handle(42, HelloAssoConfig::FORM_TYPE_MEMBERSHIP, self::MEMBERSHIP_SLUG);
 
         self::assertSame([], $this->bus->messagesOf(HelloAssoOrderPaidMessage::class));
         self::assertCount(1, $this->bus->messagesOf(SyncHelloAssoFormMessage::class));
@@ -61,9 +61,9 @@ final class HandleHelloAssoWebhookTest extends TestCase
         // used to say so.
         $client = self::createStub(HelloAssoClientInterface::class);
         $client->method('getAccessToken')->willReturn('token');
-        $client->method('fetchOrder')->willReturn(['orderId' => 42, 'amountCents' => 2500, 'payerEmail' => 'payer@example.org', 'payerFirstName' => null, 'payerLastName' => null, 'paidAt' => null]);
+        $client->method('fetchOrder')->willReturn(self::order(formSlug: 'adhesion-2027'));
 
-        $this->webhook($client)->handle(42, HelloAssoConfig::FORM_TYPE_MEMBERSHIP, 'adhesion-2027', 'payer@example.org', new \DateTimeImmutable('2026-09-27'));
+        $this->webhook($client)->handle(42, HelloAssoConfig::FORM_TYPE_MEMBERSHIP, 'adhesion-2027');
 
         self::assertContains(['level' => 'warning', 'message' => 'helloasso.webhook.membership_form_mismatch'], $this->logger->logs);
     }
@@ -72,11 +72,58 @@ final class HandleHelloAssoWebhookTest extends TestCase
     {
         $client = self::createStub(HelloAssoClientInterface::class);
         $client->method('getAccessToken')->willReturn('token');
-        $client->method('fetchOrder')->willReturn(['orderId' => 42, 'amountCents' => 2500, 'payerEmail' => 'payer@example.org', 'payerFirstName' => null, 'payerLastName' => null, 'paidAt' => null]);
+        $client->method('fetchOrder')->willReturn(self::order(formSlug: 'boutique', formType: 'PaymentForm'));
 
-        $this->webhook($client)->handle(42, HelloAssoConfig::FORM_TYPE_SHOP, 'boutique', 'payer@example.org', new \DateTimeImmutable('2026-09-27'));
+        $this->webhook($client)->handle(42, HelloAssoConfig::FORM_TYPE_SHOP, 'boutique');
 
         self::assertNotContains(['level' => 'warning', 'message' => 'helloasso.webhook.membership_form_mismatch'], $this->logger->logs);
+    }
+
+    public function testThePaidMessageCarriesTheOrderHelloAssoReturnedNotTheRequest(): void
+    {
+        // The webhook is not signed: a forged body naming a real order must not choose the payer.
+        $client = self::createStub(HelloAssoClientInterface::class);
+        $client->method('getAccessToken')->willReturn('token');
+        $client->method('fetchOrder')->willReturn(self::order());
+
+        $this->webhook($client)->handle(42, HelloAssoConfig::FORM_TYPE_SHOP, 'forged-form');
+
+        $paid = $this->bus->messagesOf(HelloAssoOrderPaidMessage::class);
+        self::assertCount(1, $paid);
+        self::assertSame('payer@example.org', $paid[0]->payerEmail);
+        self::assertSame(self::MEMBERSHIP_SLUG, $paid[0]->formSlug);
+        self::assertEquals(new \DateTimeImmutable('2026-09-27'), $paid[0]->paidAt);
+        self::assertSame(self::MEMBERSHIP_SLUG, $this->bus->messagesOf(SyncHelloAssoFormMessage::class)[0]->formSlug);
+    }
+
+    public function testAnOrderThatIsNotPaidIsNotReportedPaid(): void
+    {
+        $client = self::createStub(HelloAssoClientInterface::class);
+        $client->method('getAccessToken')->willReturn('token');
+        $client->method('fetchOrder')->willReturn(self::order(isPaid: false));
+
+        $this->webhook($client)->handle(42, HelloAssoConfig::FORM_TYPE_MEMBERSHIP, self::MEMBERSHIP_SLUG);
+
+        self::assertSame([], $this->bus->messagesOf(HelloAssoOrderPaidMessage::class));
+        self::assertCount(1, $this->bus->messagesOf(SyncHelloAssoFormMessage::class));
+    }
+
+    /**
+     * @return array{orderId: int, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null, formSlug: string|null, formType: string|null, isPaid: bool}
+     */
+    private static function order(string $formSlug = self::MEMBERSHIP_SLUG, string $formType = 'Membership', bool $isPaid = true): array
+    {
+        return [
+            'orderId' => 42,
+            'amountCents' => 2500,
+            'payerEmail' => 'payer@example.org',
+            'payerFirstName' => null,
+            'payerLastName' => null,
+            'paidAt' => new \DateTimeImmutable('2026-09-27'),
+            'formSlug' => $formSlug,
+            'formType' => $formType,
+            'isPaid' => $isPaid,
+        ];
     }
 
     private function webhook(HelloAssoClientInterface $client): HandleHelloAssoWebhook

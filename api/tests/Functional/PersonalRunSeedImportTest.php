@@ -57,6 +57,21 @@ final class PersonalRunSeedImportTest extends FunctionalTestCase
         self::assertSame([], $slots[0]['assignedUserIds']);
     }
 
+    /** That directory is where the bridge reads saves from: a forged save must never land in it. */
+    public function testAFileThatIsNotAnOutputArchiveIsRefused(): void
+    {
+        [$owner, , $run] = $this->party();
+        $this->loginAs($owner);
+
+        $this->upload($run->getId(), 'forged.apsave');
+
+        self::assertResponseStatusCodeSame(422);
+
+        $this->client->jsonRequest('GET', '/api/v1/runs/'.$run->getId());
+        self::assertResponseIsSuccessful();
+        self::assertFalse($this->payload()['importedSeed']);
+    }
+
     /** The archive is refused before anything is written, with the reason. */
     public function testAnUnreadableArchiveIsRefused(): void
     {
@@ -282,7 +297,7 @@ final class PersonalRunSeedImportTest extends FunctionalTestCase
         return $session;
     }
 
-    private function upload(string $runId): void
+    private function upload(string $runId, string $filename = 'AP_123.zip'): void
     {
         $path = tempnam(sys_get_temp_dir(), 'seed');
         self::assertIsString($path);
@@ -292,7 +307,7 @@ final class PersonalRunSeedImportTest extends FunctionalTestCase
             'POST',
             '/api/v1/runs/'.$runId.'/seed',
             [],
-            ['file' => new UploadedFile($path, 'AP_123.zip', 'application/zip', null, true)],
+            ['file' => new UploadedFile($path, $filename, 'application/zip', null, true)],
         );
     }
 

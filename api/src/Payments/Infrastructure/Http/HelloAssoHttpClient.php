@@ -42,7 +42,7 @@ final readonly class HelloAssoHttpClient implements HelloAssoClientInterface
     }
 
     /**
-     * @return array{orderId: int, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null}|null
+     * @return array{orderId: int, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null, formSlug: string|null, formType: string|null, isPaid: bool}|null
      */
     public function fetchOrder(int $orderId, string $accessToken): ?array
     {
@@ -178,9 +178,10 @@ final readonly class HelloAssoHttpClient implements HelloAssoClientInterface
 
     /**
      * Parses the response from GET /orders/{id} (no nested "order" wrapper).
-     * Note: HelloAsso v5 does not expose a top-level state field on this endpoint.
+     * Note: HelloAsso v5 does not expose a top-level state field on this endpoint: an order counts as
+     * paid when one of its items is processed, the rule the form sync applies to the same items.
      *
-     * @return array{orderId: int, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null}|null
+     * @return array{orderId: int, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null, formSlug: string|null, formType: string|null, isPaid: bool}|null
      */
     private function parseOrderDirect(mixed $data): ?array
     {
@@ -217,6 +218,18 @@ final readonly class HelloAssoHttpClient implements HelloAssoClientInterface
             'payerFirstName' => $payerFirstName,
             'payerLastName' => $payerLastName,
             'paidAt' => $paidAt,
+            'formSlug' => is_string($data['formSlug'] ?? null) && '' !== $data['formSlug'] ? $data['formSlug'] : null,
+            'formType' => is_string($data['formType'] ?? null) && '' !== $data['formType'] ? $data['formType'] : null,
+            'isPaid' => $this->hasProcessedItem($data['items'] ?? null),
         ];
+    }
+
+    private function hasProcessedItem(mixed $items): bool
+    {
+        if (!is_array($items)) {
+            return false;
+        }
+
+        return array_any($items, static fn (mixed $item): bool => is_array($item) && 'Processed' === ($item['state'] ?? null));
     }
 }
