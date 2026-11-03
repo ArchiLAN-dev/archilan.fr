@@ -11,6 +11,7 @@ use App\Wallet\Application\Support\MinimapperzEvent;
 use App\Wallet\Application\Support\MinimapperzGame;
 use App\Wallet\Application\Support\MinimapperzGamePlayer;
 use App\Wallet\Application\Support\MinimapperzPlayer;
+use App\Wallet\Application\Support\MinimapperzRankingEntry;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -85,6 +86,27 @@ final readonly class MinimapperzHttpClient implements MinimapperzClientInterface
         }
 
         return $players;
+    }
+
+    public function ranking(string $slug, string $apiKey): array
+    {
+        $data = $this->get(sprintf('/api/v1/organiser/events/%s/ranking', rawurlencode($slug)), $apiKey);
+
+        $entries = [];
+        foreach ($this->rows($data) as $row) {
+            $rank = $row['rank'] ?? null;
+            $username = $row['username'] ?? null;
+            $code = $row['code'] ?? null;
+            $score = $row['score'] ?? null;
+            $games = $row['games'] ?? null;
+            $wins = $row['wins'] ?? null;
+            if (!is_int($rank) || !is_string($username) || (null !== $code && !is_string($code)) || !(is_int($score) || is_float($score)) || !is_int($games) || !is_int($wins)) {
+                throw new MinimapperzUnavailableException('Minimapperz answered a ranking line without its expected fields.');
+            }
+            $entries[] = new MinimapperzRankingEntry($rank, $username, $code, (float) $score, $games, $wins);
+        }
+
+        return $entries;
     }
 
     private function gamePlayer(mixed $player): MinimapperzGamePlayer

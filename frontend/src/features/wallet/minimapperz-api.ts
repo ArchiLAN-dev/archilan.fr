@@ -309,3 +309,50 @@ export async function fetchMinimapperzPlayers(eventId: string): Promise<Minimapp
     return null;
   }
 }
+
+/** Story 49.4: the public board of an event, for the régie screen. */
+export type MinimapperzBoardLine = { rank: number; name: string; score: number; games: number; wins: number };
+
+export type MinimapperzBoardGame = { id: string; playedAt: string; winner: string | null; players: number };
+
+export type MinimapperzBoard = {
+  status: "ok" | "unavailable" | "unreachable";
+  eventTitle: string;
+  ranking: MinimapperzBoardLine[];
+  recent: MinimapperzBoardGame[];
+};
+
+function isBoardLine(v: unknown): v is MinimapperzBoardLine {
+  return typeof v === "object" && v !== null && hasNumberProp(v, "rank") && hasStringProp(v, "name") && hasNumberProp(v, "score") && hasNumberProp(v, "games") && hasNumberProp(v, "wins");
+}
+
+function isBoardGame(v: unknown): v is MinimapperzBoardGame {
+  return typeof v === "object" && v !== null && hasStringProp(v, "id") && hasStringProp(v, "playedAt") && hasNullableStringProp(v, "winner") && hasNumberProp(v, "players");
+}
+
+export function isMinimapperzBoard(v: unknown): v is MinimapperzBoard {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "status") &&
+    ["ok", "unavailable", "unreachable"].includes(v.status) &&
+    hasStringProp(v, "eventTitle") &&
+    "ranking" in v &&
+    Array.isArray(v.ranking) &&
+    v.ranking.every(isBoardLine) &&
+    "recent" in v &&
+    Array.isArray(v.recent) &&
+    v.recent.every(isBoardGame)
+  );
+}
+
+export async function fetchMinimapperzBoard(eventId: string): Promise<MinimapperzBoard | null> {
+  try {
+    const res = await fetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/minimapperz/board`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return isMinimapperzBoard(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
