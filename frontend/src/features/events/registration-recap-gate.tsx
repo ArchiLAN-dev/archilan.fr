@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle, Settings, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, XCircle } from "lucide-react";
 
 import { RegistrationStepper } from "@/features/events/registration-stepper";
 import { SlotNeedsReview } from "@/features/games/slot-needs-review";
+import { ConfigureSlotYamlLink, resolveSlotYamlStatus, SlotYamlStatusBadge } from "@/features/games/slot-yaml-status";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -15,7 +16,6 @@ import { DiscordNudge } from "@/features/discord/discord-promo";
 import {
   fetchAuthProbe,
   fetchRegistrationRecap,
-  type RecapGame,
   type RecapSlot,
   type RegistrationRecapResult,
 } from "./events-api";
@@ -252,7 +252,7 @@ export function RegistrationRecapGate({
             <ul className="divide-y divide-border rounded-lg border border-border" role="list">
               {labeledSlots.map(({ slot, label }) => {
                 const game = data.gameMap.get(slot.gameId);
-                const yamlStatus = resolveYamlStatus(slot, game);
+                const yamlStatus = resolveSlotYamlStatus(slot, game);
                 return (
                   <li
                     key={slot.slotId}
@@ -261,18 +261,15 @@ export function RegistrationRecapGate({
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold leading-tight text-foreground">{label}</p>
                       <div className="mt-1">
-                        <YamlStatusBadge status={yamlStatus} />
+                        <SlotYamlStatusBadge status={yamlStatus} />
                       </div>
                       <SlotNeedsReview reasons={slot.needsReview} />
                     </div>
                     {game?.isApworldReady ? (
-                      <Link
-                        className="shrink-0 inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-accent hover:text-accent-text"
+                      <ConfigureSlotYamlLink
                         href={`/evenements/${eventSlug}/inscription/${registrationId}/slots/${slot.slotId}`}
-                      >
-                        <Settings aria-hidden="true" className="size-3.5" />
-                        Configurer
-                      </Link>
+                        label={label}
+                      />
                     ) : null}
                   </li>
                 );
@@ -316,42 +313,6 @@ export function RegistrationRecapGate({
         </div>
       </div>
     </article>
-  );
-}
-
-// ─── YAML status ──────────────────────────────────────────────────────────────
-
-type YamlStatusKind = "custom" | "default" | "required" | "none";
-
-function resolveYamlStatus(slot: RecapSlot, game: RecapGame | undefined): YamlStatusKind {
-  if (!game?.isApworldReady) return "none";
-  if (!slot.playerYaml) return game.defaultYaml ? "default" : "required";
-  if (slot.playerYaml === game?.defaultYaml) return "default";
-  return "custom";
-}
-
-function YamlStatusBadge({ status }: { status: YamlStatusKind }) {
-  if (status === "none") {
-    return <span className="text-xs text-muted-foreground">-</span>;
-  }
-  if (status === "custom") {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
-        <CheckCircle aria-hidden="true" className="size-3.5" />
-        Personnalisé
-      </span>
-    );
-  }
-  if (status === "default") {
-    return (
-      <span className="text-xs font-medium text-muted-foreground">Par défaut</span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-accent-warm">
-      <AlertCircle aria-hidden="true" className="size-3.5" />
-      À configurer
-    </span>
   );
 }
 
