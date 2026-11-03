@@ -102,6 +102,27 @@ final class WeeklyDuelTest extends FunctionalTestCase
         ));
     }
 
+    public function testOnlyAChallengedFriendAnswersADuel(): void
+    {
+        $alice = $this->friend('alice');
+        $duelId = $this->challenge([$alice->getId()]);
+        self::assertResponseStatusCodeSame(201);
+
+        $this->loginAs($this->createUser('stranger@example.org', displayName: 'Stranger', slug: 'stranger'));
+        foreach (['accept', 'decline'] as $answer) {
+            $this->client->request('POST', '/api/v1/weekly-duels/'.$duelId.'/'.$answer);
+            self::assertResponseStatusCodeSame(404);
+        }
+
+        $this->client->getCookieJar()->clear();
+        $this->client->request('POST', '/api/v1/weekly-duels/'.$duelId.'/accept');
+        self::assertResponseStatusCodeSame(401);
+
+        $this->loginAs($alice);
+        $this->client->request('POST', '/api/v1/weekly-duels/'.$duelId.'/accept');
+        self::assertResponseStatusCodeSame(200, 'the refusals above answered nothing in her place');
+    }
+
     public function testTheBestTimeAtTheGoalWinsWhenTheWeekEnds(): void
     {
         $alice = $this->friend('alice');
