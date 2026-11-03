@@ -16,6 +16,8 @@ final class RegistrationConfirmationEmail extends ArchilanEmail
         private readonly string $eventStartsAt,
         private readonly string $eventVenue,
         private readonly array $selectedGameNames,
+        private readonly string $registrationUrl = '',
+        private readonly string $siteUrl = '',
     ) {
     }
 
@@ -55,10 +57,31 @@ final class RegistrationConfirmationEmail extends ArchilanEmail
         🎮 Jeux sélectionnés :
         {$gameList}
 
-        Retrouve tous les détails sur le site ArchiLAN.
+        {$this->detailsLine()}
 
         À très bientôt !
         L'équipe ArchiLAN
         TEXT;
+    }
+
+    public function htmlBody(): string
+    {
+        $inner = self::heading('Inscription confirmée 🎉')
+            .self::greeting($this->recipientDisplayName ?? $this->recipientEmail)
+            .self::paragraph('Ton inscription à '.self::strong($this->eventTitle).' est confirmée. On a hâte de te voir !')
+            .self::infoBox([['📅 Date', $this->eventStartsAt], ['📍 Lieu', $this->eventVenue]])
+            .self::bulletList('🎮 Tes jeux', $this->selectedGameNames, 'Aucun jeu sélectionné.')
+            .('' !== $this->registrationUrl ? self::button($this->registrationUrl, 'Voir mon inscription') : '')
+            .self::note('À très bientôt !')
+            .self::signature();
+
+        return $this->htmlLayout($inner, "Ton inscription à {$this->eventTitle} est confirmée.", self::logoUrlFor($this->siteUrl));
+    }
+
+    private function detailsLine(): string
+    {
+        return '' !== $this->registrationUrl
+            ? "Retrouve ton inscription : {$this->registrationUrl}"
+            : 'Retrouve tous les détails sur le site ArchiLAN.';
     }
 }

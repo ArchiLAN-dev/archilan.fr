@@ -19,6 +19,7 @@ final readonly class SessionRunningHandler
         private ArchilanMailer $mailer,
         private HubInterface $mercureHub,
         private LoggerInterface $logger,
+        private string $siteUrl = '',
     ) {
     }
 
@@ -34,6 +35,7 @@ final readonly class SessionRunningHandler
             $message->port,
             $message->password,
             $message->slotNames,
+            $this->siteUrl,
         ));
     }
 

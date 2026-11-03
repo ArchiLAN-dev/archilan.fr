@@ -124,6 +124,105 @@ abstract class ArchilanEmail
         HTML;
     }
 
+    /** Story 4.15: the logo of the site, or the text wordmark without a site URL. */
+    protected static function logoUrlFor(string $siteUrl): string
+    {
+        return '' !== $siteUrl ? rtrim($siteUrl, '/').'/images/logo.webp' : '';
+    }
+
+    protected static function escape(string $value): string
+    {
+        return htmlspecialchars($value, \ENT_QUOTES | \ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    /** Story 4.15: the bricks of the card body, so a mail is a few lines rather than a page of tables. $text is escaped. */
+    protected static function heading(string $text): string
+    {
+        return '<p style="margin:0 0 20px;font-family:Inter,Arial,sans-serif;font-size:22px;font-weight:700;color:#e8edf4;line-height:1.3;">'
+            .self::escape($text).'</p>';
+    }
+
+    protected static function greeting(string $name): string
+    {
+        return '<p style="margin:0 0 16px;font-family:Inter,Arial,sans-serif;font-size:15px;color:#e8edf4;line-height:1.65;">Bonjour <strong style="color:#9580f5;">'
+            .self::escape($name).'</strong>,</p>';
+    }
+
+    /** $html is trusted markup: escape any user value before building it. */
+    protected static function paragraph(string $html): string
+    {
+        return '<p style="margin:0 0 16px;font-family:Inter,Arial,sans-serif;font-size:15px;color:#b0bec8;line-height:1.65;">'.$html.'</p>';
+    }
+
+    /** Text the author wrote (an admin message): escaped, line breaks kept. */
+    protected static function textBlock(string $text): string
+    {
+        return self::paragraph(nl2br(self::escape($text), false));
+    }
+
+    protected static function strong(string $text): string
+    {
+        return '<strong style="color:#e8edf4;">'.self::escape($text).'</strong>';
+    }
+
+    /**
+     * A framed list of label / value lines (date, place, address...). Both are escaped.
+     *
+     * @param list<array{0: string, 1: string}> $rows
+     */
+    protected static function infoBox(array $rows): string
+    {
+        $lines = '';
+        foreach ($rows as [$label, $value]) {
+            $lines .= '<tr><td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:13px;color:#7a8ba8;white-space:nowrap;vertical-align:top;">'
+                .self::escape($label).'</td><td style="padding:6px 0 6px 16px;font-family:Inter,Arial,sans-serif;font-size:14px;font-weight:600;color:#e8edf4;word-break:break-word;">'
+                .self::escape($value).'</td></tr>';
+        }
+
+        return '<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:4px 0 20px;background-color:#0d0c26;border:1px solid #281f52;border-radius:8px;">'
+            .'<tr><td style="padding:12px 18px;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">'.$lines.'</table></td></tr></table>';
+    }
+
+    /**
+     * A titled bullet list. Title and items are escaped.
+     *
+     * @param list<string> $items
+     */
+    protected static function bulletList(string $title, array $items, string $empty = ''): string
+    {
+        $html = '<p style="margin:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#7a8ba8;">'
+            .self::escape($title).'</p>';
+        if ([] === $items) {
+            return $html.self::paragraph(self::escape($empty));
+        }
+        $html .= '<ul style="margin:0 0 20px;padding-left:20px;font-family:Inter,Arial,sans-serif;font-size:15px;color:#e8edf4;line-height:1.7;">';
+        foreach ($items as $item) {
+            $html .= '<li>'.self::escape($item).'</li>';
+        }
+
+        return $html.'</ul>';
+    }
+
+    protected static function button(string $url, string $label): string
+    {
+        $href = self::escape($url);
+
+        return '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px;"><tr><td style="border-radius:8px;background-color:#231470;">'
+            .'<a href="'.$href.'" target="_blank" style="display:inline-block;padding:14px 32px;font-family:Inter,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;letter-spacing:0.2px;mso-padding-alt:14px 32px;">'
+            .self::escape($label).'</a></td></tr></table>';
+    }
+
+    /** Small grey text under the main content (signature, context of an alert). $html is trusted markup. */
+    protected static function note(string $html): string
+    {
+        return '<p style="margin:0 0 12px;font-family:Inter,Arial,sans-serif;font-size:13px;color:#7a8ba8;line-height:1.6;">'.$html.'</p>';
+    }
+
+    protected static function signature(): string
+    {
+        return self::note('L&#39;équipe ArchiLAN');
+    }
+
     private function renderLogo(string $logoUrl): string
     {
         if ('' === $logoUrl) {

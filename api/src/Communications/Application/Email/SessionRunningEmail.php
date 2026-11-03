@@ -19,6 +19,7 @@ final class SessionRunningEmail extends ArchilanEmail
         private readonly int $port,
         private readonly string $password,
         private readonly array $slotNames,
+        private readonly string $siteUrl = '',
     ) {
     }
 
@@ -75,5 +76,32 @@ final class SessionRunningEmail extends ArchilanEmail
         À tout de suite,
         L'équipe ArchiLAN
         TEXT;
+    }
+
+    public function htmlBody(): string
+    {
+        $port = (string) $this->port;
+        $inner = self::heading('Votre partie Archipelago est prête 🎮')
+            .self::greeting($this->recipientDisplayName ?? $this->recipientEmail)
+            .self::paragraph('Votre session pour '.self::strong($this->eventTitle).' est maintenant en cours !')
+            .self::bulletList('🎮 Vos slots', $this->slotNames, '(aucun slot assigné)')
+            .self::infoBox([
+                ['Adresse', ArchipelagoConnectionUri::build($this->host, $this->port)],
+                ['Hôte', $this->host],
+                ['Port', $port],
+                ['Mot de passe', $this->password],
+            ])
+            .self::bulletList('Comment se connecter', [
+                'Lancez votre client Archipelago.',
+                'Allez dans « Connect » et saisissez l\'adresse ci-dessus, votre nom de slot et le mot de passe.',
+                'Rejoignez la room et bonne session !',
+            ])
+            .self::note('Depuis un navigateur : certains clients web n&#39;ont qu&#39;un champ d&#39;adresse, collez-y '
+                .self::strong("{$this->host}:{$port}")
+                .' ; d&#39;autres ont un champ hôte et un champ port séparés. Le port fait partie de l&#39;adresse : sans lui, la connexion échoue aussitôt. Ces clients ne sont pas hébergés par ArchiLAN.')
+            .self::note('À tout de suite,')
+            .self::signature();
+
+        return $this->htmlLayout($inner, "Votre session Archipelago pour {$this->eventTitle} est prête.", self::logoUrlFor($this->siteUrl));
     }
 }

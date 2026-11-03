@@ -11,6 +11,7 @@ final class RegistrationReleasedEmail extends ArchilanEmail
         private readonly ?string $recipientDisplayName,
         private readonly string $eventTitle,
         private readonly string $eventUrl,
+        private readonly string $siteUrl = '',
     ) {
     }
 
@@ -43,5 +44,18 @@ final class RegistrationReleasedEmail extends ArchilanEmail
         À bientôt,
         L'équipe ArchiLAN
         TEXT;
+    }
+
+    public function htmlBody(): string
+    {
+        $inner = self::heading('Ta place a été libérée')
+            .self::greeting($this->recipientDisplayName ?? $this->recipientEmail)
+            .self::paragraph('Les inscriptions à '.self::strong($this->eventTitle).' sont fermées, et ton inscription n\'avait pas été confirmée : ta place a été libérée.')
+            .self::paragraph('Si c\'est une erreur, écris-nous sur le Discord ArchiLAN.')
+            .self::button($this->eventUrl, 'Voir l\'événement')
+            .self::note('À bientôt,')
+            .self::signature();
+
+        return $this->htmlLayout($inner, "Ta place à {$this->eventTitle} a été libérée.", self::logoUrlFor($this->siteUrl));
     }
 }

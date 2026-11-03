@@ -12,8 +12,10 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class RegistrationConfirmationHandler
 {
-    public function __construct(private ArchilanMailer $mailer)
-    {
+    public function __construct(
+        private ArchilanMailer $mailer,
+        private string $siteUrl = '',
+    ) {
     }
 
     public function __invoke(RegistrationConfirmationMessage $message): void
@@ -25,6 +27,10 @@ final readonly class RegistrationConfirmationHandler
             $message->eventStartsAt,
             $message->eventVenue,
             $message->selectedGameNames,
+            '' !== $message->eventId && '' !== $message->registrationId
+                ? sprintf('%s/evenements/%s/inscription/%s/recap', rtrim($this->siteUrl, '/'), $message->eventId, $message->registrationId)
+                : '',
+            $this->siteUrl,
         ));
     }
 }

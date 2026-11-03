@@ -12,8 +12,10 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class RegistrationReleasedHandler
 {
-    public function __construct(private ArchilanMailer $mailer)
-    {
+    public function __construct(
+        private ArchilanMailer $mailer,
+        private string $siteUrl = '',
+    ) {
     }
 
     public function __invoke(RegistrationReleasedMessage $message): void
@@ -23,6 +25,7 @@ final readonly class RegistrationReleasedHandler
             $message->userDisplayName,
             $message->eventTitle,
             $message->eventUrl,
+            $this->siteUrl,
         ));
     }
 }

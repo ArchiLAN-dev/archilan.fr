@@ -17,12 +17,13 @@ final readonly class SessionRestartFailedHandler
         private ArchilanMailer $mailer,
         private LoggerInterface $logger,
         private string $mailerSender,
+        private string $siteUrl = '',
     ) {
     }
 
     public function __invoke(SessionRestartFailedMessage $message): void
     {
-        $sent = $this->mailer->send(new SessionRestartFailedEmail($this->mailerSender, $message->sessionId));
+        $sent = $this->mailer->send(new SessionRestartFailedEmail($this->mailerSender, $message->sessionId, $this->siteUrl));
 
         if ($sent) {
             $this->logger->info('session.restart_failed.email_sent', ['sessionId' => $message->sessionId]);
