@@ -13,7 +13,7 @@ interface HelloAssoClientInterface
     public function getAccessToken(): string;
 
     /**
-     * @return array{orderId: int, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null}|null
+     * @return array{orderId: int, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null, formSlug: string|null, formType: string|null, isPaid: bool}|null
      */
     public function fetchOrder(int $orderId, string $accessToken): ?array;
 

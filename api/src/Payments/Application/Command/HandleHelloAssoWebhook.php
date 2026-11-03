@@ -23,18 +23,23 @@ final readonly class HandleHelloAssoWebhook
     ) {
     }
 
-    public function handle(
-        int $orderId,
-        string $formType,
-        string $formSlug,
-        ?string $payerEmail = null,
-        ?\DateTimeImmutable $paidAt = null,
-    ): void {
+    /**
+     * The webhook is not signed, so its body proves nothing: anyone can post one. Only the order read
+     * back from HelloAsso with our own token decides who paid, on which form and when.
+     */
+    public function handle(int $orderId, string $formType, string $formSlug): void
+    {
         $this->logger->info('helloasso.webhook.verifying', [
             'orderId' => $orderId,
             'formType' => $formType,
             'formSlug' => $formSlug,
         ]);
+
+        $order = $this->verifiedOrder($orderId);
+        if (null !== $order) {
+            $formSlug = $order['formSlug'] ?? $formSlug;
+            $formType = null !== $order['formType'] ? HelloAssoConfig::fromApiFormType($order['formType']) : $formType;
+        }
 
         // A membership order on any other form than the configured one is ignored by the membership
         // handler, by slug. A renamed form or a new season's form then stops every membership, and
@@ -47,15 +52,12 @@ final readonly class HandleHelloAssoWebhook
             ]);
         }
 
-        if ($this->verify($orderId) && null !== $paidAt) {
-            // Dispatch the paid message immediately using webhook-provided data.
-            // The items endpoint does not reliably expose payer email on individual items,
-            // but the Order webhook payload does - use it here to avoid the sync round-trip for email.
+        if (null !== $order && $order['isPaid'] && null !== $order['formSlug'] && null !== $order['paidAt']) {
             $this->bus->dispatch(new HelloAssoOrderPaidMessage(
                 (string) $orderId,
-                $formSlug,
-                $payerEmail,
-                $paidAt,
+                $order['formSlug'],
+                $order['payerEmail'],
+                $order['paidAt'],
             ));
 
             $this->logger->info('helloasso.webhook.paid_message_dispatched', [
@@ -77,9 +79,9 @@ final readonly class HandleHelloAssoWebhook
     }
 
     /**
-     * The webhook is not signed: re-reading the order from HelloAsso with our own token is what proves it.
+     * @return array{orderId: int, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null, formSlug: string|null, formType: string|null, isPaid: bool}|null
      */
-    private function verify(int $orderId): bool
+    private function verifiedOrder(int $orderId): ?array
     {
         try {
             $accessToken = $this->httpClient->getAccessToken();
@@ -90,7 +92,7 @@ final readonly class HandleHelloAssoWebhook
                 'error' => $e->getMessage(),
             ]);
 
-            return false;
+            return null;
         }
 
         if (null === $order) {
@@ -98,7 +100,7 @@ final readonly class HandleHelloAssoWebhook
                 'orderId' => $orderId,
             ]);
 
-            return false;
+            return null;
         }
 
         $this->logger->info('helloasso.webhook.order_verified', [
@@ -106,6 +108,6 @@ final readonly class HandleHelloAssoWebhook
             'amountCents' => $order['amountCents'],
         ]);
 
-        return true;
+        return $order;
     }
 }
