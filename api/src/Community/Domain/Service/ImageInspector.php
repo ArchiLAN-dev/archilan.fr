@@ -29,9 +29,9 @@ final class ImageInspector
             return new InspectedImage(ImageFormat::Webp, self::webpAnimates($bytes));
         }
         if (str_starts_with($bytes, 'GIF87a') || str_starts_with($bytes, 'GIF89a')) {
-            $frames = self::gifFrameCount($bytes);
+            $gif = self::gifFrames($bytes);
 
-            return null === $frames || 0 === $frames ? null : new InspectedImage(ImageFormat::Gif, $frames > 1);
+            return null === $gif || 0 === $gif['frames'] ? null : new InspectedImage(ImageFormat::Gif, $gif['frames'] > 1, $gif['pixels']);
         }
 
         return null;
@@ -66,9 +66,12 @@ final class ImageInspector
     }
 
     /**
-     * Walks the GIF blocks and counts its images; null when the structure is broken.
+     * Walks the GIF blocks, counting its images and keeping the largest surface among the canvas and every image
+     * (one may declare more than the canvas); null when the structure is broken.
+     *
+     * @return array{frames: int, pixels: int}|null
      */
-    private static function gifFrameCount(string $bytes): ?int
+    private static function gifFrames(string $bytes): ?array
     {
         $length = strlen($bytes);
         if ($length < 13) {
@@ -82,10 +85,11 @@ final class ImageInspector
         }
 
         $frames = 0;
+        $pixels = self::uint16le($bytes, 6) * self::uint16le($bytes, 8);
         while ($offset < $length) {
             $block = ord($bytes[$offset]);
             if (0x3B === $block) {
-                return $frames;
+                return ['frames' => $frames, 'pixels' => $pixels];
             }
             if (0x21 === $block) {
                 $offset = self::skipSubBlocks($bytes, $offset + 2);
@@ -93,6 +97,7 @@ final class ImageInspector
                 if ($offset + 10 > $length) {
                     return null;
                 }
+                $pixels = max($pixels, self::uint16le($bytes, $offset + 5) * self::uint16le($bytes, $offset + 7));
                 $imageFlags = ord($bytes[$offset + 9]);
                 $offset += 10;
                 if (0 !== ($imageFlags & 0x80)) {
@@ -109,7 +114,7 @@ final class ImageInspector
         }
 
         // No trailer: a truncated file still shows what it has.
-        return $frames;
+        return ['frames' => $frames, 'pixels' => $pixels];
     }
 
     /** Skips a chain of data sub-blocks; returns the offset after its terminator, null when it runs off. */
@@ -126,6 +131,11 @@ final class ImageInspector
         }
 
         return null;
+    }
+
+    private static function uint16le(string $bytes, int $offset): int
+    {
+        return ord($bytes[$offset]) | (ord($bytes[$offset + 1]) << 8);
     }
 
     private static function uint32be(string $bytes, int $offset): int

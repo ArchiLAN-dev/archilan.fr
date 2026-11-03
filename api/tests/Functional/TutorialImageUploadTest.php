@@ -44,6 +44,50 @@ final class TutorialImageUploadTest extends FunctionalTestCase
         self::assertStringNotContainsString('X-Amz-Signature', $data['url']);
     }
 
+    public function testAnUnconfirmedAccountCannotUpload(): void
+    {
+        $this->loginAs($this->createUser('fresh@example.org', ['ROLE_USER'], emailVerified: false));
+
+        $this->client->request('POST', '/api/v1/tutorial-images', [], ['file' => $this->pngUpload()]);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testAnAccountRunsOutOfItsQuotaButNotAnAdmin(): void
+    {
+        $this->client->disableReboot();
+        $member = $this->createUser('member@example.org', ['ROLE_USER']);
+        $this->loginAs($member);
+        for ($upload = 0; $upload < 30; ++$upload) {
+            $this->client->request('POST', '/api/v1/tutorial-images', [], ['file' => $this->pngUpload()]);
+            self::assertResponseStatusCodeSame(200);
+        }
+
+        $this->client->request('POST', '/api/v1/tutorial-images', [], ['file' => $this->pngUpload()]);
+        self::assertResponseStatusCodeSame(429);
+
+        $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']));
+        for ($upload = 0; $upload < 31; ++$upload) {
+            $this->client->request('POST', '/api/v1/tutorial-images', [], ['file' => $this->pngUpload()]);
+            self::assertResponseStatusCodeSame(200);
+        }
+    }
+
+    public function testAnImageBeyondThePixelLimitIsRefused(): void
+    {
+        $this->loginAs($this->createUser('member@example.org', ['ROLE_USER']));
+        // A GIF header is enough to declare 65535 x 65535 in a few bytes.
+        $path = (string) tempnam(sys_get_temp_dir(), 'tut');
+        file_put_contents($path, 'GIF89a'.pack('vv', 65535, 65535)."\0\0\0".','.pack('vvvv', 0, 0, 65535, 65535)."\0\x02\x01\x00\x00;");
+
+        $this->client->request('POST', '/api/v1/tutorial-images', [], ['file' => new UploadedFile($path, 'big.gif', 'image/gif', null, true)]);
+
+        self::assertResponseStatusCodeSame(422);
+        $error = $this->decodedJsonResponse()['error'] ?? null;
+        self::assertIsArray($error);
+        self::assertSame('image_too_many_pixels', $error['code'] ?? null);
+    }
+
     public function testRejectsNonImage(): void
     {
         $this->loginAs($this->createUser('member@example.org', ['ROLE_USER']));

@@ -5,6 +5,11 @@ framework:
             policy: sliding_window
             limit: 5
             interval: '10 minutes'
+        # Story 50.3: images a contributor may store, per account.
+        tutorial_image_upload:
+            policy: sliding_window
+            limit: 30
+            interval: '1 hour'
         # Story 50.3: the public authentication routes, see AuthRateLimitListener. The per-IP limits stay
         # generous on purpose: a whole LAN event shares one public address.
         auth_login_ip:

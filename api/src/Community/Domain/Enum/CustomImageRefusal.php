@@ -20,4 +20,7 @@ enum CustomImageRefusal
     case UnsupportedType;
 
     case TooLarge;
+
+    /** A GIF whose declared surface is out of proportion with an avatar or a banner (story 50.3). */
+    case TooManyPixels;
 }

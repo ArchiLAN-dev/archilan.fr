@@ -20,6 +20,8 @@ use App\Community\Domain\ValueObject\InspectedImage;
  */
 final class CustomImageRule
 {
+    public const int MAX_GIF_PIXELS = 4096 * 4096;
+
     private const int MEGABYTE = 1024 * 1024;
 
     public static function maxBytes(CustomImageSlot $slot, ImageFormat $format): int
@@ -43,6 +45,9 @@ final class CustomImageRule
         }
         if ($size > self::maxBytes($slot, $image->format)) {
             return CustomImageRefusal::TooLarge;
+        }
+        if (ImageFormat::Gif === $image->format && $image->pixels > self::MAX_GIF_PIXELS) {
+            return CustomImageRefusal::TooManyPixels;
         }
 
         return null;
