@@ -22,9 +22,9 @@ final readonly class PublisherTokenController
     #[Route('/api/v1/internal/sessions/{runId}/publisher-token', methods: ['GET'])]
     public function token(Request $request, string $runId): JsonResponse
     {
-        $provided = $request->headers->get('x-internal-secret', '');
+        $provided = $request->headers->get('x-internal-secret', '') ?? '';
 
-        if ('' === $this->centralApiSecret || $provided !== $this->centralApiSecret) {
+        if ('' === $this->centralApiSecret || !hash_equals($this->centralApiSecret, $provided)) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret invalide.', 401);
         }
 

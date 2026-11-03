@@ -27,9 +27,9 @@ final readonly class PlayersPushController
     #[Route('/api/v1/internal/sessions/{sessionId}/players-push', methods: ['POST'])]
     public function push(Request $request, string $sessionId): JsonResponse
     {
-        $provided = $request->headers->get('x-internal-secret', '');
+        $provided = $request->headers->get('x-internal-secret', '') ?? '';
 
-        if ('' === $this->centralApiSecret || $provided !== $this->centralApiSecret) {
+        if ('' === $this->centralApiSecret || !hash_equals($this->centralApiSecret, $provided)) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret invalide.', 401);
         }
 

@@ -23,9 +23,9 @@ final readonly class AllGoalController
     #[Route('/api/v1/internal/sessions/{id}/all-goal', methods: ['POST'])]
     public function allGoal(Request $request, string $id): JsonResponse
     {
-        $provided = $request->headers->get('x-internal-secret', '');
+        $provided = $request->headers->get('x-internal-secret', '') ?? '';
 
-        if ('' === $this->centralApiSecret || $provided !== $this->centralApiSecret) {
+        if ('' === $this->centralApiSecret || !hash_equals($this->centralApiSecret, $provided)) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret runner invalide.', 401);
         }
 
