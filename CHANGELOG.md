@@ -5,6 +5,14 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.56.1] - 2026-11-03
+
+### Corrigé
+
+- **Image `api-worker` de la v0.56.0 non publiée** : le scan Trivy bloquait sur deux CVE HIGH de `libexpat` 2.9.0
+  (CVE-2026-117610, CVE-2026-118370), corrigées en 2.10.0-r0. La couche `apk upgrade` du worker est reconstruite.
+  Aucun changement de code par rapport à la v0.56.0.
+
 ## [0.56.0] - 2026-11-03
 
 Des mails enfin à nos couleurs, une sélection de jeux d'event qui ne noie plus le bouton Enregistrer, et un statut de
