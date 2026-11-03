@@ -9,6 +9,7 @@ use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 
 final readonly class AuthenticateUser
 {
@@ -29,11 +30,27 @@ final readonly class AuthenticateUser
 
         $user = $this->userRepository->findByEmailCanonical($emailCanonical);
 
-        if (!$user instanceof User || $user->isDeleted() || !$this->passwordHasher->isPasswordValid($user, $password)) {
+        if (!$user instanceof User || $user->isDeleted()) {
+            $this->spendHashingTime($password);
+
             return null;
         }
 
-        return $user;
+        return $this->passwordHasher->isPasswordValid($user, $password) ? $user : null;
+    }
+
+    /** Story 50.3: an unknown address takes as long to refuse as a wrong password. */
+    private function spendHashingTime(string $password): void
+    {
+        $this->passwordHasher->hashPassword(
+            new class implements PasswordAuthenticatedUserInterface {
+                public function getPassword(): ?string
+                {
+                    return null;
+                }
+            },
+            $password,
+        );
     }
 
     public function findUserById(string $userId): ?User
