@@ -12,6 +12,7 @@ use App\SessionConfig\Application\Command\SetSessionConfigOverride;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
 use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Entity\SlotCoPlayer;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -168,6 +169,22 @@ final class PlayerStateTest extends FunctionalTestCase
 
         self::assertResponseStatusCodeSame(403);
         self::assertSame(0, $this->httpClient->getRequestsCount());
+    }
+
+    public function testReachableOpensToACoPlayerOfTheSlot(): void
+    {
+        $session = $this->createRunningSession('run-reach-coplayer', 'evt-001');
+        $now = new \DateTimeImmutable('2026-10-24T10:00:00+00:00');
+        $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), 'owner-key', 'game-1', 'Slot2', 1, 'slot-shared'));
+        $coPlayer = $this->createPlayer('coplayer@example.org', 'CoPlayer');
+        $this->entityManager->persist(SlotCoPlayer::create(bin2hex(random_bytes(16)), 'slot-shared', $coPlayer->getId(), $now));
+        $this->createPlayersSnapshot($session->getId(), [2 => 'Slot2']);
+        $this->loginAs($coPlayer);
+        $this->httpClient->setResponseFactory(new MockResponse('{"counts":{"reachable_now":1}}', ['http_code' => 200]));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(200);
     }
 
     public function testReachableTokenOnlyOpensTheTopicOfItsSlot(): void

@@ -581,7 +581,8 @@ final readonly class PlayerStateController
         }
 
         // Story 50.3: this read starts a computation on the bridge. Overlays have their own, passive one.
-        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+        // A co-player need not be a participant of the run (story 16.17), hence the second test.
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId']) && !$this->ownsSlot($user, $session['id'], $slotIndex)) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
