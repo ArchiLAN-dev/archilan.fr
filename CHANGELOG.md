@@ -5,6 +5,40 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.55.0] - 2026-11-03
+
+Minimapperz, partenaire de l'ArchiLAN #4, branché sur le site : chaque inscrit reçoit son code, ses parties lui
+rapportent des pelles d'event, et le classement passe à l'écran.
+
+### Ajouté
+
+- **Relier un event à Minimapperz** (49.1) : slug ou lien de la LAN, clé organisateur (gardée côté serveur, jamais
+  renvoyée ni journalisée), barème des pelles et test de connexion, dans l'onglet Minimapperz de la page pelles de
+  l'event. Migration `Version20261102120000`.
+- **Codes Minimapperz** (49.2) : l'admin importe la liste fournie par Minimapperz, le site attribue un code par
+  inscription et chaque inscrit retrouve le sien et le lien de la LAN sur la page de l'événement. Migration
+  `Version20261102120001`.
+- **Pelles gagnées sur Minimapperz** (49.3) : chaque minute, pendant l'event, les parties terminées sont lues et
+  créditées en pelles d'event (par partie, bonus de victoire, plafond par joueur, une seule fois par partie). État
+  de la dernière collecte et liste des joueurs Minimapperz côté admin. Migration `Version20261102120002`.
+- **Écran Minimapperz** (49.4) : `/o/minimapperz`, en overlay OBS (top 5) ou en plein écran pour la salle
+  (`&mode=ecran`, top 10 et dernières parties), relu toutes les 20 secondes ; les joueurs reliés apparaissent sous
+  leur pseudo du site.
+
+### Corrigé
+
+- **Badge des amis inscrits** : erreur d'hydratation sur la page d'un événement quand un ami y est inscrit.
+
+### Interne
+
+- **Gates rapides** : `./scripts/gates.sh` lance api et front en parallèle (phpunit sous ParaTest), environ 2 minutes
+  au lieu de 12 ; `TEST_DB_PREFIX` isole un run parallèle.
+
+### Déploiement
+
+- 3 migrations à jouer. Aucune variable d'env obligatoire (`MINIMAPPERZ_API_URL` a une valeur par défaut).
+- La collecte tourne dans le worker (tâche planifiée chaque minute, routée `async`).
+
 ## [0.54.0] - 2026-11-02
 
 Des quêtes hebdo bien plus variées : nouveaux types d'objectifs, semaines à thème, jeu tiré au sort, paliers et une
