@@ -59,7 +59,7 @@ export function MinimapperzCodeCard({ eventId }: { eventId: string }) {
         </a>
       </div>
       <p className="text-xs text-muted-foreground">
-        Saisis ce code en rejoignant la LAN sur Minimapperz : tes parties te rapporteront des pelles d&apos;événement. Il est à toi seul, ne le partage pas.
+        Saisis ce code en rejoignant la LAN sur Minimapperz : tes parties te rapporteront des pelles d&apos;argent. Il est à toi seul, ne le partage pas.
       </p>
     </div>
   );

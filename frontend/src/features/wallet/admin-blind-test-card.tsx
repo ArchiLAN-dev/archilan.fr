@@ -71,7 +71,7 @@ function AdminBlindTestForm({ eventId, initial }: { eventId: string; initial: Bl
     >
       <p className="text-sm text-muted-foreground">
         Tout membre connecté peut jouer pendant l&apos;événement, inscrit ou non. Chaque source trouvée rapporte des
-        pelles d&apos;événement. Couper le blind test arrête aussitôt les crédits et les liens.
+        pelles d&apos;argent. Couper le blind test arrête aussitôt les crédits et les liens.
       </p>
 
       <fieldset className="grid gap-3 rounded-xl border border-border p-4">

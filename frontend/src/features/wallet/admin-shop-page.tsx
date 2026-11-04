@@ -143,7 +143,7 @@ export function AdminShopView({ shop, ...handlers }: { shop: AdminShop } & Handl
       <dl className="grid gap-3 sm:grid-cols-3">
         <Figure label="Articles en vente" value={String(onSale)} />
         <Figure label="Ventes" value={String(sales)} />
-        <Figure label="Pelles encaissées" value={<PelleAmount amount={pelles} className="text-warning" />} />
+        <Figure label="Pelles encaissées" value={<PelleAmount amount={pelles} kind="gold" />} />
       </dl>
 
       <ListForm onList={handlers.onList} report={report} sellable={shop.sellable} />

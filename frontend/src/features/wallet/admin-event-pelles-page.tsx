@@ -258,7 +258,7 @@ function MembersPanel({ data }: { data: EventPelles }) {
             <span className="truncate text-foreground">{participant.displayName}</span>
             <MemberTags participant={participant} />
           </span>
-          <PelleAmount amount={participant.balance} className="shrink-0 font-semibold" />
+          <PelleAmount amount={participant.balance} className="shrink-0 font-semibold" kind="event" />
         </li>
       ))}
     </ul>
@@ -431,7 +431,7 @@ function Figure({ label, value }: { label: string; value: number }) {
     <div className="rounded-xl border border-border p-4">
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-heading text-2xl font-bold">
-        <PelleAmount amount={value} />
+        <PelleAmount amount={value} kind="event" />
       </dd>
     </div>
   );

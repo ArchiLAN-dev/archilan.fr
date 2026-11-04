@@ -250,7 +250,7 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
         amount < 0
           ? [{ text: "Pelles retirées par l'équipe" }]
           : event !== ""
-            ? [{ text: "Pelles pour " }, strong(event)]
+            ? [{ text: "Pelles d'argent pour " }, strong(event)]
             : [{ text: bronze ? "Pelles de bronze reçues" : "Pelles reçues" }];
       const reason = text(data, "reason");
       return { ...base("pelles", "Pelles", icon("pelles"), title), amount, detail: reason !== "" ? `« ${reason} »` : null };

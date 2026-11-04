@@ -111,7 +111,7 @@ export function AdminQuestTypesView({ data, onChange }: ViewProps) {
                 <p className="text-xs text-muted-foreground">{objectivesSummary(quest.objectives, data.metrics, data.scopes)}</p>
                 <p className="text-xs text-muted-foreground">{questStatsLine(quest.stats, quest.collective ?? false)}</p>
               </div>
-              <PelleAmount amount={quest.reward} className="text-xs font-semibold text-warning" signed />
+              <PelleAmount amount={quest.reward} className="text-xs font-semibold" kind="gold" signed />
               <div className="flex gap-1">
                 <button className={buttonVariants({ variant: "ghost" })} onClick={() => setEditing(quest)} type="button">
                   Modifier

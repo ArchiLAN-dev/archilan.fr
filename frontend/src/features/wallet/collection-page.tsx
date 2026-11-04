@@ -179,7 +179,7 @@ function UnlockLine({ way }: { way: CollectionUnlock }) {
         <Icon aria-hidden className="size-3.5 shrink-0 text-accent-text" />
         {way.kind === "shop" && way.price !== null ? (
           <Link className="hover:text-accent-text hover:underline" href="/boutique">
-            En boutique : <PelleAmount amount={way.price} className="font-semibold text-warning" />
+            En boutique : <PelleAmount amount={way.price} className="font-semibold" kind="gold" />
           </Link>
         ) : (
           way.label

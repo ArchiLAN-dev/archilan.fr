@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount } from "./pelle-amount";
+import { PelleBalance } from "./pelle-balance";
 import { fetchMyWallet, pelleReasonLabel, type Wallet } from "./wallet-api";
 import { QuestHistoryPanel, WeeklyQuestsPanel } from "./weekly-quests";
 import { WelcomeQuestsPanel } from "./welcome-quests";
@@ -76,12 +77,12 @@ export function WalletView({
         <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
           <div>
             <p className="text-sm text-muted-foreground">Pelles d&apos;or</p>
-            <PelleAmount amount={wallet.gold} className="font-heading text-4xl font-bold text-warning" />
+            <PelleBalance amount={wallet.gold} className="font-heading text-4xl font-bold" kind="gold" />
           </div>
           {wallet.events.map((event) => (
             <div key={event.eventId}>
-              <p className="text-sm text-muted-foreground">{event.eventTitle}</p>
-              <PelleAmount amount={event.balance} className="font-heading text-2xl font-semibold text-foreground" />
+              <p className="text-sm text-muted-foreground">Pelles d&apos;argent · {event.eventTitle}</p>
+              <PelleBalance amount={event.balance} className="font-heading text-2xl font-semibold" kind="event" />
             </div>
           ))}
         </div>
@@ -94,7 +95,7 @@ export function WalletView({
                   <Link className="min-w-0 truncate text-foreground hover:text-accent-text" href={`/runs/${run.runId}`}>
                     {run.runTitle}
                   </Link>
-                  <PelleAmount amount={run.balance} className="shrink-0 font-semibold text-foreground" />
+                  <PelleAmount amount={run.balance} className="shrink-0 font-semibold" kind="bronze" />
                 </li>
               ))}
             </ul>
@@ -102,7 +103,7 @@ export function WalletView({
         ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            Les pelles d&apos;or se gardent et servent à la boutique. Les pelles d&apos;un événement ne servent que pendant cet
+            Les pelles d&apos;or se gardent et servent à la boutique. Les pelles d&apos;argent ne servent que pendant leur
             événement. Les pelles de bronze appartiennent à une partie privée : elles paient ses indices et ses primes, et
             disparaissent à sa fin.
           </p>

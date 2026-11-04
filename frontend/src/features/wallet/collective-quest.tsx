@@ -68,7 +68,7 @@ export function CollectiveQuestRow({ quest }: { quest: CollectiveQuestProgress }
             Quête collective : {quest.label}
           </span>
         </span>
-        <PelleAmount amount={quest.reward} className="shrink-0 text-xs font-semibold text-warning" signed />
+        <PelleAmount amount={quest.reward} className="shrink-0 text-xs font-semibold" kind="gold" signed />
       </div>
       {quest.description !== "" ? <p className="text-xs text-muted-foreground">{quest.description}</p> : null}
       <p className="text-xs text-muted-foreground">
@@ -108,7 +108,7 @@ export function CommunityCollectiveQuestSection({ quest }: { quest: CommunityCol
       </div>
       <CollectiveGauge duration={quest.duration} label={`Quête collective · ${quest.title}`} target={quest.target} total={quest.total} unit={quest.unit} />
       <p className="text-xs text-muted-foreground">
-        Chaque membre qui y prend sa part gagne <PelleAmount amount={quest.reward} className="font-semibold text-warning" />. Compté {countedFormatter.format(new Date(quest.countedAt))}.
+        Chaque membre qui y prend sa part gagne <PelleAmount amount={quest.reward} className="font-semibold" kind="gold" />. Compté {countedFormatter.format(new Date(quest.countedAt))}.
       </p>
     </section>
   );
