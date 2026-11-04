@@ -46,6 +46,53 @@ final class OrchestratorWebhookTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    /** Story 50.5: a valid signature is not enough, the body must also be recent. */
+    public function testWebhookRefusesAMissingOrInvalidTimestamp(): void
+    {
+        $session = $this->createSessionInStatus(Session::STATUS_GENERATING);
+
+        $this->sendSigned(['event' => 'session.generated', 'sessionId' => $session->getId()]);
+        self::assertResponseStatusCodeSame(401);
+
+        foreach (['hier', 'now', 1_780_000_000, null] as $timestamp) {
+            $this->sendSigned(['event' => 'session.generated', 'sessionId' => $session->getId(), 'timestamp' => $timestamp]);
+            self::assertResponseStatusCodeSame(401);
+        }
+
+        $this->assertSessionStatus($session, Session::STATUS_GENERATING);
+    }
+
+    public function testWebhookRefusesATimestampOutsideTheTolerance(): void
+    {
+        $session = $this->createSessionInStatus(Session::STATUS_GENERATING);
+
+        foreach (['-10 minutes', '+10 minutes'] as $offset) {
+            $this->sendSigned([
+                'event' => 'session.generated',
+                'sessionId' => $session->getId(),
+                'timestamp' => new \DateTimeImmutable($offset)->format(\DateTimeInterface::RFC3339),
+            ]);
+            self::assertResponseStatusCodeSame(401);
+        }
+
+        $this->assertSessionStatus($session, Session::STATUS_GENERATING);
+    }
+
+    public function testWebhookAcceptsTheTimestampFormatOfTheSender(): void
+    {
+        $session = $this->createSessionInStatus(Session::STATUS_GENERATING);
+
+        // Go writes nanoseconds in UTC.
+        $this->sendSigned([
+            'event' => 'session.generated',
+            'sessionId' => $session->getId(),
+            'timestamp' => new \DateTimeImmutable('now', new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.u').'123Z',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $this->assertSessionStatus($session, Session::STATUS_GENERATED);
+    }
+
     // ─── session.generated ────────────────────────────────────────────────────
 
     public function testSessionGeneratedTransitionsToGenerated(): void
@@ -374,8 +421,22 @@ final class OrchestratorWebhookTest extends FunctionalTestCase
         return $run;
     }
 
+    private function assertSessionStatus(Session $session, string $status): void
+    {
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $refreshed);
+        self::assertSame($status, $refreshed->getStatus());
+    }
+
     /** @param array<string, mixed> $payload */
     private function sendWebhook(array $payload): void
+    {
+        $this->sendSigned($payload + ['timestamp' => new \DateTimeImmutable()->format(\DateTimeInterface::RFC3339)]);
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function sendSigned(array $payload): void
     {
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
         $signature = 'sha256='.hash_hmac('sha256', $body, self::WEBHOOK_SECRET);

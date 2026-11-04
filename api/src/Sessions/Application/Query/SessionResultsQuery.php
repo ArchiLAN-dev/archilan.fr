@@ -11,6 +11,7 @@ use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
@@ -25,11 +26,13 @@ final readonly class SessionResultsQuery
         private RegistrationRepositoryInterface $registrations,
         private UserRepositoryInterface $users,
         private GameRepositoryInterface $games,
+        private SessionRecapAudience $audience,
     ) {
     }
 
     /**
-     * Returns null if the event is not found, or not readable by the public (same rule as reading the event).
+     * Returns null if the event is not found, not readable by the public (same rule as reading the event), or private
+     * and the viewer is outside its audience (same rule as its recaps, story 4.23).
      * Returns array with session=null if no finished session exists for the event.
      *
      * @return array{
@@ -37,10 +40,10 @@ final readonly class SessionResultsQuery
      *     slots: list<array<string, mixed>>,
      * }|null
      */
-    public function findForEvent(string $eventId): ?array
+    public function findForEvent(string $eventId, ?string $viewerId): ?array
     {
         $event = $this->events->findById($eventId);
-        if (!$event instanceof Event || !$event->isVisiblePublicly()) {
+        if (!$event instanceof Event || !$event->isVisiblePublicly() || !$this->audience->canViewEvent($event, $viewerId)) {
             return null;
         }
 
