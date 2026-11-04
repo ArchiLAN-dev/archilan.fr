@@ -570,9 +570,20 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{sessionId}/slots/{slotIndex}/reachable', methods: ['GET'])]
     public function slotReachable(Request $request, string $sessionId, int $slotIndex): JsonResponse
     {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
         $session = $this->sessionQuery->findById($sessionId);
         if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        // Story 50.3: this read starts a computation on the bridge. Overlays have their own, passive one.
+        // A co-player need not be a participant of the run (story 16.17), hence the second test.
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId']) && !$this->ownsSlot($user, $session['id'], $slotIndex)) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
         // Story 16.18: a seed generated elsewhere carries no yamls, so the world cannot be rebuilt
@@ -608,10 +619,9 @@ final readonly class PlayerStateController
             );
             $data = $response->toArray();
 
-            $optionalUser = $this->apiAccessGuard->optionalUser($request);
-            $isAdmin = $optionalUser instanceof User && in_array('ROLE_ADMIN', $optionalUser->getRoles(), true);
+            $isAdmin = $this->isAdmin($user);
             // Story 27.12: the run's setting decides whether a player gets the spheres at all.
-            $spheresVisible = $isAdmin || $this->spheresVisibility->visibleTo($sessionId, $optionalUser instanceof User ? $optionalUser->getId() : null);
+            $spheresVisible = $isAdmin || $this->spheresVisibility->visibleTo($sessionId, $user->getId());
 
             // Story 17.28: the bridge does not hold the request while its daemon starts - it answers
             // « computing » with the slot's last result (or none), and pushes the new one once ready.

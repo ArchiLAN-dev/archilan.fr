@@ -29,7 +29,7 @@ final readonly class SlotGoalCallbackController
     public function __invoke(Request $request, string $sessionId): JsonResponse
     {
         $provided = $request->headers->get('X-Internal-Secret', '');
-        if ('' === $this->centralApiSecret || $provided !== $this->centralApiSecret) {
+        if ('' === $this->centralApiSecret || !hash_equals($this->centralApiSecret, $provided)) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret invalide.', 401);
         }
 

@@ -6,6 +6,11 @@ framework:
     # API is stateless (JWT httpOnly cookies) - PHP sessions disabled.
     session: false
 
+    # Story 50.3: every request reaches api-web through the reverse proxy, so REMOTE_ADDR is the proxy's.
+    # Trusting it for these headers is what makes getClientIp() the visitor; the rate limiters key on it.
+    trusted_proxies: '%env(TRUSTED_PROXIES)%'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-port']
+
     #esi: true
     #fragments: true
 

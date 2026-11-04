@@ -12,6 +12,8 @@ final readonly class InspectedImage
     public function __construct(
         public ImageFormat $format,
         public bool $animated,
+        // Story 50.3: the largest surface the file declares, what a decoder has to allocate. Read for GIFs only.
+        public int $pixels = 0,
     ) {
     }
 }

@@ -1,0 +1,99 @@
+name: Security
+
+# Story 50.4. Secrets, dependencies and static analysis gate each PR. The ZAP baseline only observes
+# the production site (passive rules, no attack) on a weekly schedule and never blocks anything.
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Scan the history for secrets
+        run: >
+          docker run --rm -v "$PWD:/repo:ro" zricethezav/gitleaks:v8.24.3
+          git /repo --config /repo/.gitleaks.toml --no-banner --redact
+
+  composer-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+
+      - name: Audit the locked dependencies
+        run: composer audit --locked --no-interaction
+
+  pnpm-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: '10'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+
+      # Same check as frontend.yml, repeated here for the weekly schedule: a new advisory surfaces without a commit.
+      # --ignore-registry-errors: see frontend.yml.
+      - name: Audit the locked dependencies (high and above block)
+        run: pnpm audit --audit-level high --ignore-registry-errors
+
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Static analysis (errors block, warnings are reviewed by hand)
+        run: >
+          docker run --rm -v "$PWD:/src:ro" semgrep/semgrep:1.182.1
+          semgrep scan --config p/php --config p/typescript --config p/security-audit
+          --metrics off --severity ERROR --error
+          /src/api/src /src/frontend/src
+
+  zap-baseline:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Passive scan of the production site
+        run: |
+          mkdir -p zap && chmod 777 zap
+          docker run --rm -v "$PWD/zap:/zap/wrk" ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t https://archilan.fr -r report.html -I
+
+      - name: Keep the report
+        uses: actions/upload-artifact@v7
+        with:
+          name: zap-baseline
+          path: zap/report.html

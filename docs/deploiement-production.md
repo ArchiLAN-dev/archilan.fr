@@ -115,9 +115,42 @@ montre les crédits restés en attente.
 
 ## Décisions explicites
 
-- **Postgres est publié sur l'hôte en `5434:5432`, et c'est voulu** (Jean, 2026-08-14). La base est
-  administrée depuis l'extérieur. Ce n'est pas un écart à corriger ; c'est un choix, avec ce qu'il
-  suppose de robustesse du mot de passe et de filtrage amont.
+- **Postgres n'écoute que sur la boucle locale de l'hôte, en `127.0.0.1:5434`** (Jean, 2026-11-03,
+  remplace la décision du 2026-08-14). La base s'administre à distance par le tunnel SSH du client
+  SQL : hôte SSH du serveur, puis `127.0.0.1:5434` comme hôte de base. En ligne de commande :
+  `ssh -N -L 5434:127.0.0.1:5434 <utilisateur>@<serveur>`.
+- **L'orchestrateur et la console MinIO n'ont plus de route publique** (2026-11-03). Pour y accéder :
+  tunnel SSH vers le conteneur, ou `docker compose exec`. `ORCHESTRATEUR_DOMAIN` n'est plus lu par le
+  compose, mais le nom DNS reste celui des serveurs Archipelago (`RUNNER_PUBLIC_HOST`).
+
+## Cloisonnement des sessions
+
+Les conteneurs d'une session ne voient plus le reste de la stack (story 50.2). À faire **dans cet
+ordre**, une fois, avant de déployer le compose et les `envs/` à jour :
+
+```bash
+docker network create --internal archilan-sessions
+docker network create --internal archilan-callbacks
+docker network create --internal archilan-ap-edge
+docker network connect archilan-ap-edge traefik
+```
+
+Ajouter aussi `archilan-ap-edge` (en `external`) au compose du proxy, sinon le branchement disparaît
+au prochain `up` de Traefik et plus aucune run n'est joignable.
+
+Les sessions déjà lancées restent sur les anciens réseaux jusqu'à leur arrêt : ne pas retirer ces
+réseaux à chaud. Contrôle après bascule, sur une nouvelle run : la connexion wss répond, l'état des
+slots remonte, et `docker exec ap-server-<id> python -c "import socket; socket.create_connection(('postgres', 5432), 3)"`
+échoue.
+
+**Images d'une session :** `archipelago`, `bridge` et `orchestrateur` se déploient ensemble depuis la
+story 50.6. Le bridge n'a plus accès à Docker : il demande le suivi au conteneur du serveur par
+`/data/reachable.sock`, sur le volume de session, et ce socket n'existe qu'avec l'image `archipelago`
+du même lot. Le serveur tourne en uid 1000, comme le bridge. Une session lancée avant le déploiement
+garde ses conteneurs jusqu'à son arrêt.
+
+**Bucket `media-public` :** `createbuckets` n'autorise plus que la lecture d'objets. Sur une machine
+déjà installée, relancer `docker compose run --rm createbuckets`.
 
 ## Écarts connus entre le dépôt et la machine
 
@@ -130,7 +163,7 @@ montre les crédits restés en attente.
 | `extra_hosts: host.docker.internal` | plus nécessaire | absent | **Résolu** : depuis la story 37.7 l'API joint le bridge par son nom de conteneur sur le réseau interne, sans passer par l'hôte ni par l'adresse publique. |
 | `group_add` de l'orchestrateur | `${DOCKER_GID}` | `994` en dur | Le dépôt utilise désormais `${DOCKER_GID:-994}` : les deux fonctionnent. |
 
-| MinIO | ports 9000/9001 publiés | routé par le proxy sur deux domaines | La machine est plus propre que le dépôt ne l'était. |
+| MinIO | API S3 routée par le proxy | routé par le proxy sur deux domaines | La route de la console disparaît au prochain `up`. |
 
 ## Pourquoi cette dérive coûte cher
 

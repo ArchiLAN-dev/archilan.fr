@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
+use App\Sessions\Application\Port\PublicReachabilitySnapshotsInterface;
 use App\Shared\Application\Support\ReachabilityForPlayer;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,6 +19,7 @@ final readonly class ReachablePushController
         private ApiAccessGuard $apiAccessGuard,
         private HubInterface $mercureHub,
         private ReachabilityForPlayer $reachability,
+        private PublicReachabilitySnapshotsInterface $publicSnapshots,
         private string $centralApiSecret,
     ) {
     }
@@ -32,7 +34,7 @@ final readonly class ReachablePushController
     {
         $provided = $request->headers->get('x-internal-secret', '');
 
-        if ('' === $this->centralApiSecret || $provided !== $this->centralApiSecret) {
+        if ('' === $this->centralApiSecret || !hash_equals($this->centralApiSecret, $provided)) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret invalide.', 401);
         }
 
@@ -50,6 +52,8 @@ final readonly class ReachablePushController
                 // Non-fatal - SSE clients will receive the data on next recompute
             }
         }
+
+        $this->publicSnapshots->record($sessionId, $slotIndex, $this->reachability->forPlayer($payload, false));
 
         return new JsonResponse(['data' => ['ok' => true]]);
     }

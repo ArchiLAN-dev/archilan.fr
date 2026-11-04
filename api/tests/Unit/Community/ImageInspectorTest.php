@@ -16,6 +16,14 @@ final class ImageInspectorTest extends TestCase
 {
     private const string PNG_1X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
+    public function testAGifReportsItsLargestSurfaceEvenWhenAnImageExceedsTheCanvas(): void
+    {
+        // A 1 x 1 canvas holding an image that declares 300 x 200.
+        $gif = 'GIF89a'.pack('vv', 1, 1)."\0\0\0".','.pack('vvvv', 0, 0, 300, 200)."\0\x02\x01\x00\x00;";
+
+        self::assertSame(60000, ImageInspector::inspect($gif)?->pixels);
+    }
+
     public function testAStillPngJpegAndWebpAreRecognised(): void
     {
         $png = ImageInspector::inspect((string) base64_decode(self::PNG_1X1, true));

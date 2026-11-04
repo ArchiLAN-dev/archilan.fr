@@ -73,8 +73,18 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
             ->method('removeRole')
             ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::ROLE_ADMIN);
 
-        $handler = $this->makeHandler($client, $user);
+        $handler = $this->makeHandler($client, $user, hasActiveMembership: true);
         ($handler)(new SyncDiscordRoleMessage(self::USER_ID, self::DISCORD_USER_ID, ['ROLE_MEMBER']));
+    }
+
+    public function testAnExpiredMembershipLosesTheMemberDiscordRoleDespiteTheStaleRole(): void
+    {
+        $user = $this->makeLinkedUser(['ROLE_MEMBER']);
+        $client = $this->createMock(DiscordBotClientInterface::class);
+        $client->expects(self::never())->method('assignRole');
+        $client->expects(self::exactly(2))->method('removeRole');
+
+        ($this->makeHandler($client, $user, hasActiveMembership: false))(new SyncDiscordRoleMessage(self::USER_ID, self::DISCORD_USER_ID, ['ROLE_MEMBER']));
     }
 
     public function testActiveMembershipWithoutRoleMemberStillGetsMemberDiscordRole(): void
@@ -125,7 +135,7 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
 
         $client->expects(self::never())->method('removeRole');
 
-        $handler = $this->makeHandler($client, $user);
+        $handler = $this->makeHandler($client, $user, hasActiveMembership: true);
         ($handler)(new SyncDiscordRoleMessage(self::USER_ID, self::DISCORD_USER_ID, ['ROLE_ADMIN', 'ROLE_MEMBER']));
     }
 

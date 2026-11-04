@@ -10,6 +10,7 @@ use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
 use App\Membership\Application\Port\DolibarrClientInterface;
 use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
+use App\Shared\Application\Support\EmailMask;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -55,13 +56,13 @@ final readonly class SyncMemberToDolibarrMessageHandler
             $this->dolibarrClient->upsertMember($email, $displayName, $status, $expiresAt);
             $this->logger->info('dolibarr.sync.member_synced', [
                 'membershipId' => $message->membershipId,
-                'email' => $email,
+                'email' => EmailMask::mask($email),
                 'status' => $status,
             ]);
         } catch (\Throwable $e) {
             $this->logger->error('dolibarr.sync.upsert_failed', [
                 'membershipId' => $message->membershipId,
-                'email' => $email,
+                'email' => EmailMask::mask($email),
                 'error' => $e->getMessage(),
             ]);
             throw $e;

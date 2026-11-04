@@ -71,7 +71,10 @@ final class DiscordAuthBlockedAccountTest extends TestCase
             'https://api.archilan.fr/api/v1/auth/discord/callback',
             'https://archilan.fr',
         );
-        $response = $controller->callback(new Request(['state' => $state->generate('auth'), 'code' => 'code']));
+        $response = $controller->callback(new Request(
+            ['state' => $state->generate('auth', 'browser-nonce'), 'code' => 'code'],
+            cookies: ['__Secure-archilan_discord_state' => 'browser-nonce'],
+        ));
 
         self::assertSame('https://archilan.fr/connexion?discord_error=account_blocked', $response->getTargetUrl());
         $cookies = [];

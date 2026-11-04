@@ -6,11 +6,13 @@ namespace App\Tests\Functional;
 
 use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\Registrations\Domain\Entity\Registration;
 use App\SessionConfig\Application\Command\SetSessionConfigOverride;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
 use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Entity\SlotCoPlayer;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -148,6 +150,56 @@ final class PlayerStateTest extends FunctionalTestCase
 
     // ─── bridge failures are surfaced, not masked (issue #278) ──────────────────
 
+    public function testReachableIsRefusedToAVisitorAndStartsNothing(): void
+    {
+        $session = $this->createRunningSession('run-reach-anon', 'evt-001');
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(401);
+        self::assertSame(0, $this->httpClient->getRequestsCount());
+    }
+
+    public function testReachableIsRefusedToANonParticipantAndStartsNothing(): void
+    {
+        $session = $this->createRunningSession('run-reach-outsider', 'evt-001');
+        $this->loginAs($this->createPlayer('outsider@example.org', 'Outsider'));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame(0, $this->httpClient->getRequestsCount());
+    }
+
+    public function testReachableOpensToACoPlayerOfTheSlot(): void
+    {
+        $session = $this->createRunningSession('run-reach-coplayer', 'evt-001');
+        $now = new \DateTimeImmutable('2026-10-24T10:00:00+00:00');
+        $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), 'owner-key', 'game-1', 'Slot2', 1, 'slot-shared'));
+        $coPlayer = $this->createPlayer('coplayer@example.org', 'CoPlayer');
+        $this->entityManager->persist(SlotCoPlayer::create(bin2hex(random_bytes(16)), 'slot-shared', $coPlayer->getId(), $now));
+        $this->createPlayersSnapshot($session->getId(), [2 => 'Slot2']);
+        $this->loginAs($coPlayer);
+        $this->httpClient->setResponseFactory(new MockResponse('{"counts":{"reachable_now":1}}', ['http_code' => 200]));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    public function testReachableTokenOnlyOpensTheTopicOfItsSlot(): void
+    {
+        $session = $this->createRunningSession('run-reach-token', 'evt-001');
+        $this->loginAsRegisteredPlayer();
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable-token', $session->getId()));
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertSame('runs/run-reach-token/slots/2/reachable/spheres', $data['topic'] ?? null);
+    }
+
     public function testReachableSurfacesTheBridgeErrorInsteadOfMaskingIt(): void
     {
         // The bridge answered with its own diagnostic (here: an apworld that fails to fake-generate).
@@ -159,6 +211,7 @@ final class PlayerStateTest extends FunctionalTestCase
             ['http_code' => 500],
         ));
 
+        $this->loginAsRegisteredPlayer();
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
 
         self::assertResponseStatusCodeSame(502);
@@ -179,6 +232,7 @@ final class PlayerStateTest extends FunctionalTestCase
             ['http_code' => 202],
         ));
 
+        $this->loginAsRegisteredPlayer();
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
 
         self::assertResponseStatusCodeSame(202);
@@ -191,6 +245,7 @@ final class PlayerStateTest extends FunctionalTestCase
     {
         $session = $this->createRunningSession('run-bridge-first', 'evt-001');
         $this->httpClient->setResponseFactory(new MockResponse('{"computing":true,"previous":null}', ['http_code' => 202]));
+        $this->loginAsRegisteredPlayer();
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
         self::assertResponseStatusCodeSame(202);
         self::assertSame(['data' => null, 'computing' => true, 'spheresVisible' => true], $this->decodedJsonResponse());
@@ -204,6 +259,7 @@ final class PlayerStateTest extends FunctionalTestCase
             ['http_code' => 504],
         ));
 
+        $this->loginAsRegisteredPlayer();
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
 
         self::assertResponseStatusCodeSame(504);
@@ -220,6 +276,7 @@ final class PlayerStateTest extends FunctionalTestCase
             throw new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
         });
 
+        $this->loginAsRegisteredPlayer();
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
 
         self::assertResponseStatusCodeSame(503);
@@ -235,6 +292,7 @@ final class PlayerStateTest extends FunctionalTestCase
         $session = $this->createRunningSession('run-spheres-on', 'evt-001');
         $this->httpClient->setResponseFactory(new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
 
+        $this->loginAsRegisteredPlayer();
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
 
         self::assertResponseStatusCodeSame(200);
@@ -251,6 +309,7 @@ final class PlayerStateTest extends FunctionalTestCase
         $this->overrideConfig($session->getId(), ['spheresVisible' => false]);
         $this->httpClient->setResponseFactory(new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
 
+        $this->loginAsRegisteredPlayer();
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
 
         self::assertResponseStatusCodeSame(200);
@@ -271,6 +330,7 @@ final class PlayerStateTest extends FunctionalTestCase
             ['http_code' => 202],
         ));
 
+        $this->loginAsRegisteredPlayer();
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
 
         self::assertResponseStatusCodeSame(202);
@@ -302,12 +362,13 @@ final class PlayerStateTest extends FunctionalTestCase
         self::assertTrue($this->privateRunWithHiddenSpheres($owner)['spheresVisible'] ?? null);
     }
 
-    public function testAnyoneElseLosesTheSpheresAPrivateRunHid(): void
+    public function testAnotherParticipantLosesTheSpheresAPrivateRunHid(): void
     {
         $owner = $this->createPlayer('owner@example.org', 'Owner');
-        $this->loginAs($this->createPlayer('guest@example.org', 'Guest'));
+        $guest = $this->createPlayer('guest@example.org', 'Guest');
+        $this->loginAs($guest);
 
-        $body = $this->privateRunWithHiddenSpheres($owner);
+        $body = $this->privateRunWithHiddenSpheres($owner, $guest);
 
         self::assertFalse($body['spheresVisible'] ?? null);
         $data = $body['data'] ?? null;
@@ -318,12 +379,15 @@ final class PlayerStateTest extends FunctionalTestCase
     /**
      * @return array<mixed>
      */
-    private function privateRunWithHiddenSpheres(User $owner): array
+    private function privateRunWithHiddenSpheres(User $owner, ?User $participant = null): array
     {
         $run = Run::create($owner->getId(), 'Run de test', new \DateTimeImmutable('2026-10-24T10:00:00+00:00'));
         $this->entityManager->persist($run);
         $session = $this->createRunningSession('run-spheres-private', $run->getId());
         $run->attachSession($session->getId());
+        if ($participant instanceof User) {
+            $this->entityManager->persist(RunParticipant::create($run->getId(), $participant->getId(), new \DateTimeImmutable('2026-10-24T10:00:00+00:00')));
+        }
         $this->entityManager->flush();
         $this->overrideConfig($run->getId(), ['spheresVisible' => false]);
         $this->httpClient->setResponseFactory(new MockResponse($this->reachableWithSpheres(), ['http_code' => 200]));
@@ -551,6 +615,13 @@ final class PlayerStateTest extends FunctionalTestCase
         $this->entityManager->flush();
 
         return $session;
+    }
+
+    private function loginAsRegisteredPlayer(): void
+    {
+        $player = $this->createPlayer('registered@example.org', 'Registered');
+        $this->makeRegistration($player->getId(), 'evt-001', confirmed: true);
+        $this->loginAs($player);
     }
 
     private function createAdmin(): User

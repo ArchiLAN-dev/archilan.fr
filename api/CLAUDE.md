@@ -308,7 +308,7 @@ class MyAppService {
 
 **AC-M2:** Always use `ApiAccessGuard::requireAuthenticatedMember()` in controllers, or `isGranted('IS_MEMBER')` via `MembershipVoter`. Both query the `memberships` table with `expires_at >= now` - they are always up to date.
 
-**AC-M3:** `ROLE_MEMBER` may only be used for **display and filtering** (admin user directory, Discord role sync) where slight staleness is acceptable.
+**AC-M3:** `ROLE_MEMBER` may only be used for **display and filtering** (admin user directory) where slight staleness is acceptable. The Discord member role follows the live membership (story 50.3).
 
 ```php
 // ❌ Stale - ROLE_MEMBER survives membership expiry in the JWT and the DB row

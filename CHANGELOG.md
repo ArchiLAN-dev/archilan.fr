@@ -5,6 +5,43 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.57.0] - 2026-11-04
+
+Durcissement de sécurité de toute la plateforme. À déployer en un seul lot avec les images `orchestrateur` v0.26.0,
+`archipelago` v0.21.0 et `bridge` v0.16.0 : le suivi des slots ne fonctionne qu'avec ces trois versions ensemble.
+
+### À faire sur l'hôte avant de déployer
+
+- Créer les réseaux internes et y brancher Traefik : voir « Cloisonnement des sessions » dans
+  `docs/deploiement-production.md`. Sans `archilan-callbacks`, `docker compose up` refuse de démarrer.
+- Mettre à jour `envs/orchestrateur.env` (`BRIDGE_NETWORK`, `BRIDGE_CALLBACK_NETWORK`, `PROXY_NETWORK`).
+- Vérifier que `MINIO_ACCESS_KEY` et `MINIO_SECRET_KEY` sont posées dans `envs/api.env` : plus de valeur
+  par défaut.
+- Passer l'administration de Postgres par le tunnel SSH du client SQL.
+- Choisir `SESSION_MEMORY_LIMIT_MB` d'après `docker stats` sur une grosse run : 0 laisse la mémoire libre.
+
+### Sécurité
+
+- **Exposition** (50.2) : Postgres n'écoute plus qu'en boucle locale, l'orchestrateur et la console MinIO
+  n'ont plus de route publique, le bucket `media-public` n'est plus listable.
+- **Sessions cloisonnées** (50.2) : serveurs Archipelago et bridges sur des réseaux internes, conteneurs
+  sans capacités inutiles et avec une limite de processus.
+- **API** (50.3) : limites de débit sur l'authentification, `state` OAuth Discord lié au navigateur,
+  suivi détaillé réservé aux joueurs de la partie, résultats alignés sur la visibilité de l'événement,
+  comparaison des secrets en temps constant, en-têtes HTTP, emails masqués dans les logs.
+- **Images de tutoriel** (50.3) : réservées aux emails confirmés, avec quota et plafond de pixels.
+- **Scans en CI** (50.4) : gitleaks, `composer audit`, semgrep, et ZAP chaque semaine.
+- **Webhooks de l'orchestrateur** (50.5) : un message trop ancien est refusé.
+- **Événements privés** (50.5) : leurs résultats suivent la même règle que leurs récaps.
+- **Dépendances du front** (50.5) : `pnpm audit` en CI, postcss à jour.
+- **Conteneurs de session** (50.6) : le bridge n'a plus accès à Docker, le serveur Archipelago ne tourne plus
+  en root, et `SESSION_MEMORY_LIMIT_MB` peut borner la mémoire des sessions et des générations.
+
+### Modifié
+
+- **Rôle Discord membre** (50.3) : il suit l'adhésion réelle. Un `ROLE_MEMBER` manuel sans adhésion perd
+  le rôle à la prochaine synchro.
+
 ## [0.56.2] - 2026-11-03
 
 Correctif de sécurité, à déployer avec les nouvelles images `orchestrateur`, `archipelago` et `bridge`.

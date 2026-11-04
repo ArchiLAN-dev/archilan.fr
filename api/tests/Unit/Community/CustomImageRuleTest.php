@@ -96,6 +96,13 @@ final class CustomImageRuleTest extends TestCase
         self::assertSame(10 * self::MB, CustomImageRule::maxBytes(CustomImageSlot::Banner, ImageFormat::Jpeg));
     }
 
+    public function testAGifBeyondThePixelLimitIsRefusedHoweverLightItIs(): void
+    {
+        $gif = new InspectedImage(ImageFormat::Gif, false, CustomImageRule::MAX_GIF_PIXELS + 1);
+
+        self::assertSame(CustomImageRefusal::TooManyPixels, CustomImageRule::refusal(CustomImageSlot::Avatar, $gif, 1024, true, false));
+    }
+
     private function refusal(CustomImageSlot $slot, ImageFormat $format, bool $animated, int $size, bool $admin, bool $member): ?CustomImageRefusal
     {
         return CustomImageRule::refusal($slot, new InspectedImage($format, $animated), $size, $admin, $member);

@@ -139,18 +139,17 @@ export async function fetchOverlaySubscribe(sessionId: string): Promise<OverlayS
 export type SlotGoalStats = { gameName: string; checksPercent: number; itemsPercent: number };
 
 /**
- * Fetches a slot's reachability snapshot (anonymous GET, same public endpoint the progression page and
- * the reachable overlay use) and derives the celebration's percentages with the progression page's
- * formulas. The `players` frame alone cannot provide them: it carries no items total. Returns null on
- * any error or invalid shape - the caller falls back to the frame's checks counts.
+ * Fetches a slot's last pushed reachability (public overlay endpoint, the one the reachable overlay uses)
+ * and derives the celebration's percentages with the progression page's formulas. The `players` frame
+ * alone cannot provide them: it carries no items total. Returns null on any error, on an invalid shape or
+ * when nothing was pushed yet - the caller falls back to the frame's checks counts.
  */
 export async function fetchSlotGoalStats(sessionId: string, slotKey: string): Promise<SlotGoalStats | null> {
   if (!sessionId || !slotKey) return null;
   try {
-    // Bounded wait: the bridge recomputes reachability when its cache is stale, which can take a few
-    // seconds - never hold the celebration longer than this.
+    // Bounded wait: never hold the celebration longer than this.
     const res = await fetch(
-      `${env.apiBaseUrl}/sessions/${encodeURIComponent(sessionId)}/slots/${encodeURIComponent(slotKey)}/reachable`,
+      `${env.apiBaseUrl}/public/overlay/${encodeURIComponent(sessionId)}/slots/${encodeURIComponent(slotKey)}/reachable`,
       { signal: AbortSignal.timeout(8_000) },
     );
     if (!res.ok) return null;

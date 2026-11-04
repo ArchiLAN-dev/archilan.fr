@@ -115,6 +115,7 @@ final readonly class CommunityCustomImageController
             CustomImageRefusal::AnimationUnsupported => $this->apiAccessGuard->errorResponse('image_animation_unsupported', "Les images animées ne sont acceptées qu'en GIF.", 422),
             CustomImageRefusal::UnsupportedType => $this->apiAccessGuard->errorResponse('image_invalid_type', 'Type de fichier non supporté. Utilisez JPEG, PNG ou WebP.', 422),
             CustomImageRefusal::TooLarge => $this->apiAccessGuard->errorResponse('image_too_large', sprintf("L'image ne peut pas dépasser %s.", $limit), 422),
+            CustomImageRefusal::TooManyPixels => $this->apiAccessGuard->errorResponse('image_too_many_pixels', 'Ce GIF a des dimensions trop grandes (4096 x 4096 pixels au maximum).', 422),
         };
     }
 

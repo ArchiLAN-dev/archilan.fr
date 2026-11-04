@@ -1,0 +1,15 @@
+# Story 50.4. Default rules, minus what is known not to be a secret: test keys, vendored code and
+# generated planning text. Each entry below was checked by hand on 2026-11-03.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Faux positifs verifies"
+paths = [
+    '''api/\.env\.test$''',
+    '''api/tests/Functional/PushSubscriptionControllerTest\.php$''',
+    '''packages/[^/]+/vendor/''',
+    '''bridge/BRIDGE_API\.md$''',
+    '''bridge/tests/''',
+    '''_bmad-output/planning-artifacts/epics\.md$''',
+]
