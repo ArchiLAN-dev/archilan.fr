@@ -202,6 +202,32 @@ final class PlayerDataAccessControlTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(200);
     }
 
+    /** Story 50.5: a private event stays listed, but its results follow the audience of its recaps (story 4.23). */
+    public function testTheResultsOfAPrivateEventAreForItsParticipantsAndAdmins(): void
+    {
+        $now = new \DateTimeImmutable('2026-06-01T10:00:00+00:00');
+        $event = $this->createEvent('Privé', $now, $now->modify('+1 day'), published: true, isPublic: false);
+        $player = $this->createUser('player@example.org');
+        $this->createRegistration($event->getId(), $player->getId())->confirm($now);
+        $this->entityManager->flush();
+        $url = sprintf('/api/v1/events/%s/session/results', $event->getId());
+
+        $this->client->jsonRequest('GET', $url);
+        self::assertResponseStatusCodeSame(404);
+
+        $this->loginAs($this->createUser('stranger@example.org'));
+        $this->client->jsonRequest('GET', $url);
+        self::assertResponseStatusCodeSame(404);
+
+        $this->loginAs($player);
+        $this->client->jsonRequest('GET', $url);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']));
+        $this->client->jsonRequest('GET', $url);
+        self::assertResponseStatusCodeSame(200);
+    }
+
     // ─── fixtures ──────────────────────────────────────────────────────────────
 
     /**

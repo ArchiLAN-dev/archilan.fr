@@ -45,6 +45,30 @@ jobs:
       - name: Audit the locked dependencies
         run: composer audit --locked --no-interaction
 
+  pnpm-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: '10'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+
+      # Same check as frontend.yml, repeated here for the weekly schedule: a new advisory surfaces without a commit.
+      # --ignore-registry-errors: see frontend.yml.
+      - name: Audit the locked dependencies (high and above block)
+        run: pnpm audit --audit-level high --ignore-registry-errors
+
   semgrep:
     runs-on: ubuntu-latest
     steps:

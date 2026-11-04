@@ -7,6 +7,7 @@ namespace App\Sessions\Presentation\Controller;
 use App\Sessions\Application\Command\RecordSessionGeneratedOutput;
 use App\Sessions\Application\Service\SessionLifecycleManager;
 use App\Sessions\Application\Service\SessionOrchestrator;
+use App\Sessions\Application\Support\OrchestratorWebhookFreshness;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\WeeklyRuns\Application\Command\MarkWeeklyRunGenerated;
 use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;
@@ -30,6 +31,7 @@ final readonly class OrchestratorWebhookController
         private SessionOrchestrator $sessionOrchestrator,
         private MarkWeeklyRunGenerated $markWeeklyRunGenerated,
         private RecordSessionGeneratedOutput $recordSessionGeneratedOutput,
+        private OrchestratorWebhookFreshness $freshness,
         private LoggerInterface $logger,
         private string $orchestrateurWebhookSecret,
     ) {
@@ -46,6 +48,13 @@ final readonly class OrchestratorWebhookController
         }
 
         $body = $this->jsonBody($request);
+
+        if (!$this->freshness->accepts($body['timestamp'] ?? null)) {
+            $this->logger->warning('orchestrateur.webhook.stale');
+
+            return $this->apiAccessGuard->errorResponse('unauthorized', 'Horodatage invalide.', 401);
+        }
+
         $event = is_string($body['event'] ?? null) ? $body['event'] : '';
         $sessionId = is_string($body['sessionId'] ?? null) ? $body['sessionId'] : '';
 
