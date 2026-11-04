@@ -77,7 +77,7 @@ jobs:
 
       - name: Static analysis (errors block, warnings are reviewed by hand)
         run: >
-          docker run --rm -v "$PWD:/src:ro" semgrep/semgrep:1.120.0
+          docker run --rm -v "$PWD:/src:ro" semgrep/semgrep:1.182.1
           semgrep scan --config p/php --config p/typescript --config p/security-audit
           --metrics off --severity ERROR --error
           /src/api/src /src/frontend/src

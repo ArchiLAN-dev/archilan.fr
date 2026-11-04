@@ -143,6 +143,12 @@ réseaux à chaud. Contrôle après bascule, sur une nouvelle run : la connexion
 slots remonte, et `docker exec ap-server-<id> python -c "import socket; socket.create_connection(('postgres', 5432), 3)"`
 échoue.
 
+**Images d'une session :** `archipelago`, `bridge` et `orchestrateur` se déploient ensemble depuis la
+story 50.6. Le bridge n'a plus accès à Docker : il demande le suivi au conteneur du serveur par
+`/data/reachable.sock`, sur le volume de session, et ce socket n'existe qu'avec l'image `archipelago`
+du même lot. Le serveur tourne en uid 1000, comme le bridge. Une session lancée avant le déploiement
+garde ses conteneurs jusqu'à son arrêt.
+
 **Bucket `media-public` :** `createbuckets` n'autorise plus que la lecture d'objets. Sur une machine
 déjà installée, relancer `docker compose run --rm createbuckets`.
 
