@@ -27,6 +27,9 @@ final readonly class TutorialImageController
 
     private const int MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
+    /** Story 50.3: ample for a full-page 4K capture, and what keeps a light file from unfolding into a huge image. */
+    private const int MAX_PIXELS = 40_000_000;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private UploadTutorialImageCommand $command,
@@ -40,6 +43,11 @@ final readonly class TutorialImageController
         $user = $this->apiAccessGuard->requireUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
+        }
+
+        $isAdmin = in_array('ROLE_ADMIN', $user->getRoles(), true);
+        if (!$isAdmin && !$user->isEmailVerified()) {
+            return $this->apiAccessGuard->errorResponse('email_not_verified', 'Confirme ton adresse email pour envoyer des images.', 403);
         }
 
         $file = $request->files->get('file');
@@ -65,11 +73,20 @@ final readonly class TutorialImageController
             return $this->apiAccessGuard->errorResponse('image_invalid_type', 'Type de fichier non supporté. Utilisez JPEG, PNG, WebP ou GIF.', 422);
         }
 
-        $key = sprintf('tutorials/%s.%s', bin2hex(random_bytes(16)), self::ALLOWED_MIMES[$mime]);
         $contents = (string) file_get_contents((string) $file->getRealPath());
 
+        $dimensions = @getimagesizefromstring($contents);
+        if (false === $dimensions) {
+            return $this->apiAccessGuard->errorResponse('image_invalid_type', 'Type de fichier non supporté. Utilisez JPEG, PNG, WebP ou GIF.', 422);
+        }
+        if ($dimensions[0] * $dimensions[1] > self::MAX_PIXELS) {
+            return $this->apiAccessGuard->errorResponse('image_too_many_pixels', "Les dimensions de l'image sont trop grandes.", 422);
+        }
+
+        $key = sprintf('tutorials/%s.%s', bin2hex(random_bytes(16)), self::ALLOWED_MIMES[$mime]);
+
         try {
-            $data = $this->command->execute($key, $contents);
+            $data = $this->command->execute($key, $contents, $user->getId(), $isAdmin);
         } catch (\Throwable $exception) {
             // The client only ever sees a generic storage_unavailable; log the real cause here or it is
             // lost (e.g. a missing/misconfigured media bucket).
@@ -79,6 +96,10 @@ final readonly class TutorialImageController
             ]);
 
             return $this->apiAccessGuard->errorResponse('storage_unavailable', 'Le stockage est indisponible.', 503);
+        }
+
+        if (null === $data) {
+            return $this->apiAccessGuard->errorResponse('too_many_requests', "Trop d'images envoyées. Réessaie plus tard.", 429);
         }
 
         // Stable URL for the markdown description: a presigned one would expire once written into

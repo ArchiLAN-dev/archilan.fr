@@ -9,6 +9,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  poweredByHeader: false,
   // Allow Next.js jest to transform these ESM-only packages (needed for msw/node in tests).
   transpilePackages: ["msw", "rettime", "until-async", "@open-draft/deferred-promise"],
   images: {
@@ -54,10 +55,29 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     // Baseline security headers on every response. These govern how OUR pages behave, not our
-    // ability to embed Twitch/HelloAsso (that is CSP frame-src, not added here) - so they are
-    // safe for the consent-gated embed pages. No CSP: a strict one would break Next's inline
-    // hydration scripts and the embeds.
+    // ability to embed Twitch/HelloAsso - so they are safe for the consent-gated embed pages.
+    //
+    // Story 50.3: the CSP only reports for now (browser console), so nothing can break while it is
+    // measured against real pages: Next's inline scripts, the embeds, media on any https host (event
+    // covers can be arbitrary URLs), the API and Mercure on their own hosts. Enforce it by renaming the
+    // header once the console stays quiet.
+    const contentSecurityPolicy = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://embed.twitch.tv",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https: wss:",
+      "frame-src 'self' https://player.twitch.tv https://embed.twitch.tv https://*.helloasso.com https://*.helloasso-sandbox.com https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
+      "frame-ancestors 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ");
+
     const securityHeaders = [
+      { key: "Content-Security-Policy-Report-Only", value: contentSecurityPolicy },
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "X-Frame-Options", value: "SAMEORIGIN" },

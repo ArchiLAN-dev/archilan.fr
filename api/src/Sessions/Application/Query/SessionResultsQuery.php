@@ -29,7 +29,7 @@ final readonly class SessionResultsQuery
     }
 
     /**
-     * Returns null if the event is not found.
+     * Returns null if the event is not found, or not readable by the public (same rule as reading the event).
      * Returns array with session=null if no finished session exists for the event.
      *
      * @return array{
@@ -40,7 +40,7 @@ final readonly class SessionResultsQuery
     public function findForEvent(string $eventId): ?array
     {
         $event = $this->events->findById($eventId);
-        if (!$event instanceof Event) {
+        if (!$event instanceof Event || !$event->isVisiblePublicly()) {
             return null;
         }
 

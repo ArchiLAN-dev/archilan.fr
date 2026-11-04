@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Communications\Application\Service;
 
 use App\Communications\Application\Email\ArchilanEmail;
+use App\Shared\Application\Support\EmailMask;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Address;
@@ -39,7 +40,7 @@ final readonly class ArchilanMailer
             return true;
         } catch (\Throwable $e) {
             $this->logger->error('archilan_mailer.send_failed', [
-                'recipient' => $email->to(),
+                'recipient' => EmailMask::mask($email->to()),
                 'subject' => $email->subject(),
                 'error' => $e->getMessage(),
             ]);

@@ -66,11 +66,13 @@ final readonly class SyncDiscordRoleMessageHandler
                     \in_array('ROLE_ADMIN', $roles, true),
                 );
 
-                // Member role: active membership record OR manually-granted ROLE_MEMBER
-                $isMember = \in_array('ROLE_MEMBER', $roles, true)
-                    || $this->membershipQuery->hasActiveMembership($message->userId);
-
-                $this->syncRole($message->discordUserId, $this->roleIdMember, $isMember);
+                // The live membership decides: ROLE_MEMBER outlives it, and the sync that follows an expiry
+                // would then keep the Discord role forever (story 50.3).
+                $this->syncRole(
+                    $message->discordUserId,
+                    $this->roleIdMember,
+                    $this->membershipQuery->hasActiveMembership($message->userId),
+                );
             }
 
             $this->logger->info('discord_bot.role_synced', [

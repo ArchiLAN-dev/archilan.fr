@@ -60,7 +60,7 @@ final readonly class PersonalRunCallbackController
 
         return '' !== $this->bridgeInternalToken
             && str_starts_with($auth, 'Bearer ')
-            && substr($auth, 7) === $this->bridgeInternalToken;
+            && hash_equals($this->bridgeInternalToken, substr($auth, 7));
     }
 
     /**

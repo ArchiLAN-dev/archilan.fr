@@ -24,7 +24,7 @@ final readonly class TraefikConfigController
     {
         $provided = $request->headers->get('x-traefik-token', '');
 
-        if ('' === $this->traefikToken || $provided !== $this->traefikToken) {
+        if ('' === $this->traefikToken || !hash_equals($this->traefikToken, $provided)) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Token Traefik invalide.', 401);
         }
 

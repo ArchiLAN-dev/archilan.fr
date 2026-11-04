@@ -7,6 +7,8 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters
 parameters:
+    # Story 50.3: the reverse proxy sits on the private Docker network (override with TRUSTED_PROXIES).
+    env(TRUSTED_PROXIES): 'private_ranges'
     default_minio_apworlds_bucket: 'apworlds'
     default_minio_saves_bucket: 'archipelago-saves'
     default_minio_media_bucket: 'media'

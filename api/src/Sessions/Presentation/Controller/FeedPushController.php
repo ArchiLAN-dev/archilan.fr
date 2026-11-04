@@ -47,7 +47,7 @@ final readonly class FeedPushController
     {
         $provided = $request->headers->get('x-internal-secret', '');
 
-        if ('' === $this->centralApiSecret || $provided !== $this->centralApiSecret) {
+        if ('' === $this->centralApiSecret || !hash_equals($this->centralApiSecret, $provided)) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret invalide.', 401);
         }
 
