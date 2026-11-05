@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2d676197698cd433c6848badca9b3dc9",
+    "content-hash": "33f3cb239533854d0ef2b53aa98d71b0",
     "packages": [
         {
             "name": "archilan/bridge-client",
@@ -3883,22 +3883,21 @@
         },
         {
             "name": "symfony/clock",
-            "version": "v7.4.21",
+            "version": "v8.1.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/clock.git",
-                "reference": "07437f612dca89c1894c1db04491002b1e798f03"
+                "reference": "945ea3b64d6da9c1c2c354fe5c07b27455df6442"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/clock/zipball/07437f612dca89c1894c1db04491002b1e798f03",
-                "reference": "07437f612dca89c1894c1db04491002b1e798f03",
+                "url": "https://api.github.com/repos/symfony/clock/zipball/945ea3b64d6da9c1c2c354fe5c07b27455df6442",
+                "reference": "945ea3b64d6da9c1c2c354fe5c07b27455df6442",
                 "shasum": ""
             },
             "require": {
-                "php": ">=8.2",
-                "psr/clock": "^1.0",
-                "symfony/polyfill-php83": "^1.28"
+                "php": ">=8.4.1",
+                "psr/clock": "^1.0"
             },
             "provide": {
                 "psr/clock-implementation": "1.0"
@@ -3937,7 +3936,7 @@
                 "time"
             ],
             "support": {
-                "source": "https://github.com/symfony/clock/tree/v7.4.21"
+                "source": "https://github.com/symfony/clock/tree/v8.1.9"
             },
             "funding": [
                 {
@@ -3957,7 +3956,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-10-12T14:31:36+00:00"
+            "time": "2026-10-12T14:32:04+00:00"
         },
         {
             "name": "symfony/config",
@@ -7371,31 +7370,31 @@
         },
         {
             "name": "symfony/scheduler",
-            "version": "v7.4.22",
+            "version": "v8.1.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/scheduler.git",
-                "reference": "1d5bd2461087b5658484186a469f80b49093fb4c"
+                "reference": "5cb3b9ce52813ac2b15381df41a47c153a18535d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/scheduler/zipball/1d5bd2461087b5658484186a469f80b49093fb4c",
-                "reference": "1d5bd2461087b5658484186a469f80b49093fb4c",
+                "url": "https://api.github.com/repos/symfony/scheduler/zipball/5cb3b9ce52813ac2b15381df41a47c153a18535d",
+                "reference": "5cb3b9ce52813ac2b15381df41a47c153a18535d",
                 "shasum": ""
             },
             "require": {
-                "php": ">=8.2",
-                "symfony/clock": "^6.4|^7.0|^8.0"
+                "php": ">=8.4.1",
+                "symfony/clock": "^7.4|^8.0"
             },
             "require-dev": {
                 "dragonmantank/cron-expression": "^3.1",
-                "symfony/cache": "^6.4.36|^7.4.8|^8.0.8",
-                "symfony/console": "^6.4|^7.0|^8.0",
-                "symfony/dependency-injection": "^6.4|^7.0|^8.0",
-                "symfony/event-dispatcher": "^6.4|^7.0|^8.0",
-                "symfony/lock": "^6.4|^7.0|^8.0",
-                "symfony/messenger": "^6.4|^7.0|^8.0",
-                "symfony/serializer": "^6.4|^7.1|^8.0"
+                "symfony/cache": "^7.4.8|^8.0.8",
+                "symfony/console": "^7.4|^8.0",
+                "symfony/dependency-injection": "^7.4|^8.0",
+                "symfony/event-dispatcher": "^7.4|^8.0",
+                "symfony/lock": "^7.4|^8.0",
+                "symfony/messenger": "^7.4|^8.0",
+                "symfony/serializer": "^7.4|^8.0"
             },
             "type": "library",
             "autoload": {
@@ -7432,7 +7431,7 @@
                 "scheduler"
             ],
             "support": {
-                "source": "https://github.com/symfony/scheduler/tree/v7.4.22"
+                "source": "https://github.com/symfony/scheduler/tree/v8.1.10"
             },
             "funding": [
                 {
@@ -7452,7 +7451,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-10-26T21:52:50+00:00"
+            "time": "2026-10-26T21:55:04+00:00"
         },
         {
             "name": "symfony/security-bundle",
@@ -12804,5 +12803,5 @@
         "ext-iconv": "*"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }
