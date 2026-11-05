@@ -17,5 +17,5 @@ export function ShopBalance() {
   const { data: wallet } = useQuery({ queryKey: ["my-wallet", 1], queryFn: () => fetchMyWallet(1), staleTime: DEFAULT_STALE_TIME, retry: false, enabled: signedIn });
 
   if (!signedIn || !wallet) return null;
-  return <PelleAmount amount={wallet.gold} className="ml-1.5 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning" />;
+  return <PelleAmount amount={wallet.gold} className="ml-1.5 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold" kind="gold" />;
 }

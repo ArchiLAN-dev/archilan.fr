@@ -85,7 +85,7 @@ describe("event pelles page", () => {
     expect(pelleReasonLabel("event_conversion")).toBe("Conversion en or (fin d'événement)");
     expect(
       messageFor({ id: "n", type: "pelles_adjusted", createdAt: "2026-10-03T10:00:00Z", read: false, actor: null, data: { amount: 15, kind: "event", reason: "Happening", eventTitle: "ArchiLAN #3" } }),
-    ).toBe("Tu as reçu 15 pelles pour « ArchiLAN #3 » : Happening");
+    ).toBe("Tu as reçu 15 pelles d'argent pour « ArchiLAN #3 » : Happening");
   });
 });
 

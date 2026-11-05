@@ -234,10 +234,10 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
                 </span>
                 {quest.tiers && quest.tiers.length > 0 ? (
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    jusqu&apos;à <PelleAmount amount={questMaxReward(quest)} className="font-semibold text-warning" />
+                    jusqu&apos;à <PelleAmount amount={questMaxReward(quest)} className="font-semibold" kind="gold" />
                   </span>
                 ) : (
-                  <PelleAmount amount={quest.reward} className="shrink-0 text-xs font-semibold text-warning" signed />
+                  <PelleAmount amount={quest.reward} className="shrink-0 text-xs font-semibold" kind="gold" signed />
                 )}
               </div>
               {quest.description !== "" ? <p className="pl-6 text-xs text-muted-foreground">{quest.description}</p> : null}
@@ -344,7 +344,7 @@ export function ObjectiveBar({ objective, done, tiers = null }: { objective: Que
               {tier.reached ? <CheckCircle2 aria-hidden className="size-3" /> : <Circle aria-hidden className="size-3" />}
               <span className="sr-only">{tier.reached ? "Palier atteint : " : "Palier : "}</span>
               {formatQuestAmount(tier.target, objective.duration)} {objective.unit}
-              <PelleAmount amount={tier.reward} className="font-semibold text-warning" signed />
+              <PelleAmount amount={tier.reward} className="font-semibold" kind="gold" signed />
             </li>
           ))}
         </ol>
@@ -370,7 +370,7 @@ export function ChestRow({ chest }: { chest: QuestChest }) {
             : `Fais toutes les quêtes pour l'ouvrir (${chest.done} / ${chest.total}).`}
         </span>
       </span>
-      <PelleAmount amount={chest.reward} className="shrink-0 text-xs font-semibold text-warning" signed />
+      <PelleAmount amount={chest.reward} className="shrink-0 text-xs font-semibold" kind="gold" signed />
     </div>
   );
 }
@@ -391,7 +391,7 @@ export function QuestHistory({ weeks }: { weeks: QuestWeekHistory[] }) {
           Historique des quêtes
         </h2>
         <p className="text-xs text-muted-foreground">
-          {weeks.length} dernières semaines · <PelleAmount amount={earned} className="font-semibold text-warning" />
+          {weeks.length} dernières semaines · <PelleAmount amount={earned} className="font-semibold" kind="gold" />
         </p>
       </div>
       <ul className="divide-y divide-border" role="list">
@@ -407,7 +407,7 @@ export function QuestHistory({ weeks }: { weeks: QuestWeekHistory[] }) {
                 coffre ouvert
               </span>
             ) : null}
-            <PelleAmount amount={week.pelles} className="ml-auto font-semibold text-warning" signed />
+            <PelleAmount amount={week.pelles} className="ml-auto font-semibold" kind="gold" signed />
           </li>
         ))}
       </ul>

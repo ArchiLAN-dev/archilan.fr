@@ -249,12 +249,12 @@ export function CurrentWeek({
             <span className="text-sm font-normal text-muted-foreground">{weekLabel(week)}</span>
           </h2>
           <p className="text-xs text-muted-foreground">
-            {summary.quests} quête{summary.quests > 1 ? "s" : ""} · jusqu&apos;à <PelleAmount amount={summary.total} className="font-semibold text-warning" /> par membre
+            {summary.quests} quête{summary.quests > 1 ? "s" : ""} · jusqu&apos;à <PelleAmount amount={summary.total} className="font-semibold" kind="gold" /> par membre
             {summary.chest ? ", coffre compris" : ""}
             {summary.collective !== null ? (
               <>
                 {" "}
-                · collective en plus : <PelleAmount amount={summary.collective} className="font-semibold text-warning" signed />
+                · collective en plus : <PelleAmount amount={summary.collective} className="font-semibold" kind="gold" signed />
               </>
             ) : null}
           </p>
@@ -294,7 +294,7 @@ export function CurrentWeek({
                   {/* Story 41.69: the community's total, as the hourly run last counted it. */}
                   {served.collective ? <p className="text-xs text-foreground">{groupLine(served, true)}</p> : null}
                 </div>
-                <PelleAmount amount={served.reward} className="text-sm font-semibold text-warning" signed />
+                <PelleAmount amount={served.reward} className="text-sm font-semibold" kind="gold" signed />
                 <div className="flex gap-1">
                   <button className={buttonVariants({ variant: "ghost" })} disabled={pending} onClick={() => onReplace(served)} type="button">
                     <Repeat2 aria-hidden className="size-4" />
@@ -428,7 +428,7 @@ export function PickQuestDialog({
                     </span>
                     <span className="text-xs text-muted-foreground">{objectivesSummary(candidate.objectives, metrics, scopes)}</span>
                   </span>
-                  <PelleAmount amount={candidate.reward} className="text-xs font-semibold text-warning" signed />
+                  <PelleAmount amount={candidate.reward} className="text-xs font-semibold" kind="gold" signed />
                 </label>
               </li>
             ))}
@@ -656,7 +656,7 @@ export function PastWeeks({ weeks }: { weeks: PastQuestWeek[] }) {
               <Gift aria-hidden className="size-3.5" />
               {week.chests} coffre{week.chests > 1 ? "s" : ""}
             </span>
-            <PelleAmount amount={week.pelles} className="w-20 text-right text-xs font-semibold text-warning" />
+            <PelleAmount amount={week.pelles} className="w-20 text-right text-xs font-semibold" kind="gold" />
           </li>
         ))}
       </ol>

@@ -196,7 +196,7 @@ export function ItemBountiesView({
                 <span className="text-xs text-muted-foreground"> pour {bounty.slotName}</span>
               </span>
               <span className="flex shrink-0 items-center gap-2">
-                <PelleAmount amount={bounty.reward} className="text-xs font-semibold text-warning" />
+                <PelleAmount amount={bounty.reward} className="text-xs font-semibold" kind={bronze ? "bronze" : "gold"} />
                 {bounty.mine ? (
                   <button
                     aria-label={`Retirer la prime sur ${bounty.itemName}`}
@@ -265,14 +265,14 @@ export function ItemBountiesView({
         pending={pending}
         title={confirming?.kind === "withdraw" ? `Retirer la prime sur ${confirming.itemName} ?` : "Poser une prime ?"}
       >
-        {confirming?.kind === "post" ? <BountySummary amount={parsedAmount} itemName={itemName} /> : undefined}
+        {confirming?.kind === "post" ? <BountySummary amount={parsedAmount} bronze={bronze} itemName={itemName} /> : undefined}
       </ConfirmDialog>
     </section>
   );
 }
 
 /** What a bounty holds (story 39.15): the item asked for, the pelles set aside, the fee taken on payout. */
-export function BountySummary({ itemName, amount }: { itemName: string; amount: number }) {
+export function BountySummary({ itemName, amount, bronze = false }: { itemName: string; amount: number; bronze?: boolean }) {
   return (
     <div className="grid gap-3">
       <div className="grid grid-cols-2 gap-3">
@@ -280,7 +280,7 @@ export function BountySummary({ itemName, amount }: { itemName: string; amount: 
           <span className="break-words text-base">{itemName}</span>
         </ConfirmFigure>
         <ConfirmFigure label="Mis de côté">
-          <PelleAmount amount={amount} className="text-warning" />
+          <PelleAmount amount={amount} kind={bronze ? "bronze" : "gold"} />
         </ConfirmFigure>
       </div>
       <p className="border-t border-border pt-3 text-xs text-muted-foreground">10 % sont prélevés au versement.</p>

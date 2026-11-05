@@ -140,7 +140,7 @@ function AdminMinimapperzForm({ eventId, initial }: { eventId: string; initial: 
     >
       <p className="text-sm text-muted-foreground">
         Relie l&apos;événement à sa LAN Minimapperz. Pendant l&apos;événement, le site lit chaque minute les parties terminées et
-        crédite des pelles d&apos;événement aux inscrits qui ont joué avec leur code. Termine la LAN Minimapperz avant la fin de
+        crédite des pelles d&apos;argent aux inscrits qui ont joué avec leur code. Termine la LAN Minimapperz avant la fin de
         l&apos;événement : une partie finie après n&apos;est pas créditée.
       </p>
 

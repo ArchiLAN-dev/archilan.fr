@@ -71,7 +71,7 @@ export function WelcomeQuestsView({ welcome }: { welcome: WelcomeQuests }) {
           Premiers pas
         </h2>
         <p className="text-xs text-muted-foreground">
-          {done} / {welcome.steps.length} faits · <PelleAmount amount={welcome.total} className="font-semibold text-warning" /> en tout
+          {done} / {welcome.steps.length} faits · <PelleAmount amount={welcome.total} className="font-semibold" kind="gold" /> en tout
         </p>
       </div>
       <p className="text-sm text-muted-foreground">Bienvenue ! Chaque premier pas rapporte des pelles, une seule fois.</p>
@@ -105,7 +105,7 @@ export function WelcomeQuestsView({ welcome }: { welcome: WelcomeQuests }) {
                   </span>
                 </span>
               </span>
-              <PelleAmount amount={step.reward} className="shrink-0 text-xs font-semibold text-warning" signed />
+              <PelleAmount amount={step.reward} className="shrink-0 text-xs font-semibold" kind="gold" signed />
             </li>
           );
         })}

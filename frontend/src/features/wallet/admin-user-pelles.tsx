@@ -71,7 +71,7 @@ export function AdminUserPelles({ userId, isSelf, memberName }: { userId: string
     if (!canSubmit || !wallet) return;
     const target = kind === "event" ? eventId : null;
     const eventTitle = events?.kind === "ready" ? events.events.find((event) => event.id === target)?.title : undefined;
-    const kindLabel = kind === "gold" ? "Pelles d'or" : `Pelles de ${eventTitle ?? "l'événement"}`;
+    const kindLabel = kind === "gold" ? "Pelles d'or" : `Pelles d'argent de ${eventTitle ?? "l'événement"}`;
     setConfirming(adjustmentPreview(direction, parsedAmount, balanceFor(wallet, kind, target), kindLabel, reason.trim()));
   }
 
@@ -101,16 +101,16 @@ export function AdminUserPelles({ userId, isSelf, memberName }: { userId: string
         {wallet ? (
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             <span>
-              Or : <PelleAmount amount={wallet.gold} className="font-semibold text-warning" />
+              Or : <PelleAmount amount={wallet.gold} className="font-semibold" kind="gold" />
             </span>
             {wallet.events.map((event) => (
               <span key={event.eventId}>
-                {event.eventTitle} : <PelleAmount amount={event.balance} className="font-semibold" />
+                {event.eventTitle} : <PelleAmount amount={event.balance} className="font-semibold" kind="event" />
               </span>
             ))}
             {wallet.bronze.map((run) => (
               <span key={run.runId}>
-                Bronze, {run.runTitle} : <PelleAmount amount={run.balance} className="font-semibold" />
+                Bronze, {run.runTitle} : <PelleAmount amount={run.balance} className="font-semibold" kind="bronze" />
               </span>
             ))}
           </div>
@@ -141,7 +141,7 @@ export function AdminUserPelles({ userId, isSelf, memberName }: { userId: string
               <span className="font-medium text-foreground">Type</span>
               <select className={fieldClass} onChange={(e) => setKind(e.target.value === "event" ? "event" : "gold")} value={kind}>
                 <option value="gold">Pelles d&apos;or</option>
-                <option value="event">Pelles d&apos;événement</option>
+                <option value="event">Pelles d&apos;argent</option>
               </select>
             </label>
             {kind === "event" ? (
