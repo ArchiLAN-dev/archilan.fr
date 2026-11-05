@@ -5,6 +5,14 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.57.1] - 2026-11-05
+
+Mise à jour de sécurité des dépendances. Seule l'API change, aucune migration ni variable.
+
+### Sécurité
+
+- Composants Symfony en 7.4.23 : corrige les avis publiés le 2026-11-04.
+
 ## [0.57.0] - 2026-11-04
 
 Durcissement de sécurité de toute la plateforme. À déployer en un seul lot avec les images `orchestrateur` v0.26.0,
