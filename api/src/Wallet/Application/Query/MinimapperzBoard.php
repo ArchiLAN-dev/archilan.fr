@@ -42,12 +42,12 @@ final readonly class MinimapperzBoard
     /**
      * @return MinimapperzBoardView
      *
-     * @throws NotFoundException when the event does not exist
+     * @throws NotFoundException when the event does not exist, or is still a draft (story 50.7)
      */
     public function of(string $eventId): array
     {
         $event = $this->events->findById($eventId);
-        if (!$event instanceof Event) {
+        if (!$event instanceof Event || Event::STATUS_DRAFT === $event->getStatus()) {
             throw new NotFoundException('Événement introuvable.', 'event_not_found');
         }
 

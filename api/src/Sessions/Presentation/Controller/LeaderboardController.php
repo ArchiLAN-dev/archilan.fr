@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation\Controller;
 
 use App\Sessions\Application\Query\LeaderboardQuery;
+use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,6 +19,7 @@ final readonly class LeaderboardController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private LeaderboardQuery $leaderboardQuery,
+        private SessionRecapAudience $audience,
     ) {
     }
 
@@ -40,7 +42,12 @@ final readonly class LeaderboardController
 
         // Story 43.8: the viewer and their friends only; empty for an anonymous visitor.
         $friendsOnly = $request->query->getBoolean('friendsOnly');
-        $viewerId = $friendsOnly ? $this->apiAccessGuard->optionalUser($request)?->getId() : null;
+        $viewerId = $friendsOnly || null !== $eventId ? $this->apiAccessGuard->optionalUser($request)?->getId() : null;
+
+        // Story 50.7: a draft has no public board.
+        if (null !== $eventId && $this->audience->hidesEvent($eventId, $viewerId)) {
+            return $this->apiAccessGuard->errorResponse('event_not_found', 'Événement introuvable.', 404);
+        }
 
         $unit = self::UNITS[$axis];
 
@@ -72,8 +79,8 @@ final readonly class LeaderboardController
                 'data' => $data,
                 'meta' => ['axis' => $axis, 'page' => $page, 'total' => $total],
             ],
-            // A friends board is the viewer's own: never in a shared cache.
-            headers: ['Cache-Control' => $friendsOnly ? 'private, no-store' : 'public, max-age=60'],
+            // A friends board is the viewer's own, an admin may read a draft's: never in a shared cache.
+            headers: ['Cache-Control' => $friendsOnly || null !== $eventId ? 'private, no-store' : 'public, max-age=60'],
         );
     }
 }

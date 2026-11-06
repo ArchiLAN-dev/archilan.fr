@@ -57,6 +57,15 @@ final class MinimapperzBoardTest extends FunctionalTestCase
         });
     }
 
+    public function testADraftHasNoBoard(): void
+    {
+        $draft = $this->createEvent('Brouillon', new \DateTimeImmutable('-1 hour'), new \DateTimeImmutable('+1 day'));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/minimapperz/board', $draft->getId()));
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
     public function testAnyoneReadsTheBoardWithTheSiteNamesOfLinkedPlayers(): void
     {
         $this->link(true);

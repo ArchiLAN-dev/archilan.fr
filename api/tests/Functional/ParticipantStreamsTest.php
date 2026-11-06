@@ -28,7 +28,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
     public function testEventListsStreamersLiveFirstAndExcludesCancelledAndNonTwitch(): void
     {
-        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'));
+        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'), published: true);
 
         $live = $this->createTwitchMember('live@x.test', 'evlive', 'Alice', 'alice-ev');
         $offline = $this->createTwitchMember('off@x.test', 'evoff', 'Bob', 'bob-ev');
@@ -64,7 +64,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
     public function testTheBroadcastListsOnlyTheLiveMembersWhoAgreed(): void
     {
-        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'));
+        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'), published: true);
         $agreed = $this->createTwitchMember('agreed@x.test', 'bcagreed', 'Alice', 'alice-bc');
         $refused = $this->createTwitchMember('refused@x.test', 'bcrefused', 'Bob', 'bob-bc');
         $offline = $this->createTwitchMember('offline@x.test', 'bcoffline', 'Carol', 'carol-bc');
@@ -87,7 +87,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
     public function testBannedAndSuspendedParticipantsAreExcluded(): void
     {
-        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'));
+        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'), published: true);
 
         $ok = $this->createTwitchMember('ok@x.test', 'bnok', 'Okay', 'ok-bn');
         $banned = $this->createTwitchMember('banned@x.test', 'bnbanned', 'Banned', 'banned-bn');
@@ -114,7 +114,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
     public function testExpiredSuspensionIsIncluded(): void
     {
-        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'));
+        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'), published: true);
 
         $member = $this->createTwitchMember('expired@x.test', 'exok', 'Expired', 'exok-bn');
         // Suspension already over relative to the read layer's real-clock check - must be included.
@@ -146,6 +146,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
         $this->fakeLive(['runlive' => 7]);
 
+        $this->loginAs($member);
         $this->client->request('GET', '/api/v1/runs/'.$run->getId().'/participant-streams');
 
         self::assertResponseStatusCodeSame(200);
@@ -155,6 +156,84 @@ final class ParticipantStreamsTest extends FunctionalTestCase
         self::assertSame('runlive', $data[0]['twitchLogin']);
         self::assertTrue($data[0]['live']);
         self::assertSame(7, $data[0]['viewerCount']);
+    }
+
+    public function testAPrivateEventKeepsItsStreamsPublic(): void
+    {
+        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'), published: true, isPublic: false);
+        $member = $this->createTwitchMember('private@x.test', 'pvlive', 'Private', 'private-pv');
+        $this->createRegistration($event->getId(), $member->getId());
+
+        $this->fakeLive([]);
+
+        $this->client->request('GET', '/api/v1/events/'.$event->getId().'/participant-streams');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertCount(1, $this->dataList());
+    }
+
+    public function testADraftShowsItsStreamsToTheAdminsOnly(): void
+    {
+        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'));
+        $member = $this->createTwitchMember('draft@x.test', 'drlive', 'Draft', 'draft-dr');
+        $this->createRegistration($event->getId(), $member->getId());
+        $admin = $this->createUser('admin@x.test', ['ROLE_ADMIN'], 'Admin', 'admin-dr');
+        $path = '/api/v1/events/'.$event->getId().'/participant-streams';
+
+        $this->fakeLive([]);
+
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(404);
+
+        $this->loginAs($member);
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(404);
+
+        $this->loginAs($admin);
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    public function testAPersonalRunShowsItsStreamsToItsAudienceOnly(): void
+    {
+        $owner = $this->createUser('owner@x.test', displayName: 'Owner', slug: 'owner-rn');
+        $stranger = $this->createUser('stranger@x.test', displayName: 'Stranger', slug: 'stranger-rn');
+        $admin = $this->createUser('admin@x.test', ['ROLE_ADMIN'], 'Admin', 'admin-rn');
+        $run = Run::create($owner->getId(), 'My run', $this->now);
+        $this->entityManager->persist($run);
+        $this->entityManager->flush();
+        $path = '/api/v1/runs/'.$run->getId().'/participant-streams';
+
+        $this->fakeLive([]);
+
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(404);
+
+        $this->loginAs($stranger);
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(404);
+
+        $this->loginAs($owner);
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->loginAs($admin);
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    public function testAPublishedRecapOpensTheStreamsOfTheRun(): void
+    {
+        $run = Run::create('owner-id', 'My run', $this->now);
+        $run->publishRecap($this->now);
+        $this->entityManager->persist($run);
+        $this->entityManager->flush();
+
+        $this->fakeLive([]);
+
+        $this->client->request('GET', '/api/v1/runs/'.$run->getId().'/participant-streams');
+
+        self::assertResponseStatusCodeSame(200);
     }
 
     public function testWeeklyRunDeduplicatesAttemptsPerUser(): void
@@ -190,7 +269,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
     public function testCompletedEventReturnsNoStreams(): void
     {
-        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'));
+        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'), published: true);
         $this->transitionEventTo($event, Event::STATUS_COMPLETED, $this->now);
         $this->entityManager->flush();
 
@@ -235,7 +314,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
     public function testEmptyDataWhenNoParticipantHasTwitch(): void
     {
-        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'));
+        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'), published: true);
         $member = $this->createMemberWithLinks('only-yt@x.test', 'NoTwitch', 'noTwitch-em', [
             ['label' => 'YouTube', 'url' => 'https://youtube.com/@x'],
         ]);

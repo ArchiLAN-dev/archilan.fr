@@ -8,6 +8,7 @@ use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Query\ActiveRegistrationQueryInterface;
@@ -42,20 +43,8 @@ final readonly class SessionRecapAudience
         }
 
         $run = $this->runs->findById($session->getEventId());
-        if (null === $run) {
-            return false;
-        }
-        if ($run->isRecapPublic()) {
-            return true;
-        }
-        if (null === $viewerId) {
-            return false;
-        }
-        if ($run->isOwnedBy($viewerId)) {
-            return true;
-        }
 
-        return null !== $this->participants->findByRunAndUser($run->getId(), $viewerId);
+        return null !== $run && $this->canViewRun($run, $viewerId);
     }
 
     /** Story 4.23: an event's game list and recaps follow the same rule as each of its sessions. */
@@ -71,7 +60,47 @@ final readonly class SessionRecapAudience
             return true;
         }
 
-        $viewer = $this->users->findById($viewerId);
+        return $this->isAdmin($viewerId);
+    }
+
+    /**
+     * Story 50.7: whether an event's streams and board stay out of this viewer's sight. A draft is for the admins alone.
+     * A private event is not hidden: Jean keeps these two lists public, unlike its recaps. An unknown id hides nothing
+     * either, the caller answers for it as it always did.
+     */
+    public function hidesEvent(string $eventId, ?string $viewerId): bool
+    {
+        $event = $this->events->findById($eventId);
+
+        return null !== $event && Event::STATUS_DRAFT === $event->getStatus() && !$this->isAdmin($viewerId);
+    }
+
+    /** Story 50.7: the same for a personal run, whose page an admin may also open. */
+    public function hidesRun(string $runId, ?string $viewerId): bool
+    {
+        $run = $this->runs->findById($runId);
+
+        return null !== $run && !$this->canViewRun($run, $viewerId) && !$this->isAdmin($viewerId);
+    }
+
+    private function canViewRun(Run $run, ?string $viewerId): bool
+    {
+        if ($run->isRecapPublic()) {
+            return true;
+        }
+        if (null === $viewerId) {
+            return false;
+        }
+        if ($run->isOwnedBy($viewerId)) {
+            return true;
+        }
+
+        return null !== $this->participants->findByRunAndUser($run->getId(), $viewerId);
+    }
+
+    private function isAdmin(?string $viewerId): bool
+    {
+        $viewer = null === $viewerId ? null : $this->users->findById($viewerId);
 
         return $viewer instanceof User && in_array('ROLE_ADMIN', $viewer->getRoles(), true);
     }
