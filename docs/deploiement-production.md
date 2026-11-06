@@ -5,7 +5,7 @@ celle qui tourne. Deux stories de l'epic 37 ont été construites sur ces hypoth
 qu'on s'en aperçoive. **Quand ce document et la machine divergent, c'est la machine qui a raison, et
 c'est ce document qui doit bouger.**
 
-Aligné sur la machine le **2026-08-13**.
+Aligné sur la machine le **2026-11-04** (déploiement de la v0.57.0).
 
 ## État de la bascule wss
 
@@ -19,6 +19,9 @@ au pare-feu tant que la phase 2 de la story 37.7 n'est pas passée.
 
 ## Topologie
 
+- Sur la machine, le fichier s'appelle **`docker-compose.yaml`** : c'est une copie du
+  `docker-compose.prod.yml` de la release, et le projet compose s'appelle `archilan-prod`. Ne pas
+  créer un second fichier `docker-compose.yml`, Docker pourrait lire le mauvais.
 - Le **reverse proxy n'est pas dans ce dépôt** : il sert plusieurs projets de l'hôte et vit dans son
   propre compose. Voir [`traefik-runs-archipelago.md`](traefik-runs-archipelago.md).
 - Le réseau partagé avec lui s'appelle **`traefik`** (externe, créé par le compose du proxy). Les
@@ -26,12 +29,17 @@ au pare-feu tant que la phase 2 de la story 37.7 n'est pas passée.
 - Le certresolver déclaré dans le proxy s'appelle **`https`** (challenge TLS-ALPN sur le 443), pas
   `letsencrypt`. Toute étiquette ou configuration qui nomme un autre resolver est silencieusement
   inopérante : Traefik sert son certificat par défaut.
-- Les images sont **épinglées par version**, pas suivies en `latest` :
-  `ARCHILAN_VERSION`, `ORCHESTRATEUR_VERSION`, `ARCHIPELAGO_VERSION`, `BRIDGE_VERSION`.
+- Les images doivent être **épinglées par version**, pas suivies en `latest` :
+  `ARCHILAN_VERSION`, `ORCHESTRATEUR_VERSION`, `ARCHIPELAGO_VERSION`, `BRIDGE_VERSION`. Jusqu'à la
+  v0.57.0, le `.env` et `envs/orchestrateur.env` de la machine étaient pourtant en `latest` : relever
+  les valeurs réelles avant tout plan de déploiement.
 - L'épinglage ne s'arrête pas aux images tirées : `AP_IMAGE`, `ARCHIPELAGO_GENERATE_IMAGE` et
   `BRIDGE_IMAGE` (côté `envs/orchestrateur.env`) sont celles que l'orchestrateur **lance** par
   session. Les laisser en `latest` pendant que `ARCHIPELAGO_VERSION` est épinglé fait tourner une
   version différente de celle qu'on croit avoir déployée.
+- Seul l'**orchestrateur** monte la socket Docker. `api-worker` et `api-migrations` l'ont gardée sur
+  la machine jusqu'à la v0.57.0, alors que la story 17.34 l'avait retirée du dépôt : comparer le
+  compose de la machine à celui de la release à chaque déploiement.
 - Les quatre dépôts ont des numéros **indépendants** : relever le dernier tag de chacun plutôt que
   de supposer qu'ils avancent ensemble.
 
@@ -39,10 +47,10 @@ au pare-feu tant que la phase 2 de la story 37.7 n'est pas passée.
 
 ```bash
 # .env de production - remplacer par le dernier tag de chaque dépôt
-ARCHILAN_VERSION=0.18.0
-ORCHESTRATEUR_VERSION=0.16.0
-ARCHIPELAGO_VERSION=0.14.0
-BRIDGE_VERSION=0.12.2
+ARCHILAN_VERSION=0.57.1
+ORCHESTRATEUR_VERSION=0.26.0
+ARCHIPELAGO_VERSION=0.21.0
+BRIDGE_VERSION=0.16.0
 
 docker compose pull
 docker compose --profile images pull      # images archipelago et bridge
@@ -55,7 +63,9 @@ démon.
 ## Blind test d'un événement (stories 41.40 à 41.46)
 
 L'app de blind test (dépôt `archilan-blind-test`) ne tourne que pour un événement : ses deux services sont dans le
-profil `blind-test` et ne démarrent pas avec le reste.
+profil `blind-test` et ne démarrent pas avec le reste. L'app n'a pas de tag : son image suit `latest`
+(`BLIND_TEST_VERSION`). Un correctif de l'app ne s'applique qu'après le `pull` et le `up -d` du profil,
+y compris quand elle tourne déjà.
 
 Une fois :
 
@@ -163,7 +173,7 @@ déjà installée, relancer `docker compose run --rm createbuckets`.
 | `extra_hosts: host.docker.internal` | plus nécessaire | absent | **Résolu** : depuis la story 37.7 l'API joint le bridge par son nom de conteneur sur le réseau interne, sans passer par l'hôte ni par l'adresse publique. |
 | `group_add` de l'orchestrateur | `${DOCKER_GID}` | `994` en dur | Le dépôt utilise désormais `${DOCKER_GID:-994}` : les deux fonctionnent. |
 
-| MinIO | API S3 routée par le proxy | routé par le proxy sur deux domaines | La route de la console disparaît au prochain `up`. |
+| MinIO | API S3 routée par le proxy | API S3 seule depuis la v0.57.0 | **Résolu** : la console n'a plus de route publique. |
 
 ## Pourquoi cette dérive coûte cher
 
