@@ -158,33 +158,18 @@ final class ParticipantStreamsTest extends FunctionalTestCase
         self::assertSame(7, $data[0]['viewerCount']);
     }
 
-    public function testAPrivateEventShowsItsStreamsToItsAudienceOnly(): void
+    public function testAPrivateEventKeepsItsStreamsPublic(): void
     {
         $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'), published: true, isPublic: false);
         $member = $this->createTwitchMember('private@x.test', 'pvlive', 'Private', 'private-pv');
-        $this->createRegistration($event->getId(), $member->getId())->confirm($this->now);
-        $this->entityManager->flush();
-        $stranger = $this->createUser('stranger@x.test', displayName: 'Stranger', slug: 'stranger-pv');
-        $admin = $this->createUser('admin@x.test', ['ROLE_ADMIN'], 'Admin', 'admin-pv');
-        $path = '/api/v1/events/'.$event->getId().'/participant-streams';
+        $this->createRegistration($event->getId(), $member->getId());
 
         $this->fakeLive([]);
 
-        $this->client->request('GET', $path);
-        self::assertResponseStatusCodeSame(404);
+        $this->client->request('GET', '/api/v1/events/'.$event->getId().'/participant-streams');
 
-        $this->loginAs($stranger);
-        $this->client->request('GET', $path);
-        self::assertResponseStatusCodeSame(404);
-
-        $this->loginAs($member);
-        $this->client->request('GET', $path);
         self::assertResponseStatusCodeSame(200);
         self::assertCount(1, $this->dataList());
-
-        $this->loginAs($admin);
-        $this->client->request('GET', $path);
-        self::assertResponseStatusCodeSame(200);
     }
 
     public function testADraftShowsItsStreamsToTheAdminsOnly(): void

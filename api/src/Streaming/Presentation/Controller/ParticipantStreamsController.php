@@ -12,8 +12,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Per-session endpoints listing participants' Twitch channels with live status (story 7.7).
- * Each returns the participants sorted live-first, or 404 when the session does not exist. A private event and a
- * personal run answer their own audience only (story 50.7).
+ * Each returns the participants sorted live-first, or 404 when the session does not exist. A draft answers the admins
+ * only, a personal run its own audience (story 50.7).
  */
 final readonly class ParticipantStreamsController
 {

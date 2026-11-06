@@ -64,19 +64,15 @@ final readonly class SessionRecapAudience
     }
 
     /**
-     * Story 50.7: whether an event's lists stay out of this viewer's sight. On top of {@see canViewEvent()}, a draft is
-     * for the admins alone. An unknown id hides nothing: the caller answers for it as it always did.
+     * Story 50.7: whether an event's streams and board stay out of this viewer's sight. A draft is for the admins alone.
+     * A private event is not hidden: Jean keeps these two lists public, unlike its recaps. An unknown id hides nothing
+     * either, the caller answers for it as it always did.
      */
     public function hidesEvent(string $eventId, ?string $viewerId): bool
     {
         $event = $this->events->findById($eventId);
-        if (null === $event) {
-            return false;
-        }
 
-        $draft = Event::STATUS_DRAFT === $event->getStatus();
-
-        return $draft ? !$this->isAdmin($viewerId) : !$this->canViewEvent($event, $viewerId);
+        return null !== $event && Event::STATUS_DRAFT === $event->getStatus() && !$this->isAdmin($viewerId);
     }
 
     /** Story 50.7: the same for a personal run, whose page an admin may also open. */

@@ -44,7 +44,7 @@ final readonly class LeaderboardController
         $friendsOnly = $request->query->getBoolean('friendsOnly');
         $viewerId = $friendsOnly || null !== $eventId ? $this->apiAccessGuard->optionalUser($request)?->getId() : null;
 
-        // Story 50.7: the board of an event follows the rule of its recaps.
+        // Story 50.7: a draft has no public board.
         if (null !== $eventId && $this->audience->hidesEvent($eventId, $viewerId)) {
             return $this->apiAccessGuard->errorResponse('event_not_found', 'Événement introuvable.', 404);
         }
@@ -79,7 +79,7 @@ final readonly class LeaderboardController
                 'data' => $data,
                 'meta' => ['axis' => $axis, 'page' => $page, 'total' => $total],
             ],
-            // A friends board is the viewer's own, an event's may be private: never in a shared cache.
+            // A friends board is the viewer's own, an admin may read a draft's: never in a shared cache.
             headers: ['Cache-Control' => $friendsOnly || null !== $eventId ? 'private, no-store' : 'public, max-age=60'],
         );
     }

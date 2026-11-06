@@ -400,32 +400,29 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
 
     // ─── eventId filter ──────────────────────────────────────────────────────
 
-    public function testAPrivateEventBoardFollowsItsAudience(): void
+    public function testAPrivateEventKeepsItsBoardPublic(): void
     {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
         $event = $this->createEvent('LAN', $now, $now->modify('+1 day'), published: true, isPublic: false);
-        $member = $this->createUser('member@example.org', displayName: 'Member', slug: 'member-lb');
-        $this->createRegistration($event->getId(), $member->getId())->confirm($now);
-        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/leaderboard?axis=goals&eventId='.$event->getId());
+
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    public function testADraftBoardIsForTheAdminsOnly(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $event = $this->createEvent('LAN', $now, $now->modify('+1 day'));
         $path = '/api/v1/leaderboard?axis=goals&eventId='.$event->getId();
 
         $this->client->request('GET', $path);
         self::assertResponseStatusCodeSame(404);
 
-        $this->loginAs($member);
+        $this->loginAs($this->createUser('admin@example.org', ['ROLE_ADMIN'], 'Admin', 'admin-lb'));
         $this->client->request('GET', $path);
         self::assertResponseStatusCodeSame(200);
         self::assertStringContainsString('no-store', (string) $this->client->getResponse()->headers->get('Cache-Control'));
-    }
-
-    public function testADraftHasNoBoard(): void
-    {
-        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
-        $event = $this->createEvent('LAN', $now, $now->modify('+1 day'));
-
-        $this->client->request('GET', '/api/v1/leaderboard?axis=goals&eventId='.$event->getId());
-
-        self::assertResponseStatusCodeSame(404);
     }
 
     public function testAnUnknownEventKeepsAnEmptyBoard(): void
