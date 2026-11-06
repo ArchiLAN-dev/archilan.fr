@@ -80,10 +80,10 @@ export async function fetchLeaderboard(
   try {
     const params = new URLSearchParams({ axis, limit: String(limit) });
     if (eventId) params.set("eventId", eventId);
-    // Story 43.8: the viewer and their friends, which needs the session cookie.
+    // Story 43.8: the viewer and their friends, which needs the session cookie. So does a private event (story 50.7).
     if (friendsOnly) params.set("friendsOnly", "1");
     const url = `${env.apiBaseUrl}/leaderboard?${params.toString()}`;
-    const response = friendsOnly ? await apiFetch(url) : await fetch(url, { cache: "no-store" });
+    const response = friendsOnly || eventId ? await apiFetch(url) : await fetch(url, { cache: "no-store" });
     if (!response.ok) return null;
     const payload: unknown = await response.json();
     if (!isLeaderboardResponse(payload)) return null;

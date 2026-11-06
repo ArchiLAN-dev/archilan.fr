@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Streaming;
 
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Query\ActiveRegistrationQueryInterface;
+use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Streaming\Application\Port\TwitchApiClientInterface;
 use App\Streaming\Application\Query\ParticipantStreamsView;
 use App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface;
@@ -21,7 +27,7 @@ final class ParticipantStreamsViewTest extends TestCase
 
         $view = $this->makeView(liveResult: null, liveItem: $liveItem);
 
-        $streams = $view->forEvent('event-1');
+        $streams = $view->forEvent('event-1', null);
 
         self::assertNotNull($streams);
         self::assertCount(1, $streams);
@@ -36,7 +42,7 @@ final class ParticipantStreamsViewTest extends TestCase
 
         $view = $this->makeView(liveResult: ['streamer' => 42], liveItem: $liveItem);
 
-        $streams = $view->forEvent('event-1');
+        $streams = $view->forEvent('event-1', null);
 
         self::assertNotNull($streams);
         self::assertCount(1, $streams);
@@ -51,7 +57,7 @@ final class ParticipantStreamsViewTest extends TestCase
 
         $view = $this->makeView(liveResult: [], liveItem: $liveItem);
 
-        $streams = $view->forEvent('event-1');
+        $streams = $view->forEvent('event-1', null);
 
         self::assertNotNull($streams);
         self::assertCount(1, $streams);
@@ -102,6 +108,14 @@ final class ParticipantStreamsViewTest extends TestCase
             static fn (string $key, callable $callback): mixed => $callback(str_contains($key, 'live_logins') ? $liveItem : $avatarItem),
         );
 
-        return new ParticipantStreamsView($query, new LiveTwitchLogins($client, $cache), $client, $cache);
+        $audience = new SessionRecapAudience(
+            self::createStub(EventRepositoryInterface::class),
+            self::createStub(RunRepositoryInterface::class),
+            self::createStub(RunParticipantRepositoryInterface::class),
+            self::createStub(ActiveRegistrationQueryInterface::class),
+            self::createStub(UserRepositoryInterface::class),
+        );
+
+        return new ParticipantStreamsView($query, new LiveTwitchLogins($client, $cache), $client, $cache, $audience);
     }
 }

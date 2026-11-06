@@ -400,12 +400,48 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
 
     // ─── eventId filter ──────────────────────────────────────────────────────
 
+    public function testAPrivateEventBoardFollowsItsAudience(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $event = $this->createEvent('LAN', $now, $now->modify('+1 day'), published: true, isPublic: false);
+        $member = $this->createUser('member@example.org', displayName: 'Member', slug: 'member-lb');
+        $this->createRegistration($event->getId(), $member->getId())->confirm($now);
+        $this->entityManager->flush();
+        $path = '/api/v1/leaderboard?axis=goals&eventId='.$event->getId();
+
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(404);
+
+        $this->loginAs($member);
+        $this->client->request('GET', $path);
+        self::assertResponseStatusCodeSame(200);
+        self::assertStringContainsString('no-store', (string) $this->client->getResponse()->headers->get('Cache-Control'));
+    }
+
+    public function testADraftHasNoBoard(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $event = $this->createEvent('LAN', $now, $now->modify('+1 day'));
+
+        $this->client->request('GET', '/api/v1/leaderboard?axis=goals&eventId='.$event->getId());
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testAnUnknownEventKeepsAnEmptyBoard(): void
+    {
+        $this->client->request('GET', '/api/v1/leaderboard?axis=goals&eventId=unknown');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->decodedJsonResponse()['data']);
+    }
+
     public function testEventIdFilterNarrowsResultsToSpecificEvent(): void
     {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
 
-        $event1 = $this->createEvent('LAN 1', $now, $now->modify('+1 day'));
-        $event2 = $this->createEvent('LAN 2', $now, $now->modify('+1 day'));
+        $event1 = $this->createEvent('LAN 1', $now, $now->modify('+1 day'), published: true);
+        $event2 = $this->createEvent('LAN 2', $now, $now->modify('+1 day'), published: true);
         $game = $this->createGame('G', 'g');
 
         $alice = $this->createUser('alice@ex.com', ['ROLE_USER'], 'Alice', 'alice');

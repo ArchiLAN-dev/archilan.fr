@@ -7,11 +7,13 @@ namespace App\Streaming\Presentation\Controller;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Streaming\Application\Query\ParticipantStreamsView;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Public per-session endpoints listing participants' Twitch channels with live status (story 7.7).
- * Each returns the participants sorted live-first, or 404 when the session does not exist.
+ * Per-session endpoints listing participants' Twitch channels with live status (story 7.7).
+ * Each returns the participants sorted live-first, or 404 when the session does not exist. A private event and a
+ * personal run answer their own audience only (story 50.7).
  */
 final readonly class ParticipantStreamsController
 {
@@ -22,9 +24,9 @@ final readonly class ParticipantStreamsController
     }
 
     #[Route('/api/v1/events/{eventId}/participant-streams', name: 'api_event_participant_streams', methods: ['GET'])]
-    public function event(string $eventId): JsonResponse
+    public function event(Request $request, string $eventId): JsonResponse
     {
-        $streams = $this->view->forEvent($eventId);
+        $streams = $this->view->forEvent($eventId, $this->apiAccessGuard->optionalUser($request)?->getId());
         if (null === $streams) {
             return $this->apiAccessGuard->errorResponse('event_not_found', 'Événement introuvable.', 404);
         }
@@ -45,9 +47,9 @@ final readonly class ParticipantStreamsController
     }
 
     #[Route('/api/v1/runs/{runId}/participant-streams', name: 'api_run_participant_streams', methods: ['GET'])]
-    public function run(string $runId): JsonResponse
+    public function run(Request $request, string $runId): JsonResponse
     {
-        $streams = $this->view->forPersonalRun($runId);
+        $streams = $this->view->forPersonalRun($runId, $this->apiAccessGuard->optionalUser($request)?->getId());
         if (null === $streams) {
             return $this->apiAccessGuard->errorResponse('run_not_found', 'Run introuvable.', 404);
         }
