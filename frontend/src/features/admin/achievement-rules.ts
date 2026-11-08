@@ -1,3 +1,4 @@
+import { COUNTER_PREFIX, counterIdOfFact, counterLabel } from "./admin-achievement-counter-scope";
 import { EVENT_GOAL_PREFIX, EVENTS_FACT, factLabel } from "./admin-achievement-event-scope";
 import { conditionPhrase } from "@/features/community/achievement-phrasing";
 
@@ -43,6 +44,8 @@ const FAMILY_OF_FACT: Record<string, FactFamily> = {
 export function familyOf(fact: string): FactFamily {
   if (fact.startsWith(EVENT_GOAL_PREFIX)) return "objectifs";
   if (fact.startsWith("superlative:")) return "recaps";
+  // Story 30.57: a counter of checks or items.
+  if (fact.startsWith(COUNTER_PREFIX)) return "progression";
   return FAMILY_OF_FACT[fact] ?? "autres";
 }
 
@@ -97,7 +100,12 @@ function lower(phrase: string): string {
 function conditionInFrench(condition: RuleCondition, options: AchievementFormOptions, negated: boolean): string {
   const eventId = condition.fact.startsWith(EVENT_GOAL_PREFIX) ? condition.fact.slice(EVENT_GOAL_PREFIX.length) : null;
   const event = eventId === null ? undefined : options.events.find((e) => e.id === eventId);
-  const label = eventId === null ? factLabel(condition.fact, options) : `Objectif atteint à « ${event ? event.title : "événement supprimé"} »`;
+  const label =
+    eventId !== null
+      ? `Objectif atteint à « ${event ? event.title : "événement supprimé"} »`
+      : counterIdOfFact(condition.fact) !== null
+        ? counterLabel(condition.fact, options)
+        : factLabel(condition.fact, options);
   return lower(conditionPhrase({ fact: condition.fact, label, operator: condition.operator, value: condition.value, value2: condition.value2 ?? null }, negated));
 }
 

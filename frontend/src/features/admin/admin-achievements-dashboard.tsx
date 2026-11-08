@@ -33,6 +33,7 @@ import {
   type RuleGroup,
   type RuleNode,
 } from "./admin-achievements-api";
+import { AdminAchievementCounters } from "./admin-achievement-counters";
 import { RuleChips } from "./achievement-rule-chips";
 import { RuleTreeEditor } from "./achievement-rule-editor";
 import { FAMILY_LABELS, FAMILY_ORDER, familyOf, type FactFamily } from "./achievement-rules";
@@ -199,6 +200,9 @@ export function AdminAchievementsDashboard() {
           </button>
         </div>
       </header>
+
+      {/* Story 30.57: the counters of checks and items the conditions read. */}
+      <AdminAchievementCounters onChanged={refresh} />
 
       {data ? <Toolbar collections={collections} filters={filters} onChange={setFilters} /> : null}
 

@@ -70,12 +70,16 @@ export type AchievementCollectionPayload = {
 
 export type AchievementFactOption = { key: string; label: string };
 export type AchievementEventOption = { id: string; title: string };
+/** Story 30.57: a counter of checks or items the rule builder can read. */
+export type AchievementCounterOption = { id: string; label: string };
 
 export type AchievementFormOptions = {
   facts: AchievementFactOption[];
   operators: RuleOperator[];
   groupOps: RuleGroupOp[];
   events: AchievementEventOption[];
+  /** Story 30.57 (empty from an older API). */
+  counters: AchievementCounterOption[];
 };
 
 export type AchievementDashboard = {
@@ -317,7 +321,15 @@ function parseOptions(v: unknown): AchievementFormOptions | null {
         )
       : [];
 
-  return { facts, operators, groupOps, events };
+  const counters =
+    "counters" in v && Array.isArray(v.counters)
+      ? v.counters.filter(
+          (c): c is AchievementCounterOption =>
+            typeof c === "object" && c !== null && "id" in c && typeof c.id === "string" && "label" in c && typeof c.label === "string",
+        )
+      : [];
+
+  return { facts, operators, groupOps, events, counters };
 }
 
 function isRuleNode(v: unknown): v is RuleNode {

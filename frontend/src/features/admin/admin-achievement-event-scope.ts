@@ -1,3 +1,4 @@
+import { counterIdOfFact, counterLabel } from "./admin-achievement-counter-scope";
 import type { AchievementFormOptions } from "./admin-achievements-api";
 
 // Event-goal facts (story 30.32): a generic `eventsWithGoal` or a per-event `event_goal:{eventId}`.
@@ -24,5 +25,6 @@ export function factLabel(fact: string, options: AchievementFormOptions): string
     const event = options.events.find((e) => e.id === eventId);
     return `Objectif - ${event ? event.title : "événement supprimé"}`;
   }
+  if (counterIdOfFact(fact) !== null) return `Compteur - ${counterLabel(fact, options)}`;
   return options.facts.find((f) => f.key === fact)?.label ?? fact;
 }
