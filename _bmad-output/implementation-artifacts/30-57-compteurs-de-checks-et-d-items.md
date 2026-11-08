@@ -192,6 +192,10 @@ Ce qui existe déjà :
 - **Noms OoT** : le sélecteur les donnera depuis l'introspection ; ceux cités dans la story sont à confirmer
   à l'écran : `Water Temple Morpha Heart`,
   `Kak 50 Gold Skulltula Reward`, `LH Sun`, `Market 10 Big Poes`, `Song from Saria`, item `Gold Skulltula Token`.
+- **Vérifié dans l'apworld OoT (2026-11-08)** : les médaillons, les pierres et les locations « Boss » (`Morpha`)
+  sont des événements sans id, jamais dans le feed : « les six médaillons » ne se compte pas, viser les cœurs de
+  boss (`Water Temple Morpha Heart`...). `Gold Skulltula Token` n'est envoyé qu'avec `tokensanity` ; les
+  récompenses `Kak 10..50 Gold Skulltula Reward` comptent toujours.
 - **Pas d'em-dash** dans le code, les messages et les commits.
 
 ### References
