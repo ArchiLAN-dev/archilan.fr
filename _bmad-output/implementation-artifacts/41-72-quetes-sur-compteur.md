@@ -1,6 +1,6 @@
 # Story 41.72: Objectifs de quête sur un compteur de checks ou d'items
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-11-08
 
@@ -43,13 +43,13 @@ sélecteur ni de règle de comptage. Décision de Jean du 2026-11-08 : les quêt
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1, 6) - `QuestMetric::Counter` (libellé, unités, aide, `scopes()` = `['counter']`),
+- [x] **Task 1** (AC 1, 6) - `QuestMetric::Counter` (libellé, unités, aide, `scopes()` = `['counter']`),
   `QuestObjective::SCOPE_COUNTER`, validation ; `QuestDraw` l'ignore pour le jeu tiré ; tests domaine.
-- [ ] **Task 2** (AC 3, 4, 5) - `DbalWeeklyQuestsQuery` : branche `Counter` qui lit `achievement_counter` en SQL et
+- [x] **Task 2** (AC 3, 4, 5) - `DbalWeeklyQuestsQuery` : branche `Counter` qui lit `achievement_counter` en SQL et
   appelle la source partagée avec la période de la semaine ; total collectif ; tests fonctionnels.
-- [ ] **Task 3** (AC 2) - Admin des quêtes : choix du compteur, jauge avec le libellé du compteur ; jest.
-- [ ] **Task 4** (AC 7) - Garde de suppression : lecture des objectifs de `quest_definition` qui citent le compteur.
-- [ ] **Task 5** (AC 8) - `./scripts/gates.sh`, vérification dans l'app.
+- [x] **Task 3** (AC 2) - Admin des quêtes : choix du compteur, jauge avec le libellé du compteur ; jest.
+- [x] **Task 4** (AC 7) - Garde de suppression : lecture des objectifs de `quest_definition` qui citent le compteur.
+- [x] **Task 5** (AC 8) - `./scripts/gates.sh`, vérification dans l'app.
 
 ## Dev Notes
 
@@ -72,6 +72,49 @@ sélecteur ni de règle de comptage. Décision de Jean du 2026-11-08 : les quêt
 
 ### Agent Model Used
 
+Claude Opus 5.5 (claude-opus-5-5)
+
 ### Completion Notes List
 
+- `QuestMetric::Counter` (portée `counter` seule et obligatoire, refusée sinon par `QuestObjective` et `ManageQuests`) ;
+  hors du tirage de jeu par construction (`scopes()` = `['counter']`, pas de `drawn`).
+- `DbalFeedCounterSource` (Shared) expose `perMember()` (tous les membres ou un seul, période optionnelle) et
+  `groupTotal()` (chaque unité une fois) ; `DbalFeedCounterQuery` (succès) et `DbalWeeklyQuestsQuery` (quêtes)
+  l'appellent tous les deux. Wallet lit `community_achievement_counter` en SQL, sans importer Community.
+- Collective : compteur en mode `total` seulement (`quest_counter_not_collective`, aussi côté formulaire) ; le total
+  compte un slot joué à plusieurs une fois.
+- Nommage : jauge membre « 3 / 20 Gold Skulltula Token · Ocarina of Time » (unité = libellé du compteur, portée =
+  son jeu), jauge publique et Discord « Gold Skulltula Token : 20 » (cible 1 : le libellé seul). Libellé courant,
+  pas d'instantané (choix de la story).
+- Garde de suppression : `CounterQuestUsageQueryInterface` lit les objectifs de `quest_definition` ; 409 si un succès
+  ou une quête lit le compteur ; l'admin des succès affiche `usedByQuests`.
+- Formulaire des quêtes : type « Compteur de checks ou d'items » → sélecteur de compteur (libellé, jeu ; mode total
+  seulement en collective) + lien « Créer un compteur » vers `/admin/achievements`.
+- Limite connue : repasser en `distinct`/`max_session` un compteur déjà lu par une quête collective n'est pas bloqué ;
+  le total collectif reste alors compté en total.
+- Gates : `./scripts/gates.sh --api` vert, front typecheck/lint/test (1427)/build verts.
+
 ### File List
+
+- api/src/Shared/Infrastructure/Dbal/DbalFeedCounterSource.php
+- api/src/Community/Infrastructure/Dbal/DbalFeedCounterQuery.php
+- api/src/Community/Application/Query/CounterQuestUsageQueryInterface.php (nouveau)
+- api/src/Community/Infrastructure/Dbal/DbalCounterQuestUsageQuery.php (nouveau)
+- api/src/Community/Application/Service/AdminAchievementCounterService.php
+- api/src/Community/Presentation/Controller/AdminAchievementCounterController.php
+- api/src/Wallet/Domain/Enum/QuestMetric.php
+- api/src/Wallet/Domain/ValueObject/QuestObjective.php
+- api/src/Wallet/Application/Command/ManageQuests.php
+- api/src/Wallet/Application/Command/AnnounceQuestsOnDiscord.php
+- api/src/Wallet/Application/Query/WeeklyQuestsQueryInterface.php
+- api/src/Wallet/Application/Query/MyWeeklyQuests.php
+- api/src/Wallet/Application/Query/CommunityQuestGauge.php
+- api/src/Wallet/Application/Support/QuestAnnouncement.php
+- api/src/Wallet/Infrastructure/Query/DbalWeeklyQuestsQuery.php
+- api/tests/Functional/QuestCounterTest.php (nouveau)
+- frontend/src/features/wallet/admin-quests-api.ts
+- frontend/src/features/wallet/admin-quests-page.tsx
+- frontend/src/features/wallet/admin-quests-page.test.tsx
+- frontend/src/features/admin/admin-achievement-counters-api.ts
+- frontend/src/features/admin/admin-achievement-counters.tsx
+- frontend/src/features/admin/admin-achievement-counters.test.tsx

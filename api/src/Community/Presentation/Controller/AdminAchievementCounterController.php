@@ -107,7 +107,7 @@ final readonly class AdminAchievementCounterController
 
         return match ($this->counters->delete($id)) {
             AdminAchievementCounterService::DELETED => new JsonResponse(null, 204),
-            AdminAchievementCounterService::IN_USE => $this->apiAccessGuard->errorResponse('counter_in_use', 'Ce compteur est utilisé par un succès : retire-le du succès avant de le supprimer.', 409),
+            AdminAchievementCounterService::IN_USE => $this->apiAccessGuard->errorResponse('counter_in_use', 'Ce compteur est utilisé par un succès ou une quête : retire-le avant de le supprimer.', 409),
             default => $this->apiAccessGuard->errorResponse('not_found', 'Compteur introuvable.', 404),
         };
     }

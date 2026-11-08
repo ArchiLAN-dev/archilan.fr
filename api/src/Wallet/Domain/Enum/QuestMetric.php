@@ -28,6 +28,8 @@ enum QuestMetric: string
     case ReturningPartners = 'returningPartners';
     case BountiesWon = 'bountiesWon';
     case BlindTestSources = 'blindTestSources';
+    // Story 41.72: a counter of checks or items of the achievements (story 30.57).
+    case Counter = 'counter';
 
     public function label(): string
     {
@@ -48,6 +50,7 @@ enum QuestMetric: string
             self::ReturningPartners => 'Partenaires retrouvés',
             self::BountiesWon => 'Primes remportées',
             self::BlindTestSources => 'Sources trouvées au blind test',
+            self::Counter => 'Compteur de checks ou d\'items',
         };
     }
 
@@ -71,6 +74,7 @@ enum QuestMetric: string
             self::ReturningPartners => 'partenaires retrouvés',
             self::BountiesWon => 'primes',
             self::BlindTestSources => 'sources trouvées',
+            self::Counter => 'fois',
         };
     }
 
@@ -94,6 +98,7 @@ enum QuestMetric: string
             self::ReturningPartners => 'partenaire retrouvé',
             self::BountiesWon => 'prime',
             self::BlindTestSources => 'source trouvée',
+            self::Counter => 'fois',
         };
     }
 
@@ -123,6 +128,7 @@ enum QuestMetric: string
             self::ReturningPartners => 'Membres avec qui il avait déjà joué, retrouvés dans une partie où chacun fait un check.',
             self::BountiesWon => 'Primes en or posées par un autre membre et remportées dans la semaine.',
             self::BlindTestSources => 'Sources trouvées pendant un blind test d\'événement.',
+            self::Counter => 'Ce que compte un compteur de checks ou d\'items (admin des succès) dans la semaine, avec ses règles : son jeu seulement, une location une fois par slot, chaque copie d\'un item, release et collect exclus.',
         };
     }
 
@@ -137,6 +143,7 @@ enum QuestMetric: string
         return match ($this) {
             self::Goals, self::Checks, self::Sessions, self::ItemsSent, self::ItemsReceived, self::PlayMinutes => ['game', 'event', 'platform', 'recent', 'drawn'],
             self::Superlatives => ['event'],
+            self::Counter => ['counter'],
             default => [],
         };
     }
@@ -147,7 +154,7 @@ enum QuestMetric: string
      */
     public function isCollective(): bool
     {
-        return \in_array($this, [self::Goals, self::Checks, self::Sessions, self::PlayMinutes, self::ItemsSent, self::BountiesWon], true);
+        return \in_array($this, [self::Goals, self::Checks, self::Sessions, self::PlayMinutes, self::ItemsSent, self::BountiesWon, self::Counter], true);
     }
 
     /** Story 41.64: a count of minutes, shown in hours (« 2 h 30 / 6 h »). */

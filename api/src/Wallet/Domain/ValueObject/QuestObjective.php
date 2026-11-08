@@ -25,6 +25,9 @@ final readonly class QuestObjective
     // Story 41.67: a game drawn each week the quest is served, from a pool (`scopeId`: `catalog`, or `recent:{days}`
     // for the new releases). Only the template says it: once served, the objective aims at the drawn game.
     public const string SCOPE_DRAWN = 'drawn';
+    // Story 41.72: a counter of checks or items of the achievements (`scopeId`: the counter id), the only target of
+    // the counter metric, and a required one.
+    public const string SCOPE_COUNTER = 'counter';
     public const string POOL_CATALOG = 'catalog';
     public const string POOL_RECENT = 'recent:';
 
@@ -45,6 +48,9 @@ final readonly class QuestObjective
             throw new \DomainException('quest_objective_scope_invalid');
         }
         if (null !== $scope && !\in_array($scope, $metric->scopes(), true)) {
+            throw new \DomainException('quest_objective_scope_invalid');
+        }
+        if (QuestMetric::Counter === $metric && self::SCOPE_COUNTER !== $scope) {
             throw new \DomainException('quest_objective_scope_invalid');
         }
         if ((self::SCOPE_RECENT === $scope || self::SCOPE_DRAWN === $scope) && null === $this->recentDays() && self::POOL_CATALOG !== $this->pool()) {

@@ -19,9 +19,12 @@ export type QuestMetricOption = {
   duration: boolean;
 };
 
-export type QuestScopeKind = "game" | "event" | "platform" | "recent" | "drawn";
+export type QuestScopeKind = "game" | "event" | "platform" | "recent" | "drawn" | "counter";
 
-const SCOPE_KINDS: readonly string[] = ["game", "event", "platform", "recent", "drawn"];
+const SCOPE_KINDS: readonly string[] = ["game", "event", "platform", "recent", "drawn", "counter"];
+
+/** Story 41.72: the metric of the counters of checks and items, whose only target is a counter. */
+export const COUNTER_METRIC = "counter";
 
 /** Story 41.67: the pools a game is drawn from each week, the catalog or the new releases (`recent:30`). */
 export const DRAW_CATALOG = "catalog";
@@ -35,9 +38,17 @@ function isScopeKind(v: unknown): v is QuestScopeKind {
  * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. Story 41.66:
  * the platform families of the catalog's games.
  */
-export type QuestScopes = { games: { id: string; name: string }[]; events: { id: string; title: string }[]; platforms: string[] };
+export type QuestScopes = {
+  games: { id: string; name: string }[];
+  events: { id: string; title: string }[];
+  platforms: string[];
+  /** Story 41.72: the counters of the achievements' admin, with their game and mode. */
+  counters: QuestCounterOption[];
+};
 
-export const NO_SCOPES: QuestScopes = { games: [], events: [], platforms: [] };
+export type QuestCounterOption = { id: string; label: string; gameName: string; mode: string };
+
+export const NO_SCOPES: QuestScopes = { games: [], events: [], platforms: [], counters: [] };
 
 /** Story 41.66: a platform target's families travel in one id, `|` between them. */
 export const FAMILY_SEPARATOR = "|";
@@ -133,7 +144,7 @@ export type QuestTerms = {
 };
 
 /** Story 41.69: the types a collective quest may count - those that add up without doubles. */
-export const COLLECTIVE_METRICS = ["goals", "checks", "sessions", "playMinutes", "itemsSent", "bountiesWon"] as const;
+export const COLLECTIVE_METRICS = ["goals", "checks", "sessions", "playMinutes", "itemsSent", "bountiesWon", "counter"] as const;
 
 /**
  * Story 41.69: the share the form suggests, about 2 % of the goal, so an alt account's one check earns nothing. Time
@@ -175,7 +186,12 @@ function isScopes(v: unknown): v is QuestScopes {
     v.events.every((event: unknown) => isObject(event) && hasStringProp(event, "id") && hasStringProp(event, "title")) &&
     "platforms" in v &&
     Array.isArray(v.platforms) &&
-    v.platforms.every((platform: unknown) => typeof platform === "string")
+    v.platforms.every((platform: unknown) => typeof platform === "string") &&
+    "counters" in v &&
+    Array.isArray(v.counters) &&
+    v.counters.every(
+      (counter: unknown) => isObject(counter) && hasStringProp(counter, "id") && hasStringProp(counter, "label") && hasStringProp(counter, "gameName") && hasStringProp(counter, "mode"),
+    )
   );
 }
 
@@ -421,6 +437,12 @@ export function objectivesSummary(objectives: QuestObjectiveTerms[], metrics: Qu
   return objectives
     .map((objective) => {
       const metric = metrics.find((candidate) => candidate.key === objective.metric);
+      if (objective.metric === COUNTER_METRIC) {
+        // Story 41.72: « Gold Skulltula Token : 20 (Ocarina of Time) », « Morpha (Ocarina of Time) ».
+        const counter = scopes.counters.find((candidate) => candidate.id === objective.scopeId);
+        const name = counter ? counter.label : "compteur supprimé";
+        return `${objective.target === 1 ? name : `${name} : ${objective.target}`}${counter ? ` (${counter.gameName})` : ""}`;
+      }
       const unit = metric ? (objective.target === 1 && !metric.duration ? metric.unitOne : metric.unit) : objective.metric;
       return `${formatQuestAmount(objective.target, metric?.duration ?? false)} ${unit}${scopePhrase(objective, scopes)}`;
     })

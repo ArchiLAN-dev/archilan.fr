@@ -42,7 +42,7 @@ final readonly class DbalFeedCounterQuery implements FeedCounterQueryInterface
                 continue;
             }
 
-            $query = DbalFeedCounterSource::query(
+            $query = DbalFeedCounterSource::perMember(
                 $userId,
                 $gameName,
                 $counter->getKind()->value,

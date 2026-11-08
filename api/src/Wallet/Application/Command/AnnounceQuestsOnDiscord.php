@@ -134,6 +134,8 @@ final readonly class AnnounceQuestsOnDiscord
         $names = [
             QuestObjective::SCOPE_GAME => $games,
             QuestObjective::SCOPE_EVENT => array_column($this->quests->scopeOptions()['events'], 'title', 'id'),
+            // Story 41.72: a counter's objective is told by the counter's label.
+            QuestObjective::SCOPE_COUNTER => array_column($this->quests->scopeOptions()['counters'], 'label', 'id'),
         ];
         $scopes = [];
         foreach ($aimed as $objective) {

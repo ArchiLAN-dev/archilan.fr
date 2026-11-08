@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Wallet\Infrastructure\Query;
 
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
+use App\Shared\Infrastructure\Dbal\DbalFeedCounterSource;
 use App\Shared\Infrastructure\Dbal\DbalFoundItemSource;
 use App\Shared\Infrastructure\Dbal\DbalSlotCheckSource;
 use App\Shared\Infrastructure\Dbal\DbalSlotPlayerSource;
@@ -40,8 +41,9 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
     {
         $counts = [];
         foreach ($objectives as $objective) {
-            // Story 41.18: an objective on a game or an event counts only that game's or event's sessions.
-            $scope = $this->scope($objective, $week);
+            // Story 41.18: an objective on a game or an event counts only that game's or event's sessions. Story
+            // 41.72: a counter carries its own game and names.
+            $scope = QuestMetric::Counter === $objective->metric ? null : $this->scope($objective, $week);
             $rows = match ($objective->metric) {
                 QuestMetric::Goals => $this->goals($week, $scope),
                 QuestMetric::Checks => $this->checks($week, $scope),
@@ -59,6 +61,7 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
                 QuestMetric::Superlatives => $this->superlatives($week, $scope),
                 QuestMetric::BountiesWon => $this->bountiesWon($week),
                 QuestMetric::BlindTestSources => $this->blindTestSources($week),
+                QuestMetric::Counter => $this->counterRows($week, $objective),
             };
             $counts[$objective->key()] = $this->byMember($rows, $userId);
         }
@@ -68,6 +71,9 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
 
     public function groupTotal(QuestWeek $week, QuestObjective $objective): int
     {
+        if (QuestMetric::Counter === $objective->metric) {
+            return $this->counterTotal($week, $objective);
+        }
         $scope = $this->scope($objective, $week);
         $where = $scope['sql'] ?? '';
         $params = $this->bounds($week) + ($scope['params'] ?? []);
@@ -142,7 +148,90 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         $platforms = array_values(array_unique(array_merge([], ...array_values($this->catalogFamilies()))));
         sort($platforms);
 
-        return ['games' => $games, 'events' => $events, 'platforms' => $platforms];
+        return ['games' => $games, 'events' => $events, 'platforms' => $platforms, 'counters' => array_map(
+            static fn (array $counter): array => ['id' => $counter['id'], 'label' => $counter['label'], 'gameName' => $counter['gameName'], 'mode' => $counter['mode']],
+            $this->counters(),
+        )];
+    }
+
+    /**
+     * Story 41.72: the counters of the achievements' admin (read by name, no Community import), by label, with the
+     * Archipelago name of their game, its name in the catalogue, and the parts the counting needs.
+     *
+     * @return list<array{id: string, label: string, gameName: string, mode: string, kind: string, targets: list<string>, withOthersOnly: bool, archipelagoName: string|null}>
+     */
+    private function counters(): array
+    {
+        $counters = [];
+        foreach ($this->connection->fetchAllAssociative(
+            'SELECT c.id, c.label, c.kind, c.targets, c.mode, c.with_others_only, g.name AS game_name, g.archipelago_game_name
+               FROM community_achievement_counter c LEFT JOIN game g ON g.id = c.game_id
+              ORDER BY c.label',
+        ) as $row) {
+            $id = $row['id'] ?? null;
+            $label = $row['label'] ?? null;
+            $kind = $row['kind'] ?? null;
+            $mode = $row['mode'] ?? null;
+            if (!is_string($id) || !is_string($label) || !is_string($kind) || !is_string($mode)) {
+                continue;
+            }
+            $targets = is_string($row['targets'] ?? null) ? json_decode($row['targets'], true) : null;
+            $apName = $row['archipelago_game_name'] ?? null;
+            $counters[] = [
+                'id' => $id,
+                'label' => $label,
+                'gameName' => is_string($row['game_name'] ?? null) ? $row['game_name'] : 'jeu retiré',
+                'mode' => $mode,
+                'kind' => $kind,
+                'targets' => is_array($targets) ? array_values(array_filter($targets, is_string(...))) : [],
+                'withOthersOnly' => true === filter_var($row['with_others_only'] ?? false, \FILTER_VALIDATE_BOOLEAN),
+                'archipelagoName' => is_string($apName) && '' !== $apName ? $apName : null,
+            ];
+        }
+
+        return $counters;
+    }
+
+    /**
+     * Story 41.72: what a counter gives each member over the week, by the rules of {@see DbalFeedCounterSource}
+     * that the achievements share; a counter gone or without its game counts nothing.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function counterRows(QuestWeek $week, QuestObjective $objective): array
+    {
+        $counter = $this->counter($objective);
+        if (null === $counter || null === $counter['archipelagoName'] || [] === $counter['targets']) {
+            return [];
+        }
+        $query = DbalFeedCounterSource::perMember(null, $counter['archipelagoName'], $counter['kind'], $counter['targets'], $counter['mode'], $counter['withOthersOnly'], $week->start, $week->end);
+
+        return $this->connection->fetchAllAssociative($query['sql'], $query['params'], $query['types']);
+    }
+
+    /** Story 41.72: the community's total of a counter over the week, each unit once. */
+    private function counterTotal(QuestWeek $week, QuestObjective $objective): int
+    {
+        $counter = $this->counter($objective);
+        if (null === $counter || null === $counter['archipelagoName'] || [] === $counter['targets']) {
+            return 0;
+        }
+        $query = DbalFeedCounterSource::groupTotal($counter['archipelagoName'], $counter['kind'], $counter['targets'], $counter['withOthersOnly'], $week->start, $week->end);
+        $total = filter_var($this->connection->fetchOne($query['sql'], $query['params'], $query['types']), \FILTER_VALIDATE_INT);
+
+        return false === $total ? 0 : max(0, $total);
+    }
+
+    /**
+     * @return array{id: string, label: string, gameName: string, mode: string, kind: string, targets: list<string>, withOthersOnly: bool, archipelagoName: string|null}|null
+     */
+    private function counter(QuestObjective $objective): ?array
+    {
+        if (QuestObjective::SCOPE_COUNTER !== $objective->scope) {
+            return null;
+        }
+
+        return array_find($this->counters(), static fn (array $counter): bool => $counter['id'] === $objective->scopeId);
     }
 
     public function drawableGames(string $pool, QuestWeek $week): array

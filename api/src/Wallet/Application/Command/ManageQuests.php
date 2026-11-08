@@ -48,6 +48,7 @@ final readonly class ManageQuests
     public function write(string $title, string $description, int $reward, array $objectives, bool $inDraw, int $drawWeight, mixed $cosmetic = null, mixed $tiers = null, ?int $minContribution = null, bool $collective = false): WrittenQuest
     {
         $parsed = $this->objectives($objectives);
+        $this->assertCounterAddsUp($parsed, $collective);
         $unlocks = $this->cosmetic($cosmetic);
         try {
             $quest = QuestDefinition::write($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->clock->now(), tiers: $this->tiers($tiers), collective: $collective, minContribution: $minContribution);
@@ -70,6 +71,7 @@ final readonly class ManageQuests
     {
         $quest = $this->quest($questId);
         $parsed = $this->objectives($objectives);
+        $this->assertCounterAddsUp($parsed, $quest->isCollective());
         $unlocks = $this->cosmetic($cosmetic);
         try {
             $quest->edit($title, $description, $reward, $parsed, $inDraw, $drawWeight, $this->tiers($tiers), $minContribution);
@@ -223,6 +225,8 @@ final readonly class ManageQuests
             if (null !== $scope && null !== $scopeId && !\in_array($scope, [QuestObjective::SCOPE_RECENT, QuestObjective::SCOPE_DRAWN], true)) {
                 $targets ??= $this->targets->scopeOptions();
                 $known = match ($scope) {
+                    // Story 41.72: a counter of the achievements' admin.
+                    QuestObjective::SCOPE_COUNTER => array_column($targets['counters'], 'id'),
                     QuestObjective::SCOPE_GAME => array_column($targets['games'], 'id'),
                     QuestObjective::SCOPE_EVENT => array_column($targets['events'], 'id'),
                     QuestObjective::SCOPE_PLATFORM => $targets['platforms'],
@@ -232,6 +236,9 @@ final readonly class ManageQuests
                 if ([] !== array_diff($wanted, $known)) {
                     throw new ValidationException('Ce jeu ou cet événement ne peut pas être visé.', ['objectives' => ['Cible inconnue.']], 'quest_scope_unknown');
                 }
+            }
+            if (QuestMetric::Counter === $metric && (QuestObjective::SCOPE_COUNTER !== $scope || null === $scopeId)) {
+                throw new ValidationException('Un objectif sur compteur vise un compteur.', ['objectives' => ['Compteur manquant.']], 'quest_counter_missing');
             }
             try {
                 $objectives[] = new QuestObjective($metric, $target, $scope, $scopeId);
@@ -267,6 +274,26 @@ final readonly class ManageQuests
         }
 
         return $tiers;
+    }
+
+    /**
+     * Story 41.72: a collective quest adds up the community's play; a counter does only as a total.
+     *
+     * @param list<QuestObjective> $objectives
+     *
+     * @throws ValidationException
+     */
+    private function assertCounterAddsUp(array $objectives, bool $collective): void
+    {
+        if (!$collective) {
+            return;
+        }
+        $modes = array_column($this->targets->scopeOptions()['counters'], 'mode', 'id');
+        foreach ($objectives as $objective) {
+            if (QuestMetric::Counter === $objective->metric && 'total' !== ($modes[(string) $objective->scopeId] ?? null)) {
+                throw new ValidationException('Une quête collective ne lit qu\'un compteur en mode « Total ».', ['objectives' => ['Compteur non additionnable.']], 'quest_counter_not_collective');
+            }
+        }
     }
 
     private function invalid(\DomainException $e): ValidationException

@@ -4,11 +4,13 @@ import { useRef, useState } from "react";
 import { CosmeticRewardPicker, type CosmeticReward } from "@/features/community/cosmetic-reward-picker";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
+  COUNTER_METRIC,
   DRAW_CATALOG,
   DRAW_RECENT,
   FAMILY_SEPARATOR,
@@ -25,6 +27,7 @@ import {
   splitFamilies,
   writeQuest,
   type AdminQuest,
+  type QuestCounterOption,
   type QuestMetricOption,
   type QuestObjectiveTerms,
   type QuestScopes,
@@ -203,7 +206,7 @@ export function QuestDialog({
   };
   const tieredMetric = rows.length === 1 ? metrics.find((candidate) => candidate.key === rows[0]?.metric) : undefined;
   const offeredMetrics = collective ? metrics.filter((candidate) => COLLECTIVE_METRICS.some((key) => key === candidate.key)) : metrics;
-  const error = questTermsError(terms);
+  const error = questTermsError(terms, scopes.counters);
 
   function update(rowId: number, next: Partial<QuestObjectiveTerms>): void {
     setRows(rows.map((row) => (row.rowId === rowId ? { ...row, ...next } : row)));
@@ -340,6 +343,29 @@ export function QuestDialog({
                       value={row.target === 0 ? "" : row.target}
                     />
                   )}
+                  {metric?.key === COUNTER_METRIC ? (
+                    // Story 41.72: a counter of the achievements' admin, its only and required target.
+                    <span className="flex min-w-40 flex-1 flex-wrap items-center gap-2">
+                      <select
+                        aria-label={`Compteur de l'objectif ${index + 1}`}
+                        className={`${fieldClass} min-w-40 flex-1`}
+                        onChange={(e) => update(row.rowId, chosenScope(e.target.value === "" ? "" : `counter:${e.target.value}`, row))}
+                        value={row.scope === "counter" ? (row.scopeId ?? "") : ""}
+                      >
+                        <option value="">Choisir un compteur</option>
+                        {aimable.counters
+                          .filter((counter) => !collective || counter.mode === "total")
+                          .map((counter) => (
+                            <option key={counter.id} value={counter.id}>
+                              {counter.label} ({counter.gameName})
+                            </option>
+                          ))}
+                      </select>
+                      <Link className="text-xs text-primary underline-offset-2 hover:underline" href="/admin/achievements">
+                        Créer un compteur
+                      </Link>
+                    </span>
+                  ) : null}
                   {metric && hasAimableScopes(aimable) ? (
                     <select
                       aria-label={`Où compte l'objectif ${index + 1}`}
@@ -558,6 +584,7 @@ export function aimableScopes(metric: QuestMetricOption, scopes: QuestScopes): A
     games: metric.scopes.includes("game") ? scopes.games : [],
     events: metric.scopes.includes("event") ? scopes.events : [],
     platforms: metric.scopes.includes("platform") ? scopes.platforms : [],
+    counters: metric.scopes.includes("counter") ? scopes.counters : [],
     recent: metric.scopes.includes("recent"),
     drawn: metric.scopes.includes("drawn"),
   };
@@ -579,7 +606,7 @@ export function chosenScope(value: string, current: QuestObjectiveTerms): Partia
   const scope = at < 0 ? "" : value.slice(0, at);
   const scopeId = at < 0 ? "" : value.slice(at + 1);
   if (scope === "platform") return { scope, scopeId: current.scope === "platform" ? (current.scopeId ?? "") : "" };
-  if (scope === "game" || scope === "event" || scope === "recent" || scope === "drawn") return { scope, scopeId };
+  if (scope === "game" || scope === "event" || scope === "recent" || scope === "drawn" || scope === "counter") return { scope, scopeId };
   return { scope: undefined, scopeId: undefined };
 }
 
@@ -589,7 +616,7 @@ export function toggledFamily(scopeId: string, family: string, on: boolean): str
   return (on ? [...families, family].sort() : families).join(FAMILY_SEPARATOR);
 }
 
-export function questTermsError(terms: QuestTerms): string | null {
+export function questTermsError(terms: QuestTerms, counters: QuestCounterOption[] = []): string | null {
   if (terms.title === "" || terms.title.length > QUEST_LIMITS.maxTitle) return `Un titre de 1 à ${QUEST_LIMITS.maxTitle} caractères.`;
   if (!Number.isInteger(terms.reward) || terms.reward < QUEST_LIMITS.minReward || terms.reward > QUEST_LIMITS.maxReward) {
     return `Une récompense de ${QUEST_LIMITS.minReward} à ${QUEST_LIMITS.maxReward} pelles.`;
@@ -597,6 +624,16 @@ export function questTermsError(terms: QuestTerms): string | null {
   if (terms.objectives.length === 0) return "Au moins un objectif.";
   if (terms.objectives.some((objective) => !Number.isInteger(objective.target) || objective.target < QUEST_LIMITS.minTarget || objective.target > QUEST_LIMITS.maxTarget)) {
     return `Une cible de ${QUEST_LIMITS.minTarget} à ${QUEST_LIMITS.maxTarget}.`;
+  }
+  // Story 41.72: a counter's objective names its counter; a collective quest adds up a total only.
+  if (terms.objectives.some((objective) => objective.metric === COUNTER_METRIC && (objective.scope !== "counter" || !objective.scopeId))) {
+    return "Choisis le compteur de l'objectif.";
+  }
+  if (
+    terms.collective &&
+    terms.objectives.some((objective) => objective.metric === COUNTER_METRIC && counters.find((counter) => counter.id === objective.scopeId)?.mode !== "total")
+  ) {
+    return "Une quête collective ne lit qu'un compteur en mode « Total ».";
   }
   if (terms.collective) {
     // Story 41.69: one objective that adds up for the community, and the share that pays it.

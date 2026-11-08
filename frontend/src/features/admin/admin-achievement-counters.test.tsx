@@ -2,7 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { counterFact, counterIdOfFact, isCounterFact } from "./admin-achievement-counter-scope";
-import { NamePicker } from "./admin-achievement-counters";
+import { NamePicker, counterUsage } from "./admin-achievement-counters";
+import type { AchievementCounter } from "./admin-achievement-counters-api";
 
 function render(node: React.ReactNode): string {
   return renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}>{node}</QueryClientProvider>);
@@ -34,5 +35,12 @@ describe("NamePicker", () => {
 
   it("names items for an item counter", () => {
     expect(render(<NamePicker gameId="g-1" kind="item" onChange={() => {}} targets={[]} />)).toContain("Items visés");
+  });
+
+  test("a counter read by a quest cannot go either (story 41.72)", () => {
+    const counter: AchievementCounter = { id: "c1", label: "Morpha", gameId: "g-1", gameName: "OoT", kind: "location", targets: ["Morpha"], mode: "total", withOthersOnly: false, usedBy: 0 };
+    expect(counterUsage(counter)).toBe("Aucun succès ni aucune quête ne le lit.");
+    expect(counterUsage({ ...counter, usedByQuests: 1 })).toBe("1 quête le lit : retire-le de leurs conditions avant de le supprimer.");
+    expect(counterUsage({ ...counter, usedBy: 2, usedByQuests: 3 })).toBe("2 succès et 3 quêtes le lisent : retire-le de leurs conditions avant de le supprimer.");
   });
 });
