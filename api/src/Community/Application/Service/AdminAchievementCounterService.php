@@ -49,7 +49,7 @@ final readonly class AdminAchievementCounterService
             $gameNames[$game['id']] = $game['name'];
         }
         $usage = $this->usage();
-        $questUsage = $this->quests->quests();
+        $questUsage = $this->quests->quests($this->currentWeek());
 
         return [
             'counters' => array_map(fn (AchievementCounter $counter): array => $this->present($counter, $gameNames, $usage, $questUsage), $this->counters->all()),
@@ -88,7 +88,7 @@ final readonly class AdminAchievementCounterService
         }
         $parts = $this->parts($payload);
         // Story 41.72: a collective quest adds the counter up as a total; another mode would not add up.
-        if (AchievementCounterMode::Total !== $parts['mode'] && ($this->quests->collectiveQuests()[$id] ?? 0) > 0) {
+        if (AchievementCounterMode::Total !== $parts['mode'] && ($this->quests->collectiveQuests($this->currentWeek())[$id] ?? 0) > 0) {
             throw new \InvalidArgumentException('Une quête collective lit ce compteur : il reste en mode « Total ».');
         }
         $counter->redefine($parts['label'], $parts['gameId'], $parts['kind'], $parts['targets'], $parts['mode'], $parts['withOthersOnly'], $this->clock->now());
@@ -106,7 +106,7 @@ final readonly class AdminAchievementCounterService
         if (!$counter instanceof AchievementCounter) {
             return self::NOT_FOUND;
         }
-        if (($this->usage()[$id] ?? 0) > 0 || ($this->quests->quests()[$id] ?? 0) > 0) {
+        if (($this->usage()[$id] ?? 0) > 0 || ($this->quests->quests($this->currentWeek())[$id] ?? 0) > 0) {
             return self::IN_USE;
         }
         $this->counters->remove($counter);
@@ -195,6 +195,12 @@ final readonly class AdminAchievementCounterService
         ];
     }
 
+    /** Story 41.72: the key of the quests' week now, Monday to Monday Paris time (`2026-W45`), as Wallet writes it. */
+    private function currentWeek(): string
+    {
+        return $this->clock->now()->setTimezone(new \DateTimeZone('Europe/Paris'))->format('o-\WW');
+    }
+
     /**
      * How many achievements (active or not) read each counter.
      *
@@ -224,7 +230,7 @@ final readonly class AdminAchievementCounterService
             }
         }
 
-        return $this->present($counter, null === $gameName ? [] : [$counter->getGameId() => $gameName], $this->usage(), $this->quests->quests());
+        return $this->present($counter, null === $gameName ? [] : [$counter->getGameId() => $gameName], $this->usage(), $this->quests->quests($this->currentWeek()));
     }
 
     /**

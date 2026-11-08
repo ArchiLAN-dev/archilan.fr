@@ -354,10 +354,11 @@ export function QuestDialog({
                       >
                         <option value="">Choisir un compteur</option>
                         {aimable.counters
-                          .filter((counter) => !collective || counter.mode === "total")
+                          // A collective quest adds a total up; the counter already chosen stays shown, marked.
+                          .filter((counter) => !collective || counter.mode === "total" || counter.id === row.scopeId)
                           .map((counter) => (
                             <option key={counter.id} value={counter.id}>
-                              {counter.label} ({counter.gameName})
+                              {counter.label} ({counter.gameName}){collective && counter.mode !== "total" ? " · pas en mode Total" : ""}
                             </option>
                           ))}
                       </select>

@@ -13,7 +13,10 @@ use App\Sessions\Domain\Entity\SessionFeedEvent;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Entity\SlotCoPlayer;
 use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
+use App\Wallet\Domain\Entity\QuestDefinition;
+use App\Wallet\Domain\Entity\QuestWeekEntry;
 use App\Wallet\Domain\Enum\QuestMetric;
+use App\Wallet\Domain\Enum\QuestWeekOrigin;
 use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
@@ -165,6 +168,32 @@ final class QuestCounterTest extends FunctionalTestCase
         $usage = array_column(array_filter($data, is_array(...)), 'usedByQuests', 'id');
         self::assertSame(1, $usage[$total->getId()] ?? null);
         self::assertSame(1, $usage[$distinct->getId()] ?? null);
+    }
+
+    public function testAWeekStillServingACounterKeepsItButARetiredQuestLetsItGo(): void
+    {
+        $this->loginAs($this->createUser('admin@example.org', roles: ['ROLE_USER', 'ROLE_ADMIN'], slug: 'admin'));
+        $served = $this->counter([self::MORPHA], AchievementCounterMode::Total);
+        $old = $this->counter([self::SUN], AchievementCounterMode::Total);
+        $now = new \DateTimeImmutable();
+        // Served this week on the served counter, then edited away from it: the week keeps what it froze.
+        $quest = QuestDefinition::write('Battez Morpha', '', 10, [$this->objective($served, 1)], true, 1, $now, 'morpha');
+        $entry = QuestWeekEntry::serve(QuestWeek::containing($now)->key, 'morpha', QuestWeekOrigin::Drawn, 0, $now);
+        $entry->freeze([$this->objective($served, 1)], 10, null);
+        $quest->edit('Battez Morpha', '', 10, [new QuestObjective(QuestMetric::Goals, 1)], true, 1);
+        // On the old counter, served weeks ago and retired since.
+        $retired = QuestDefinition::write('Soleil', '', 10, [$this->objective($old, 1)], true, 1, $now, 'sun');
+        $retired->retire($now);
+        $this->entityManager->persist($quest);
+        $this->entityManager->persist($entry);
+        $this->entityManager->persist($retired);
+        $this->entityManager->persist(QuestWeekEntry::serve('2026-W30', 'sun', QuestWeekOrigin::Drawn, 0, $now));
+        $this->entityManager->flush();
+
+        $this->client->jsonRequest('DELETE', '/api/v1/admin/community/achievement-counters/'.$served->getId());
+        self::assertResponseStatusCodeSame(409);
+        $this->client->jsonRequest('DELETE', '/api/v1/admin/community/achievement-counters/'.$old->getId());
+        self::assertResponseStatusCodeSame(204);
     }
 
     /**
