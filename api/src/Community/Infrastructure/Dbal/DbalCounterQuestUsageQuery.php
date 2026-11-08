@@ -19,8 +19,22 @@ final readonly class DbalCounterQuestUsageQuery implements CounterQuestUsageQuer
 
     public function quests(): array
     {
+        return $this->usage(false);
+    }
+
+    public function collectiveQuests(): array
+    {
+        return $this->usage(true);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function usage(bool $collectiveOnly): array
+    {
         $usage = [];
-        foreach ($this->connection->fetchAllAssociative('SELECT q.id, q.objectives FROM quest_definition q') as $row) {
+        $sql = 'SELECT q.id, q.objectives FROM quest_definition q'.($collectiveOnly ? ' WHERE q.collective' : '');
+        foreach ($this->connection->fetchAllAssociative($sql) as $row) {
             $objectives = is_string($row['objectives'] ?? null) ? json_decode($row['objectives'], true) : null;
             if (!is_array($objectives)) {
                 continue;

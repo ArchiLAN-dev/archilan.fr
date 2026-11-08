@@ -87,6 +87,10 @@ final readonly class AdminAchievementCounterService
             return null;
         }
         $parts = $this->parts($payload);
+        // Story 41.72: a collective quest adds the counter up as a total; another mode would not add up.
+        if (AchievementCounterMode::Total !== $parts['mode'] && ($this->quests->collectiveQuests()[$id] ?? 0) > 0) {
+            throw new \InvalidArgumentException('Une quête collective lit ce compteur : il reste en mode « Total ».');
+        }
         $counter->redefine($parts['label'], $parts['gameId'], $parts['kind'], $parts['targets'], $parts['mode'], $parts['withOthersOnly'], $this->clock->now());
         $this->counters->save($counter);
 

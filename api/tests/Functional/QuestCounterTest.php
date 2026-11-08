@@ -150,6 +150,14 @@ final class QuestCounterTest extends FunctionalTestCase
 
         $this->client->jsonRequest('DELETE', '/api/v1/admin/community/achievement-counters/'.$total->getId());
         self::assertResponseStatusCodeSame(409);
+        // A collective quest adds the counter up as a total: it keeps that mode, while the other changes go.
+        $patch = ['label' => 'Morpha', 'gameId' => $this->oot->getId(), 'kind' => 'location', 'targets' => [self::MORPHA]];
+        $this->client->jsonRequest('PATCH', '/api/v1/admin/community/achievement-counters/'.$total->getId(), $patch + ['mode' => 'distinct']);
+        self::assertResponseStatusCodeSame(422);
+        $this->client->jsonRequest('PATCH', '/api/v1/admin/community/achievement-counters/'.$total->getId(), $patch + ['mode' => 'total']);
+        self::assertResponseIsSuccessful();
+        $this->client->jsonRequest('PATCH', '/api/v1/admin/community/achievement-counters/'.$distinct->getId(), $patch + ['mode' => 'max_session']);
+        self::assertResponseIsSuccessful();
         $this->client->jsonRequest('GET', '/api/v1/admin/community/achievement-counters');
         self::assertResponseIsSuccessful();
         $data = $this->decodedJsonResponse()['data'] ?? null;

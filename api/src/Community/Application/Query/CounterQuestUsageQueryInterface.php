@@ -16,4 +16,11 @@ interface CounterQuestUsageQueryInterface
      * @return array<string, int> counter id => quests
      */
     public function quests(): array;
+
+    /**
+     * The collective quests among them: they add up the counter as a total, so its mode stays `total`.
+     *
+     * @return array<string, int> counter id => collective quests
+     */
+    public function collectiveQuests(): array;
 }

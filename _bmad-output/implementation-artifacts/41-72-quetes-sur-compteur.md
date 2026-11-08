@@ -90,8 +90,8 @@ Claude Opus 5.5 (claude-opus-5-5)
   ou une quête lit le compteur ; l'admin des succès affiche `usedByQuests`.
 - Formulaire des quêtes : type « Compteur de checks ou d'items » → sélecteur de compteur (libellé, jeu ; mode total
   seulement en collective) + lien « Créer un compteur » vers `/admin/achievements`.
-- Limite connue : repasser en `distinct`/`max_session` un compteur déjà lu par une quête collective n'est pas bloqué ;
-  le total collectif reste alors compté en total.
+- Un compteur lu par une quête collective garde le mode `total` : le repasser en `distinct` ou `max_session` est
+  refusé (422), les autres modifications passent.
 - Gates : `./scripts/gates.sh --api` vert, front typecheck/lint/test (1427)/build verts.
 
 ### File List
