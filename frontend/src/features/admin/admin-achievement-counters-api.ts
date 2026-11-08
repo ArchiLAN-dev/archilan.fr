@@ -24,6 +24,8 @@ export type AchievementCounter = {
   mode: CounterMode;
   withOthersOnly: boolean;
   usedBy: number;
+  /** Story 41.72: the weekly quests with an objective on it. */
+  usedByQuests?: number;
 };
 
 export type CounterGame = { id: string; name: string; archipelagoName: string; introspected: boolean };
@@ -137,7 +139,8 @@ function isCounter(v: unknown): v is AchievementCounter {
     "targets" in v &&
     isStringList(v.targets) &&
     hasBooleanProp(v, "withOthersOnly") &&
-    hasNumberProp(v, "usedBy")
+    hasNumberProp(v, "usedBy") &&
+    (!("usedByQuests" in v) || typeof v.usedByQuests === "number")
   );
 }
 

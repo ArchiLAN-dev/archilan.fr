@@ -129,6 +129,7 @@ function CounterRow({ counter, onEdit, onDelete }: { counter: AchievementCounter
       </div>
       <span className="text-xs text-muted-foreground">
         {counter.usedBy} succès
+        {(counter.usedByQuests ?? 0) > 0 ? ` · ${counter.usedByQuests} ${counter.usedByQuests === 1 ? "quête" : "quêtes"}` : ""}
       </span>
       <button aria-label={`Modifier ${counter.label}`} className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground" onClick={onEdit} type="button">
         <Pencil aria-hidden className="size-4" />
@@ -353,6 +354,14 @@ export function NamePicker({ gameId, kind, targets, onChange }: PickerProps) {
   );
 }
 
+/** Story 41.72: what still reads a counter, achievements and weekly quests, before it can go. */
+export function counterUsage(counter: AchievementCounter): string {
+  const quests = counter.usedByQuests ?? 0;
+  if (counter.usedBy === 0 && quests === 0) return "Aucun succès ni aucune quête ne le lit.";
+  const readers = [counter.usedBy > 0 ? `${counter.usedBy} succès` : null, quests > 0 ? `${quests} ${quests === 1 ? "quête" : "quêtes"}` : null].filter((part) => part !== null);
+  return `${readers.join(" et ")} ${counter.usedBy + quests === 1 ? "le lit" : "le lisent"} : retire-le de leurs conditions avant de le supprimer.`;
+}
+
 function DeleteCounterDialog({ counter, onClose, onDeleted }: { counter: AchievementCounter; onClose: () => void; onDeleted: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -360,7 +369,7 @@ function DeleteCounterDialog({ counter, onClose, onDeleted }: { counter: Achieve
     <Dialog onOpenChange={(open) => (open ? null : onClose())} open title={`Supprimer « ${counter.label} » ?`}>
       <DialogBody>
         <p className="text-sm text-muted-foreground">
-          {counter.usedBy > 0 ? `${counter.usedBy} succès le lisent : retire-le de leurs conditions avant de le supprimer.` : "Aucun succès ne le lit."}
+          {counterUsage(counter)}
         </p>
         {failure ? <p className="text-sm text-red-400">{failure}</p> : null}
       </DialogBody>
@@ -370,7 +379,7 @@ function DeleteCounterDialog({ counter, onClose, onDeleted }: { counter: Achieve
         </button>
         <button
           className="min-h-10 rounded-lg bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50"
-          disabled={busy || counter.usedBy > 0}
+          disabled={busy || counter.usedBy > 0 || (counter.usedByQuests ?? 0) > 0}
           onClick={async () => {
             setBusy(true);
             const outcome = await deleteAchievementCounter(counter.id);

@@ -24,6 +24,7 @@ use Doctrine\DBAL\ParameterType;
  *   `withOthersOnly`.
  *
  * Modes: `total` (every unit), `max_session` (the most units in one session), `distinct` (how many of the names).
+ * Story 41.72: for every member at once, and the community's total.
  */
 final class DbalFeedCounterSource
 {
@@ -35,15 +36,16 @@ final class DbalFeedCounterSource
     public const string MODE_DISTINCT = 'distinct';
 
     /**
-     * The query giving the counter's value for `:userId` as one integer column `n`, with its parameters and types.
-     * A period (`$since` included, `$until` excluded) narrows it to the lines of that time.
+     * The query giving the counter's value per member, as rows `uid`, `n` (a member with nothing has no row): for
+     * `$userId` alone, or for every member when null (the weekly quests count everyone at once). A period (`$since`
+     * included, `$until` excluded) narrows it to the lines of that time.
      *
      * @param list<string> $names
      *
      * @return array{sql: string, params: array<string, mixed>, types: array<string, ArrayParameterType|ParameterType>}
      */
-    public static function query(
-        string $userId,
+    public static function perMember(
+        ?string $userId,
         string $gameName,
         string $kind,
         array $names,
@@ -52,13 +54,48 @@ final class DbalFeedCounterSource
         ?\DateTimeImmutable $since = null,
         ?\DateTimeImmutable $until = null,
     ): array {
+        $rows = self::rows($userId, $kind, $withOthersOnly, null !== $since, null !== $until);
+        $sql = match ($mode) {
+            self::MODE_DISTINCT => 'SELECT r.uid, COUNT(DISTINCT r.name) AS n FROM ('.$rows.') r GROUP BY r.uid',
+            self::MODE_MAX_SESSION => 'SELECT s.uid, MAX(s.n) AS n FROM (SELECT r.uid, r.session_id, COUNT(DISTINCT r.unit) AS n FROM ('.$rows.') r GROUP BY r.uid, r.session_id) s GROUP BY s.uid',
+            default => 'SELECT r.uid, COUNT(DISTINCT r.unit) AS n FROM ('.$rows.') r GROUP BY r.uid',
+        };
+
+        return ['sql' => $sql] + self::parameters($userId, $gameName, $names, $since, $until);
+    }
+
+    /**
+     * Story 41.72: what the whole community did, each unit once - a location of a slot played by several members, an
+     * item received - as one integer column `n`. A total: the other modes do not add up across members.
+     *
+     * @param list<string> $names
+     *
+     * @return array{sql: string, params: array<string, mixed>, types: array<string, ArrayParameterType|ParameterType>}
+     */
+    public static function groupTotal(
+        string $gameName,
+        string $kind,
+        array $names,
+        bool $withOthersOnly,
+        ?\DateTimeImmutable $since = null,
+        ?\DateTimeImmutable $until = null,
+    ): array {
+        $rows = self::rows(null, $kind, $withOthersOnly, null !== $since, null !== $until);
+
+        return ['sql' => 'SELECT COUNT(DISTINCT r.unit) AS n FROM ('.$rows.') r'] + self::parameters(null, $gameName, $names, $since, $until);
+    }
+
+    /**
+     * The counted lines, one per member who plays the slot, as `uid`, `session_id`, `unit`, `name`.
+     */
+    private static function rows(?string $userId, string $kind, bool $withOthersOnly, bool $since, bool $until): string
+    {
         $location = self::KIND_LOCATION === $kind;
         $gameColumn = $location ? 'sender_game' : 'receiver_game';
         $nameColumn = $location ? 'location_name' : 'item_name';
 
-        $period = (null !== $since ? ' AND %1$s.occurred_at >= :counterSince' : '').(null !== $until ? ' AND %1$s.occurred_at < :counterUntil' : '');
+        $period = ($since ? ' AND %1$s.occurred_at >= :counterSince' : '').($until ? ' AND %1$s.occurred_at < :counterUntil' : '');
         $match = static fn (string $alias): string => "{$alias}.{$gameColumn} = :counterGame AND {$alias}.{$nameColumn} IN (:counterNames)".sprintf($period, $alias);
-
         $unit = static fn (string $alias): string => $location
             ? "{$alias}.session_id || ':' || {$alias}.sender_name || ':' || {$alias}.location_name"
             : "{$alias}.id";
@@ -70,43 +107,45 @@ final class DbalFeedCounterSource
         );
         $own = $location ? 'ss' : 'rs';
         $other = $location ? 'rs' : 'ss';
+        $slotColumn = DbalSlotPlayerSource::SLOT_COLUMN;
+        $userColumn = DbalSlotPlayerSource::USER_COLUMN;
 
-        $sessions = 'SELECT f.session_id AS session_id, '.$unit('f').' AS unit, f.'.$nameColumn.' AS name
+        $sessions = 'SELECT own.'.$userColumn.' AS uid, f.session_id AS session_id, '.$unit('f').' AS unit, f.'.$nameColumn.' AS name
                        FROM '.$feed.' f
                        JOIN session_slot ss ON ss.session_id = f.session_id AND ss.slot_name = f.sender_name
                        JOIN session_slot rs ON rs.session_id = f.session_id AND rs.slot_name = f.receiver_name
-                       JOIN '.$players.' own ON own.'.DbalSlotPlayerSource::SLOT_COLUMN.' = '.$own.'.id AND own.'.DbalSlotPlayerSource::USER_COLUMN.' = :userId
+                       JOIN '.$players.' own ON own.'.$slotColumn.' = '.$own.'.id'.(null !== $userId ? ' AND own.'.$userColumn.' = :userId' : '').'
                       WHERE '.$match('f').'
                         AND '.implode(' AND ', array_map(static fn (string $rule): string => '('.$rule.')', DbalFoundItemSource::found('f', 'ss', 'rs')));
         if ($withOthersOnly) {
-            $sessions .= ' AND '.$other.'.id <> '.$own.'.id
-                           AND NOT EXISTS (SELECT 1 FROM '.$players.' op WHERE op.'.DbalSlotPlayerSource::SLOT_COLUMN.' = '.$other.'.id AND op.'.DbalSlotPlayerSource::USER_COLUMN.' = :userId)';
+            return $sessions.' AND '.$other.'.id <> '.$own.'.id
+                           AND NOT EXISTS (SELECT 1 FROM '.$players.' op WHERE op.'.$slotColumn.' = '.$other.'.id AND op.'.$userColumn.' = own.'.$userColumn.')';
         }
 
-        $rows = $sessions;
-        if (!$withOthersOnly) {
-            $rows .= ' UNION ALL
-                      SELECT wf.session_id AS session_id, '.$unit('wf').' AS unit, wf.'.$nameColumn.' AS name
-                        FROM session_feed_event wf
-                        JOIN weekly_entries we ON we.external_session_id = wf.session_id AND we.user_id = :userId
-                       WHERE wf.type = :itemType AND '.$match('wf').'
-                         AND (we.goal_reached_at IS NULL OR wf.occurred_at < we.goal_reached_at)';
-        }
+        return $sessions.' UNION ALL
+                  SELECT we.user_id AS uid, wf.session_id AS session_id, '.$unit('wf').' AS unit, wf.'.$nameColumn.' AS name
+                    FROM session_feed_event wf
+                    JOIN weekly_entries we ON we.external_session_id = wf.session_id'.(null !== $userId ? ' AND we.user_id = :userId' : '').'
+                   WHERE wf.type = :itemType AND '.$match('wf').'
+                     AND (we.goal_reached_at IS NULL OR wf.occurred_at < we.goal_reached_at)';
+    }
 
-        $sql = match ($mode) {
-            self::MODE_DISTINCT => 'SELECT COUNT(DISTINCT r.name) AS n FROM ('.$rows.') r',
-            self::MODE_MAX_SESSION => 'SELECT COALESCE(MAX(s.n), 0) AS n FROM (SELECT r.session_id, COUNT(DISTINCT r.unit) AS n FROM ('.$rows.') r GROUP BY r.session_id) s',
-            default => 'SELECT COUNT(DISTINCT r.unit) AS n FROM ('.$rows.') r',
-        };
-
+    /**
+     * @param list<string> $names
+     *
+     * @return array{params: array<string, mixed>, types: array<string, ArrayParameterType|ParameterType>}
+     */
+    private static function parameters(?string $userId, string $gameName, array $names, ?\DateTimeImmutable $since, ?\DateTimeImmutable $until): array
+    {
         $params = [
-            'userId' => $userId,
             'counterGame' => $gameName,
             'counterNames' => $names,
             'itemType' => DbalFoundItemSource::ITEM_TYPE,
             'burst' => DbalFoundItemSource::BURST,
         ];
-        $types = ['counterNames' => ArrayParameterType::STRING, 'burst' => ParameterType::INTEGER];
+        if (null !== $userId) {
+            $params['userId'] = $userId;
+        }
         if (null !== $since) {
             $params['counterSince'] = $since->format(\DATE_ATOM);
         }
@@ -114,6 +153,6 @@ final class DbalFeedCounterSource
             $params['counterUntil'] = $until->format(\DATE_ATOM);
         }
 
-        return ['sql' => $sql, 'params' => $params, 'types' => $types];
+        return ['params' => $params, 'types' => ['counterNames' => ArrayParameterType::STRING, 'burst' => ParameterType::INTEGER]];
     }
 }

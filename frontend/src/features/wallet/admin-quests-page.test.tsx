@@ -27,7 +27,7 @@ const data: AdminQuests = {
     { key: "2026-W41", startsAt: "2026-10-04T22:00:00+00:00", endsAt: "2026-10-11T22:00:00+00:00", current: true, drawn: true, quests: [{ questId: "q1", title: "Marathon", reward: 60, origin: "drawn", retired: false, drawnGame: null }] },
     { key: "2026-W42", startsAt: "2026-10-11T22:00:00+00:00", endsAt: "2026-10-18T22:00:00+00:00", current: false, drawn: false, quests: [{ questId: "q2", title: "Spéciale LAN", reward: 100, origin: "pinned", retired: false, drawnGame: null }] },
   ],
-  scopes: { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan3", title: "LAN #3" }], platforms: ["Nintendo 64", "Super Nintendo"] },
+  scopes: { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan3", title: "LAN #3" }], platforms: ["Nintendo 64", "Super Nintendo"], counters: [] },
   pastWeeks: [
     {
       key: "2026-W40",
@@ -67,8 +67,8 @@ describe("admin weekly quests", () => {
 
   test("a superlative aims at an event, never a game (story 41.65)", () => {
     const superlatives: QuestMetricOption = { key: "superlatives", label: "Superlatifs", unit: "superlatifs", unitOne: "superlatif", scopable: true, scopes: ["event"], help: "Aide.", duration: false };
-    const scopes = { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan", title: "LAN #3" }], platforms: ["Switch"] };
-    expect(aimableScopes(superlatives, scopes)).toEqual({ games: [], events: [{ id: "lan", title: "LAN #3" }], platforms: [], recent: false, drawn: false });
+    const scopes = { games: [{ id: "hk", name: "Hollow Knight" }], events: [{ id: "lan", title: "LAN #3" }], platforms: ["Switch"], counters: [] };
+    expect(aimableScopes(superlatives, scopes)).toEqual({ games: [], events: [{ id: "lan", title: "LAN #3" }], platforms: [], counters: [], recent: false, drawn: false });
     expect(aimableScopes(metrics[0], scopes)).toEqual({ ...scopes, recent: true, drawn: false });
   });
 
@@ -253,5 +253,29 @@ describe("admin weekly quests", () => {
     expect(questTermsError({ ...terms, objectives: [{ metric: "checks", target: 0 }] })).toContain("cible");
     expect(questTermsError({ ...terms, objectives: [{ metric: "goals", target: 1 }, { metric: "goals", target: 1, scope: "game", scopeId: "hk" }] })).toBeNull();
     expect(questTermsError({ ...terms, objectives: [{ metric: "goals", target: 1 }, { metric: "goals", target: 2 }] })).toContain("identiques");
+  });
+
+  test("an objective on a counter names it and needs one (story 41.72)", () => {
+    const counterMetric: QuestMetricOption = { key: "counter", label: "Compteur de checks ou d'items", unit: "fois", unitOne: "fois", scopable: true, scopes: ["counter"], help: "Aide.", duration: false };
+    const counters = [
+      { id: "c1", label: "Gold Skulltula Token", gameName: "Ocarina of Time", mode: "total" },
+      { id: "c2", label: "Médaillons", gameName: "Ocarina of Time", mode: "distinct" },
+    ];
+    const scopes = { games: [], events: [], platforms: [], counters };
+    const skulls = { metric: "counter", target: 20, scope: "counter" as const, scopeId: "c1" };
+    expect(objectivesSummary([skulls], [counterMetric], scopes)).toBe("Gold Skulltula Token : 20 (Ocarina of Time)");
+    expect(objectivesSummary([{ ...skulls, target: 1, scopeId: "c2" }], [counterMetric], scopes)).toBe("Médaillons (Ocarina of Time)");
+    expect(objectivesSummary([{ ...skulls, scopeId: "gone" }], [counterMetric], scopes)).toBe("compteur supprimé : 20");
+    expect(aimableScopes(counterMetric, scopes).counters).toEqual(counters);
+    expect(aimableScopes(metrics[0], scopes).counters).toEqual([]);
+    expect(chosenScope("counter:c1", { metric: "counter", target: 1 })).toEqual({ scope: "counter", scopeId: "c1" });
+
+    const terms = { title: "Semaine Zelda", description: "", reward: 40, objectives: [skulls], inDraw: false, drawWeight: 1 };
+    expect(questTermsError(terms, counters)).toBeNull();
+    expect(questTermsError({ ...terms, objectives: [{ metric: "counter", target: 20 }] }, counters)).toBe("Choisis le compteur de l'objectif.");
+    expect(questTermsError({ ...terms, collective: true, minContribution: 1 }, counters)).toBeNull();
+    expect(questTermsError({ ...terms, collective: true, minContribution: 1, objectives: [{ ...skulls, scopeId: "c2" }] }, counters)).toBe(
+      "Une quête collective ne lit qu'un compteur en mode « Total ».",
+    );
   });
 });

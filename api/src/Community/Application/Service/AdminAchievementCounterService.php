@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application\Service;
 
 use App\Community\Application\Query\CounterGameCatalogueQueryInterface;
+use App\Community\Application\Query\CounterQuestUsageQueryInterface;
 use App\Community\Application\Support\CounterNameSearch;
 use App\Community\Domain\AchievementMetricCatalog;
 use App\Community\Domain\Entity\AchievementCounter;
@@ -16,9 +17,9 @@ use Psr\Clock\ClockInterface;
 
 /**
  * Story 30.57: the admin side of the counters of checks and items - create, edit, delete (not while an achievement
- * reads it), and the pickers: the games of the catalogue, and the names of one game filtered on what the admin typed.
+ * or a weekly quest reads it, story 41.72), and the pickers: the games of the catalogue, and the names of one game filtered on what the admin typed.
  *
- * @phpstan-type CounterView array{id: string, label: string, gameId: string, gameName: string|null, kind: string, targets: list<string>, mode: string, withOthersOnly: bool, usedBy: int}
+ * @phpstan-type CounterView array{id: string, label: string, gameId: string, gameName: string|null, kind: string, targets: list<string>, mode: string, withOthersOnly: bool, usedBy: int, usedByQuests: int}
  */
 final readonly class AdminAchievementCounterService
 {
@@ -33,6 +34,7 @@ final readonly class AdminAchievementCounterService
         private AchievementDefinitionRepositoryInterface $definitions,
         private CounterGameCatalogueQueryInterface $catalogue,
         private ClockInterface $clock,
+        private CounterQuestUsageQueryInterface $quests,
     ) {
     }
 
@@ -47,9 +49,10 @@ final readonly class AdminAchievementCounterService
             $gameNames[$game['id']] = $game['name'];
         }
         $usage = $this->usage();
+        $questUsage = $this->quests->quests($this->currentWeek());
 
         return [
-            'counters' => array_map(fn (AchievementCounter $counter): array => $this->present($counter, $gameNames, $usage), $this->counters->all()),
+            'counters' => array_map(fn (AchievementCounter $counter): array => $this->present($counter, $gameNames, $usage, $questUsage), $this->counters->all()),
             'games' => $games,
         ];
     }
@@ -84,6 +87,10 @@ final readonly class AdminAchievementCounterService
             return null;
         }
         $parts = $this->parts($payload);
+        // Story 41.72: a collective quest adds the counter up as a total; another mode would not add up.
+        if (AchievementCounterMode::Total !== $parts['mode'] && ($this->quests->collectiveQuests($this->currentWeek())[$id] ?? 0) > 0) {
+            throw new \InvalidArgumentException('Une quête collective lit ce compteur : il reste en mode « Total ».');
+        }
         $counter->redefine($parts['label'], $parts['gameId'], $parts['kind'], $parts['targets'], $parts['mode'], $parts['withOthersOnly'], $this->clock->now());
         $this->counters->save($counter);
 
@@ -99,7 +106,7 @@ final readonly class AdminAchievementCounterService
         if (!$counter instanceof AchievementCounter) {
             return self::NOT_FOUND;
         }
-        if (($this->usage()[$id] ?? 0) > 0) {
+        if (($this->usage()[$id] ?? 0) > 0 || ($this->quests->quests($this->currentWeek())[$id] ?? 0) > 0) {
             return self::IN_USE;
         }
         $this->counters->remove($counter);
@@ -188,6 +195,12 @@ final readonly class AdminAchievementCounterService
         ];
     }
 
+    /** Story 41.72: the key of the quests' week now, Monday to Monday Paris time (`2026-W45`), as Wallet writes it. */
+    private function currentWeek(): string
+    {
+        return $this->clock->now()->setTimezone(new \DateTimeZone('Europe/Paris'))->format('o-\WW');
+    }
+
     /**
      * How many achievements (active or not) read each counter.
      *
@@ -217,16 +230,17 @@ final readonly class AdminAchievementCounterService
             }
         }
 
-        return $this->present($counter, null === $gameName ? [] : [$counter->getGameId() => $gameName], $this->usage());
+        return $this->present($counter, null === $gameName ? [] : [$counter->getGameId() => $gameName], $this->usage(), $this->quests->quests($this->currentWeek()));
     }
 
     /**
      * @param array<string, string> $gameNames
-     * @param array<string, int>    $usage
+     * @param array<string, int>    $usage      achievements by counter
+     * @param array<string, int>    $questUsage quests by counter
      *
      * @return CounterView
      */
-    private function present(AchievementCounter $counter, array $gameNames, array $usage): array
+    private function present(AchievementCounter $counter, array $gameNames, array $usage, array $questUsage): array
     {
         return [
             'id' => $counter->getId(),
@@ -238,6 +252,7 @@ final readonly class AdminAchievementCounterService
             'mode' => $counter->getMode()->value,
             'withOthersOnly' => $counter->isWithOthersOnly(),
             'usedBy' => $usage[$counter->getId()] ?? 0,
+            'usedByQuests' => $questUsage[$counter->getId()] ?? 0,
         ];
     }
 }
