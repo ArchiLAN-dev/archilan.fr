@@ -158,9 +158,10 @@ type RawEnvelope =
 async function fetchGameSelectionPayload(
   registrationId: string,
   loadErrorMessage: string,
+  url?: string,
 ): Promise<RawEnvelope> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/registrations/${registrationId}/game-selection`);
+    const res = await apiFetch(url ?? `${env.apiBaseUrl}/registrations/${registrationId}/game-selection`);
     if (res.status === 404) return { kind: "not_found" };
     if (!res.ok) return { kind: "error", message: loadErrorMessage };
     const payload: unknown = await res.json();
@@ -246,10 +247,12 @@ function parseSelectionData(payload: unknown): SelectionData | null {
   };
 }
 
-export async function fetchGameSelection(registrationId: string): Promise<GameSelectionResult> {
+/** `url` (story 5.9): the admin route, which serves the same payload for an admin editing the registration. */
+export async function fetchGameSelection(registrationId: string, url?: string): Promise<GameSelectionResult> {
   const raw = await fetchGameSelectionPayload(
     registrationId,
     "Impossible de charger la sélection de jeux.",
+    url,
   );
   if (raw.kind !== "success") return raw;
   const data = parseSelectionData(raw.payload);
@@ -466,10 +469,12 @@ function parseSlotYamlData(payload: unknown, targetSlotId: string): SlotYamlData
 export async function fetchSlotYamlData(
   registrationId: string,
   slotId: string,
+  url?: string,
 ): Promise<SlotYamlResult> {
   const raw = await fetchGameSelectionPayload(
     registrationId,
     "Impossible de charger les options de ce slot.",
+    url,
   );
   if (raw.kind !== "success") return raw;
   // A payload that parses but does not contain this slot (or its game) is "not_found",

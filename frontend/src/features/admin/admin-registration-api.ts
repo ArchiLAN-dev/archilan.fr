@@ -94,3 +94,50 @@ export async function fetchAdminRegistrations(
     return { kind: "error", message: "Impossible de contacter l'API." };
   }
 }
+
+// ── Admin edits a registration (story 5.9) ───────────────────────────────────
+
+/** The game-selection payload served to an admin (same shape as the player's, always open). */
+export function adminGameSelectionUrl(eventId: string, registrationId: string): string {
+  return `${env.apiBaseUrl}/admin/events/${eventId}/registrations/${registrationId}/game-selection`;
+}
+
+/** Where the YAML editor saves a slot when an admin edits it. */
+export function adminSlotYamlUrl(eventId: string, registrationId: string, slotId: string): string {
+  return `${env.apiBaseUrl}/admin/events/${eventId}/registrations/${registrationId}/slots/${slotId}/yaml`;
+}
+
+export type AdminSaveResult = { ok: true } | { ok: false; message: string };
+
+/** The first message of an API error envelope (`error.message`, then the first detail), or null. */
+export function apiErrorMessage(payload: unknown): string | null {
+  if (typeof payload !== "object" || payload === null || !("error" in payload)) return null;
+  const error: unknown = payload.error;
+  if (typeof error !== "object" || error === null) return null;
+  if ("details" in error && typeof error.details === "object" && error.details !== null) {
+    for (const messages of Object.values(error.details)) {
+      if (Array.isArray(messages) && typeof messages[0] === "string") return messages[0];
+    }
+  }
+  return "message" in error && typeof error.message === "string" ? error.message : null;
+}
+
+/** Replaces the registration's slots by these games, in order; kept games keep their YAML (story 5.4). */
+export async function saveAdminRegistrationGames(
+  eventId: string,
+  registrationId: string,
+  gameIds: string[],
+): Promise<AdminSaveResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/registrations/${registrationId}`, {
+      body: JSON.stringify({ slots: gameIds.map((gameId) => ({ gameId })) }),
+      headers: { "Content-Type": "application/json" },
+      method: "PATCH",
+    });
+    if (res.ok) return { ok: true };
+    const payload: unknown = await res.json().catch(() => null);
+    return { ok: false, message: apiErrorMessage(payload) ?? "Impossible d'enregistrer les jeux." };
+  } catch {
+    return { ok: false, message: "Impossible de contacter l'API." };
+  }
+}

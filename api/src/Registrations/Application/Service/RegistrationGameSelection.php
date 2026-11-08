@@ -9,12 +9,11 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use App\Registrations\Application\Support\SlotYamlName;
+use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
-use App\Shared\Domain\ValueObject\SlotName;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Yaml\Exception\ParseException;
-use Symfony\Component\Yaml\Yaml;
 
 final readonly class RegistrationGameSelection
 {
@@ -44,13 +43,38 @@ final readonly class RegistrationGameSelection
             return null;
         }
 
+        return $this->selectionOf($registration, false);
+    }
+
+    /**
+     * Story 5.9: the same selection for an admin editing the registration on the player's behalf - no owner check,
+     * and always open (the admin works past the registration window).
+     *
+     * @return array{registrationId: string, eventId: string, gameSelectionEnabled: bool, maxGamesPerRegistrant: int|null, registrationOpen: bool, submittedAt: string|null, slots: list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>, availableGames: list<array<string, mixed>>}|null
+     */
+    public function getSelectionForAdmin(string $eventId, string $registrationId): ?array
+    {
+        $registration = $this->registrationRepository->findById($registrationId);
+
+        if (null === $registration || $registration->getEventId() !== $eventId || !$registration->isReserved()) {
+            return null;
+        }
+
+        return $this->selectionOf($registration, true);
+    }
+
+    /**
+     * @return array{registrationId: string, eventId: string, gameSelectionEnabled: bool, maxGamesPerRegistrant: int|null, registrationOpen: bool, submittedAt: string|null, slots: list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>, availableGames: list<array<string, mixed>>}|null
+     */
+    private function selectionOf(Registration $registration, bool $alwaysOpen): ?array
+    {
         $event = $this->eventRepository->findById($registration->getEventId());
 
         if (null === $event) {
             return null;
         }
 
-        $registrationOpen = $event->getRegistrationClosesAt() > $this->clock->now();
+        $registrationOpen = $alwaysOpen || $event->getRegistrationClosesAt() > $this->clock->now();
 
         $configuredGameIds = $event->isGameSelectionEnabled()
             ? array_column($event->getGameSelectionConfig(), 'gameId')
@@ -234,7 +258,7 @@ final readonly class RegistrationGameSelection
             return ['outcome' => 'error', 'errors' => ['game' => ["Ce jeu n'a pas encore de fichier .apworld configuré."]]];
         }
 
-        $nameError = $this->slotNameError($playerYaml);
+        $nameError = SlotYamlName::error($playerYaml);
         if (null !== $nameError) {
             return ['outcome' => 'error', 'errors' => ['name' => [$nameError]]];
         }
@@ -246,36 +270,6 @@ final readonly class RegistrationGameSelection
         $this->logger->info('registration.slot_yaml_saved', ['registrationId' => $registrationId, 'slotId' => $slotId]);
 
         return ['outcome' => 'ok'];
-    }
-
-    /**
-     * Validates the YAML `name:` (slot name) charset/length. Returns an error message, or null when
-     * the name is valid or absent/unparseable (a broken YAML fails later in the pipeline).
-     */
-    private function slotNameError(string $playerYaml): ?string
-    {
-        try {
-            $parsed = Yaml::parse($playerYaml);
-        } catch (ParseException) {
-            return null;
-        }
-
-        if (!is_array($parsed) || !is_string($parsed['name'] ?? null)) {
-            return null;
-        }
-
-        if (!SlotName::isValid($parsed['name'])) {
-            return sprintf(
-                'Nom de slot invalide : seuls les lettres, chiffres, _ et les placeholders {number}/{player} sont autorisés (%d caractères max).',
-                SlotName::MAX_LENGTH,
-            );
-        }
-
-        if (SlotName::isReserved($parsed['name'])) {
-            return sprintf('Le nom « %s » est réservé : choisis-en un autre.', SlotName::RESERVED_NAME);
-        }
-
-        return null;
     }
 
     /**
