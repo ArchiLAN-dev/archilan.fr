@@ -84,6 +84,9 @@ describe("condition phrasing", () => {
     expect(say({ fact: "event_goal:lan3", label: "Objectif atteint à « ArchiLAN #3 »", value: 1 })).toBe("Atteindre son objectif à « ArchiLAN #3 »");
     expect(say({ fact: "superlative:most_generous", label: "Superlatif « Le Parrain » (le plus généreux)", value: 1 })).toBe("Remporter le superlatif « Le Parrain »");
     expect(say({ fact: "superlative:most_generous", label: "Superlatif « Le Parrain » (le plus généreux)", value: 3 })).toBe("Remporter le superlatif « Le Parrain » 3 fois");
+    // Story 30.57.
+    expect(say({ fact: "counter:c-1", label: "Morpha vaincu", value: 1 })).toBe("Morpha vaincu");
+    expect(say({ fact: "counter:c-2", label: "Gold Skulltula Tokens", value: 50 })).toBe("Gold Skulltula Tokens : 50");
   });
 
   test("the other comparisons, the negation, and an unknown criterion", () => {

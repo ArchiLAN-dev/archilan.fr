@@ -13,9 +13,11 @@ use App\Community\Application\Support\CosmeticRewarder;
 use App\Community\Domain\AchievementMetricCatalog;
 use App\Community\Domain\AchievementOperator;
 use App\Community\Domain\AchievementRuleGroup;
+use App\Community\Domain\Entity\AchievementCounter;
 use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
 use App\Community\Domain\Repository\AchievementCollectionRepositoryInterface;
+use App\Community\Domain\Repository\AchievementCounterRepositoryInterface;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Service\AchievementRuleFactory;
@@ -44,6 +46,7 @@ final readonly class AdminAchievementService
         private AchievementRarityQueryInterface $rarity,
         private AchievementCollectionRepositoryInterface $collections,
         private AdminAchievementCollectionService $collectionAdmin,
+        private AchievementCounterRepositoryInterface $counters,
     ) {
     }
 
@@ -59,7 +62,7 @@ final readonly class AdminAchievementService
      * The admin dashboard payload: every definition plus the rule-builder option lists, in one read. Story 30.51:
      * each definition carries how many members hold it (listable members, as the catalogue's rarity).
      *
-     * @return array{definitions: list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null, collectionId: string|null, holders: int}>, options: array{facts: list<array{key: string, label: string}>, operators: list<string>, groupOps: list<string>, events: list<array{id: string, title: string}>}, collections: list<array{id: string, name: string, description: string, imageKey: string|null, imageUrl: string|null, position: int, secret: bool, reward: array{type: string, key: string, label: string}|null, pelles: int}>}
+     * @return array{definitions: list<array{id: string, key: string, name: string, description: string, rule: array<string, mixed>, active: bool, position: int, customImageKey: string|null, customImageUrl: string|null, reward: array{type: string, key: string, label: string}|null, collectionId: string|null, holders: int}>, options: array{facts: list<array{key: string, label: string}>, operators: list<string>, groupOps: list<string>, events: list<array{id: string, title: string}>, counters: list<array{id: string, label: string}>}, collections: list<array{id: string, name: string, description: string, imageKey: string|null, imageUrl: string|null, position: int, secret: bool, reward: array{type: string, key: string, label: string}|null, pelles: int}>}
      */
     public function dashboard(): array
     {
@@ -77,7 +80,7 @@ final readonly class AdminAchievementService
      * Option lists for the admin rule builder (facts, operators, group operators, selectable events for
      * the event-scope picker).
      *
-     * @return array{facts: list<array{key: string, label: string}>, operators: list<string>, groupOps: list<string>, events: list<array{id: string, title: string}>}
+     * @return array{facts: list<array{key: string, label: string}>, operators: list<string>, groupOps: list<string>, events: list<array{id: string, title: string}>, counters: list<array{id: string, label: string}>}
      */
     public function formOptions(): array
     {
@@ -91,6 +94,8 @@ final readonly class AdminAchievementService
             'operators' => array_map(static fn (AchievementOperator $o): string => $o->value, AchievementOperator::cases()),
             'groupOps' => AchievementRuleGroup::OPS,
             'events' => $this->events->selectableEvents(),
+            // Story 30.57: the counters the rule builder's « Compteur… » entry offers.
+            'counters' => array_map(static fn (AchievementCounter $counter): array => ['id' => $counter->getId(), 'label' => $counter->getLabel()], $this->counters->all()),
         ];
     }
 
@@ -111,6 +116,7 @@ final readonly class AdminAchievementService
         $name = $this->requireName($payload);
         $rule = AchievementRuleFactory::fromArray($this->ruleArray($payload))->toArray();
         $this->validateEventScopes($rule);
+        $this->validateCounters($rule);
         $now = $this->clock->now();
 
         $reward = $this->reward($payload);
@@ -140,6 +146,7 @@ final readonly class AdminAchievementService
         $name = $this->requireName($payload);
         $rule = AchievementRuleFactory::fromArray($this->ruleArray($payload))->toArray();
         $this->validateEventScopes($rule);
+        $this->validateCounters($rule);
         $now = $this->clock->now();
         $definition->update($name, $this->description($payload), $rule, $now);
         // Only touch the image when the field is present, so an edit that omits it keeps the current image.
@@ -276,6 +283,24 @@ final readonly class AdminAchievementService
         // Mirrors ACHIEVEMENT_DESCRIPTION_MAX in the frontend's content-limits.ts; capped like the
         // sibling name() rather than rejected, matching this service's existing behaviour.
         return mb_substr($description, 0, self::MAX_DESCRIPTION);
+    }
+
+    /**
+     * Story 30.57: a `counter:{id}` condition must reference a real counter, like an event-scoped one.
+     *
+     * @param array<mixed> $rule
+     *
+     * @throws InvalidAchievementRuleException
+     */
+    private function validateCounters(array $rule): void
+    {
+        $ids = AchievementMetricCatalog::counterIdsIn($rule);
+        $known = array_map(static fn (AchievementCounter $counter): string => $counter->getId(), $this->counters->findByIds($ids));
+        foreach ($ids as $id) {
+            if (!in_array($id, $known, true)) {
+                throw new InvalidAchievementRuleException(sprintf('Le compteur référencé (%s) n\'existe pas.', $id));
+            }
+        }
     }
 
     /**

@@ -50,6 +50,11 @@ final class AchievementMetricCatalog
     // and each key is a concrete facts() entry so the admin form and validation need no special case.
     public const string SUPERLATIVE_PREFIX = 'superlative:';
 
+    // Story 30.57: `counter:{counterId}` = what an admin counter over the session feed gives the member (checks of
+    // some locations, copies of some items). The id is opaque to the rule engine; the admin layer checks it is a
+    // real counter, like the event of `event_goal:`.
+    public const string COUNTER_PREFIX = 'counter:';
+
     /**
      * @return array<string, string> fact key => human label
      */
@@ -85,7 +90,48 @@ final class AchievementMetricCatalog
 
     public static function isValidFact(string $fact): bool
     {
-        return \array_key_exists($fact, self::facts()) || self::isEventGoalFact($fact);
+        return \array_key_exists($fact, self::facts()) || self::isEventGoalFact($fact) || self::isCounterFact($fact);
+    }
+
+    /** Story 30.57. */
+    public static function isCounterFact(string $fact): bool
+    {
+        return str_starts_with($fact, self::COUNTER_PREFIX) && \strlen($fact) > \strlen(self::COUNTER_PREFIX);
+    }
+
+    /** Story 30.57: the counter a `counter:{id}` fact reads, null for another fact. */
+    public static function counterIdFromFact(string $fact): ?string
+    {
+        return self::isCounterFact($fact) ? substr($fact, \strlen(self::COUNTER_PREFIX)) : null;
+    }
+
+    /**
+     * Story 30.57: the counters a rule tree reads, each once, in the order met.
+     *
+     * @param array<mixed> $rule
+     *
+     * @return list<string>
+     */
+    public static function counterIdsIn(array $rule): array
+    {
+        $ids = [];
+        $fact = $rule['fact'] ?? null;
+        if (\is_string($fact)) {
+            $id = self::counterIdFromFact($fact);
+            if (null !== $id) {
+                $ids[] = $id;
+            }
+        }
+        $children = $rule['rules'] ?? null;
+        if (\is_array($children)) {
+            foreach ($children as $child) {
+                if (\is_array($child)) {
+                    $ids = [...$ids, ...self::counterIdsIn($child)];
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     public static function isEventGoalFact(string $fact): bool

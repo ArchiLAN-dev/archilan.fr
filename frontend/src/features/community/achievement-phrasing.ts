@@ -83,6 +83,10 @@ function phrase(condition: Condition): string {
     const event = quoted(condition.label) ?? "un événement";
     return once(condition) ? `Atteindre son objectif à « ${event} »` : `Atteindre son objectif à « ${event} » (${count})`;
   }
+  // Story 30.57: a counter of checks or items, said by its label: « Morpha vaincu », « Gold Skulltula Tokens : 50 ».
+  if (condition.fact.startsWith("counter:")) {
+    return once(condition) ? condition.label : `${condition.label} : ${count}`;
+  }
   if (condition.fact.startsWith("superlative:")) {
     const title = quoted(condition.label) ?? condition.label;
     if (once(condition)) return `Remporter le superlatif « ${title} »`;
