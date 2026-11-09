@@ -44,6 +44,7 @@ import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/fea
 import { HINT_STATUS_NAMES, REACHABILITY_INVALID_MESSAGE, REACHABILITY_RETRY_MS, isHintsUpdate, isReachabilityData, reachableAnswerOf } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { ItemBountiesPanel } from "@/features/wallet/item-bounties";
+import { PasseurPanel } from "@/features/passeur/passeur-panel";
 import { sessionSlotUrl, usePelleHintOffers } from "@/features/wallet/pelle-hints";
 import type { PersonalRun } from "./types";
 import { fetchSessionConnection } from "@/features/events/events-api";
@@ -907,6 +908,9 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
             </button>
           </div>
         ) : null}
+
+        {/* Story 52.4: the Passeur, only while this slot is in BK and an absent world holds what it waits for. */}
+        {sessionId ? <PasseurPanel sessionId={sessionId} slotIndex={slotIndex} /> : null}
 
         {/* Tab bar */}
         <div className={`-mx-4 flex items-stretch gap-0 overflow-x-auto border-b border-border bg-surface px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden${state.kind === "paused" || state.kind === "imported" ? " hidden" : ""}`}>

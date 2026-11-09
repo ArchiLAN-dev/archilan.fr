@@ -11,11 +11,15 @@ final class ConflictException extends \RuntimeException implements ApplicationFa
 {
     use ApplicationFailureTrait;
 
-    public function __construct(string $message, string $errorCode = 'conflict')
+    /**
+     * @param array<string, mixed> $details what the client needs to resolve the conflict (story 52.4: the new price)
+     */
+    public function __construct(string $message, string $errorCode = 'conflict', array $details = [])
     {
         parent::__construct($message);
         $this->failureMessage = $message;
         $this->failureCode = $errorCode;
+        $this->failureDetails = $details;
     }
 
     public function statusCode(): int

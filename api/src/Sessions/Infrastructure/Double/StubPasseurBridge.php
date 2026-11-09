@@ -22,6 +22,12 @@ final class StubPasseurBridge implements PasseurBridgeInterface
     /** @var list<list<PasseurItem>> */
     public array $measured = [];
 
+    /** @var PasseurBridgeInterface::OPENED|PasseurBridgeInterface::ALREADY_OPENED|PasseurBridgeInterface::NOT_OPENED */
+    public string $openAnswer = PasseurBridgeInterface::OPENED;
+
+    /** @var list<string> "finder:location" of each chest the Passeur was asked to open */
+    public array $opened = [];
+
     public function items(string $sessionId, int $slotIndex): ?array
     {
         return $this->items;
@@ -32,5 +38,12 @@ final class StubPasseurBridge implements PasseurBridgeInterface
         $this->measured[] = $candidates;
 
         return $this->gains;
+    }
+
+    public function open(string $sessionId, int $findingSlot, int $locationId): string
+    {
+        $this->opened[] = $findingSlot.':'.$locationId;
+
+        return $this->openAnswer;
     }
 }

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Query;
 
-use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Port\PasseurBridgeInterface;
+use App\Sessions\Application\Support\PasseurTermsResolver;
 use App\Sessions\Application\Support\SlotAbsence;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
@@ -24,7 +24,7 @@ final readonly class PasseurCandidatesQuery
 {
     public function __construct(
         private SessionRepositoryInterface $sessions,
-        private RunRepositoryInterface $runs,
+        private PasseurTermsResolver $terms,
         private SlotBlockEpisodeRepositoryInterface $episodes,
         private SlotAbsence $absence,
         private PasseurBridgeInterface $bridge,
@@ -33,10 +33,13 @@ final readonly class PasseurCandidatesQuery
     }
 
     /**
+     * `$measure` asks the tracker what each candidate opens (up to MAX_MEASURED full computations): the offer and
+     * the diagnostic do, a purchase only checks its chest is still a candidate.
+     *
      * @throws NotFoundException           when the session does not exist
      * @throws ServiceUnavailableException when the bridge cannot list the slot's items
      */
-    public function forSlot(string $sessionId, int $slotIndex): PasseurCandidates
+    public function forSlot(string $sessionId, int $slotIndex, bool $measure = true): PasseurCandidates
     {
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
@@ -50,18 +53,20 @@ final readonly class PasseurCandidatesQuery
                 $blockedSince = $episode->getBlockedSince();
             }
         }
-        if (null === $blockedSince) {
+        $terms = $this->terms->of($sessionId);
+        // A weekly has no Passeur, nor tracked blocks.
+        if (null === $blockedSince || null === $terms) {
             return PasseurCandidates::notBlocked();
         }
 
-        $absentSlots = $this->absence->absentSlots($session, $this->runs->findBySessionId($sessionId), $this->clock->now());
+        $absentSlots = $this->absence->absentSlots($session, $terms->run, $this->clock->now(), $terms->absenceDelaySeconds());
         $items = [] === $absentSlots ? [] : $this->bridge->items($sessionId, $slotIndex);
         if (null === $items) {
             throw new ServiceUnavailableException('Le bridge ne répond pas.', 'bridge_unavailable');
         }
 
         $candidates = PasseurSelection::candidates($items, $absentSlots);
-        $gains = [] === $candidates ? null : $this->bridge->gains($sessionId, $slotIndex, array_slice($candidates, 0, PasseurBridgeInterface::MAX_MEASURED));
+        $gains = [] === $candidates || !$measure ? null : $this->bridge->gains($sessionId, $slotIndex, array_slice($candidates, 0, PasseurBridgeInterface::MAX_MEASURED));
         $ranked = null === $gains ? $candidates : PasseurSelection::byRank($candidates, $gains);
 
         return new PasseurCandidates(

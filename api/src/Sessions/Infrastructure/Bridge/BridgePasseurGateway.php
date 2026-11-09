@@ -18,6 +18,8 @@ final readonly class BridgePasseurGateway implements PasseurBridgeInterface
 {
     /** Each measured candidate is a tracker run: a few seconds each on a warm daemon. */
     private const int UNLOCKS_TIMEOUT_SECONDS = 60;
+    /** The bridge waits up to 10 s for the server's answer (story 52.1). */
+    private const int OPEN_TIMEOUT_SECONDS = 15;
 
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -87,6 +89,48 @@ final readonly class BridgePasseurGateway implements PasseurBridgeInterface
         }
 
         return $gains;
+    }
+
+    /**
+     * The bridge's `POST /slots/{slot}/locations/{location}/send` (story 52.1): 200 opened, 409 already checked, any
+     * other refusal not opened. A timeout or a lost answer may hide an opening: the location's state decides.
+     */
+    public function open(string $sessionId, int $findingSlot, int $locationId): string
+    {
+        try {
+            $response = $this->httpClient->request('POST', BridgeEndpoint::url($sessionId, sprintf('/slots/%d/locations/%d/send', $findingSlot, $locationId)), [
+                'headers' => ['Authorization' => 'Bearer '.$this->bridgeInternalToken],
+                'timeout' => self::OPEN_TIMEOUT_SECONDS,
+            ]);
+            $status = $response->getStatusCode();
+            if (200 === $status) {
+                return self::OPENED;
+            }
+            if (409 === $status) {
+                return self::ALREADY_OPENED;
+            }
+            $this->logger->warning('passeur.open_refused', ['session' => $sessionId, 'slot' => $findingSlot, 'location' => $locationId, 'status' => $status, 'body' => $response->getContent(false)]);
+            if (504 !== $status) {
+                return self::NOT_OPENED;
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('passeur.open_unconfirmed', ['session' => $sessionId, 'slot' => $findingSlot, 'location' => $locationId, 'error' => $e->getMessage()]);
+        }
+
+        return $this->isChecked($sessionId, $findingSlot, $locationId) ? self::OPENED : self::NOT_OPENED;
+    }
+
+    /** Whether the location shows as checked in its world, after an answer the bridge could not confirm. */
+    private function isChecked(string $sessionId, int $findingSlot, int $locationId): bool
+    {
+        $payload = $this->call($sessionId, 'GET', sprintf('/slots/%d/checks', $findingSlot), null, 10);
+        foreach (is_array($payload['locations'] ?? null) ? $payload['locations'] : [] as $location) {
+            if (is_array($location) && $locationId === ($location['locationId'] ?? null)) {
+                return true === ($location['checked'] ?? null);
+            }
+        }
+
+        return false;
     }
 
     /**

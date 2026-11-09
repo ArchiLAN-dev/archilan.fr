@@ -459,6 +459,8 @@ services:
     App\Sessions\Domain\Repository\SessionFeedEventRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionFeedEventRepository'
     App\Sessions\Domain\Repository\SessionPlayersSnapshotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionPlayersSnapshotRepository'
     App\Sessions\Domain\Repository\SlotBlockEpisodeRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotBlockEpisodeRepository'
+    # Story 52.4.
+    App\Sessions\Domain\Repository\PasseurOpeningRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrinePasseurOpeningRepository'
     App\Sessions\Domain\Repository\SlotPlaySpanRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotPlaySpanRepository'
     App\Sessions\Domain\Repository\SlotBlockReleaseRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotBlockReleaseRepository'
     App\Sessions\Application\Query\RecapExchangesQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalRecapExchangesQuery'

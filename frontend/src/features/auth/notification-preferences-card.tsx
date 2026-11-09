@@ -32,6 +32,7 @@ const TYPE_LABELS: Record<string, { label: string; hint: string }> = {
   game_apworld_updated: { label: "Jeux suivis", hint: "Un nouvel apworld est mis en place pour un jeu que tu suis." },
   survey_opened: { label: "Sondages", hint: "L'orga ouvre un sondage sur un événement où tu es inscrit." },
   survey_reminder: { label: "Relances de sondage", hint: "Un sondage qui te concerne attend encore ta réponse." },
+  passeur_opened: { label: "Le Passeur", hint: "Le Passeur a ouvert un coffre de ton monde pendant ton absence, pour un joueur bloqué." },
 };
 
 /**

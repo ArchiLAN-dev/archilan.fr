@@ -69,7 +69,7 @@ final readonly class DbalPelleCirculationQuery implements PelleCirculationQueryI
             [
                 'kind' => PelleKind::Bronze->value, 'start' => $start, 'end' => $end,
                 'earned' => [PelleReason::BronzeStart->value, PelleReason::BronzeCheck->value, PelleReason::BronzeGoal->value],
-                'spending' => [PelleReason::HintPurchase->value, PelleReason::HintRefund->value, PelleReason::BountyEscrow->value, PelleReason::BountyRefund->value, PelleReason::BountyReward->value],
+                'spending' => [PelleReason::HintPurchase->value, PelleReason::HintRefund->value, PelleReason::BountyEscrow->value, PelleReason::BountyRefund->value, PelleReason::BountyReward->value, PelleReason::PasseurPurchase->value, PelleReason::PasseurRefund->value, PelleReason::PasseurShare->value],
                 'burning' => [PelleReason::BronzeExpired->value, PelleReason::BronzeRestored->value],
             ],
             ['earned' => ArrayParameterType::STRING, 'spending' => ArrayParameterType::STRING, 'burning' => ArrayParameterType::STRING],

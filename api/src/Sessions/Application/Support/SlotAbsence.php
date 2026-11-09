@@ -19,15 +19,13 @@ use App\Sessions\Domain\Service\SlotBlockRule;
  *
  * - Event: outside the windows the player declared (story 52.2) and no client on the slot. No window declared:
  *   there the whole event, never absent.
- * - Private run: no client on the slot for the delay (2 h until the owner can set it, story 52.5); a slot never
+ * - Private run: no client on the slot for the delay the owner set (2 h by default, story 52.4); a slot never
  *   played counts from the session's first launch.
  *
  * "A client on the slot" is the bridge's heartbeat (story 32.26): a slot seen within a play span's gap.
  */
 final readonly class SlotAbsence
 {
-    public const int PRIVATE_DEFAULT_DELAY_SECONDS = 7200;
-
     public function __construct(
         private SessionPlayersSnapshotRepositoryInterface $snapshots,
         private SessionSlotRepositoryInterface $slots,
@@ -39,7 +37,7 @@ final readonly class SlotAbsence
     /**
      * @return list<int> the Archipelago slot numbers whose player is absent
      */
-    public function absentSlots(Session $session, ?Run $run, \DateTimeImmutable $now): array
+    public function absentSlots(Session $session, ?Run $run, \DateTimeImmutable $now, int $privateDelaySeconds): array
     {
         $registrations = [];
         foreach ($this->slots->findBySessionId($session->getId()) as $slot) {
@@ -50,7 +48,7 @@ final readonly class SlotAbsence
         foreach ($this->slotNames($session->getId()) as $slotIndex => $slotName) {
             $lastSeen = $this->playSpans->findLatest($session->getId(), $slotName)?->getLastSeenAt();
             $isAbsent = null !== $run
-                ? $this->absentFromRun($session, $lastSeen, $now)
+                ? $this->absentFromRun($session, $lastSeen, $now, $privateDelaySeconds)
                 : $this->absentFromEvent($registrations[$slotName] ?? null, $lastSeen, $now);
             if ($isAbsent) {
                 $absent[] = $slotIndex;
@@ -60,11 +58,11 @@ final readonly class SlotAbsence
         return $absent;
     }
 
-    private function absentFromRun(Session $session, ?\DateTimeImmutable $lastSeen, \DateTimeImmutable $now): bool
+    private function absentFromRun(Session $session, ?\DateTimeImmutable $lastSeen, \DateTimeImmutable $now, int $delaySeconds): bool
     {
         $since = $lastSeen ?? $session->getFirstLaunchedAt() ?? $session->getStartedAt();
 
-        return null !== $since && $now->getTimestamp() - $since->getTimestamp() >= self::PRIVATE_DEFAULT_DELAY_SECONDS;
+        return null !== $since && $now->getTimestamp() - $since->getTimestamp() >= $delaySeconds;
     }
 
     private function absentFromEvent(?string $registrationId, ?\DateTimeImmutable $lastSeen, \DateTimeImmutable $now): bool
