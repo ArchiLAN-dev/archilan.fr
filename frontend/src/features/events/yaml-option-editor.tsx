@@ -990,7 +990,9 @@ function AdvancedRange({
   }
 
   function addNumeric() {
-    const n = parseInt(newKey, 10);
+    // The stepper shows the minimum until it is touched: that shown value is the one added. Requiring a change first
+    // made the minimum itself (0 Gold Skulltula Tokens on Majora's Mask) reachable only by going up then down.
+    const n = newKey === "" ? option.min : parseInt(newKey, 10);
     if (isNaN(n)) return;
     const clamped = Math.max(option.min, Math.min(option.max, n));
     onChange(addCustomRangeEntry(option, String(clamped), 50));
@@ -1095,7 +1097,6 @@ function AdvancedRange({
             />
             <button
               className="inline-flex min-h-8 items-center justify-center rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:opacity-50"
-              disabled={newKey === ""}
               type="button"
               onClick={addNumeric}
             >
