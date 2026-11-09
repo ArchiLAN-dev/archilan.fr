@@ -14,6 +14,8 @@ Correctif de l'éditeur YAML et mise à jour de sécurité du serveur web de l'A
 - Une liste de nombres reste en nombres dans le YAML du joueur. L'éditeur la réécrivait entre guillemets
   (`link_tunic_color: ['30', '105', '27']`) et la génération de Majora's Mask Recompiled échouait. Un YAML déjà
   enregistré est réparé au prochain enregistrement du slot.
+- Une option numérique accepte sa valeur minimale dans « Valeurs numériques spécifiques » : le bouton « Ajouter »
+  restait grisé sur le minimum affiché (0 jeton de Skulltula d'or sur Majora's Mask), il fallait monter puis redescendre.
 
 ### Sécurité
 
