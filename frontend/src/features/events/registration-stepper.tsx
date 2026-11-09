@@ -4,9 +4,14 @@ import { Check } from "lucide-react";
 
 type StepStatus = "done" | "current" | "upcoming";
 
-const LABELS = ["Réservation", "Sélection des jeux", "Récapitulatif & options"] as const;
+const STEPS = ["Réservation", "Sélection des jeux", "Récapitulatif & options"] as const;
+/** Story 51.5: the organisers' questions come between the games and the recap, only when there are some. */
+const STEPS_WITH_QUESTIONS = ["Réservation", "Sélection des jeux", "Questions", "Récapitulatif & options"] as const;
 
-export function RegistrationStepper({ currentStep }: { currentStep: 0 | 1 | 2 }) {
+type Props = { currentStep: 0 | 1 | 2 | 3; withQuestions?: boolean };
+
+export function RegistrationStepper({ currentStep, withQuestions = false }: Props) {
+  const LABELS: readonly string[] = withQuestions ? STEPS_WITH_QUESTIONS : STEPS;
   const statuses: StepStatus[] = LABELS.map((_, i) =>
     i < currentStep ? "done" : i === currentStep ? "current" : "upcoming",
   );

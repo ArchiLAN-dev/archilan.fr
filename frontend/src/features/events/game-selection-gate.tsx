@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, Search, Trash2, X, XCircle } from "lucide-react";
 
 import { RegistrationStepper } from "@/features/events/registration-stepper";
+import { afterGamesHref, useRegistrationSurveys } from "@/features/surveys/registration-questions";
 import { InstallNudge } from "@/features/games/install-nudge";
 import { useSteamCoupling } from "@/features/games/use-steam-coupling";
 import { useGameList } from "@/features/games/use-game-list";
@@ -58,6 +59,8 @@ export function GameSelectionGate({
   const router = useRouter();
   const { eventSlug, registrationId } = use(params);
   const queryClient = useQueryClient();
+  // Story 51.5: the organisers' questions, when there are some, come before the recap.
+  const registrationSurveys = useRegistrationSurveys(eventSlug);
   const [workingGameIds, setWorkingGameIds] = useState<string[]>([]);
   const [gameSearch, setGameSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -512,7 +515,7 @@ export function GameSelectionGate({
                 }
                 type="button"
                 onClick={() => {
-                  router.push(`/evenements/${eventSlug}/inscription/${registrationId}/recap`);
+                  router.push(afterGamesHref(eventSlug, registrationId, registrationSurveys));
                 }}
               >
                 Continuer vers le récap →
@@ -527,7 +530,7 @@ export function GameSelectionGate({
             className="inline-flex min-h-10 w-full items-center justify-center rounded border border-accent px-5 text-sm font-semibold text-accent-text transition-colors hover:bg-accent/10 sm:w-fit"
             type="button"
             onClick={() => {
-              router.push(`/evenements/${eventSlug}/inscription/${registrationId}/recap`);
+              router.push(afterGamesHref(eventSlug, registrationId, registrationSurveys));
             }}
           >
             Voir le récapitulatif →

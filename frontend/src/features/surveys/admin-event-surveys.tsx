@@ -140,6 +140,7 @@ function NewSurveyForm({ eventId }: { eventId: string }) {
         <select className={fieldClass} onChange={(event) => setAudience(audienceOf(event.target.value))} value={audience}>
           <option value="registrants">Inscrits (avant l&apos;événement)</option>
           <option value="participants">Participants (après l&apos;événement)</option>
+          <option value="registration">À l&apos;inscription (étape du parcours)</option>
         </select>
       </label>
       <label className="flex items-start gap-2 text-sm text-foreground">

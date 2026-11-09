@@ -10,7 +10,7 @@ import { fetchMySurveys, fetchSurveyForm, isSurveyForm, submitSurveyResponse, ty
 
 const BASE = TEST_API_BASE_URL;
 
-const pending: MySurvey = { id: "s1", title: "Quand viens-tu ?", anonymous: false, closesAt: "2026-11-20T17:00:00+00:00", answered: false };
+const pending: MySurvey = { id: "s1", title: "Quand viens-tu ?", audience: "registrants", anonymous: false, closesAt: "2026-11-20T17:00:00+00:00", answered: false };
 
 const form: SurveyForm = {
   id: "s1",

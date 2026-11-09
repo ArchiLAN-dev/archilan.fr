@@ -209,7 +209,7 @@ function SurveySettings({ survey, published, run }: { survey: AdminSurvey; publi
           <select className={fieldClass} disabled={published} onChange={(event) => setAudience(audienceOf(event.target.value))} value={audience}>
             <option value="registrants">Inscrits (avant l&apos;événement)</option>
             <option value="participants">Participants (après l&apos;événement)</option>
-            {audience === "registration" ? <option value="registration">{AUDIENCE_LABELS.registration}</option> : null}
+            <option value="registration">{AUDIENCE_LABELS.registration}</option>
           </select>
         </label>
         <div className="grid content-end gap-2">
