@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Registrations\Presentation\Controller;
 
 use App\Registrations\Application\Command\AdminRegistrationCancellation;
+use App\Registrations\Application\Command\AdminRegistrationConfirmation;
+use App\Registrations\Application\Command\AdminRegistrationCreation;
 use App\Registrations\Application\Command\AdminRegistrationModification;
 use App\Registrations\Application\Command\AdminSlotYamlModification;
 use App\Registrations\Application\Command\SendMessageToRegistrant;
@@ -26,6 +28,8 @@ final readonly class AdminRegistrationController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private AdminRegistrationCancellation $adminRegistrationCancellation,
+        private AdminRegistrationConfirmation $adminRegistrationConfirmation,
+        private AdminRegistrationCreation $adminRegistrationCreation,
         private AdminRegistrationDashboard $adminRegistrationDashboard,
         private AdminRegistrationExporter $adminRegistrationExporter,
         private AdminRegistrationInspector $adminRegistrationInspector,
@@ -191,6 +195,71 @@ final readonly class AdminRegistrationController
         return new JsonResponse(['outcome' => 'cancelled']);
     }
 
+    /**
+     * Story 5.10: the admin registers a member on their behalf. `{userId, acknowledgeWarnings?}`. Member-side rules
+     * come back as a 409 `warnings_to_acknowledge` until acknowledged.
+     */
+    #[Route('/api/v1/admin/events/{eventId}/registrations', name: 'api_admin_registrations_create', methods: ['POST'])]
+    public function create(Request $request, string $eventId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedAdmin($request);
+
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        if (!is_array($payload) || !isset($payload['userId']) || !is_string($payload['userId']) || '' === $payload['userId']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Choisis un joueur.', 422, ['userId' => ['Choisis un joueur.']]);
+        }
+
+        $result = $this->adminRegistrationCreation->create($eventId, $payload['userId'], $user->getId(), $this->acknowledged($payload));
+
+        return new JsonResponse(
+            ['data' => ['registrationId' => $result->registrationId, 'outcome' => $result->outcome->value]],
+            'created' === $result->outcome->value ? 201 : 200,
+        );
+    }
+
+    /** Story 5.10: a cancelled registration comes back with its games and YAML. `{acknowledgeWarnings?}`. */
+    #[Route('/api/v1/admin/events/{eventId}/registrations/{registrationId}/reactivate', name: 'api_admin_registrations_reactivate', methods: ['POST'])]
+    public function reactivate(Request $request, string $eventId, string $registrationId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedAdmin($request);
+
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $this->adminRegistrationCreation->reactivate($eventId, $registrationId, $user->getId(), is_array($payload) && $this->acknowledged($payload));
+
+        return new JsonResponse(['outcome' => 'reactivated']);
+    }
+
+    /** Story 5.10: the admin confirms on the member's behalf. `{sendEmail?, acknowledgeWarnings?}`; the e-mail goes by default. */
+    #[Route('/api/v1/admin/events/{eventId}/registrations/{registrationId}/confirm', name: 'api_admin_registrations_confirm', methods: ['POST'])]
+    public function confirm(Request $request, string $eventId, string $registrationId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedAdmin($request);
+
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $payload = is_array($payload) ? $payload : [];
+        $this->adminRegistrationConfirmation->confirm(
+            $eventId,
+            $registrationId,
+            $user->getId(),
+            false !== ($payload['sendEmail'] ?? true),
+            $this->acknowledged($payload),
+        );
+
+        return new JsonResponse(['outcome' => 'confirmed']);
+    }
+
     #[Route('/api/v1/admin/events/{eventId}/registrations/{registrationId}/messages', name: 'api_admin_registrations_message', methods: ['POST'])]
     public function message(Request $request, string $eventId, string $registrationId): JsonResponse
     {
@@ -223,5 +292,13 @@ final readonly class AdminRegistrationController
         ]);
 
         return new JsonResponse(['data' => ['outcome' => 'sent', 'sentAt' => $sentAt]]);
+    }
+
+    /**
+     * @param array<mixed> $payload
+     */
+    private function acknowledged(array $payload): bool
+    {
+        return true === ($payload['acknowledgeWarnings'] ?? false);
     }
 }

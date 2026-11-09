@@ -4,27 +4,21 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application\Command;
 
-use App\Communications\Application\Message\RegistrationConfirmationMessage;
 use App\Events\Domain\Repository\EventRepositoryInterface;
-use App\GameSelection\Domain\Repository\GameRepositoryInterface;
-use App\Identity\Domain\Entity\User;
-use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Registrations\Application\Support\RegistrationConfirmationNotice;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class RegistrationSubmission
 {
     public function __construct(
         private RegistrationRepositoryInterface $registrationRepository,
         private EventRepositoryInterface $eventRepository,
-        private UserRepositoryInterface $userRepository,
-        private GameRepositoryInterface $gameRepository,
-        private MessageBusInterface $messageBus,
+        private RegistrationConfirmationNotice $confirmationNotice,
         private LoggerInterface $logger,
         private ClockInterface $clock,
     ) {
@@ -67,20 +61,7 @@ final readonly class RegistrationSubmission
 
             $this->logger->info('registration.confirmed', ['registrationId' => $registrationId, 'userId' => $userId]);
 
-            $user = $this->userRepository->findById($userId);
-            $selectedGameNames = $this->resolveGameNames($registration->getSelectedGameIds());
-
-            $this->messageBus->dispatch(new RegistrationConfirmationMessage(
-                userEmail: $user instanceof User ? $user->getEmail() : $userId,
-                userDisplayName: $user instanceof User ? $user->getDisplayName() : null,
-                eventTitle: $event->getTitle(),
-                // Story 4.22: Paris time, and an escaped "à" ('a' alone printed am/pm).
-                eventStartsAt: $event->getStartsAt()->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m/Y \à H\hi'),
-                eventVenue: $event->getVenue(),
-                selectedGameNames: $selectedGameNames,
-                eventId: $event->getId(),
-                registrationId: $registration->getId(),
-            ));
+            $this->confirmationNotice->send($registration, $event);
         }
 
         return new SubmissionResult(
@@ -98,37 +79,5 @@ final readonly class RegistrationSubmission
         if ([] === $registration->getGameSlots()) {
             throw new ValidationException('Tu dois selectionner au moins un jeu avant de confirmer.', [], 'games_required');
         }
-    }
-
-    /**
-     * @param list<string> $gameIds ordered list (may contain duplicates)
-     *
-     * @return list<string>
-     */
-    private function resolveGameNames(array $gameIds): array
-    {
-        if ([] === $gameIds) {
-            return [];
-        }
-
-        /** @var list<string> $uniqueIds */
-        $uniqueIds = array_values(array_unique($gameIds));
-        $games = $this->gameRepository->findByIds($uniqueIds);
-
-        /** @var array<string, string> $namesById */
-        $namesById = [];
-        foreach ($games as $game) {
-            $namesById[$game->getId()] = $game->getName();
-        }
-
-        $names = [];
-        foreach ($gameIds as $gameId) {
-            $name = $namesById[$gameId] ?? null;
-            if (null !== $name && !in_array($name, $names, true)) {
-                $names[] = $name;
-            }
-        }
-
-        return $names;
     }
 }

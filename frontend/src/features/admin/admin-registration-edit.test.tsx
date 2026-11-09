@@ -7,7 +7,7 @@ import { apiErrorMessage } from "@/lib/api-error";
 
 import { adminSlotYamlUrl, saveAdminRegistrationGames } from "./admin-registration-api";
 import { GameCard, isEditableByAdmin, type GameDetail } from "./admin-registration-detail";
-import { addableGames, canAddGame } from "./admin-registration-editor";
+import { addableGames, isAtCap } from "./admin-registration-editor";
 
 jest.mock("../../lib/apiFetch");
 const mockApiFetch = jest.mocked(apiFetch);
@@ -53,23 +53,54 @@ describe("admin edits a registration (story 5.9)", () => {
     expect(renderToStaticMarkup(<GameCard game={GAME} onEditYaml={() => undefined} />)).toContain("Modifier le YAML");
   });
 
-  it("adds only games still switched on, under the event's cap", () => {
+  it("adds only games still switched on, and flags the event's cap without blocking it (story 5.10)", () => {
     expect(addableGames([available("a"), available("b", true)]).map((game) => game.id)).toEqual(["a"]);
     const draft = [{ key: "s1", gameId: "a", gameName: "a" }];
-    expect(canAddGame(draft, null)).toBe(true);
-    expect(canAddGame(draft, 2)).toBe(true);
-    expect(canAddGame(draft, 1)).toBe(false);
+    expect(isAtCap(draft, null)).toBe(false);
+    expect(isAtCap(draft, 2)).toBe(false);
+    expect(isAtCap(draft, 1)).toBe(true);
   });
 
   it("saves the games through the admin PATCH, in order", async () => {
     mockApiFetch.mockResolvedValue(new Response("{}", { status: 200 }));
 
-    await expect(saveAdminRegistrationGames("ev", "reg", ["a", "b"])).resolves.toEqual({ ok: true });
+    await expect(saveAdminRegistrationGames("ev", "reg", ["a", "b"])).resolves.toEqual({ kind: "ok", data: true });
 
     const [url, init] = mockApiFetch.mock.calls[0] ?? [];
     expect(String(url)).toContain("/admin/events/ev/registrations/reg");
     expect(init?.method).toBe("PATCH");
-    expect(init?.body).toBe(JSON.stringify({ slots: [{ gameId: "a" }, { gameId: "b" }] }));
+    expect(init?.body).toBe(JSON.stringify({ slots: [{ gameId: "a" }, { gameId: "b" }], acknowledgeWarnings: false }));
+  });
+
+  it("hands back the rules to acknowledge, then replays acknowledged (story 5.10)", async () => {
+    mockApiFetch.mockResolvedValueOnce(new Response(JSON.stringify({
+      error: {
+        code: "warnings_to_acknowledge",
+        message: "Cette action dépasse des règles d'inscription : confirme pour continuer.",
+        details: { warnings: [{ code: "max_games_exceeded", message: "La sélection dépasse le nombre de jeux autorisé par joueur." }] },
+      },
+    }), { status: 409 }));
+
+    await expect(saveAdminRegistrationGames("ev", "reg", ["a", "b"])).resolves.toEqual({
+      kind: "warnings",
+      warnings: [{ code: "max_games_exceeded", message: "La sélection dépasse le nombre de jeux autorisé par joueur." }],
+    });
+
+    mockApiFetch.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    await saveAdminRegistrationGames("ev", "reg", ["a", "b"], true);
+    const [, init] = mockApiFetch.mock.calls[1] ?? [];
+    expect(init?.body).toBe(JSON.stringify({ slots: [{ gameId: "a" }, { gameId: "b" }], acknowledgeWarnings: true }));
+  });
+
+  it("keeps a plain 409 an error, not warnings", async () => {
+    mockApiFetch.mockResolvedValue(new Response(JSON.stringify({
+      error: { code: "inactive_registration", message: "L'inscription n'est plus modifiable.", details: [] },
+    }), { status: 409 }));
+
+    await expect(saveAdminRegistrationGames("ev", "reg", ["a"])).resolves.toEqual({
+      kind: "error",
+      message: "L'inscription n'est plus modifiable.",
+    });
   });
 
   it("tells the API's reason when the games are refused", async () => {
@@ -78,7 +109,7 @@ describe("admin edits a registration (story 5.9)", () => {
     }), { status: 422 }));
 
     await expect(saveAdminRegistrationGames("ev", "reg", ["a", "b"])).resolves.toEqual({
-      ok: false,
+      kind: "error",
       message: "La sélection ne peut pas dépasser 1 jeu(x).",
     });
   });

@@ -44,6 +44,12 @@ final class Registration
         /** Story 47.1: the member lets the ArchiLAN broadcast show their Twitch stream during this event. */
         #[ORM\Column(name: 'broadcast_consent', type: 'boolean', options: ['default' => true])]
         private bool $broadcastConsent = true,
+        /** Story 5.10: the admin who registered the member on their behalf, null for a member's own registration. */
+        #[ORM\Column(name: 'created_by_admin_id', type: 'string', length: 32, nullable: true)]
+        private ?string $createdByAdminId = null,
+        /** Story 5.10: the admin who confirmed on the member's behalf, null when the member confirmed. */
+        #[ORM\Column(name: 'confirmed_by_admin_id', type: 'string', length: 32, nullable: true)]
+        private ?string $confirmedByAdminId = null,
     ) {
     }
 
@@ -274,6 +280,39 @@ final class Registration
         $this->broadcastConsent = true;
         $this->createdAt = $now;
         $this->updatedAt = $now;
+    }
+
+    /**
+     * Story 5.10: an admin puts a cancelled registration back, as it was: its games, YAML and confirmation are kept
+     * (unlike {@see reactivate}, where the member starts over). Used to undo a cancellation or a release at
+     * closing; the audit log keeps who did it.
+     */
+    public function restoreByAdmin(\DateTimeImmutable $now): void
+    {
+        if (self::STATUS_CANCELLED !== $this->status) {
+            throw new \DomainException('Only cancelled registrations can be restored.');
+        }
+
+        $this->status = self::STATUS_RESERVED;
+        $this->reminderSentAt = null;
+        $this->updatedAt = $now;
+    }
+
+    /** Story 5.10: the admin confirms on the member's behalf. */
+    public function confirmByAdmin(string $adminId, \DateTimeImmutable $now): void
+    {
+        $this->confirm($now);
+        $this->confirmedByAdminId = $adminId;
+    }
+
+    public function getCreatedByAdminId(): ?string
+    {
+        return $this->createdByAdminId;
+    }
+
+    public function getConfirmedByAdminId(): ?string
+    {
+        return $this->confirmedByAdminId;
     }
 
     /** Story 47.1: on by default (a Twitch link in the profile is enough), the member alone opts out, only on a confirmed seat. */
