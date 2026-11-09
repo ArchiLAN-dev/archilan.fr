@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, Skull, ZoomOut } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, KeyRound, Skull, ZoomOut } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
 import { buildChecksSeries, combineChecksSeries, type ChecksMeasure, type ChecksMode } from "./build-checks-series";
 import { buildDrySpells } from "./build-dry-spells";
@@ -440,6 +440,13 @@ function LogRowContent({ event }: { event: FeedEvent }) {
   const local = event.sender.slot === event.receiver.slot;
   return (
     <>
+      {/* Story 52.5: a chest the Passeur opened in an absent player's world. */}
+      {event.passeur === true ? (
+        <span className="mr-1.5 inline-flex items-center gap-1 rounded bg-violet-500/15 px-1.5 py-0.5 text-xs font-semibold text-violet-400">
+          <KeyRound aria-hidden className="size-3" />
+          Passeur
+        </span>
+      ) : null}
       <span className="font-medium text-foreground">{event.sender.name ?? "?"}</span>
       {local ? (
         <> a trouvé </>

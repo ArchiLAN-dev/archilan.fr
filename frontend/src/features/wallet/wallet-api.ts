@@ -62,6 +62,9 @@ export const PELLE_REASON_LABELS: Record<string, string> = {
   bronze_goal: "Objectif atteint",
   bronze_expired: "Fin de la partie",
   bronze_restored: "Partie reprise",
+  passeur_purchase: "Appel au Passeur",
+  passeur_refund: "Remboursement du Passeur",
+  passeur_share: "Part du Passeur",
 };
 
 export function pelleReasonLabel(reason: string): string {

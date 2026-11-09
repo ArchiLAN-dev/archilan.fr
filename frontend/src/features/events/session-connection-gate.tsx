@@ -25,6 +25,7 @@ import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { useRouter } from "next/navigation";
 import { StreamMaskedNote } from "@/components/run-notes";
+import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -212,6 +213,9 @@ function ConnectionView({
           Connexion à la session
         </h1>
       </header>
+
+      {/* Story 52.5: what the Passeur opened in the member's world while they were away. */}
+      {sessionId ? <PasseurNoticeCard sessionId={sessionId} /> : null}
 
       {session ? <SessionPipelineBar status={session.status} /> : null}
 

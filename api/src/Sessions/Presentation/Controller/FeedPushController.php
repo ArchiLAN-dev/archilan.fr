@@ -90,6 +90,12 @@ final readonly class FeedPushController
             ]);
         }
 
+        // Story 52.4: the bridge's admin commands (the Passeur's `/send_location`, a free hint) echo in the room's chat.
+        // The site's feed shows its own line for them instead.
+        if (self::isAdminEcho($event)) {
+            return new JsonResponse(['data' => ['ok' => true]]);
+        }
+
         $topic = sprintf('runs/%s/feed', $sessionId);
 
         try {
@@ -103,5 +109,15 @@ final readonly class FeedPushController
         }
 
         return new JsonResponse(['data' => ['ok' => true]]);
+    }
+
+    /**
+     * @param array<array-key, mixed> $event
+     */
+    private static function isAdminEcho(array $event): bool
+    {
+        $text = $event['text'] ?? null;
+
+        return 'chat' === ($event['type'] ?? null) && is_string($text) && 1 === preg_match('/^[^:]*: !admin\b/', $text);
     }
 }

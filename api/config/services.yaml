@@ -439,6 +439,8 @@ services:
     App\Sessions\Application\Port\SeedArchiveGatewayInterface: '@App\Sessions\Infrastructure\Adapter\OrchestratorSeedArchiveGateway'
     # Story 41.3: the bridge's free hint, once the player has paid in pelles.
     App\Sessions\Application\Port\PelleHintGatewayInterface: '@App\Sessions\Infrastructure\Bridge\BridgePelleHintGateway'
+    # Story 52.3: the bridge's Passeur routes.
+    App\Sessions\Application\Port\PasseurBridgeInterface: '@App\Sessions\Infrastructure\Bridge\BridgePasseurGateway'
 
     App\Sessions\Infrastructure\Adapter\OrchestratorSeedArchiveGateway:
         arguments:
@@ -457,6 +459,11 @@ services:
     App\Sessions\Domain\Repository\SessionFeedEventRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionFeedEventRepository'
     App\Sessions\Domain\Repository\SessionPlayersSnapshotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionPlayersSnapshotRepository'
     App\Sessions\Domain\Repository\SlotBlockEpisodeRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotBlockEpisodeRepository'
+    # Story 52.4.
+    App\Sessions\Domain\Repository\PasseurOpeningRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrinePasseurOpeningRepository'
+    App\Sessions\Application\Query\PasseurOpeningQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalPasseurOpeningQuery'
+    # Story 52.6.
+    App\Sessions\Domain\Repository\DepartureRequestRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineDepartureRequestRepository'
     App\Sessions\Domain\Repository\SlotPlaySpanRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotPlaySpanRepository'
     App\Sessions\Domain\Repository\SlotBlockReleaseRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotBlockReleaseRepository'
     App\Sessions\Application\Query\RecapExchangesQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalRecapExchangesQuery'
@@ -551,6 +558,9 @@ services:
 
     App\Registrations\Domain\Repository\RegistrationRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationRepository'
     App\Registrations\Domain\Repository\RegistrationAdminMessageRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationAdminMessageRepository'
+    # Story 52.2: presence windows on a registration.
+    App\Registrations\Domain\Repository\RegistrationPresenceWindowRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationPresenceWindowRepository'
+    App\Registrations\Application\Query\PresenceTimelineQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalPresenceTimelineQuery'
     App\Registrations\Application\Query\RegistrationCounterQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalRegistrationCounterQuery'
     App\Registrations\Application\Query\AccountRegistrationsQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalAccountRegistrationsQuery'
     App\Registrations\Application\Query\PrivateAccessGrantedQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalPrivateAccessGrantedQuery'
@@ -607,6 +617,11 @@ when@test:
             public: true
 
         App\Sessions\Application\Port\PelleHintGatewayInterface: '@App\Sessions\Infrastructure\Double\SpyPelleHintGateway'
+
+        App\Sessions\Infrastructure\Double\StubPasseurBridge:
+            public: true
+
+        App\Sessions\Application\Port\PasseurBridgeInterface: '@App\Sessions\Infrastructure\Double\StubPasseurBridge'
 
         App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Double\NullMinioStorage'
 

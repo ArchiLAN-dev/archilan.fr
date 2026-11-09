@@ -19,6 +19,8 @@ export type FeedEvent = {
   // Story 32.25, `death_link` rows: the slots that probably died with the sender (the text is the cause).
   // Absent from an API older than the story.
   victims?: string[];
+  // Story 52.5, `item-received` rows: the Passeur opened this chest. Absent from an API older than the story.
+  passeur?: boolean;
 };
 
 function isParty(v: unknown): v is FeedEvent["sender"] {
@@ -51,6 +53,9 @@ export function isFeedEvent(v: unknown): v is FeedEvent {
     return false;
   }
   if ("victims" in v && !(Array.isArray(v.victims) && v.victims.every((name) => typeof name === "string"))) {
+    return false;
+  }
+  if ("passeur" in v && typeof v.passeur !== "boolean") {
     return false;
   }
   return (

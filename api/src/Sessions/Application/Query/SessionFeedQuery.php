@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Query;
 
 use App\Sessions\Application\Support\SessionRecapAudience;
+use App\Sessions\Domain\Entity\PasseurOpening;
 use App\Sessions\Domain\Entity\SessionFeedEvent;
 use App\Sessions\Domain\Repository\SessionFeedEventRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
@@ -25,6 +26,7 @@ final readonly class SessionFeedQuery
         private SessionRepositoryInterface $sessions,
         private SessionFeedEventRepositoryInterface $events,
         private SessionRecapAudience $audience,
+        private PasseurOpeningQueryInterface $passeur,
     ) {
     }
 
@@ -36,6 +38,14 @@ final readonly class SessionFeedQuery
         $session = $this->sessions->findById($sessionId);
         if (null === $session || !$this->audience->canView($session, $viewerId)) {
             return null;
+        }
+
+        // Story 52.5: the chests the Passeur opened, by "finder:location" - the item they sent is marked.
+        $opened = [];
+        foreach ($this->passeur->forSession($sessionId) as $opening) {
+            if (PasseurOpening::STATUS_OPENED === $opening->status) {
+                $opened[$opening->findingSlot.':'.$opening->locationId] = true;
+            }
         }
 
         return array_map(
@@ -58,6 +68,8 @@ final readonly class SessionFeedQuery
                 ],
                 // Story 32.25: who probably died with the sender of a death_link; empty otherwise.
                 'victims' => $event->getVictimNames(),
+                'passeur' => SessionFeedEvent::TYPE_ITEM_RECEIVED === $event->getType()
+                    && isset($opened[$event->getSenderSlot().':'.$event->getLocationId()]),
             ],
             $this->events->findBySessionId($sessionId),
         );

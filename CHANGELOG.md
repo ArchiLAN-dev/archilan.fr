@@ -5,6 +5,45 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.61.0] - 2026-11-10
+
+Le Passeur (epic 52) : à une LAN où chacun arrive et repart à son heure, un joueur bloqué par le monde d'un absent
+peut faire ouvrir le coffre qui le débloque, le départ d'un joueur passe par un release assisté, et l'orga voit
+avant le lancement qui risque d'attendre qui. Quatre migrations (`Version20261109120004` à
+`Version20261109120007`), aucune variable. Nécessite le bridge v0.17.0.
+
+### À faire après le déploiement
+
+- Déployer d'abord le bridge v0.17.0 (nouvelles routes `/slots/{slot}/locations/{id}/send` et `/slots/{slot}/passeur/*`).
+- Lancer les migrations (`php bin/console doctrine:migrations:migrate`) : tables `registration_presence_window`,
+  `passeur_opening` et `departure_request`.
+- Vérifier que le worker `async` et le scheduler tournent : les départs déclarés sont relevés toutes les 10 minutes.
+- Le Passeur est désactivé par défaut : l'activer dans la configuration serveur de l'événement ou de la partie.
+
+### Ajouté
+
+- Créneaux de présence (story 52.2) : chaque inscrit déclare ses plages de présence pendant l'événement ; frise
+  admin des présences sur `/admin/evenements/{id}/presences`.
+- Le coffre qui débloque (story 52.3) : pour un slot en BK, la liste des emplacements d'autres mondes qui le
+  débloqueraient, avec le calcul « et si » du suivi exact. Le suivi des blocages couvre aussi les sessions
+  d'événement.
+- Faire appel au Passeur (story 52.4) : ouvrir l'emplacement d'un joueur absent (hors créneau et sans client
+  connecté) qui bloque un joueur présent. Prix en pelles d'argent en événement, de bronze en partie privée,
+  dégressif depuis le début du blocage, part reversée à l'absent, limite d'ouvertures par monde et par jour,
+  remboursement si l'ouverture échoue. Sept réglages dans la configuration serveur.
+- Ce que le Passeur a ouvert (story 52.5) : encart pour l'absent à son retour, journal des ouvertures pour l'orga
+  (événement, session) et pour le propriétaire d'une partie privée, badge « Passeur » dans la timeline.
+- Départ assisté (story 52.6) : le joueur qui part demande son release, l'orga (ou le propriétaire en partie
+  privée) le lance ou le refuse ; une demande part aussi d'elle-même à la fin du dernier créneau déclaré.
+  Nouveau type de notification réglable.
+- Carte des dépendances (story 52.7) : avant le lancement, pour chaque génération d'un événement, les objets des
+  premières sphères d'un joueur qui sont dans le monde d'un autre absent en même temps, avec un score par
+  génération et la meilleure marquée.
+
+### Corrigé
+
+- Les commandes admin envoyées au serveur citent les noms de joueurs qui contiennent des espaces (#1048).
+
 ## [0.60.0] - 2026-11-09
 
 Sondages par événement (epic 51) : l'orga pose ses questions avant ou après l'événement, et à l'inscription.

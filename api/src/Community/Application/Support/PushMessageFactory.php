@@ -24,6 +24,9 @@ final class PushMessageFactory
         'game_apworld_updated',
         // Story 51.3.
         'survey_opened', 'survey_reminder',
+        // Story 52.4.
+        'passeur_opened',
+        'departure_requested',
     ];
 
     public static function isPushable(string $type): bool
@@ -44,6 +47,8 @@ final class PushMessageFactory
             'run_joined', 'run_games_chosen', 'run_started', 'run_recap_ready', 'run_all_ready' => self::runMoment($type, $payload),
             'game_apworld_updated' => self::gameApworldUpdated($payload),
             'survey_opened', 'survey_reminder' => self::survey($type, $payload),
+            'passeur_opened' => self::passeurOpened($payload),
+            'departure_requested' => self::departureRequested($payload),
             default => null,
         };
     }
@@ -237,6 +242,38 @@ final class PushMessageFactory
         return [] === $names
             ? sprintf('%s a choisi ses jeux%s', $who, $where)
             : sprintf('%s jouera %s%s', $who, implode(', ', $names), $where);
+    }
+
+    /**
+     * Story 52.6: a player left; the staff of the event (the owner of a private run) may release their world.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private static function departureRequested(array $payload): WebPushMessage
+    {
+        $player = self::text($payload, 'playerName') ?? 'Un joueur';
+        $session = self::text($payload, 'sessionTitle');
+        $body = sprintf('%s a quitté la partie%s : libérer son monde ?', $player, null !== $session ? sprintf(' (%s)', $session) : '');
+
+        return new WebPushMessage(self::TITLE, $body, self::text($payload, 'url') ?? '/admin', sprintf('departure_requested-%s', $player));
+    }
+
+    /**
+     * Story 52.4: a blocked player paid the Passeur to open a chest of the member's world while they were away.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private static function passeurOpened(array $payload): WebPushMessage
+    {
+        $buyer = self::text($payload, 'buyerName') ?? 'Un joueur';
+        $location = self::text($payload, 'locationName');
+        $share = $payload['share'] ?? null;
+        $body = sprintf('Le Passeur a ouvert un coffre de ton monde%s pour %s', null !== $location ? sprintf(' (%s)', $location) : '', $buyer);
+        if (is_int($share) && $share > 0) {
+            $body .= sprintf(' : tu reçois %d %s', $share, $share > 1 ? 'pelles' : 'pelle');
+        }
+
+        return new WebPushMessage(self::TITLE, $body, self::text($payload, 'url') ?? '/compte', sprintf('passeur_opened-%s-%s', $buyer, $location ?? 'coffre'));
     }
 
     /**

@@ -22,6 +22,14 @@ export const sessionConfigHelp: Record<string, string> = {
   bronzeStart: "Pelles de bronze données à chaque joueur au lancement de la partie. 0 coupe ce gain.",
   bronzePerCheck: "Pelles de bronze gagnées par les joueurs d'un slot à chaque check de ce slot. 0 coupe ce gain.",
   bronzePerGoal: "Pelles de bronze gagnées par les joueurs d'un slot quand il atteint son objectif. 0 coupe ce gain.",
+  passeur:
+    "Un joueur en BK peut payer pour faire ouvrir le coffre d'un joueur absent qui contient l'objet qui le débloque. En événement, avec les pelles d'argent de l'événement seulement ; en partie privée, avec les pelles de bronze. L'absent ne peut pas refuser et reçoit une part.",
+  passeurBasePrice: "Prix d'une ouverture au début du BK, en pelles.",
+  passeurDecayPercent: "Baisse du prix, en pourcentage du prix de départ, par quart d'heure de BK.",
+  passeurFloorPercent: "Prix plancher, en pourcentage du prix de départ.",
+  passeurSharePercent: "Part du prix payé versée au joueur absent ; le reste est détruit.",
+  passeurDailyLimit: "Nombre d'ouvertures au plus par monde absent et par jour.",
+  passeurAbsenceMinutes: "En partie privée, un joueur est absent quand aucun client n'est connecté à son slot depuis ce délai.",
   pelleLocationHintPrice: "Prix en pelles d'un indice sur un lieu (ce que cache tel check).",
   hintCost:
     "Prix d'un indice, en pourcentage du nombre total de checks. Les joueurs gagnent des points d'indice en validant des checks.",
