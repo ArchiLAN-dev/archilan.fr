@@ -46,6 +46,7 @@ import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtim
 import { ItemBountiesPanel } from "@/features/wallet/item-bounties";
 import { PasseurPanel } from "@/features/passeur/passeur-panel";
 import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
+import { LeaveButton } from "@/features/departures/departures";
 import { sessionSlotUrl, usePelleHintOffers } from "@/features/wallet/pelle-hints";
 import type { PersonalRun } from "./types";
 import { fetchSessionConnection } from "@/features/events/events-api";
@@ -914,6 +915,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
         {/* Story 52.5: what the Passeur opened in this player's world while they were away. */}
         {sessionId ? <PasseurNoticeCard sessionId={sessionId} /> : null}
         {sessionId ? <PasseurPanel sessionId={sessionId} slotIndex={slotIndex} /> : null}
+        {/* Story 52.6: « Je pars » - the staff (the owner) is told and may release the world. */}
+        {sessionId ? <LeaveButton sessionId={sessionId} slotIndex={slotIndex} /> : null}
 
         {/* Tab bar */}
         <div className={`-mx-4 flex items-stretch gap-0 overflow-x-auto border-b border-border bg-surface px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden${state.kind === "paused" || state.kind === "imported" ? " hidden" : ""}`}>

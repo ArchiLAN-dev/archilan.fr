@@ -58,6 +58,7 @@ import {
 } from "./admin-sessions-api";
 import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generation-failure-notice";
 import { PasseurJournal } from "@/features/passeur/passeur-journal";
+import { DeparturesPanel } from "@/features/departures/departures";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -506,6 +507,8 @@ export function AdminSessionDetailPage({
 
   return (
     <PageShell eventId={eventId} eventTitle={eventTitle} sessionId={sessionId}>
+      {/* Story 52.6: the players who left, their world to release. */}
+      <DeparturesPanel sessionId={sessionId} />
       <SessionDetail
         autoStart={autoStart}
         eventId={eventId}

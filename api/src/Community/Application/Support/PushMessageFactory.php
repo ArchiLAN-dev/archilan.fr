@@ -26,6 +26,7 @@ final class PushMessageFactory
         'survey_opened', 'survey_reminder',
         // Story 52.4.
         'passeur_opened',
+        'departure_requested',
     ];
 
     public static function isPushable(string $type): bool
@@ -47,6 +48,7 @@ final class PushMessageFactory
             'game_apworld_updated' => self::gameApworldUpdated($payload),
             'survey_opened', 'survey_reminder' => self::survey($type, $payload),
             'passeur_opened' => self::passeurOpened($payload),
+            'departure_requested' => self::departureRequested($payload),
             default => null,
         };
     }
@@ -243,8 +245,19 @@ final class PushMessageFactory
     }
 
     /**
+     * Story 52.6: a player left; the staff of the event (the owner of a private run) may release their world.
+     *
      * @param array<string, mixed> $payload
      */
+    private static function departureRequested(array $payload): WebPushMessage
+    {
+        $player = self::text($payload, 'playerName') ?? 'Un joueur';
+        $session = self::text($payload, 'sessionTitle');
+        $body = sprintf('%s a quitté la partie%s : libérer son monde ?', $player, null !== $session ? sprintf(' (%s)', $session) : '');
+
+        return new WebPushMessage(self::TITLE, $body, self::text($payload, 'url') ?? '/admin', sprintf('departure_requested-%s', $player));
+    }
+
     /**
      * Story 52.4: a blocked player paid the Passeur to open a chest of the member's world while they were away.
      *
