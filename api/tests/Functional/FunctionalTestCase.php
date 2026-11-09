@@ -38,20 +38,32 @@ abstract class FunctionalTestCase extends WebTestCase
         // missing-table or FK errors. A clean full schema removes that whole class of problem.
         //
         // A test only needs the ROWS gone, not the tables: rebuilding a byte-identical schema
-        // per test cost ~420 ms x 1029 tests, ~55% of this suite (story 33.25). TRUNCATE is
-        // FK-safe via CASCADE, and RESTART IDENTITY resets sequences, so a test still starts
-        // from exactly the state a freshly created schema gave it.
+        // per test cost ~420 ms x 1029 tests, ~55% of this suite (story 33.25).
+        //
+        // DELETE, not TRUNCATE (story 33.30): Postgres gives every truncated table, index and
+        // TOAST table a new file, and the old one lives until the next checkpoint. One ParaTest
+        // pass left ~780,000 files behind and a checkpoint of over 8 minutes. DELETE reuses the
+        // existing files. Foreign keys are enforced by triggers, which `replica` skips, so the
+        // tables can be emptied in any order; sequences go back to their start with setval,
+        // which does not create a file either. A test still starts from exactly the state a
+        // freshly created schema gave it.
         $connection = $this->entityManager->getConnection();
-        $tables = [];
+        $statements = [];
         foreach ($connection->fetchFirstColumn("SELECT quote_ident(tablename) FROM pg_tables WHERE schemaname = 'public'") as $table) {
             if (is_string($table)) {
-                $tables[] = $table;
+                $statements[] = 'DELETE FROM '.$table;
             }
         }
 
-        if ([] !== $tables) {
-            $connection->executeStatement('TRUNCATE TABLE '.implode(', ', $tables).' RESTART IDENTITY CASCADE');
+        if ([] !== $statements) {
+            $connection->executeStatement(
+                'SET session_replication_role = replica; '.implode('; ', $statements).'; SET session_replication_role = DEFAULT',
+            );
         }
+
+        $connection->executeQuery(
+            "SELECT setval(format('%I.%I', schemaname, sequencename), start_value, false) FROM pg_sequences WHERE schemaname = 'public' AND last_value IS NOT NULL",
+        );
     }
 
     /**
