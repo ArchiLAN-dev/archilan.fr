@@ -12,6 +12,7 @@ use App\Identity\Application\Support\ValidationErrors;
 use App\Registrations\Application\Support\SlotYamlName;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Shared\Application\Exception\ConflictException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -51,13 +52,20 @@ final readonly class RegistrationGameSelection
      * and always open (the admin works past the registration window).
      *
      * @return array{registrationId: string, eventId: string, gameSelectionEnabled: bool, maxGamesPerRegistrant: int|null, registrationOpen: bool, submittedAt: string|null, slots: list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>, availableGames: list<array<string, mixed>>}|null
+     *
+     * @throws ConflictException when the registration is cancelled
      */
     public function getSelectionForAdmin(string $eventId, string $registrationId): ?array
     {
         $registration = $this->registrationRepository->findById($registrationId);
 
-        if (null === $registration || $registration->getEventId() !== $eventId || !$registration->isReserved()) {
+        if (null === $registration || $registration->getEventId() !== $eventId) {
             return null;
+        }
+
+        // Same answer as the admin writes on a cancelled registration (409), not a misleading 404.
+        if (!$registration->isReserved()) {
+            throw new ConflictException('L\'inscription n\'est plus modifiable.', 'inactive_registration');
         }
 
         return $this->selectionOf($registration, true);

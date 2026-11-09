@@ -33,6 +33,7 @@ import {
   type RangeOption,
   type ToggleOption,
 } from "@/lib/archipelago-yaml";
+import { apiErrorMessage } from "@/lib/api-error";
 import { env } from "@/lib/env";
 import { LocationAutocompleteInput } from "@/features/events/location-autocomplete-input";
 import { ItemCatalogContext, ItemNameInput } from "@/features/events/item-name-input";
@@ -283,7 +284,9 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
         },
       );
       if (!res.ok) {
-        setPanelSave({ kind: "error", message: "Impossible de sauvegarder la configuration." });
+        // Story 5.9: the API's reason (slot name, missing apworld, cancelled registration) beats a generic failure.
+        const payload: unknown = await res.json().catch(() => null);
+        setPanelSave({ kind: "error", message: apiErrorMessage(payload) ?? "Impossible de sauvegarder la configuration." });
         return;
       }
       if (slotId) onSaved?.(slotId);

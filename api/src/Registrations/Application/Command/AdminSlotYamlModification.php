@@ -58,14 +58,14 @@ final readonly class AdminSlotYamlModification
         if (!$game->isApworldReady()) {
             $this->auditLog($eventId, $registrationId, $slotId, $adminId, 'error');
 
-            throw new ValidationException('Le YAML contient des erreurs.', ['game' => ['Ce jeu n\'a pas encore de fichier .apworld configuré.']]);
+            throw new ValidationException('La configuration YAML est invalide.', ['game' => ['Ce jeu n\'a pas encore de fichier .apworld configuré.']]);
         }
 
         $nameError = SlotYamlName::error($playerYaml);
         if (null !== $nameError) {
             $this->auditLog($eventId, $registrationId, $slotId, $adminId, 'error');
 
-            throw new ValidationException('Le YAML contient des erreurs.', ['name' => [$nameError]]);
+            throw new ValidationException('La configuration YAML est invalide.', ['name' => [$nameError]]);
         }
 
         $registration->submitSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '', $this->clock->now());

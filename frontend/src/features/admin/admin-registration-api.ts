@@ -1,3 +1,4 @@
+import { apiErrorMessage } from "@/lib/api-error";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasNumberProp } from "@/lib/type-guards";
@@ -108,19 +109,6 @@ export function adminSlotYamlUrl(eventId: string, registrationId: string, slotId
 }
 
 export type AdminSaveResult = { ok: true } | { ok: false; message: string };
-
-/** The first message of an API error envelope (`error.message`, then the first detail), or null. */
-export function apiErrorMessage(payload: unknown): string | null {
-  if (typeof payload !== "object" || payload === null || !("error" in payload)) return null;
-  const error: unknown = payload.error;
-  if (typeof error !== "object" || error === null) return null;
-  if ("details" in error && typeof error.details === "object" && error.details !== null) {
-    for (const messages of Object.values(error.details)) {
-      if (Array.isArray(messages) && typeof messages[0] === "string") return messages[0];
-    }
-  }
-  return "message" in error && typeof error.message === "string" ? error.message : null;
-}
 
 /** Replaces the registration's slots by these games, in order; kept games keep their YAML (story 5.4). */
 export async function saveAdminRegistrationGames(

@@ -190,6 +190,8 @@ export function AdminSlotYamlEditor({ eventId, registrationId, slotId, onClose, 
       return result.data;
     },
     staleTime: 0,
+    // A reopened editor must start from the saved YAML: YamlOptionEditor reads it once, on mount.
+    gcTime: 0,
     retry: false,
   });
 

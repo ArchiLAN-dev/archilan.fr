@@ -20,6 +20,7 @@ const PAYLOAD = {
     submittedAt: null,
     participant: { userId: "u-1", displayName: "Jean", email: "jean@example.org" },
     gameSelectionComplete: true,
+    gameSelectionEnabled: true,
     games: [GAME],
     payment: null,
   },

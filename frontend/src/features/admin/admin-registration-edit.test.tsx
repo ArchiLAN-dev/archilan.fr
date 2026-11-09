@@ -3,7 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { AvailableGame } from "@/features/events/events-api";
 import { apiFetch } from "../../lib/apiFetch";
 
-import { adminSlotYamlUrl, apiErrorMessage, saveAdminRegistrationGames } from "./admin-registration-api";
+import { apiErrorMessage } from "@/lib/api-error";
+
+import { adminSlotYamlUrl, saveAdminRegistrationGames } from "./admin-registration-api";
 import { GameCard, isEditableByAdmin, type GameDetail } from "./admin-registration-detail";
 import { addableGames, canAddGame } from "./admin-registration-editor";
 

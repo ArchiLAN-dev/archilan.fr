@@ -49,6 +49,27 @@ final class AdminSlotYamlModificationTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function testSelectionOfCancelledRegistrationIs409(): void
+    {
+        [$event, $registration] = $this->scenario(Registration::STATUS_CANCELLED);
+        $this->loginAsAdmin();
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/admin/events/%s/registrations/%s/game-selection', $event->getId(), $registration->getId()));
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    public function testDetailTellsWhetherGameSelectionIsEnabled(): void
+    {
+        [$event, $registration] = $this->scenario();
+        $this->loginAsAdmin();
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/admin/events/%s/registrations/%s', $event->getId(), $registration->getId()));
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertTrue($data['gameSelectionEnabled']);
+    }
+
     public function testSelectionIsAdminOnly(): void
     {
         [$event, $registration] = $this->scenario();

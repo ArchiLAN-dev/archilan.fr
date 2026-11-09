@@ -40,6 +40,8 @@ type RegistrationDetail = {
     email: string;
   };
   gameSelectionComplete: boolean;
+  /** Story 5.9: without game selection on the event, there are no games to edit. */
+  gameSelectionEnabled: boolean;
   games: GameDetail[];
   payment: PaymentDetail | null;
 };
@@ -344,7 +346,7 @@ function DetailBody({
               Incomplet
             </span>
           )}
-          {editable && !editingGames ? (
+          {editable && detail.gameSelectionEnabled && !editingGames && editingSlotId === null ? (
             <button
               className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded border border-border px-3 text-sm text-foreground hover:border-accent"
               onClick={() => {
@@ -939,6 +941,8 @@ export function isDetailPayload(payload: unknown): payload is { data: Registrati
       "status" in data &&
       "participant" in data &&
       "games" in data &&
+      "gameSelectionEnabled" in data &&
+      typeof data.gameSelectionEnabled === "boolean" &&
       Array.isArray(data.games) &&
       data.games.every(isGameDetail) &&
       "payment" in data,
