@@ -112,11 +112,13 @@ final readonly class CallThePasseur
         }
 
         $absentName = $candidate->item->findingPlayerName;
+        $buyerName = $this->slotName($sessionId, $slotIndex) ?? 'un joueur';
         $absentRegistrationId = $this->registrationOf($sessionId, $findingSlot);
         $opening = $this->openings->claim(new PasseurOpening(
             bin2hex(random_bytes(16)), $sessionId, $requestKey, $userId, $slotIndex, $findingSlot,
             $this->userOf($terms, $absentRegistrationId), $locationId, mb_substr($candidate->item->locationName, 0, 200), mb_substr($candidate->item->itemName, 0, 200),
             $terms->kind, $terms->event?->getId(), $terms->run?->getId(), $price, PasseurOpening::STATUS_PENDING, $now,
+            buyerName: mb_substr($buyerName, 0, 100), absentName: mb_substr($absentName, 0, 100),
         ));
         if (null === $opening) {
             $previous = $this->openings->findByRequestKey($requestKey);
@@ -150,7 +152,6 @@ final readonly class CallThePasseur
         $opening->markOpened($share, $this->clock->now());
         $this->openings->flush();
 
-        $buyerName = $this->slotName($sessionId, $slotIndex) ?? 'un joueur';
         $this->announce($opening, $buyerName, $absentName);
         $this->tellTheAbsent($terms, $opening, $absentRegistrationId, $buyerName);
 

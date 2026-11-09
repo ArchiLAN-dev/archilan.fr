@@ -19,6 +19,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_passeur_opening_request', columns: ['request_key'])]
 #[ORM\UniqueConstraint(name: 'uniq_passeur_opening_chest', columns: ['session_id', 'finding_slot', 'location_id'], options: ['where' => "status <> 'failed'"])]
 #[ORM\Index(name: 'idx_passeur_opening_world', columns: ['session_id', 'finding_slot', 'created_at'])]
+#[ORM\Index(name: 'idx_passeur_opening_absent', columns: ['absent_user_id', 'session_id'])]
+#[ORM\Index(name: 'idx_passeur_opening_event', columns: ['event_id'])]
 final class PasseurOpening
 {
     public const string STATUS_PENDING = 'pending';
@@ -66,6 +68,14 @@ final class PasseurOpening
         private ?string $failureCode = null,
         #[ORM\Column(name: 'settled_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $settledAt = null,
+        /** Story 52.5: the slot names at the time of the call, for the journals. */
+        #[ORM\Column(name: 'buyer_name', type: Types::STRING, length: 100, options: ['default' => ''])]
+        private string $buyerName = '',
+        #[ORM\Column(name: 'absent_name', type: Types::STRING, length: 100, options: ['default' => ''])]
+        private string $absentName = '',
+        /** Story 52.5: when the absent player closed the notice listing it; null while it is still shown. */
+        #[ORM\Column(name: 'absent_seen_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $absentSeenAt = null,
     ) {
     }
 
@@ -171,5 +181,20 @@ final class PasseurOpening
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getBuyerName(): string
+    {
+        return $this->buyerName;
+    }
+
+    public function getAbsentName(): string
+    {
+        return $this->absentName;
+    }
+
+    public function getAbsentSeenAt(): ?\DateTimeImmutable
+    {
+        return $this->absentSeenAt;
     }
 }

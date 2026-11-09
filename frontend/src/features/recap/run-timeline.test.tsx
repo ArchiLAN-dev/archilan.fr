@@ -56,6 +56,12 @@ describe("RunTimeline", () => {
     expect(html).toContain("masterkafey, Zoe");
   });
 
+  test("an item the Passeur sent is marked (story 52.5)", () => {
+    const html = renderToStaticMarkup(<RunTimeline events={[event("1", "item-received", TODAY), { ...event("2", "item-received", TODAY), passeur: true }]} />);
+
+    expect(html.match(/>Passeur</g)).toHaveLength(1);
+  });
+
   test("a run without any item find still renders nothing", () => {
     expect(renderToStaticMarkup(<RunTimeline events={[event("1", "hint", TODAY)]} />)).toBe("");
   });

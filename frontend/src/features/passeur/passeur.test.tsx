@@ -3,7 +3,9 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { callThePasseur, fetchPasseur, isPasseurState, type PasseurOffer } from "./passeur-api";
+import { callThePasseur, dismissPasseurNotice, fetchPasseur, fetchPasseurJournal, fetchPasseurNotice, isPasseurOpening, isPasseurState, type PasseurOffer, type PasseurOpening } from "./passeur-api";
+import { PasseurJournalView } from "./passeur-journal";
+import { PasseurNoticeView } from "./passeur-notice";
 import { PasseurView } from "./passeur-panel";
 
 const BASE = TEST_API_BASE_URL;
@@ -76,5 +78,66 @@ describe("le Passeur", () => {
       ),
     );
     expect(await callThePasseur("s1", "1", offer, "req-2")).toEqual({ kind: "error", code: "passeur_price_changed", message: "Le prix a changé.", price: 48 });
+  });
+});
+
+const opening: PasseurOpening = {
+  id: "o1",
+  sessionId: "s1",
+  status: "opened",
+  buyerName: "Alice",
+  absentName: "Bob",
+  locationName: "Link House",
+  itemName: "Claw",
+  kind: "bronze",
+  price: 60,
+  share: 30,
+  failureCode: null,
+  createdAt: "2026-11-09T14:00:00+01:00",
+  settledAt: "2026-11-09T14:00:05+01:00",
+};
+
+/** Story 52.5: what the Passeur opened. */
+describe("ce que le Passeur a ouvert", () => {
+  test("the absent player's notice lists the chests, for whom, and the total received", () => {
+    const html = renderToStaticMarkup(
+      <PasseurNoticeView notice={{ openings: [opening, { ...opening, id: "o2", itemName: "Dash", share: 20 }], total: 50, kind: "bronze" }} onDismiss={() => Promise.resolve(true)} />,
+    );
+
+    expect(html).toContain("le Passeur a ouvert 2 emplacements de ton monde");
+    expect(html).toContain("Link House");
+    expect(html).toContain("Claw pour Alice");
+    expect(html).toContain(">50<");
+    expect(html).toContain('aria-label="Fermer"');
+  });
+
+  test("the journal shows every call, its status, and what was paid", () => {
+    const html = renderToStaticMarkup(<PasseurJournalView openings={[{ ...opening, id: "o2", status: "failed", share: 0, failureCode: "not_opened" }, opening]} />);
+
+    expect(html).toContain("Journal du Passeur");
+    expect(html).toContain("1 coffre ouvert sur 2 appels");
+    expect(html).toContain("Échec, remboursé");
+    expect(html).toContain("Ouvert");
+    expect(html).toContain('title="not_opened"');
+  });
+
+  test("API: the notice, its closing, and a journal by scope", async () => {
+    let closed = false;
+    server.use(
+      http.get(`${BASE}/sessions/s1/passeur/notice`, () => HttpResponse.json({ data: { openings: [opening], total: 30, kind: "bronze" } })),
+      http.delete(`${BASE}/sessions/s1/passeur/notice`, () => {
+        closed = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.get(`${BASE}/runs/r1/passeur-openings`, () => HttpResponse.json({ data: [opening] })),
+      http.get(`${BASE}/admin/events/e1/passeur-openings`, () => HttpResponse.json({ error: { code: "forbidden" } }, { status: 403 })),
+    );
+
+    expect(await fetchPasseurNotice("s1")).toEqual({ openings: [opening], total: 30, kind: "bronze" });
+    expect(await dismissPasseurNotice("s1")).toBe(true);
+    expect(closed).toBe(true);
+    expect(await fetchPasseurJournal({ kind: "run", runId: "r1" })).toEqual([opening]);
+    expect(await fetchPasseurJournal({ kind: "event", eventId: "e1" })).toBeNull();
+    expect(isPasseurOpening({ ...opening, status: "lost" })).toBe(false);
   });
 });

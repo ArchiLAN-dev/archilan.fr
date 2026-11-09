@@ -21,8 +21,8 @@ final readonly class DoctrinePasseurOpeningRepository implements PasseurOpeningR
     public function claim(PasseurOpening $opening): ?PasseurOpening
     {
         $written = $this->entityManager->getConnection()->executeStatement(
-            'INSERT INTO passeur_opening (id, session_id, request_key, buyer_user_id, buyer_slot, finding_slot, absent_user_id, location_id, location_name, item_name, kind, event_id, run_id, price, share, status, created_at)
-             VALUES (:id, :session, :requestKey, :buyer, :buyerSlot, :findingSlot, :absent, :location, :locationName, :itemName, :kind, :event, :run, :price, 0, :status, :createdAt)
+            'INSERT INTO passeur_opening (id, session_id, request_key, buyer_user_id, buyer_slot, finding_slot, absent_user_id, location_id, location_name, item_name, kind, event_id, run_id, price, share, status, created_at, buyer_name, absent_name)
+             VALUES (:id, :session, :requestKey, :buyer, :buyerSlot, :findingSlot, :absent, :location, :locationName, :itemName, :kind, :event, :run, :price, 0, :status, :createdAt, :buyerName, :absentName)
              ON CONFLICT DO NOTHING',
             [
                 'id' => $opening->getId(),
@@ -41,6 +41,8 @@ final readonly class DoctrinePasseurOpeningRepository implements PasseurOpeningR
                 'price' => $opening->getPrice(),
                 'status' => $opening->getStatus(),
                 'createdAt' => $opening->getCreatedAt(),
+                'buyerName' => $opening->getBuyerName(),
+                'absentName' => $opening->getAbsentName(),
             ],
             ['createdAt' => Types::DATETIMETZ_IMMUTABLE, 'location' => Types::BIGINT],
         );
@@ -72,6 +74,22 @@ final readonly class DoctrinePasseurOpeningRepository implements PasseurOpeningR
             ->fetchOne();
 
         return is_numeric($count) ? (int) $count : 0;
+    }
+
+    public function markSeenByAbsent(string $sessionId, string $absentUserId, \DateTimeImmutable $now): void
+    {
+        $this->entityManager->getConnection()->createQueryBuilder()
+            ->update('passeur_opening')
+            ->set('absent_seen_at', ':now')
+            ->where('session_id = :session')
+            ->andWhere('absent_user_id = :absent')
+            ->andWhere('status = :opened')
+            ->andWhere('absent_seen_at IS NULL')
+            ->setParameter('now', $now, Types::DATETIMETZ_IMMUTABLE)
+            ->setParameter('session', $sessionId)
+            ->setParameter('absent', $absentUserId)
+            ->setParameter('opened', PasseurOpening::STATUS_OPENED)
+            ->executeStatement();
     }
 
     public function flush(): void
