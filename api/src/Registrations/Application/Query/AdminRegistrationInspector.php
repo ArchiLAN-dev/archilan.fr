@@ -34,6 +34,7 @@ final readonly class AdminRegistrationInspector
      *   submittedAt: string|null,
      *   participant: array{userId: string, displayName: string|null, email: string},
      *   gameSelectionComplete: bool,
+     *   gameSelectionEnabled: bool,
      *   games: list<array{
      *     slotId: string,
      *     slotOrder: int,
@@ -129,6 +130,7 @@ final readonly class AdminRegistrationInspector
                 'email' => $email,
             ],
             'gameSelectionComplete' => $overallComplete,
+            'gameSelectionEnabled' => $event->isGameSelectionEnabled(),
             'games' => $gameDetails,
             'payment' => '' !== $email ? $this->paymentLookup->findForEventAndEmail($eventId, $email) : null,
         ];
