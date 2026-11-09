@@ -33,33 +33,54 @@ final readonly class DbalSurveyAudienceQuery implements SurveyAudienceQueryInter
 
     public function includes(SurveyAudience $audience, string $eventId, string $userId): bool
     {
-        $qb = $this->registration($eventId, $userId);
-        if (SurveyAudience::Participants === $audience) {
-            $qb->andWhere($qb->expr()->isNotNull('r.submitted_at'));
-            if ($this->anySessionLaunched($eventId)) {
-                $qb->innerJoin('r', 'session_slot', 'slot', 'slot.registration_id = r.id')
-                    ->innerJoin('slot', 'session', 's', 's.id = slot.session_id AND s.event_id = r.event_id')
-                    ->andWhere($qb->expr()->in('s.status', ':launched'))
-                    ->setParameter('launched', self::LAUNCHED, ArrayParameterType::STRING);
-            }
-        }
+        $qb = $this->audience($audience, $eventId)->select('1');
+        $qb->andWhere($qb->expr()->eq('r.user_id', ':user'))->setParameter('user', $userId);
 
         return false !== $qb->setMaxResults(1)->executeQuery()->fetchOne();
     }
 
-    private function registration(string $eventId, string $userId): QueryBuilder
+    public function members(SurveyAudience $audience, string $eventId): array
+    {
+        $rows = $this->audience($audience, $eventId)
+            ->select('r.id AS registration_id', 'r.user_id', 'u.display_name')
+            ->innerJoin('r', $this->connection->quoteSingleIdentifier('user'), 'u', 'u.id = r.user_id')
+            ->orderBy('LOWER(u.display_name)')
+            ->addOrderBy('r.id')
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        return array_map(static fn (array $row): array => [
+            'userId' => is_string($row['user_id']) ? $row['user_id'] : '',
+            'registrationId' => is_string($row['registration_id']) ? $row['registration_id'] : '',
+            'displayName' => is_string($row['display_name']) ? $row['display_name'] : '',
+        ], $rows);
+    }
+
+    /** The active registrations of the event that the audience takes in; the caller selects. */
+    private function audience(SurveyAudience $audience, string $eventId): QueryBuilder
     {
         $qb = $this->connection->createQueryBuilder();
-
-        return $qb
-            ->select('1')
-            ->from('registration', 'r')
+        $qb->from('registration', 'r')
             ->where($qb->expr()->eq('r.event_id', ':event'))
-            ->andWhere($qb->expr()->eq('r.user_id', ':user'))
             ->andWhere($qb->expr()->eq('r.status', ':reserved'))
             ->setParameter('event', $eventId)
-            ->setParameter('user', $userId)
             ->setParameter('reserved', Registration::STATUS_RESERVED);
+        if (SurveyAudience::Participants === $audience) {
+            $qb->andWhere($qb->expr()->isNotNull('r.submitted_at'));
+            if ($this->anySessionLaunched($eventId)) {
+                $launched = $this->connection->createQueryBuilder()
+                    ->select('1')
+                    ->from('session_slot', 'slot')
+                    ->innerJoin('slot', 'session', 's', 's.id = slot.session_id')
+                    ->where('slot.registration_id = r.id')
+                    ->andWhere('s.event_id = r.event_id')
+                    ->andWhere('s.status IN (:launched)');
+                $qb->andWhere('EXISTS ('.$launched->getSQL().')')
+                    ->setParameter('launched', self::LAUNCHED, ArrayParameterType::STRING);
+            }
+        }
+
+        return $qb;
     }
 
     private function anySessionLaunched(string $eventId): bool

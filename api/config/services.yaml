@@ -527,6 +527,7 @@ services:
     App\Surveys\Domain\Repository\SurveyResponseRepositoryInterface: '@App\Surveys\Infrastructure\Doctrine\DoctrineSurveyResponseRepository'
     App\Surveys\Application\Query\MemberSurveyQueryInterface: '@App\Surveys\Infrastructure\Dbal\DbalMemberSurveyQuery'
     App\Surveys\Application\Query\SurveyAudienceQueryInterface: '@App\Surveys\Infrastructure\Dbal\DbalSurveyAudienceQuery'
+    App\Surveys\Application\Query\SurveyResultsQueryInterface: '@App\Surveys\Infrastructure\Dbal\DbalSurveyResultsQuery'
 
     App\Events\Domain\Repository\EventRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventRepository'
     App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventPrivateAccessLogRepository'
