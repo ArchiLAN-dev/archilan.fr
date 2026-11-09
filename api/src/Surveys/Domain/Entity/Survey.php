@@ -157,6 +157,12 @@ final class Survey
         return SurveyStatus::Published === $this->status;
     }
 
+    /** Published, and within its period: open from its opening, closed from its closing (story 51.2). */
+    public function isOpenAt(\DateTimeImmutable $now): bool
+    {
+        return $this->isPublished() && $this->opensAt <= $now && $now < $this->closesAt;
+    }
+
     /** A change to a question or an option is a change to the survey. */
     public function touch(\DateTimeImmutable $now): void
     {
