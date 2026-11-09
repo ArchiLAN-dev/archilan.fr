@@ -25,6 +25,7 @@ use App\PersonalRuns\Application\Message\SyncRunListingsToDiscordMessage;
 use App\Registrations\Application\Message\ProcessUnconfirmedRegistrationsMessage;
 use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
+use App\Surveys\Application\Message\NotifySurveysMessage;
 use App\Wallet\Application\Message\AwardWeeklyQuestsMessage;
 use App\Wallet\Application\Message\CollectMinimapperzGamesMessage;
 use App\Wallet\Application\Message\ExpireEventPellesMessage;
@@ -77,6 +78,10 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Story 4.23: remind unconfirmed registrations 48 h before registrations close, release them once
                 // closed. Hourly, so the reminder and the release land within the hour.
                 RecurringMessage::cron('20 * * * *', new ProcessUnconfirmedRegistrationsMessage()),
+            )
+            ->add(
+                // Story 51.3: a survey's audience is told it opened, then reminded once, within ten minutes.
+                RecurringMessage::cron('*/10 * * * *', new NotifySurveysMessage()),
             )
             ->add(
                 // Backstop: catch any achievement unlock the real-time post-archive path missed

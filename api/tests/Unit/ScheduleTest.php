@@ -12,6 +12,7 @@ use App\GameSelection\Application\Message\SweepApworldCatalogMessage;
 use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\Schedule;
 use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
+use App\Surveys\Application\Message\NotifySurveysMessage;
 use App\Wallet\Application\Message\AwardWeeklyQuestsMessage;
 use App\Wallet\Application\Message\ExpireEventPellesMessage;
 use PHPUnit\Framework\TestCase;
@@ -41,6 +42,17 @@ final class ScheduleTest extends TestCase
 
         self::assertNotNull($next);
         self::assertSame('2026-10-03 12:55', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
+    }
+
+    public function testSurveysAreAnnouncedEveryTenMinutes(): void
+    {
+        // Story 51.3: a survey's audience hears of it within ten minutes of its opening.
+        $recurring = $this->recurringMessageFor(NotifySurveysMessage::class);
+
+        $next = $recurring->getTrigger()->getNextRunDate(new \DateTimeImmutable('2026-11-16 17:31:00', new \DateTimeZone('Europe/Paris')));
+
+        self::assertNotNull($next);
+        self::assertSame('2026-11-16 17:40', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
     }
 
     public function testQuestsArePaidEveryFiveMinutes(): void

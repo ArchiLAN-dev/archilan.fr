@@ -22,6 +22,8 @@ final class PushMessageFactory
         'run_all_ready',
         // Story 38.22 (pushed only for a member who asks, see the preferences).
         'game_apworld_updated',
+        // Story 51.3.
+        'survey_opened', 'survey_reminder',
     ];
 
     public static function isPushable(string $type): bool
@@ -41,6 +43,7 @@ final class PushMessageFactory
             'run_nudge' => self::runNudge($payload),
             'run_joined', 'run_games_chosen', 'run_started', 'run_recap_ready', 'run_all_ready' => self::runMoment($type, $payload),
             'game_apworld_updated' => self::gameApworldUpdated($payload),
+            'survey_opened', 'survey_reminder' => self::survey($type, $payload),
             default => null,
         };
     }
@@ -201,6 +204,23 @@ final class PushMessageFactory
             $body,
             null !== $slug ? '/jeux/'.$slug : '/jeux',
             sprintf('game_apworld_updated-%s-%s', self::text($payload, 'gameId') ?? 'game', $version ?? 'new'),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private static function survey(string $type, array $payload): WebPushMessage
+    {
+        $survey = self::text($payload, 'surveyTitle') ?? 'Un sondage';
+        $eventId = self::text($payload, 'eventId');
+        $surveyId = self::text($payload, 'surveyId');
+
+        return new WebPushMessage(
+            self::TITLE,
+            'survey_reminder' === $type ? sprintf('Tu n\'as pas encore répondu : %s', $survey) : sprintf('Nouveau sondage : %s', $survey),
+            null !== $eventId && null !== $surveyId ? sprintf('/evenements/%s/sondages/%s', $eventId, $surveyId) : '/compte',
+            sprintf('%s-%s', $type, $surveyId ?? 'survey'),
         );
     }
 

@@ -13,6 +13,8 @@ use App\Communications\Application\Email\RegistrationReleasedEmail;
 use App\Communications\Application\Email\SessionPausedWithoutSaveEmail;
 use App\Communications\Application\Email\SessionRestartFailedEmail;
 use App\Communications\Application\Email\SessionRunningEmail;
+use App\Communications\Application\Email\SurveyOpenedEmail;
+use App\Communications\Application\Email\SurveyReminderEmail;
 use App\Communications\Application\Handler\RegistrationConfirmationHandler;
 use App\Communications\Application\Message\RegistrationConfirmationMessage;
 use App\Communications\Application\Service\ArchilanMailer;
@@ -39,6 +41,14 @@ final class HtmlEmailsTest extends TestCase
         yield 'confirmation reminder' => [
             new RegistrationConfirmationReminderEmail('a@example.org', 'Alice', 'ArchiLAN #4', '01/11/2026', self::SITE.'/recap', self::SITE),
             ['pas encore confirmée', '01/11/2026', 'href="https://archilan.fr/recap"', 'Confirmer mon inscription'],
+        ];
+        yield 'survey opened' => [
+            new SurveyOpenedEmail('a@example.org', 'Alice', 'Quand viens-tu ?', 'ArchiLAN #4', '20/11/2026 à 18h00', false, self::SITE.'/evenements/e1/sondages/s1', self::SITE),
+            ['L&#039;orga a une question pour toi', 'Quand viens-tu ?', '20/11/2026 à 18h00', 'href="https://archilan.fr/evenements/e1/sondages/s1"', 'Répondre'],
+        ];
+        yield 'survey reminder' => [
+            new SurveyReminderEmail('a@example.org', 'Alice', 'Ton retour', 'ArchiLAN #4', '27/11/2026 à 18h00', true, self::SITE.'/evenements/e1/sondages/s2', self::SITE),
+            ['Tu n&#039;as pas encore répondu', 'Ton retour', 'Tes réponses sont anonymes', 'Répondre'],
         ];
         yield 'place released' => [
             new RegistrationReleasedEmail('a@example.org', 'Alice', 'ArchiLAN #4', self::SITE.'/evenements/e1', self::SITE),

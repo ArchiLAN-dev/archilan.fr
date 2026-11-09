@@ -33,6 +33,21 @@ final class PushMessageFactoryTest extends TestCase
         self::assertSame('Hollow Knight est jouable sur le site', $first->body);
     }
 
+    /** Story 51.3: a survey opened, or still waits for the member's answer. */
+    public function testASurveyNoticeLeadsToItsAnswerPage(): void
+    {
+        $payload = ['surveyId' => 's1', 'surveyTitle' => 'Quand viens-tu ?', 'eventId' => 'e1'];
+        $opened = PushMessageFactory::forNotification('survey_opened', $payload);
+        $reminder = PushMessageFactory::forNotification('survey_reminder', $payload);
+
+        self::assertNotNull($opened);
+        self::assertSame('Nouveau sondage : Quand viens-tu ?', $opened->body);
+        self::assertSame('/evenements/e1/sondages/s1', $opened->url);
+        self::assertNotNull($reminder);
+        self::assertSame('Tu n\'as pas encore répondu : Quand viens-tu ?', $reminder->body);
+        self::assertTrue(PushMessageFactory::isPushable('survey_reminder'));
+    }
+
     public function testAnUnblockedSlotSaysWhereAndLeadsToTheRun(): void
     {
         $message = PushMessageFactory::forNotification('slot_unblocked', [

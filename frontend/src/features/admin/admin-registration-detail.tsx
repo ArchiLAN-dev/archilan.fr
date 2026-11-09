@@ -7,6 +7,7 @@ import { use, useEffect, useId, useState, type ReactNode } from "react";
 import { AdminRegistrationActions } from "@/features/admin/admin-registration-actions";
 import { AdminGamesEditor, AdminSlotYamlEditor } from "@/features/admin/admin-registration-editor";
 import { AdminNotesPanel } from "@/features/notes/admin-notes-panel";
+import { RegistrationSurveysPanel } from "@/features/surveys/registration-surveys-panel";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
@@ -310,6 +311,7 @@ function DetailBody({
         onCancelRequested={onCancelRequested}
       />
       <AdminNotesPanel targetId={detail.registrationId} targetType="registration" />
+      <RegistrationSurveysPanel eventId={eventId} registrationId={registrationId} />
       {cancelState === "confirming" ? (
         <CancelDialog
           onCancel={onCancelDismissed}
