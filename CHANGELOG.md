@@ -5,6 +5,23 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.57.2] - 2026-11-09
+
+Correctif de l'éditeur YAML et mise à jour de sécurité du serveur web de l'API. Aucune migration ni variable.
+
+### Corrigé
+
+- Une liste de nombres reste en nombres dans le YAML du joueur. L'éditeur la réécrivait entre guillemets
+  (`link_tunic_color: ['30', '105', '27']`) et la génération de Majora's Mask Recompiled échouait. Un YAML déjà
+  enregistré est réparé au prochain enregistrement du slot.
+- Une option numérique accepte sa valeur minimale dans « Valeurs numériques spécifiques » : le bouton « Ajouter »
+  restait grisé sur le minimum affiché (0 jeton de Skulltula d'or sur Majora's Mask), il fallait monter puis redescendre.
+
+### Sécurité
+
+- FrankenPHP 1.13.5 (image `api-web`) : release de sécurité FrankenPHP et `golang.org/x/net` 0.62.0
+  (CVE-2026-78661), qui bloquait la publication de l'image.
+
 ## [0.57.1] - 2026-11-05
 
 Mise à jour de sécurité des dépendances. Seule l'API change, aucune migration ni variable.
