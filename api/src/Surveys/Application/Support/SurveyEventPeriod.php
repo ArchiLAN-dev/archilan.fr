@@ -10,6 +10,7 @@ final readonly class SurveyEventPeriod
     public function __construct(
         public \DateTimeImmutable $startsAt,
         public \DateTimeImmutable $endsAt,
+        public string $title = '',
     ) {
     }
 }

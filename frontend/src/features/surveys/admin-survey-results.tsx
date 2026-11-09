@@ -1,15 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { Lock, Star } from "lucide-react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { BellRing, Lock, Star } from "lucide-react";
+
+import { buttonVariants } from "@/components/ui/button";
 
 import {
+  adminSurveyKey,
   ANONYMOUS_TEXT_THRESHOLD,
   fetchSurveyNonRespondents,
   fetchSurveyRespondents,
   fetchSurveyResults,
   percent,
+  remindSurvey,
   surveyNonRespondentsKey,
   surveyRespondentsKey,
   surveyResultsKey,
@@ -23,8 +28,17 @@ import type { SurveyAnswer } from "./surveys-api";
 
 const MOMENT = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Paris" });
 
+type PanelProps = {
+  surveyId: string;
+  eventId: string;
+  anonymous: boolean;
+  questions: AdminQuestion[];
+  /** Story 51.3: undefined for a draft, which is not reminded; null when no reminder went out yet. */
+  lastRemindedAt?: string | null;
+};
+
 /** Story 51.4: read at each opening (`staleTime: 0`), the screen always shows the current answers. */
-export function AdminSurveyResultsPanel({ surveyId, eventId, anonymous, questions }: { surveyId: string; eventId: string; anonymous: boolean; questions: AdminQuestion[] }) {
+export function AdminSurveyResultsPanel({ surveyId, eventId, anonymous, questions, lastRemindedAt }: PanelProps) {
   const results = useQuery({ queryKey: surveyResultsKey(surveyId), queryFn: () => fetchSurveyResults(surveyId), staleTime: 0, retry: false });
   const missing = useQuery({
     queryKey: surveyNonRespondentsKey(surveyId),
@@ -46,7 +60,11 @@ export function AdminSurveyResultsPanel({ surveyId, eventId, anonymous, question
   return (
     <div className="grid gap-8">
       <SurveyResultsView results={results.data} />
-      {missing.data ? <NonRespondentList eventId={eventId} members={missing.data} /> : null}
+      {missing.data ? (
+        <NonRespondentList eventId={eventId} members={missing.data}>
+          {lastRemindedAt !== undefined && missing.data.length > 0 ? <RemindButton lastRemindedAt={lastRemindedAt} surveyId={surveyId} /> : null}
+        </NonRespondentList>
+      ) : null}
       {anonymous ? null : respondents.data ? <RespondentList eventId={eventId} questions={questions} respondents={respondents.data} /> : null}
     </div>
   );
@@ -160,12 +178,13 @@ function Bar({ value }: { value: number }) {
   );
 }
 
-export function NonRespondentList({ eventId, members }: { eventId: string; members: NonRespondent[] }) {
+export function NonRespondentList({ eventId, members, children }: { eventId: string; members: NonRespondent[]; children?: React.ReactNode }) {
   return (
     <section aria-labelledby="missing-heading" className="grid gap-3">
       <h2 className="font-heading text-lg font-semibold text-foreground" id="missing-heading">
         Pas encore répondu ({members.length})
       </h2>
+      {children}
       {members.length === 0 ? (
         <p className="text-sm text-muted-foreground">Tout le monde a répondu.</p>
       ) : (
@@ -183,6 +202,46 @@ export function NonRespondentList({ eventId, members }: { eventId: string; membe
         </ul>
       )}
     </section>
+  );
+}
+
+/** Story 51.3: a reminder to those who have not answered, by mail (when the survey sends some) and in the bell. */
+export function RemindButton({ surveyId, lastRemindedAt }: { surveyId: string; lastRemindedAt: string | null }) {
+  const queryClient = useQueryClient();
+  const [state, setState] = useState<{ kind: "idle" | "sending" } | { kind: "sent"; recipients: number } | { kind: "error"; message: string }>({ kind: "idle" });
+
+  async function remind() {
+    setState({ kind: "sending" });
+    const result = await remindSurvey(surveyId);
+    setState(result.ok ? { kind: "sent", recipients: result.recipients } : { kind: "error", message: result.message });
+    await queryClient.invalidateQueries({ queryKey: adminSurveyKey(surveyId) });
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button
+        className={buttonVariants({ variant: "secondary" })}
+        disabled={state.kind === "sending" || state.kind === "sent"}
+        onClick={() => void remind()}
+        type="button"
+      >
+        <BellRing aria-hidden className="size-4" />
+        Relancer les non-répondants
+      </button>
+      {state.kind === "sent" ? (
+        <span className="text-sm text-success" role="status">
+          {state.recipients} personne{state.recipients > 1 ? "s" : ""} relancée{state.recipients > 1 ? "s" : ""}.
+        </span>
+      ) : state.kind === "error" ? (
+        <span className="text-sm text-danger" role="alert">
+          {state.message}
+        </span>
+      ) : lastRemindedAt !== null ? (
+        <span className="text-xs text-muted-foreground">Dernière relance le {MOMENT.format(new Date(lastRemindedAt))}. Une relance par 24 h au plus.</span>
+      ) : (
+        <span className="text-xs text-muted-foreground">Une relance automatique part 48 h avant la fermeture.</span>
+      )}
+    </div>
   );
 }
 

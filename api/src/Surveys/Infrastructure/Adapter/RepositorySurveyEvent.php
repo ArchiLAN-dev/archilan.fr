@@ -19,6 +19,6 @@ final readonly class RepositorySurveyEvent implements SurveyEventInterface
     {
         $event = $this->events->findById($eventId);
 
-        return null === $event ? null : new SurveyEventPeriod($event->getStartsAt(), $event->getEndsAt());
+        return null === $event ? null : new SurveyEventPeriod($event->getStartsAt(), $event->getEndsAt(), $event->getTitle());
     }
 }

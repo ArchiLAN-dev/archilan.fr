@@ -20,6 +20,13 @@ final class Survey
     public const int MAX_TITLE = 120;
     public const int MAX_INTRO = 1000;
 
+    /** Story 51.3: the automatic reminder goes out this long before the close... */
+    public const string REMINDER_LEAD = '-48 hours';
+    /** ...or halfway through a period shorter than this many seconds (4 days). */
+    public const int SHORT_PERIOD = 345600;
+    /** Two reminders are at least this far apart, the automatic one included. */
+    public const string REMIND_INTERVAL = '+24 hours';
+
     private function __construct(
         #[ORM\Id]
         #[ORM\Column(type: 'string', length: 32)]
@@ -48,6 +55,12 @@ final class Survey
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'updated_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $updatedAt,
+        #[ORM\Column(name: 'opening_notified_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $openingNotifiedAt = null,
+        #[ORM\Column(name: 'reminder_sent_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $reminderSentAt = null,
+        #[ORM\Column(name: 'last_reminded_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $lastRemindedAt = null,
     ) {
     }
 
@@ -163,6 +176,73 @@ final class Survey
         return $this->isPublished() && $this->opensAt <= $now && $now < $this->closesAt;
     }
 
+    /** Story 51.3: open, and its audience not told yet. Told once, even when the period moves afterwards. */
+    public function isDueForOpeningNotice(\DateTimeImmutable $now): bool
+    {
+        return $this->isOpenAt($now) && null === $this->openingNotifiedAt;
+    }
+
+    /** Told this late, the opening notice is the reminder: the automatic one would follow it within minutes. */
+    public function markOpeningNotified(\DateTimeImmutable $now): void
+    {
+        $this->openingNotifiedAt ??= $now;
+        if ($now >= $this->reminderDueAt()) {
+            $this->reminderSentAt ??= $now;
+        }
+    }
+
+    /** 48 hours before the close, or halfway through a period shorter than four days. */
+    public function reminderDueAt(): \DateTimeImmutable
+    {
+        $span = $this->closesAt->getTimestamp() - $this->opensAt->getTimestamp();
+        if ($span < self::SHORT_PERIOD) {
+            return $this->opensAt->modify(sprintf('+%d seconds', intdiv($span, 2)));
+        }
+
+        return $this->closesAt->modify(self::REMINDER_LEAD);
+    }
+
+    /** The automatic reminder is due once, after the opening notice, while the survey is open. */
+    public function isDueForReminder(\DateTimeImmutable $now): bool
+    {
+        return $this->isOpenAt($now)
+            && null !== $this->openingNotifiedAt
+            && null === $this->reminderSentAt
+            && $now >= $this->reminderDueAt();
+    }
+
+    /** A reminder went out less than 24 hours ago, by hand or automatically. */
+    public function wasRemindedRecently(\DateTimeImmutable $now): bool
+    {
+        return null !== $this->lastRemindedAt && $now < $this->lastRemindedAt->modify(self::REMIND_INTERVAL);
+    }
+
+    /**
+     * The automatic reminder is done, whether it went out or was skipped after a recent manual one: it never comes
+     * back.
+     */
+    public function markAutomaticReminder(\DateTimeImmutable $now, bool $sent): void
+    {
+        $this->reminderSentAt ??= $now;
+        if ($sent) {
+            $this->lastRemindedAt = $now;
+        }
+    }
+
+    /** @throws \DomainException survey_closed, survey_remind_too_soon */
+    public function remindByHand(\DateTimeImmutable $now): void
+    {
+        if (!$this->isOpenAt($now)) {
+            throw new \DomainException('survey_closed');
+        }
+        if ($this->wasRemindedRecently($now)) {
+            throw new \DomainException('survey_remind_too_soon');
+        }
+        $this->lastRemindedAt = $now;
+        // Whoever is reminded by hand has been told it opened.
+        $this->openingNotifiedAt ??= $now;
+    }
+
     /** A change to a question or an option is a change to the survey. */
     public function touch(\DateTimeImmutable $now): void
     {
@@ -222,6 +302,21 @@ final class Survey
     public function getPublishedAt(): ?\DateTimeImmutable
     {
         return $this->publishedAt;
+    }
+
+    public function getOpeningNotifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->openingNotifiedAt;
+    }
+
+    public function getReminderSentAt(): ?\DateTimeImmutable
+    {
+        return $this->reminderSentAt;
+    }
+
+    public function getLastRemindedAt(): ?\DateTimeImmutable
+    {
+        return $this->lastRemindedAt;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

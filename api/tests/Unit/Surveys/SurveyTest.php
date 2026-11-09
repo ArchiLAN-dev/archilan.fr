@@ -120,6 +120,83 @@ final class SurveyTest extends TestCase
         $survey->assertDeletable();
     }
 
+    public function testTheOpeningIsAnnouncedOnceWhilePublishedAndOpen(): void
+    {
+        $draft = $this->survey();
+        self::assertFalse($draft->isDueForOpeningNotice(new \DateTimeImmutable('2026-11-10')));
+
+        $survey = $this->published();
+        self::assertFalse($survey->isDueForOpeningNotice(new \DateTimeImmutable('2026-11-08')));
+        self::assertTrue($survey->isDueForOpeningNotice(new \DateTimeImmutable('2026-11-10')));
+        $survey->markOpeningNotified(new \DateTimeImmutable('2026-11-10'));
+        self::assertFalse($survey->isDueForOpeningNotice(new \DateTimeImmutable('2026-11-11')));
+        self::assertNull($survey->getReminderSentAt());
+        self::assertFalse($survey->isDueForOpeningNotice(new \DateTimeImmutable('2026-11-21')));
+    }
+
+    public function testTheReminderIsDueTwoDaysBeforeTheCloseOrHalfwayThroughAShortPeriod(): void
+    {
+        self::assertEquals(new \DateTimeImmutable('2026-11-18'), $this->survey()->reminderDueAt());
+        $short = $this->survey(opensAt: new \DateTimeImmutable('2026-11-09'), closesAt: new \DateTimeImmutable('2026-11-11'));
+        self::assertEquals(new \DateTimeImmutable('2026-11-10'), $short->reminderDueAt());
+    }
+
+    public function testTheAutomaticReminderComesOnceAfterTheOpeningNotice(): void
+    {
+        $survey = $this->published();
+        self::assertFalse($survey->isDueForReminder(new \DateTimeImmutable('2026-11-18T01:00')));
+
+        $survey->markOpeningNotified(new \DateTimeImmutable('2026-11-10'));
+        self::assertFalse($survey->isDueForReminder(new \DateTimeImmutable('2026-11-17T23:00')));
+        self::assertTrue($survey->isDueForReminder(new \DateTimeImmutable('2026-11-18T01:00')));
+
+        $survey->markAutomaticReminder(new \DateTimeImmutable('2026-11-18T01:00'), true);
+        self::assertFalse($survey->isDueForReminder(new \DateTimeImmutable('2026-11-19')));
+        self::assertTrue($survey->wasRemindedRecently(new \DateTimeImmutable('2026-11-18T12:00')));
+        self::assertFalse($survey->wasRemindedRecently(new \DateTimeImmutable('2026-11-19T01:00')));
+    }
+
+    public function testAnOpeningAnnouncedAfterTheReminderTimeStandsForTheReminder(): void
+    {
+        $survey = $this->published();
+        $survey->markOpeningNotified(new \DateTimeImmutable('2026-11-19'));
+
+        self::assertNotNull($survey->getReminderSentAt());
+        self::assertFalse($survey->isDueForReminder(new \DateTimeImmutable('2026-11-19T01:00')));
+    }
+
+    public function testAManualReminderNeedsAnOpenSurveyAndADayBetweenReminders(): void
+    {
+        $survey = $this->published();
+        $survey->remindByHand(new \DateTimeImmutable('2026-11-12'));
+        self::assertNotNull($survey->getOpeningNotifiedAt());
+        self::assertEquals(new \DateTimeImmutable('2026-11-12'), $survey->getLastRemindedAt());
+
+        try {
+            $survey->remindByHand(new \DateTimeImmutable('2026-11-12T20:00'));
+            self::fail('A second reminder within 24 hours is refused.');
+        } catch (\DomainException $e) {
+            self::assertSame('survey_remind_too_soon', $e->getMessage());
+        }
+        $survey->remindByHand(new \DateTimeImmutable('2026-11-13T00:00'));
+
+        $this->expectExceptionMessage('survey_closed');
+        $survey->remindByHand(new \DateTimeImmutable('2026-11-20T00:00'));
+    }
+
+    public function testARecentManualReminderSkipsTheAutomaticOne(): void
+    {
+        $survey = $this->published();
+        $survey->remindByHand(new \DateTimeImmutable('2026-11-17T12:00'));
+        $now = new \DateTimeImmutable('2026-11-18T01:00');
+
+        self::assertTrue($survey->isDueForReminder($now));
+        self::assertTrue($survey->wasRemindedRecently($now));
+        $survey->markAutomaticReminder($now, false);
+        self::assertFalse($survey->isDueForReminder($now));
+        self::assertEquals(new \DateTimeImmutable('2026-11-17T12:00'), $survey->getLastRemindedAt());
+    }
+
     private function published(): Survey
     {
         $survey = $this->survey();

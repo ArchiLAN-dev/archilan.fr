@@ -36,6 +36,8 @@ const survey: AdminSurvey = {
   opensAt: "2026-11-10T08:00:00+00:00",
   closesAt: "2026-11-20T17:00:00+00:00",
   publishedAt: "2026-11-10T08:00:00+00:00",
+  openingNotifiedAt: "2026-11-10T08:10:00+00:00",
+  lastRemindedAt: null,
   questions: [
     {
       id: "coming",

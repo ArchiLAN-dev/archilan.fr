@@ -337,6 +337,12 @@ export function messageFor(item: NotificationItem): string {
         ? `${problem} : ${item.data.gameName}`
         : "Un apworld est en échec";
     }
+    case "survey_opened":
+    case "survey_reminder": {
+      // Story 51.3: a survey of one of the member's events opened, or still waits for their answer.
+      const survey = hasStringProp(item.data, "surveyTitle") && item.data.surveyTitle !== "" ? `« ${item.data.surveyTitle} »` : "un sondage";
+      return item.type === "survey_reminder" ? `Tu n'as pas encore répondu à ${survey}` : `Nouveau sondage : ${survey}`;
+    }
     case "game_apworld_updated": {
       // Story 38.22: a followed game got a new apworld on the site, or its first one.
       const game = hasStringProp(item.data, "gameName") && item.data.gameName !== "" ? item.data.gameName : "Un jeu suivi";
@@ -398,6 +404,11 @@ export function hrefFor(item: NotificationItem): string {
     || item.type === "run_recap_ready"
   ) {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte/parties";
+  }
+  if (item.type === "survey_opened" || item.type === "survey_reminder") {
+    return hasStringProp(item.data, "eventId") && item.data.eventId !== "" && hasStringProp(item.data, "surveyId") && item.data.surveyId !== ""
+      ? `/evenements/${item.data.eventId}/sondages/${item.data.surveyId}`
+      : "/compte";
   }
   if (item.type === "game_apworld_updated") {
     return hasStringProp(item.data, "gameSlug") && item.data.gameSlug !== "" ? `/jeux/${item.data.gameSlug}` : "/jeux";

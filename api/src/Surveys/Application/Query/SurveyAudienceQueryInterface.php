@@ -13,6 +13,7 @@ use App\Surveys\Domain\Enum\SurveyAudience;
  *   no session of the event was ever launched, every active, confirmed registration.
  *
  * @phpstan-type AudienceMember array{userId: string, registrationId: string, displayName: string}
+ * @phpstan-type Recipient array{userId: string, displayName: string, email: string}
  */
 interface SurveyAudienceQueryInterface
 {
@@ -24,4 +25,12 @@ interface SurveyAudienceQueryInterface
      * @return list<AudienceMember>
      */
     public function members(SurveyAudience $audience, string $eventId): array;
+
+    /**
+     * Story 51.3: the members of the audience who have not answered the survey, whose account still exists; the
+     * e-mail is empty when the account has none.
+     *
+     * @return list<Recipient>
+     */
+    public function unanswered(SurveyAudience $audience, string $eventId, string $surveyId): array;
 }
