@@ -16,7 +16,8 @@ afin de proposer au Passeur un coffre précis à ouvrir.
 ## Contexte (cartographie du 2026-11-09)
 
 - Blocage d'un slot : `api/src/Sessions/Application/Service/SlotBlockTracker.php`, sortie de BK notifiée
-  (`NotifySlotUnblockedJob`, epic 40).
+  (`NotifySlotUnblockedJob`, epic 40). **Limite constatée le 2026-11-09 : le suivi ne tourne que pour les parties
+  privées** (pas d'événement, pas d'hebdo, pas de seed importée). Le Passeur en événement en a besoin.
 - Bridge :
   - `GET /slots/{slot}/items/missing` : objets du slot pas encore reçus, avec le slot qui les contient ;
   - `GET /slots/{slot}/item-locations` : emplacement et statut (atteignable ou non) de chaque objet du slot, depuis
@@ -28,6 +29,12 @@ afin de proposer au Passeur un coffre précis à ouvrir.
 
 ## Décisions
 
+0. **Le Passeur n'existe que pour un slot en BK.** Pas de BK, pas de candidat, pas de bouton. Le début de l'épisode
+   de BK sert aussi de point de départ au prix dégressif (52.4).
+0bis. **Suivi des BK étendu aux sessions d'événement** : `SlotBlockTracker` ouvre et ferme aussi les épisodes des
+   slots d'une session d'événement quand le Passeur y est activé (ou pour toutes les sessions d'événement, si c'est
+   plus simple et sans coût notable). La notification de sortie de BK (40.1) reste réservée aux parties privées ;
+   seuls les épisodes sont enregistrés. Hebdos et seeds importées restent hors suivi.
 1. **Un candidat** = un objet de progression destiné au joueur bloqué, pas encore reçu, situé dans un emplacement
    non ouvert d'un monde **absent**.
 2. **Absent** (voir l'epic) :
@@ -45,6 +52,8 @@ afin de proposer au Passeur un coffre précis à ouvrir.
 
 ## Critères d'acceptation
 
+0. Les épisodes de BK sont suivis pour les slots d'une session d'événement (ouverture, fermeture, fermeture au
+   redémarrage du serveur comme en 40.3), sans notification de sortie de BK.
 1. Pour un slot bloqué avec un objet de progression chez un absent : un candidat est renvoyé (monde, emplacement,
    objet, sphère).
 2. Aucun candidat si : le slot n'est pas bloqué, l'objet est chez un présent, l'objet est destiné à l'absent, ou
@@ -63,6 +72,7 @@ afin de proposer au Passeur un coffre précis à ouvrir.
 
 ## Tasks / Subtasks
 
+- [ ] **Task 0** (AC 0) - `SlotBlockTracker` étendu aux sessions d'événement, tests.
 - [ ] **Task 1** (AC 1-4) - Ports et service `PasseurCandidates`, tests unitaires.
 - [ ] **Task 2** - Classification des objets exposée par le bridge si elle manque.
 - [ ] **Task 3** (AC 5) - Route admin de diagnostic.
