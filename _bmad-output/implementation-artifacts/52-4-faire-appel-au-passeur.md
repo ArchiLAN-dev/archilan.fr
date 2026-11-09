@@ -27,7 +27,10 @@ afin de reprendre ma partie sans attendre son arrivée.
    privée, pelles de bronze de la partie. Jamais en hebdo.
 2. **Prix** : prix de base par défaut = 3 fois le prix d'un indice d'objet ; baisse de 10 % du prix de base toutes
    les 15 minutes de blocage (depuis le début du BK suivi par `SlotBlockTracker`), plancher 40 %. Arrondi à
-   l'entier supérieur. Le prix affiché est celui débité (recalculé au moment de l'achat ; écart refusé avec 409
+   l'entier supérieur. L'attente compte depuis le début du BK **en cours** : une sortie de BK (le joueur a reçu de
+   quoi avancer) remet le prix au plein tarif. Un épisode clos par un redémarrage du serveur (40.3) puis rouvert
+   sans aucun objet reçu entre les deux compte comme le même BK, pour qu'une relance ne pénalise pas le joueur
+   (proposé, à confirmer par Jean). Le prix affiché est celui débité (recalculé au moment de l'achat ; écart refusé avec 409
    `passeur_price_changed` pour que le joueur confirme le nouveau prix).
 3. **Part de l'absent** : 50 % du prix payé (arrondi à l'inférieur) versés à l'absent dans la même monnaie ; le
    reste est détruit. Jamais de création de pelles.

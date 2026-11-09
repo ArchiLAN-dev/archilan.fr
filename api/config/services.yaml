@@ -551,6 +551,9 @@ services:
 
     App\Registrations\Domain\Repository\RegistrationRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationRepository'
     App\Registrations\Domain\Repository\RegistrationAdminMessageRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationAdminMessageRepository'
+    # Story 52.2: presence windows on a registration.
+    App\Registrations\Domain\Repository\RegistrationPresenceWindowRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationPresenceWindowRepository'
+    App\Registrations\Application\Query\PresenceTimelineQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalPresenceTimelineQuery'
     App\Registrations\Application\Query\RegistrationCounterQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalRegistrationCounterQuery'
     App\Registrations\Application\Query\AccountRegistrationsQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalAccountRegistrationsQuery'
     App\Registrations\Application\Query\PrivateAccessGrantedQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalPrivateAccessGrantedQuery'
