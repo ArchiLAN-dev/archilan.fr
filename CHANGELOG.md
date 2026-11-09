@@ -5,6 +5,34 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.58.0] - 2026-11-09
+
+Modification des inscriptions par les admins, compteurs de checks et d'items pour les succès et les quêtes, couleurs
+des pelles. Une migration (`Version20261108120000`), aucune variable.
+
+### À faire après le déploiement
+
+- Lancer `php bin/console app:games:backfill-locations` : les compteurs proposent les noms de lieux et d'items connus
+  de chaque jeu, absents des introspections anciennes (Ocarina of Time notamment).
+
+### Ajouté
+
+- Les admins modifient l'inscription d'un joueur depuis son détail : ajouter ou retirer des jeux, et modifier le YAML
+  de chaque slot avec l'éditeur du joueur, même après la clôture des inscriptions (story 5.9).
+- Compteurs de checks et d'items pour les succès : un compteur vise des lieux visités ou des items reçus ou envoyés
+  sur un jeu, en total, en maximum par partie ou en noms distincts, et un succès peut s'appuyer dessus
+  (story 30.57).
+- Objectif de quête hebdomadaire sur un compteur, par exemple « Battez Morpha » ou « 20 Gold Skulltula Tokens »,
+  quête collective comprise (story 41.72).
+- Chaque type de pelle a sa couleur, et les soldes principaux une animation courte (story 41.71). Rien ne bouge
+  avec la réduction des animations activée.
+
+### Modifié
+
+- La CI se relance quand une PR change de branche de base.
+- Postgres local : récupération rapide après un arrêt brutal de Docker Desktop (`recovery_init_sync_method=syncfs`
+  dans `docker-compose.yml`, développement seulement).
+
 ## [0.57.2] - 2026-11-09
 
 Correctif de l'éditeur YAML et mise à jour de sécurité du serveur web de l'API. Aucune migration ni variable.
