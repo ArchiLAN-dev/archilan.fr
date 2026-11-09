@@ -1,6 +1,6 @@
 # Story 52.4 - Faire appel au Passeur (pelles d'argent ou de bronze)
 
-**Status:** ready-for-dev (à relire après le spike 52.1)
+**Status:** ready-for-dev (relue après le spike 52.1)
 **Epic:** 52 - Le Passeur (`_bmad-output/planning-artifacts/epics/epic-52-passeur.md`)
 **Date:** 2026-11-09
 **Branche:** `feature/epic-52-story-4-faire-appel-au-passeur` (depuis `develop`)
@@ -38,6 +38,15 @@ afin de reprendre ma partie sans attendre son arrivée.
    par achat (`passeur:{purchaseId}:...`).
 8. **Trace** : une table `passeur_opening` (session, acheteur, slot acheteur, slot absent, emplacement, objet,
    prix payé, part versée, statut, dates) sert à la limite par jour, à 52.5 et au journal admin.
+
+## Apports du spike 52.1
+
+- Route du bridge : `POST /slots/{slot}/locations/{location_id}/send` (jeton interne). 200 = ouvert (emplacement,
+  objet, destinataire) ; refus `{"code", "message"}` : 409 `already_checked`, 404 `unknown_location` ou
+  `unknown_slot`, 422 `refused`, 504 `timeout`, 503 `ws_disconnected`. Un 504 est ambigu (l'ouverture a pu se faire
+  sans que le bridge la voie) : avant de rembourser, relire l'état de l'emplacement (déjà ouvert = succès).
+- Chaque ouverture laisse un écho `!admin /send_location ...` dans le chat : le masquer dans le feed du site et
+  publier le message du Passeur à la place (critère 2).
 
 ## Critères d'acceptation
 
