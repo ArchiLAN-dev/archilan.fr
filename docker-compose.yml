@@ -5,6 +5,9 @@ services:
         image: postgres:17-alpine
         container_name: archilan-postgres
         restart: unless-stopped
+        # After a hard stop (Docker Desktop shut down), recovery fsyncs every file one by one by default: with the
+        # many test databases that took over 30 minutes. syncfs flushes the volume in one call, same guarantees.
+        command: ["postgres", "-c", "recovery_init_sync_method=syncfs"]
         environment:
             POSTGRES_DB: ${POSTGRES_DB:-archilan}
             POSTGRES_USER: ${POSTGRES_USER:-archilan}
