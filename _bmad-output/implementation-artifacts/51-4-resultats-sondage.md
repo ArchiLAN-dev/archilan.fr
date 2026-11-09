@@ -1,9 +1,9 @@
 # Story 51.4 - Résultats d'un sondage (admin)
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 51 - Sondages (`_bmad-output/planning-artifacts/epics/epic-51-sondages.md`)
 **Date:** 2026-11-09
-**Branche:** `feature/epic-51-story-4-resultats-sondage` (depuis `develop`)
+**Branche:** `feature/epic-51-story-4-resultats-sondage` (depuis la branche de 51.2, PR empilée)
 **Dépend de:** 51.2. Indépendante de 51.3.
 
 ## Story
@@ -57,7 +57,58 @@ afin d'organiser l'événement et de relancer qui il faut.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 2-5, 8) - Requêtes de résultats, de vue par inscrit et de non-répondants.
-- [ ] **Task 2** (AC 1, 2-5, 9) - Écran « Sondages » de l'événement.
-- [ ] **Task 3** (AC 6) - Bloc sur la fiche d'inscription.
-- [ ] **Task 4** (AC 10) - Gates verts, Dev Agent Record.
+- [x] **Task 1** (AC 2-5, 8) - Requêtes de résultats, de vue par inscrit et de non-répondants.
+- [x] **Task 2** (AC 1, 2-5, 9) - Écran « Sondages » de l'événement.
+- [x] **Task 3** (AC 6) - Bloc sur la fiche d'inscription.
+- [x] **Task 4** (AC 10) - Gates verts, Dev Agent Record.
+
+## Dev Agent Record
+
+### Décisions prises pendant le dev
+
+- Le bouton de relance (décision 4) est laissé à 51.3, qui crée la route de relance.
+- L'écran de création du sondage (prévu en 51.1, différé) est livré ici : liste et création sur
+  `/admin/evenements/[eventId]/sondages`, puis `/admin/evenements/[eventId]/sondages/[surveyId]` avec deux onglets,
+  Questions (édition, publication, suppression du brouillon) et Résultats. Un sondage publié s'ouvre sur ses résultats.
+- Le public `registration` n'est pas proposé à la création : il arrive avec 51.5.
+- Les textes sont triés par ordre alphabétique (insensible à la casse) pour tous les sondages, anonymes ou non.
+- Pourcentages des options rapportés au nombre de réponses à la question (un choix multiple peut dépasser 100 % au total).
+- Le public d'un sondage (`SurveyAudienceQueryInterface::members`) partage sa requête avec `includes` : une seule
+  définition de qui est concerné.
+- Une réponse nominative se lit dans l'ordre des questions (position), pas dans l'ordre des ids.
+
+### Routes
+
+- `GET /api/v1/admin/surveys/{id}/results`
+- `GET /api/v1/admin/surveys/{id}/respondents` (403 `survey_anonymous` pour un sondage anonyme)
+- `GET /api/v1/admin/surveys/{id}/non-respondents`
+- `GET /api/v1/admin/events/{eventId}/registrations/{registrationId}/surveys`
+
+### File List
+
+- `api/src/Surveys/Application/Query/SurveyResultsQuery.php` (nouveau)
+- `api/src/Surveys/Application/Query/SurveyResultsQueryInterface.php` (nouveau)
+- `api/src/Surveys/Application/Query/SurveyAudienceQueryInterface.php`
+- `api/src/Surveys/Infrastructure/Dbal/DbalSurveyResultsQuery.php` (nouveau)
+- `api/src/Surveys/Infrastructure/Dbal/DbalSurveyAudienceQuery.php`
+- `api/src/Surveys/Presentation/Controller/AdminSurveyResultsController.php` (nouveau)
+- `api/config/services.yaml`
+- `api/tests/Functional/AdminSurveyResultsTest.php` (nouveau)
+- `frontend/src/features/surveys/admin-surveys-api.ts` (nouveau)
+- `frontend/src/features/surveys/admin-event-surveys.tsx` (nouveau)
+- `frontend/src/features/surveys/admin-survey-page.tsx` (nouveau)
+- `frontend/src/features/surveys/admin-survey-editor.tsx` (nouveau)
+- `frontend/src/features/surveys/admin-survey-results.tsx` (nouveau)
+- `frontend/src/features/surveys/registration-surveys-panel.tsx` (nouveau)
+- `frontend/src/features/surveys/admin-surveys.test.tsx` (nouveau)
+- `frontend/src/app/(admin)/admin/evenements/[eventId]/sondages/page.tsx` (nouveau)
+- `frontend/src/app/(admin)/admin/evenements/[eventId]/sondages/[surveyId]/page.tsx` (nouveau)
+- `frontend/src/features/admin/admin-event-dashboard.tsx`
+- `frontend/src/features/admin/admin-registration-detail.tsx`
+
+### Gates
+
+- `composer gates:fast` : phpstan, cs-fixer, DDD, rector verts ; 3665 tests verts (ParaTest 4 workers : à 8, deux
+  passages ont échoué sur un épuisement de ports Windows vers Postgres, sans rapport avec le code).
+- Front : typecheck, lint, jest (1462 tests), build verts.
+- Pas de vérification visuelle : serveurs de dev arrêtés.
