@@ -10,7 +10,7 @@ namespace App\Surveys\Application\Query;
  * @phpstan-type SurveySummary array{id: string, title: string, audience: string, anonymous: bool, status: string, opensAt: string, closesAt: string, questionCount: int}
  * @phpstan-type OptionView array{id: string, label: string, position: int, retired: bool}
  * @phpstan-type QuestionView array{id: string, kind: string, label: string, required: bool, position: int, options: list<OptionView>}
- * @phpstan-type SurveyView array{id: string, eventId: string, title: string, intro: string, audience: string, anonymous: bool, sendEmail: bool, status: string, opensAt: string, closesAt: string, publishedAt: string|null, createdAt: string, updatedAt: string, questions: list<QuestionView>}
+ * @phpstan-type SurveyView array{id: string, eventId: string, title: string, intro: string, audience: string, anonymous: bool, sendEmail: bool, status: string, opensAt: string, closesAt: string, publishedAt: string|null, openingNotifiedAt: string|null, reminderSentAt: string|null, lastRemindedAt: string|null, createdAt: string, updatedAt: string, questions: list<QuestionView>}
  */
 interface AdminSurveyQueryInterface
 {

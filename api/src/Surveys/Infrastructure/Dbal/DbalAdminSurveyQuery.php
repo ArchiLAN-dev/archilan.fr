@@ -48,7 +48,7 @@ final readonly class DbalAdminSurveyQuery implements AdminSurveyQueryInterface
         $qb = $this->connection->createQueryBuilder();
         $row = $qb
             ->select('s.id', 's.event_id', 's.title', 's.intro', 's.audience', 's.anonymous', 's.send_email', 's.status')
-            ->addSelect('s.opens_at', 's.closes_at', 's.published_at', 's.created_at', 's.updated_at')
+            ->addSelect('s.opens_at', 's.closes_at', 's.published_at', 's.opening_notified_at', 's.reminder_sent_at', 's.last_reminded_at', 's.created_at', 's.updated_at')
             ->from('survey', 's')
             ->where($qb->expr()->eq('s.id', ':id'))
             ->setParameter('id', $surveyId)
@@ -82,6 +82,9 @@ final readonly class DbalAdminSurveyQuery implements AdminSurveyQueryInterface
             'opensAt' => $this->date($row['opens_at']),
             'closesAt' => $this->date($row['closes_at']),
             'publishedAt' => null === $row['published_at'] ? null : $this->date($row['published_at']),
+            'openingNotifiedAt' => null === $row['opening_notified_at'] ? null : $this->date($row['opening_notified_at']),
+            'reminderSentAt' => null === $row['reminder_sent_at'] ? null : $this->date($row['reminder_sent_at']),
+            'lastRemindedAt' => null === $row['last_reminded_at'] ? null : $this->date($row['last_reminded_at']),
             'createdAt' => $this->date($row['created_at']),
             'updatedAt' => $this->date($row['updated_at']),
             'questions' => array_map(static fn (array $q): array => [

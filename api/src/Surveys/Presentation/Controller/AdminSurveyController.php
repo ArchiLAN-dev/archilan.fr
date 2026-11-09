@@ -7,7 +7,9 @@ namespace App\Surveys\Presentation\Controller;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use App\Surveys\Application\Command\ManageSurveys;
+use App\Surveys\Application\Command\RemindSurveyNonRespondents;
 use App\Surveys\Application\Command\SurveyDraft;
+use App\Surveys\Application\Command\SurveyReminderOutcome;
 use App\Surveys\Application\Query\AdminSurveyQuery;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,6 +28,7 @@ final readonly class AdminSurveyController
 
     public function __construct(
         private ManageSurveys $manage,
+        private RemindSurveyNonRespondents $remind,
         private AdminSurveyQuery $query,
         private ApiAccessGuard $apiAccessGuard,
     ) {
@@ -109,6 +112,27 @@ final readonly class AdminSurveyController
         $this->manage->publish($surveyId);
 
         return new JsonResponse(null, 204);
+    }
+
+    /** Story 51.3: the members who have not answered are reminded, at most once every 24 hours. */
+    #[Route('/api/v1/admin/surveys/{surveyId}/remind', name: 'api_admin_survey_remind', methods: ['POST'])]
+    public function remind(Request $request, string $surveyId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $result = ($this->remind)($surveyId);
+        $remindedAt = $result->remindedAt?->format(\DateTimeInterface::ATOM);
+        if (SurveyReminderOutcome::TooSoon === $result->outcome) {
+            return new JsonResponse([
+                'error' => ['code' => 'survey_remind_too_soon', 'message' => 'Une relance est déjà partie dans les dernières 24 h.', 'details' => []],
+                'data' => ['lastRemindedAt' => $remindedAt],
+            ], 429);
+        }
+
+        return new JsonResponse(['data' => ['recipients' => $result->recipients, 'lastRemindedAt' => $remindedAt], 'meta' => []]);
     }
 
     #[Route('/api/v1/admin/surveys/{surveyId}/questions', name: 'api_admin_survey_question_add', methods: ['POST'])]

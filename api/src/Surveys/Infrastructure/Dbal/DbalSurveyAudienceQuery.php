@@ -56,6 +56,31 @@ final readonly class DbalSurveyAudienceQuery implements SurveyAudienceQueryInter
         ], $rows);
     }
 
+    public function unanswered(SurveyAudience $audience, string $eventId, string $surveyId): array
+    {
+        $answered = $this->connection->createQueryBuilder()
+            ->select('1')
+            ->from('survey_participation', 'p')
+            ->where('p.survey_id = :survey')
+            ->andWhere('p.user_id = r.user_id');
+        $qb = $this->audience($audience, $eventId);
+        $rows = $qb
+            ->select('r.user_id', 'u.display_name', 'u.email')
+            ->innerJoin('r', $this->connection->quoteSingleIdentifier('user'), 'u', 'u.id = r.user_id')
+            ->andWhere($qb->expr()->isNull('u.deleted_at'))
+            ->andWhere('NOT EXISTS ('.$answered->getSQL().')')
+            ->setParameter('survey', $surveyId)
+            ->orderBy('r.user_id')
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        return array_map(static fn (array $row): array => [
+            'userId' => is_string($row['user_id']) ? $row['user_id'] : '',
+            'displayName' => is_string($row['display_name']) ? $row['display_name'] : '',
+            'email' => is_string($row['email']) ? $row['email'] : '',
+        ], $rows);
+    }
+
     /** The active registrations of the event that the audience takes in; the caller selects. */
     private function audience(SurveyAudience $audience, string $eventId): QueryBuilder
     {

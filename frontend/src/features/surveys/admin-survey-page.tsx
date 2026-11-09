@@ -71,7 +71,13 @@ export function AdminSurveyPage({ params }: { params: Promise<{ eventId: string;
       {tab === "questions" ? (
         <AdminSurveyEditor survey={data} />
       ) : (
-        <AdminSurveyResultsPanel anonymous={data.anonymous} eventId={eventId} questions={data.questions} surveyId={data.id} />
+        <AdminSurveyResultsPanel
+          anonymous={data.anonymous}
+          eventId={eventId}
+          lastRemindedAt={published ? data.lastRemindedAt : undefined}
+          questions={data.questions}
+          surveyId={data.id}
+        />
       )}
     </div>
   );

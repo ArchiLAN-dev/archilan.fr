@@ -294,6 +294,15 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
       const sentence = fallback.split(" : ")[0] ?? fallback;
       return base("action", "Action requise", icon("puzzle"), game !== "" ? [{ text: `${sentence} : ` }, strong(game)] : [{ text: fallback }]);
     }
+    case "survey_opened":
+    case "survey_reminder": {
+      // Story 51.3: the survey by its title, its event under it.
+      const survey = text(data, "surveyTitle") || "un sondage";
+      const event = text(data, "eventTitle");
+      const title: Segment[] =
+        item.type === "survey_reminder" ? [{ text: "Tu n'as pas encore répondu à " }, strong(survey)] : [{ text: "Nouveau sondage : " }, strong(survey)];
+      return { ...base("action", "Sondage", icon("comment"), title), detail: event !== "" ? event : null };
+    }
     case "game_apworld_updated": {
       // Story 38.22: a followed game got a new apworld on the site, or its first one.
       const game = text(data, "gameName") || "Un jeu suivi";

@@ -12,6 +12,13 @@ interface SurveyRepositoryInterface
 {
     public function find(string $id): ?Survey;
 
+    /**
+     * Story 51.3: the published surveys open at this moment.
+     *
+     * @return list<Survey>
+     */
+    public function findOpenAt(\DateTimeImmutable $now): array;
+
     public function findQuestion(string $id): ?SurveyQuestion;
 
     public function findOption(string $id): ?SurveyOption;

@@ -36,6 +36,9 @@ export type AdminSurvey = {
   opensAt: string;
   closesAt: string;
   publishedAt: string | null;
+  /** Story 51.3: when the audience was told it opened, and the last reminder (automatic or by hand). */
+  openingNotifiedAt: string | null;
+  lastRemindedAt: string | null;
   questions: AdminQuestion[];
 };
 
@@ -218,6 +221,8 @@ export function isAdminSurvey(v: unknown): v is AdminSurvey {
     hasStringProp(v, "opensAt") &&
     hasStringProp(v, "closesAt") &&
     hasNullableStringProp(v, "publishedAt") &&
+    hasNullableStringProp(v, "openingNotifiedAt") &&
+    hasNullableStringProp(v, "lastRemindedAt") &&
     "questions" in v &&
     Array.isArray(v.questions) &&
     v.questions.every(isAdminQuestion)
@@ -406,6 +411,21 @@ export function publishSurvey(surveyId: string): Promise<MutationResult> {
 
 export function deleteSurvey(surveyId: string): Promise<MutationResult> {
   return mutate("DELETE", `/admin/surveys/${surveyId}`);
+}
+
+export type RemindResult = { ok: true; recipients: number } | { ok: false; message: string };
+
+/** Story 51.3: reminds the members who have not answered; the API's message when it refuses (closed, too soon). */
+export async function remindSurvey(surveyId: string): Promise<RemindResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/surveys/${surveyId}/remind`, { method: "POST" });
+    const payload: unknown = await res.json().catch(() => null);
+    const data = dataOf(payload);
+    if (res.ok && isObject(data) && hasNumberProp(data, "recipients")) return { ok: true, recipients: data.recipients };
+    return { ok: false, message: apiErrorMessage(payload) ?? "La relance n'a pas pu partir." };
+  } catch {
+    return { ok: false, message: "Impossible de contacter l'API." };
+  }
 }
 
 export function addQuestion(surveyId: string, question: { kind: QuestionKind; label: string; required: boolean; options: string[] }): Promise<MutationResult> {

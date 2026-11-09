@@ -7,7 +7,10 @@ namespace App\Surveys\Infrastructure\Doctrine;
 use App\Surveys\Domain\Entity\Survey;
 use App\Surveys\Domain\Entity\SurveyOption;
 use App\Surveys\Domain\Entity\SurveyQuestion;
+use App\Surveys\Domain\Enum\SurveyStatus;
 use App\Surveys\Domain\Repository\SurveyRepositoryInterface;
+use Doctrine\Common\Collections\Criteria;
+use Doctrine\Common\Collections\Order;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineSurveyRepository implements SurveyRepositoryInterface
@@ -19,6 +22,17 @@ final readonly class DoctrineSurveyRepository implements SurveyRepositoryInterfa
     public function find(string $id): ?Survey
     {
         return $this->entityManager->find(Survey::class, $id);
+    }
+
+    public function findOpenAt(\DateTimeImmutable $now): array
+    {
+        $criteria = Criteria::create()
+            ->where(Criteria::expr()->eq('status', SurveyStatus::Published))
+            ->andWhere(Criteria::expr()->lte('opensAt', $now))
+            ->andWhere(Criteria::expr()->gt('closesAt', $now))
+            ->orderBy(['opensAt' => Order::Ascending, 'id' => Order::Ascending]);
+
+        return array_values($this->entityManager->getRepository(Survey::class)->matching($criteria)->toArray());
     }
 
     public function findQuestion(string $id): ?SurveyQuestion
