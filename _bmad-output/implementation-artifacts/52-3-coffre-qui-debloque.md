@@ -1,9 +1,9 @@
 # Story 52.3 - Le coffre qui débloque
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 52 - Le Passeur (`_bmad-output/planning-artifacts/epics/epic-52-passeur.md`)
 **Date:** 2026-11-09
-**Branche:** `feature/epic-52-story-3-coffre-qui-debloque` (monorepo, depuis `develop`) ; branche homonyme dans
+**Branche:** `feature/epic-52-story-3-coffre-qui-debloque` (monorepo, empilée sur `feature/epic-52-story-2-creneaux-presence`, PR #1049) ; branche homonyme dans
 `Archipelago-Bridge` si une route du bridge est ajoutée
 **Dépend de:** rien pour le calcul ; 52.2 pour l'absence en événement.
 
@@ -72,8 +72,55 @@ afin de proposer au Passeur un coffre précis à ouvrir.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0** (AC 0) - `SlotBlockTracker` étendu aux sessions d'événement, tests.
-- [ ] **Task 1** (AC 1-4) - Ports et service `PasseurCandidates`, tests unitaires.
-- [ ] **Task 2** - Classification des objets exposée par le bridge si elle manque.
-- [ ] **Task 3** (AC 5) - Route admin de diagnostic.
-- [ ] **Task 4** (AC 9) - Gates verts, Dev Agent Record.
+- [x] **Task 0** (AC 0) - `SlotBlockTracker` étendu aux sessions d'événement, tests.
+- [x] **Task 1** (AC 1-4) - Ports et service `PasseurCandidates`, tests unitaires.
+- [x] **Task 2** - Classification des objets exposée par le bridge si elle manque.
+- [x] **Task 3** (AC 5) - Route admin de diagnostic.
+- [x] **Task 4** (AC 9) - Gates verts, Dev Agent Record.
+
+## Dev Agent Record
+
+### Livré
+
+- **Task 0** : `SlotBlockTracker` suit aussi les sessions d'événement (session sans run dont l'`event_id` désigne un
+  vrai événement ; une hebdo, qui y porte l'id de son run hebdo, reste hors suivi). Les épisodes s'ouvrent et se
+  ferment comme en partie privée, fermeture au redémarrage comprise, mais toujours en silence : pas de
+  `NotifySlotUnblockedJob`, pas de `SlotBlockRelease` pour le récap.
+- **Task 1** :
+  - domaine pur `PasseurSelection` (`candidates`, `byRank`) sur la valeur `PasseurItem` : progression seulement,
+    monde absent seulement, un exemplaire par objet (sphère la plus haute, monde non suivi en dernier), classement
+    par gain mesuré puis id d'emplacement, non mesurés ensuite par sphère croissante ;
+  - `SlotAbsence` : en événement, hors créneau (52.2) et aucun client vu depuis 90 s (heartbeat, 32.26) ; en partie
+    privée, aucun client depuis 2 h, compté depuis le premier lancement pour un slot jamais joué (le réglage du
+    propriétaire arrive en 52.5) ;
+  - `PasseurCandidatesQuery::forSlot()` : pas de BK, pas de candidat (décision 0) ; renvoie aussi `blockedSince`,
+    point de départ du prix de 52.4. Port `PasseurBridgeInterface` (adaptateur HTTP `BridgePasseurGateway` avec le
+    jeton interne, doublure `StubPasseurBridge`).
+- **Task 2** (bridge, branche homonyme) : `GET /slots/{slot}/passeur/items` (objets dus au slot dans les
+  emplacements non ouverts des autres mondes, avec classification et sphère lues dans le résultat du suivi exact)
+  et `POST /slots/{slot}/passeur/unlocks` (au plus 10 candidats : le suivi exact recalcule l'atteignable du slot
+  avec chaque objet en plus, sans cache ; 503 `tracking_unavailable` si le jeu n'est pas suivi). Le transport vers
+  le tracker est factorisé (`_run_reachable`), sans changement de comportement.
+- **Task 3** : `GET /api/v1/admin/sessions/{id}/slots/{slot}/passeur-candidates` (admin) : `blocked`,
+  `blockedSince`, `absentSlots`, `ranking` (`exact` ou `sphere`), `candidates` (monde, emplacement, objet, sphère,
+  `unlocks`).
+
+### Notes
+
+- Le gain mesuré coûte un calcul du suivi par candidat : seuls les 10 premiers (ordre des sphères) sont mesurés, les
+  autres suivent. Pour 52.4, prévoir de ne mesurer qu'à l'ouverture du panneau, pas à chaque poussée d'état.
+- Les classifications existaient dans le résultat du suivi exact (`item.flags` de chaque emplacement) ; repli sur
+  la table du bridge par id d'objet pour un monde pas encore calculé.
+
+### Tests
+
+- API : `tests/Unit/Sessions/PasseurSelectionTest.php`, `SlotAbsenceTest.php`, `SlotBlockTrackerTest.php`
+  (événement suivi en silence, hebdo ignorée), `tests/Functional/PasseurCandidatesTest.php` (droits, pas de BK,
+  classement exact, repli par sphère, 503, 404).
+- Bridge : `tests/test_passeur.py` (8 tests : liste, exclusions, sphère absente, jeton, mesure, 503, plafond, et le
+  calcul « et si » qui ne touche pas au cache).
+
+### Gates (2026-11-09)
+
+- API : php-cs-fixer, phpstan src+tests, DDD, rector, ParaTest 3704 tests OK.
+- Bridge : pytest 271 OK, ruff OK, mypy (seule l'erreur Windows connue sur `open_unix_connection`).

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Message\NotifySlotUnblockedJob;
@@ -139,13 +141,31 @@ final class SlotBlockTrackerTest extends TestCase
         self::assertSame([], $this->episodes->all);
     }
 
-    public function testAnEventSessionTracksNothing(): void
+    public function testAWeeklySessionTracksNothing(): void
     {
-        $tracker = $this->tracker(null);
+        $tracker = $this->tracker(null, session: Session::create('session-1', 'weekly-run-1', $this->clock->now()));
 
         $tracker->track('session-1', $this->payload(reachableNow: 0));
 
         self::assertSame([], $this->episodes->all);
+    }
+
+    public function testAnEventSessionFollowsItsEpisodesWithoutNotifying(): void
+    {
+        // Story 52.3: the Passeur needs the event's blocks, not the private run's notification nor its recap.
+        $now = $this->clock->now();
+        $event = Event::draft('LAN', 'desc', $now, $now->modify('+2 days'), 'Clermont', 40, $now, $now, true, $now);
+        $tracker = $this->tracker(null, session: Session::create('session-1', $event->getId(), $now), event: $event);
+
+        $tracker->track('session-1', $this->payload(reachableNow: 0));
+        self::assertCount(1, $this->episodes->all);
+        self::assertSame('1', array_values($this->episodes->all)[0]->getSlotIndex());
+
+        $this->clock->sleep(600);
+        $tracker->track('session-1', $this->payload(reachableNow: 3));
+        self::assertSame([], $this->episodes->all);
+        self::assertSame([], $this->bus->messages);
+        self::assertSame([], $this->releases->all);
     }
 
     public function testAnImportedSeedTracksNothing(): void
@@ -177,7 +197,7 @@ final class SlotBlockTrackerTest extends TestCase
     /**
      * @param list<SessionSlot> $slots
      */
-    private function tracker(?Run $run, array $slots = [], ?Session $session = null): SlotBlockTracker
+    private function tracker(?Run $run, array $slots = [], ?Session $session = null, ?Event $event = null): SlotBlockTracker
     {
         $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findBySessionId')->willReturn($run);
@@ -188,7 +208,10 @@ final class SlotBlockTrackerTest extends TestCase
         $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
-        return new SlotBlockTracker($runs, $slotRepository, $sessions, $this->episodes, $this->releases, $this->bus, $this->clock);
+        $events = self::createStub(EventRepositoryInterface::class);
+        $events->method('findById')->willReturn($event);
+
+        return new SlotBlockTracker($runs, $slotRepository, $sessions, $events, $this->episodes, $this->releases, $this->bus, $this->clock);
     }
 
     /** A session that ran, then stopped at that instant. */
