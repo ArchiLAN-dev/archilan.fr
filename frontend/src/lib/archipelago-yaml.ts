@@ -207,6 +207,11 @@ export type FreeformListOption = {
   key: string;
   label: string;
   items: string[];
+  /**
+   * The default lists numbers (an RGB colour such as `link_tunic_color: [30, 105, 27]`): items are edited as text but
+   * written back as numbers. Without it they came back quoted, and the apworld failed on `'30' & 0xFF`.
+   */
+  numeric?: boolean;
   description?: string;
   category?: string;
 };
@@ -549,6 +554,9 @@ function parseFreeformValue(text: string): unknown {
  * opens a YAML flow collection is parsed back. A bare name is returned verbatim, so a location
  * called "12" stays the string "12" instead of being read back as a number.
  */
+/** A list item a numeric list writes back as a number. */
+const NUMBER_ITEM = /^-?\d+(\.\d+)?$/;
+
 function parseFreeformItem(text: string): unknown {
   const trimmed = text.trim();
   if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return trimmed;
@@ -655,6 +663,7 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
     return {
       type: "freeform", kind: "list", key, label,
       items: value.map((i) => (typeof i === "string" ? i : dumpFreeformValue(i))),
+      numeric: value.length > 0 && value.every((i) => typeof i === "number"),
       description,
     };
   }
@@ -1009,7 +1018,11 @@ function serializeOption(opt: GameOption): unknown {
 
   if (opt.type === "freeform") {
     if (opt.kind === "list") {
-      return opt.items.filter((item) => item.trim() !== "").map(parseFreeformItem);
+      const items = opt.items.filter((item) => item.trim() !== "");
+      if (opt.numeric) {
+        return items.map((item) => (NUMBER_ITEM.test(item.trim()) ? Number(item.trim()) : parseFreeformItem(item)));
+      }
+      return items.map(parseFreeformItem);
     }
     const result: Record<string, unknown> = {};
     for (const { k, v } of opt.entries) {
