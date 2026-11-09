@@ -1,9 +1,9 @@
 # Story 52.2 - Créneaux de présence sur l'inscription
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 52 - Le Passeur (`_bmad-output/planning-artifacts/epics/epic-52-passeur.md`)
 **Date:** 2026-11-09
-**Branche:** `feature/epic-52-story-2-creneaux-presence` (depuis `develop`)
+**Branche:** `feature/epic-52-story-2-creneaux-presence` (empilée sur `feature/epic-52-story-1-spike-send-location`, PR #1047)
 **Dépend de:** rien (s'inspire de 51.5 pour l'étape du parcours).
 
 ## Story
@@ -53,7 +53,45 @@ afin que l'orga s'organise et que le Passeur sache quand je suis absent.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1, 4) - Domaine, migration, commandes et requête, endpoints joueur.
-- [ ] **Task 2** (AC 2, 3) - Endpoints admin et frise.
-- [ ] **Task 3** (AC 1) - Encart et formulaire côté joueur.
-- [ ] **Task 4** (AC 8) - Gates verts, Dev Agent Record.
+- [x] **Task 1** (AC 1, 4) - Domaine, migration, commandes et requête, endpoints joueur.
+- [x] **Task 2** (AC 2, 3) - Endpoints admin et frise.
+- [x] **Task 3** (AC 1) - Encart et formulaire côté joueur.
+- [x] **Task 4** (AC 8) - Gates verts, Dev Agent Record.
+
+## Dev Agent Record
+
+### Livré
+
+- **Domaine** : entité `RegistrationPresenceWindow` (table `registration_presence_window`, index
+  `(registration_id, starts_at)`, migration `Version20261109120004` réversible) ; service pur
+  `PresenceSchedule::problem()` avec les codes `presence_window_inverted`, `presence_window_outside_event`,
+  `presence_window_overlap`, `presence_window_too_many` (10 plages au plus). Deux plages qui se touchent sont admises.
+- **Application** : commande `ChoosePresenceWindows` (`asMember`, `asAdmin`) qui remplace la liste entière en une
+  transaction ; `PresenceWindowsQuery` (lecture joueur et admin) ; `PresenceTimelineQueryInterface` avec
+  `timeline(eventId)` et `isOutsideWindows(registrationId, at)` (AC 4 : vrai seulement si au moins une plage existe
+  et qu'aucune ne contient `at`, borne de fin exclue).
+- **Endpoints** : `GET|PUT /api/v1/registrations/{id}/presence`, `GET|PUT
+  /api/v1/admin/events/{eventId}/registrations/{id}/presence`, `GET /api/v1/admin/events/{eventId}/presence`.
+  Le PUT envoie la liste complète (`{windows:[{startsAt,endsAt}]}`), 204 ; refus 422 avec code ; 404 sur
+  l'inscription d'un autre ; `presence_closed` si la place n'est plus réservée ou l'événement terminé (l'admin,
+  lui, modifie toujours).
+- **Front** : encart « Quand es-tu là ? » sur le récapitulatif et la page session de l'inscription (masqué si non
+  modifiable) ; panneau « Présence » sur la fiche d'inscription admin ; page `/admin/evenements/{id}/presences`
+  (« Qui est là quand ») : une ligne par inscrit confirmé, compteur par demi-journée (minuit-midi, midi-minuit,
+  Europe/Paris), lien vers la fiche ; lien « Présences » sur le tableau de bord de l'événement.
+
+### Écart à la story
+
+- La décision 3 cite aussi la page de l'événement : l'encart est sur les pages de l'inscription (récapitulatif et
+  session), où le joueur gère déjà sa place. La page publique de l'événement ne porte pas d'état personnel.
+
+### Tests
+
+- `tests/Unit/Registrations/PresenceScheduleTest.php`, `tests/Functional/RegistrationPresenceTest.php` (CRUD joueur et
+  admin, refus et corps invalides, droits, frise, hors créneau sans plage / dans une plage / entre deux plages).
+- `frontend/src/features/presence/presence.test.tsx` (7 tests : demi-journées, compteurs, rendu, gardes, formulaire).
+
+### Gates (2026-11-09)
+
+- API : php-cs-fixer, phpstan src+tests, DDD, rector, ParaTest 3690 tests OK.
+- Front : typecheck, lint, 1478 tests, build OK.

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarPlus, CheckCircle2, ClipboardList, Eye, Gamepad2, Handshake, House, KeyRound, Pencil, Play, Plus, RotateCcw, Server, ShieldAlert, Shovel, Users, Video } from "lucide-react";
+import { CalendarClock, CalendarPlus, CheckCircle2, ClipboardList, Eye, Gamepad2, Handshake, House, KeyRound, Pencil, Play, Plus, RotateCcw, Server, ShieldAlert, Shovel, Users, Video } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { FormEvent } from "react";
 import Link from "next/link";
@@ -466,6 +466,10 @@ export function EventList({
       <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/sondages`}>
         <ClipboardList aria-hidden="true" className="size-3.5" />
         Sondages
+      </Link>
+      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/presences`}>
+        <CalendarClock aria-hidden="true" className="size-3.5" />
+        Présences
       </Link>
       {event.status !== "draft" ? (
         <button
