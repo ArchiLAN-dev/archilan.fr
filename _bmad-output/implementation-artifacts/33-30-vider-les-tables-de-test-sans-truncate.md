@@ -1,6 +1,6 @@
 # Story 33.30: Vider les tables de test sans TRUNCATE
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 33 - Nettoyage et standards
 **Date:** 2026-11-09
 **Origine :** incident local du 2026-11-09. Après un arrêt brutal de Docker Desktop, Postgres a mis plus de 30 minutes
@@ -45,12 +45,12 @@ checkpointer et à supprimer une base.
 
 ## Tâches
 
-- [ ] Mesurer l'état actuel (fichiers, durées).
-- [ ] Remplacer le `TRUNCATE` par le nettoyage sans fichier, séquences comprises.
-- [ ] Vérifier la suite en série et sur ParaTest.
-- [ ] Mesurer après, noter les chiffres.
-- [ ] Mettre à jour le commentaire et `api/CLAUDE.md` (AC-T8).
-- [ ] Gates verts.
+- [x] Mesurer l'état actuel (fichiers, durées).
+- [x] Remplacer le `TRUNCATE` par le nettoyage sans fichier, séquences comprises.
+- [x] Vérifier la suite en série et sur ParaTest.
+- [x] Mesurer après, noter les chiffres.
+- [x] Mettre à jour le commentaire et `api/CLAUDE.md` (AC-T8).
+- [x] Gates verts.
 
 ## Notes
 
@@ -60,4 +60,33 @@ checkpointer et à supprimer une base.
 
 ## Dev Agent Record
 
-_(à remplir)_
+### Implémentation
+
+`FunctionalTestCase::setUp` envoie en un seul aller-retour :
+- `SET session_replication_role = replica` (les clés étrangères sont des triggers, que `replica` saute) ;
+- un `DELETE FROM` par table ;
+- `SET session_replication_role = DEFAULT`.
+Puis il remet à leur valeur de départ les séquences déjà utilisées, avec `setval(..., start_value, false)`. Le rôle
+superutilisateur nécessaire à `session_replication_role` est déjà celui de la base de test en local et en CI
+(`POSTGRES_USER`). `api/CLAUDE.md` (AC-T8) décrit le nouveau nettoyage et interdit d'y remettre `TRUNCATE`.
+
+### Mesures (2026-11-09, base neuve à chaque passe, cache Symfony préchauffé)
+
+| Passe | Durée | Fichiers sous `base/` après la passe | Checkpoint suivant |
+|---|---|---|---|
+| ParaTest 8 workers, TRUNCATE | 66 s | 778 015 | 509 s |
+| ParaTest 8 workers, DELETE | 44 s | 5 725 | 18 s |
+| Série, TRUNCATE | 407 s | 773 024 | plus de 40 min (encore en cours à la rédaction) |
+| Série, DELETE | 244 s | 759 | 8 s |
+
+Résultat :
+- environ 136 fois moins de fichiers en ParaTest et 1000 fois moins en série ;
+- les suites vont aussi plus vite, 33 % en ParaTest et 40 % en série, au lieu du ralentissement que l'AC tolérait.
+
+Dans les quatre passes, les 3611 tests sont verts, sans notice ni dépréciation.
+
+### Notes
+
+- Une première passe ParaTest à froid a échoué sur le cache Symfony construit par 8 workers à la fois (« Accès
+  refusé » sur les renommages du conteneur) : c'est l'environnement, pas la story. Préchauffer avec
+  `php bin/console cache:warmup --env=test` avant de mesurer.

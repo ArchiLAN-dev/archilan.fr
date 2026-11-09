@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, ChevronLeft, Clock, CreditCard, Lock, Mail
 import Link from "next/link";
 import { use, useEffect, useId, useState, type ReactNode } from "react";
 
+import { AdminRegistrationActions } from "@/features/admin/admin-registration-actions";
 import { AdminGamesEditor, AdminSlotYamlEditor } from "@/features/admin/admin-registration-editor";
 import { AdminNotesPanel } from "@/features/notes/admin-notes-panel";
 import { apiFetch } from "@/lib/apiFetch";
@@ -34,6 +35,9 @@ type RegistrationDetail = {
   usedPrivateAccess: boolean;
   createdAt: string;
   submittedAt: string | null;
+  /** Story 5.10: an admin registered or confirmed on the member's behalf (absent on older payloads). */
+  createdByAdmin?: boolean;
+  confirmedByAdmin?: boolean;
   participant: {
     userId: string;
     displayName: string | null;
@@ -216,7 +220,11 @@ export function AdminRegistrationDetail({
         onSendMessage={handleSendMessage}
         onMessageReset={() => { setMessageState("idle"); }}
         onTriggerSync={handleTriggerSync}
-        onReload={() => { setReloadKey((key) => key + 1); }}
+        onReload={() => {
+          // A reactivated registration is no longer the one cancelled on this screen.
+          setCancelState("idle");
+          setReloadKey((key) => key + 1);
+        }}
         registrationId={registrationId}
         state={state}
       />
@@ -318,6 +326,15 @@ function DetailBody({
           Impossible d&apos;annuler l&apos;inscription. Réessaie.
         </p>
       ) : null}
+      {cancelState === "cancelling" || cancelState === "confirming" ? null : (
+        <AdminRegistrationActions
+          eventId={eventId}
+          onDone={onReload}
+          registrationId={registrationId}
+          status={detail.status}
+          submittedAt={detail.submittedAt}
+        />
+      )}
       <PaymentCard eventId={eventId} payment={detail.payment} syncState={syncState} onTriggerSync={onTriggerSync} />
       <MessageForm messageState={messageState} onReset={onMessageReset} onSubmit={onSendMessage} />
       {editingGames && editable ? (
@@ -408,6 +425,8 @@ function ParticipantCard({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={detail.status} />
+          {detail.createdByAdmin === true ? <AdminOriginBadge label="Créée par un admin" /> : null}
+          {detail.confirmedByAdmin === true ? <AdminOriginBadge label="Confirmée par un admin" /> : null}
           {detail.usedPrivateAccess ? (
             <span className="inline-flex items-center gap-1 rounded border border-accent-warm/40 bg-accent-warm/10 px-2 py-0.5 text-xs font-semibold text-accent-warm">
               <Lock aria-hidden="true" className="size-3" />
@@ -888,6 +907,16 @@ function StatusBadge({ status }: { status: RegistrationDetail["status"] }) {
     <span className="inline-flex items-center gap-1 rounded border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent-text">
       <Shield aria-hidden="true" className="size-3" />
       Réservé
+    </span>
+  );
+}
+
+/** Story 5.10: the registration was made or confirmed by an admin, in the member's place. */
+function AdminOriginBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent-text">
+      <Shield aria-hidden="true" className="size-3" />
+      {label}
     </span>
   );
 }

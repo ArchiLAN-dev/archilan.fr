@@ -8,6 +8,8 @@ use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Registrations\Application\Exception\WarningsToAcknowledgeException;
+use App\Registrations\Application\Support\AdminRegistrationWarning;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Shared\Application\Exception\ConflictException;
 use App\Shared\Application\Exception\NotFoundException;
@@ -28,13 +30,14 @@ final readonly class AdminRegistrationModification
 
     /**
      * Atomically replaces the slot list for a registration.
-     * Input: { slots: [{gameId: string}] }.
+     * Input: { slots: [{gameId: string}], acknowledgeWarnings?: bool }.
      *
      * @param array<string, mixed> $input
      *
-     * @throws NotFoundException   when the registration does not exist for this event
-     * @throws ConflictException   when the registration is no longer modifiable
-     * @throws ValidationException when the slot list is invalid
+     * @throws NotFoundException              when the registration does not exist for this event
+     * @throws ConflictException              when the registration is no longer modifiable
+     * @throws ValidationException            when the slot list is invalid
+     * @throws WarningsToAcknowledgeException when the event's cap or game list is crossed and not acknowledged
      */
     public function update(string $eventId, string $registrationId, string $adminId, array $input): void
     {
@@ -67,15 +70,6 @@ final readonly class AdminRegistrationModification
 
         $slotsInput = $this->parseSlotsInput($input['slots'] ?? null);
         $gameIds = array_column($slotsInput, 'gameId');
-        $errors = $this->validateGameIds($gameIds, $event);
-
-        if ([] !== $errors) {
-            $this->auditLog($eventId, $registrationId, $adminId, 'error');
-
-            throw new ValidationException('La modification contient des erreurs.', $errors, 'invalid_registration_update');
-        }
-
-        $now = $this->clock->now();
 
         /** @var array<string, Game> $gamesById */
         $gamesById = [];
@@ -84,6 +78,29 @@ final readonly class AdminRegistrationModification
                 $gamesById[$game->getId()] = $game;
             }
         }
+
+        $errors = [];
+        foreach ($gameIds as $index => $gameId) {
+            if (!isset($gamesById[$gameId])) {
+                $errors[sprintf('slots.%d.gameId', $index)] = ['Ce jeu n\'existe pas.'];
+            }
+        }
+
+        if ([] !== $errors) {
+            $this->auditLog($eventId, $registrationId, $adminId, 'error');
+
+            throw new ValidationException('La modification contient des erreurs.', $errors, 'invalid_registration_update');
+        }
+
+        // Story 5.10: the event's cap and game list bind members; an admin crosses them once acknowledged.
+        $warnings = $this->warnings($gameIds, $event);
+        $acknowledged = true === ($input['acknowledgeWarnings'] ?? false);
+        if (!$acknowledged && [] !== $warnings) {
+            $this->auditLog($eventId, $registrationId, $adminId, 'warnings_to_acknowledge');
+        }
+        WarningsToAcknowledgeException::unlessAcknowledged($warnings, $acknowledged);
+
+        $now = $this->clock->now();
 
         $diffedSlots = $this->diffSlots($registration->getGameSlots(), $slotsInput, $gamesById);
         $registration->replaceSlots($diffedSlots, $now);
@@ -128,29 +145,24 @@ final readonly class AdminRegistrationModification
     /**
      * @param list<string> $gameIds
      *
-     * @return array<string, list<string>>
+     * @return list<AdminRegistrationWarning>
      */
-    private function validateGameIds(array $gameIds, Event $event): array
+    private function warnings(array $gameIds, Event $event): array
     {
-        $errors = [];
+        $warnings = [];
         $max = $event->getGameSelectionMaxPerRegistrant();
 
         if (null !== $max && count($gameIds) > $max) {
-            $errors['gameIds'] = [sprintf('La sélection ne peut pas dépasser %d jeu(x).', $max)];
-
-            return $errors;
+            $warnings[] = AdminRegistrationWarning::MaxGamesExceeded;
         }
 
         /** @var list<string> $availableIds */
         $availableIds = array_column($event->getGameSelectionConfig(), 'gameId');
-
-        foreach ($gameIds as $index => $gameId) {
-            if (!in_array($gameId, $availableIds, true)) {
-                $errors[sprintf('slots.%d.gameId', $index)] = ['Ce jeu n\'est pas disponible pour cet événement.'];
-            }
+        if ([] !== array_diff($gameIds, $availableIds)) {
+            $warnings[] = AdminRegistrationWarning::GameNotInEvent;
         }
 
-        return $errors;
+        return $warnings;
     }
 
     /**

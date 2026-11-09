@@ -5,6 +5,36 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.59.0] - 2026-11-09
+
+Inscription d'un joueur de bout en bout par un admin, et tests locaux qui n'engorgent plus Postgres. Une migration
+(`Version20261109120000`), aucune variable.
+
+### À faire après le déploiement
+
+- Lancer les migrations (`php bin/console doctrine:migrations:migrate`) : deux colonnes nullables sur `registration`.
+
+### Ajouté
+
+- Un admin peut inscrire un joueur de bout en bout (story 5.10) :
+  - « Inscrire un joueur » depuis la liste des inscriptions, avec recherche de membre ;
+  - « Réactiver l'inscription » sur une inscription annulée, y compris libérée à la clôture, avec ses jeux et
+    leur YAML ;
+  - « Confirmer pour le joueur » sur une inscription non confirmée, avec le mail de confirmation en option.
+- Les règles d'un joueur deviennent des avertissements pour l'admin, à valider avant de continuer :
+  - fenêtre d'inscription, capacité, email non vérifié, événement privé, en brouillon ou en cours ;
+  - nombre de jeux, jeu hors de l'événement, slot sans YAML.
+- Restent bloquants : événement terminé, joueur inconnu ou banni, confirmation sans aucun jeu.
+- Badges « Créée par un admin » et « Confirmée par un admin » dans le détail admin. Chaque action est tracée dans le
+  journal d'audit.
+
+### Modifié
+
+- Tests fonctionnels de l'API : les tables sont vidées par `DELETE` au lieu de `TRUNCATE` (story 33.30).
+  - Une passe locale crée environ 5 700 fichiers Postgres au lieu de 780 000.
+  - Le checkpoint qui suit passe de plus de 8 minutes à moins de 20 secondes.
+  - La suite va environ un tiers plus vite.
+
 ## [0.58.0] - 2026-11-09
 
 Modification des inscriptions par les admins, compteurs de checks et d'items pour les succès et les quêtes, couleurs

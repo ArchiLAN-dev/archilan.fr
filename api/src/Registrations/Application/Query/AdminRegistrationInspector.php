@@ -124,6 +124,9 @@ final readonly class AdminRegistrationInspector
             'usedPrivateAccess' => $privateAccessCount > 0,
             'createdAt' => $registration->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'submittedAt' => $registration->getSubmittedAt()?->format(\DateTimeInterface::ATOM),
+            // Story 5.10: shown to admins only, never on the member's side.
+            'createdByAdmin' => null !== $registration->getCreatedByAdminId(),
+            'confirmedByAdmin' => null !== $registration->getConfirmedByAdminId(),
             'participant' => [
                 'userId' => $registration->getUserId(),
                 'displayName' => $user?->getDisplayName(),
