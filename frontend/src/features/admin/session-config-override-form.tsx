@@ -40,10 +40,12 @@ type FieldDef =
   | { key: string; label: string; section: string; kind: "text"; fallback: string }
   | { key: string; label: string; section: string; kind: "plando"; fallback: string[] };
 
-const SECTION_ORDER = ["Échanges d'objets", "Indices & score", "Indices contre pelles", "Pelles de bronze", "Salle & partie", "Génération"] as const;
+const SECTION_ORDER = ["Échanges d'objets", "Indices & score", "Indices contre pelles", "Pelles de bronze", "Le Passeur", "Salle & partie", "Génération"] as const;
 
 // Story 41.36: the bronze pelles exist in private runs only.
-const BRONZE_KEYS: readonly string[] = ["bronzeStart", "bronzePerCheck", "bronzePerGoal"];
+const BRONZE_KEYS: readonly string[] = ["bronzeStart", "bronzePerCheck", "bronzePerGoal", "passeurAbsenceMinutes"];
+// Story 52.4: the Passeur never runs in a weekly.
+const PASSEUR_KEYS: readonly string[] = ["passeur", "passeurBasePrice", "passeurDecayPercent", "passeurFloorPercent", "passeurSharePercent", "passeurDailyLimit", "passeurAbsenceMinutes"];
 
 // A run-specific join password proposed when the override is enabled (admins/owners can edit it).
 function randomPassword(): string {
@@ -75,6 +77,13 @@ const FIELDS: FieldDef[] = [
   { key: "bronzeStart", label: "Bronze au lancement (0 coupe ce gain)", section: "Pelles de bronze", kind: "int", min: 0, max: 1000, fallback: 20 },
   { key: "bronzePerCheck", label: "Bronze par check (0 coupe ce gain)", section: "Pelles de bronze", kind: "int", min: 0, max: 1000, fallback: 1 },
   { key: "bronzePerGoal", label: "Bronze au goal (0 coupe ce gain)", section: "Pelles de bronze", kind: "int", min: 0, max: 1000, fallback: 25 },
+  { key: "passeur", label: "Activer le Passeur", section: "Le Passeur", kind: "bool", fallback: false },
+  { key: "passeurBasePrice", label: "Prix de départ (pelles)", section: "Le Passeur", kind: "int", min: 1, max: 1000, fallback: 60 },
+  { key: "passeurDecayPercent", label: "Baisse par quart d'heure de BK (%)", section: "Le Passeur", kind: "int", min: 0, max: 100, fallback: 10 },
+  { key: "passeurFloorPercent", label: "Prix plancher (%)", section: "Le Passeur", kind: "int", min: 0, max: 100, fallback: 40 },
+  { key: "passeurSharePercent", label: "Part de l'absent (%)", section: "Le Passeur", kind: "int", min: 0, max: 100, fallback: 50 },
+  { key: "passeurDailyLimit", label: "Ouvertures par monde absent et par jour", section: "Le Passeur", kind: "int", min: 1, max: 100, fallback: 5 },
+  { key: "passeurAbsenceMinutes", label: "Absent après (minutes sans client)", section: "Le Passeur", kind: "int", min: 15, max: 1440, fallback: 120 },
   { key: "countdownMode", label: "Compte à rebours (!countdown)", section: "Salle & partie", kind: "select", options: COUNTDOWN_MODES, labels: CD, fallback: "auto" },
   { key: "disableItemCheat", label: "Interdire la triche d'objets (!getitem)", section: "Salle & partie", kind: "bool", fallback: true },
   { key: "compatibility", label: "Compatibilité", section: "Salle & partie", kind: "intselect", options: COMPATIBILITY_VALUES, labels: COMPAT, fallback: 2 },
@@ -104,16 +113,21 @@ export function SessionConfigOverrideForm({
   scopeLabel,
   lockedKeys = [],
   showBronze = false,
+  showPasseur = true,
 }: {
   adapter: OverrideAdapter;
   scopeLabel: string;
   // Story 41.36: the bronze settings, for a private run only.
   showBronze?: boolean;
+  // Story 52.4: the Passeur settings, everywhere but a weekly.
+  showPasseur?: boolean;
   // Field keys the current scope may not override (e.g. autoShutdown for private-run owners - it is
   // locked to the admin "private" type profile). Hidden entirely; the server is the authoritative gate.
   lockedKeys?: readonly string[];
 }) {
-  const fields = FIELDS.filter((f) => !lockedKeys.includes(f.key) && (showBronze || !BRONZE_KEYS.includes(f.key)));
+  const fields = FIELDS.filter(
+    (f) => !lockedKeys.includes(f.key) && (showBronze || !BRONZE_KEYS.includes(f.key)) && (showPasseur || !PASSEUR_KEYS.includes(f.key)),
+  );
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: adapter.queryKey,
@@ -364,6 +378,13 @@ function flattenProfile(c: SessionConfig): Record<string, OverrideValue> {
     bronzePerCheck: c.server.bronzePerCheck,
     bronzePerGoal: c.server.bronzePerGoal,
     spheresVisible: c.server.spheresVisible,
+    passeur: c.server.passeur,
+    passeurBasePrice: c.server.passeurBasePrice,
+    passeurDecayPercent: c.server.passeurDecayPercent,
+    passeurFloorPercent: c.server.passeurFloorPercent,
+    passeurSharePercent: c.server.passeurSharePercent,
+    passeurDailyLimit: c.server.passeurDailyLimit,
+    passeurAbsenceMinutes: c.server.passeurAbsenceMinutes,
     plandoOptions: c.generation.plandoOptions,
     race: c.generation.race,
     spoiler: c.generation.spoiler,

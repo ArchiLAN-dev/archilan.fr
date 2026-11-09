@@ -43,6 +43,13 @@ final readonly class SessionConfig
         $server['bronzePerCheck'] = $this->server->bronzePerCheck;
         $server['bronzePerGoal'] = $this->server->bronzePerGoal;
         $server['spheresVisible'] = $this->server->spheresVisible;
+        $server['passeur'] = $this->server->passeur;
+        $server['passeurBasePrice'] = $this->server->passeurBasePrice;
+        $server['passeurDecayPercent'] = $this->server->passeurDecayPercent;
+        $server['passeurFloorPercent'] = $this->server->passeurFloorPercent;
+        $server['passeurSharePercent'] = $this->server->passeurSharePercent;
+        $server['passeurDailyLimit'] = $this->server->passeurDailyLimit;
+        $server['passeurAbsenceMinutes'] = $this->server->passeurAbsenceMinutes;
 
         return [
             'server' => $server,
@@ -93,6 +100,14 @@ final readonly class SessionConfig
                 bronzePerGoal: self::optInt($server, 'bronzePerGoal') ?? SessionServerConfig::DEFAULT_BRONZE_PER_GOAL,
                 // A profile stored before story 27.12 carries none: spheres are visible by default.
                 spheresVisible: self::optBool($server, 'spheresVisible') ?? true,
+                // Story 52.4: a profile stored before carries none.
+                passeur: self::optBool($server, 'passeur') ?? false,
+                passeurBasePrice: self::optInt($server, 'passeurBasePrice') ?? SessionServerConfig::DEFAULT_PASSEUR_BASE_PRICE,
+                passeurDecayPercent: self::optInt($server, 'passeurDecayPercent') ?? SessionServerConfig::DEFAULT_PASSEUR_DECAY_PERCENT,
+                passeurFloorPercent: self::optInt($server, 'passeurFloorPercent') ?? SessionServerConfig::DEFAULT_PASSEUR_FLOOR_PERCENT,
+                passeurSharePercent: self::optInt($server, 'passeurSharePercent') ?? SessionServerConfig::DEFAULT_PASSEUR_SHARE_PERCENT,
+                passeurDailyLimit: self::optInt($server, 'passeurDailyLimit') ?? SessionServerConfig::DEFAULT_PASSEUR_DAILY_LIMIT,
+                passeurAbsenceMinutes: self::optInt($server, 'passeurAbsenceMinutes') ?? SessionServerConfig::DEFAULT_PASSEUR_ABSENCE_MINUTES,
             ),
             new SessionGenerationConfig(
                 $plando,
@@ -278,6 +293,13 @@ final readonly class SessionConfig
                 bronzePerCheck: $o->bronzePerCheck ?? $this->server->bronzePerCheck,
                 bronzePerGoal: $o->bronzePerGoal ?? $this->server->bronzePerGoal,
                 spheresVisible: $o->spheresVisible ?? $this->server->spheresVisible,
+                passeur: $o->passeur ?? $this->server->passeur,
+                passeurBasePrice: $o->passeurBasePrice ?? $this->server->passeurBasePrice,
+                passeurDecayPercent: $o->passeurDecayPercent ?? $this->server->passeurDecayPercent,
+                passeurFloorPercent: $o->passeurFloorPercent ?? $this->server->passeurFloorPercent,
+                passeurSharePercent: $o->passeurSharePercent ?? $this->server->passeurSharePercent,
+                passeurDailyLimit: $o->passeurDailyLimit ?? $this->server->passeurDailyLimit,
+                passeurAbsenceMinutes: $o->passeurAbsenceMinutes ?? $this->server->passeurAbsenceMinutes,
             ),
             new SessionGenerationConfig(
                 plandoOptions: $o->plandoOptions ?? $this->generation->plandoOptions,

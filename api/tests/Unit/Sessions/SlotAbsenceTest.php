@@ -34,7 +34,7 @@ final class SlotAbsenceTest extends TestCase
             outsideWindows: ['reg-bob' => true, 'reg-carol' => true, 'reg-dave' => false],
         );
 
-        self::assertSame([2], $absence->absentSlots($this->session(), null, $this->now));
+        self::assertSame([2], $absence->absentSlots($this->session(), null, $this->now, 7200));
     }
 
     public function testInAPrivateRunAPlayerOfflineForTwoHoursIsAbsent(): void
@@ -46,7 +46,7 @@ final class SlotAbsenceTest extends TestCase
         );
         $run = Run::create('owner-1', 'Ma run', $this->now->modify('-1 day'));
 
-        self::assertSame([2, 4], $absence->absentSlots($this->session(launchedAt: $this->now->modify('-3 hours')), $run, $this->now));
+        self::assertSame([2, 4], $absence->absentSlots($this->session(launchedAt: $this->now->modify('-3 hours')), $run, $this->now, 7200));
     }
 
     public function testInAPrivateRunASlotNeverPlayedWaitsForTheDelayFromTheLaunch(): void
@@ -54,7 +54,7 @@ final class SlotAbsenceTest extends TestCase
         $absence = $this->absence(lastSeen: ['Alice' => $this->now, 'Bob' => $this->now, 'Carol' => $this->now], outsideWindows: []);
         $run = Run::create('owner-1', 'Ma run', $this->now->modify('-1 day'));
 
-        self::assertSame([], $absence->absentSlots($this->session(launchedAt: $this->now->modify('-90 minutes')), $run, $this->now));
+        self::assertSame([], $absence->absentSlots($this->session(launchedAt: $this->now->modify('-90 minutes')), $run, $this->now, 7200));
     }
 
     /**

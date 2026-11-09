@@ -41,6 +41,8 @@ final readonly class NotificationPreferenceService
         // Story 51.3: a survey of one of the member's events opened, or is waiting for their answer.
         'survey_opened' => NotificationChannel::BellAndPush,
         'survey_reminder' => NotificationChannel::BellAndPush,
+        // Story 52.4: the Passeur opened a chest of the member's world while they were away.
+        'passeur_opened' => NotificationChannel::BellAndPush,
     ];
 
     /**

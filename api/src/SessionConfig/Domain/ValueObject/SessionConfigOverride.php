@@ -42,6 +42,13 @@ final readonly class SessionConfigOverride
         public ?int $bronzePerCheck = null,
         public ?int $bronzePerGoal = null,
         public ?bool $spheresVisible = null,
+        public ?bool $passeur = null,
+        public ?int $passeurBasePrice = null,
+        public ?int $passeurDecayPercent = null,
+        public ?int $passeurFloorPercent = null,
+        public ?int $passeurSharePercent = null,
+        public ?int $passeurDailyLimit = null,
+        public ?int $passeurAbsenceMinutes = null,
     ) {
     }
 
@@ -73,6 +80,13 @@ final readonly class SessionConfigOverride
             bronzePerCheck: $c->server->bronzePerCheck,
             bronzePerGoal: $c->server->bronzePerGoal,
             spheresVisible: $c->server->spheresVisible,
+            passeur: $c->server->passeur,
+            passeurBasePrice: $c->server->passeurBasePrice,
+            passeurDecayPercent: $c->server->passeurDecayPercent,
+            passeurFloorPercent: $c->server->passeurFloorPercent,
+            passeurSharePercent: $c->server->passeurSharePercent,
+            passeurDailyLimit: $c->server->passeurDailyLimit,
+            passeurAbsenceMinutes: $c->server->passeurAbsenceMinutes,
         );
     }
 
@@ -143,6 +157,14 @@ final readonly class SessionConfigOverride
         if (null !== $this->spheresVisible) {
             $out['spheresVisible'] = $this->spheresVisible;
         }
+        if (null !== $this->passeur) {
+            $out['passeur'] = $this->passeur;
+        }
+        foreach (['passeurBasePrice' => $this->passeurBasePrice, 'passeurDecayPercent' => $this->passeurDecayPercent, 'passeurFloorPercent' => $this->passeurFloorPercent, 'passeurSharePercent' => $this->passeurSharePercent, 'passeurDailyLimit' => $this->passeurDailyLimit, 'passeurAbsenceMinutes' => $this->passeurAbsenceMinutes] as $key => $value) {
+            if (null !== $value) {
+                $out[$key] = $value;
+            }
+        }
 
         return $out;
     }
@@ -188,6 +210,13 @@ final readonly class SessionConfigOverride
             bronzePerCheck: self::bounded($data, 'bronzePerCheck', 0, SessionServerConfig::MAX_BRONZE_AMOUNT, 'invalid_bronze_amount'),
             bronzePerGoal: self::bounded($data, 'bronzePerGoal', 0, SessionServerConfig::MAX_BRONZE_AMOUNT, 'invalid_bronze_amount'),
             spheresVisible: isset($data['spheresVisible']) && is_bool($data['spheresVisible']) ? $data['spheresVisible'] : null,
+            passeur: isset($data['passeur']) && is_bool($data['passeur']) ? $data['passeur'] : null,
+            passeurBasePrice: self::bounded($data, 'passeurBasePrice', 1, SessionServerConfig::MAX_PELLE_HINT_PRICE, 'invalid_passeur_setting'),
+            passeurDecayPercent: self::bounded($data, 'passeurDecayPercent', 0, 100, 'invalid_passeur_setting'),
+            passeurFloorPercent: self::bounded($data, 'passeurFloorPercent', 0, 100, 'invalid_passeur_setting'),
+            passeurSharePercent: self::bounded($data, 'passeurSharePercent', 0, 100, 'invalid_passeur_setting'),
+            passeurDailyLimit: self::bounded($data, 'passeurDailyLimit', 1, SessionServerConfig::MAX_PASSEUR_DAILY_LIMIT, 'invalid_passeur_setting'),
+            passeurAbsenceMinutes: self::bounded($data, 'passeurAbsenceMinutes', SessionServerConfig::MIN_PASSEUR_ABSENCE_MINUTES, SessionServerConfig::MAX_PASSEUR_ABSENCE_MINUTES, 'invalid_passeur_setting'),
         );
     }
 
@@ -232,6 +261,13 @@ final readonly class SessionConfigOverride
             && null === $this->bronzeStart
             && null === $this->bronzePerCheck
             && null === $this->bronzePerGoal
-            && null === $this->spheresVisible;
+            && null === $this->spheresVisible
+            && null === $this->passeur
+            && null === $this->passeurBasePrice
+            && null === $this->passeurDecayPercent
+            && null === $this->passeurFloorPercent
+            && null === $this->passeurSharePercent
+            && null === $this->passeurDailyLimit
+            && null === $this->passeurAbsenceMinutes;
     }
 }

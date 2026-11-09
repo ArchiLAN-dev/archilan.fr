@@ -41,4 +41,8 @@ enum PelleReason: string
     case BlindTest = 'blind_test';
     // Story 49.3: a Minimapperz game played (or won) at the LAN of an event, read from Minimapperz's API.
     case Minimapperz = 'minimapperz';
+    // Story 52.4: the Passeur opens an absent player's chest for a blocked one; the absent gets a share.
+    case PasseurPurchase = 'passeur_purchase';
+    case PasseurRefund = 'passeur_refund';
+    case PasseurShare = 'passeur_share';
 }

@@ -219,6 +219,22 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
         </div>
       </Section>
 
+      {type !== "weekly" ? (
+        <Section description="Ouvrir le coffre d'un joueur absent pour débloquer un joueur en BK, contre des pelles (jamais en hebdo)." title="Le Passeur">
+          <SwitchRow checked={server.passeur} description={sessionConfigHelp.passeur} label="Activer le Passeur" onChange={(c) => patchServer({ passeur: c })} />
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <NumberField hint={sessionConfigHelp.passeurBasePrice} label="Prix de départ (pelles)" max={1000} min={1} onChange={(n) => patchServer({ passeurBasePrice: n })} value={server.passeurBasePrice} />
+            <NumberField hint={sessionConfigHelp.passeurDecayPercent} label="Baisse par quart d'heure (%)" max={100} min={0} onChange={(n) => patchServer({ passeurDecayPercent: n })} value={server.passeurDecayPercent} />
+            <NumberField hint={sessionConfigHelp.passeurFloorPercent} label="Plancher (%)" max={100} min={0} onChange={(n) => patchServer({ passeurFloorPercent: n })} value={server.passeurFloorPercent} />
+            <NumberField hint={sessionConfigHelp.passeurSharePercent} label="Part de l'absent (%)" max={100} min={0} onChange={(n) => patchServer({ passeurSharePercent: n })} value={server.passeurSharePercent} />
+            <NumberField hint={sessionConfigHelp.passeurDailyLimit} label="Ouvertures par monde et par jour" max={100} min={1} onChange={(n) => patchServer({ passeurDailyLimit: n })} value={server.passeurDailyLimit} />
+            {type === "private" ? (
+              <NumberField hint={sessionConfigHelp.passeurAbsenceMinutes} label="Absent après (minutes)" max={1440} min={15} onChange={(n) => patchServer({ passeurAbsenceMinutes: n })} value={server.passeurAbsenceMinutes} />
+            ) : null}
+          </div>
+        </Section>
+      ) : null}
+
       {type === "private" ? (
         <Section description="Monnaie propre à chaque partie privée, brûlée à sa fin. L'or reste pour la boutique." title="Pelles de bronze">
           <div className="grid gap-4 sm:grid-cols-3">
