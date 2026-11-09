@@ -5,6 +5,36 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.60.0] - 2026-11-09
+
+Sondages par événement (epic 51) : l'orga pose ses questions avant ou après l'événement, et à l'inscription.
+Trois migrations (`Version20261109120001` à `Version20261109120003`), aucune variable.
+
+### À faire après le déploiement
+
+- Lancer les migrations (`php bin/console doctrine:migrations:migrate`) : tables `survey`, `survey_question`,
+  `survey_option`, `survey_participation`, `survey_response`, `survey_answer` et colonnes de suivi des annonces.
+- Vérifier que le worker `async` et le scheduler tournent : le passage des sondages (annonces et relances) part
+  toutes les 10 minutes. Au premier passage, tout sondage déjà publié et ouvert est annoncé.
+
+### Ajouté
+
+- Sondages d'événement côté admin (stories 51.1 et 51.4) :
+  - création depuis le tableau de bord de l'événement : titre, intro, période, public (inscrits, participants,
+    à l'inscription), anonymat, envoi par mail ;
+  - questions à choix unique ou multiple, texte libre, note sur 5, obligatoires ou non ;
+  - résultats : répartition des réponses, textes libres (anonymes triés, affichés à partir de 3 réponses),
+    répondants et non-répondants pour un sondage nominatif ;
+  - bloc « Sondages » sur la fiche d'une inscription.
+- Les joueurs répondent (story 51.2) : encart sur la page de l'événement, page de réponse, réponses modifiables
+  jusqu'à la fermeture (sauf sondage anonyme).
+- Annonces et relances (story 51.3) : notification (cloche, push) et mail à l'ouverture, relance automatique
+  48 h avant la fermeture (au milieu de la période si elle dure moins de 4 jours), relance manuelle limitée à une
+  par 24 h, réservées à ceux qui n'ont pas répondu. Deux nouveaux types de notification réglables.
+- Questions à l'inscription (story 51.5) : étape « Questions » dans le parcours, entre les jeux et le
+  récapitulatif, quand l'orga en pose ; la confirmation attend les réponses obligatoires. Les inscriptions déjà
+  confirmées et celles faites par un admin ne sont pas bloquées.
+
 ## [0.59.0] - 2026-11-09
 
 Inscription d'un joueur de bout en bout par un admin, et tests locaux qui n'engorgent plus Postgres. Une migration
