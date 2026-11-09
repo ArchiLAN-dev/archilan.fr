@@ -16,6 +16,7 @@ import {
   type PaymentSummary,
   type RegistrationStatusFilter,
 } from "./admin-registration-api";
+import { AdminRegisterMember } from "./admin-register-member";
 import { BroadcastScreenLinks } from "./broadcast-screen-links";
 
 // ─── Page state ──────────────────────────────────────────────────────────────
@@ -268,7 +269,8 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
             {state.total} inscription{state.total !== 1 ? "s" : ""}
           </span>
         ) : null}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <AdminRegisterMember eventId={eventId} />
           <button
             className="inline-flex min-h-9 items-center justify-center gap-2 rounded border border-border px-3 text-sm font-semibold text-foreground hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
             disabled={exporting}

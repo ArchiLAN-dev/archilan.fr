@@ -12,6 +12,7 @@ import {
   adminSlotYamlUrl,
   saveAdminRegistrationGames,
 } from "./admin-registration-api";
+import { AdminWarningsDialog, useAcknowledgedAction } from "./admin-warnings";
 
 /** A slot in the admin's draft: an existing slot keeps its id (and its YAML), a new one gets a local key. */
 export type DraftSlot = { key: string; gameId: string; gameName: string };
@@ -21,9 +22,9 @@ export function addableGames(games: AvailableGame[]): AvailableGame[] {
   return games.filter((game) => game.disabled !== true);
 }
 
-/** Room for one more game under the event's cap (none means no cap). */
-export function canAddGame(draft: DraftSlot[], max: number | null): boolean {
-  return max === null || draft.length < max;
+/** Story 5.10: the draft already holds the event's cap (none means no cap); an admin may go past it, with a warning. */
+export function isAtCap(draft: DraftSlot[], max: number | null): boolean {
+  return max !== null && draft.length >= max;
 }
 
 type GamesEditorProps = {
@@ -40,8 +41,10 @@ export function AdminGamesEditor({ eventId, registrationId, slots, onClose, onSa
     slots.map((slot) => ({ key: slot.slotId, gameId: slot.gameId, gameName: slot.gameName })),
   );
   const [picked, setPicked] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const saving = useAcknowledgedAction(
+    (acknowledgeWarnings) => saveAdminRegistrationGames(eventId, registrationId, draft.map((slot) => slot.gameId), acknowledgeWarnings),
+    () => { onSaved(); },
+  );
 
   const selectionQuery = useQuery({
     queryKey: ["admin-registration-selection", eventId, registrationId],
@@ -65,17 +68,6 @@ export function AdminGamesEditor({ eventId, registrationId, slots, onClose, onSa
     setPicked("");
   }
 
-  async function save() {
-    setSaving(true);
-    setError(null);
-    const result = await saveAdminRegistrationGames(eventId, registrationId, draft.map((slot) => slot.gameId));
-    setSaving(false);
-    if (!result.ok) {
-      setError(result.message);
-      return;
-    }
-    onSaved();
-  }
 
   return (
     <section aria-label="Modifier les jeux" className="grid gap-4 border border-accent/40 bg-surface p-5">
@@ -120,7 +112,7 @@ export function AdminGamesEditor({ eventId, registrationId, slots, onClose, onSa
       ) : null}
 
       {selection ? (
-        canAddGame(draft, max) ? (
+        <div className="grid gap-2">
           <div className="flex flex-col gap-2 sm:flex-row">
             <label className="sr-only" htmlFor="admin-add-game">Jeu à ajouter</label>
             <select
@@ -144,21 +136,33 @@ export function AdminGamesEditor({ eventId, registrationId, slots, onClose, onSa
               Ajouter
             </button>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">Maximum atteint ({max} jeu(x) par inscription).</p>
-        )
+          {isAtCap(draft, max) ? (
+            <p className="text-sm text-accent-warm">
+              Maximum joueur atteint ({max} jeu(x) par inscription) : au-delà, un avertissement te sera demandé.
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
-      {error ? <p className="text-sm text-danger" role="alert">{error}</p> : null}
+      {saving.error ? <p className="text-sm text-danger" role="alert">{saving.error}</p> : null}
+      {saving.warnings ? (
+        <AdminWarningsDialog
+          busy={saving.busy}
+          confirmLabel="Enregistrer quand même"
+          onCancel={saving.dismiss}
+          onConfirm={saving.confirm}
+          warnings={saving.warnings}
+        />
+      ) : null}
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <button
           className="inline-flex min-h-11 items-center justify-center rounded border border-accent bg-accent px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
-          disabled={saving}
-          onClick={() => void save()}
+          disabled={saving.busy}
+          onClick={saving.run}
           type="button"
         >
-          {saving ? "Enregistrement..." : "Enregistrer les jeux"}
+          {saving.busy ? "Enregistrement..." : "Enregistrer les jeux"}
         </button>
         <button
           className="inline-flex min-h-11 items-center justify-center rounded border border-border px-4 text-sm text-foreground"
