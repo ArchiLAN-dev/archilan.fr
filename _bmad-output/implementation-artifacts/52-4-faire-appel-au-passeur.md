@@ -30,7 +30,7 @@ afin de reprendre ma partie sans attendre son arrivée.
    l'entier supérieur. L'attente compte depuis le début du BK **en cours** : une sortie de BK (le joueur a reçu de
    quoi avancer) remet le prix au plein tarif. Un épisode clos par un redémarrage du serveur (40.3) puis rouvert
    sans aucun objet reçu entre les deux compte comme le même BK, pour qu'une relance ne pénalise pas le joueur
-   (proposé, à confirmer par Jean). Le prix affiché est celui débité (recalculé au moment de l'achat ; écart refusé avec 409
+   (validé par Jean le 2026-11-10). Le prix affiché est celui débité (recalculé au moment de l'achat ; écart refusé avec 409
    `passeur_price_changed` pour que le joueur confirme le nouveau prix).
 3. **Part de l'absent** : 50 % du prix payé (arrondi à l'inférieur) versés à l'absent dans la même monnaie ; le
    reste est détruit. Jamais de création de pelles.
@@ -114,5 +114,13 @@ afin de reprendre ma partie sans attendre son arrivée.
 **Effets de bord connus** : en partie privée, le check ouvert pour l'absent lui crédite aussi son bronze par check ;
 une prime ouverte sur l'objet est versée à l'absent (c'est lui qui l'a « envoyé »).
 
-**Non fait, en attente de Jean** : continuité d'un BK à travers un redémarrage du serveur (un épisode fermé par le
-redémarrage puis rouvert sans objet reçu entre-temps compterait comme le même BK, donc le même prix décroissant).
+**Continuité du BK après redémarrage (validée par Jean le 2026-11-10, branche feature/epic-52-story-4-bk-apres-redemarrage)** :
+- migration `Version20261110100000` : `items_received`, `suspended_at`, `resumed_at` sur `session_slot_block` ;
+- l'état inconnu du bridge (démarrage) suspend l'épisode au lieu de le fermer ; un épisode non confirmé depuis le
+  dernier arrêt de la session (40.3, état inconnu manqué) est traité pareil ;
+- au premier état suivant : bloqué sans objet reçu depuis (`items_received` inchangé) = même BK, début conservé
+  (`Resume`) ; bloqué avec un objet reçu = nouveau BK à partir de maintenant (`Reopen`) ; débloqué ou terminé =
+  fermeture silencieuse, comme en 40.3 ;
+- un BK repris est confirmé : en partie privée, sa sortie notifie à nouveau (récap avec le début d'origine) ;
+- un BK suspendu n'ouvre pas le Passeur tant que l'état suivant ne l'a pas confirmé ;
+- tests : SlotBlockRuleTest (+2), SlotBlockTrackerTest (+3), PasseurCandidatesTest (+1).
