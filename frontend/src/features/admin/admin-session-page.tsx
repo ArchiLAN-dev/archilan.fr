@@ -59,6 +59,7 @@ import {
 import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generation-failure-notice";
 import { PasseurJournal } from "@/features/passeur/passeur-journal";
 import { DeparturesPanel } from "@/features/departures/departures";
+import { DependencyMapPanel } from "@/features/dependencies/dependency-map";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -426,6 +427,10 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
           ) : null}
         </div>
       )}
+      {/* Story 52.7: before the launch, who risks waiting for whom in each generation. */}
+      <div className="mt-6">
+        <DependencyMapPanel eventId={eventId} />
+      </div>
       {/* Story 52.5: every call to the Passeur during the event. */}
       <div className="mt-6">
         <PasseurJournal scope={{ kind: "event", eventId }} />
