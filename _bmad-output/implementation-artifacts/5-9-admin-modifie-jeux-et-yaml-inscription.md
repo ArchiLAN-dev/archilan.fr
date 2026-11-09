@@ -1,6 +1,6 @@
 # Story 5.9: L'admin modifie les jeux et le YAML d'une inscription
 
-**Status:** review
+**Status:** done
 **Epic:** 5 - Administration des inscriptions
 **Date:** 2026-11-09
 **Origine :** demande de Jean le 2026-11-09 : « j'aimerais que les admins puissent modifier les inscriptions des

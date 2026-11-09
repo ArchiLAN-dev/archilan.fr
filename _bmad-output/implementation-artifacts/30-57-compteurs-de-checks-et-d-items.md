@@ -1,6 +1,6 @@
 # Story 30.57: Compteurs de checks et d'items pour les succès
 
-**Status:** review
+**Status:** done
 **Epic:** 30 - Communauté
 **Date:** 2026-11-08
 

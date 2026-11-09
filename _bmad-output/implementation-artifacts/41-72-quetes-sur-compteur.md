@@ -1,6 +1,6 @@
 # Story 41.72: Objectifs de quête sur un compteur de checks ou d'items
 
-**Status:** review
+**Status:** done
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-11-08
 
