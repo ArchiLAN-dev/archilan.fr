@@ -48,6 +48,7 @@ import { sessionSlotUrl, usePelleHintOffers } from "@/features/wallet/pelle-hint
 import type { PersonalRun } from "./types";
 import { fetchSessionConnection } from "@/features/events/events-api";
 import { ImportedSeedNote, ReachabilityComputingNote } from "@/features/reachability/reachability-notes";
+import { adminCommand, rawAdminCommand } from "@/lib/archipelago-command";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -691,7 +692,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: `!admin /hint ${state.data.player} ${itemName}` }),
+          body: JSON.stringify({ command: adminCommand("hint", state.data.player, itemName) }),
         },
       );
       if (!res.ok) throw new Error(`hint item failed: ${res.status}`);
@@ -1087,9 +1088,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
                             className="inline-flex w-full items-center justify-center gap-2 rounded border border-border bg-surface-2 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-accent hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
                             disabled={actionLoading !== null}
                             onClick={() => {
-                              const cmd = (action.id === "allow_release" || action.id === "forbid_release")
-                                ? `!admin /${action.id}`
-                                : `!admin /${action.id} ${state.data.player}`;
+                              // Raw server commands: the slot name is the rest of the line, never quoted.
+                              const cmd = rawAdminCommand(action.id, state.data.player);
                               void sendBridgeCommand(cmd, action.id);
                             }}
                             type="button"
@@ -1166,8 +1166,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
                           disabled={!canSubmit || actionLoading !== null}
                           onClick={() => {
                             const cmd = itemQty > 1
-                              ? `!admin /send_multiple ${itemQty} ${itemSearch.trim()} ${state.data.player}`
-                              : `!admin /send ${state.data.player} ${itemSearch.trim()}`;
+                              ? adminCommand("send_multiple", itemQty, state.data.player, itemSearch.trim())
+                              : adminCommand("send", state.data.player, itemSearch.trim());
                             void sendBridgeCommand(cmd, "send_item");
                           }}
                           type="button"
@@ -1231,7 +1231,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
                         <button
                           className="inline-flex items-center gap-2 rounded border border-border bg-surface-2 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-accent hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
                           disabled={!canSubmit || actionLoading !== null}
-                          onClick={() => { void sendBridgeCommand(`!admin /send_location ${state.data.player} ${locationSearch.trim()}`, "send_location"); }}
+                          onClick={() => { void sendBridgeCommand(adminCommand("send_location", state.data.player, locationSearch.trim()), "send_location"); }}
                           type="button"
                         >
                           {isLoading
@@ -1264,7 +1264,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
                     <button
                       className="inline-flex items-center gap-2 rounded border border-border bg-surface-2 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-accent hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={aliasInput.trim().length === 0 || actionLoading !== null}
-                      onClick={() => { void sendBridgeCommand(`!admin /alias ${state.data.player} ${aliasInput.trim()}`, "alias"); }}
+                      onClick={() => { void sendBridgeCommand(rawAdminCommand("alias", `${state.data.player} ${aliasInput.trim()}`), "alias"); }}
                       type="button"
                     >
                       {actionLoading === "alias"

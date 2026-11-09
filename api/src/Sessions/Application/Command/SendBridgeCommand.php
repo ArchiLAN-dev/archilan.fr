@@ -91,7 +91,9 @@ final readonly class SendBridgeCommand
 
     private function maybeMarkSlotReleased(string $sessionId, string $command): void
     {
-        if (1 !== preg_match('/^!admin\s+\/(collect|release|forfeit)\s+(\S+)/i', $command, $matches)) {
+        // These server commands read the rest of the line as the player name (`mark_raw` in
+        // Archipelago): a name with spaces, as an imported seed may have, is the whole rest.
+        if (1 !== preg_match('/^!admin\s+\/(collect|release|forfeit)\s+(.+?)\s*$/i', $command, $matches)) {
             return;
         }
 

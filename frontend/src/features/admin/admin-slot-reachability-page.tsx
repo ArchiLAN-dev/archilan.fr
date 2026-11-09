@@ -20,6 +20,7 @@ import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/fea
 import { HINT_STATUS_NAMES, REACHABILITY_INVALID_MESSAGE, REACHABILITY_RETRY_MS, isHintsUpdate, isReachabilityData, reachableAnswerOf } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { SlotSwitcher } from "./admin-slot-switcher";
+import { adminCommand, rawAdminCommand } from "@/lib/archipelago-command";
 
 type PageState =
   | { kind: "idle" }
@@ -467,7 +468,7 @@ export function AdminSlotReachabilityPage({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: `!admin /hint ${state.data.player} ${itemName}` }),
+          body: JSON.stringify({ command: adminCommand("hint", state.data.player, itemName) }),
         },
       );
       if (!res.ok) throw new Error(`hint item failed: ${res.status}`);
@@ -784,9 +785,8 @@ export function AdminSlotReachabilityPage({
                             className="inline-flex w-full items-center justify-center gap-2 rounded border border-border bg-surface-2 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-accent hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
                             disabled={actionLoading !== null}
                             onClick={() => {
-                              const cmd = (action.id === "allow_release" || action.id === "forbid_release")
-                                ? `!admin /${action.id}`
-                                : `!admin /${action.id} ${state.data.player}`;
+                              // Raw server commands: the slot name is the rest of the line, never quoted.
+                              const cmd = rawAdminCommand(action.id, state.data.player);
                               void sendBridgeCommand(cmd, action.id);
                             }}
                             type="button"
@@ -863,8 +863,8 @@ export function AdminSlotReachabilityPage({
                           disabled={!canSubmit || actionLoading !== null}
                           onClick={() => {
                             const cmd = itemQty > 1
-                              ? `!admin /send_multiple ${itemQty} ${state.data.player} ${itemSearch.trim()}`
-                              : `!admin /send ${state.data.player} ${itemSearch.trim()}`;
+                              ? adminCommand("send_multiple", itemQty, state.data.player, itemSearch.trim())
+                              : adminCommand("send", state.data.player, itemSearch.trim());
                             void sendBridgeCommand(cmd, "send_item");
                           }}
                           type="button"
@@ -928,7 +928,7 @@ export function AdminSlotReachabilityPage({
                         <button
                           className="inline-flex items-center gap-2 rounded border border-border bg-surface-2 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-accent hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
                           disabled={!canSubmit || actionLoading !== null}
-                          onClick={() => { void sendBridgeCommand(`!admin /send_location ${state.data.player} ${locationSearch.trim()}`, "send_location"); }}
+                          onClick={() => { void sendBridgeCommand(adminCommand("send_location", state.data.player, locationSearch.trim()), "send_location"); }}
                           type="button"
                         >
                           {isLoading
@@ -961,7 +961,7 @@ export function AdminSlotReachabilityPage({
                     <button
                       className="inline-flex items-center gap-2 rounded border border-border bg-surface-2 px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-accent hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={aliasInput.trim().length === 0 || actionLoading !== null}
-                      onClick={() => { void sendBridgeCommand(`!admin /alias ${state.data.player} ${aliasInput.trim()}`, "alias"); }}
+                      onClick={() => { void sendBridgeCommand(rawAdminCommand("alias", `${state.data.player} ${aliasInput.trim()}`), "alias"); }}
                       type="button"
                     >
                       {actionLoading === "alias"

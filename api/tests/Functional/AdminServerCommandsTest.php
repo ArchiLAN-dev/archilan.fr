@@ -213,6 +213,33 @@ final class AdminServerCommandsTest extends FunctionalTestCase
         self::assertTrue($refreshed->isWasReleased());
     }
 
+    public function testReleaseOfANameWithSpacesMarksThatSlot(): void
+    {
+        $session = $this->createRunningSession('run-release-4', 'evt-001');
+        $this->loginAs($this->createAdmin());
+
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), 'reg-001', 'game-001', 'Bob le Bricoleur', 0);
+        $this->entityManager->persist($slot);
+        $this->entityManager->flush();
+
+        $this->httpClient->setResponseFactory(new MockResponse('{"ok":true}', ['http_code' => 200]));
+
+        $this->client->jsonRequest(
+            'POST',
+            sprintf('/api/v1/admin/sessions/%s/commands', $session->getId()),
+            ['command' => '!admin /release Bob le Bricoleur'],
+        );
+        self::assertResponseStatusCodeSame(200);
+
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->getRepository(SessionSlot::class)->findOneBy([
+            'sessionId' => $session->getId(),
+            'slotName' => 'Bob le Bricoleur',
+        ]);
+        self::assertInstanceOf(SessionSlot::class, $refreshed);
+        self::assertTrue($refreshed->isWasReleased());
+    }
+
     public function testCollectCommandDoesNotMarkReleasedIfGoalAlreadyReached(): void
     {
         $session = $this->createRunningSession('run-release-2', 'evt-001');
