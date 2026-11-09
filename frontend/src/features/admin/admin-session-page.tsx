@@ -57,6 +57,7 @@ import {
   type SessionStatus,
 } from "./admin-sessions-api";
 import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generation-failure-notice";
+import { PasseurJournal } from "@/features/passeur/passeur-journal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -424,6 +425,10 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
           ) : null}
         </div>
       )}
+      {/* Story 52.5: every call to the Passeur during the event. */}
+      <div className="mt-6">
+        <PasseurJournal scope={{ kind: "event", eventId }} />
+      </div>
     </PageShell>
   );
 }
@@ -510,6 +515,8 @@ export function AdminSessionDetailPage({
         slots={detail.slots}
       />
       <OverlayLinksPanel sessionId={sessionId} />
+      {/* Story 52.5: every call to the Passeur in this session. */}
+      <PasseurJournal scope={{ kind: "session", sessionId }} />
       <CollapsibleConfigPanel title="Configuration avancée (override de la session)">
         <SessionConfigOverrideForm
           adapter={{

@@ -76,6 +76,7 @@ final class CallThePasseurTest extends FunctionalTestCase
 
         $opening = $this->onlyOpening();
         self::assertSame(PasseurOpening::STATUS_OPENED, $opening->getStatus());
+        self::assertSame(['Alice', 'Bob'], [$opening->getBuyerName(), $opening->getAbsentName()]);
 
         $feed = array_values(array_filter($this->hub->published, static fn ($u): bool => in_array('runs/'.$opening->getSessionId().'/feed', $u->getTopics(), true)));
         self::assertCount(1, $feed);

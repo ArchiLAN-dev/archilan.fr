@@ -45,6 +45,7 @@ import { HINT_STATUS_NAMES, REACHABILITY_INVALID_MESSAGE, REACHABILITY_RETRY_MS,
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { ItemBountiesPanel } from "@/features/wallet/item-bounties";
 import { PasseurPanel } from "@/features/passeur/passeur-panel";
+import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
 import { sessionSlotUrl, usePelleHintOffers } from "@/features/wallet/pelle-hints";
 import type { PersonalRun } from "./types";
 import { fetchSessionConnection } from "@/features/events/events-api";
@@ -910,6 +911,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
         ) : null}
 
         {/* Story 52.4: the Passeur, only while this slot is in BK and an absent world holds what it waits for. */}
+        {/* Story 52.5: what the Passeur opened in this player's world while they were away. */}
+        {sessionId ? <PasseurNoticeCard sessionId={sessionId} /> : null}
         {sessionId ? <PasseurPanel sessionId={sessionId} slotIndex={slotIndex} /> : null}
 
         {/* Tab bar */}
