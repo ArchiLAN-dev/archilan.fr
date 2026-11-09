@@ -17,7 +17,7 @@ use Psr\Clock\ClockInterface;
  * @phpstan-import-type FormQuestion from MemberSurveyQueryInterface
  * @phpstan-import-type MyAnswer from MemberSurveyQueryInterface
  *
- * @phpstan-type MySurvey array{id: string, title: string, anonymous: bool, closesAt: string, answered: bool}
+ * @phpstan-type MySurvey array{id: string, title: string, audience: string, anonymous: bool, closesAt: string, answered: bool}
  * @phpstan-type SurveyForm array{id: string, eventId: string, title: string, intro: string, anonymous: bool, closesAt: string, answered: bool, questions: list<FormQuestion>, myAnswers: list<MyAnswer>|null}
  */
 final readonly class MemberSurveyQuery
@@ -46,6 +46,7 @@ final readonly class MemberSurveyQuery
         return array_map(static fn (array $survey): array => [
             'id' => $survey['id'],
             'title' => $survey['title'],
+            'audience' => $survey['audience'],
             'anonymous' => $survey['anonymous'],
             'closesAt' => $survey['closesAt']->format(\DateTimeInterface::ATOM),
             'answered' => in_array($survey['id'], $answered, true),

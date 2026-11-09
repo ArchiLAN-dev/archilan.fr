@@ -25,7 +25,7 @@ final class MemberSurveyTest extends FunctionalTestCase
         $survey = $this->publishedSurvey($admin, $eventId);
 
         $this->loginAs($member);
-        self::assertSame([['id' => $survey['id'], 'title' => 'Quand viens-tu ?', 'anonymous' => false, 'closesAt' => self::CLOSE, 'answered' => false]], $this->mySurveys($eventId));
+        self::assertSame([['id' => $survey['id'], 'title' => 'Quand viens-tu ?', 'audience' => 'registrants', 'anonymous' => false, 'closesAt' => self::CLOSE, 'answered' => false]], $this->mySurveys($eventId));
 
         $form = $this->form($survey['id']);
         self::assertSame([], $form['myAnswers']);

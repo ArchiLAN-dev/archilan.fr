@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Registrations\Application\Command;
 
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Registrations\Application\Query\PendingRegistrationSurveyQueryInterface;
 use App\Registrations\Application\Support\RegistrationConfirmationNotice;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
@@ -19,6 +20,7 @@ final readonly class RegistrationSubmission
         private RegistrationRepositoryInterface $registrationRepository,
         private EventRepositoryInterface $eventRepository,
         private RegistrationConfirmationNotice $confirmationNotice,
+        private PendingRegistrationSurveyQueryInterface $pendingSurveys,
         private LoggerInterface $logger,
         private ClockInterface $clock,
     ) {
@@ -28,7 +30,8 @@ final readonly class RegistrationSubmission
      * Validates and confirms a registration after the registrant has reviewed their selection.
      *
      * @throws NotFoundException   when the registration is missing or not the caller's reserved one
-     * @throws ValidationException when the game selection is incomplete
+     * @throws ValidationException when the game selection is incomplete, or a required question of the organisers
+     *                             is unanswered (story 51.5)
      */
     public function submit(string $registrationId, string $userId): SubmissionResult
     {
@@ -56,6 +59,10 @@ final readonly class RegistrationSubmission
 
         if (!$alreadyConfirmed) {
             $now = $this->clock->now();
+            // Story 51.5: a confirmed registration is never blocked again; it hears of a later survey otherwise.
+            if ($this->pendingSurveys->hasUnansweredRequired($event->getId(), $userId, $now)) {
+                throw new ValidationException('Réponds d\'abord aux questions obligatoires de l\'orga.', [], 'registration_survey_incomplete');
+            }
             $registration->confirm($now);
             $this->registrationRepository->flush();
 

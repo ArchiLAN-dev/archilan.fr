@@ -87,7 +87,14 @@ export function answersToSend(questions: FormQuestion[], answers: Answers): Surv
   });
 }
 
-export function SurveyResponseForm({ eventSlug, form }: { eventSlug: string; form: SurveyForm }) {
+type SurveyResponseFormProps = {
+  eventSlug: string;
+  form: SurveyForm;
+  /** Story 51.5: inside the registration, the way on is the next step, not the event page. */
+  nextLink?: { href: string; label: string } | null;
+};
+
+export function SurveyResponseForm({ eventSlug, form, nextLink }: SurveyResponseFormProps) {
   const queryClient = useQueryClient();
   const [answers, setAnswers] = useState<Answers>(() => initialAnswers(form));
   const [state, setState] = useState<{ kind: "idle" | "sending" | "sent" } | { kind: "error"; message: string }>({ kind: "idle" });
@@ -112,9 +119,11 @@ export function SurveyResponseForm({ eventSlug, form }: { eventSlug: string; for
             Merci, tes réponses sont enregistrées.
           </p>
           {form.anonymous ? null : <p className="text-sm text-muted-foreground">Tu peux les modifier jusqu&apos;au {closing}.</p>}
-          <Link className="w-fit font-semibold text-accent-text hover:underline" href={`/evenements/${eventSlug}`}>
-            Retour à l&apos;événement
-          </Link>
+          {nextLink === null ? null : (
+            <Link className="w-fit font-semibold text-accent-text hover:underline" href={nextLink?.href ?? `/evenements/${eventSlug}`}>
+              {nextLink?.label ?? "Retour à l'événement"}
+            </Link>
+          )}
         </div>
       </SurveyHeader>
     );

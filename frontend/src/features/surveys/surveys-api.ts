@@ -4,7 +4,7 @@ import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableNumberProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
 
 /** Story 51.2: an open survey of an event that speaks to the member. */
-export type MySurvey = { id: string; title: string; anonymous: boolean; closesAt: string; answered: boolean };
+export type MySurvey = { id: string; title: string; audience: string; anonymous: boolean; closesAt: string; answered: boolean };
 
 export type QuestionKind = "single" | "multiple" | "text" | "rating";
 
@@ -59,6 +59,7 @@ export function isMySurvey(v: unknown): v is MySurvey {
     isObject(v) &&
     hasStringProp(v, "id") &&
     hasStringProp(v, "title") &&
+    hasStringProp(v, "audience") &&
     hasBooleanProp(v, "anonymous") &&
     hasStringProp(v, "closesAt") &&
     hasBooleanProp(v, "answered")
