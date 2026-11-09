@@ -1,6 +1,6 @@
 # Story 51.2 - Le joueur répond à un sondage
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 51 - Sondages (`_bmad-output/planning-artifacts/epics/epic-51-sondages.md`)
 **Date:** 2026-11-09
 **Branche:** `feature/epic-51-story-2-repondre-sondage` (depuis `develop`)
@@ -73,7 +73,69 @@ afin que l'orga ait l'information dont elle a besoin.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-3, 7) - Migration, entités, port d'éligibilité, commande de réponse, requêtes, contrôleur.
-- [ ] **Task 2** (AC 4, 8) - Encart sur la page de l'événement.
-- [ ] **Task 3** (AC 5, 6, 8) - Page de réponse.
-- [ ] **Task 4** (AC 9) - Gates verts, Dev Agent Record.
+- [x] **Task 1** (AC 1-3, 7) - Migration, entités, port d'éligibilité, commande de réponse, requêtes, contrôleur.
+- [x] **Task 2** (AC 4, 8) - Encart sur la page de l'événement.
+- [x] **Task 3** (AC 5, 6, 8) - Page de réponse.
+- [x] **Task 4** (AC 9) - Gates verts, Dev Agent Record.
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Opus 5.5
+
+### Completion Notes List
+
+- Branche partie de `feature/epic-51-story-1-socle-sondages` (51.1 pas encore mergée) : la PR cible cette branche.
+- Domaine : `SurveyParticipation` (unique sur sondage + membre), `SurveyResponse` (`nominative` / `anonymous`, jour
+  seulement), `SurveyAnswer` (une ligne par option choisie, ou un texte, ou une note), service pur `AnswerSheet` et
+  valeur `GivenAnswer`, `Survey::isOpenAt()`.
+- Application : `AnswerSurvey` (entrée `SubmittedAnswer`), `MemberSurveyQuery`, `SurveyGate` (brouillon 404, hors
+  public 403, hors période 409), `SurveyAudienceQueryInterface`.
+- Infrastructure : `DbalSurveyAudienceQuery`, `DbalMemberSurveyQuery`, `DoctrineSurveyResponseRepository`, et
+  `DbalSurveyAnswerCount` qui remplace `UnansweredSurveyOptions` de 51.1 (une option choisie ne se renomme plus).
+- **Session lancée** (figé en lisant `Session.php`) : `running`, `idle`, `restarting`, `stopped`, `crashed`,
+  `finished`, c'est-à-dire toute session passée par `running`. Une session `failed` n'a jamais eu de joueurs.
+- **Anonymat** : la réponse n'a ni membre ni horodatage (le jour seulement), et ses ids (réponse et réponses) sont
+  aléatoires, pas triables dans le temps, pour ne pas pouvoir les recouper avec la participation écrite dans la
+  même unité de travail.
+- Décisions prises en cours de dev :
+  - une réponse qui ne répond à aucune question est refusée (`survey_answer_empty`) ;
+  - une question laissée vide (aucune option, texte blanc, pas de note) compte comme sans réponse ;
+  - l'encart ne liste que les sondages non répondus ; un sondage nominatif déjà répondu se rouvre par son lien.
+- Front : `features/surveys/` (`surveys-api.ts`, `EventSurveyBanner` sur la page de l'événement, `SurveyResponseGate`
+  et `SurveyResponseForm`), page `/evenements/[eventSlug]/sondages/[surveyId]` (redirection vers la connexion
+  pour un visiteur).
+- Migration `Version20261109120002`.
+
+### File List
+
+- `api/migrations/Version20261109120002.php` (nouveau)
+- `api/src/Surveys/Domain/Entity/Survey.php` (modifié : `isOpenAt`)
+- `api/src/Surveys/Domain/Entity/SurveyParticipation.php` (nouveau)
+- `api/src/Surveys/Domain/Entity/SurveyResponse.php` (nouveau)
+- `api/src/Surveys/Domain/Entity/SurveyAnswer.php` (nouveau)
+- `api/src/Surveys/Domain/Repository/SurveyResponseRepositoryInterface.php` (nouveau)
+- `api/src/Surveys/Domain/Service/AnswerSheet.php` (nouveau)
+- `api/src/Surveys/Domain/ValueObject/GivenAnswer.php` (nouveau)
+- `api/src/Surveys/Application/Command/AnswerSurvey.php` (nouveau)
+- `api/src/Surveys/Application/Command/SubmittedAnswer.php` (nouveau)
+- `api/src/Surveys/Application/Query/MemberSurveyQuery.php` (nouveau)
+- `api/src/Surveys/Application/Query/MemberSurveyQueryInterface.php` (nouveau)
+- `api/src/Surveys/Application/Query/SurveyAudienceQueryInterface.php` (nouveau)
+- `api/src/Surveys/Application/Support/SurveyGate.php` (nouveau)
+- `api/src/Surveys/Infrastructure/Dbal/DbalMemberSurveyQuery.php` (nouveau)
+- `api/src/Surveys/Infrastructure/Dbal/DbalSurveyAudienceQuery.php` (nouveau)
+- `api/src/Surveys/Infrastructure/Dbal/DbalSurveyAnswerCount.php` (nouveau)
+- `api/src/Surveys/Infrastructure/Doctrine/DoctrineSurveyResponseRepository.php` (nouveau)
+- `api/src/Surveys/Infrastructure/Adapter/UnansweredSurveyOptions.php` (supprimé)
+- `api/src/Surveys/Presentation/Controller/MemberSurveyController.php` (nouveau)
+- `api/config/services.yaml` (modifié)
+- `api/tests/Unit/Surveys/AnswerSheetTest.php` (nouveau)
+- `api/tests/Functional/MemberSurveyTest.php` (nouveau)
+- `frontend/src/features/surveys/surveys-api.ts` (nouveau)
+- `frontend/src/features/surveys/event-survey-banner.tsx` (nouveau)
+- `frontend/src/features/surveys/survey-response-form.tsx` (nouveau)
+- `frontend/src/features/surveys/surveys.test.tsx` (nouveau)
+- `frontend/src/app/(public)/evenements/[eventSlug]/sondages/[surveyId]/page.tsx` (nouveau)
+- `frontend/src/app/(public)/evenements/[eventSlug]/page.tsx` (modifié : encart)
