@@ -6,10 +6,12 @@ namespace App\Registrations\Presentation\Controller;
 
 use App\Registrations\Application\Command\AdminRegistrationCancellation;
 use App\Registrations\Application\Command\AdminRegistrationModification;
+use App\Registrations\Application\Command\AdminSlotYamlModification;
 use App\Registrations\Application\Command\SendMessageToRegistrant;
 use App\Registrations\Application\Query\AdminRegistrationDashboard;
 use App\Registrations\Application\Query\AdminRegistrationExporter;
 use App\Registrations\Application\Query\AdminRegistrationInspector;
+use App\Registrations\Application\Service\RegistrationGameSelection;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Psr\Log\LoggerInterface;
@@ -28,6 +30,8 @@ final readonly class AdminRegistrationController
         private AdminRegistrationExporter $adminRegistrationExporter,
         private AdminRegistrationInspector $adminRegistrationInspector,
         private AdminRegistrationModification $adminRegistrationModification,
+        private AdminSlotYamlModification $adminSlotYamlModification,
+        private RegistrationGameSelection $registrationGameSelection,
         private SendMessageToRegistrant $sendMessageToRegistrant,
         private LoggerInterface $logger,
     ) {
@@ -128,6 +132,47 @@ final readonly class AdminRegistrationController
         $detail = $this->adminRegistrationInspector->inspect($eventId, $registrationId);
 
         return new JsonResponse(['data' => $detail, 'meta' => ['outcome' => 'updated']]);
+    }
+
+    /** Story 5.9: what the YAML editor needs (games, options, slots) when an admin edits the registration. */
+    #[Route('/api/v1/admin/events/{eventId}/registrations/{registrationId}/game-selection', name: 'api_admin_registrations_game_selection', methods: ['GET'])]
+    public function gameSelection(Request $request, string $eventId, string $registrationId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedAdmin($request);
+
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $result = $this->registrationGameSelection->getSelectionForAdmin($eventId, $registrationId);
+
+        if (null === $result) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Inscription introuvable.', 404);
+        }
+
+        return new JsonResponse(['data' => $result, 'meta' => []]);
+    }
+
+    /** Story 5.9: an admin saves a slot's YAML on the player's behalf, whatever the registration window. */
+    #[Route('/api/v1/admin/events/{eventId}/registrations/{registrationId}/slots/{slotId}/yaml', name: 'api_admin_registrations_slot_yaml', methods: ['PUT'])]
+    public function saveSlotYaml(Request $request, string $eventId, string $registrationId, string $slotId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedAdmin($request);
+
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $playerYaml = is_array($payload) ? ($payload['playerYaml'] ?? null) : null;
+        if (!is_string($playerYaml) || '' === trim($playerYaml)) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Le YAML du joueur est requis.', 422, ['playerYaml' => ['Le YAML du joueur est requis.']]);
+        }
+
+        // Failures (missing, cancelled, invalid) are typed ApplicationFailures mapped by ApplicationFailureListener.
+        $this->adminSlotYamlModification->save($eventId, $registrationId, $slotId, $user->getId(), $playerYaml);
+
+        return new JsonResponse(['data' => ['outcome' => 'ok'], 'meta' => []]);
     }
 
     #[Route('/api/v1/admin/events/{eventId}/registrations/{registrationId}', name: 'api_admin_registrations_cancel', methods: ['DELETE'])]

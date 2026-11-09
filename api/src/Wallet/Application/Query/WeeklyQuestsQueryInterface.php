@@ -39,9 +39,10 @@ interface WeeklyQuestsQueryInterface
 
     /**
      * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. Story
-     * 41.66: and the platform families of the catalog's games.
+     * 41.66: and the platform families of the catalog's games. Story 41.72: and the counters of checks and items of
+     * the achievements, with their game and mode.
      *
-     * @return array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>, platforms: list<string>}
+     * @return array{games: list<array{id: string, name: string}>, events: list<array{id: string, title: string}>, platforms: list<string>, counters: list<array{id: string, label: string, gameName: string, mode: string}>}
      */
     public function scopeOptions(): array;
 

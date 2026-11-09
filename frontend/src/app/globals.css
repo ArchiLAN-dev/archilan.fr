@@ -19,6 +19,8 @@
   --color-success: var(--color-success);
   --color-danger: var(--color-danger);
   --color-warning: var(--color-warning);
+  --color-pelle-silver: var(--color-pelle-silver);
+  --color-pelle-bronze: var(--color-pelle-bronze);
   --color-accent-warm: var(--color-accent-warm);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Courier New", monospace;
@@ -124,6 +126,9 @@ html {
   --color-accent-text-hover: #b09cf8;
   --color-accent-warm: #e89420;
   --color-warning: #e89420;
+  /* Story 41.71: gold is --color-warning; bronze stays well browner than it. */
+  --color-pelle-silver: #b7c9de;
+  --color-pelle-bronze: #bf7650;
   --color-danger: #c4220c;
   --color-special: #e0246a;
   --color-text: #e8edf4;

@@ -40,6 +40,8 @@ final readonly class QuestAnnouncement
         }
 
         return match ($objective->scope) {
+            // Story 41.72: « Morpha vaincue », « Gold Skulltula Token : 20 », the counter's label.
+            QuestObjective::SCOPE_COUNTER => 1 === $objective->target ? ($scopeName ?? 'un compteur supprimé') : sprintf('%s : %d', $scopeName ?? 'un compteur supprimé', $objective->target),
             QuestObjective::SCOPE_GAME => sprintf('%s sur %s', $text, $scopeName ?? 'une cible retirée'),
             // Story 41.66: « 3 goals sur un jeu Super Nintendo ou Nintendo 64 ».
             QuestObjective::SCOPE_PLATFORM, QuestObjective::SCOPE_RECENT, QuestObjective::SCOPE_DRAWN => sprintf('%s sur un %s', $text, $objective->selfName() ?? 'jeu retiré'),

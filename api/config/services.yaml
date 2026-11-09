@@ -379,6 +379,7 @@ services:
     App\Community\Domain\Repository\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementGrantRepository'
     App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementDefinitionRepository'
     App\Community\Domain\Repository\AchievementCollectionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementCollectionRepository'
+    App\Community\Domain\Repository\AchievementCounterRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementCounterRepository'
     App\Community\Domain\Repository\FriendshipRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendshipRepository'
     App\Community\Domain\Repository\BlockRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineBlockRepository'
     App\Community\Domain\Repository\FriendSuggestionDismissalRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendSuggestionDismissalRepository'

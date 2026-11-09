@@ -14,6 +14,7 @@ const options: AchievementFormOptions = {
   operators: [">="],
   groupOps: ["all"],
   events: [{ id: "evt-1", title: "ArchiLAN #3" }],
+  counters: [{ id: "c-1", label: "Morpha vaincu" }],
 };
 
 describe("event scope helpers", () => {
@@ -37,5 +38,12 @@ describe("event scope helpers", () => {
     expect(factLabel("event_goal:evt-1", options)).toBe("Objectif - ArchiLAN #3");
     expect(factLabel("event_goal:gone", options)).toBe("Objectif - événement supprimé");
     expect(factLabel("runs", options)).toBe("Parties jouées");
+  });
+});
+
+describe("counter facts (story 30.57)", () => {
+  it("label a counter fact by its counter, a deleted one by a marker", () => {
+    expect(factLabel("counter:c-1", options)).toBe("Compteur - Morpha vaincu");
+    expect(factLabel("counter:gone", options)).toBe("Compteur - compteur supprimé");
   });
 });

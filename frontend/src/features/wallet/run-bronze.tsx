@@ -8,6 +8,7 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 import { PelleAmount } from "./pelle-amount";
+import { PelleBalance } from "./pelle-balance";
 import { pelleReasonLabel } from "./wallet-api";
 
 // Story 41.38: a player's bronze pelles in one private run - earned by playing it, spent on its hints and bounties,
@@ -109,7 +110,7 @@ export function RunBronzeCard({ runId }: { runId: string }) {
         <h2 className="text-sm font-semibold text-foreground" id="run-bronze-title">
           Mes pelles de bronze
         </h2>
-        <PelleAmount amount={data.balance} className="font-heading text-2xl font-semibold text-foreground" />
+        <PelleBalance amount={data.balance} className="font-heading text-2xl font-semibold" kind="bronze" />
       </div>
       <p className="text-xs text-muted-foreground">
         {data.ended

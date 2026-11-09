@@ -13,6 +13,7 @@ import { fetchMyCommunityProfile, type MyCommunityProfile } from "@/features/com
 import type { NameColorStyle } from "@/features/community/name-colors";
 import { isRarityStyle } from "@/features/community/titled-name";
 import { PelleAmount, pellesLabel } from "./pelle-amount";
+import { PelleBalance } from "./pelle-balance";
 import { buyShopItem, fetchShop, isNewItem, timeLeftLabel, type ShopItem } from "./shop-api";
 import { COSMETIC_TYPE_LABELS, ShopCosmeticPreview, useCosmeticLabel, useTitleBadge } from "./shop-cosmetics";
 import { shelfHref, shopShelves, type ShelfKey } from "./shop-shelves";
@@ -133,7 +134,7 @@ export function ShopView({
         {shopper !== null ? (
           <div className="grid justify-items-end gap-1">
             <p className="text-xs text-muted-foreground">Ton solde</p>
-            {gold !== null ? <PelleAmount amount={gold} className="font-heading text-3xl font-bold text-warning" /> : <span className="text-sm text-muted-foreground">…</span>}
+            {gold !== null ? <PelleBalance amount={gold} className="font-heading text-3xl font-bold" kind="gold" /> : <span className="text-sm text-muted-foreground">…</span>}
             <Link className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" href="/compte/pelles">
               Historique de mes pelles
             </Link>
@@ -261,7 +262,7 @@ export function ShopView({
                 <span className="text-muted-foreground line-through">
                   <PelleAmount amount={item.regularPrice ?? item.price} />
                 </span>
-                <PelleAmount amount={item.promotion.price} className="font-semibold text-warning" />
+                <PelleAmount amount={item.promotion.price} className="font-semibold" kind="gold" />
                 <span className="font-medium text-danger">· {timeLeftLabel(item.promotion.endsAt, now.getTime())}</span>
               </p>
             ) : null}
@@ -276,7 +277,7 @@ export function ShopView({
                 Le porter
               </Link>
             ) : shopper === null ? (
-              <PelleAmount amount={item.price} className="font-semibold text-warning" />
+              <PelleAmount amount={item.price} className="font-semibold" kind="gold" />
             ) : missing > 0 ? (
               <span className="grid justify-items-end text-xs text-muted-foreground">
                 <PelleAmount amount={item.price} className="text-sm font-semibold text-foreground" />

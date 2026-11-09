@@ -13,7 +13,7 @@ export const sessionConfigHelp: Record<string, string> = {
   remainingMode:
     "Commande !remaining : permet à un joueur de demander la liste des objets qu'il doit encore recevoir.",
   pelleHints:
-    "Permet aux joueurs d'acheter un indice avec leurs pelles : en partie privée, avec les pelles de bronze de la partie ; en événement, les pelles de l'événement d'abord, puis l'or ; en hebdo, l'or. Sans effet sur les points d'indice Archipelago.",
+    "Permet aux joueurs d'acheter un indice avec leurs pelles : en partie privée, avec les pelles de bronze de la partie ; en événement, les pelles d'argent de l'événement d'abord, puis l'or ; en hebdo, l'or. Sans effet sur les points d'indice Archipelago.",
   pelleBounties:
     "Permet aux joueurs d'offrir des pelles à qui leur enverra un objet précis (en partie privée, des pelles de bronze de la partie) ; 10 % de la prime sont détruits au versement.",
   pelleItemHintPrice: "Prix en pelles d'un indice sur un objet (où se trouve tel objet).",

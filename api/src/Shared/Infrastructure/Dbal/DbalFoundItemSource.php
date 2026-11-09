@@ -27,7 +27,9 @@ final class DbalFoundItemSource
      */
     public static function feed(string $where = ''): string
     {
+        // Story 30.57: the names and games too, for the counters of checks and items.
         return '(SELECT fe.id, fe.session_id, fe.sender_name, fe.receiver_name, fe.occurred_at,
+                        fe.location_name, fe.item_name, fe.sender_game, fe.receiver_game,
                         COUNT(*) OVER (PARTITION BY fe.session_id, fe.sender_name, fe.occurred_at) AS burst_out,
                         COUNT(*) OVER (PARTITION BY fe.session_id, fe.receiver_name, fe.occurred_at) AS burst_in
                    FROM session_feed_event fe
