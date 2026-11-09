@@ -89,6 +89,19 @@ final readonly class DbalPresenceTimelineQuery implements PresenceTimelineQueryI
             && 0 === (int) (is_numeric($row['holding']) ? $row['holding'] : 0);
     }
 
+    public function declaredDepartureAt(string $registrationId): ?\DateTimeImmutable
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $last = $qb->select('MAX(w.ends_at)')
+            ->from('registration_presence_window', 'w')
+            ->where($qb->expr()->eq('w.registration_id', ':registration'))
+            ->setParameter('registration', $registrationId)
+            ->executeQuery()
+            ->fetchOne();
+
+        return is_string($last) ? new \DateTimeImmutable($last) : null;
+    }
+
     /**
      * @param list<string> $registrationIds
      *

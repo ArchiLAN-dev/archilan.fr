@@ -22,4 +22,7 @@ interface PresenceTimelineQueryInterface
 
     /** True only when the registration has at least one window and none of them holds `$at`. */
     public function isOutsideWindows(string $registrationId, \DateTimeImmutable $at): bool;
+
+    /** Story 52.6: when the member said they leave for good - the end of their last window; null without windows. */
+    public function declaredDepartureAt(string $registrationId): ?\DateTimeImmutable;
 }

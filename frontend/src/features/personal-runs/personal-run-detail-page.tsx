@@ -59,6 +59,7 @@ import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generati
 import { RunBronzeCard } from "@/features/wallet/run-bronze";
 import { PasseurJournal } from "@/features/passeur/passeur-journal";
 import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
+import { DeparturesPanel } from "@/features/departures/departures";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -863,6 +864,8 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
         {/* Story 52.5: what the Passeur opened in the player's world while they were away; the owner's journal. */}
         {activeTab === "overview" && run.sessionId !== null && (run.isOwner || myParticipant !== null) && <PasseurNoticeCard sessionId={run.sessionId} />}
+        {/* Story 52.6: the players who left the owner's run, their world to release. */}
+        {activeTab === "overview" && run.sessionId !== null && run.isOwner && <DeparturesPanel sessionId={run.sessionId} />}
         {activeTab === "overview" && run.sessionId !== null && run.isOwner && (
           <div className="mb-4">
             <PasseurJournal scope={{ kind: "run", runId: run.id }} />

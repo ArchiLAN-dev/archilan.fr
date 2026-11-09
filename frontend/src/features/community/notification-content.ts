@@ -294,6 +294,13 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
       const sentence = fallback.split(" : ")[0] ?? fallback;
       return base("action", "Action requise", icon("puzzle"), game !== "" ? [{ text: `${sentence} : ` }, strong(game)] : [{ text: fallback }]);
     }
+    case "departure_requested": {
+      // Story 52.6: a player left - who, from which party, and whether they said so or their declared departure passed.
+      const player = text(data, "playerName") || "Un joueur";
+      const session = text(data, "sessionTitle");
+      const why = text(data, "origin") === "schedule" ? "Départ déclaré passé, slot déconnecté" : "Départ signalé par le joueur";
+      return { ...base("action", "Départ", icon("unlock"), [strong(player), { text: " a quitté la partie : libérer son monde ?" }]), detail: session !== "" ? `${session} · ${why}` : why };
+    }
     case "passeur_opened": {
       // Story 52.4: a chest of the member's world opened for a blocked player, and the member's share.
       const buyer = text(data, "buyerName") || "un joueur";
