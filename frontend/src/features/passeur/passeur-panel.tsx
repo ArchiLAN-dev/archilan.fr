@@ -7,12 +7,25 @@ import { KeyRound, Loader2 } from "lucide-react";
 import { ConfirmDialog, ConfirmFigure } from "@/components/ui/confirm-dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount } from "@/features/wallet/pelle-amount";
-import { callThePasseur, fetchPasseur, passeurKey, type PasseurCallResult, type PasseurOffer } from "./passeur-api";
+import { callThePasseur, fetchPasseur, passeurKey, type PasseurCallResult, type PasseurOffer, type PasseurState } from "./passeur-api";
 
 const TIME = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
+const REFRESH_MS = 60_000;
+
 /**
- * « Le Passeur » (story 52.4): for a player stuck in BK, the chest of an absent player that unblocks them, at the
+ * Story 52.9: how long until the offer is read again. Once a minute, or right after the Passeur becomes available
+ * when that comes sooner, so the call does not stay greyed out past the time the panel announced.
+ */
+export function passeurRefreshIn(state: PasseurState | null | undefined, now: number): number {
+  const availableAt = state?.offer?.availableAt;
+  if (availableAt === undefined || availableAt === null) return REFRESH_MS;
+  const until = new Date(availableAt).getTime() - now;
+  return until > 0 && until < REFRESH_MS ? until + 1_000 : REFRESH_MS;
+}
+
+/**
+ * « Le Passeur » (story 52.4): for a player stuck in BK, the chest of another world that unblocks them, at the
  * price of the moment. Hidden when the party has no Passeur or nothing to offer.
  */
 export function PasseurPanel({ sessionId, slotIndex }: { sessionId: string; slotIndex: string }) {
@@ -21,7 +34,7 @@ export function PasseurPanel({ sessionId, slotIndex }: { sessionId: string; slot
     queryKey: passeurKey(sessionId, slotIndex),
     queryFn: () => fetchPasseur(sessionId, slotIndex),
     staleTime: DEFAULT_STALE_TIME,
-    refetchInterval: 60_000,
+    refetchInterval: (query) => passeurRefreshIn(query.state.data, Date.now()),
     retry: false,
   });
 
@@ -49,6 +62,7 @@ export function PasseurView({ offer, onCall }: { offer: PasseurOffer; onCall: (o
   const requestIdRef = useRef<string | null>(null);
 
   const affordable = offer.balance >= offer.price;
+  const waitingUntil = offer.availableAt ?? null;
   const unit = offer.kind === "bronze" ? "pelles de bronze" : "pelles d'argent";
 
   async function call(): Promise<void> {
@@ -75,8 +89,8 @@ export function PasseurView({ offer, onCall }: { offer: PasseurOffer; onCall: (o
         Le Passeur
       </h2>
       <p className="text-sm text-foreground">
-        Tu es en BK depuis {TIME.format(new Date(offer.blockedSince))}. Le Passeur peut ouvrir le coffre <strong>{offer.locationName}</strong> chez{" "}
-        <strong>{offer.absentPlayerName}</strong>, absent, et t&apos;envoyer <strong>{offer.itemName}</strong>.
+        Tu es en BK depuis {TIME.format(new Date(offer.blockedSince))}. Le Passeur {waitingUntil === null ? "peut" : "pourra"} ouvrir le coffre <strong>{offer.locationName}</strong> chez{" "}
+        <strong>{offer.absentPlayerName}</strong> et t&apos;envoyer <strong>{offer.itemName}</strong>.
       </p>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
@@ -91,14 +105,18 @@ export function PasseurView({ offer, onCall }: { offer: PasseurOffer; onCall: (o
       <div>
         <button
           className="inline-flex min-h-8 items-center gap-1.5 rounded border border-violet-500/50 px-2.5 text-xs font-semibold text-foreground hover:border-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={pending || !affordable}
+          disabled={pending || !affordable || waitingUntil !== null}
           onClick={() => setConfirming(true)}
           type="button"
         >
           {pending ? <Loader2 aria-hidden className="size-3 animate-spin" /> : <KeyRound aria-hidden className="size-3" />}
           Faire appel au Passeur
         </button>
-        {!affordable ? <p className="mt-1 text-xs text-muted-foreground">Il te manque des {unit}.</p> : null}
+        {waitingUntil !== null ? (
+          <p className="mt-1 text-xs text-muted-foreground">Le Passeur sera disponible à {TIME.format(new Date(waitingUntil))}, si tu es toujours bloqué.</p>
+        ) : !affordable ? (
+          <p className="mt-1 text-xs text-muted-foreground">Il te manque des {unit}.</p>
+        ) : null}
       </div>
       {message !== null ? <p className={`text-xs ${message.tone === "ok" ? "text-success" : "text-danger"}`}>{message.text}</p> : null}
 

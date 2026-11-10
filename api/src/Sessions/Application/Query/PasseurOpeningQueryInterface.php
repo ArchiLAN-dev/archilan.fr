@@ -18,7 +18,7 @@ interface PasseurOpeningQueryInterface
     public function forEvent(string $eventId): array;
 
     /**
-     * The chests opened in an absent player's world that their notice still lists.
+     * The chests opened in a player's world that their notice still lists.
      *
      * @return list<PasseurOpeningRow>
      */

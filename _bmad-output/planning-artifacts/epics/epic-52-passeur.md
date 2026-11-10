@@ -67,6 +67,10 @@ Il manque : les disponibilités sous une forme exploitable, le calcul « quel co
 
 ## Absent
 
+> **Retiré par la story 52.9 (2026-11-10).** Le Passeur ouvre n'importe quel autre monde, que son joueur soit là
+> ou non : un joueur présent peut être sur un autre jeu ou ne pas pouvoir encore atteindre ce coffre. La définition
+> ci-dessous reste celle de la carte des dépendances (52.7).
+
 **En événement**, un joueur est **absent** pour le Passeur quand les deux conditions sont vraies :
 
 1. **Hors de ses créneaux déclarés** (pas encore arrivé, ou déjà parti) ;
@@ -173,6 +177,17 @@ si c'est trop chargé.
 - Comparaison de plusieurs générations, la moins bloquante est retenue par l'admin.
 - Détail : `implementation-artifacts/52-7-carte-des-dependances.md`.
 
+### 52.9 - Le Passeur sans condition d'absence
+
+En tant que joueur en BK, je veux pouvoir faire ouvrir le coffre qui me débloque dans n'importe quel autre monde,
+afin de ne pas rester bloqué parce que son joueur est là mais occupé ailleurs.
+
+- Plus de filtre d'absence sur les candidats ; le réglage `passeurAbsenceMinutes` disparaît.
+- Le Passeur n'est appelable qu'après un temps minimum en BK (`passeurMinBlockedMinutes`, 30 min par défaut) ; le
+  prix ne baisse qu'à partir de là.
+- Part, limite par monde et par jour, notification : inchangées, pour le joueur du monde ouvert.
+- Détail : `implementation-artifacts/52-9-passeur-sans-absence.md`.
+
 ## Dépendances
 
 - 52.1 avant 52.4 : sans commande d'ouverture fiable, pas de Passeur.
@@ -195,3 +210,8 @@ si c'est trop chargé.
 - Hebdos.
 - Ajustement automatique des YAML selon les créneaux (`exclude_locations`, `progression_balancing`).
 - Découpage automatique d'un événement en plusieurs multiworlds par créneau.
+
+## Story 52.8 : une frise des présences lisible (admin)
+
+Résumé, axe des jours et des heures, histogramme des présents, non-déclarés distincts, tri et filtre, vue mobile par
+demi-journée. Détail : `_bmad-output/implementation-artifacts/52-8-frise-des-presences.md`.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Streaming\Application\Query;
 
+use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Streaming\Application\Port\TwitchApiClientInterface;
 use App\Streaming\Application\Support\LiveTwitchLogins;
 use App\Streaming\Domain\Service\TwitchLinkResolver;
@@ -26,19 +27,28 @@ final readonly class ParticipantStreamsView
         private LiveTwitchLogins $liveLogins,
         private TwitchApiClientInterface $client,
         private CacheInterface $cache,
+        private SessionRecapAudience $audience,
     ) {
     }
 
-    /** @return list<ParticipantStream>|null */
-    public function forEvent(string $eventId): ?array
+    /**
+     * Story 50.7: null too for a viewer the event is hidden from, who cannot tell it from an unknown id.
+     *
+     * @return list<ParticipantStream>|null
+     */
+    public function forEvent(string $eventId, ?string $viewerId): ?array
     {
-        return $this->present($this->query->forEvent($eventId));
+        return $this->audience->hidesEvent($eventId, $viewerId) ? null : $this->present($this->query->forEvent($eventId));
     }
 
-    /** @return list<ParticipantStream>|null */
-    public function forPersonalRun(string $runId): ?array
+    /**
+     * Story 50.7: the same rule as the page of the run.
+     *
+     * @return list<ParticipantStream>|null
+     */
+    public function forPersonalRun(string $runId, ?string $viewerId): ?array
     {
-        return $this->present($this->query->forPersonalRun($runId));
+        return $this->audience->hidesRun($runId, $viewerId) ? null : $this->present($this->query->forPersonalRun($runId));
     }
 
     /**

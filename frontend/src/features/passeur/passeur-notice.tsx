@@ -11,7 +11,7 @@ import { dismissPasseurNotice, fetchPasseurNotice, passeurNoticeKey, type Passeu
 const WHEN = new Intl.DateTimeFormat("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
 /**
- * « Pendant ton absence » (story 52.5): what the Passeur opened in the viewer's world, and what it brought them.
+ * « Le Passeur a ouvert » (story 52.5, title reworded by 52.9): what the Passeur opened in the viewer's world, and what it brought them.
  * Shown until closed; the next opening brings it back. Nothing for a viewer whose world nobody opened.
  */
 export function PasseurNoticeCard({ sessionId }: { sessionId: string }) {
@@ -53,7 +53,7 @@ export function PasseurNoticeView({ notice, onDismiss }: { notice: PasseurNotice
       <div className="flex items-start justify-between gap-3">
         <h2 className="flex items-center gap-2 font-heading text-sm font-semibold text-foreground" id="passeur-notice-title">
           <KeyRound aria-hidden className="size-4 shrink-0 text-violet-400" />
-          Pendant ton absence, le Passeur a ouvert {count} emplacement{count > 1 ? "s" : ""} de ton monde
+          Le Passeur a ouvert {count} emplacement{count > 1 ? "s" : ""} de ton monde
         </h2>
         <button
           aria-label="Fermer"

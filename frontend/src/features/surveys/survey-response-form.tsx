@@ -186,7 +186,9 @@ function SurveyHeader({ form, children }: { form: SurveyForm; children: React.Re
     <article className="grid gap-6">
       <header className="grid gap-3">
         <h1 className="font-heading text-3xl font-bold text-foreground md:text-4xl">{form.title}</h1>
-        {form.intro === "" ? null : <p className="whitespace-pre-line leading-7 text-muted-foreground">{form.intro}</p>}
+        {form.intro === "" ? null : (
+          <p className="whitespace-pre-line rounded-xl border border-accent/40 bg-accent/5 p-4 text-base leading-7 text-foreground md:text-lg">{form.intro}</p>
+        )}
       </header>
       {children}
     </article>

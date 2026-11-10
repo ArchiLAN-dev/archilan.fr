@@ -37,8 +37,8 @@ final class PasseurCandidatesTest extends FunctionalTestCase
         $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $this->sessionId, $aliceRegistration, 'game-1', 'Alice', 1, 'slot-alice'));
         $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $this->sessionId, $bobRegistration, 'game-1', 'Bob', 1, 'slot-bob'));
         $this->entityManager->persist(new SessionPlayersSnapshot($this->sessionId, ['slots' => ['1' => ['slot_name' => 'Alice'], '2' => ['slot_name' => 'Bob']]], $now));
-        // Bob only comes tonight: absent now.
-        $this->entityManager->persist(RegistrationPresenceWindow::create($bobRegistration, $now->modify('+6 hours'), $now->modify('+20 hours')));
+        // Story 52.9: Bob is there right now, his world is open to the Passeur all the same.
+        $this->entityManager->persist(RegistrationPresenceWindow::create($bobRegistration, $now->modify('-2 hours'), $now->modify('+20 hours')));
         $this->entityManager->flush();
 
         $this->url = '/api/v1/admin/sessions/'.$this->sessionId.'/slots/1/passeur-candidates';
@@ -68,11 +68,11 @@ final class PasseurCandidatesTest extends FunctionalTestCase
         $this->client->request('GET', $this->url);
 
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['blocked' => false, 'blockedSince' => null, 'absentSlots' => [], 'ranking' => 'sphere', 'candidates' => []], $this->decodedJsonResponse()['data']);
+        self::assertSame(['blocked' => false, 'blockedSince' => null, 'ranking' => 'sphere', 'candidates' => []], $this->decodedJsonResponse()['data']);
         self::assertSame([], $this->bridge->measured);
     }
 
-    public function testABlockedSlotGetsTheProgressionOfAbsentWorldsBestFirst(): void
+    public function testABlockedSlotGetsTheProgressionOfOtherWorldsBestFirst(): void
     {
         $this->blockAlice();
         $this->bridge->gains = ['2:401' => 1, '2:402' => 9];
@@ -84,7 +84,7 @@ final class PasseurCandidatesTest extends FunctionalTestCase
         $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
         self::assertTrue($data['blocked']);
-        self::assertSame([2], $data['absentSlots']);
+        self::assertArrayNotHasKey('absentSlots', $data);
         self::assertSame('exact', $data['ranking']);
         self::assertIsArray($data['candidates']);
         self::assertSame(['Dash', 'Claw'], array_column($data['candidates'], 'itemName'));
@@ -105,6 +105,24 @@ final class PasseurCandidatesTest extends FunctionalTestCase
         self::assertSame('sphere', $data['ranking']);
         self::assertIsArray($data['candidates']);
         self::assertSame(['Claw', 'Dash'], array_column($data['candidates'], 'itemName'));
+    }
+
+    public function testABlockSuspendedByARestartOffersNoPasseur(): void
+    {
+        // Story 52.4: until the slot's next state confirms it, a block interrupted by a restart is not one.
+        $episode = SlotBlockEpisode::open($this->sessionId, '1', 'Alice', new \DateTimeImmutable('-10 minutes'), 8);
+        $episode->suspend(new \DateTimeImmutable('-1 minute'));
+        $this->entityManager->persist($episode);
+        $this->entityManager->flush();
+
+        $this->loginAs($this->admin);
+        $this->client->request('GET', $this->url);
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertFalse($data['blocked']);
+        self::assertSame([], $this->bridge->measured);
     }
 
     public function testABridgeThatCannotAnswerIsA503AndAnUnknownSessionA404(): void

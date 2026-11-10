@@ -10,7 +10,7 @@ use App\Sessions\Domain\Entity\PasseurOpening;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionFeedEvent;
 
-/** Story 52.5: what the Passeur opened - the absent player's notice, the journals, the mark in the feed. */
+/** Story 52.5: what the Passeur opened - the notice of the opened world's player, the journals, the mark in the feed. */
 final class PasseurJournalTest extends FunctionalTestCase
 {
     private User $admin;
@@ -38,7 +38,7 @@ final class PasseurJournalTest extends FunctionalTestCase
         $this->entityManager->flush();
     }
 
-    public function testTheAbsentPlayerSeesWhatWasOpenedUntilTheyCloseIt(): void
+    public function testThePlayerOfTheOpenedWorldSeesWhatWasOpenedUntilTheyCloseIt(): void
     {
         $this->loginAs($this->bob);
         $this->client->request('GET', $this->noticeUrl());
@@ -66,7 +66,7 @@ final class PasseurJournalTest extends FunctionalTestCase
         self::assertSame(['Geo'], array_column($data['openings'], 'itemName'));
     }
 
-    public function testAnotherPlayerNeverSeesTheAbsentPlayersNotice(): void
+    public function testAnotherPlayerNeverSeesThatNotice(): void
     {
         $this->loginAs($this->alice);
         $this->client->request('GET', $this->noticeUrl());

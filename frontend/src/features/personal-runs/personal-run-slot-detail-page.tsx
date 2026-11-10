@@ -912,7 +912,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
           </div>
         ) : null}
 
-        {/* Story 52.4: the Passeur, only while this slot is in BK and an absent world holds what it waits for. */}
+        {/* Story 52.4: the Passeur, only while this slot is in BK and another world holds what it waits for. */}
         {/* Story 52.5: what the Passeur opened in this player's world while they were away. */}
         {sessionId ? <PasseurNoticeCard sessionId={sessionId} /> : null}
         {sessionId ? <PasseurPanel sessionId={sessionId} slotIndex={slotIndex} /> : null}

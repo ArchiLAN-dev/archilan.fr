@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { http, HttpResponse } from "msw";
 
@@ -5,6 +6,11 @@ import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { EventList } from "./admin-event-dashboard";
 import { featureAdminEventOnHome, type AdminEvent } from "./admin-events-api";
+import { menuActions } from "./event-hub/event-status";
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: () => undefined }),
+}));
 
 const BASE = TEST_API_BASE_URL;
 
@@ -39,21 +45,26 @@ function adminEvent(id: string, status: AdminEvent["status"], featuredOnHome = f
 
 /** Story 3.15: the admin picks the event featured on the home page from the events list. */
 describe("event featured on the home page, admin side", () => {
-  it("marks the featured event and offers the choice on public events only", () => {
+  it("marks the featured event, and offers the choice outside drafts (story 3.17: in the row menu)", () => {
     const noop = () => {};
     const html = renderToStaticMarkup(
-      <EventList
-        onConfigurePrivateAccess={noop}
-        onConfigureRecap={noop}
-        onFeature={noop}
-        onTransition={noop}
-        state={{ kind: "ready", events: [adminEvent("1", "published", true), adminEvent("2", "completed"), adminEvent("3", "draft")] }}
-      />,
+      <QueryClientProvider client={new QueryClient()}>
+        <EventList
+          onConfigurePrivateAccess={noop}
+          onConfigureRecap={noop}
+          onFeature={noop}
+          onTransition={noop}
+          state={{ kind: "ready", events: [adminEvent("1", "published", true), adminEvent("2", "completed"), adminEvent("3", "draft")] }}
+        />
+      </QueryClientProvider>,
     );
     // The table and the mobile cards both render each event.
     expect(html.match(/>Accueil</g)).toHaveLength(2);
-    expect(html.match(/Retirer de l&#x27;accueil/g)).toHaveLength(2);
-    expect(html.match(/Mettre en avant/g)).toHaveLength(2);
+
+    const labels = (event: AdminEvent) => menuActions(event).map((action) => action.label);
+    expect(labels(adminEvent("1", "published", true))).toContain("Retirer de l'accueil");
+    expect(labels(adminEvent("2", "completed"))).toContain("Mettre en avant");
+    expect(labels(adminEvent("3", "draft"))).not.toContain("Mettre en avant");
   });
 
   it("sends the choice, and reads the API's message on a refusal", async () => {

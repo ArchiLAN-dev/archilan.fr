@@ -1,29 +1,24 @@
 "use client";
 
-import { CalendarClock, CalendarPlus, CheckCircle2, ClipboardList, Eye, Gamepad2, Handshake, House, KeyRound, Pencil, Play, Plus, RotateCcw, Server, ShieldAlert, Shovel, Users, Video } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import type { FormEvent } from "react";
+import { CalendarPlus, Plus, ShieldAlert, Users } from "lucide-react";
 import Link from "next/link";
-import { useId, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { fetchAdminEvents, type AdminEvent } from "./admin-events-api";
 import {
-  featureAdminEventOnHome,
-  fetchAdminEvents,
-  saveAdminEventRecap,
-  updateAdminEventPrivateAccess,
-  updateAdminEventStatus,
-  type AdminEvent,
-  type AdminEventsResult,
-} from "./admin-events-api";
+  ActionIcon,
+  EventActionDialogs,
+  EventActionMessage,
+  FeaturedPill,
+  StatusPill,
+  useAdminEventActions,
+} from "./event-hub/event-actions";
+import { EventRowMenu } from "./event-hub/event-row-menu";
+import { eventHubHref, formatDateShort, primaryAction, visibilityLabel, type EventStatus } from "./event-hub/event-status";
 
-// Unified row-button styles: neutral for actions, accent for "state" chips
-// (game selection enabled, recap attached). Same size / radius / hover everywhere.
-const ROW_BTN_BASE =
-  "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition-colors";
-const ROW_BTN_NEUTRAL = `${ROW_BTN_BASE} border-border text-foreground hover:border-accent hover:text-accent-text`;
-const ROW_BTN_ACTIVE = `${ROW_BTN_BASE} border-accent/60 text-accent-text hover:border-accent`;
+const PRIMARY_BTN =
+  "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-accent/60 px-2.5 text-xs font-semibold text-accent-text transition-colors hover:border-accent hover:bg-accent/10";
 
 type DashboardState =
   | { kind: "loading" }
@@ -31,26 +26,10 @@ type DashboardState =
   | { kind: "denied"; message: string }
   | { kind: "error"; message: string };
 
-type StatusAction = { label: string; status: AdminEvent["status"] };
-
-type PendingTransition = {
-  event: AdminEvent;
-  status: AdminEvent["status"];
-};
-
-type PendingPrivateAccess = {
-  event: AdminEvent;
-};
-
 export function AdminEventDashboard() {
-  const queryClient = useQueryClient();
-  const [message, setMessage] = useState<string | null>(null);
-  const [pendingTransition, setPendingTransition] = useState<PendingTransition | null>(null);
-  const [pendingPrivateAccess, setPendingPrivateAccess] = useState<PendingPrivateAccess | null>(null);
-  const [recapEvent, setRecapEvent] = useState<AdminEvent | null>(null);
+  const actions = useAdminEventActions();
 
-  // fetchAdminEvents never throws (denied/error are encoded in the result kind), so the query
-  // never errors and - like the old effect - never retries.
+  // fetchAdminEvents never throws (denied/error are encoded in the result kind), so the query never errors.
   const { data } = useQuery({
     queryKey: ["admin-events"],
     queryFn: fetchAdminEvents,
@@ -58,64 +37,6 @@ export function AdminEventDashboard() {
     retry: false,
   });
   const state: DashboardState = data ?? { kind: "loading" };
-
-  // Former in-place setState after each mutation: patch the cached list with the PATCH response
-  // instead of refetching, preserving the no-flash semantics.
-  function patchCachedEvent(mapper: (item: AdminEvent) => AdminEvent) {
-    queryClient.setQueryData<AdminEventsResult>(["admin-events"], (prev) =>
-      prev?.kind === "ready" ? { kind: "ready", events: prev.events.map(mapper) } : prev,
-    );
-  }
-
-  function requestTransition(event: AdminEvent, status: AdminEvent["status"]) {
-    setPendingTransition({ event, status });
-  }
-
-  async function executeTransition() {
-    if (!pendingTransition) return;
-
-    const { event, status } = pendingTransition;
-    setPendingTransition(null);
-
-    const updated = await updateAdminEventStatus(event.id, status);
-
-    if (updated === null) {
-      setMessage("Transition de statut impossible.");
-      return;
-    }
-
-    patchCachedEvent((item) => (item.id === updated.id ? updated : item));
-    setMessage(status === "draft" ? "Événement dépublié." : "Statut mis à jour.");
-  }
-
-  // Story 3.15: one event at most is featured, so featuring one clears the others in the cached list too.
-  async function toggleFeatured(event: AdminEvent) {
-    const featured = !event.featuredOnHome;
-    const error = await featureAdminEventOnHome(event.id, featured);
-
-    if (error !== null) {
-      setMessage(error);
-      return;
-    }
-
-    patchCachedEvent((item) =>
-      item.id === event.id ? { ...item, featuredOnHome: featured } : featured ? { ...item, featuredOnHome: false } : item,
-    );
-    setMessage(featured ? `${event.title} est mis en avant sur l'accueil.` : `${event.title} n'est plus mis en avant sur l'accueil.`);
-  }
-
-  async function configurePrivateAccess(event: AdminEvent, password: string) {
-    const updated = await updateAdminEventPrivateAccess(event.id, password);
-
-    if (updated === null) {
-      setMessage("Configuration d'accès privé impossible.");
-      return;
-    }
-
-    patchCachedEvent((item) => (item.id === updated.id ? updated : item));
-    setMessage("Accès privé configuré.");
-    setPendingPrivateAccess(null);
-  }
 
   return (
     <section className="grid w-full gap-8 px-4 py-10">
@@ -125,7 +46,7 @@ export function AdminEventDashboard() {
           <div>
             <h1 className="font-heading text-4xl font-bold leading-tight text-foreground">Événements</h1>
             <p className="mt-3 max-w-2xl text-muted-foreground">
-              Gère les événements ArchiLAN : brouillons, publications, inscriptions et sélections de jeux.
+              Gère les événements ArchiLAN : ouvre un événement pour ses inscriptions, ses jeux, sa run et le reste.
             </p>
           </div>
           <Link
@@ -138,241 +59,40 @@ export function AdminEventDashboard() {
         </div>
       </header>
 
-      {message ? (
-        <p className="border border-success/50 bg-surface p-3 text-sm text-success" role="status">
-          {message}
-        </p>
-      ) : null}
+      <EventActionMessage message={actions.message} />
 
       <EventList
-        onConfigurePrivateAccess={(event) => setPendingPrivateAccess({ event })}
-        onConfigureRecap={setRecapEvent}
-        onFeature={toggleFeatured}
-        onTransition={requestTransition}
+        onConfigurePrivateAccess={actions.openPrivateAccess}
+        onConfigureRecap={actions.openRecap}
+        onFeature={actions.toggleFeatured}
+        onTransition={actions.requestTransition}
         state={state}
       />
 
-      {pendingTransition ? (
-        <StatusTransitionDialog
-          onCancel={() => setPendingTransition(null)}
-          onConfirm={executeTransition}
-          pendingTransition={pendingTransition}
-        />
-      ) : null}
-
-      {pendingPrivateAccess ? (
-        <PrivateAccessDialog
-          event={pendingPrivateAccess.event}
-          onCancel={() => setPendingPrivateAccess(null)}
-          onSubmit={configurePrivateAccess}
-        />
-      ) : null}
-
-      {recapEvent ? (
-        <RecapDialog
-          event={recapEvent}
-          onClose={() => setRecapEvent(null)}
-          onSaved={(vodUrl, recapPostSlug) => {
-            patchCachedEvent((e) =>
-              e.id === recapEvent.id
-                ? { ...e, vodUrl, recapPostSlug, hasRecap: vodUrl !== null || recapPostSlug !== null }
-                : e,
-            );
-            setRecapEvent(null);
-            setMessage("Récap mis à jour.");
-          }}
-        />
-      ) : null}
+      <EventActionDialogs actions={actions} />
     </section>
   );
 }
 
-function StatusTransitionDialog({
-  onCancel,
-  onConfirm,
-  pendingTransition,
-}: {
-  onCancel: () => void;
-  onConfirm: () => void;
-  pendingTransition: PendingTransition;
-}) {
-  const titleId = useId();
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div
-        aria-labelledby={titleId}
-        aria-modal="true"
-        className="w-full max-w-md rounded-lg border border-border bg-surface/80 p-6 shadow-xl backdrop-blur-sm"
-        role="alertdialog"
-      >
-        <h2 className="font-heading text-xl font-semibold text-foreground" id={titleId}>
-          Confirmer la transition
-        </h2>
-        <p className="mt-3 text-sm text-muted-foreground">
-          {transitionConfirmation(pendingTransition.event.status, pendingTransition.status)}
-        </p>
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            className="inline-flex min-h-10 items-center justify-center rounded border border-border px-3 text-sm font-semibold text-foreground hover:border-accent"
-            onClick={onCancel}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="inline-flex min-h-10 items-center justify-center rounded bg-accent px-3 text-sm font-semibold text-white hover:bg-accent-hover"
-            onClick={onConfirm}
-            type="button"
-          >
-            Confirmer
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PrivateAccessDialog({
-  event,
-  onCancel,
-  onSubmit,
-}: {
-  event: AdminEvent;
-  onCancel: () => void;
-  onSubmit: (event: AdminEvent, password: string) => Promise<void>;
-}) {
-  const titleId = useId();
-  const errorId = useId();
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  async function submit(formEvent: FormEvent<HTMLFormElement>) {
-    formEvent.preventDefault();
-    setError(null);
-    const form = new FormData(formEvent.currentTarget);
-    const password = String(form.get("password") ?? "");
-
-    if (password.length < 8) {
-      setError("Le mot de passe doit contenir au moins 8 caractères.");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await onSubmit(event, password);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <form
-        aria-labelledby={titleId}
-        aria-modal="true"
-        className="grid w-full max-w-md gap-4 rounded-lg border border-border bg-surface/80 p-6 shadow-xl backdrop-blur-sm"
-        onSubmit={submit}
-        role="dialog"
-      >
-        <div>
-          <h2 className="font-heading text-xl font-semibold text-foreground" id={titleId}>
-            Configurer l&apos;accès privé
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Le mot de passe sera haché côté API et ne sera plus affiché après enregistrement.
-          </p>
-        </div>
-        <label className="grid gap-2 text-sm font-semibold text-foreground">
-          Mot de passe privé
-          <input
-            aria-describedby={error ? errorId : undefined}
-            aria-invalid={error ? true : undefined}
-            autoComplete="new-password"
-            className="min-h-11 rounded border border-border bg-background px-3 outline-none focus:border-accent"
-            name="password"
-            type="password"
-          />
-          {error ? <span className="text-xs text-danger" id={errorId}>{error}</span> : null}
-        </label>
-        <div className="flex justify-end gap-3">
-          <button
-            className="inline-flex min-h-10 items-center justify-center rounded border border-border px-3 text-sm font-semibold text-foreground hover:border-accent"
-            onClick={onCancel}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="inline-flex min-h-10 items-center justify-center rounded bg-accent px-3 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={submitting}
-            type="submit"
-          >
-            {submitting ? "Enregistrement..." : event.hasPrivateAccessPassword ? "Changer le mot de passe" : "Enregistrer"}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-export function EventList({
-  onConfigurePrivateAccess,
-  onConfigureRecap,
-  onFeature,
-  onTransition,
-  state,
-}: {
+type EventListProps = {
   onConfigurePrivateAccess: (event: AdminEvent) => void;
   onConfigureRecap: (event: AdminEvent) => void;
   onFeature: (event: AdminEvent) => void;
-  onTransition: (event: AdminEvent, status: AdminEvent["status"]) => void;
+  onTransition: (event: AdminEvent, status: EventStatus) => void;
   state: DashboardState;
-}) {
+};
+
+export function EventList({ onConfigurePrivateAccess, onConfigureRecap, onFeature, onTransition, state }: EventListProps) {
   if (state.kind === "loading") {
     return (
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] border-collapse text-left text-sm">
-            <thead className="border-b border-border text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">Titre</th>
-                <th className="px-4 py-3 font-medium">Statut</th>
-                <th className="whitespace-nowrap px-4 py-3 font-medium">Début</th>
-                <th className="whitespace-nowrap px-4 py-3 font-medium">Capacité</th>
-                <th className="px-4 py-3 font-medium">Visibilité</th>
-                <th className="px-4 py-3 font-medium">Jeux</th>
-                <th className="px-4 py-3 font-medium">Récap</th>
-                <th className="px-4 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <tr className="animate-pulse border-b border-border last:border-b-0" key={i}>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-1.5">
-                      <div className="h-3.5 rounded bg-surface-2" style={{ width: `${[140, 112, 160, 128][i]}px` }} />
-                      <div className="h-2.5 w-20 rounded bg-surface-2 opacity-50" />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3"><div className="h-3 w-16 rounded bg-surface-2" /></td>
-                  <td className="px-4 py-3"><div className="h-3 w-24 rounded bg-surface-2" /></td>
-                  <td className="px-4 py-3"><div className="h-3 w-10 rounded bg-surface-2" /></td>
-                  <td className="px-4 py-3"><div className="h-3 w-14 rounded bg-surface-2" /></td>
-                  <td className="px-4 py-3"><div className="h-7 w-20 rounded bg-surface-2" /></td>
-                  <td className="px-4 py-3"><div className="h-3 w-4 rounded bg-surface-2" /></td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1.5">
-                      <div className="h-7 w-16 rounded bg-surface-2" />
-                      <div className="h-7 w-14 rounded bg-surface-2" />
-                      <div className="h-7 w-16 rounded bg-surface-2" />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="grid gap-px overflow-hidden rounded-lg border border-border bg-border" aria-busy="true">
+        {Array.from({ length: 4 }, (_, i) => `skeleton-${i}`).map((key) => (
+          <div className="flex animate-pulse items-center gap-4 bg-surface px-4 py-4" key={key}>
+            <div className="h-3.5 w-40 rounded bg-surface-2" />
+            <div className="h-3 w-16 rounded bg-surface-2" />
+            <div className="ml-auto h-7 w-24 rounded bg-surface-2" />
+          </div>
+        ))}
       </div>
     );
   }
@@ -404,222 +124,84 @@ export function EventList({
   // Most recent first.
   const sortedEvents = [...state.events].sort((a, b) => b.startsAt.localeCompare(a.startsAt));
 
-  const renderCapacity = (event: AdminEvent) => (
-    <div className="flex items-center gap-2">
-      <span>{event.confirmedRegistrations}/{event.capacity}</span>
-      {event.isAtCapacity ? (
-        <span className="inline-flex items-center gap-1 rounded border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-xs font-semibold text-danger">
-          <Users aria-hidden="true" className="size-3" />
-          Complet
-        </span>
-      ) : null}
-    </div>
-  );
-
-  const renderVisibility = (event: AdminEvent) =>
-    event.isPublic ? "Public" : event.hasPrivateAccessPassword ? "Privé protégé" : "Privé";
-
-  const renderGames = (event: AdminEvent) => (
-    <Link
-      className={event.gameSelectionEnabled ? ROW_BTN_ACTIVE : ROW_BTN_NEUTRAL}
-      href={`/admin/evenements/${event.id}/jeux`}
-      title={event.gameSelectionEnabled ? "Sélection activée" : "Configurer la sélection de jeux"}
-    >
-      <Gamepad2 aria-hidden="true" className="size-3.5" />
-      {event.gameSelectionEnabled ? "Activée" : "Configurer"}
-    </Link>
-  );
-
-  const renderRecap = (event: AdminEvent) =>
-    event.status === "completed" ? (
-      <button
-        className={event.hasRecap ? ROW_BTN_ACTIVE : ROW_BTN_NEUTRAL}
-        onClick={() => onConfigureRecap(event)}
-        title={event.hasRecap ? "Récap attaché" : "Attacher un récap ou une VOD"}
-        type="button"
-      >
-        <Video aria-hidden="true" className="size-3.5" />
-        {event.hasRecap ? "Attaché" : "Attacher"}
-      </button>
-    ) : (
-      <span className="text-xs text-muted-foreground">-</span>
-    );
-
   const renderActions = (event: AdminEvent) => (
-    <div className="flex flex-wrap gap-1.5">
-      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/modifier`}>
-        <Pencil aria-hidden="true" className="size-3.5" />
-        Modifier
-      </Link>
-      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/inscriptions`}>
-        <Users aria-hidden="true" className="size-3.5" />
-        Inscrits
-      </Link>
-      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/pelles`}>
-        <Shovel aria-hidden="true" className="size-3.5" />
-        Pelles
-      </Link>
-      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/partenaires`}>
-        <Handshake aria-hidden="true" className="size-3.5" />
-        Partenaires
-      </Link>
-      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/sondages`}>
-        <ClipboardList aria-hidden="true" className="size-3.5" />
-        Sondages
-      </Link>
-      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/presences`}>
-        <CalendarClock aria-hidden="true" className="size-3.5" />
-        Présences
-      </Link>
-      {event.status !== "draft" ? (
-        <button
-          className={event.featuredOnHome ? ROW_BTN_ACTIVE : ROW_BTN_NEUTRAL}
-          onClick={() => onFeature(event)}
-          title={event.featuredOnHome ? "Revenir au choix automatique de l'accueil" : "Montrer cet événement sur l'accueil"}
-          type="button"
-        >
-          <House aria-hidden="true" className="size-3.5" />
-          {event.featuredOnHome ? "Retirer de l'accueil" : "Mettre en avant"}
-        </button>
-      ) : null}
-      {event.gameSelectionEnabled ? (
-        <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/session`}>
-          <Server aria-hidden="true" className="size-3.5" />
-          Run
-        </Link>
-      ) : null}
-      {transitionActions(event.status).map((action) => {
-        const Icon = transitionIcon(action.status);
-        return (
-          <button
-            className={ROW_BTN_NEUTRAL}
-            key={action.status}
-            onClick={() => onTransition(event, action.status)}
-            type="button"
-          >
-            <Icon aria-hidden="true" className="size-3.5" />
-            {action.label}
-          </button>
-        );
-      })}
-      {!event.isPublic ? (
-        <button className={ROW_BTN_NEUTRAL} onClick={() => onConfigurePrivateAccess(event)} type="button">
-          <KeyRound aria-hidden="true" className="size-3.5" />
-          {event.hasPrivateAccessPassword ? "Changer accès" : "Config. accès"}
-        </button>
-      ) : null}
+    <div className="flex items-center justify-end gap-1.5">
+      <PrimaryActionButton event={event} onConfigureRecap={onConfigureRecap} onTransition={onTransition} />
+      <EventRowMenu
+        event={event}
+        onConfigurePrivateAccess={onConfigurePrivateAccess}
+        onFeature={onFeature}
+        onTransition={onTransition}
+      />
     </div>
   );
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      {/* Desktop: full table (horizontal scroll only as a last resort on mid widths) */}
-      <div className="hidden overflow-x-auto lg:block">
-        <table className="w-full min-w-[960px] border-collapse text-left text-sm">
-          <thead className="border-b border-border text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-medium">Titre</th>
-              <th className="px-4 py-3 font-medium">Statut</th>
-              <th className="whitespace-nowrap px-4 py-3 font-medium">Début</th>
-              <th className="whitespace-nowrap px-4 py-3 font-medium">Capacité</th>
-              <th className="px-4 py-3 font-medium">Visibilité</th>
-              <th className="px-4 py-3 font-medium">Jeux</th>
-              <th className="px-4 py-3 font-medium">Récap</th>
-              <th className="px-4 py-3 font-medium">Actions</th>
+    <div className="rounded-lg border border-border bg-surface">
+      {/* Desktop: one line per event, its next step and a menu for the rest. */}
+      <table className="hidden w-full border-collapse text-left text-sm lg:table">
+        <thead className="border-b border-border text-muted-foreground">
+          <tr>
+            <th className="px-4 py-3 font-medium">Titre</th>
+            <th className="px-4 py-3 font-medium">Statut</th>
+            <th className="whitespace-nowrap px-4 py-3 font-medium">Début</th>
+            <th className="whitespace-nowrap px-4 py-3 font-medium">Inscrits</th>
+            <th className="px-4 py-3 font-medium">Visibilité</th>
+            <th className="px-4 py-3 text-right font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedEvents.map((event) => (
+            <tr className="border-b border-border last:border-b-0" key={event.id}>
+              <td className="px-4 py-3 font-semibold text-foreground">
+                <Link className="hover:text-accent-text hover:underline" href={eventHubHref(event.id)}>
+                  {event.title}
+                </Link>
+                <FeaturedPill event={event} />
+              </td>
+              <td className="whitespace-nowrap px-4 py-3">
+                <StatusPill status={event.status} />
+              </td>
+              <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                <time dateTime={event.startsAt}>{formatDateShort(event.startsAt)}</time>
+              </td>
+              <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                <Capacity event={event} />
+              </td>
+              <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{visibilityLabel(event)}</td>
+              <td className="px-4 py-3">{renderActions(event)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {sortedEvents.map((event) => (
-              <tr className="border-b border-border last:border-b-0" key={event.id}>
-                <td className="px-4 py-3 font-semibold text-foreground">
-                  <span>{event.title}</span>
-                  {featuredPill(event)}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3">{statusPill(event.status)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                  <time dateTime={event.startsAt}>{formatDateShort(event.startsAt)}</time>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <span>{event.confirmedRegistrations}/{event.capacity}</span>
-                    {event.isAtCapacity ? (
-                      <span className="inline-flex items-center gap-1 rounded border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-xs font-semibold text-danger">
-                        <Users aria-hidden="true" className="size-3" />
-                        Complet
-                      </span>
-                    ) : null}
-                  </div>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                  {event.isPublic ? "Public" : event.hasPrivateAccessPassword ? "Privé protégé" : "Privé"}
-                </td>
-                <td className="px-4 py-3">
-                  <Link
-                    className={event.gameSelectionEnabled ? ROW_BTN_ACTIVE : ROW_BTN_NEUTRAL}
-                    href={`/admin/evenements/${event.id}/jeux`}
-                    title={event.gameSelectionEnabled ? "Sélection activée" : "Configurer la sélection de jeux"}
-                  >
-                    <Gamepad2 aria-hidden="true" className="size-3.5" />
-                    {event.gameSelectionEnabled ? "Activée" : "Configurer"}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">
-                  {event.status === "completed" ? (
-                    <button
-                      className={event.hasRecap ? ROW_BTN_ACTIVE : ROW_BTN_NEUTRAL}
-                      onClick={() => onConfigureRecap(event)}
-                      title={event.hasRecap ? "Récap attaché" : "Attacher un récap ou une VOD"}
-                      type="button"
-                    >
-                      <Video aria-hidden="true" className="size-3.5" />
-                      {event.hasRecap ? "Attaché" : "Attacher"}
-                    </button>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">-</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">{renderActions(event)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
 
-      {/* Mobile: one card per event (no horizontal scroll) */}
+      {/* Mobile: one card per event (no horizontal scroll). */}
       <ul className="divide-y divide-border lg:hidden">
         {sortedEvents.map((event) => (
           <li className="space-y-3 p-4" key={event.id}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-semibold text-foreground">
-                  {event.title}
-                  {featuredPill(event)}
+                  <Link className="hover:text-accent-text hover:underline" href={eventHubHref(event.id)}>
+                    {event.title}
+                  </Link>
+                  <FeaturedPill event={event} />
                 </p>
-                <div className="mt-1">{statusPill(event.status)}</div>
+                <div className="mt-1">
+                  <StatusPill status={event.status} />
+                </div>
               </div>
               <time className="shrink-0 text-xs text-muted-foreground" dateTime={event.startsAt}>
                 {formatDateShort(event.startsAt)}
               </time>
             </div>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-              <div>
-                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Capacité</dt>
-                <dd className="mt-1 text-foreground">{renderCapacity(event)}</dd>
-              </div>
-              <div>
-                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Visibilité</dt>
-                <dd className="mt-1 text-foreground">{renderVisibility(event)}</dd>
-              </div>
-              <div>
-                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Jeux</dt>
-                <dd className="mt-1">{renderGames(event)}</dd>
-              </div>
-              <div>
-                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Récap</dt>
-                <dd className="mt-1">{renderRecap(event)}</dd>
-              </div>
-            </dl>
-            <div className="border-t border-border pt-3">{renderActions(event)}</div>
+            <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <Capacity event={event} />
+                <span>{visibilityLabel(event)}</span>
+              </span>
+              {renderActions(event)}
+            </div>
           </li>
         ))}
       </ul>
@@ -627,182 +209,42 @@ export function EventList({
   );
 }
 
-function RecapDialog({
+function Capacity({ event }: { event: AdminEvent }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span>
+        {event.confirmedRegistrations}/{event.capacity}
+      </span>
+      {event.isAtCapacity ? (
+        <span className="inline-flex items-center gap-1 rounded border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-xs font-semibold text-danger">
+          <Users aria-hidden="true" className="size-3" />
+          Complet
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function PrimaryActionButton({
   event,
-  onClose,
-  onSaved,
+  onConfigureRecap,
+  onTransition,
 }: {
   event: AdminEvent;
-  onClose: () => void;
-  onSaved: (vodUrl: string | null, recapPostSlug: string | null) => void;
+  onConfigureRecap: (event: AdminEvent) => void;
+  onTransition: (event: AdminEvent, status: EventStatus) => void;
 }) {
-  const titleId = useId();
-  const vodUrlErrorId = useId();
-  const slugErrorId = useId();
-  const [vodUrlError, setVodUrlError] = useState<string | null>(null);
-  const [slugError, setSlugError] = useState<string | null>(null);
-  const [genericError, setGenericError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  async function submit(formEvent: FormEvent<HTMLFormElement>) {
-    formEvent.preventDefault();
-    setVodUrlError(null);
-    setSlugError(null);
-    setGenericError(null);
-    setSubmitting(true);
-
-    const form = new FormData(formEvent.currentTarget);
-    const vodUrl = String(form.get("vodUrl") ?? "").trim() || null;
-    const recapPostSlug = String(form.get("recapPostSlug") ?? "").trim() || null;
-
-    const result = await saveAdminEventRecap(event.id, vodUrl, recapPostSlug);
-    setSubmitting(false);
-
-    if (!result.ok) {
-      if (result.reason === "network") {
-        setGenericError("Impossible de contacter l'API.");
-        return;
-      }
-      if (result.details.vodUrl) setVodUrlError(result.details.vodUrl);
-      if (result.details.recapPostSlug) setSlugError(result.details.recapPostSlug);
-      if (!result.details.vodUrl && !result.details.recapPostSlug) setGenericError("Impossible d'enregistrer le récap.");
-      return;
-    }
-
-    onSaved(vodUrl, recapPostSlug);
-  }
+  const action = primaryAction(event);
+  if (action === null) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <form
-        aria-labelledby={titleId}
-        aria-modal="true"
-        className="grid w-full max-w-md gap-4 rounded-lg border border-border bg-surface/80 p-6 shadow-xl backdrop-blur-sm"
-        onSubmit={submit}
-        role="dialog"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-heading text-xl font-semibold text-foreground" id={titleId}>
-            Récap - {event.title}
-          </h2>
-          <button aria-label="Fermer" className="text-muted-foreground hover:text-foreground" onClick={onClose} type="button">
-            ✕
-          </button>
-        </div>
-
-        {genericError ? (
-          <p className="text-sm text-danger" role="alert">{genericError}</p>
-        ) : null}
-
-        <label className="grid gap-2 text-sm font-semibold text-foreground">
-          URL de la VOD (optionnel)
-          <input
-            aria-describedby={vodUrlError ? vodUrlErrorId : undefined}
-            aria-invalid={vodUrlError ? true : undefined}
-            className="min-h-11 rounded border border-border bg-background px-3 outline-none focus:border-accent"
-            defaultValue={event.vodUrl ?? ""}
-            name="vodUrl"
-            placeholder="https://www.youtube.com/watch?v=..."
-            type="url"
-          />
-          {vodUrlError ? <span className="text-xs text-danger" id={vodUrlErrorId}>{vodUrlError}</span> : null}
-        </label>
-
-        <label className="grid gap-2 text-sm font-semibold text-foreground">
-          Slug du récap (optionnel)
-          <input
-            aria-describedby={slugError ? slugErrorId : undefined}
-            aria-invalid={slugError ? true : undefined}
-            className="min-h-11 rounded border border-border bg-background px-3 outline-none focus:border-accent"
-            defaultValue={event.recapPostSlug ?? ""}
-            name="recapPostSlug"
-            placeholder="spring-sync-2027-recap"
-            type="text"
-          />
-          {slugError ? <span className="text-xs text-danger" id={slugErrorId}>{slugError}</span> : null}
-        </label>
-
-        <div className="flex justify-end gap-3">
-          <button
-            className="inline-flex min-h-10 items-center justify-center rounded border border-border px-3 text-sm font-semibold text-foreground hover:border-accent"
-            onClick={onClose}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="inline-flex min-h-10 items-center justify-center rounded bg-accent px-3 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={submitting}
-            type="submit"
-          >
-            {submitting ? "Enregistrement..." : "Enregistrer"}
-          </button>
-        </div>
-      </form>
-    </div>
+    <button
+      className={PRIMARY_BTN}
+      onClick={() => (action.kind === "recap" ? onConfigureRecap(event) : onTransition(event, action.status))}
+      type="button"
+    >
+      <ActionIcon to={action.kind === "recap" ? "recap" : action.status} />
+      {action.label}
+    </button>
   );
-}
-
-/** Story 3.15: the event the home page shows instead of its automatic pick. */
-function featuredPill(event: AdminEvent) {
-  return event.featuredOnHome ? (
-    <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-accent-warm/50 px-2 py-0.5 align-middle text-xs font-medium text-accent-warm">
-      <House aria-hidden="true" className="size-3" />
-      Accueil
-    </span>
-  ) : null;
-}
-
-function statusLabel(status: AdminEvent["status"]) {
-  return { draft: "Brouillon", published: "Publié", "in-progress": "En cours", completed: "Terminé" }[status];
-}
-
-const STATUS_PILL: Record<AdminEvent["status"], string> = {
-  draft: "border-border bg-surface-2 text-muted-foreground",
-  published: "border-accent/40 bg-accent/15 text-accent-text",
-  "in-progress": "border-success/40 bg-success/15 text-success",
-  completed: "border-border bg-surface-2 text-foreground",
-};
-
-function statusPill(status: AdminEvent["status"]) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_PILL[status]}`}>
-      {statusLabel(status)}
-    </span>
-  );
-}
-
-function transitionActions(status: AdminEvent["status"]): StatusAction[] {
-  const actions: Record<AdminEvent["status"], StatusAction[]> = {
-    draft: [{ label: "Publier", status: "published" }],
-    published: [{ label: "Dépublier", status: "draft" }, { label: "Démarrer", status: "in-progress" }],
-    "in-progress": [{ label: "Revenir publié", status: "published" }, { label: "Terminer", status: "completed" }],
-    completed: [{ label: "Rouvrir", status: "published" }],
-  };
-  return actions[status];
-}
-
-function transitionIcon(status: AdminEvent["status"]): LucideIcon {
-  return {
-    draft: RotateCcw,
-    published: Eye,
-    "in-progress": Play,
-    completed: CheckCircle2,
-  }[status];
-}
-
-function transitionConfirmation(from: AdminEvent["status"], to: AdminEvent["status"]) {
-  if (to === "draft") return "Dépublier cet événement ? Il disparaîtra des pages publiques.";
-  if (from === "draft" && to === "published") return "Publier cet événement ? Il deviendra visible sur les pages publiques.";
-  return "Confirmer ce changement de statut ?";
-}
-
-function formatDateShort(value: string) {
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }

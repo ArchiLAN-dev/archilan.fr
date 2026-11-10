@@ -1,6 +1,6 @@
 # Story 52.7 - Carte des dépendances (avant l'événement)
 
-**Status:** review
+**Status:** done
 **Epic:** 52 - Le Passeur (`_bmad-output/planning-artifacts/epics/epic-52-passeur.md`)
 **Date:** 2026-11-09
 **Branche:** `feature/epic-52-story-7-carte-des-dependances` (depuis `develop`)
