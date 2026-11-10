@@ -2,14 +2,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { EventList } from "../admin-event-dashboard";
-import type { AdminEvent } from "../admin-events-api";
-import { AdminEventHubView, hubSections } from "./admin-event-hub";
+import type { AdminEvent, AdminEventsResult } from "../admin-events-api";
+import { AdminEventHub, AdminEventHubView, hubSections } from "./admin-event-hub";
 import { AdminEventNavView, isCurrentSection } from "./admin-event-nav";
 import { menuActions, primaryAction } from "./event-status";
 
 jest.mock("next/navigation", () => ({
   usePathname: () => "/admin/evenements/e1",
   useRouter: () => ({ push: () => undefined }),
+  notFound: () => {
+    throw new Error("NEXT_NOT_FOUND");
+  },
 }));
 
 function adminEvent(overrides: Partial<AdminEvent> = {}): AdminEvent {
@@ -163,5 +166,33 @@ describe("the sections of an event (story 3.17)", () => {
     expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/evenements\/e1\/inscriptions"/);
     expect(html).toContain("ArchiLAN 4");
     expect(html).toContain('href="/admin/evenements"');
+  });
+});
+
+/** Story 3.17: the hub reads the admin event list; an unknown id is a 404, a non-admin is told so. */
+describe("the hub page (story 3.17)", () => {
+  function renderHub(eventId: string, result: AdminEventsResult): string {
+    const client = new QueryClient();
+    client.setQueryData(["admin-events"], result);
+    return renderToStaticMarkup(
+      <QueryClientProvider client={client}>
+        <AdminEventHub eventId={eventId} />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("shows the event it knows", () => {
+    expect(renderHub("e1", { kind: "ready", events: [adminEvent()] })).toContain("ArchiLAN 4");
+  });
+
+  it("answers 404 for an unknown event", () => {
+    expect(() => renderHub("nope", { kind: "ready", events: [adminEvent()] })).toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("tells a non-admin the page is not for them", () => {
+    const html = renderHub("e1", { kind: "denied", message: "Accès réservé aux admins ArchiLAN." });
+
+    expect(html).toContain("Accès réservé aux admins ArchiLAN.");
+    expect(html).not.toContain("Vue d");
   });
 });

@@ -7,7 +7,8 @@ export default async function AdminEventLayout({ children, params }: Props) {
   const { eventId } = await params;
 
   return (
-    <div className="grid gap-4 px-4 pt-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-6">
+    // The section pages keep their own padding; only the nav and the hub overview get theirs here, so it is not doubled.
+    <div className="grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-2">
       <AdminEventNav eventId={eventId} />
       <div className="min-w-0">{children}</div>
     </div>

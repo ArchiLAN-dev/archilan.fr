@@ -18,7 +18,7 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ThumbnailPreview } from "@/features/admin/admin-game-library-dashboard";
 import { apiFetch } from "@/lib/apiFetch";
@@ -46,6 +46,7 @@ type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { k
 export const CATALOGUE_PAGE_SIZE = 50;
 
 export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
+  const queryClient = useQueryClient();
   const [enabled, setEnabled] = useState(false);
   const [maxGames, setMaxGames] = useState<number | null>(null);
   const [selectedGameIds, setSelectedGameIds] = useState<Set<string>>(new Set());
@@ -239,6 +240,8 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
       }
       // Story 3.16: stay on the page - the admin often adjusts in several passes.
       setSaved(draft);
+      // Story 3.17: the hub greys "Run et sessions" until the selection is on; let it see the change.
+      void queryClient.invalidateQueries({ queryKey: ["admin-events"] });
       setSave({ kind: "saved" });
     } catch {
       setSave({ kind: "error", message: "Impossible de contacter l'API." });
