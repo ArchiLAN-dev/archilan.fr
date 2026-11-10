@@ -8,10 +8,13 @@ import {
   hourTicks,
   isPresentDuring,
   orderedRegistrants,
+  parisDays,
+  parisWeeks,
   presenceSummary,
   presentCount,
   PresenceTimelineView,
   shortMoment,
+  weekIndexAt,
 } from "./admin-presence-timeline";
 import { describeWindow, isPresence, isPresenceTimeline, type PresenceTimeline } from "./presence-api";
 import { PresenceEditor, PresenceSummary, windowsOfRows } from "./presence-editor";
@@ -144,5 +147,65 @@ describe("story 52.8 - a readable timeline", () => {
     );
     expect(html).toContain("Aucun inscrit dans ce filtre.");
     expect(html).toMatch(/aria-label="Filtrer les inscrits" class="hidden [^"]*md:flex"/);
+  });
+});
+
+describe("story 52.10 - a long event, one week at a time", () => {
+  // Tuesday 20 October 2026 to Thursday 5 November, across the change to winter time (25 October).
+  const LONG = { eventStartsAt: "2026-10-20T10:00:00+00:00", eventEndsAt: "2026-11-05T18:00:00+00:00" };
+  const start = new Date(LONG.eventStartsAt).getTime();
+  const end = new Date(LONG.eventEndsAt).getTime();
+  const people: PresenceTimeline["registrants"] = [
+    { registrationId: "r1", userId: "u1", displayName: "Alice", windows: [{ startsAt: "2026-10-21T08:00:00+00:00", endsAt: "2026-10-22T18:00:00+00:00" }] },
+    { registrationId: "r2", userId: "u2", displayName: "Bob", windows: [] },
+    { registrationId: "r3", userId: "u3", displayName: "Carol", windows: [{ startsAt: "2026-10-27T08:00:00+00:00", endsAt: "2026-11-03T18:00:00+00:00" }] },
+  ];
+
+  it("cuts the civil days of Paris, one per date across the time change", () => {
+    const days = parisDays(start, end);
+
+    expect(days).toHaveLength(17);
+    expect(days.map((day) => day.dayOfMonth)).toEqual([20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 1, 2, 3, 4, 5]);
+    expect(days[0].weekday).toBe(1);
+    expect(days[0].startsAt).toBe(start);
+    // 25 October lasts 25 hours in Paris.
+    expect(days[5].endsAt - days[5].startsAt).toBe(25 * 3_600_000);
+  });
+
+  it("groups the days in weeks from Monday, and finds the week of a moment", () => {
+    const weeks = parisWeeks(start, end);
+
+    expect(weeks.map((week) => week.days.length)).toEqual([6, 7, 4]);
+    expect(weeks[1].label).toBe("lun. 26 oct. au dim. 1 nov.");
+    expect(weekIndexAt(weeks, new Date("2026-10-28T12:00:00+00:00").getTime())).toBe(1);
+    expect(weekIndexAt(weeks, new Date("2026-12-01T12:00:00+00:00").getTime())).toBe(0);
+    expect(weekIndexAt(weeks, undefined)).toBe(0);
+    expect(presentCount(people, weeks[0].days[1])).toBe(2);
+  });
+
+  it("shows the calendar and the week of today, cut to that week", () => {
+    const html = renderToStaticMarkup(
+      <PresenceTimelineView eventId="e1" now={new Date("2026-10-28T12:00:00+00:00").getTime()} timeline={{ ...LONG, registrants: people }} />,
+    );
+
+    expect(html).toContain("Calendrier des présences");
+    expect(html.match(/aria-pressed="true"/g)?.length).toBe(2); // the week, and the « Tous » filter
+    expect(html).toMatch(/aria-label="Semaine du lun\. 26 oct\. au dim\. 1 nov\." aria-pressed="true"/);
+    expect(html.match(/data-day="out"/g)).toHaveLength(4);
+    expect(html).toContain("Semaine du lun. 26 oct. au dim. 1 nov.");
+    // Alice came the week before; Carol's stay runs past Sunday and keeps its real hours.
+    expect(html).toContain("pas là cette semaine");
+    expect(html).toContain("mar. 9 h → mar. 19 h");
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>← Semaine précédente/);
+  });
+
+  it("opens on the first week before the event, and leaves a short event as it was", () => {
+    const before = renderToStaticMarkup(<PresenceTimelineView eventId="e1" now={start - 86_400_000} timeline={{ ...LONG, registrants: people }} />);
+    expect(before).toMatch(/aria-label="Semaine du mar\. 20 oct\. au dim\. 25 oct\." aria-pressed="true"/);
+    expect(before).toMatch(/<button[^>]*disabled=""[^>]*>← Semaine précédente/);
+
+    const short = renderToStaticMarkup(<PresenceTimelineView eventId="e1" timeline={{ ...EVENT, registrants: people }} />);
+    expect(short).not.toContain("Calendrier des présences");
+    expect(short).not.toContain("Semaine suivante");
   });
 });

@@ -21,8 +21,11 @@ function parisHour(t: number): number {
 
 /** The event cut into half-days (midnight to noon, noon to midnight, Europe/Paris), clipped to its dates. */
 export function halfDaySegments(eventStartsAt: string, eventEndsAt: string): Segment[] {
-  const start = new Date(eventStartsAt).getTime();
-  const end = new Date(eventEndsAt).getTime();
+  return halfDaysBetween(new Date(eventStartsAt).getTime(), new Date(eventEndsAt).getTime());
+}
+
+/** Story 52.10: the same cut over any span, a week of a long event for one. */
+export function halfDaysBetween(start: number, end: number): Segment[] {
   if (!(start < end)) return [];
   const cuts = [start];
   // Paris noon and midnight fall on a whole UTC hour: walk the hours after the start.
@@ -43,13 +46,77 @@ export function halfDaySegments(eventStartsAt: string, eventEndsAt: string): Seg
 }
 
 /** There during the segment: no window at all (there the whole event), or a window that overlaps it. */
-export function isPresentDuring(windows: PresenceWindow[], segment: Segment): boolean {
+export function isPresentDuring(windows: PresenceWindow[], segment: Span): boolean {
   if (windows.length === 0) return true;
   return windows.some((w) => new Date(w.startsAt).getTime() < segment.endsAt && new Date(w.endsAt).getTime() > segment.startsAt);
 }
 
-export function presentCount(registrants: PresenceRegistrant[], segment: Segment): number {
+export function presentCount(registrants: PresenceRegistrant[], segment: Span): number {
   return registrants.filter((r) => isPresentDuring(r.windows, segment)).length;
+}
+
+/** Story 52.10: past this length, the timeline shows one week at a time under a calendar of the whole event. */
+export const LONG_EVENT_MS = 4 * 24 * HOUR;
+
+export type Span = { startsAt: number; endsAt: number };
+export type Day = Span & { dayOfMonth: number; weekday: number; label: string };
+export type Week = Span & { days: Day[]; label: string };
+
+const PARIS_WEEKDAY_INDEX = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Europe/Paris" });
+const PARIS_DAY_OF_MONTH = new Intl.DateTimeFormat("fr-FR", { day: "numeric", timeZone: "Europe/Paris" });
+const PARIS_DATE = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/Paris" });
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** 0 for Monday to 6 for Sunday, in Paris. */
+function parisWeekday(t: number): number {
+  return WEEKDAYS.indexOf(PARIS_WEEKDAY_INDEX.format(new Date(t)));
+}
+
+/** The civil days of Paris the span covers, clipped to it: one per date, summer and winter time alike. */
+export function parisDays(start: number, end: number): Day[] {
+  if (!(start < end)) return [];
+  const cuts = [start];
+  for (let t = Math.ceil(start / HOUR) * HOUR; t < end; t += HOUR) {
+    if (t > start && parisHour(t) === 0) cuts.push(t);
+  }
+  cuts.push(end);
+  const days: Day[] = [];
+  for (let i = 1; i < cuts.length; i++) {
+    const from = cuts[i - 1];
+    days.push({
+      startsAt: from,
+      endsAt: cuts[i],
+      dayOfMonth: Number(PARIS_DAY_OF_MONTH.format(new Date(from))),
+      weekday: parisWeekday(from),
+      label: PARIS_DATE.format(new Date(from)),
+    });
+  }
+  return days;
+}
+
+/** The weeks of the span, Monday to Sunday, each clipped to it. */
+export function parisWeeks(start: number, end: number): Week[] {
+  const weeks: Week[] = [];
+  for (const day of parisDays(start, end)) {
+    const last = weeks.at(-1);
+    if (last && day.weekday !== 0) {
+      last.days.push(day);
+      last.endsAt = day.endsAt;
+    } else {
+      weeks.push({ startsAt: day.startsAt, endsAt: day.endsAt, days: [day], label: "" });
+    }
+  }
+  for (const week of weeks) {
+    week.label = `${week.days[0].label} au ${week.days[week.days.length - 1].label}`;
+  }
+  return weeks;
+}
+
+/** The week that holds the moment, or the first one. */
+export function weekIndexAt(weeks: Week[], t: number | undefined): number {
+  if (t === undefined) return 0;
+  const index = weeks.findIndex((week) => t >= week.startsAt && t < week.endsAt);
+  return index < 0 ? 0 : index;
 }
 
 /** Story 52.8: « sam. 14 h », « dim. 9 h 30 » - a moment of the event, short enough to sit in a bar. */
@@ -162,11 +229,19 @@ type ViewProps = { eventId: string; timeline: PresenceTimeline; now?: number; in
 
 export function PresenceTimelineView({ eventId, timeline, now, initialFilter = "all" }: ViewProps) {
   const [filter, setFilter] = useState<PresenceFilter>(initialFilter);
-  const segments = halfDaySegments(timeline.eventStartsAt, timeline.eventEndsAt);
+  const eventStart = new Date(timeline.eventStartsAt).getTime();
+  const eventEnd = new Date(timeline.eventEndsAt).getTime();
+  // Story 52.10: a long event is read one week at a time, under a calendar of all its days.
+  const long = eventEnd - eventStart > LONG_EVENT_MS;
+  const weeks = long ? parisWeeks(eventStart, eventEnd) : [];
+  const [weekIndex, setWeekIndex] = useState(() => weekIndexAt(weeks, now));
+  const week = weeks.at(weekIndex) ?? null;
+  const range: Span = week ?? { startsAt: eventStart, endsAt: eventEnd };
+  const segments = halfDaysBetween(range.startsAt, range.endsAt);
 
   if (timeline.registrants.length === 0) return <p className="text-muted-foreground">Aucun inscrit confirmé pour l&apos;instant.</p>;
 
-  const summary = presenceSummary(timeline.registrants, segments);
+  const summary = presenceSummary(timeline.registrants, halfDaySegments(timeline.eventStartsAt, timeline.eventEndsAt));
   const rows = orderedRegistrants(timeline.registrants, filter);
   const filters: { value: PresenceFilter; label: string }[] = [
     { value: "all", label: `Tous (${summary.total})` },
@@ -182,6 +257,17 @@ export function PresenceTimelineView({ eventId, timeline, now, initialFilter = "
         <SummaryTile hint={summary.undeclared > 0 ? "comptés présents partout" : undefined} label="Pas déclaré" value={String(summary.undeclared)} />
         {summary.low ? <SummaryTile hint={summary.low.label} label="Creux" value={`${summary.low.count} présents`} /> : null}
       </dl>
+
+      {long ? <PresenceCalendar onSelect={setWeekIndex} registrants={timeline.registrants} selected={weekIndex} weeks={weeks} /> : null}
+      {week ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-foreground">Semaine du {week.label}</p>
+          <div className="flex gap-2">
+            <WeekButton disabled={weekIndex === 0} label="← Semaine précédente" onClick={() => setWeekIndex(weekIndex - 1)} />
+            <WeekButton disabled={weekIndex === weeks.length - 1} label="Semaine suivante →" onClick={() => setWeekIndex(weekIndex + 1)} />
+          </div>
+        </div>
+      ) : null}
 
       {/* The filter acts on the timeline rows only, so it is shown with the timeline, not over the mobile cards. */}
       <div aria-label="Filtrer les inscrits" className="hidden flex-wrap gap-2 md:flex" role="group">
@@ -201,7 +287,7 @@ export function PresenceTimelineView({ eventId, timeline, now, initialFilter = "
       </div>
 
       <div className="hidden md:block">
-        <Timeline eventId={eventId} now={now} rows={rows} segments={segments} timeline={timeline} />
+        <Timeline eventId={eventId} now={now} range={range} rows={rows} segments={segments} timeline={timeline} />
       </div>
       <div className="md:hidden">
         <HalfDayCards segments={segments} timeline={timeline} />
@@ -216,6 +302,68 @@ export function PresenceTimelineView({ eventId, timeline, now, initialFilter = "
         </span>
       </p>
     </div>
+  );
+}
+
+function WeekButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      className="rounded-md border border-border px-3 py-1 text-sm text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border"
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+    </button>
+  );
+}
+
+const CALENDAR_HEAD = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."];
+
+type CalendarProps = { weeks: Week[]; registrants: PresenceRegistrant[]; selected: number; onSelect: (index: number) => void };
+
+/** Story 52.10: every day of a long event, with how many are there; a week's row picks the week shown below. */
+export function PresenceCalendar({ weeks, registrants, selected, onSelect }: CalendarProps) {
+  const total = registrants.length;
+
+  return (
+    <section aria-label="Calendrier des présences" className="grid w-full max-w-2xl gap-1 rounded-lg border border-border bg-surface p-3">
+      <div aria-hidden="true" className="grid grid-cols-7 gap-1 px-1 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {CALENDAR_HEAD.map((day) => (
+          <span key={day}>{day}</span>
+        ))}
+      </div>
+      {weeks.map((week, index) => (
+        <button
+          aria-label={`Semaine du ${week.label}`}
+          aria-pressed={index === selected}
+          className={`grid grid-cols-7 gap-1 rounded-md p-1 text-left transition-colors ${index === selected ? "bg-accent/10 ring-2 ring-accent" : "hover:bg-surface-2"}`}
+          key={week.startsAt}
+          onClick={() => onSelect(index)}
+          type="button"
+        >
+          {CALENDAR_HEAD.map((head, weekday) => {
+            const day = week.days.find((candidate) => candidate.weekday === weekday);
+            if (!day) return <span aria-hidden="true" className="min-h-11" data-day="out" key={head} />;
+            const count = presentCount(registrants, day);
+            return (
+              <span
+                className="grid min-h-11 content-between rounded border border-border/60 bg-background/40 px-1.5 py-1"
+                data-day="in"
+                key={head}
+                title={`${day.label} : ${count} présents sur ${total}`}
+              >
+                <span className="text-[11px] text-muted-foreground">{day.dayOfMonth}</span>
+                <span className="flex items-center gap-1">
+                  <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${tone(count, total)}`} />
+                  <span className="text-sm font-semibold text-foreground">{count}</span>
+                </span>
+              </span>
+            );
+          })}
+        </button>
+      ))}
+    </section>
   );
 }
 
@@ -235,18 +383,21 @@ function SummaryTile({ label, value, hint }: { label: string; value: string; hin
 function Timeline({
   eventId,
   now,
+  range,
   rows,
   segments,
   timeline,
 }: {
   eventId: string;
   now?: number;
+  range: Span;
   rows: PresenceRegistrant[];
   segments: Segment[];
   timeline: PresenceTimeline;
 }) {
-  const start = new Date(timeline.eventStartsAt).getTime();
-  const end = new Date(timeline.eventEndsAt).getTime();
+  // Story 52.10: the span shown, the whole event or one week of a long one.
+  const start = range.startsAt;
+  const end = range.endsAt;
   const span = end - start;
   const pct = (t: number) => Math.min(100, Math.max(0, ((t - start) / span) * 100));
   const total = timeline.registrants.length;
@@ -333,7 +484,9 @@ function Timeline({
             <ul className="divide-y divide-border">
               {rows.map((registrant) => (
                 <li className="relative h-10" key={registrant.registrationId}>
-                  {registrant.windows.length === 0 ? (
+                  {registrant.windows.length > 0 && !isPresentDuring(registrant.windows, range) ? (
+                    <span className="absolute inset-x-1 top-2 bottom-2 flex items-center px-2 text-[11px] text-muted-foreground">pas là cette semaine</span>
+                  ) : registrant.windows.length === 0 ? (
                     <span
                       aria-label={`${registrant.displayName} : pas déclaré, compté présent tout l'événement`}
                       className={`absolute inset-x-1 top-2 bottom-2 flex items-center justify-center rounded text-[11px] text-muted-foreground ${HATCHED}`}
@@ -345,6 +498,8 @@ function Timeline({
                     registrant.windows.map((w) => {
                       const from = new Date(w.startsAt).getTime();
                       const to = new Date(w.endsAt).getTime();
+                      // A window outside the span shown has no bar; one across its edge is cut there, its text unchanged.
+                      if (to <= start || from >= end) return null;
                       return (
                         <span
                           aria-label={`${registrant.displayName} : ${describeWindow(w)}`}
