@@ -195,3 +195,8 @@ si c'est trop chargé.
 - Hebdos.
 - Ajustement automatique des YAML selon les créneaux (`exclude_locations`, `progression_balancing`).
 - Découpage automatique d'un événement en plusieurs multiworlds par créneau.
+
+## Story 52.8 : une frise des présences lisible (admin)
+
+Résumé, axe des jours et des heures, histogramme des présents, non-déclarés distincts, tri et filtre, vue mobile par
+demi-journée. Détail : `_bmad-output/implementation-artifacts/52-8-frise-des-presences.md`.
