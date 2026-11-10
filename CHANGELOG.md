@@ -5,6 +5,19 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.65.0] - 2026-11-10
+
+Tester la config d'un slot depuis une session d'événement (story 11.11). Aucune migration, aucune variable,
+services inchangés.
+
+### Ajouté
+
+- Détail d'une session d'événement : nouvelle colonne « Config » pour tester un slot seul, comme sur une partie
+  privée. Le test prend le YAML enregistré de l'inscription (ou le YAML par défaut du jeu) contre l'apworld servi,
+  donc ce que lira la génération. « Tester toutes les configs » lance tous les slots, trois à la fois, puis
+  affiche le bilan et la liste des échecs avec leur erreur. Un jeu qui lit un fichier (ROM) à la génération est
+  laissé de côté par le test groupé et se teste avec « Tester avec le fichier ». Rien n'est enregistré.
+
 ## [0.64.1] - 2026-11-10
 
 Correctif de la grille des présences (story 52.10). Frontend seul : aucune migration, aucune variable.

@@ -61,6 +61,7 @@ import { PasseurJournal } from "@/features/passeur/passeur-journal";
 import { DeparturesPanel } from "@/features/departures/departures";
 import { DependencyMapPanel } from "@/features/dependencies/dependency-map";
 import { EventSlotCoPlayers } from "@/features/events/event-slot-co-players";
+import { EventSlotYamlTestCell, EventSlotYamlTestsToolbar, useEventSlotYamlTests } from "./event-slot-yaml-tests";
 import {
   canCreateSession,
   charLength,
@@ -757,6 +758,8 @@ function SessionDetail({
   const [pendingChain, setPendingChain] = useState<"generate" | "generate-and-launch" | null>(autoStart);
   // Story 44.5: the files a generation needs (a ROM), chosen and checked here, never stored.
   const provided = useProvidedFiles(generationFiles);
+  // Story 11.11: the solo test of each slot's config.
+  const slotTests = useEventSlotYamlTests(eventId, slots);
   const [actionError, setActionError] = useState<string | null>(null);
   const filesMissing = provided.blocker !== null;
   const [copied, setCopied] = useState<string | null>(null);
@@ -1157,6 +1160,7 @@ function SessionDetail({
             ) : null}
 
             {/* Slots */}
+            {slots.length > 0 ? <EventSlotYamlTestsToolbar slots={slots} tests={slotTests} /> : null}
             {slots.length > 0 ? (
               <div className="overflow-x-auto rounded border border-border bg-surface">
                 <table className="w-full border-collapse text-left text-sm">
@@ -1165,6 +1169,7 @@ function SessionDetail({
                       <th className="px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">Nom de slot</th>
                       <th className="px-4 py-3 font-medium">Inscription</th>
+                      <th className="px-4 py-3 font-medium">Config</th>
                       <th className="px-4 py-3 font-medium">Co-joueurs</th>
                     </tr>
                   </thead>
@@ -1174,6 +1179,9 @@ function SessionDetail({
                         <td className="px-4 py-3 text-muted-foreground">{slot.slotOrder + 1}</td>
                         <td className="px-4 py-3 font-mono font-semibold text-foreground">{slot.slotName}</td>
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{slot.registrationId.slice(0, 8)}…</td>
+                        <td className="min-w-40 px-4 py-3">
+                          <EventSlotYamlTestCell slot={slot} tests={slotTests} />
+                        </td>
                         {/* Story 11.10: other registrants of the event who play this slot. */}
                         <td className="min-w-56 px-4 py-3">
                           {slot.slotId ? <EventSlotCoPlayers eventId={eventId} slotId={slot.slotId} /> : null}
