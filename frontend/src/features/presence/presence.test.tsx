@@ -2,16 +2,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import {
-  absentDuring,
-  dayBands,
   halfDaySegments,
-  hourTicks,
   isPresentDuring,
   orderedRegistrants,
+  parisDays,
+  parisWeeks,
+  planningCell,
+  planningColumns,
   presenceSummary,
   presentCount,
+  weekIndexAt,
   PresenceTimelineView,
-  shortMoment,
 } from "./admin-presence-timeline";
 import { describeWindow, isPresence, isPresenceTimeline, type PresenceTimeline } from "./presence-api";
 import { PresenceEditor, PresenceSummary, windowsOfRows } from "./presence-editor";
@@ -54,7 +55,7 @@ describe("story 52.2 - presence windows", () => {
     expect(html).toContain("Alice");
     expect(html).toContain("/admin/evenements/e1/inscriptions/r2");
     // Story 52.8: someone who declared nothing is not shown as a declared presence.
-    expect(html).toContain("pas déclaré");
+    expect(html).toContain("rien déclaré");
   });
 
   it("reads the API shapes with guards", () => {
@@ -106,27 +107,21 @@ describe("story 52.8 - a readable timeline", () => {
     expect(orderedRegistrants(people, "undeclared").map((r) => r.displayName)).toEqual(["Aaron", "Zoé"]);
   });
 
-  it("writes moments short, in Paris time", () => {
-    expect(shortMoment(new Date("2027-06-05T12:00:00+00:00").getTime())).toBe("sam. 14 h");
-    expect(shortMoment(new Date("2027-06-05T07:30:00+00:00").getTime())).toBe("sam. 9 h 30");
-  });
-
-  it("marks every 6 hours and groups the half-days by day", () => {
-    const start = new Date(EVENT.eventStartsAt).getTime();
-    const end = new Date(EVENT.eventEndsAt).getTime();
-    expect(hourTicks(start, end).map((tick) => tick.label).slice(0, 4)).toEqual(["0 h", "6 h", "12 h", "18 h"]);
-    expect(dayBands(segments).map((band) => band.day)).toEqual(["ven. 4", "sam. 5", "dim. 6"]);
-  });
-
-  it("names who is missing in a half-day", () => {
-    expect(absentDuring(people, segments[2]).map((r) => r.displayName)).toEqual(["Alice"]);
-  });
-
-  it("shows the hours in the bars, hatches who said nothing, and never prints ISO dates", () => {
+  it("shows a planning grid: a column per half-day, full or partial cells, hatched for who said nothing", () => {
     const html = renderToStaticMarkup(<PresenceTimelineView eventId="e1" timeline={{ ...EVENT, registrants: people }} />);
-    expect(html).toContain("sam. 14 h → dim. 12 h");
-    expect(html.match(/>pas déclaré</g)).toHaveLength(2);
-    expect(html).toContain("Absents : Alice");
+
+    // Friday evening to Sunday evening: five half-days, the day named on its first one.
+    expect(planningColumns(new Date(EVENT.eventStartsAt).getTime(), new Date(EVENT.eventEndsAt).getTime(), "half").map((c) => `${c.top}|${c.bottom}`)).toEqual([
+      "ven. 4|aprèm",
+      "sam. 5|matin",
+      "|aprèm",
+      "dim. 6|matin",
+      "|aprèm",
+    ]);
+    // Alice: all Friday evening, Saturday until 9:30. Bob: Saturday from 14 h, all Sunday morning.
+    expect(html.match(/data-cell="full"/g)).toHaveLength(2);
+    expect(html.match(/data-cell="part"/g)).toHaveLength(2);
+    expect(html.match(/: rien déclaré"/g)).toHaveLength(10);
     expect(html).toContain("Non déclarés (2)");
     expect(html).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
   });
@@ -138,11 +133,86 @@ describe("story 52.8 - a readable timeline", () => {
     expect(html).not.toContain("Aucun inscrit dans ce filtre");
   });
 
-  it("says so when a filter keeps no one, and keeps the filter off the mobile cards", () => {
+  it("says so when a filter keeps no one", () => {
     const html = renderToStaticMarkup(
       <PresenceTimelineView eventId="e1" initialFilter="undeclared" timeline={{ ...EVENT, registrants: people.filter((r) => r.windows.length > 0) }} />,
     );
     expect(html).toContain("Aucun inscrit dans ce filtre.");
-    expect(html).toMatch(/aria-label="Filtrer les inscrits" class="hidden [^"]*md:flex"/);
+  });
+});
+
+describe("story 52.10 - a long event as a planning grid, a column per day", () => {
+  // Tuesday 20 October 2026 to Thursday 5 November, across the change to winter time (25 October).
+  const LONG = { eventStartsAt: "2026-10-20T10:00:00+00:00", eventEndsAt: "2026-11-05T18:00:00+00:00" };
+  const start = new Date(LONG.eventStartsAt).getTime();
+  const end = new Date(LONG.eventEndsAt).getTime();
+  const people: PresenceTimeline["registrants"] = [
+    { registrationId: "r1", userId: "u1", displayName: "Alice", windows: [{ startsAt: "2026-10-21T08:00:00+00:00", endsAt: "2026-10-22T18:00:00+00:00" }] },
+    { registrationId: "r2", userId: "u2", displayName: "Bob", windows: [] },
+    { registrationId: "r3", userId: "u3", displayName: "Carol", windows: [{ startsAt: "2026-10-27T08:00:00+00:00", endsAt: "2026-11-03T18:00:00+00:00" }] },
+  ];
+
+  it("cuts the civil days of Paris, one per date across the time change", () => {
+    const days = parisDays(start, end);
+
+    expect(days).toHaveLength(17);
+    expect(days.map((day) => day.dayOfMonth)).toEqual([20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 1, 2, 3, 4, 5]);
+    expect(days[0].weekday).toBe(1);
+    expect(days[0].startsAt).toBe(start);
+    // 25 October lasts 25 hours in Paris.
+    expect(days[5].endsAt - days[5].startsAt).toBe(25 * 3_600_000);
+    expect(presentCount(people, days[1])).toBe(2);
+  });
+
+  it("has a column per day for the whole event, a new block each Monday", () => {
+    const columns = planningColumns(start, end, "day");
+
+    expect(columns).toHaveLength(17);
+    expect(columns.slice(0, 2).map((c) => `${c.top} ${c.bottom}`)).toEqual(["mar 20", "mer 21"]);
+    expect(columns.filter((c) => c.group).map((c) => c.bottom)).toEqual(["26", "2"]);
+  });
+
+  it("fills a cell for the whole day or a part of it", () => {
+    const columns = planningColumns(start, end, "day");
+    const carol = people[2].windows;
+
+    expect(planningCell(carol, columns[6])).toEqual({ kind: "absent" });
+    expect(planningCell(carol, columns[7])).toMatchObject({ kind: "present", full: false, to: 1 });
+    expect(planningCell(carol, columns[8])).toMatchObject({ kind: "present", full: true, from: 0, to: 1 });
+    expect(planningCell(people[1].windows, columns[8])).toEqual({ kind: "undeclared" });
+  });
+
+  it("cuts the weeks from Monday and finds the week of a moment", () => {
+    const weeks = parisWeeks(start, end);
+
+    expect(weeks.map((week) => week.label)).toEqual(["mar. 20 oct. au dim. 25 oct.", "lun. 26 oct. au dim. 1 nov.", "lun. 2 nov. au jeu. 5 nov."]);
+    expect(weekIndexAt(weeks, new Date("2026-10-28T12:00:00+00:00").getTime())).toBe(1);
+    expect(weekIndexAt(weeks, new Date("2026-12-01T12:00:00+00:00").getTime())).toBe(0);
+    expect(weekIndexAt(weeks, undefined)).toBe(0);
+  });
+
+  it("opens on the week of today, a half-day a column, with a way to the whole event", () => {
+    const html = renderToStaticMarkup(
+      <PresenceTimelineView eventId="e1" now={new Date("2026-10-28T12:00:00+00:00").getTime()} timeline={{ ...LONG, registrants: people }} />,
+    );
+
+    expect(html).toContain("Semaine du lun. 26 oct. au dim. 1 nov.");
+    // 14 half-days. Carol from Tuesday 9 h: a part of that morning, then every half-day to Sunday evening.
+    expect(html.match(/: rien déclaré"/g)).toHaveLength(14);
+    expect(html.match(/data-cell="full"/g)).toHaveLength(11);
+    expect(html.match(/data-cell="part"/g)).toHaveLength(1);
+    expect(html.match(/data-today=""/g)).toHaveLength(1);
+    expect(html).toContain("Tout l&#x27;événement");
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>← Semaine précédente/);
+  });
+
+  it("opens on the first week before the event, and a short event has no weeks", () => {
+    const before = renderToStaticMarkup(<PresenceTimelineView eventId="e1" now={start - 86_400_000} timeline={{ ...LONG, registrants: people }} />);
+    expect(before).toContain("Semaine du mar. 20 oct. au dim. 25 oct.");
+    expect(before).toMatch(/<button[^>]*disabled=""[^>]*>← Semaine précédente/);
+
+    const short = renderToStaticMarkup(<PresenceTimelineView eventId="e1" timeline={{ ...EVENT, registrants: people }} />);
+    expect(short).not.toContain("Semaine");
+    expect(short).not.toContain("Tout l&#x27;événement");
   });
 });
