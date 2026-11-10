@@ -6,10 +6,12 @@ import {
   isPresentDuring,
   orderedRegistrants,
   parisDays,
+  parisWeeks,
   planningCell,
   planningColumns,
   presenceSummary,
   presentCount,
+  weekIndexAt,
   PresenceTimelineView,
 } from "./admin-presence-timeline";
 import { describeWindow, isPresence, isPresenceTimeline, type PresenceTimeline } from "./presence-api";
@@ -109,7 +111,7 @@ describe("story 52.8 - a readable timeline", () => {
     const html = renderToStaticMarkup(<PresenceTimelineView eventId="e1" timeline={{ ...EVENT, registrants: people }} />);
 
     // Friday evening to Sunday evening: five half-days, the day named on its first one.
-    expect(planningColumns(new Date(EVENT.eventStartsAt).getTime(), new Date(EVENT.eventEndsAt).getTime()).map((c) => `${c.top}|${c.bottom}`)).toEqual([
+    expect(planningColumns(new Date(EVENT.eventStartsAt).getTime(), new Date(EVENT.eventEndsAt).getTime(), "half").map((c) => `${c.top}|${c.bottom}`)).toEqual([
       "ven. 4|aprèm",
       "sam. 5|matin",
       "|aprèm",
@@ -162,8 +164,8 @@ describe("story 52.10 - a long event as a planning grid, a column per day", () =
     expect(presentCount(people, days[1])).toBe(2);
   });
 
-  it("has a column per day, a new block each Monday", () => {
-    const columns = planningColumns(start, end);
+  it("has a column per day for the whole event, a new block each Monday", () => {
+    const columns = planningColumns(start, end, "day");
 
     expect(columns).toHaveLength(17);
     expect(columns.slice(0, 2).map((c) => `${c.top} ${c.bottom}`)).toEqual(["mar 20", "mer 21"]);
@@ -171,7 +173,7 @@ describe("story 52.10 - a long event as a planning grid, a column per day", () =
   });
 
   it("fills a cell for the whole day or a part of it", () => {
-    const columns = planningColumns(start, end);
+    const columns = planningColumns(start, end, "day");
     const carol = people[2].windows;
 
     expect(planningCell(carol, columns[6])).toEqual({ kind: "absent" });
@@ -180,14 +182,37 @@ describe("story 52.10 - a long event as a planning grid, a column per day", () =
     expect(planningCell(people[1].windows, columns[8])).toEqual({ kind: "undeclared" });
   });
 
-  it("draws the whole event at once, today marked", () => {
+  it("cuts the weeks from Monday and finds the week of a moment", () => {
+    const weeks = parisWeeks(start, end);
+
+    expect(weeks.map((week) => week.label)).toEqual(["mar. 20 oct. au dim. 25 oct.", "lun. 26 oct. au dim. 1 nov.", "lun. 2 nov. au jeu. 5 nov."]);
+    expect(weekIndexAt(weeks, new Date("2026-10-28T12:00:00+00:00").getTime())).toBe(1);
+    expect(weekIndexAt(weeks, new Date("2026-12-01T12:00:00+00:00").getTime())).toBe(0);
+    expect(weekIndexAt(weeks, undefined)).toBe(0);
+  });
+
+  it("opens on the week of today, a half-day a column, with a way to the whole event", () => {
     const html = renderToStaticMarkup(
       <PresenceTimelineView eventId="e1" now={new Date("2026-10-28T12:00:00+00:00").getTime()} timeline={{ ...LONG, registrants: people }} />,
     );
 
-    expect(html.match(/data-cell="full"/g)).toHaveLength(6);
-    expect(html.match(/data-cell="part"/g)).toHaveLength(4);
+    expect(html).toContain("Semaine du lun. 26 oct. au dim. 1 nov.");
+    // 14 half-days. Carol from Tuesday 9 h: a part of that morning, then every half-day to Sunday evening.
+    expect(html.match(/: rien déclaré"/g)).toHaveLength(14);
+    expect(html.match(/data-cell="full"/g)).toHaveLength(11);
+    expect(html.match(/data-cell="part"/g)).toHaveLength(1);
     expect(html.match(/data-today=""/g)).toHaveLength(1);
-    expect(html).not.toContain("Semaine");
+    expect(html).toContain("Tout l&#x27;événement");
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>← Semaine précédente/);
+  });
+
+  it("opens on the first week before the event, and a short event has no weeks", () => {
+    const before = renderToStaticMarkup(<PresenceTimelineView eventId="e1" now={start - 86_400_000} timeline={{ ...LONG, registrants: people }} />);
+    expect(before).toContain("Semaine du mar. 20 oct. au dim. 25 oct.");
+    expect(before).toMatch(/<button[^>]*disabled=""[^>]*>← Semaine précédente/);
+
+    const short = renderToStaticMarkup(<PresenceTimelineView eventId="e1" timeline={{ ...EVENT, registrants: people }} />);
+    expect(short).not.toContain("Semaine");
+    expect(short).not.toContain("Tout l&#x27;événement");
   });
 });

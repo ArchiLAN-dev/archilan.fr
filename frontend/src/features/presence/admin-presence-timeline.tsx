@@ -117,16 +117,40 @@ export function orderedRegistrants(registrants: PresenceRegistrant[], filter: Pr
   return [...declared, ...undeclared];
 }
 
+/** Story 52.10: the weeks of a span, Monday to Sunday in Paris, each clipped to it. */
+export type Week = Span & { label: string };
+
+export function parisWeeks(start: number, end: number): Week[] {
+  const weeks: (Span & { first: Day; last: Day })[] = [];
+  for (const day of parisDays(start, end)) {
+    const current = weeks.at(-1);
+    if (current && day.weekday !== 0) {
+      current.endsAt = day.endsAt;
+      current.last = day;
+    } else {
+      weeks.push({ startsAt: day.startsAt, endsAt: day.endsAt, first: day, last: day });
+    }
+  }
+  return weeks.map(({ startsAt, endsAt, first, last }) => ({ startsAt, endsAt, label: `${first.label} au ${last.label}` }));
+}
+
+/** The week that holds the moment, or the first one. */
+export function weekIndexAt(weeks: Week[], t: number | undefined): number {
+  if (t === undefined) return 0;
+  const index = weeks.findIndex((week) => t >= week.startsAt && t < week.endsAt);
+  return index < 0 ? 0 : index;
+}
+
 /**
- * Story 52.10: the columns of the planning grid. A day each for a long event, a half-day each for an event of 4 days
- * or less. `group` starts a new block: a Monday, or the morning of a new day.
+ * Story 52.10: the columns of the planning grid, a day or a half-day each. `group` starts a new block: a Monday, or
+ * the morning of a new day.
  */
 export type Column = Span & { key: string; top: string; bottom: string; label: string; group: boolean };
 
 const PARIS_WEEKDAY_SHORT = new Intl.DateTimeFormat("fr-FR", { weekday: "short", timeZone: "Europe/Paris" });
 
-export function planningColumns(start: number, end: number): Column[] {
-  if (end - start > LONG_EVENT_MS) {
+export function planningColumns(start: number, end: number, unit: "day" | "half"): Column[] {
+  if (unit === "day") {
     return parisDays(start, end).map((day, index) => ({
       startsAt: day.startsAt,
       endsAt: day.endsAt,
@@ -206,11 +230,21 @@ type ViewProps = { eventId: string; timeline: PresenceTimeline; now?: number; in
 
 export function PresenceTimelineView({ eventId, timeline, now, initialFilter = "all" }: ViewProps) {
   const [filter, setFilter] = useState<PresenceFilter>(initialFilter);
+  const eventStart = new Date(timeline.eventStartsAt).getTime();
+  const eventEnd = new Date(timeline.eventEndsAt).getTime();
+  // Story 52.10: a long event is read a week at a time (half-days), or whole (a day a column) on demand.
+  const long = eventEnd - eventStart > LONG_EVENT_MS;
+  const weeks = long ? parisWeeks(eventStart, eventEnd) : [];
+  const [weekIndex, setWeekIndex] = useState(() => weekIndexAt(weeks, now));
+  const [whole, setWhole] = useState(false);
+  const week = long && !whole ? (weeks.at(weekIndex) ?? null) : null;
 
   if (timeline.registrants.length === 0) return <p className="text-muted-foreground">Aucun inscrit confirmé pour l&apos;instant.</p>;
 
   const summary = presenceSummary(timeline.registrants, halfDaySegments(timeline.eventStartsAt, timeline.eventEndsAt));
-  const columns = planningColumns(new Date(timeline.eventStartsAt).getTime(), new Date(timeline.eventEndsAt).getTime());
+  const columns = week
+    ? planningColumns(week.startsAt, week.endsAt, "half")
+    : planningColumns(eventStart, eventEnd, long ? "day" : "half");
   const rows = orderedRegistrants(timeline.registrants, filter);
   const filters: { value: PresenceFilter; label: string }[] = [
     { value: "all", label: `Tous (${summary.total})` },
@@ -246,8 +280,37 @@ export function PresenceTimelineView({ eventId, timeline, now, initialFilter = "
         <Legend />
       </div>
 
+      {long ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-foreground">{week ? `Semaine du ${week.label}` : "Tout l'événement, un jour par case"}</p>
+          <div className="flex flex-wrap gap-2">
+            {week ? (
+              <>
+                <GridButton disabled={weekIndex === 0} label="← Semaine précédente" onClick={() => setWeekIndex(weekIndex - 1)} />
+                <GridButton disabled={weekIndex === weeks.length - 1} label="Semaine suivante →" onClick={() => setWeekIndex(weekIndex + 1)} />
+              </>
+            ) : null}
+            <GridButton label={whole ? "Semaine par semaine" : "Tout l'événement"} onClick={() => setWhole(!whole)} pressed={whole} />
+          </div>
+        </div>
+      ) : null}
+
       <PlanningGrid columns={columns} eventId={eventId} now={now} registrants={timeline.registrants} rows={rows} />
     </div>
+  );
+}
+
+function GridButton({ label, onClick, disabled = false, pressed }: { label: string; onClick: () => void; disabled?: boolean; pressed?: boolean }) {
+  return (
+    <button
+      aria-pressed={pressed}
+      className="rounded-md border border-border px-3 py-1 text-sm text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border"
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+    </button>
   );
 }
 
