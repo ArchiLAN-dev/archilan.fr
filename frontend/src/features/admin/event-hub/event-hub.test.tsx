@@ -161,11 +161,32 @@ describe("the sections of an event (story 3.17)", () => {
     expect(isCurrentSection("/admin/evenements/e1/session", "/admin/evenements/e1/session/s9/slots/2", "e1")).toBe(true);
     expect(isCurrentSection("/admin/evenements/e1/sondages", "/admin/evenements/e1/session", "e1")).toBe(false);
 
-    const html = renderToStaticMarkup(<AdminEventNavView eventId="e1" pathname="/admin/evenements/e1/inscriptions/r1" title="ArchiLAN 4" />);
+    const html = renderToStaticMarkup(<AdminEventNavView event={adminEvent()} eventId="e1" pathname="/admin/evenements/e1/inscriptions/r1" />);
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/evenements\/e1\/inscriptions"/);
-    expect(html).toContain("ArchiLAN 4");
     expect(html).toContain('href="/admin/evenements"');
+  });
+
+  it("story 3.18: a bar across the top, with the event, its state and the sections as tabs", () => {
+    const html = renderToStaticMarkup(<AdminEventNavView event={adminEvent({ featuredOnHome: true })} eventId="e1" pathname="/admin/evenements/e1/presences" />);
+
+    expect(html).toContain("ArchiLAN 4");
+    expect(html).toContain("Publié");
+    expect(html).toContain("Accueil");
+    expect(html).toContain("Clermont-Ferrand");
+    // Four groups, three separators; every tab has its icon.
+    expect(html.match(/data-separator=""/g)).toHaveLength(3);
+    expect(html.match(/<a [^>]*href="\/admin\/evenements\/e1[^"]*"[^>]*><svg/g)).toHaveLength(9);
+    expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/evenements\/e1\/presences"/);
+    // No side column any more.
+    expect(html).not.toContain("lg:grid-cols");
+  });
+
+  it("story 3.18: the bar holds its place while the event loads", () => {
+    const html = renderToStaticMarkup(<AdminEventNavView event={null} eventId="e1" pathname="/admin/evenements/e1" />);
+
+    expect(html).toContain("animate-pulse");
+    expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/evenements\/e1"/);
   });
 });
 
@@ -182,7 +203,12 @@ describe("the hub page (story 3.17)", () => {
   }
 
   it("shows the event it knows", () => {
-    expect(renderHub("e1", { kind: "ready", events: [adminEvent()] })).toContain("ArchiLAN 4");
+    const html = renderHub("e1", { kind: "ready", events: [adminEvent()] });
+
+    expect(html).toContain("Vue d&#x27;ensemble");
+    // Story 3.18: the event bar carries the name; the overview does not repeat it.
+    expect(html).not.toContain("ArchiLAN 4");
+    expect(html.match(/<h1/g)).toHaveLength(1);
   });
 
   it("answers 404 for an unknown event", () => {

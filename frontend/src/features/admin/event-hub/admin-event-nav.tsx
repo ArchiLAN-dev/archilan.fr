@@ -1,39 +1,42 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { CalendarClock, ChevronLeft, ClipboardList, Gamepad2, Handshake, LayoutDashboard, Pencil, Server, Shovel, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import { fetchAdminEvents } from "../admin-events-api";
-import { eventHubHref } from "./event-status";
+import { fetchAdminEvents, type AdminEvent } from "../admin-events-api";
+import { FeaturedPill, StatusPill } from "./event-actions";
+import { eventHubHref, formatDateShort, visibilityLabel } from "./event-status";
 
-export type NavGroup = { title: string; items: { label: string; href: string }[] };
+export type NavItem = { label: string; href: string; icon: LucideIcon };
+export type NavGroup = { title: string; items: NavItem[] };
 
-/** Story 3.17: the sections of an event, as the hub lists them. */
+/** Story 3.17: the sections of an event, as the hub lists them; story 3.18 gives each its icon. */
 export function eventNavGroups(eventId: string): NavGroup[] {
   const base = eventHubHref(eventId);
   return [
-    { title: "", items: [{ label: "Vue d'ensemble", href: base }] },
+    { title: "", items: [{ label: "Vue d'ensemble", href: base, icon: LayoutDashboard }] },
     {
       title: "Préparation",
       items: [
-        { label: "Informations", href: `${base}/modifier` },
-        { label: "Jeux", href: `${base}/jeux` },
-        { label: "Partenaires", href: `${base}/partenaires` },
+        { label: "Informations", href: `${base}/modifier`, icon: Pencil },
+        { label: "Jeux", href: `${base}/jeux`, icon: Gamepad2 },
+        { label: "Partenaires", href: `${base}/partenaires`, icon: Handshake },
       ],
     },
     {
       title: "Joueurs",
       items: [
-        { label: "Inscriptions", href: `${base}/inscriptions` },
-        { label: "Présences", href: `${base}/presences` },
-        { label: "Sondages", href: `${base}/sondages` },
-        { label: "Pelles", href: `${base}/pelles` },
+        { label: "Inscriptions", href: `${base}/inscriptions`, icon: Users },
+        { label: "Présences", href: `${base}/presences`, icon: CalendarClock },
+        { label: "Sondages", href: `${base}/sondages`, icon: ClipboardList },
+        { label: "Pelles", href: `${base}/pelles`, icon: Shovel },
       ],
     },
-    { title: "Jour J", items: [{ label: "Run et sessions", href: `${base}/session` }] },
+    { title: "Jour J", items: [{ label: "Run et sessions", href: `${base}/session`, icon: Server }] },
   ];
 }
 
@@ -51,46 +54,72 @@ export function AdminEventNav({ eventId }: { eventId: string }) {
     staleTime: DEFAULT_STALE_TIME,
     retry: false,
   });
-  const title = data?.kind === "ready" ? (data.events.find((event) => event.id === eventId)?.title ?? null) : null;
+  const event = data?.kind === "ready" ? (data.events.find((candidate) => candidate.id === eventId) ?? null) : null;
 
-  return <AdminEventNavView eventId={eventId} pathname={pathname} title={title} />;
+  return <AdminEventNavView event={event} eventId={eventId} pathname={pathname} />;
 }
 
-export function AdminEventNavView({ eventId, pathname, title }: { eventId: string; pathname: string; title: string | null }) {
+/**
+ * Story 3.18: the event bar, across the top of every page of an event. Its name and state, then the sections as tabs.
+ * Two siblings, so the tabs stay stuck at the top (under the mobile admin header) the whole page long.
+ */
+export function AdminEventNavView({ event, eventId, pathname }: { event: AdminEvent | null; eventId: string; pathname: string }) {
   const groups = eventNavGroups(eventId);
 
   return (
-    <nav aria-label="Sections de l'événement" className="grid gap-3 px-4 pt-6 lg:sticky lg:top-4 lg:self-start">
-      <Link className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" href="/admin/evenements">
-        <ArrowLeft aria-hidden="true" className="size-4" />
-        Événements
-      </Link>
-      {title ? <p className="font-heading text-lg font-semibold leading-tight text-foreground">{title}</p> : null}
-      {/* Mobile: one scrolling row of tabs. Desktop: the groups stacked in a side bar. */}
-      <div className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:gap-4 lg:overflow-visible lg:px-0">
-        {groups.map((group) => (
-          <div className="contents lg:grid lg:gap-1" key={group.title || "overview"}>
-            {group.title ? (
-              <p className="hidden text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:block">{group.title}</p>
-            ) : null}
-            {group.items.map((item) => {
-              const current = isCurrentSection(item.href, pathname, eventId);
-              return (
-                <Link
-                  aria-current={current ? "page" : undefined}
-                  className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
-                    current ? "bg-accent/15 font-semibold text-accent-text" : "text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-                  }`}
-                  href={item.href}
-                  key={item.href}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+    <>
+      <div className="grid gap-1 border-b border-border/60 px-4 pt-5 pb-3 md:px-6">
+        <Link className="inline-flex w-fit items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground" href="/admin/evenements">
+          <ChevronLeft aria-hidden="true" className="size-3.5" />
+          Événements
+        </Link>
+        {event ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="font-heading text-xl font-bold leading-tight text-foreground md:text-2xl">{event.title}</p>
+            <StatusPill status={event.status} />
+            <FeaturedPill event={event} />
+            <p className="text-xs text-muted-foreground md:ml-auto">
+              <time dateTime={event.startsAt}>{formatDateShort(event.startsAt)}</time>
+              {" au "}
+              <time dateTime={event.endsAt}>{formatDateShort(event.endsAt)}</time>
+              {event.venue ? ` · ${event.venue}` : ""} · {visibilityLabel(event)}
+            </p>
           </div>
-        ))}
+        ) : (
+          <div aria-hidden="true" className="h-7 w-56 animate-pulse rounded bg-surface-2" />
+        )}
       </div>
-    </nav>
+      <nav aria-label="Sections de l'événement" className="sticky top-14 z-30 border-b border-border bg-background/95 backdrop-blur md:top-0">
+        <ul className="flex items-stretch overflow-x-auto px-2 md:px-4 [scrollbar-width:none]">
+          {groups.map((group, index) => (
+            <li className="flex shrink-0 items-stretch" key={group.title || "overview"}>
+              {index > 0 ? <span aria-hidden="true" className="mx-1.5 my-2.5 w-px bg-border" data-separator="" /> : null}
+              <ul aria-label={group.title || undefined} className="flex items-stretch">
+                {group.items.map((item) => {
+                  const current = isCurrentSection(item.href, pathname, eventId);
+                  const Icon = item.icon;
+                  return (
+                    <li className="flex" key={item.href}>
+                      <Link
+                        aria-current={current ? "page" : undefined}
+                        className={`-mb-px inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-3 text-sm transition-colors ${
+                          current
+                            ? "border-accent font-semibold text-foreground"
+                            : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+                        }`}
+                        href={item.href}
+                      >
+                        <Icon aria-hidden="true" className={`size-4 ${current ? "text-accent-text" : ""}`} />
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </>
   );
 }

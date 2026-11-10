@@ -25,11 +25,9 @@ import {
   ActionIcon,
   EventActionDialogs,
   EventActionMessage,
-  FeaturedPill,
-  StatusPill,
   useAdminEventActions,
 } from "./event-actions";
-import { eventHubHref, formatDateShort, transitionActions, visibilityLabel, type EventStatus } from "./event-status";
+import { eventHubHref, transitionActions, type EventStatus } from "./event-status";
 
 /**
  * Story 3.17: everything an event offers, in the order of its life. The hub reads the event from the admin list the
@@ -158,18 +156,9 @@ export function AdminEventHubView(props: ViewProps) {
 
   return (
     <>
-      <header className="grid gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="font-heading text-3xl font-bold leading-tight text-foreground">{event.title}</h1>
-          <StatusPill status={event.status} />
-          <FeaturedPill event={event} />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          <time dateTime={event.startsAt}>{formatDateShort(event.startsAt)}</time>
-          {" au "}
-          <time dateTime={event.endsAt}>{formatDateShort(event.endsAt)}</time>
-          {event.venue ? ` · ${event.venue}` : ""} · {visibilityLabel(event)} · {event.confirmedRegistrations}/{event.capacity} inscrits
-        </p>
+      {/* Story 3.18: the event bar above carries the name, state and dates; the overview keeps what to do next. */}
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-heading text-lg font-semibold text-foreground">Vue d&apos;ensemble</h1>
         <div className="flex flex-wrap gap-2">
           {transitionActions(event.status).map((action) => (
               <button
