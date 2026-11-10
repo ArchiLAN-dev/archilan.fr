@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { use, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchPresenceTimeline, presenceTimelineKey, type PresenceRegistrant, type PresenceTimeline, type PresenceWindow } from "./presence-api";
+import { describeWindow, fetchPresenceTimeline, presenceTimelineKey, type PresenceRegistrant, type PresenceTimeline, type PresenceWindow } from "./presence-api";
 
-export type Segment = { startsAt: number; endsAt: number; label: string };
+export type Segment = { startsAt: number; endsAt: number; label: string; day: string; half: "matin" | "après-midi" };
 
 const PARIS_HOUR = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", hourCycle: "h23", timeZone: "Europe/Paris" });
 const PARIS_DAY = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", timeZone: "Europe/Paris" });
+const PARIS_WEEKDAY = new Intl.DateTimeFormat("fr-FR", { weekday: "short", timeZone: "Europe/Paris" });
+const PARIS_TIME = new Intl.DateTimeFormat("fr-FR", { hour: "numeric", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Paris" });
 const HOUR = 3_600_000;
 
 /** The hour of the day in Paris, 0 to 23. */
@@ -33,8 +35,9 @@ export function halfDaySegments(eventStartsAt: string, eventEndsAt: string): Seg
   for (let i = 1; i < cuts.length; i++) {
     const from = cuts[i - 1];
     const to = cuts[i];
-    const morning = parisHour(from) < 12;
-    segments.push({ startsAt: from, endsAt: to, label: `${PARIS_DAY.format(new Date(from))} ${morning ? "matin" : "après-midi"}` });
+    const day = PARIS_DAY.format(new Date(from));
+    const half = parisHour(from) < 12 ? "matin" : "après-midi";
+    segments.push({ startsAt: from, endsAt: to, label: `${day} ${half}`, day, half });
   }
   return segments;
 }
@@ -49,9 +52,85 @@ export function presentCount(registrants: PresenceRegistrant[], segment: Segment
   return registrants.filter((r) => isPresentDuring(r.windows, segment)).length;
 }
 
-/** Story 52.2: who is at the event when. */
+/** Story 52.8: « sam. 14 h », « dim. 9 h 30 » - a moment of the event, short enough to sit in a bar. */
+export function shortMoment(t: number): string {
+  const [hours, minutes] = PARIS_TIME.format(new Date(t)).split(":");
+  return `${PARIS_WEEKDAY.format(new Date(t))} ${Number(hours)} h${minutes === "00" ? "" : ` ${minutes}`}`;
+}
+
+export type PresenceSummary = { total: number; declared: number; undeclared: number; low: { label: string; count: number } | null };
+
+export function presenceSummary(registrants: PresenceRegistrant[], segments: Segment[]): PresenceSummary {
+  const declared = registrants.filter((r) => r.windows.length > 0).length;
+  let low: PresenceSummary["low"] = null;
+  for (const segment of segments) {
+    const count = presentCount(registrants, segment);
+    if (low === null || count < low.count) low = { label: segment.label, count };
+  }
+  return { total: registrants.length, declared, undeclared: registrants.length - declared, low };
+}
+
+export type PresenceFilter = "all" | "declared" | "undeclared";
+
+/** Declared first, by arrival; then those who said nothing, by name. */
+export function orderedRegistrants(registrants: PresenceRegistrant[], filter: PresenceFilter): PresenceRegistrant[] {
+  const arrival = (r: PresenceRegistrant) => Math.min(...r.windows.map((w) => new Date(w.startsAt).getTime()));
+  const declared = registrants
+    .filter((r) => r.windows.length > 0)
+    .sort((a, b) => arrival(a) - arrival(b) || a.displayName.localeCompare(b.displayName, "fr"));
+  const undeclared = registrants.filter((r) => r.windows.length === 0).sort((a, b) => a.displayName.localeCompare(b.displayName, "fr"));
+  if (filter === "declared") return declared;
+  if (filter === "undeclared") return undeclared;
+  return [...declared, ...undeclared];
+}
+
+/** Every 6 hours of Paris time strictly inside the event. */
+export function hourTicks(start: number, end: number): { at: number; label: string }[] {
+  const ticks: { at: number; label: string }[] = [];
+  for (let t = Math.ceil(start / HOUR) * HOUR; t < end; t += HOUR) {
+    const hour = parisHour(t);
+    if (t > start && hour % 6 === 0) ticks.push({ at: t, label: `${hour} h` });
+  }
+  return ticks;
+}
+
+/** The days of the event, each spanning its half-days. */
+export function dayBands(segments: Segment[]): { day: string; startsAt: number; endsAt: number }[] {
+  const bands: { day: string; startsAt: number; endsAt: number }[] = [];
+  for (const segment of segments) {
+    const last = bands.at(-1);
+    if (last && last.day === segment.day) last.endsAt = segment.endsAt;
+    else bands.push({ day: segment.day, startsAt: segment.startsAt, endsAt: segment.endsAt });
+  }
+  return bands;
+}
+
+/** Declared, and not there during the segment. */
+export function absentDuring(registrants: PresenceRegistrant[], segment: Segment): PresenceRegistrant[] {
+  return orderedRegistrants(registrants, "declared").filter((r) => !isPresentDuring(r.windows, segment));
+}
+
+function tone(count: number, total: number): string {
+  const share = total === 0 ? 1 : count / total;
+  if (share >= 0.75) return "bg-success/60";
+  if (share >= 0.5) return "bg-accent-warm/60";
+  return "bg-danger/60";
+}
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+/** Story 52.2, made readable by story 52.8: who is at the event when. */
 export function AdminPresenceTimelinePage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = use(params);
+  // Read once for the « now » marker; a refresh moves it.
+  const [now] = useState(() => Date.now());
   const { data, isPending } = useQuery({
     queryKey: presenceTimelineKey(eventId),
     queryFn: () => fetchPresenceTimeline(eventId),
@@ -60,17 +139,18 @@ export function AdminPresenceTimelinePage({ params }: { params: Promise<{ eventI
   });
 
   return (
-    <div className="grid gap-6 p-6 md:p-8">
+    <div className="grid gap-6 pb-10 lg:pt-4">
       <header className="grid gap-1">
-        <h1 className="font-heading text-2xl font-bold text-foreground">Qui est là quand</h1>
+        <h1 className="font-heading text-3xl font-bold text-foreground">Qui est là quand</h1>
         <p className="text-sm text-muted-foreground">
-          Les inscrits confirmés et les plages qu&apos;ils ont indiquées. Sans plage : présent tout l&apos;événement.
+          Les inscrits confirmés et les créneaux qu&apos;ils ont déclarés. Un inscrit qui n&apos;a rien déclaré compte comme
+          présent tout l&apos;événement.
         </p>
       </header>
       {isPending ? (
         <div className="h-64 w-full animate-pulse rounded-xl bg-surface" />
       ) : data ? (
-        <PresenceTimelineView eventId={eventId} timeline={data} />
+        <PresenceTimelineView eventId={eventId} now={now} timeline={data} />
       ) : (
         <p className="text-muted-foreground">La frise n&apos;a pas pu être chargée.</p>
       )}
@@ -78,51 +158,247 @@ export function AdminPresenceTimelinePage({ params }: { params: Promise<{ eventI
   );
 }
 
-export function PresenceTimelineView({ eventId, timeline }: { eventId: string; timeline: PresenceTimeline }) {
+type ViewProps = { eventId: string; timeline: PresenceTimeline; now?: number; initialFilter?: PresenceFilter };
+
+export function PresenceTimelineView({ eventId, timeline, now, initialFilter = "all" }: ViewProps) {
+  const [filter, setFilter] = useState<PresenceFilter>(initialFilter);
   const segments = halfDaySegments(timeline.eventStartsAt, timeline.eventEndsAt);
-  const start = new Date(timeline.eventStartsAt).getTime();
-  const span = new Date(timeline.eventEndsAt).getTime() - start;
-  const at = (t: number) => `${Math.min(100, Math.max(0, ((t - start) / span) * 100))}%`;
 
   if (timeline.registrants.length === 0) return <p className="text-muted-foreground">Aucun inscrit confirmé pour l&apos;instant.</p>;
 
+  const summary = presenceSummary(timeline.registrants, segments);
+  const rows = orderedRegistrants(timeline.registrants, filter);
+  const filters: { value: PresenceFilter; label: string }[] = [
+    { value: "all", label: `Tous (${summary.total})` },
+    { value: "declared", label: `Déclarés (${summary.declared})` },
+    { value: "undeclared", label: `Non déclarés (${summary.undeclared})` },
+  ];
+
   return (
-    <div className="grid gap-4 overflow-x-auto">
-      <div className="grid min-w-[640px] grid-cols-[12rem_1fr] gap-x-3 gap-y-2 text-sm">
-        <span className="text-xs text-muted-foreground">Présents</span>
-        <div className="relative flex h-10">
-          {segments.map((segment) => (
-            <div
-              className="flex flex-col items-center justify-center border-l border-border px-1 text-center"
-              key={segment.startsAt}
-              style={{ width: `${((segment.endsAt - segment.startsAt) / span) * 100}%` }}
-            >
-              <span className="text-[11px] leading-tight text-muted-foreground">{segment.label}</span>
-              <span className="font-semibold text-foreground">{presentCount(timeline.registrants, segment)}</span>
-            </div>
-          ))}
-        </div>
-        {timeline.registrants.map((registrant) => (
-          <div className="contents" key={registrant.registrationId}>
-            <Link
-              className="truncate text-foreground hover:text-accent-text hover:underline"
-              href={`/admin/evenements/${eventId}/inscriptions/${registrant.registrationId}`}
-            >
-              {registrant.displayName}
-            </Link>
-            <div className="relative h-6 rounded bg-surface-2">
-              {(registrant.windows.length === 0 ? [{ startsAt: timeline.eventStartsAt, endsAt: timeline.eventEndsAt }] : registrant.windows).map((w) => (
-                <span
-                  aria-label={registrant.windows.length === 0 ? "Présent tout l'événement" : `${w.startsAt} - ${w.endsAt}`}
-                  className={`absolute inset-y-0 rounded ${registrant.windows.length === 0 ? "bg-success/40" : "bg-accent/70"}`}
-                  key={`${w.startsAt}-${w.endsAt}`}
-                  style={{ left: at(new Date(w.startsAt).getTime()), right: `calc(100% - ${at(new Date(w.endsAt).getTime())})` }}
-                />
-              ))}
-            </div>
-          </div>
+    <div className="grid gap-5">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryTile label="Inscrits" value={String(summary.total)} />
+        <SummaryTile label="Ont déclaré" value={String(summary.declared)} />
+        <SummaryTile hint={summary.undeclared > 0 ? "comptés présents partout" : undefined} label="Pas déclaré" value={String(summary.undeclared)} />
+        {summary.low ? <SummaryTile hint={summary.low.label} label="Creux" value={`${summary.low.count} présents`} /> : null}
+      </dl>
+
+      {/* The filter acts on the timeline rows only, so it is shown with the timeline, not over the mobile cards. */}
+      <div aria-label="Filtrer les inscrits" className="hidden flex-wrap gap-2 md:flex" role="group">
+        {filters.map((option) => (
+          <button
+            aria-pressed={filter === option.value}
+            className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+              filter === option.value ? "border-accent bg-accent/15 font-semibold text-accent-text" : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+            key={option.value}
+            onClick={() => setFilter(option.value)}
+            type="button"
+          >
+            {option.label}
+          </button>
         ))}
       </div>
+
+      <div className="hidden md:block">
+        <Timeline eventId={eventId} now={now} rows={rows} segments={segments} timeline={timeline} />
+      </div>
+      <div className="md:hidden">
+        <HalfDayCards segments={segments} timeline={timeline} />
+      </div>
+
+      <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden="true" className="inline-block h-2.5 w-5 rounded-sm bg-accent/70" /> Créneau déclaré
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden="true" className={`inline-block h-2.5 w-5 rounded-sm ${HATCHED}`} /> Pas déclaré (compté présent)
+        </span>
+      </p>
     </div>
+  );
+}
+
+const HATCHED =
+  "bg-[repeating-linear-gradient(135deg,var(--color-surface-2)_0,var(--color-surface-2)_6px,transparent_6px,transparent_12px)] border border-dashed border-border";
+
+function SummaryTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface p-3">
+      <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</dt>
+      <dd className="mt-1 font-heading text-2xl font-bold text-foreground">{value}</dd>
+      {hint ? <dd className="text-xs text-muted-foreground">{hint}</dd> : null}
+    </div>
+  );
+}
+
+function Timeline({
+  eventId,
+  now,
+  rows,
+  segments,
+  timeline,
+}: {
+  eventId: string;
+  now?: number;
+  rows: PresenceRegistrant[];
+  segments: Segment[];
+  timeline: PresenceTimeline;
+}) {
+  const start = new Date(timeline.eventStartsAt).getTime();
+  const end = new Date(timeline.eventEndsAt).getTime();
+  const span = end - start;
+  const pct = (t: number) => Math.min(100, Math.max(0, ((t - start) / span) * 100));
+  const total = timeline.registrants.length;
+  const ticks = hourTicks(start, end);
+  const showNow = now !== undefined && now > start && now < end;
+
+  return (
+    <div className="rounded-lg border border-border bg-surface">
+      <div className="grid grid-cols-[11rem_minmax(0,1fr)]">
+        {/* Axis: days, then half-days with who is there. */}
+        <div className="border-b border-border" />
+        <div className="relative h-7 border-b border-border">
+          {dayBands(segments).map((band) => (
+            <span
+              className="absolute inset-y-0 flex items-center justify-center border-l border-border text-xs font-semibold capitalize text-foreground first:border-l-0"
+              key={band.startsAt}
+              style={{ left: `${pct(band.startsAt)}%`, width: `${pct(band.endsAt) - pct(band.startsAt)}%` }}
+            >
+              {band.day}
+            </span>
+          ))}
+        </div>
+
+        <div className="flex items-end border-b border-border px-3 pb-2 text-xs text-muted-foreground">Présents</div>
+        <div className="relative h-20 border-b border-border">
+          {segments.map((segment) => {
+            const count = presentCount(timeline.registrants, segment);
+            return (
+              <div
+                className="absolute inset-y-0 flex flex-col justify-end border-l border-border px-1 pb-1"
+                key={segment.startsAt}
+                style={{ left: `${pct(segment.startsAt)}%`, width: `${pct(segment.endsAt) - pct(segment.startsAt)}%` }}
+                title={`${segment.label} : ${count} présents sur ${total}`}
+              >
+                <span className="text-center text-xs font-semibold text-foreground">{count}</span>
+                <span className={`mx-auto w-full max-w-10 rounded-t ${tone(count, total)}`} style={{ height: `${Math.max(4, (count / Math.max(1, total)) * 40)}px` }} />
+                <span className="truncate text-center text-[10px] text-muted-foreground">{segment.half}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Rows, over a grid that runs through them all. */}
+        <div className="border-b border-border px-3 py-1 text-[11px] text-muted-foreground">Heure (Paris)</div>
+        <div className="relative h-6 border-b border-border">
+          {ticks.map((tick) => (
+            <span className="absolute top-1 -translate-x-1/2 text-[10px] text-muted-foreground" key={tick.at} style={{ left: `${pct(tick.at)}%` }}>
+              {tick.label}
+            </span>
+          ))}
+        </div>
+
+        {rows.length === 0 ? (
+          <p className="col-span-2 px-3 py-6 text-center text-sm text-muted-foreground">Aucun inscrit dans ce filtre.</p>
+        ) : null}
+        <div className="contents">
+          <ul className="divide-y divide-border">
+            {rows.map((registrant) => (
+              <li className="flex h-10 items-center gap-2 px-3" key={registrant.registrationId}>
+                <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-surface-2 text-[10px] font-semibold text-muted-foreground">
+                  {initials(registrant.displayName)}
+                </span>
+                <Link
+                  className="truncate text-sm text-foreground hover:text-accent-text hover:underline"
+                  href={`/admin/evenements/${eventId}/inscriptions/${registrant.registrationId}`}
+                >
+                  {registrant.displayName}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="relative">
+            {/* The grid: half-day lines, stronger at midnight, and the « now » marker. */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+              {segments.slice(1).map((segment) => (
+                <span
+                  className={`absolute inset-y-0 border-l ${segment.half === "matin" ? "border-border" : "border-dashed border-border/60"}`}
+                  key={segment.startsAt}
+                  style={{ left: `${pct(segment.startsAt)}%` }}
+                />
+              ))}
+              {showNow && now !== undefined ? <span className="absolute inset-y-0 border-l-2 border-accent-warm" style={{ left: `${pct(now)}%` }} title="Maintenant" /> : null}
+            </div>
+            <ul className="divide-y divide-border">
+              {rows.map((registrant) => (
+                <li className="relative h-10" key={registrant.registrationId}>
+                  {registrant.windows.length === 0 ? (
+                    <span
+                      aria-label={`${registrant.displayName} : pas déclaré, compté présent tout l'événement`}
+                      className={`absolute inset-x-1 top-2 bottom-2 flex items-center justify-center rounded text-[11px] text-muted-foreground ${HATCHED}`}
+                      role="img"
+                    >
+                      pas déclaré
+                    </span>
+                  ) : (
+                    registrant.windows.map((w) => {
+                      const from = new Date(w.startsAt).getTime();
+                      const to = new Date(w.endsAt).getTime();
+                      return (
+                        <span
+                          aria-label={`${registrant.displayName} : ${describeWindow(w)}`}
+                          className="absolute top-2 bottom-2 flex items-center overflow-hidden rounded bg-accent/70 px-2 text-[11px] font-medium whitespace-nowrap text-white"
+                          key={`${w.startsAt}-${w.endsAt}`}
+                          role="img"
+                          style={{ left: `${pct(from)}%`, width: `${Math.max(0.5, pct(to) - pct(from))}%` }}
+                          title={describeWindow(w)}
+                        >
+                          {shortMoment(from)} → {shortMoment(to)}
+                        </span>
+                      );
+                    })
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Mobile: one card per half-day, with who is missing. */
+function HalfDayCards({ segments, timeline }: { segments: Segment[]; timeline: PresenceTimeline }) {
+  const total = timeline.registrants.length;
+  const undeclared = timeline.registrants.filter((r) => r.windows.length === 0).length;
+
+  return (
+    <ul className="grid gap-3">
+      {segments.map((segment) => {
+        const count = presentCount(timeline.registrants, segment);
+        const absent = absentDuring(timeline.registrants, segment);
+        return (
+          <li className="grid gap-2 rounded-lg border border-border bg-surface p-3" key={segment.startsAt}>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-semibold capitalize text-foreground">{segment.label}</span>
+              <span className="text-sm text-foreground">
+                <span className="font-semibold">{count}</span> / {total}
+              </span>
+            </div>
+            <span className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+              <span className={`block h-full ${tone(count, total)}`} style={{ width: `${(count / Math.max(1, total)) * 100}%` }} />
+            </span>
+            {absent.length > 0 ? (
+              <p className="text-xs text-muted-foreground">Absents : {absent.map((r) => r.displayName).join(", ")}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Aucun absent déclaré.</p>
+            )}
+            {undeclared > 0 ? <p className="text-xs text-muted-foreground">{undeclared} sans créneau, comptés présents.</p> : null}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
