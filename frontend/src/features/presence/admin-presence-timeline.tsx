@@ -10,8 +10,6 @@ export type Segment = { startsAt: number; endsAt: number; label: string; day: st
 
 const PARIS_HOUR = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", hourCycle: "h23", timeZone: "Europe/Paris" });
 const PARIS_DAY = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", timeZone: "Europe/Paris" });
-const PARIS_WEEKDAY = new Intl.DateTimeFormat("fr-FR", { weekday: "short", timeZone: "Europe/Paris" });
-const PARIS_TIME = new Intl.DateTimeFormat("fr-FR", { hour: "numeric", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Paris" });
 const HOUR = 3_600_000;
 
 /** The hour of the day in Paris, 0 to 23. */
@@ -55,12 +53,11 @@ export function presentCount(registrants: PresenceRegistrant[], segment: Span): 
   return registrants.filter((r) => isPresentDuring(r.windows, segment)).length;
 }
 
-/** Story 52.10: past this length, the timeline shows one week at a time under a calendar of the whole event. */
+/** Story 52.10: past this length, the planning grid has a column per day instead of per half-day. */
 export const LONG_EVENT_MS = 4 * 24 * HOUR;
 
 export type Span = { startsAt: number; endsAt: number };
 export type Day = Span & { dayOfMonth: number; weekday: number; label: string };
-export type Week = Span & { days: Day[]; label: string };
 
 const PARIS_WEEKDAY_INDEX = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Europe/Paris" });
 const PARIS_DAY_OF_MONTH = new Intl.DateTimeFormat("fr-FR", { day: "numeric", timeZone: "Europe/Paris" });
@@ -94,37 +91,6 @@ export function parisDays(start: number, end: number): Day[] {
   return days;
 }
 
-/** The weeks of the span, Monday to Sunday, each clipped to it. */
-export function parisWeeks(start: number, end: number): Week[] {
-  const weeks: Week[] = [];
-  for (const day of parisDays(start, end)) {
-    const last = weeks.at(-1);
-    if (last && day.weekday !== 0) {
-      last.days.push(day);
-      last.endsAt = day.endsAt;
-    } else {
-      weeks.push({ startsAt: day.startsAt, endsAt: day.endsAt, days: [day], label: "" });
-    }
-  }
-  for (const week of weeks) {
-    week.label = `${week.days[0].label} au ${week.days[week.days.length - 1].label}`;
-  }
-  return weeks;
-}
-
-/** The week that holds the moment, or the first one. */
-export function weekIndexAt(weeks: Week[], t: number | undefined): number {
-  if (t === undefined) return 0;
-  const index = weeks.findIndex((week) => t >= week.startsAt && t < week.endsAt);
-  return index < 0 ? 0 : index;
-}
-
-/** Story 52.8: « sam. 14 h », « dim. 9 h 30 » - a moment of the event, short enough to sit in a bar. */
-export function shortMoment(t: number): string {
-  const [hours, minutes] = PARIS_TIME.format(new Date(t)).split(":");
-  return `${PARIS_WEEKDAY.format(new Date(t))} ${Number(hours)} h${minutes === "00" ? "" : ` ${minutes}`}`;
-}
-
 export type PresenceSummary = { total: number; declared: number; undeclared: number; low: { label: string; count: number } | null };
 
 export function presenceSummary(registrants: PresenceRegistrant[], segments: Segment[]): PresenceSummary {
@@ -151,52 +117,63 @@ export function orderedRegistrants(registrants: PresenceRegistrant[], filter: Pr
   return [...declared, ...undeclared];
 }
 
-/** Every 6 hours of Paris time strictly inside the event. */
-export function hourTicks(start: number, end: number): { at: number; label: string }[] {
-  const ticks: { at: number; label: string }[] = [];
-  for (let t = Math.ceil(start / HOUR) * HOUR; t < end; t += HOUR) {
-    const hour = parisHour(t);
-    if (t > start && hour % 6 === 0) ticks.push({ at: t, label: `${hour} h` });
+/**
+ * Story 52.10: the columns of the planning grid. A day each for a long event, a half-day each for an event of 4 days
+ * or less. `group` starts a new block: a Monday, or the morning of a new day.
+ */
+export type Column = Span & { key: string; top: string; bottom: string; label: string; group: boolean };
+
+const PARIS_WEEKDAY_SHORT = new Intl.DateTimeFormat("fr-FR", { weekday: "short", timeZone: "Europe/Paris" });
+
+export function planningColumns(start: number, end: number): Column[] {
+  if (end - start > LONG_EVENT_MS) {
+    return parisDays(start, end).map((day, index) => ({
+      startsAt: day.startsAt,
+      endsAt: day.endsAt,
+      key: String(day.startsAt),
+      top: PARIS_WEEKDAY_SHORT.format(new Date(day.startsAt)).replace(".", ""),
+      bottom: String(day.dayOfMonth),
+      label: day.label,
+      group: index > 0 && day.weekday === 0,
+    }));
   }
-  return ticks;
+  return halfDaysBetween(start, end).map((segment, index) => ({
+    startsAt: segment.startsAt,
+    endsAt: segment.endsAt,
+    key: String(segment.startsAt),
+    top: segment.half === "matin" || index === 0 ? segment.day : "",
+    bottom: segment.half === "matin" ? "matin" : "aprèm",
+    label: segment.label,
+    group: index > 0 && segment.half === "matin",
+  }));
 }
 
-/** The days of the event, each spanning its half-days. */
-export function dayBands(segments: Segment[]): { day: string; startsAt: number; endsAt: number }[] {
-  const bands: { day: string; startsAt: number; endsAt: number }[] = [];
-  for (const segment of segments) {
-    const last = bands.at(-1);
-    if (last && last.day === segment.day) last.endsAt = segment.endsAt;
-    else bands.push({ day: segment.day, startsAt: segment.startsAt, endsAt: segment.endsAt });
-  }
-  return bands;
-}
+/** What one registrant's cell holds: nothing declared, absent, or there for a part of the column (0 to 1). */
+export type Cell = { kind: "undeclared" } | { kind: "absent" } | { kind: "present"; from: number; to: number; full: boolean; title: string };
 
-/** Declared, and not there during the segment. */
-export function absentDuring(registrants: PresenceRegistrant[], segment: Segment): PresenceRegistrant[] {
-  return orderedRegistrants(registrants, "declared").filter((r) => !isPresentDuring(r.windows, segment));
+export function planningCell(windows: PresenceWindow[], column: Span): Cell {
+  if (windows.length === 0) return { kind: "undeclared" };
+  const span = column.endsAt - column.startsAt;
+  const touching = windows.filter((w) => new Date(w.startsAt).getTime() < column.endsAt && new Date(w.endsAt).getTime() > column.startsAt);
+  if (touching.length === 0 || span <= 0) return { kind: "absent" };
+  const from = Math.max(0, (Math.min(...touching.map((w) => new Date(w.startsAt).getTime())) - column.startsAt) / span);
+  const to = Math.min(1, (Math.max(...touching.map((w) => new Date(w.endsAt).getTime())) - column.startsAt) / span);
+  // Within half an hour of each edge of a day counts as the whole of it.
+  const slack = Math.min(0.02, 1_800_000 / span);
+  return { kind: "present", from, to, full: from <= slack && to >= 1 - slack, title: touching.map(describeWindow).join(" ; ") };
 }
 
 function tone(count: number, total: number): string {
   const share = total === 0 ? 1 : count / total;
-  if (share >= 0.75) return "bg-success/60";
-  if (share >= 0.5) return "bg-accent-warm/60";
-  return "bg-danger/60";
+  if (share >= 0.75) return "bg-success/25 text-foreground";
+  if (share >= 0.5) return "bg-accent-warm/25 text-foreground";
+  return "bg-danger/25 text-foreground";
 }
 
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-/** Story 52.2, made readable by story 52.8: who is at the event when. */
+/** Story 52.2, made readable by stories 52.8 and 52.10: who is at the event when. */
 export function AdminPresenceTimelinePage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = use(params);
-  // Read once for the « now » marker; a refresh moves it.
+  // Read once for the « today » column; a refresh moves it.
   const [now] = useState(() => Date.now());
   const { data, isPending } = useQuery({
     queryKey: presenceTimelineKey(eventId),
@@ -206,7 +183,7 @@ export function AdminPresenceTimelinePage({ params }: { params: Promise<{ eventI
   });
 
   return (
-    <div className="grid gap-6 pb-10 lg:pt-4">
+    <div className="grid gap-6 px-4 pb-10 pt-6 md:px-6">
       <header className="grid gap-1">
         <h1 className="font-heading text-3xl font-bold text-foreground">Qui est là quand</h1>
         <p className="text-sm text-muted-foreground">
@@ -219,7 +196,7 @@ export function AdminPresenceTimelinePage({ params }: { params: Promise<{ eventI
       ) : data ? (
         <PresenceTimelineView eventId={eventId} now={now} timeline={data} />
       ) : (
-        <p className="text-muted-foreground">La frise n&apos;a pas pu être chargée.</p>
+        <p className="text-muted-foreground">Les présences n&apos;ont pas pu être chargées.</p>
       )}
     </div>
   );
@@ -229,19 +206,11 @@ type ViewProps = { eventId: string; timeline: PresenceTimeline; now?: number; in
 
 export function PresenceTimelineView({ eventId, timeline, now, initialFilter = "all" }: ViewProps) {
   const [filter, setFilter] = useState<PresenceFilter>(initialFilter);
-  const eventStart = new Date(timeline.eventStartsAt).getTime();
-  const eventEnd = new Date(timeline.eventEndsAt).getTime();
-  // Story 52.10: a long event is read one week at a time, under a calendar of all its days.
-  const long = eventEnd - eventStart > LONG_EVENT_MS;
-  const weeks = long ? parisWeeks(eventStart, eventEnd) : [];
-  const [weekIndex, setWeekIndex] = useState(() => weekIndexAt(weeks, now));
-  const week = weeks.at(weekIndex) ?? null;
-  const range: Span = week ?? { startsAt: eventStart, endsAt: eventEnd };
-  const segments = halfDaysBetween(range.startsAt, range.endsAt);
 
   if (timeline.registrants.length === 0) return <p className="text-muted-foreground">Aucun inscrit confirmé pour l&apos;instant.</p>;
 
   const summary = presenceSummary(timeline.registrants, halfDaySegments(timeline.eventStartsAt, timeline.eventEndsAt));
+  const columns = planningColumns(new Date(timeline.eventStartsAt).getTime(), new Date(timeline.eventEndsAt).getTime());
   const rows = orderedRegistrants(timeline.registrants, filter);
   const filters: { value: PresenceFilter; label: string }[] = [
     { value: "all", label: `Tous (${summary.total})` },
@@ -258,117 +227,52 @@ export function PresenceTimelineView({ eventId, timeline, now, initialFilter = "
         {summary.low ? <SummaryTile hint={summary.low.label} label="Creux" value={`${summary.low.count} présents`} /> : null}
       </dl>
 
-      {long ? <PresenceCalendar onSelect={setWeekIndex} registrants={timeline.registrants} selected={weekIndex} weeks={weeks} /> : null}
-      {week ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-foreground">Semaine du {week.label}</p>
-          <div className="flex gap-2">
-            <WeekButton disabled={weekIndex === 0} label="← Semaine précédente" onClick={() => setWeekIndex(weekIndex - 1)} />
-            <WeekButton disabled={weekIndex === weeks.length - 1} label="Semaine suivante →" onClick={() => setWeekIndex(weekIndex + 1)} />
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div aria-label="Filtrer les inscrits" className="flex flex-wrap gap-2" role="group">
+          {filters.map((option) => (
+            <button
+              aria-pressed={filter === option.value}
+              className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                filter === option.value ? "border-accent bg-accent/15 font-semibold text-accent-text" : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+              key={option.value}
+              onClick={() => setFilter(option.value)}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
-      ) : null}
-
-      {/* The filter acts on the timeline rows only, so it is shown with the timeline, not over the mobile cards. */}
-      <div aria-label="Filtrer les inscrits" className="hidden flex-wrap gap-2 md:flex" role="group">
-        {filters.map((option) => (
-          <button
-            aria-pressed={filter === option.value}
-            className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-              filter === option.value ? "border-accent bg-accent/15 font-semibold text-accent-text" : "border-border text-muted-foreground hover:text-foreground"
-            }`}
-            key={option.value}
-            onClick={() => setFilter(option.value)}
-            type="button"
-          >
-            {option.label}
-          </button>
-        ))}
+        <Legend />
       </div>
 
-      <div className="hidden md:block">
-        <Timeline eventId={eventId} now={now} range={range} rows={rows} segments={segments} timeline={timeline} />
-      </div>
-      <div className="md:hidden">
-        <HalfDayCards segments={segments} timeline={timeline} />
-      </div>
-
-      <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden="true" className="inline-block h-2.5 w-5 rounded-sm bg-accent/70" /> Créneau déclaré
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span aria-hidden="true" className={`inline-block h-2.5 w-5 rounded-sm ${HATCHED}`} /> Pas déclaré (compté présent)
-        </span>
-      </p>
+      <PlanningGrid columns={columns} eventId={eventId} now={now} registrants={timeline.registrants} rows={rows} />
     </div>
   );
 }
 
-function WeekButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
-  return (
-    <button
-      className="rounded-md border border-border px-3 py-1 text-sm text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border"
-      disabled={disabled}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
-  );
-}
-
-const CALENDAR_HEAD = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."];
-
-type CalendarProps = { weeks: Week[]; registrants: PresenceRegistrant[]; selected: number; onSelect: (index: number) => void };
-
-/** Story 52.10: every day of a long event, with how many are there; a week's row picks the week shown below. */
-export function PresenceCalendar({ weeks, registrants, selected, onSelect }: CalendarProps) {
-  const total = registrants.length;
-
-  return (
-    <section aria-label="Calendrier des présences" className="grid w-full max-w-2xl gap-1 rounded-lg border border-border bg-surface p-3">
-      <div aria-hidden="true" className="grid grid-cols-7 gap-1 px-1 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {CALENDAR_HEAD.map((day) => (
-          <span key={day}>{day}</span>
-        ))}
-      </div>
-      {weeks.map((week, index) => (
-        <button
-          aria-label={`Semaine du ${week.label}`}
-          aria-pressed={index === selected}
-          className={`grid grid-cols-7 gap-1 rounded-md p-1 text-left transition-colors ${index === selected ? "bg-accent/10 ring-2 ring-accent" : "hover:bg-surface-2"}`}
-          key={week.startsAt}
-          onClick={() => onSelect(index)}
-          type="button"
-        >
-          {CALENDAR_HEAD.map((head, weekday) => {
-            const day = week.days.find((candidate) => candidate.weekday === weekday);
-            if (!day) return <span aria-hidden="true" className="min-h-11" data-day="out" key={head} />;
-            const count = presentCount(registrants, day);
-            return (
-              <span
-                className="grid min-h-11 content-between rounded border border-border/60 bg-background/40 px-1.5 py-1"
-                data-day="in"
-                key={head}
-                title={`${day.label} : ${count} présents sur ${total}`}
-              >
-                <span className="text-[11px] text-muted-foreground">{day.dayOfMonth}</span>
-                <span className="flex items-center gap-1">
-                  <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${tone(count, total)}`} />
-                  <span className="text-sm font-semibold text-foreground">{count}</span>
-                </span>
-              </span>
-            );
-          })}
-        </button>
-      ))}
-    </section>
-  );
-}
-
 const HATCHED =
-  "bg-[repeating-linear-gradient(135deg,var(--color-surface-2)_0,var(--color-surface-2)_6px,transparent_6px,transparent_12px)] border border-dashed border-border";
+  "bg-[repeating-linear-gradient(135deg,var(--color-border)_0,var(--color-border)_2px,transparent_2px,transparent_7px)]";
+
+function Legend() {
+  return (
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="inline-block size-3.5 rounded-sm bg-accent-text" /> Toute la journée
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="relative inline-block size-3.5 rounded-sm bg-surface-2">
+          <span className="absolute inset-y-0 right-0 w-1/2 rounded-sm bg-accent-text/55" />
+        </span>{" "}
+        Une partie
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className={`inline-block size-3.5 rounded-sm border border-dashed border-border ${HATCHED}`} /> Rien déclaré (compté
+        présent)
+      </span>
+    </p>
+  );
+}
 
 function SummaryTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -380,180 +284,112 @@ function SummaryTile({ label, value, hint }: { label: string; value: string; hin
   );
 }
 
-function Timeline({
-  eventId,
-  now,
-  range,
-  rows,
-  segments,
-  timeline,
-}: {
-  eventId: string;
-  now?: number;
-  range: Span;
-  rows: PresenceRegistrant[];
-  segments: Segment[];
-  timeline: PresenceTimeline;
-}) {
-  // Story 52.10: the span shown, the whole event or one week of a long one.
-  const start = range.startsAt;
-  const end = range.endsAt;
-  const span = end - start;
-  const pct = (t: number) => Math.min(100, Math.max(0, ((t - start) / span) * 100));
-  const total = timeline.registrants.length;
-  const ticks = hourTicks(start, end);
-  const showNow = now !== undefined && now > start && now < end;
+type GridProps = { eventId: string; columns: Column[]; rows: PresenceRegistrant[]; registrants: PresenceRegistrant[]; now?: number };
+
+/**
+ * Story 52.10: the planning grid. A row per registrant, a cell per day (or half-day): full when there the whole of
+ * it, a part filled when there for a part, hatched when nothing was declared. The count of those there heads each
+ * column; the exact hours are in each cell's title.
+ */
+function PlanningGrid({ eventId, columns, rows, registrants, now }: GridProps) {
+  const total = registrants.length;
+  const edge = (column: Column) => (column.group ? "border-l-2 border-l-border" : "");
 
   return (
-    <div className="rounded-lg border border-border bg-surface">
-      <div className="grid grid-cols-[11rem_minmax(0,1fr)]">
-        {/* Axis: days, then half-days with who is there. */}
-        <div className="border-b border-border" />
-        <div className="relative h-7 border-b border-border">
-          {dayBands(segments).map((band) => (
-            <span
-              className="absolute inset-y-0 flex items-center justify-center border-l border-border text-xs font-semibold capitalize text-foreground first:border-l-0"
-              key={band.startsAt}
-              style={{ left: `${pct(band.startsAt)}%`, width: `${pct(band.endsAt) - pct(band.startsAt)}%` }}
-            >
-              {band.day}
-            </span>
-          ))}
-        </div>
-
-        <div className="flex items-end border-b border-border px-3 pb-2 text-xs text-muted-foreground">Présents</div>
-        <div className="relative h-20 border-b border-border">
-          {segments.map((segment) => {
-            const count = presentCount(timeline.registrants, segment);
-            return (
-              <div
-                className="absolute inset-y-0 flex flex-col justify-end border-l border-border px-1 pb-1"
-                key={segment.startsAt}
-                style={{ left: `${pct(segment.startsAt)}%`, width: `${pct(segment.endsAt) - pct(segment.startsAt)}%` }}
-                title={`${segment.label} : ${count} présents sur ${total}`}
-              >
-                <span className="text-center text-xs font-semibold text-foreground">{count}</span>
-                <span className={`mx-auto w-full max-w-10 rounded-t ${tone(count, total)}`} style={{ height: `${Math.max(4, (count / Math.max(1, total)) * 40)}px` }} />
-                <span className="truncate text-center text-[10px] text-muted-foreground">{segment.half}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Rows, over a grid that runs through them all. */}
-        <div className="border-b border-border px-3 py-1 text-[11px] text-muted-foreground">Heure (Paris)</div>
-        <div className="relative h-6 border-b border-border">
-          {ticks.map((tick) => (
-            <span className="absolute top-1 -translate-x-1/2 text-[10px] text-muted-foreground" key={tick.at} style={{ left: `${pct(tick.at)}%` }}>
-              {tick.label}
-            </span>
-          ))}
-        </div>
-
-        {rows.length === 0 ? (
-          <p className="col-span-2 px-3 py-6 text-center text-sm text-muted-foreground">Aucun inscrit dans ce filtre.</p>
-        ) : null}
-        <div className="contents">
-          <ul className="divide-y divide-border">
-            {rows.map((registrant) => (
-              <li className="flex h-10 items-center gap-2 px-3" key={registrant.registrationId}>
-                <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-surface-2 text-[10px] font-semibold text-muted-foreground">
-                  {initials(registrant.displayName)}
-                </span>
+    <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+      <table className="w-full border-separate border-spacing-0 text-xs">
+        <thead>
+          <tr>
+            <th className="sticky left-0 z-20 min-w-36 bg-surface px-3 text-left" rowSpan={2} scope="col">
+              <span className="sr-only">Inscrit</span>
+            </th>
+            {columns.map((column) => {
+              const today = now !== undefined && now >= column.startsAt && now < column.endsAt;
+              return (
+                <th
+                  className={`min-w-8 px-0.5 pt-2 text-center font-normal capitalize ${today ? "text-accent-text" : "text-muted-foreground"} ${edge(column)}`}
+                  key={column.key}
+                  scope="col"
+                  title={column.label}
+                >
+                  {column.top}
+                </th>
+              );
+            })}
+          </tr>
+          <tr>
+            {columns.map((column) => {
+              const today = now !== undefined && now >= column.startsAt && now < column.endsAt;
+              return (
+                <th
+                  className={`px-0.5 pb-1 text-center text-sm ${today ? "font-bold text-accent-text" : "font-semibold text-foreground"} ${edge(column)}`}
+                  data-today={today ? "" : undefined}
+                  key={column.key}
+                  scope="col"
+                >
+                  {column.bottom}
+                </th>
+              );
+            })}
+          </tr>
+          <tr>
+            <th className="sticky left-0 z-20 border-b border-border bg-surface px-3 py-1 text-left font-semibold text-muted-foreground" scope="row">
+              Présents
+            </th>
+            {columns.map((column) => {
+              const count = presentCount(registrants, column);
+              return (
+                <td className={`border-b border-border px-0.5 py-1 text-center ${edge(column)}`} key={column.key} title={`${column.label} : ${count} présents sur ${total}`}>
+                  <span className={`inline-block min-w-7 rounded px-1 py-0.5 text-sm font-semibold ${tone(count, total)}`}>{count}</span>
+                </td>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td className="px-3 py-6 text-center text-sm text-muted-foreground" colSpan={columns.length + 1}>
+                Aucun inscrit dans ce filtre.
+              </td>
+            </tr>
+          ) : null}
+          {rows.map((registrant) => (
+            <tr className="group" key={registrant.registrationId}>
+              <th className="sticky left-0 z-10 border-b border-border/50 bg-surface px-3 py-0.5 text-left font-normal group-hover:bg-surface-2" scope="row">
                 <Link
-                  className="truncate text-sm text-foreground hover:text-accent-text hover:underline"
+                  className="block max-w-44 truncate text-sm text-foreground hover:text-accent-text hover:underline"
                   href={`/admin/evenements/${eventId}/inscriptions/${registrant.registrationId}`}
                 >
                   {registrant.displayName}
                 </Link>
-              </li>
-            ))}
-          </ul>
-          <div className="relative">
-            {/* The grid: half-day lines, stronger at midnight, and the « now » marker. */}
-            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-              {segments.slice(1).map((segment) => (
-                <span
-                  className={`absolute inset-y-0 border-l ${segment.half === "matin" ? "border-border" : "border-dashed border-border/60"}`}
-                  key={segment.startsAt}
-                  style={{ left: `${pct(segment.startsAt)}%` }}
-                />
+              </th>
+              {columns.map((column) => (
+                <td className={`border-b border-border/50 p-0.5 group-hover:bg-surface-2/60 ${edge(column)}`} key={column.key}>
+                  <PlanningCell cell={planningCell(registrant.windows, column)} column={column} name={registrant.displayName} />
+                </td>
               ))}
-              {showNow && now !== undefined ? <span className="absolute inset-y-0 border-l-2 border-accent-warm" style={{ left: `${pct(now)}%` }} title="Maintenant" /> : null}
-            </div>
-            <ul className="divide-y divide-border">
-              {rows.map((registrant) => (
-                <li className="relative h-10" key={registrant.registrationId}>
-                  {registrant.windows.length > 0 && !isPresentDuring(registrant.windows, range) ? (
-                    <span className="absolute inset-x-1 top-2 bottom-2 flex items-center px-2 text-[11px] text-muted-foreground">pas là cette semaine</span>
-                  ) : registrant.windows.length === 0 ? (
-                    <span
-                      aria-label={`${registrant.displayName} : pas déclaré, compté présent tout l'événement`}
-                      className={`absolute inset-x-1 top-2 bottom-2 flex items-center justify-center rounded text-[11px] text-muted-foreground ${HATCHED}`}
-                      role="img"
-                    >
-                      pas déclaré
-                    </span>
-                  ) : (
-                    registrant.windows.map((w) => {
-                      const from = new Date(w.startsAt).getTime();
-                      const to = new Date(w.endsAt).getTime();
-                      // A window outside the span shown has no bar; one across its edge is cut there, its text unchanged.
-                      if (to <= start || from >= end) return null;
-                      return (
-                        <span
-                          aria-label={`${registrant.displayName} : ${describeWindow(w)}`}
-                          className="absolute top-2 bottom-2 flex items-center overflow-hidden rounded bg-accent/70 px-2 text-[11px] font-medium whitespace-nowrap text-white"
-                          key={`${w.startsAt}-${w.endsAt}`}
-                          role="img"
-                          style={{ left: `${pct(from)}%`, width: `${Math.max(0.5, pct(to) - pct(from))}%` }}
-                          title={describeWindow(w)}
-                        >
-                          {shortMoment(from)} → {shortMoment(to)}
-                        </span>
-                      );
-                    })
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-/** Mobile: one card per half-day, with who is missing. */
-function HalfDayCards({ segments, timeline }: { segments: Segment[]; timeline: PresenceTimeline }) {
-  const total = timeline.registrants.length;
-  const undeclared = timeline.registrants.filter((r) => r.windows.length === 0).length;
-
+function PlanningCell({ cell, column, name }: { cell: Cell; column: Column; name: string }) {
+  if (cell.kind === "undeclared") {
+    return <span aria-label={`${name}, ${column.label} : rien déclaré`} className={`block h-6 rounded-sm ${HATCHED}`} role="img" title="Rien déclaré, compté présent" />;
+  }
+  if (cell.kind === "absent") {
+    return <span aria-label={`${name}, ${column.label} : absent`} className="block h-6" role="img" />;
+  }
   return (
-    <ul className="grid gap-3">
-      {segments.map((segment) => {
-        const count = presentCount(timeline.registrants, segment);
-        const absent = absentDuring(timeline.registrants, segment);
-        return (
-          <li className="grid gap-2 rounded-lg border border-border bg-surface p-3" key={segment.startsAt}>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold capitalize text-foreground">{segment.label}</span>
-              <span className="text-sm text-foreground">
-                <span className="font-semibold">{count}</span> / {total}
-              </span>
-            </div>
-            <span className="h-1.5 overflow-hidden rounded-full bg-surface-2">
-              <span className={`block h-full ${tone(count, total)}`} style={{ width: `${(count / Math.max(1, total)) * 100}%` }} />
-            </span>
-            {absent.length > 0 ? (
-              <p className="text-xs text-muted-foreground">Absents : {absent.map((r) => r.displayName).join(", ")}</p>
-            ) : (
-              <p className="text-xs text-muted-foreground">Aucun absent déclaré.</p>
-            )}
-            {undeclared > 0 ? <p className="text-xs text-muted-foreground">{undeclared} sans créneau, comptés présents.</p> : null}
-          </li>
-        );
-      })}
-    </ul>
+    <span aria-label={`${name}, ${column.label} : ${cell.title}`} className="relative block h-6 overflow-hidden rounded-sm bg-surface-2" data-cell={cell.full ? "full" : "part"} role="img" title={cell.title}>
+      <span
+        className={`absolute inset-y-0 rounded-sm ${cell.full ? "bg-accent-text" : "bg-accent-text/55"}`}
+        style={{ left: `${cell.from * 100}%`, width: `${Math.max(12, (cell.to - cell.from) * 100)}%` }}
+      />
+    </span>
   );
 }
