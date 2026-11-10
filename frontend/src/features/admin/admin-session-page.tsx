@@ -60,6 +60,19 @@ import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generati
 import { PasseurJournal } from "@/features/passeur/passeur-journal";
 import { DeparturesPanel } from "@/features/departures/departures";
 import { DependencyMapPanel } from "@/features/dependencies/dependency-map";
+import { EventSlotCoPlayers } from "@/features/events/event-slot-co-players";
+import {
+  canCreateSession,
+  charLength,
+  creationPayload,
+  generateSlotsFromRegistrations,
+  regenerateSlotNames,
+  selectionState,
+  setAllSelected,
+  setSlotSelected,
+  validateSlots,
+  type WizardSlot,
+} from "./admin-session-wizard";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,17 +105,6 @@ type BuilderRegistration = {
   slots: BuilderSlot[];
 };
 
-type WizardSlot = {
-  registrationId: string;
-  playerName: string;
-  slotId: string;
-  gameId: string;
-  gameName: string;
-  archipelagoGameName: string | null;
-  slotName: string;
-  errors: string[];
-};
-
 // ─── Page state ──────────────────────────────────────────────────────────────
 
 // Local UI state of the "new session" wizard; the sessions list itself lives in TanStack Query.
@@ -111,70 +113,6 @@ type WizardState = {
   builderLoading: boolean;
   slots: WizardSlot[];
 };
-
-// ─── Slot name generation (port of SlotNameGenerator.php) ───────────────────
-
-function abbreviateGameName(gameName: string): string {
-  if (!gameName.trim()) return "UNK";
-  const words = gameName.trim().split(/\s+/);
-  let abbr = "";
-  for (const word of words) {
-    const first = Array.from(word)[0];
-    if (first) abbr += first.toLocaleUpperCase();
-    if (charLength(abbr) >= 3) break;
-  }
-  return abbr || "UNK";
-}
-
-function charLength(value: string): number {
-  return Array.from(value).length;
-}
-
-function limitChars(value: string, max: number): string {
-  return Array.from(value).slice(0, max).join("");
-}
-
-function sanitizePlayerName(name: string): string {
-  // Keep letters/digits/underscore (mirrors the backend SlotNameGenerator); drop the rest.
-  const clean = name.replace(/[^A-Za-z0-9_]/g, "");
-  return clean || "Player";
-}
-
-function generateSlotsFromRegistrations(registrations: BuilderRegistration[]): WizardSlot[] {
-  const pairs = registrations.flatMap((reg) =>
-    reg.slots.map((slot) => {
-      const abbr = abbreviateGameName(slot.archipelagoGameName ?? "");
-      const player = sanitizePlayerName(reg.playerName);
-      const base = limitChars(player + "_" + abbr, 16);
-      return { reg, slot, base };
-    }),
-  );
-
-  const counts: Record<string, number> = {};
-  pairs.forEach((p) => { counts[p.base] = (counts[p.base] ?? 0) + 1; });
-
-  const counters: Record<string, number> = {};
-  return pairs.map(({ reg, slot, base }) => {
-    let slotName: string;
-    if (counts[base] === 1) {
-      slotName = base;
-    } else {
-      counters[base] = (counters[base] ?? 0) + 1;
-      const suffix = String(counters[base]);
-      slotName = limitChars(base, 16 - charLength(suffix)) + suffix;
-    }
-    return {
-      registrationId: reg.registrationId,
-      playerName: reg.playerName,
-      slotId: slot.slotId,
-      gameId: slot.gameId,
-      gameName: slot.gameName,
-      archipelagoGameName: slot.archipelagoGameName,
-      slotName,
-      errors: [],
-    };
-  });
-}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -229,14 +167,8 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
       const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slots: slots.map((s) => ({
-            registrationId: s.registrationId,
-            slotId: s.slotId,
-            gameId: s.gameId,
-            slotName: s.slotName,
-          })),
-        }),
+        // Story 11.9: only the slots the admin kept.
+        body: JSON.stringify(creationPayload(slots)),
       });
       if (!res.ok) {
         setWizard(null);
@@ -604,19 +536,6 @@ function SessionDetailSkeleton({ label }: { label: string }) {
   );
 }
 
-function validateSlots(slots: WizardSlot[]): Record<string, string[]> {
-  const names = slots.map((s) => s.slotName);
-  const errors: Record<string, string[]> = {};
-  slots.forEach((slot) => {
-    const errs: string[] = [];
-    if (!slot.slotName.trim()) errs.push("Nom requis");
-    else if (charLength(slot.slotName) > 16) errs.push("Maximum 16 caractères");
-    if (slot.slotName && names.filter((n) => n === slot.slotName).length > 1) errs.push("Nom déjà utilisé");
-    if (errs.length) errors[slot.slotId] = errs;
-  });
-  return errors;
-}
-
 function WizardBuilder({
   builderLoading,
   eventId,
@@ -638,7 +557,9 @@ function WizardBuilder({
 }) {
   const [pendingCreate, setPendingCreate] = useState<"create" | "create-generate" | null>(null);
   const errors = validateSlots(slots);
-  const isInvalid = Object.keys(errors).length > 0 || slots.some((s) => !s.slotName.trim());
+  const isInvalid = !canCreateSession(slots);
+  const selection = selectionState(slots);
+  const selectedCount = slots.filter((slot) => slot.selected).length;
 
   function updateSlotName(slotId: string, name: string) {
     onSlotsChange(slots.map((s) => s.slotId === slotId ? { ...s, slotName: name } : s));
@@ -646,8 +567,7 @@ function WizardBuilder({
 
   function regenerateNames() {
     if (!registrations) return;
-    const generated = generateSlotsFromRegistrations(registrations);
-    onSlotsChange(generated);
+    onSlotsChange(regenerateSlotNames(registrations, slots));
   }
 
   return (
@@ -698,6 +618,16 @@ function WizardBuilder({
             <table className="w-full border-collapse text-left text-sm">
               <thead className="border-b border-border text-muted-foreground">
                 <tr>
+                  <th className="w-10 px-4 py-3 font-medium">
+                    <input
+                      aria-label="Inclure tous les slots"
+                      checked={selection === "all"}
+                      className="size-4 accent-[var(--color-accent)]"
+                      onChange={() => { onSlotsChange(setAllSelected(slots, selection !== "all")); }}
+                      ref={(input) => { if (input) input.indeterminate = selection === "some"; }}
+                      type="checkbox"
+                    />
+                  </th>
                   <th className="px-4 py-3 font-medium">Joueur</th>
                   <th className="px-4 py-3 font-medium">Jeu</th>
                   <th className="px-4 py-3 font-medium">
@@ -719,7 +649,19 @@ function WizardBuilder({
                   const slotErrors = errors[slot.slotId] ?? [];
                   const hasError = slotErrors.length > 0;
                   return (
-                    <tr className="border-b border-border last:border-b-0" key={slot.slotId}>
+                    <tr
+                      className={`border-b border-border last:border-b-0 ${slot.selected ? "" : "opacity-50"}`}
+                      key={slot.slotId}
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          aria-label={`Inclure ${slot.playerName}, ${slot.gameName}`}
+                          checked={slot.selected}
+                          className="size-4 accent-[var(--color-accent)]"
+                          onChange={(e) => { onSlotsChange(setSlotSelected(slots, slot.slotId, e.target.checked)); }}
+                          type="checkbox"
+                        />
+                      </td>
                       <td className="px-4 py-3 font-semibold text-foreground">{slot.playerName}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         {slot.gameName}
@@ -752,7 +694,11 @@ function WizardBuilder({
             </table>
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <p aria-live="polite" className="mr-auto text-sm text-muted-foreground">
+              {selectedCount} slot{selectedCount > 1 ? "s" : ""} sur {slots.length}
+              {selectedCount === 0 ? " : cochez au moins un slot" : ""}
+            </p>
             <button
               className="inline-flex min-h-9 min-w-36 items-center justify-center gap-2 rounded border border-border px-4 text-sm font-semibold text-foreground hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isInvalid || pendingCreate !== null}
@@ -1219,6 +1165,7 @@ function SessionDetail({
                       <th className="px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">Nom de slot</th>
                       <th className="px-4 py-3 font-medium">Inscription</th>
+                      <th className="px-4 py-3 font-medium">Co-joueurs</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1227,6 +1174,10 @@ function SessionDetail({
                         <td className="px-4 py-3 text-muted-foreground">{slot.slotOrder + 1}</td>
                         <td className="px-4 py-3 font-mono font-semibold text-foreground">{slot.slotName}</td>
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{slot.registrationId.slice(0, 8)}…</td>
+                        {/* Story 11.10: other registrants of the event who play this slot. */}
+                        <td className="min-w-56 px-4 py-3">
+                          {slot.slotId ? <EventSlotCoPlayers eventId={eventId} slotId={slot.slotId} /> : null}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

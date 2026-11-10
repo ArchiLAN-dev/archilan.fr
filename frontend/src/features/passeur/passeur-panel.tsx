@@ -42,6 +42,7 @@ export function PasseurPanel({ sessionId, slotIndex }: { sessionId: string; slot
 
   return (
     <PasseurView
+      canCall={data.canCall ?? true}
       offer={data.offer}
       onCall={async (offer, requestId) => {
         const result = await callThePasseur(sessionId, slotIndex, offer, requestId);
@@ -54,7 +55,16 @@ export function PasseurPanel({ sessionId, slotIndex }: { sessionId: string; slot
   );
 }
 
-export function PasseurView({ offer, onCall }: { offer: PasseurOffer; onCall: (offer: PasseurOffer, requestId: string) => Promise<PasseurCallResult> }) {
+export function PasseurView({
+  offer,
+  onCall,
+  canCall = true,
+}: {
+  offer: PasseurOffer;
+  onCall: (offer: PasseurOffer, requestId: string) => Promise<PasseurCallResult>;
+  /** Story 11.10: false for a co-player of the slot, who sees the offer but may not call. */
+  canCall?: boolean;
+}) {
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
@@ -105,14 +115,16 @@ export function PasseurView({ offer, onCall }: { offer: PasseurOffer; onCall: (o
       <div>
         <button
           className="inline-flex min-h-8 items-center gap-1.5 rounded border border-violet-500/50 px-2.5 text-xs font-semibold text-foreground hover:border-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={pending || !affordable || waitingUntil !== null}
+          disabled={!canCall || pending || !affordable || waitingUntil !== null}
           onClick={() => setConfirming(true)}
           type="button"
         >
           {pending ? <Loader2 aria-hidden className="size-3 animate-spin" /> : <KeyRound aria-hidden className="size-3" />}
           Faire appel au Passeur
         </button>
-        {waitingUntil !== null ? (
+        {!canCall ? (
+          <p className="mt-1 text-xs text-muted-foreground">Seul le titulaire du slot peut faire appel au Passeur.</p>
+        ) : waitingUntil !== null ? (
           <p className="mt-1 text-xs text-muted-foreground">Le Passeur sera disponible à {TIME.format(new Date(waitingUntil))}, si tu es toujours bloqué.</p>
         ) : !affordable ? (
           <p className="mt-1 text-xs text-muted-foreground">Il te manque des {unit}.</p>

@@ -11,8 +11,7 @@ const alice: SlotCoPlayer = { userId: "u-alice", displayName: "Alice", slug: "al
 const bob: SlotCoPlayer = { userId: "u-bob", displayName: "Bob", slug: null, avatarUrl: null };
 
 const base = {
-  runId: "run-1",
-  slotId: "slot-1",
+  onSave: () => Promise.resolve(true),
   candidates: [
     { userId: "u-alice", displayName: "Alice" },
     { userId: "u-bob", displayName: "Bob" },

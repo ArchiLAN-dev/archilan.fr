@@ -56,7 +56,7 @@ final readonly class RegistrationPatchQuery
             return null;
         }
 
-        $sessionId = $this->playerConnectionQuery->findLatestSessionIdByRegistrationId($registrationId);
+        $sessionId = $this->playerConnectionQuery->findLatestSessionIdForPlayer($registration->getEventId(), $registrationId, $userId);
         $session = null === $sessionId ? null : $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
             return null;
