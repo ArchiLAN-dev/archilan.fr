@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { use, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowLeft, ArrowUp, Handshake, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Handshake, Plus, X } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -61,10 +61,6 @@ export function AdminEventPartnersPage({ params }: { params: Promise<{ eventId: 
 
   return (
     <div className="grid gap-6 p-6 md:p-8">
-      <Link className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" href="/admin/evenements">
-        <ArrowLeft aria-hidden className="size-4" />
-        Événements
-      </Link>
       <header>
         <h1 className="font-heading text-2xl font-bold text-foreground">Partenaires de l&apos;événement</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">

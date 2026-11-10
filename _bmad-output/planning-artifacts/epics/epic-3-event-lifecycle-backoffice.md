@@ -129,3 +129,9 @@ So that past events become useful public community content.
 **And** invalid VOD URLs are rejected or clearly marked
 **And** only completed events can be marked with final recap content unless explicitly overridden
 **And** public users can access the recap through the event page
+
+## Story 3.17: Hub d'un événement (admin)
+
+En tant qu'orga, je veux une page par événement qui regroupe tout ce que je peux y faire, et une liste des
+événements réduite à une action principale et un menu, afin que la liste reste lisible quand les fonctionnalités
+s'ajoutent. Détail : `_bmad-output/implementation-artifacts/3-17-hub-evenement-admin.md`.

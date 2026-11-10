@@ -2,7 +2,6 @@
 
 import {
   AlertTriangle,
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -19,7 +18,7 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ThumbnailPreview } from "@/features/admin/admin-game-library-dashboard";
 import { apiFetch } from "@/lib/apiFetch";
@@ -47,6 +46,7 @@ type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { k
 export const CATALOGUE_PAGE_SIZE = 50;
 
 export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
+  const queryClient = useQueryClient();
   const [enabled, setEnabled] = useState(false);
   const [maxGames, setMaxGames] = useState<number | null>(null);
   const [selectedGameIds, setSelectedGameIds] = useState<Set<string>>(new Set());
@@ -240,6 +240,8 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
       }
       // Story 3.16: stay on the page - the admin often adjusts in several passes.
       setSaved(draft);
+      // Story 3.17: the hub greys "Run et sessions" until the selection is on; let it see the change.
+      void queryClient.invalidateQueries({ queryKey: ["admin-events"] });
       setSave({ kind: "saved" });
     } catch {
       setSave({ kind: "error", message: "Impossible de contacter l'API." });
@@ -281,13 +283,6 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
   return (
     <section className="grid w-full gap-6 px-4 pb-0 pt-10">
       <header>
-        <Link
-          className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          href="/admin/evenements"
-        >
-          <ArrowLeft aria-hidden="true" className="size-3.5" />
-          Retour aux événements
-        </Link>
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">Backoffice</p>
         <div className="flex items-center gap-3">
           <Gamepad2 aria-hidden="true" className="size-6 text-accent-text" />
