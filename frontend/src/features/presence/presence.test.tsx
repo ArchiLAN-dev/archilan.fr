@@ -135,5 +135,14 @@ describe("story 52.8 - a readable timeline", () => {
     const html = renderToStaticMarkup(<PresenceTimelineView eventId="e1" initialFilter="undeclared" timeline={{ ...EVENT, registrants: people }} />);
     expect(html).not.toContain("/inscriptions/r2");
     expect(html).toContain("/inscriptions/r4");
+    expect(html).not.toContain("Aucun inscrit dans ce filtre");
+  });
+
+  it("says so when a filter keeps no one, and keeps the filter off the mobile cards", () => {
+    const html = renderToStaticMarkup(
+      <PresenceTimelineView eventId="e1" initialFilter="undeclared" timeline={{ ...EVENT, registrants: people.filter((r) => r.windows.length > 0) }} />,
+    );
+    expect(html).toContain("Aucun inscrit dans ce filtre.");
+    expect(html).toMatch(/aria-label="Filtrer les inscrits" class="hidden [^"]*md:flex"/);
   });
 });

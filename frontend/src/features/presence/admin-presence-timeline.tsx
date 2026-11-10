@@ -183,7 +183,8 @@ export function PresenceTimelineView({ eventId, timeline, now, initialFilter = "
         {summary.low ? <SummaryTile hint={summary.low.label} label="Creux" value={`${summary.low.count} présents`} /> : null}
       </dl>
 
-      <div aria-label="Filtrer les inscrits" className="flex flex-wrap gap-2" role="group">
+      {/* The filter acts on the timeline rows only, so it is shown with the timeline, not over the mobile cards. */}
+      <div aria-label="Filtrer les inscrits" className="hidden flex-wrap gap-2 md:flex" role="group">
         {filters.map((option) => (
           <button
             aria-pressed={filter === option.value}
@@ -298,6 +299,9 @@ function Timeline({
           ))}
         </div>
 
+        {rows.length === 0 ? (
+          <p className="col-span-2 px-3 py-6 text-center text-sm text-muted-foreground">Aucun inscrit dans ce filtre.</p>
+        ) : null}
         <div className="contents">
           <ul className="divide-y divide-border">
             {rows.map((registrant) => (
