@@ -5,6 +5,25 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.64.0] - 2026-11-10
+
+Les sessions d'événement à la carte : l'admin choisit les slots qui partent dans une session (story 11.9), et un
+inscrit confirmé peut jouer le slot d'un autre comme co-joueur (story 11.10). Aucune migration, aucune variable,
+services inchangés.
+
+### Ajouté
+
+- Choix des slots d'une session d'événement (story 11.9) : une case par slot dans « Créer une session », toutes
+  cochées par défaut, une case pour tout cocher et un compteur. Seuls les slots cochés sont validés et envoyés.
+- Co-joueurs d'un slot d'événement (story 11.10) : l'admin (détail de session, colonne « Co-joueurs ») ou le
+  titulaire du slot (sa page de connexion) ajoute des inscrits confirmés de l'événement. Un co-joueur retrouve la
+  session par ce slot, même sans slot à lui dedans : nom de slot, connexion, patch, suivi, statistiques et succès.
+
+### Modifié
+
+- Le Passeur, sur une session d'événement, est réservé au titulaire du slot : un co-joueur voit l'offre mais ne
+  peut pas l'appeler (refus sans débit). Les parties perso gardent leur règle.
+
 ## [0.63.0] - 2026-11-10
 
 Une administration plus lisible : le hub d'un événement en barre d'onglets (story 3.18), les présences des longs
