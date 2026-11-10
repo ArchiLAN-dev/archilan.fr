@@ -1,6 +1,6 @@
 # Story 52.6 - Départ assisté
 
-**Status:** review
+**Status:** done
 **Epic:** 52 - Le Passeur (`_bmad-output/planning-artifacts/epics/epic-52-passeur.md`)
 **Date:** 2026-11-09
 **Branche:** `feature/epic-52-story-6-depart-assiste` (depuis `develop`)

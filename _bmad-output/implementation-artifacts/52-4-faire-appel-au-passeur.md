@@ -1,6 +1,6 @@
 # Story 52.4 - Faire appel au Passeur (pelles d'argent ou de bronze)
 
-**Status:** review
+**Status:** done
 **Epic:** 52 - Le Passeur (`_bmad-output/planning-artifacts/epics/epic-52-passeur.md`)
 **Date:** 2026-11-09
 **Branche:** `feature/epic-52-story-4-faire-appel-au-passeur` (depuis `develop`)
