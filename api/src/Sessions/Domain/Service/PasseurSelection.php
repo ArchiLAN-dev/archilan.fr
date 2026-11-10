@@ -12,20 +12,22 @@ use App\Sessions\Domain\ValueObject\PasseurItem;
  * A candidate is a progression item for the buyer, in an unopened location of another world (the bridge only
  * reports the buyer's own items, not received, in other worlds' unopened locations). Story 52.9: any other world,
  * the player of that world being there or not. One copy per item: the one in the latest sphere, so that world's
- * exploration loses the least.
+ * exploration loses the least. The buyer's own world is left out here too, not only by the bridge: a chest of one's
+ * own world is never sold.
  */
 final class PasseurSelection
 {
     /**
-     * @param list<PasseurItem> $items the buyer's items still owed by other worlds
+     * @param list<PasseurItem> $items     the buyer's items still owed by other worlds
+     * @param int               $buyerSlot the blocked player's slot, whose world is never a candidate
      *
      * @return list<PasseurItem> one per item id, in the fallback order (see byRank)
      */
-    public static function candidates(array $items): array
+    public static function candidates(array $items, int $buyerSlot): array
     {
         $kept = [];
         foreach ($items as $item) {
-            if (!$item->progression) {
+            if (!$item->progression || $item->findingSlot === $buyerSlot) {
                 continue;
             }
             $current = $kept[$item->itemId] ?? null;

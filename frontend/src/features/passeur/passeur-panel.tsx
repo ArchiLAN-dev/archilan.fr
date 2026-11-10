@@ -7,9 +7,22 @@ import { KeyRound, Loader2 } from "lucide-react";
 import { ConfirmDialog, ConfirmFigure } from "@/components/ui/confirm-dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount } from "@/features/wallet/pelle-amount";
-import { callThePasseur, fetchPasseur, passeurKey, type PasseurCallResult, type PasseurOffer } from "./passeur-api";
+import { callThePasseur, fetchPasseur, passeurKey, type PasseurCallResult, type PasseurOffer, type PasseurState } from "./passeur-api";
 
 const TIME = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+
+const REFRESH_MS = 60_000;
+
+/**
+ * Story 52.9: how long until the offer is read again. Once a minute, or right after the Passeur becomes available
+ * when that comes sooner, so the call does not stay greyed out past the time the panel announced.
+ */
+export function passeurRefreshIn(state: PasseurState | null | undefined, now: number): number {
+  const availableAt = state?.offer?.availableAt;
+  if (availableAt === undefined || availableAt === null) return REFRESH_MS;
+  const until = new Date(availableAt).getTime() - now;
+  return until > 0 && until < REFRESH_MS ? until + 1_000 : REFRESH_MS;
+}
 
 /**
  * « Le Passeur » (story 52.4): for a player stuck in BK, the chest of another world that unblocks them, at the
@@ -21,7 +34,7 @@ export function PasseurPanel({ sessionId, slotIndex }: { sessionId: string; slot
     queryKey: passeurKey(sessionId, slotIndex),
     queryFn: () => fetchPasseur(sessionId, slotIndex),
     staleTime: DEFAULT_STALE_TIME,
-    refetchInterval: 60_000,
+    refetchInterval: (query) => passeurRefreshIn(query.state.data, Date.now()),
     retry: false,
   });
 

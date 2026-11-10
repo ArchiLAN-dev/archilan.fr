@@ -6,7 +6,7 @@ import { TEST_API_BASE_URL } from "../../tests/constants";
 import { callThePasseur, dismissPasseurNotice, fetchPasseur, fetchPasseurJournal, fetchPasseurNotice, isPasseurOffer, isPasseurOpening, isPasseurState, type PasseurOffer, type PasseurOpening } from "./passeur-api";
 import { PasseurJournalView } from "./passeur-journal";
 import { PasseurNoticeView } from "./passeur-notice";
-import { PasseurView } from "./passeur-panel";
+import { PasseurView, passeurRefreshIn } from "./passeur-panel";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -42,6 +42,17 @@ describe("le Passeur", () => {
     expect(isPasseurOffer(offer)).toBe(true);
     expect(isPasseurOffer({ ...offer, availableAt: null })).toBe(true);
     expect(isPasseurOffer({ ...offer, availableAt: 12 })).toBe(false);
+  });
+
+  test("story 52.9: the offer is read again as soon as the Passeur opens", () => {
+    const opens = Date.parse("2026-11-09T14:30:00+01:00");
+    const waiting = { enabled: true, offer: { ...offer, availableAt: "2026-11-09T14:30:00+01:00" } };
+
+    expect(passeurRefreshIn(waiting, opens - 20_000)).toBe(21_000);
+    expect(passeurRefreshIn(waiting, opens - 5 * 60_000)).toBe(60_000);
+    expect(passeurRefreshIn(waiting, opens + 1_000)).toBe(60_000);
+    expect(passeurRefreshIn({ enabled: true, offer }, opens)).toBe(60_000);
+    expect(passeurRefreshIn(null, opens)).toBe(60_000);
   });
 
   test("the panel says whose chest, what it holds, and the price of the moment", () => {

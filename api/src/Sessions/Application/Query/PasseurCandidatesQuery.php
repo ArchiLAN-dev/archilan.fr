@@ -62,7 +62,7 @@ final readonly class PasseurCandidatesQuery
             throw new ServiceUnavailableException('Le bridge ne répond pas.', 'bridge_unavailable');
         }
 
-        $candidates = PasseurSelection::candidates($items);
+        $candidates = PasseurSelection::candidates($items, $slotIndex);
         $gains = [] === $candidates || !$measure ? null : $this->bridge->gains($sessionId, $slotIndex, array_slice($candidates, 0, PasseurBridgeInterface::MAX_MEASURED));
         $ranked = null === $gains ? $candidates : PasseurSelection::byRank($candidates, $gains);
 
