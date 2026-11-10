@@ -34,6 +34,8 @@ describe("le Passeur", () => {
     expect(html).toContain("Le Passeur");
     expect(html).toContain("Coffre du temple");
     expect(html).toContain("Bob");
+    // Story 52.9: Bob may be there, playing something else.
+    expect(html).not.toContain("absent");
     expect(html).toContain("Grappin");
     expect(html).toContain("(au lieu de 60)");
     expect(html).toContain("Prochaine baisse à 14:30");
@@ -99,12 +101,14 @@ const opening: PasseurOpening = {
 
 /** Story 52.5: what the Passeur opened. */
 describe("ce que le Passeur a ouvert", () => {
-  test("the absent player's notice lists the chests, for whom, and the total received", () => {
+  test("the opened world's player's notice lists the chests, for whom, and the total received", () => {
     const html = renderToStaticMarkup(
       <PasseurNoticeView notice={{ openings: [opening, { ...opening, id: "o2", itemName: "Dash", share: 20 }], total: 50, kind: "bronze" }} onDismiss={() => Promise.resolve(true)} />,
     );
 
-    expect(html).toContain("le Passeur a ouvert 2 emplacements de ton monde");
+    // Story 52.9: the world's player may well have been there.
+    expect(html).toContain("Le Passeur a ouvert 2 emplacements de ton monde");
+    expect(html).not.toContain("absence");
     expect(html).toContain("Link House");
     expect(html).toContain("Claw pour Alice");
     expect(html).toContain(">50<");

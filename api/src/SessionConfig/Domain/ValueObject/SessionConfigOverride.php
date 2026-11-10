@@ -48,7 +48,6 @@ final readonly class SessionConfigOverride
         public ?int $passeurFloorPercent = null,
         public ?int $passeurSharePercent = null,
         public ?int $passeurDailyLimit = null,
-        public ?int $passeurAbsenceMinutes = null,
     ) {
     }
 
@@ -86,7 +85,6 @@ final readonly class SessionConfigOverride
             passeurFloorPercent: $c->server->passeurFloorPercent,
             passeurSharePercent: $c->server->passeurSharePercent,
             passeurDailyLimit: $c->server->passeurDailyLimit,
-            passeurAbsenceMinutes: $c->server->passeurAbsenceMinutes,
         );
     }
 
@@ -160,7 +158,7 @@ final readonly class SessionConfigOverride
         if (null !== $this->passeur) {
             $out['passeur'] = $this->passeur;
         }
-        foreach (['passeurBasePrice' => $this->passeurBasePrice, 'passeurDecayPercent' => $this->passeurDecayPercent, 'passeurFloorPercent' => $this->passeurFloorPercent, 'passeurSharePercent' => $this->passeurSharePercent, 'passeurDailyLimit' => $this->passeurDailyLimit, 'passeurAbsenceMinutes' => $this->passeurAbsenceMinutes] as $key => $value) {
+        foreach (['passeurBasePrice' => $this->passeurBasePrice, 'passeurDecayPercent' => $this->passeurDecayPercent, 'passeurFloorPercent' => $this->passeurFloorPercent, 'passeurSharePercent' => $this->passeurSharePercent, 'passeurDailyLimit' => $this->passeurDailyLimit] as $key => $value) {
             if (null !== $value) {
                 $out[$key] = $value;
             }
@@ -216,7 +214,6 @@ final readonly class SessionConfigOverride
             passeurFloorPercent: self::bounded($data, 'passeurFloorPercent', 0, 100, 'invalid_passeur_setting'),
             passeurSharePercent: self::bounded($data, 'passeurSharePercent', 0, 100, 'invalid_passeur_setting'),
             passeurDailyLimit: self::bounded($data, 'passeurDailyLimit', 1, SessionServerConfig::MAX_PASSEUR_DAILY_LIMIT, 'invalid_passeur_setting'),
-            passeurAbsenceMinutes: self::bounded($data, 'passeurAbsenceMinutes', SessionServerConfig::MIN_PASSEUR_ABSENCE_MINUTES, SessionServerConfig::MAX_PASSEUR_ABSENCE_MINUTES, 'invalid_passeur_setting'),
         );
     }
 
@@ -267,7 +264,6 @@ final readonly class SessionConfigOverride
             && null === $this->passeurDecayPercent
             && null === $this->passeurFloorPercent
             && null === $this->passeurSharePercent
-            && null === $this->passeurDailyLimit
-            && null === $this->passeurAbsenceMinutes;
+            && null === $this->passeurDailyLimit;
     }
 }

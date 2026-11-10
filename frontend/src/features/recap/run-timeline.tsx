@@ -440,7 +440,7 @@ function LogRowContent({ event }: { event: FeedEvent }) {
   const local = event.sender.slot === event.receiver.slot;
   return (
     <>
-      {/* Story 52.5: a chest the Passeur opened in an absent player's world. */}
+      {/* Story 52.5: a chest the Passeur opened in another player's world. */}
       {event.passeur === true ? (
         <span className="mr-1.5 inline-flex items-center gap-1 rounded bg-violet-500/15 px-1.5 py-0.5 text-xs font-semibold text-violet-400">
           <KeyRound aria-hidden className="size-3" />

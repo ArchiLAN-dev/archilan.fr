@@ -24,16 +24,13 @@ final readonly class SessionServerConfig
     public const int DEFAULT_BRONZE_PER_CHECK = 1;
     public const int DEFAULT_BRONZE_PER_GOAL = 25;
     public const int MAX_BRONZE_AMOUNT = 1000;
-    // Story 52.4: the Passeur opens an absent player's chest for a blocked one, for pelles.
+    // Story 52.4: the Passeur opens a chest of another world for a blocked player, for pelles.
     public const int DEFAULT_PASSEUR_BASE_PRICE = 3 * self::DEFAULT_PELLE_ITEM_HINT_PRICE;
     public const int DEFAULT_PASSEUR_DECAY_PERCENT = 10;
     public const int DEFAULT_PASSEUR_FLOOR_PERCENT = 40;
     public const int DEFAULT_PASSEUR_SHARE_PERCENT = 50;
     public const int DEFAULT_PASSEUR_DAILY_LIMIT = 5;
     public const int MAX_PASSEUR_DAILY_LIMIT = 100;
-    public const int DEFAULT_PASSEUR_ABSENCE_MINUTES = 120;
-    public const int MIN_PASSEUR_ABSENCE_MINUTES = 15;
-    public const int MAX_PASSEUR_ABSENCE_MINUTES = 1440;
 
     public function __construct(
         public ReleaseCollectMode $releaseMode,
@@ -58,14 +55,13 @@ final readonly class SessionServerConfig
         public int $bronzePerGoal = self::DEFAULT_BRONZE_PER_GOAL,
         // Story 27.12: players see their slot's spheres (locations only, items stripped). A site setting too.
         public bool $spheresVisible = true,
-        // Story 52.4: the Passeur, off by default. Site settings; the absence delay is read for private runs only.
+        // Story 52.4: the Passeur, off by default. Site settings.
         public bool $passeur = false,
         public int $passeurBasePrice = self::DEFAULT_PASSEUR_BASE_PRICE,
         public int $passeurDecayPercent = self::DEFAULT_PASSEUR_DECAY_PERCENT,
         public int $passeurFloorPercent = self::DEFAULT_PASSEUR_FLOOR_PERCENT,
         public int $passeurSharePercent = self::DEFAULT_PASSEUR_SHARE_PERCENT,
         public int $passeurDailyLimit = self::DEFAULT_PASSEUR_DAILY_LIMIT,
-        public int $passeurAbsenceMinutes = self::DEFAULT_PASSEUR_ABSENCE_MINUTES,
     ) {
         if ($pelleItemHintPrice < 1 || $pelleItemHintPrice > self::MAX_PELLE_HINT_PRICE
             || $pelleLocationHintPrice < 1 || $pelleLocationHintPrice > self::MAX_PELLE_HINT_PRICE) {
@@ -77,8 +73,7 @@ final readonly class SessionServerConfig
             }
         }
         if ($passeurBasePrice < 1 || $passeurBasePrice > self::MAX_PELLE_HINT_PRICE
-            || $passeurDailyLimit < 1 || $passeurDailyLimit > self::MAX_PASSEUR_DAILY_LIMIT
-            || $passeurAbsenceMinutes < self::MIN_PASSEUR_ABSENCE_MINUTES || $passeurAbsenceMinutes > self::MAX_PASSEUR_ABSENCE_MINUTES) {
+            || $passeurDailyLimit < 1 || $passeurDailyLimit > self::MAX_PASSEUR_DAILY_LIMIT) {
             throw new \DomainException('invalid_passeur_setting');
         }
         foreach ([$passeurDecayPercent, $passeurFloorPercent, $passeurSharePercent] as $percent) {

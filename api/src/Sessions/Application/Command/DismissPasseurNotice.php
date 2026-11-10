@@ -7,7 +7,7 @@ namespace App\Sessions\Application\Command;
 use App\Sessions\Domain\Repository\PasseurOpeningRepositoryInterface;
 use Psr\Clock\ClockInterface;
 
-/** Story 52.5: the absent player closes their notice; the next opening brings it back. */
+/** Story 52.5: the player of an opened world closes their notice; the next opening brings it back. */
 final readonly class DismissPasseurNotice
 {
     public function __construct(

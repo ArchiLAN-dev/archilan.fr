@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Query;
 
 /**
- * Story 52.4: what the Passeur proposes to a blocked player right now - the best chest of an absent world still under
+ * Story 52.4: what the Passeur proposes to a blocked player right now - the best chest of another world still under
  * its daily limit, at the price of the moment, with the player's balance in the pelles it takes.
  */
 final readonly class PasseurOffer

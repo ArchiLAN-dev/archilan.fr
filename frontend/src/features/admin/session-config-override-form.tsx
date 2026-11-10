@@ -43,9 +43,9 @@ type FieldDef =
 const SECTION_ORDER = ["Échanges d'objets", "Indices & score", "Indices contre pelles", "Pelles de bronze", "Le Passeur", "Salle & partie", "Génération"] as const;
 
 // Story 41.36: the bronze pelles exist in private runs only.
-const BRONZE_KEYS: readonly string[] = ["bronzeStart", "bronzePerCheck", "bronzePerGoal", "passeurAbsenceMinutes"];
+const BRONZE_KEYS: readonly string[] = ["bronzeStart", "bronzePerCheck", "bronzePerGoal"];
 // Story 52.4: the Passeur never runs in a weekly.
-const PASSEUR_KEYS: readonly string[] = ["passeur", "passeurBasePrice", "passeurDecayPercent", "passeurFloorPercent", "passeurSharePercent", "passeurDailyLimit", "passeurAbsenceMinutes"];
+const PASSEUR_KEYS: readonly string[] = ["passeur", "passeurBasePrice", "passeurDecayPercent", "passeurFloorPercent", "passeurSharePercent", "passeurDailyLimit"];
 
 // A run-specific join password proposed when the override is enabled (admins/owners can edit it).
 function randomPassword(): string {
@@ -81,9 +81,8 @@ const FIELDS: FieldDef[] = [
   { key: "passeurBasePrice", label: "Prix de départ (pelles)", section: "Le Passeur", kind: "int", min: 1, max: 1000, fallback: 60 },
   { key: "passeurDecayPercent", label: "Baisse par quart d'heure de BK (%)", section: "Le Passeur", kind: "int", min: 0, max: 100, fallback: 10 },
   { key: "passeurFloorPercent", label: "Prix plancher (%)", section: "Le Passeur", kind: "int", min: 0, max: 100, fallback: 40 },
-  { key: "passeurSharePercent", label: "Part de l'absent (%)", section: "Le Passeur", kind: "int", min: 0, max: 100, fallback: 50 },
-  { key: "passeurDailyLimit", label: "Ouvertures par monde absent et par jour", section: "Le Passeur", kind: "int", min: 1, max: 100, fallback: 5 },
-  { key: "passeurAbsenceMinutes", label: "Absent après (minutes sans client)", section: "Le Passeur", kind: "int", min: 15, max: 1440, fallback: 120 },
+  { key: "passeurSharePercent", label: "Part du joueur du monde ouvert (%)", section: "Le Passeur", kind: "int", min: 0, max: 100, fallback: 50 },
+  { key: "passeurDailyLimit", label: "Ouvertures par monde et par jour", section: "Le Passeur", kind: "int", min: 1, max: 100, fallback: 5 },
   { key: "countdownMode", label: "Compte à rebours (!countdown)", section: "Salle & partie", kind: "select", options: COUNTDOWN_MODES, labels: CD, fallback: "auto" },
   { key: "disableItemCheat", label: "Interdire la triche d'objets (!getitem)", section: "Salle & partie", kind: "bool", fallback: true },
   { key: "compatibility", label: "Compatibilité", section: "Salle & partie", kind: "intselect", options: COMPATIBILITY_VALUES, labels: COMPAT, fallback: 2 },
@@ -384,7 +383,6 @@ function flattenProfile(c: SessionConfig): Record<string, OverrideValue> {
     passeurFloorPercent: c.server.passeurFloorPercent,
     passeurSharePercent: c.server.passeurSharePercent,
     passeurDailyLimit: c.server.passeurDailyLimit,
-    passeurAbsenceMinutes: c.server.passeurAbsenceMinutes,
     plandoOptions: c.generation.plandoOptions,
     race: c.generation.race,
     spoiler: c.generation.spoiler,

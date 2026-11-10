@@ -12,7 +12,7 @@ import { callThePasseur, fetchPasseur, passeurKey, type PasseurCallResult, type 
 const TIME = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
 /**
- * « Le Passeur » (story 52.4): for a player stuck in BK, the chest of an absent player that unblocks them, at the
+ * « Le Passeur » (story 52.4): for a player stuck in BK, the chest of another world that unblocks them, at the
  * price of the moment. Hidden when the party has no Passeur or nothing to offer.
  */
 export function PasseurPanel({ sessionId, slotIndex }: { sessionId: string; slotIndex: string }) {
@@ -76,7 +76,7 @@ export function PasseurView({ offer, onCall }: { offer: PasseurOffer; onCall: (o
       </h2>
       <p className="text-sm text-foreground">
         Tu es en BK depuis {TIME.format(new Date(offer.blockedSince))}. Le Passeur peut ouvrir le coffre <strong>{offer.locationName}</strong> chez{" "}
-        <strong>{offer.absentPlayerName}</strong>, absent, et t&apos;envoyer <strong>{offer.itemName}</strong>.
+        <strong>{offer.absentPlayerName}</strong> et t&apos;envoyer <strong>{offer.itemName}</strong>.
       </p>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">

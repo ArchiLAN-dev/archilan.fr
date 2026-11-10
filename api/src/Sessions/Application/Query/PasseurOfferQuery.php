@@ -13,8 +13,8 @@ use Psr\Clock\ClockInterface;
 
 /**
  * Story 52.4: the Passeur's proposal on a player's slot page. `enabled` false: the party has no Passeur (or is not
- * running), nothing to show; enabled without an offer: the player is not blocked, or nobody absent holds what they
- * wait for.
+ * running), nothing to show; enabled without an offer: the player is not blocked, or no other world holds what
+ * they wait for.
  */
 final readonly class PasseurOfferQuery
 {

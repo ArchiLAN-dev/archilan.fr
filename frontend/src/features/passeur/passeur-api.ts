@@ -91,7 +91,7 @@ export async function callThePasseur(sessionId: string, slotIndex: string, offer
   }
 }
 
-/** Story 52.5: one call to the Passeur, as the journals and the absent player's notice show it. */
+/** Story 52.5: one call to the Passeur, as the journals and the opened world's player's notice show it. */
 export type PasseurOpening = {
   id: string;
   sessionId: string;

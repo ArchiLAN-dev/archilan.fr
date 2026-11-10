@@ -9,23 +9,23 @@ use App\Sessions\Domain\ValueObject\PasseurItem;
 /**
  * Story 52.3: which chests the Passeur may open for a blocked player, and in which order. Pure.
  *
- * A candidate is a progression item for the buyer, in an unopened location of an absent world (the bridge only
- * reports the buyer's own items, not received, in other worlds' unopened locations). One copy per item: the one
- * in the latest sphere, so the absent player's exploration loses the least.
+ * A candidate is a progression item for the buyer, in an unopened location of another world (the bridge only
+ * reports the buyer's own items, not received, in other worlds' unopened locations). Story 52.9: any other world,
+ * the player of that world being there or not. One copy per item: the one in the latest sphere, so that world's
+ * exploration loses the least.
  */
 final class PasseurSelection
 {
     /**
-     * @param list<PasseurItem> $items       the buyer's items still owed by other worlds
-     * @param list<int>         $absentSlots the worlds whose player is absent
+     * @param list<PasseurItem> $items the buyer's items still owed by other worlds
      *
      * @return list<PasseurItem> one per item id, in the fallback order (see byRank)
      */
-    public static function candidates(array $items, array $absentSlots): array
+    public static function candidates(array $items): array
     {
         $kept = [];
         foreach ($items as $item) {
-            if (!$item->progression || !in_array($item->findingSlot, $absentSlots, true)) {
+            if (!$item->progression) {
                 continue;
             }
             $current = $kept[$item->itemId] ?? null;

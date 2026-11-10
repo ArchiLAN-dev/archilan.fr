@@ -37,9 +37,4 @@ final readonly class PasseurTerms
     {
         return 'bronze' === $this->kind ? PelleKind::Bronze : PelleKind::Event;
     }
-
-    public function absenceDelaySeconds(): int
-    {
-        return $this->config->passeurAbsenceMinutes * 60;
-    }
 }
