@@ -60,7 +60,7 @@ export function AdminEventNavView({ eventId, pathname, title }: { eventId: strin
   const groups = eventNavGroups(eventId);
 
   return (
-    <nav aria-label="Sections de l'événement" className="grid gap-3 lg:sticky lg:top-4 lg:self-start">
+    <nav aria-label="Sections de l'événement" className="grid gap-3 px-4 pt-6 lg:sticky lg:top-4 lg:self-start">
       <Link className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" href="/admin/evenements">
         <ArrowLeft aria-hidden="true" className="size-4" />
         Événements

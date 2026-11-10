@@ -10,7 +10,7 @@ export default async function AdminEventHubPage({ params }: Props) {
   const { eventId } = await params;
 
   return (
-    <section className="grid gap-6 pb-10 lg:pt-4">
+    <section className="grid gap-6 px-4 pb-10 pt-6 lg:pt-10">
       <AdminEventHub eventId={eventId} />
     </section>
   );

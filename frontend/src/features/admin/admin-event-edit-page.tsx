@@ -45,6 +45,8 @@ export function AdminEventEditPage({ eventId }: { eventId: string }) {
       throw new EventDraftError(fieldErrorsFromPayload(payload));
     }
 
+    // Story 3.17: the hub and its side nav read the event list; refresh it so they show the edit.
+    await queryClient.invalidateQueries({ queryKey: ["admin-events"] });
     router.push("/admin/evenements");
   }
 
