@@ -31,7 +31,10 @@ remplacée, sur son choix parmi trois maquettes, par une **grille planning** :
 3. En tête de chaque colonne : le jour (ou la demi-journée) et le nombre de présents, coloré selon la part présente.
    Un trait plus épais sépare les semaines (chaque lundi) ou les jours (demi-journées). La colonne du jour est
    marquée.
-4. Le pseudo reste collé à gauche quand la grille défile ; mêmes résumé, filtre Tous / Déclarés / Non déclarés et
+4. **Semaine par semaine** (demande de Jean, « on utilisera rarement un mensuel ») : un événement de plus de 4 jours
+   s'ouvre sur la semaine en cours (la première avant l'événement), une case par demi-journée, avec « semaine
+   précédente / suivante ». « Tout l'événement » passe à la grille entière, une case par jour, et revient.
+5. Le pseudo reste collé à gauche quand la grille défile ; mêmes résumé, filtre Tous / Déclarés / Non déclarés et
    tri que 52.8, sur toutes les tailles d'écran (la grille défile de côté sur mobile, les cartes de 52.8 partent).
 
 ## Critères d'acceptation
@@ -53,7 +56,8 @@ remplacée, sur son choix parmi trois maquettes, par une **grille planning** :
 
 ## Dev Agent Record
 
-- `admin-presence-timeline.tsx` : `planningColumns` (jours ou demi-journées, `group` aux lundis ou aux matins),
+- `admin-presence-timeline.tsx` : `parisWeeks` / `weekIndexAt` (semaines du lundi, semaine d'un instant), `GridButton`,
+  `planningColumns(start, end, "day" | "half")` (jours ou demi-journées, `group` aux lundis ou aux matins),
   `planningCell` (union des plages qui touchent la colonne, en fraction ; plein à une demi-heure près), `PlanningGrid`
   (tableau, pseudo `sticky`, comptes colorés, `data-today`), `PlanningCell` (`data-cell="full|part"`). Retirés : la
   frise à barres, le calendrier et la navigation par semaine de la première version, `hourTicks`, `dayBands`,
