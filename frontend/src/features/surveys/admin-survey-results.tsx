@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellRing, Lock, Star } from "lucide-react";
+import { BellRing, ChevronDown, Lock, Search, Star } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 
@@ -37,8 +37,11 @@ type PanelProps = {
   lastRemindedAt?: string | null;
 };
 
+type View = "questions" | "respondents" | "missing";
+
 /** Story 51.4: read at each opening (`staleTime: 0`), the screen always shows the current answers. */
 export function AdminSurveyResultsPanel({ surveyId, eventId, anonymous, questions, lastRemindedAt }: PanelProps) {
+  const [view, setView] = useState<View>("questions");
   const results = useQuery({ queryKey: surveyResultsKey(surveyId), queryFn: () => fetchSurveyResults(surveyId), staleTime: 0, retry: false });
   const missing = useQuery({
     queryKey: surveyNonRespondentsKey(surveyId),
@@ -58,19 +61,83 @@ export function AdminSurveyResultsPanel({ surveyId, eventId, anonymous, question
   if (!results.data) return <p className="text-sm text-danger">Impossible de charger les résultats.</p>;
 
   return (
-    <div className="grid gap-8">
-      <SurveyResultsView results={results.data} />
-      {missing.data ? (
-        <NonRespondentList eventId={eventId} members={missing.data}>
-          {lastRemindedAt !== undefined && missing.data.length > 0 ? <RemindButton lastRemindedAt={lastRemindedAt} surveyId={surveyId} /> : null}
-        </NonRespondentList>
+    <ResultsViews
+      eventId={eventId}
+      missing={missing.data ?? null}
+      onView={setView}
+      questions={questions}
+      remind={lastRemindedAt !== undefined && (missing.data?.length ?? 0) > 0 ? <RemindButton lastRemindedAt={lastRemindedAt} surveyId={surveyId} /> : null}
+      respondents={anonymous ? null : (respondents.data ?? null)}
+      results={results.data}
+      view={view}
+    />
+  );
+}
+
+type ViewsProps = {
+  results: SurveyResults;
+  questions: AdminQuestion[];
+  respondents: RespondentAnswers[] | null;
+  missing: NonRespondent[] | null;
+  eventId: string;
+  view: View;
+  onView: (view: View) => void;
+  remind?: React.ReactNode;
+};
+
+/**
+ * Story 51.6: the results in three views instead of one long page, so that 57 answers stay readable: each question
+ * with its total and who answered what, a table of the respondents, and who has not answered yet.
+ */
+export function ResultsViews({ results, questions, respondents, missing, eventId, view, onView, remind }: ViewsProps) {
+  const views: { value: View; label: string }[] = [
+    { value: "questions", label: "Par question" },
+    ...(results.anonymous ? [] : [{ value: "respondents" as const, label: `Par inscrit (${results.respondentCount})` }]),
+    { value: "missing", label: `Pas encore répondu (${missing === null ? "…" : missing.length})` },
+  ];
+  const shown = results.anonymous && view === "respondents" ? "questions" : view;
+
+  return (
+    <div className="grid gap-5">
+      <div aria-label="Vue des résultats" className="flex flex-wrap gap-1 border-b border-border" role="group">
+        {views.map((option) => (
+          <button
+            aria-pressed={shown === option.value}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
+              shown === option.value ? "border-accent font-semibold text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            key={option.value}
+            onClick={() => onView(option.value)}
+            type="button"
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      {shown === "questions" ? <SurveyResultsView eventId={eventId} respondents={respondents} results={results} /> : null}
+      {shown === "respondents" ? (
+        respondents === null ? (
+          <p className="text-sm text-muted-foreground">Chargement…</p>
+        ) : (
+          <RespondentList eventId={eventId} questions={questions} respondents={respondents} />
+        )
       ) : null}
-      {anonymous ? null : respondents.data ? <RespondentList eventId={eventId} questions={questions} respondents={respondents.data} /> : null}
+      {shown === "missing" ? (
+        missing === null ? (
+          <p className="text-sm text-muted-foreground">Chargement…</p>
+        ) : (
+          <NonRespondentList eventId={eventId} members={missing}>
+            {remind}
+          </NonRespondentList>
+        )
+      ) : null}
     </div>
   );
 }
 
-export function SurveyResultsView({ results }: { results: SurveyResults }) {
+type ResultsProps = { results: SurveyResults; respondents?: RespondentAnswers[] | null; eventId?: string };
+
+export function SurveyResultsView({ results, respondents = null, eventId = results.eventId }: ResultsProps) {
   return (
     <section aria-labelledby="results-heading" className="grid gap-4">
       <header className="grid gap-1">
@@ -92,14 +159,58 @@ export function SurveyResultsView({ results }: { results: SurveyResults }) {
       {results.respondentCount === 0 ? <p className="text-sm text-muted-foreground">Personne n&apos;a encore répondu.</p> : null}
       <ol className="grid gap-3">
         {results.questions.map((question) => (
-          <QuestionResultCard key={question.id} question={question} textsHidden={results.textsHidden} />
+          <QuestionResultCard eventId={eventId} key={question.id} question={question} respondents={respondents} textsHidden={results.textsHidden} />
         ))}
       </ol>
     </section>
   );
 }
 
-function QuestionResultCard({ question, textsHidden }: { question: QuestionResult; textsHidden: boolean }) {
+export type AnswerGroup = { key: string; label: string; people: { respondent: RespondentAnswers; text?: string }[] };
+
+/**
+ * Story 51.6: who answered what to one question. A group per option (retired ones included when chosen), per mark
+ * from 5 to 1, or one group of texts with their authors. Groups nobody is in are left out, except the options.
+ */
+export function answerGroups(question: QuestionResult, respondents: RespondentAnswers[]): AnswerGroup[] {
+  const answerOf = (respondent: RespondentAnswers) => respondent.answers.find((answer) => answer.questionId === question.id);
+  if (question.kind === "single" || question.kind === "multiple") {
+    return question.options.map((option) => ({
+      key: option.id,
+      label: option.retired ? `${option.label} (retirée)` : option.label,
+      people: respondents.filter((respondent) => answerOf(respondent)?.optionIds.includes(option.id)).map((respondent) => ({ respondent })),
+    }));
+  }
+  if (question.kind === "rating") {
+    return [5, 4, 3, 2, 1]
+      .map((mark) => ({
+        key: String(mark),
+        label: `${mark} ★`,
+        people: respondents.filter((respondent) => answerOf(respondent)?.rating === mark).map((respondent) => ({ respondent })),
+      }))
+      .filter((group) => group.people.length > 0);
+  }
+  const texts = respondents.flatMap((respondent) => {
+    const text = answerOf(respondent)?.text;
+    return text ? [{ respondent, text }] : [];
+  });
+  return texts.length > 0 ? [{ key: "texts", label: "Réponses", people: texts }] : [];
+}
+
+type CardProps = { question: QuestionResult; textsHidden: boolean; respondents: RespondentAnswers[] | null; eventId: string };
+
+function QuestionResultCard({ question, textsHidden, respondents, eventId }: CardProps) {
+  // Story 51.6: an option or a mark picked in the total narrows the detail to it, and opens it.
+  const [picked, setPicked] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const detailed = respondents !== null;
+  const groups = detailed ? answerGroups(question, respondents) : [];
+  const shownGroups = picked === null ? groups : groups.filter((group) => group.key === picked);
+  const pick = (key: string) => {
+    setPicked(picked === key ? null : key);
+    setOpen(true);
+  };
+
   return (
     <li className="grid gap-3 rounded-xl border border-border bg-surface p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -110,19 +221,21 @@ function QuestionResultCard({ question, textsHidden }: { question: QuestionResul
       </div>
 
       {question.kind === "single" || question.kind === "multiple" ? (
-        <ul className="grid gap-2">
+        <ul className="grid gap-1">
           {question.options.map((option) => (
-            <li className="grid gap-1" key={option.id}>
-              <div className="flex justify-between gap-2 text-sm">
-                <span className={option.retired ? "text-muted-foreground" : "text-foreground"}>
-                  {option.label}
-                  {option.retired ? " (retirée)" : ""}
-                </span>
-                <span className="text-muted-foreground">
-                  {option.count} · {percent(option.count, question.answerCount)} %
-                </span>
-              </div>
-              <Bar value={percent(option.count, question.answerCount)} />
+            <li key={option.id}>
+              <Pickable active={picked === option.id} enabled={detailed} label={option.label} onPick={() => pick(option.id)}>
+                <div className="flex justify-between gap-2 text-sm">
+                  <span className={option.retired ? "text-muted-foreground" : "text-foreground"}>
+                    {option.label}
+                    {option.retired ? " (retirée)" : ""}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {option.count} · {percent(option.count, question.answerCount)} %
+                  </span>
+                </div>
+                <Bar value={percent(option.count, question.answerCount)} />
+              </Pickable>
             </li>
           ))}
         </ul>
@@ -134,20 +247,24 @@ function QuestionResultCard({ question, textsHidden }: { question: QuestionResul
             <Star aria-hidden className="size-4 fill-accent-warm text-accent-warm" />
             {question.rating.average === null ? "Pas encore de note" : `${question.rating.average.toLocaleString("fr-FR")} / 5 de moyenne`}
           </p>
-          <ul className="grid gap-1">
+          <ul className="grid gap-0.5">
             {question.rating.counts.map((count, index) => (
               // The marks are fixed, 1 to 5: their position is their identity.
-              <li className="grid grid-cols-[3rem_1fr_3rem] items-center gap-2 text-xs text-muted-foreground" key={`mark-${index + 1}`}>
-                <span>{index + 1} ★</span>
-                <Bar value={percent(count, question.answerCount)} />
-                <span className="text-right">{count}</span>
+              <li key={`mark-${index + 1}`}>
+                <Pickable active={picked === String(index + 1)} enabled={detailed && count > 0} label={`${index + 1} ★`} onPick={() => pick(String(index + 1))}>
+                  <span className="grid grid-cols-[3rem_1fr_3rem] items-center gap-2 text-xs text-muted-foreground">
+                    <span>{index + 1} ★</span>
+                    <Bar value={percent(count, question.answerCount)} />
+                    <span className="text-right">{count}</span>
+                  </span>
+                </Pickable>
               </li>
             ))}
           </ul>
         </div>
       ) : null}
 
-      {question.kind === "text" ? (
+      {question.kind === "text" && !detailed ? (
         textsHidden ? (
           <p className="text-sm text-muted-foreground">
             Les réponses texte d&apos;un sondage anonyme sont visibles à partir de {ANONYMOUS_TEXT_THRESHOLD} réponses, pour qu&apos;on ne puisse
@@ -166,7 +283,93 @@ function QuestionResultCard({ question, textsHidden }: { question: QuestionResul
           <p className="text-sm text-muted-foreground">Aucune réponse.</p>
         )
       ) : null}
+
+      {detailed ? (
+        <div className="grid gap-2 border-t border-border pt-3">
+          <button
+            aria-expanded={open}
+            className="flex w-fit items-center gap-1.5 text-sm font-semibold text-accent-text hover:underline"
+            onClick={() => setOpen(!open)}
+            type="button"
+          >
+            <ChevronDown aria-hidden className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
+            {question.kind === "text" ? "Lire les réponses" : "Qui a répondu quoi"} ({question.answerCount})
+          </button>
+          {picked !== null ? (
+            <button className="w-fit text-xs text-muted-foreground hover:text-foreground" onClick={() => setPicked(null)} type="button">
+              Filtré sur « {groups.find((group) => group.key === picked)?.label} » - tout afficher
+            </button>
+          ) : null}
+          {open ? <AnswerDetail eventId={eventId} groups={shownGroups} kind={question.kind} /> : null}
+        </div>
+      ) : null}
     </li>
+  );
+}
+
+function Pickable({ enabled, active, label, onPick, children }: { enabled: boolean; active: boolean; label: string; onPick: () => void; children: React.ReactNode }) {
+  if (!enabled) return <div className="grid gap-1 px-2 py-1">{children}</div>;
+  return (
+    <button
+      aria-label={`Voir qui a répondu « ${label} »`}
+      aria-pressed={active}
+      className={`grid w-full gap-1 rounded-md px-2 py-1 text-left transition-colors ${active ? "bg-accent/10 ring-1 ring-accent" : "hover:bg-surface-2"}`}
+      onClick={onPick}
+      type="button"
+    >
+      {children}
+    </button>
+  );
+}
+
+function AnswerDetail({ groups, kind, eventId }: { groups: AnswerGroup[]; kind: QuestionResult["kind"]; eventId: string }) {
+  if (groups.every((group) => group.people.length === 0)) return <p className="text-sm text-muted-foreground">Aucune réponse.</p>;
+  if (kind === "text") {
+    return (
+      <ul className="grid gap-2">
+        {groups.flatMap((group) =>
+          group.people.map(({ respondent, text }) => (
+            <li className="grid gap-1 rounded-lg border border-border bg-background p-3" key={respondent.userId}>
+              <PersonLink eventId={eventId} respondent={respondent} />
+              <p className="whitespace-pre-line text-sm text-foreground">{text}</p>
+            </li>
+          )),
+        )}
+      </ul>
+    );
+  }
+  return (
+    <dl className="grid gap-3">
+      {groups.map((group) => (
+        <div className="grid gap-1.5" key={group.key}>
+          <dt className="text-sm font-semibold text-foreground">
+            {group.label} <span className="font-normal text-muted-foreground">({group.people.length})</span>
+          </dt>
+          <dd>
+            {group.people.length === 0 ? (
+              <span className="text-xs text-muted-foreground">Personne</span>
+            ) : (
+              <ul className="flex flex-wrap gap-1.5">
+                {group.people.map(({ respondent }) => (
+                  <li className="rounded-md border border-border px-2 py-0.5" key={respondent.userId}>
+                    <PersonLink eventId={eventId} respondent={respondent} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function PersonLink({ respondent, eventId }: { respondent: RespondentAnswers; eventId: string }) {
+  if (respondent.registrationId === null) return <span className="text-sm text-foreground">{respondent.displayName}</span>;
+  return (
+    <Link className="text-sm text-accent-text hover:underline" href={`/admin/evenements/${eventId}/inscriptions/${respondent.registrationId}`}>
+      {respondent.displayName}
+    </Link>
   );
 }
 
@@ -245,37 +448,118 @@ export function RemindButton({ surveyId, lastRemindedAt }: { surveyId: string; l
   );
 }
 
+/** Lower case, without accents: « Zoé » is found with « zoe ». */
+function folded(value: string): string {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+/** A choice to filter on, written `questionId:optionId`. */
+export type AnswerFilter = { search: string; choice: string | null };
+
+/** Story 51.6: the respondents whose name holds the search and who picked the chosen option, if any. */
+export function filterRespondents(respondents: RespondentAnswers[], { search, choice }: AnswerFilter): RespondentAnswers[] {
+  const needle = folded(search.trim());
+  const [questionId, optionId] = choice === null ? [null, null] : choice.split(":");
+  return respondents.filter(
+    (respondent) =>
+      (needle === "" || folded(respondent.displayName).includes(needle)) &&
+      (questionId === null || respondent.answers.some((answer) => answer.questionId === questionId && answer.optionIds.includes(optionId ?? ""))),
+  );
+}
+
+/** Story 51.6: a compact table, one row per respondent and one column per question, with a search and a filter. */
 export function RespondentList({ eventId, questions, respondents }: { eventId: string; questions: AdminQuestion[]; respondents: RespondentAnswers[] }) {
+  const [search, setSearch] = useState("");
+  const [choice, setChoice] = useState<string | null>(null);
+  const rows = filterRespondents(respondents, { search, choice });
+  const choiceQuestions = questions.filter((question) => question.kind === "single" || question.kind === "multiple");
+
   return (
     <section aria-labelledby="respondents-heading" className="grid gap-3">
       <h2 className="font-heading text-lg font-semibold text-foreground" id="respondents-heading">
         Réponses par inscrit ({respondents.length})
       </h2>
-      {respondents.length === 0 ? <p className="text-sm text-muted-foreground">Personne n&apos;a encore répondu.</p> : null}
-      <ul className="grid gap-3">
-        {respondents.map((respondent) => (
-          <li className="grid gap-2 rounded-xl border border-border bg-surface p-4" key={respondent.userId}>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              {respondent.registrationId === null ? (
-                <span className="font-semibold text-foreground">{respondent.displayName}</span>
-              ) : (
-                <Link className="font-semibold text-accent-text hover:underline" href={`/admin/evenements/${eventId}/inscriptions/${respondent.registrationId}`}>
-                  {respondent.displayName}
-                </Link>
-              )}
-              <span className="text-xs text-muted-foreground">{MOMENT.format(new Date(respondent.respondedAt))}</span>
-            </div>
-            <dl className="grid gap-1 text-sm">
-              {questions.map((question) => (
-                <div className="grid gap-0.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:gap-3" key={question.id}>
-                  <dt className="text-muted-foreground">{question.label}</dt>
-                  <dd className="whitespace-pre-line text-foreground">{answerText(question, respondent.answers.find((answer) => answer.questionId === question.id))}</dd>
-                </div>
-              ))}
-            </dl>
-          </li>
-        ))}
-      </ul>
+      {respondents.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Personne n&apos;a encore répondu.</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex min-h-9 items-center gap-2 rounded-md border border-border bg-background px-2.5">
+              <Search aria-hidden className="size-4 text-muted-foreground" />
+              <span className="sr-only">Chercher un inscrit</span>
+              <input
+                className="w-44 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Chercher un pseudo"
+                type="search"
+                value={search}
+              />
+            </label>
+            {choiceQuestions.length > 0 ? (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="sr-only">Filtrer par réponse</span>
+                <select
+                  className="min-h-9 max-w-80 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+                  onChange={(event) => setChoice(event.target.value === "" ? null : event.target.value)}
+                  value={choice ?? ""}
+                >
+                  <option value="">Toutes les réponses</option>
+                  {choiceQuestions.map((question) => (
+                    <optgroup key={question.id} label={question.label}>
+                      {question.options.map((option) => (
+                        <option key={option.id} value={`${question.id}:${option.id}`}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <span className="text-xs text-muted-foreground" role="status">
+              {rows.length} sur {respondents.length}
+            </span>
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full min-w-max border-collapse text-sm">
+              <thead className="bg-surface text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="sticky left-0 z-10 bg-surface px-3 py-2 font-semibold" scope="col">
+                    Inscrit
+                  </th>
+                  {questions.map((question) => (
+                    <th className="max-w-56 px-3 py-2 font-semibold" key={question.id} scope="col" title={question.label}>
+                      <span className="line-clamp-2">{question.label}</span>
+                    </th>
+                  ))}
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Répondu le
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((respondent) => (
+                  <tr className="align-top hover:bg-surface/60" key={respondent.userId}>
+                    <th className="sticky left-0 z-10 bg-background px-3 py-2 text-left font-normal" scope="row">
+                      <PersonLink eventId={eventId} respondent={respondent} />
+                    </th>
+                    {questions.map((question) => {
+                      const text = answerText(question, respondent.answers.find((answer) => answer.questionId === question.id));
+                      return (
+                        <td className="max-w-56 px-3 py-2 text-foreground" key={question.id} title={text}>
+                          <span className="line-clamp-2 whitespace-pre-line">{text}</span>
+                        </td>
+                      );
+                    })}
+                    <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">{MOMENT.format(new Date(respondent.respondedAt))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {rows.length === 0 ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">Aucun inscrit pour ces filtres.</p> : null}
+          </div>
+        </>
+      )}
     </section>
   );
 }
