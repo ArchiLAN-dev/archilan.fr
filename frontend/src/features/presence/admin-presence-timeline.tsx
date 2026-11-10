@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
 
 import { fetchPresenceTimeline, presenceTimelineKey, type PresenceRegistrant, type PresenceTimeline, type PresenceWindow } from "./presence-api";
 
@@ -62,10 +61,6 @@ export function AdminPresenceTimelinePage({ params }: { params: Promise<{ eventI
 
   return (
     <div className="grid gap-6 p-6 md:p-8">
-      <Link className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" href="/admin/evenements">
-        <ArrowLeft aria-hidden className="size-4" />
-        Événements
-      </Link>
       <header className="grid gap-1">
         <h1 className="font-heading text-2xl font-bold text-foreground">Qui est là quand</h1>
         <p className="text-sm text-muted-foreground">

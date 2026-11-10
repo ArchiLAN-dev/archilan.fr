@@ -1,6 +1,6 @@
 # Story 3.17 - Hub d'un événement (admin)
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 3 - Event Lifecycle Backoffice (`_bmad-output/planning-artifacts/epics/epic-3-event-lifecycle-backoffice.md`)
 **Date:** 2026-11-10
 **Branche:** `feature/epic-3-story-17-hub-evenement` (depuis `develop`)
@@ -78,11 +78,40 @@ afin de trouver une action sans parcourir une rangée de boutons qui s'allonge �
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 : extraire du tableau de bord les dialogues (transition, accès privé, récap) et la logique de statut
+- [x] Task 1 : extraire du tableau de bord les dialogues (transition, accès privé, récap) et la logique de statut
   (`transitionActions`, `transitionConfirmation`, action principale) dans des modules partagés (AC 4, 5)
-- [ ] Task 2 : page hub `/admin/evenements/[eventId]/page.tsx` et ses sections (AC 1)
-- [ ] Task 3 : `layout.tsx` de navigation sous `[eventId]`, retrait des liens de retour propres aux sous-pages (AC 2)
-- [ ] Task 4 : liste allégée, action principale, menu « ⋯ » accessible (AC 3, 4, 5, 6)
-- [ ] Task 5 : tests Jest, gates, vérification visuelle (AC 7, 8)
+- [x] Task 2 : page hub `/admin/evenements/[eventId]/page.tsx` et ses sections (AC 1)
+- [x] Task 3 : `layout.tsx` de navigation sous `[eventId]`, retrait des liens de retour propres aux sous-pages (AC 2)
+- [x] Task 4 : liste allégée, action principale, menu « ⋯ » accessible (AC 3, 4, 5, 6)
+- [x] Task 5 : tests Jest, gates, vérification visuelle (AC 7, 8)
 
 ## Dev Agent Record
+
+### Livré
+
+- `features/admin/event-hub/event-status.ts` : statuts, transitions, confirmations, `primaryAction` (prochaine étape)
+  et `menuActions` (le reste), libellés de visibilité, lien du hub.
+- `event-hub/event-actions.tsx` : hook `useAdminEventActions` (transitions, accueil, accès privé, récap, message),
+  dialogues extraits du tableau de bord, `StatusPill`, `FeaturedPill`, `ActionIcon`. Partagés par la liste et le hub,
+  qui patchent le même cache `["admin-events"]`.
+- `event-hub/event-row-menu.tsx` : menu « ⋯ » (motif menu button : Entrée/Espace/flèche bas, flèches, Début/Fin,
+  Échap avec retour du focus, Tab, clic extérieur).
+- `event-hub/admin-event-hub.tsx` + `app/(admin)/admin/evenements/[eventId]/page.tsx` : le hub (en-tête, transitions,
+  quatre sections avec un état court). Lit l'événement dans la liste admin déjà chargée, aucune route API. Id inconnu :
+  `notFound()`.
+- `event-hub/admin-event-nav.tsx` + `[eventId]/layout.tsx` : navigation commune (onglets défilants sur mobile, barre
+  latérale sur desktop, `aria-current` sur la section, sous-pages comprises).
+- `admin-event-dashboard.tsx` réécrit : titre vers le hub, une action principale, le menu ; colonnes Jeux et Récap
+  retirées (dans le hub).
+- Liens de retour propres aux sous-pages retirés (modifier, jeux, partenaires, pelles, présences, sondages) ; les
+  liens vers une section parente (inscription, sondage, slot) restent.
+- `src/tests/jsdom-environment.mjs` : environnement jsdom qui rend à msw les API fetch de Node, pour les tests au
+  clavier.
+
+### Tests et gates
+
+- `event-hub.test.tsx` (8), `event-row-menu.test.tsx` (4, jsdom), `admin-event-featured.test.tsx` adapté.
+- Front : typecheck, lint, 1509 tests, build. Gates lancés étape par étape (`pnpm gates` ne trouve pas `pnpm` dans ce
+  shell, corepack oui).
+- Vérification visuelle sur 127.0.0.1 non faite par l'agent (aucun serveur de dev lancé, pas de compte admin) :
+  à faire par Jean sur la branche.

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ClipboardList, Lock, Plus } from "lucide-react";
+import { ClipboardList, Lock, Plus } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -32,10 +32,6 @@ export function AdminEventSurveysPage({ params }: { params: Promise<{ eventId: s
 
   return (
     <div className="grid gap-6 p-6 md:p-8">
-      <Link className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" href="/admin/evenements">
-        <ArrowLeft aria-hidden className="size-4" />
-        Événements
-      </Link>
       <header>
         <h1 className="font-heading text-2xl font-bold text-foreground">Sondages de l&apos;événement</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">

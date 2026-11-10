@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { use, useRef, useState, type KeyboardEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Compass, Loader2, Music, Send, Shovel, Users, type LucideIcon } from "lucide-react";
+import { Compass, Loader2, Music, Send, Shovel, Users, type LucideIcon } from "lucide-react";
 
 import { ConfirmDialog, ConfirmFigure } from "@/components/ui/confirm-dialog";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -100,10 +99,6 @@ export function AdminEventPellesPage({ params }: { params: Promise<{ eventId: st
 
   return (
     <div className="grid gap-6 p-6 md:p-8">
-      <Link className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" href="/admin/evenements">
-        <ArrowLeft aria-hidden className="size-4" />
-        Événements
-      </Link>
       {isLoading ? <p className="text-sm text-muted-foreground">Chargement…</p> : null}
       {!isLoading && !data ? <p className="text-sm text-danger">Impossible de charger les pelles de cet événement.</p> : null}
       {data ? (

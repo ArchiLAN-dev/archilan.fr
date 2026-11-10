@@ -2,7 +2,6 @@
 
 import {
   AlertTriangle,
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -281,13 +280,6 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
   return (
     <section className="grid w-full gap-6 px-4 pb-0 pt-10">
       <header>
-        <Link
-          className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          href="/admin/evenements"
-        >
-          <ArrowLeft aria-hidden="true" className="size-3.5" />
-          Retour aux événements
-        </Link>
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">Backoffice</p>
         <div className="flex items-center gap-3">
           <Gamepad2 aria-hidden="true" className="size-6 text-accent-text" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Pencil, ShieldAlert } from "lucide-react";
+import { Pencil, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -91,13 +91,6 @@ export function AdminEventEditPage({ eventId }: { eventId: string }) {
   return (
     <section className="grid w-full gap-8 px-4 py-10">
       <header>
-        <Link
-          className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          href="/admin/evenements"
-        >
-          <ArrowLeft aria-hidden="true" className="size-3.5" />
-          Retour aux événements
-        </Link>
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">Backoffice</p>
         <div className="flex items-center gap-3">
           <Pencil aria-hidden="true" className="size-6 text-accent-text" />
