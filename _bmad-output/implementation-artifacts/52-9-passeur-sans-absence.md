@@ -37,6 +37,11 @@ atteindre ce coffre.
    Bob »), l'encart dit « Le Passeur a ouvert N emplacements de ton monde ». Les noms techniques hérités (`absent_*`
    en base, `absentName` / `absentPlayerName` dans l'API) sont gardés pour ne pas migrer pour rien ; ils désignent le
    joueur du monde ouvert.
+7. **Temps minimum en BK** (demande de Jean, 2026-11-10) : le Passeur ne peut être appelé qu'après
+   `passeurMinBlockedMinutes` de BK (30 min par défaut, 0 à 1440, réglable en profil et en override). Pendant
+   l'attente le joueur voit déjà le coffre, le bouton est grisé avec « disponible à HH:MM » ; l'appel est refusé
+   (`passeur_too_early`). Le prix part du prix de départ à ce moment-là et ne baisse qu'ensuite : attendre le délai ne
+   fait pas déjà baisser le prix.
 6. Les créneaux de présence (52.2) restent : la carte des dépendances (52.7) et le départ assisté (52.6) s'en servent.
 
 ## Critères d'acceptation
@@ -47,6 +52,8 @@ atteindre ce coffre.
 4. `passeurAbsenceMinutes` n'existe plus dans l'API de configuration ni dans l'admin ; une configuration enregistrée
    qui le contient se charge sans erreur.
 5. Aucun texte affiché ne parle d'absent pour le Passeur.
+6b. Avant `passeurMinBlockedMinutes` de BK, l'offre montre le coffre avec `availableAt` et l'appel est refusé sans
+    débit ; le prix baisse à partir de `availableAt`.
 
 ## Tests et gates
 
@@ -75,3 +82,7 @@ atteindre ce coffre.
   le Passeur ouvre quand même son monde.
 - Gates : api (phpstan, cs-fixer, ddd, rector, 3758 tests ; un échec de renommage du cache de routes entre workers
   ParaTest, sans lien, vert en relance) et front (typecheck, lint, 1497 tests, build) verts.
+- Temps minimum en BK : `passeurMinBlockedMinutes` (SessionServerConfig, SessionConfig, override), `PasseurTerms::opensAt`,
+  offre avec `availableAt` (prix et prochaine baisse comptés depuis), refus `passeur_too_early` dans `CallThePasseur`.
+  Front : champ admin et override, panneau en attente. Tests : `PasseurMinBlockedSettingTest`, deux tests fonctionnels
+  dans `CallThePasseurTest` (épisode de test passé à 40 min de BK), deux tests front. Gates api et front verts.

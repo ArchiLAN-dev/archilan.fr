@@ -15,6 +15,8 @@ export type PasseurOffer = {
   balance: number;
   blockedSince: string;
   nextDropAt: string | null;
+  /** Story 52.9: set while the player has not been in BK long enough; the call opens then. */
+  availableAt?: string | null;
 };
 
 export type PasseurState = { enabled: boolean; offer: PasseurOffer | null };
@@ -46,7 +48,8 @@ export function isPasseurOffer(v: unknown): v is PasseurOffer {
     hasNumberProp(v, "balance") &&
     hasStringProp(v, "blockedSince") &&
     "nextDropAt" in v &&
-    (v.nextDropAt === null || typeof v.nextDropAt === "string")
+    (v.nextDropAt === null || typeof v.nextDropAt === "string") &&
+    (!("availableAt" in v) || v.availableAt === null || typeof v.availableAt === "string")
   );
 }
 

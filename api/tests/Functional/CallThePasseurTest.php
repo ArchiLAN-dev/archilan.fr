@@ -228,6 +228,43 @@ final class CallThePasseurTest extends FunctionalTestCase
         self::assertSame(['Bob', 'Claw', 60, 'event', 100], [$data['offer']['absentPlayerName'], $data['offer']['itemName'], $data['offer']['price'], $data['offer']['kind'], $data['offer']['balance']]);
     }
 
+    public function testThePasseurWaitsTheConfiguredTimeInBk(): void
+    {
+        $this->eventSession(['passeur' => true, 'passeurMinBlockedMinutes' => 60]);
+        $this->silver($this->alice, 100);
+        $this->loginAs($this->alice);
+
+        // Story 52.9: 40 minutes in BK, 60 required. The chest shows, the call waits.
+        $this->client->request('GET', $this->url());
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertIsArray($data['offer']);
+        self::assertIsString($data['offer']['availableAt']);
+        self::assertSame([60, null], [$data['offer']['price'], $data['offer']['nextDropAt']]);
+
+        $this->call(['findingSlot' => 2, 'locationId' => 401, 'price' => 60, 'requestId' => 'r1']);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('passeur_too_early', $this->errorCode());
+        self::assertSame(100, $this->balance($this->alice, PelleKind::Event));
+        self::assertSame([], $this->bridge->opened);
+    }
+
+    public function testThePriceDropsFromWhenThePasseurIsAvailable(): void
+    {
+        // No wait: available since the block began 40 minutes ago, two drops of 10 %.
+        $this->eventSession(['passeur' => true, 'passeurMinBlockedMinutes' => 0]);
+        $this->silver($this->alice, 100);
+        $this->loginAs($this->alice);
+
+        $this->client->request('GET', $this->url());
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertIsArray($data['offer']);
+        self::assertSame([48, null], [$data['offer']['price'], $data['offer']['availableAt']]);
+    }
+
     public function testTheBridgeAdminEchoIsKeptOutOfTheFeed(): void
     {
         $this->eventSession(['passeur' => true]);
@@ -280,7 +317,8 @@ final class CallThePasseurTest extends FunctionalTestCase
         $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $this->sessionId, $bobSlotOwner, 'game-1', 'Bob', 2, 'slot-bob'));
         $this->entityManager->persist(new SessionPlayersSnapshot($this->sessionId, ['slots' => ['1' => ['slot_name' => 'Alice'], '2' => ['slot_name' => 'Bob']]], $started));
         if ($blocked) {
-            $this->entityManager->persist(SlotBlockEpisode::open($this->sessionId, '1', 'Alice', new \DateTimeImmutable('-10 minutes')));
+            // In BK for 40 minutes: past the 30 minutes the Passeur waits by default (story 52.9), price still whole.
+            $this->entityManager->persist(SlotBlockEpisode::open($this->sessionId, '1', 'Alice', new \DateTimeImmutable('-40 minutes')));
         }
         $this->entityManager->flush();
     }

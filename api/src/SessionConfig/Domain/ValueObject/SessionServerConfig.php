@@ -31,6 +31,9 @@ final readonly class SessionServerConfig
     public const int DEFAULT_PASSEUR_SHARE_PERCENT = 50;
     public const int DEFAULT_PASSEUR_DAILY_LIMIT = 5;
     public const int MAX_PASSEUR_DAILY_LIMIT = 100;
+    // Story 52.9: how long a player stays in BK before the Passeur may be called.
+    public const int DEFAULT_PASSEUR_MIN_BLOCKED_MINUTES = 30;
+    public const int MAX_PASSEUR_MIN_BLOCKED_MINUTES = 1440;
 
     public function __construct(
         public ReleaseCollectMode $releaseMode,
@@ -62,6 +65,7 @@ final readonly class SessionServerConfig
         public int $passeurFloorPercent = self::DEFAULT_PASSEUR_FLOOR_PERCENT,
         public int $passeurSharePercent = self::DEFAULT_PASSEUR_SHARE_PERCENT,
         public int $passeurDailyLimit = self::DEFAULT_PASSEUR_DAILY_LIMIT,
+        public int $passeurMinBlockedMinutes = self::DEFAULT_PASSEUR_MIN_BLOCKED_MINUTES,
     ) {
         if ($pelleItemHintPrice < 1 || $pelleItemHintPrice > self::MAX_PELLE_HINT_PRICE
             || $pelleLocationHintPrice < 1 || $pelleLocationHintPrice > self::MAX_PELLE_HINT_PRICE) {
@@ -73,7 +77,8 @@ final readonly class SessionServerConfig
             }
         }
         if ($passeurBasePrice < 1 || $passeurBasePrice > self::MAX_PELLE_HINT_PRICE
-            || $passeurDailyLimit < 1 || $passeurDailyLimit > self::MAX_PASSEUR_DAILY_LIMIT) {
+            || $passeurDailyLimit < 1 || $passeurDailyLimit > self::MAX_PASSEUR_DAILY_LIMIT
+            || $passeurMinBlockedMinutes < 0 || $passeurMinBlockedMinutes > self::MAX_PASSEUR_MIN_BLOCKED_MINUTES) {
             throw new \DomainException('invalid_passeur_setting');
         }
         foreach ([$passeurDecayPercent, $passeurFloorPercent, $passeurSharePercent] as $percent) {

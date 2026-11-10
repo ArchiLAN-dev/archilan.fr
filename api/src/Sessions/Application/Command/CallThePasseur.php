@@ -94,6 +94,10 @@ final readonly class CallThePasseur
         if (null === $offer->blockedSince) {
             throw new ConflictException('Tu n\'es pas bloqué : le Passeur n\'intervient qu\'en BK.', 'passeur_not_blocked');
         }
+        $opensAt = $terms->opensAt($offer->blockedSince);
+        if ($now < $opensAt) {
+            throw new ConflictException('Le Passeur n\'intervient pas encore : reste un peu en BK.', 'passeur_too_early', ['availableAt' => $opensAt->format(\DateTimeInterface::ATOM)]);
+        }
         $candidate = $this->candidate($offer->candidates, $findingSlot, $locationId);
 
         [$dayStart, $dayEnd] = PasseurPrice::dayOf($now);
@@ -101,7 +105,7 @@ final readonly class CallThePasseur
             throw new ConflictException('Le Passeur a déjà ouvert assez de coffres de ce monde aujourd\'hui.', 'passeur_daily_limit');
         }
 
-        $price = PasseurPrice::at($terms->config->passeurBasePrice, $terms->config->passeurDecayPercent, $terms->config->passeurFloorPercent, $offer->blockedSince, $now);
+        $price = PasseurPrice::at($terms->config->passeurBasePrice, $terms->config->passeurDecayPercent, $terms->config->passeurFloorPercent, $opensAt, $now);
         if ($price !== $expectedPrice) {
             throw new ConflictException(sprintf('Le prix a changé : %d pelles.', $price), 'passeur_price_changed', ['price' => $price]);
         }

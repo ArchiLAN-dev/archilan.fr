@@ -24,11 +24,12 @@ export const sessionConfigHelp: Record<string, string> = {
   bronzePerGoal: "Pelles de bronze gagnées par les joueurs d'un slot quand il atteint son objectif. 0 coupe ce gain.",
   passeur:
     "Un joueur en BK peut payer pour faire ouvrir le coffre d'un autre monde qui contient l'objet qui le débloque, que son joueur soit là ou non. En événement, avec les pelles d'argent de l'événement seulement ; en partie privée, avec les pelles de bronze. Le joueur de ce monde ne peut pas refuser et reçoit une part.",
-  passeurBasePrice: "Prix d'une ouverture au début du BK, en pelles.",
-  passeurDecayPercent: "Baisse du prix, en pourcentage du prix de départ, par quart d'heure de BK.",
+  passeurBasePrice: "Prix d'une ouverture quand le Passeur devient disponible, en pelles.",
+  passeurDecayPercent: "Baisse du prix, en pourcentage du prix de départ, par quart d'heure passé en BK une fois le Passeur disponible.",
   passeurFloorPercent: "Prix plancher, en pourcentage du prix de départ.",
   passeurSharePercent: "Part du prix payé versée au joueur dont le monde est ouvert ; le reste est détruit.",
   passeurDailyLimit: "Nombre d'ouvertures au plus par monde et par jour, pour ne pas vider le monde d'un même joueur.",
+  passeurMinBlockedMinutes: "Temps passé en BK avant de pouvoir faire appel au Passeur. Le joueur voit le coffre pendant l'attente ; le prix ne commence à baisser qu'ensuite. 0 : tout de suite.",
   pelleLocationHintPrice: "Prix en pelles d'un indice sur un lieu (ce que cache tel check).",
   hintCost:
     "Prix d'un indice, en pourcentage du nombre total de checks. Les joueurs gagnent des points d'indice en validant des checks.",

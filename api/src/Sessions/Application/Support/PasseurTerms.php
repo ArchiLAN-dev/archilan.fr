@@ -33,6 +33,15 @@ final readonly class PasseurTerms
         return $this->config->passeur;
     }
 
+    /**
+     * Story 52.9: the Passeur may only be called once the player has been in BK for the configured delay; its
+     * price starts dropping from then on, not from the start of the block.
+     */
+    public function opensAt(\DateTimeImmutable $blockedSince): \DateTimeImmutable
+    {
+        return $blockedSince->modify(sprintf('+%d minutes', $this->config->passeurMinBlockedMinutes));
+    }
+
     public function pelleKind(): PelleKind
     {
         return 'bronze' === $this->kind ? PelleKind::Bronze : PelleKind::Event;

@@ -49,6 +49,7 @@ final readonly class SessionConfig
         $server['passeurFloorPercent'] = $this->server->passeurFloorPercent;
         $server['passeurSharePercent'] = $this->server->passeurSharePercent;
         $server['passeurDailyLimit'] = $this->server->passeurDailyLimit;
+        $server['passeurMinBlockedMinutes'] = $this->server->passeurMinBlockedMinutes;
 
         return [
             'server' => $server,
@@ -106,6 +107,7 @@ final readonly class SessionConfig
                 passeurFloorPercent: self::optInt($server, 'passeurFloorPercent') ?? SessionServerConfig::DEFAULT_PASSEUR_FLOOR_PERCENT,
                 passeurSharePercent: self::optInt($server, 'passeurSharePercent') ?? SessionServerConfig::DEFAULT_PASSEUR_SHARE_PERCENT,
                 passeurDailyLimit: self::optInt($server, 'passeurDailyLimit') ?? SessionServerConfig::DEFAULT_PASSEUR_DAILY_LIMIT,
+                passeurMinBlockedMinutes: self::optInt($server, 'passeurMinBlockedMinutes') ?? SessionServerConfig::DEFAULT_PASSEUR_MIN_BLOCKED_MINUTES,
             ),
             new SessionGenerationConfig(
                 $plando,
@@ -297,6 +299,7 @@ final readonly class SessionConfig
                 passeurFloorPercent: $o->passeurFloorPercent ?? $this->server->passeurFloorPercent,
                 passeurSharePercent: $o->passeurSharePercent ?? $this->server->passeurSharePercent,
                 passeurDailyLimit: $o->passeurDailyLimit ?? $this->server->passeurDailyLimit,
+                passeurMinBlockedMinutes: $o->passeurMinBlockedMinutes ?? $this->server->passeurMinBlockedMinutes,
             ),
             new SessionGenerationConfig(
                 plandoOptions: $o->plandoOptions ?? $this->generation->plandoOptions,

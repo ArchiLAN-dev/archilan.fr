@@ -25,6 +25,7 @@ final readonly class PasseurOffer
         public int $balance,
         public \DateTimeImmutable $blockedSince,
         public ?\DateTimeImmutable $nextDropAt,
+        public ?\DateTimeImmutable $availableAt = null,
     ) {
     }
 }

@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { callThePasseur, dismissPasseurNotice, fetchPasseur, fetchPasseurJournal, fetchPasseurNotice, isPasseurOpening, isPasseurState, type PasseurOffer, type PasseurOpening } from "./passeur-api";
+import { callThePasseur, dismissPasseurNotice, fetchPasseur, fetchPasseurJournal, fetchPasseurNotice, isPasseurOffer, isPasseurOpening, isPasseurState, type PasseurOffer, type PasseurOpening } from "./passeur-api";
 import { PasseurJournalView } from "./passeur-journal";
 import { PasseurNoticeView } from "./passeur-notice";
 import { PasseurView } from "./passeur-panel";
@@ -28,6 +28,22 @@ const neverCalled = () => Promise.reject(new Error("not called"));
 
 /** Story 52.4: the Passeur on a slot page. */
 describe("le Passeur", () => {
+  test("story 52.9: before the delay in BK, the chest shows but the call waits", () => {
+    const html = renderToStaticMarkup(<PasseurView offer={{ ...offer, price: 60, nextDropAt: null, availableAt: "2026-11-09T14:30:00+01:00" }} onCall={neverCalled} />);
+
+    expect(html).toContain("Le Passeur pourra ouvrir");
+    expect(html).toContain("Coffre du temple");
+    expect(html).toContain("disponible à 14:30");
+    expect(html).toContain("disabled=\"\"");
+  });
+
+  test("an offer from an API without the delay is still read", () => {
+    expect("availableAt" in offer).toBe(false);
+    expect(isPasseurOffer(offer)).toBe(true);
+    expect(isPasseurOffer({ ...offer, availableAt: null })).toBe(true);
+    expect(isPasseurOffer({ ...offer, availableAt: 12 })).toBe(false);
+  });
+
   test("the panel says whose chest, what it holds, and the price of the moment", () => {
     const html = renderToStaticMarkup(<PasseurView offer={offer} onCall={neverCalled} />);
 

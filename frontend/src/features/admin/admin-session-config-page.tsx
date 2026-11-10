@@ -228,6 +228,7 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
             <NumberField hint={sessionConfigHelp.passeurFloorPercent} label="Plancher (%)" max={100} min={0} onChange={(n) => patchServer({ passeurFloorPercent: n })} value={server.passeurFloorPercent} />
             <NumberField hint={sessionConfigHelp.passeurSharePercent} label="Part du joueur du monde ouvert (%)" max={100} min={0} onChange={(n) => patchServer({ passeurSharePercent: n })} value={server.passeurSharePercent} />
             <NumberField hint={sessionConfigHelp.passeurDailyLimit} label="Ouvertures par monde et par jour" max={100} min={1} onChange={(n) => patchServer({ passeurDailyLimit: n })} value={server.passeurDailyLimit} />
+            <NumberField hint={sessionConfigHelp.passeurMinBlockedMinutes} label="En BK depuis au moins (minutes)" max={1440} min={0} onChange={(n) => patchServer({ passeurMinBlockedMinutes: n })} value={server.passeurMinBlockedMinutes} />
           </div>
         </Section>
       ) : null}

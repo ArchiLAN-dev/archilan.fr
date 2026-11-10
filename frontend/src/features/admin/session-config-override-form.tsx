@@ -45,7 +45,7 @@ const SECTION_ORDER = ["Échanges d'objets", "Indices & score", "Indices contre 
 // Story 41.36: the bronze pelles exist in private runs only.
 const BRONZE_KEYS: readonly string[] = ["bronzeStart", "bronzePerCheck", "bronzePerGoal"];
 // Story 52.4: the Passeur never runs in a weekly.
-const PASSEUR_KEYS: readonly string[] = ["passeur", "passeurBasePrice", "passeurDecayPercent", "passeurFloorPercent", "passeurSharePercent", "passeurDailyLimit"];
+const PASSEUR_KEYS: readonly string[] = ["passeur", "passeurBasePrice", "passeurDecayPercent", "passeurFloorPercent", "passeurSharePercent", "passeurDailyLimit", "passeurMinBlockedMinutes"];
 
 // A run-specific join password proposed when the override is enabled (admins/owners can edit it).
 function randomPassword(): string {
@@ -83,6 +83,7 @@ const FIELDS: FieldDef[] = [
   { key: "passeurFloorPercent", label: "Prix plancher (%)", section: "Le Passeur", kind: "int", min: 0, max: 100, fallback: 40 },
   { key: "passeurSharePercent", label: "Part du joueur du monde ouvert (%)", section: "Le Passeur", kind: "int", min: 0, max: 100, fallback: 50 },
   { key: "passeurDailyLimit", label: "Ouvertures par monde et par jour", section: "Le Passeur", kind: "int", min: 1, max: 100, fallback: 5 },
+  { key: "passeurMinBlockedMinutes", label: "En BK depuis au moins (minutes)", section: "Le Passeur", kind: "int", min: 0, max: 1440, fallback: 30 },
   { key: "countdownMode", label: "Compte à rebours (!countdown)", section: "Salle & partie", kind: "select", options: COUNTDOWN_MODES, labels: CD, fallback: "auto" },
   { key: "disableItemCheat", label: "Interdire la triche d'objets (!getitem)", section: "Salle & partie", kind: "bool", fallback: true },
   { key: "compatibility", label: "Compatibilité", section: "Salle & partie", kind: "intselect", options: COMPATIBILITY_VALUES, labels: COMPAT, fallback: 2 },
@@ -383,6 +384,7 @@ function flattenProfile(c: SessionConfig): Record<string, OverrideValue> {
     passeurFloorPercent: c.server.passeurFloorPercent,
     passeurSharePercent: c.server.passeurSharePercent,
     passeurDailyLimit: c.server.passeurDailyLimit,
+    passeurMinBlockedMinutes: c.server.passeurMinBlockedMinutes,
     plandoOptions: c.generation.plandoOptions,
     race: c.generation.race,
     spoiler: c.generation.spoiler,

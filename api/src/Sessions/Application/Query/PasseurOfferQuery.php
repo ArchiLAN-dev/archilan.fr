@@ -51,9 +51,11 @@ final readonly class PasseurOfferQuery
                 continue;
             }
 
-            $price = PasseurPrice::at($config->passeurBasePrice, $config->passeurDecayPercent, $config->passeurFloorPercent, $found->blockedSince, $now);
-            $floor = PasseurPrice::at($config->passeurBasePrice, $config->passeurDecayPercent, $config->passeurFloorPercent, $found->blockedSince, $now->modify('+100 years'));
-            $steps = intdiv(max(0, $now->getTimestamp() - $found->blockedSince->getTimestamp()), PasseurPrice::STEP_SECONDS);
+            $opensAt = $terms->opensAt($found->blockedSince);
+            $waiting = $now < $opensAt;
+            $price = PasseurPrice::at($config->passeurBasePrice, $config->passeurDecayPercent, $config->passeurFloorPercent, $opensAt, $now);
+            $floor = PasseurPrice::at($config->passeurBasePrice, $config->passeurDecayPercent, $config->passeurFloorPercent, $opensAt, $now->modify('+100 years'));
+            $steps = intdiv(max(0, $now->getTimestamp() - $opensAt->getTimestamp()), PasseurPrice::STEP_SECONDS);
 
             return ['enabled' => true, 'offer' => new PasseurOffer(
                 $item->findingSlot,
@@ -66,7 +68,8 @@ final readonly class PasseurOfferQuery
                 $terms->kind,
                 $this->movements->balance($userId, $terms->pelleKind(), $terms->event?->getId(), $terms->run?->getId()),
                 $found->blockedSince,
-                $price > $floor ? $found->blockedSince->modify(sprintf('+%d seconds', ($steps + 1) * PasseurPrice::STEP_SECONDS)) : null,
+                !$waiting && $price > $floor ? $opensAt->modify(sprintf('+%d seconds', ($steps + 1) * PasseurPrice::STEP_SECONDS)) : null,
+                $waiting ? $opensAt : null,
             )];
         }
 

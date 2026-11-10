@@ -49,6 +49,7 @@ export function PasseurView({ offer, onCall }: { offer: PasseurOffer; onCall: (o
   const requestIdRef = useRef<string | null>(null);
 
   const affordable = offer.balance >= offer.price;
+  const waitingUntil = offer.availableAt ?? null;
   const unit = offer.kind === "bronze" ? "pelles de bronze" : "pelles d'argent";
 
   async function call(): Promise<void> {
@@ -75,7 +76,7 @@ export function PasseurView({ offer, onCall }: { offer: PasseurOffer; onCall: (o
         Le Passeur
       </h2>
       <p className="text-sm text-foreground">
-        Tu es en BK depuis {TIME.format(new Date(offer.blockedSince))}. Le Passeur peut ouvrir le coffre <strong>{offer.locationName}</strong> chez{" "}
+        Tu es en BK depuis {TIME.format(new Date(offer.blockedSince))}. Le Passeur {waitingUntil === null ? "peut" : "pourra"} ouvrir le coffre <strong>{offer.locationName}</strong> chez{" "}
         <strong>{offer.absentPlayerName}</strong> et t&apos;envoyer <strong>{offer.itemName}</strong>.
       </p>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -91,14 +92,18 @@ export function PasseurView({ offer, onCall }: { offer: PasseurOffer; onCall: (o
       <div>
         <button
           className="inline-flex min-h-8 items-center gap-1.5 rounded border border-violet-500/50 px-2.5 text-xs font-semibold text-foreground hover:border-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={pending || !affordable}
+          disabled={pending || !affordable || waitingUntil !== null}
           onClick={() => setConfirming(true)}
           type="button"
         >
           {pending ? <Loader2 aria-hidden className="size-3 animate-spin" /> : <KeyRound aria-hidden className="size-3" />}
           Faire appel au Passeur
         </button>
-        {!affordable ? <p className="mt-1 text-xs text-muted-foreground">Il te manque des {unit}.</p> : null}
+        {waitingUntil !== null ? (
+          <p className="mt-1 text-xs text-muted-foreground">Le Passeur sera disponible à {TIME.format(new Date(waitingUntil))}, si tu es toujours bloqué.</p>
+        ) : !affordable ? (
+          <p className="mt-1 text-xs text-muted-foreground">Il te manque des {unit}.</p>
+        ) : null}
       </div>
       {message !== null ? <p className={`text-xs ${message.tone === "ok" ? "text-success" : "text-danger"}`}>{message.text}</p> : null}
 

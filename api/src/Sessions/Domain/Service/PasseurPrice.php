@@ -7,16 +7,16 @@ namespace App\Sessions\Domain\Service;
 /**
  * Story 52.4: what the Passeur costs, and what the absent player gets. Pure.
  *
- * The price starts at the base when the block begins and drops by `decayPercent` of the base every quarter of an
- * hour of block, down to `floorPercent` of the base, rounded up. The absent player's share is rounded down.
+ * The price starts at the base when the Passeur becomes available (story 52.9) and drops by `decayPercent` of the base every quarter of an
+ * hour after that, down to `floorPercent` of the base, rounded up. The share of the opened world's player is rounded down.
  */
 final class PasseurPrice
 {
     public const int STEP_SECONDS = 900;
 
-    public static function at(int $basePrice, int $decayPercent, int $floorPercent, \DateTimeImmutable $blockedSince, \DateTimeImmutable $now): int
+    public static function at(int $basePrice, int $decayPercent, int $floorPercent, \DateTimeImmutable $since, \DateTimeImmutable $now): int
     {
-        $steps = intdiv(max(0, $now->getTimestamp() - $blockedSince->getTimestamp()), self::STEP_SECONDS);
+        $steps = intdiv(max(0, $now->getTimestamp() - $since->getTimestamp()), self::STEP_SECONDS);
         $percent = max($floorPercent, 100 - $steps * $decayPercent);
 
         return max(1, intdiv($basePrice * $percent + 99, 100));

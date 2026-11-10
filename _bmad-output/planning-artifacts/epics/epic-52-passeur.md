@@ -183,6 +183,8 @@ En tant que joueur en BK, je veux pouvoir faire ouvrir le coffre qui me débloqu
 afin de ne pas rester bloqué parce que son joueur est là mais occupé ailleurs.
 
 - Plus de filtre d'absence sur les candidats ; le réglage `passeurAbsenceMinutes` disparaît.
+- Le Passeur n'est appelable qu'après un temps minimum en BK (`passeurMinBlockedMinutes`, 30 min par défaut) ; le
+  prix ne baisse qu'à partir de là.
 - Part, limite par monde et par jour, notification : inchangées, pour le joueur du monde ouvert.
 - Détail : `implementation-artifacts/52-9-passeur-sans-absence.md`.
 
