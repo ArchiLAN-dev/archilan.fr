@@ -5,6 +5,16 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.64.1] - 2026-11-10
+
+Correctif de la grille des présences (story 52.10). Frontend seul : aucune migration, aucune variable.
+
+### Corrigé
+
+- Présences : une case de la grille allait du début du premier créneau à la fin du dernier, trous compris. Un
+  inscrit parti de 02:00 à 10:00 apparaissait présent toute la matinée, et « Une partie » ne s'affichait jamais.
+  Chaque créneau est maintenant dessiné séparément ; les créneaux qui se suivent à une demi-heure près fusionnent.
+
 ## [0.64.0] - 2026-11-10
 
 Les sessions d'événement à la carte : l'admin choisit les slots qui partent dans une session (story 11.9), et un
