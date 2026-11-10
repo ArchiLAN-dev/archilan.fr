@@ -65,3 +65,11 @@ remplacée, sur son choix parmi trois maquettes, par une **grille planning** :
 - La page a son propre padding (`px-4 pt-6 md:px-6`) depuis la barre de 3.18.
 - Vérifié en local sur la démo 4.23 (un mois, 21 inscrits) : grille lisible d'un coup, sur toute la largeur.
 - Tests : `presence.test.tsx` réécrit pour la grille. Front : typecheck, lint, tests, build verts.
+
+## Correctif 2026-11-10 - trous dans une case
+
+Constaté par Jean sur l'ArchiLAN #4 : la case « une partie » n'apparaissait jamais pour un inscrit à plusieurs
+créneaux. `planningCell` prenait le début du premier créneau et la fin du dernier : un trou dans la case (parti de
+02:00 à 10:00) disparaissait et la case était dessinée pleine. Chaque créneau est maintenant sa propre part
+(`parts`), ceux qui se touchent à une demi-heure près fusionnés ; la case n'est pleine que si une seule part la
+couvre. Tests : trou visible, créneaux contigus fusionnés.
