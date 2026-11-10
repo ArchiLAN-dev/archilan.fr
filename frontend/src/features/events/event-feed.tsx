@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Gift, Info, Lightbulb, MapPin, MessageSquare, WifiOff } from "lucide-react";
+import { Gift, Info, KeyRound, Lightbulb, MapPin, MessageSquare, WifiOff } from "lucide-react";
 
 import type { FeedEvent } from "@/features/overlay/overlay-api";
 import { isFeedEvent } from "@/features/overlay/overlay-api";
@@ -24,6 +24,8 @@ const TYPE_LABELS: Record<string, string> = {
   "location-checked": "Location",
   system: "Système",
   chat: "Chat",
+  // Story 52.4.
+  passeur: "Passeur",
 };
 
 const TYPE_CLASSES: Record<string, string> = {
@@ -32,6 +34,7 @@ const TYPE_CLASSES: Record<string, string> = {
   "location-checked": "bg-blue-500/20 text-blue-400",
   system: "bg-muted text-muted-foreground",
   chat: "bg-foreground/10 text-foreground",
+  passeur: "bg-violet-500/20 text-violet-300",
 };
 
 const TYPE_BORDER: Record<string, string> = {
@@ -40,6 +43,7 @@ const TYPE_BORDER: Record<string, string> = {
   "location-checked": "border-l-blue-500 bg-blue-500/5",
   system: "border-l-border bg-transparent",
   chat: "border-l-foreground/30 bg-transparent",
+  passeur: "border-l-violet-500 bg-violet-500/5",
 };
 
 type IconComponent = React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
@@ -50,6 +54,7 @@ const TYPE_ICONS: Record<string, IconComponent> = {
   "location-checked": MapPin,
   system: Info,
   chat: MessageSquare,
+  passeur: KeyRound,
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────

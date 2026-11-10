@@ -58,14 +58,45 @@ final class SlotBlockRuleTest extends TestCase
         self::assertSame(SlotBlockDecision::Ignore, SlotBlockRule::decide(null, SlotBlockState::Settled, $now));
     }
 
-    public function testAnOpenEpisodeSurvivesABlockButNotTheBridgeRestarting(): void
+    public function testAnOpenEpisodeSurvivesABlockAndIsSuspendedByTheBridgeRestarting(): void
     {
         $episode = $this->episode('2026-09-29T10:00:00+00:00');
         $later = new \DateTimeImmutable('2026-09-29T10:10:00+00:00');
 
         self::assertSame(SlotBlockDecision::Keep, SlotBlockRule::decide($episode, SlotBlockState::Blocked, $later));
-        // Story 40.3: an unknown state is the bridge starting again, from the last save.
-        self::assertSame(SlotBlockDecision::CloseSilently, SlotBlockRule::decide($episode, SlotBlockState::Unknown, $later));
+        // Story 40.3: an unknown state is the bridge starting again, from the last save. Story 52.4: suspended.
+        self::assertSame(SlotBlockDecision::Suspend, SlotBlockRule::decide($episode, SlotBlockState::Unknown, $later));
+    }
+
+    public function testASuspendedBlockResumesOnlyWhenNothingWasReceivedInBetween(): void
+    {
+        $later = new \DateTimeImmutable('2026-09-29T11:00:00+00:00');
+        $episode = $this->episode('2026-09-29T10:00:00+00:00', items: 8);
+        $episode->suspend(new \DateTimeImmutable('2026-09-29T10:30:00+00:00'));
+
+        self::assertSame(SlotBlockDecision::Suspend, SlotBlockRule::decide($episode, SlotBlockState::Unknown, $later, null, 8));
+        self::assertSame(SlotBlockDecision::Resume, SlotBlockRule::decide($episode, SlotBlockState::Blocked, $later, null, 8));
+        self::assertSame(SlotBlockDecision::Reopen, SlotBlockRule::decide($episode, SlotBlockState::Blocked, $later, null, 9));
+        self::assertSame(SlotBlockDecision::Reopen, SlotBlockRule::decide($episode, SlotBlockState::Blocked, $later), 'unknown items: no proof it is the same block');
+        // The first state after a restart is no way out of a block.
+        self::assertSame(SlotBlockDecision::CloseSilently, SlotBlockRule::decide($episode, SlotBlockState::Unblocked, $later, null, 8));
+        self::assertSame(SlotBlockDecision::CloseSilently, SlotBlockRule::decide($episode, SlotBlockState::Settled, $later, null, 8));
+    }
+
+    public function testABlockNotConfirmedSinceTheLastStopIsTreatedAsSuspended(): void
+    {
+        // The bridge's unknown state may be missed: the session's last stop says the same.
+        $episode = $this->episode('2026-09-29T10:00:00+00:00', items: 8);
+        $stoppedAt = new \DateTimeImmutable('2026-09-29T10:30:00+00:00');
+        $later = new \DateTimeImmutable('2026-09-29T11:00:00+00:00');
+
+        self::assertSame(SlotBlockDecision::Resume, SlotBlockRule::decide($episode, SlotBlockState::Blocked, $later, $stoppedAt, 8));
+        self::assertSame(SlotBlockDecision::CloseSilently, SlotBlockRule::decide($episode, SlotBlockState::Unblocked, $later, $stoppedAt, 8));
+
+        $episode->resume($later, 8);
+        $after = $later->modify('+5 minutes');
+        self::assertSame(SlotBlockDecision::Keep, SlotBlockRule::decide($episode, SlotBlockState::Blocked, $after, $stoppedAt, 8));
+        self::assertSame(SlotBlockDecision::CloseAndNotify, SlotBlockRule::decide($episode, SlotBlockState::Unblocked, $after, $stoppedAt, 9), 'confirmed after the stop: leaving it is real');
     }
 
     public function testLeavingARealBlockNotifies(): void
@@ -114,8 +145,8 @@ final class SlotBlockRuleTest extends TestCase
         ];
     }
 
-    private function episode(string $since): SlotBlockEpisode
+    private function episode(string $since, ?int $items = null): SlotBlockEpisode
     {
-        return SlotBlockEpisode::open('session-1', '1', 'Alice_HK1', new \DateTimeImmutable($since));
+        return SlotBlockEpisode::open('session-1', '1', 'Alice_HK1', new \DateTimeImmutable($since), $items);
     }
 }

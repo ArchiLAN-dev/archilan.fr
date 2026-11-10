@@ -6,7 +6,11 @@ on:
   # heavy `checks` job to frontend changes only, keeping Actions minutes low. This makes the check
   # compatible with branch protection: a PR that doesn't touch frontend/ is never left blocked on a
   # check that would otherwise be skipped at the workflow level. Use workflow_dispatch to run on demand.
+  # `edited` too: retargeting a PR (base branch changed) fires only `edited`, so without it the
+  # required checks would never run against the new base. A title or body edit reruns them as well -
+  # the price of never leaving a green check computed against the wrong base.
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     branches:
       - main
       - develop

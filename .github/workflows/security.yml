@@ -4,6 +4,8 @@ name: Security
 # the production site (passive rules, no attack) on a weekly schedule and never blocks anything.
 on:
   pull_request:
+    # `edited`: a retargeted PR (new base branch) is scanned again.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [develop, main]
   schedule:

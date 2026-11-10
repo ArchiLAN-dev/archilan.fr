@@ -42,7 +42,7 @@ final readonly class MyWeeklyQuests
         $week = QuestWeek::containing($this->clock->now());
         $served = $this->planner->served($week);
         $counts = [] === $served ? [] : $this->quests->counts($week, ServedQuest::objectivesOf($served), $userId);
-        [$scopes, $slugs] = $this->scopeNames($served);
+        [$scopes, $slugs, $units] = $this->scopeNames($served);
         $mine = array_map(static fn (array $byMember): int => $byMember[$userId] ?? 0, $counts);
         $paid = $this->quests->rewardedQuests($userId, $week);
         $paidTiers = [] === array_filter($served, static fn (ServedQuest $quest): bool => [] !== $quest->tiers) ? [] : $this->quests->rewardedTiers($userId, $week);
@@ -55,7 +55,8 @@ final readonly class MyWeeklyQuests
                 $objectives[] = [
                     'metric' => $objective->metric->value,
                     'label' => $objective->metric->label(),
-                    'unit' => $objective->metric->unitFor($objective->target),
+                    // Story 41.72: a counter's objective counts what its label says.
+                    'unit' => $units[$objective->key()] ?? $objective->metric->unitFor($objective->target),
                     'target' => $objective->target,
                     'current' => $mine[$objective->key()] ?? 0,
                     // Story 41.18: the game or event the objective aims at, by name.
@@ -131,23 +132,34 @@ final readonly class MyWeeklyQuests
      *
      * @param list<ServedQuest> $quests
      *
-     * @return array{0: array<string, string>, 1: array<string, string>} objective key => name, objective key => game slug
+     * Story 41.72: a counter's objective is named by the counter's game, and counts in the counter's label.
+     *
+     * @return array{0: array<string, string>, 1: array<string, string>, 2: array<string, string>} objective key => name, objective key => game slug, objective key => unit
      */
     private function scopeNames(array $quests): array
     {
         $aimed = array_filter(ServedQuest::objectivesOf($quests), static fn (QuestObjective $objective): bool => null !== $objective->scope);
         if ([] === $aimed) {
-            return [[], []];
+            return [[], [], []];
         }
         $games = $this->quests->gamesNamed(array_values(array_unique(array_map(
             static fn (QuestObjective $objective): string => (string) $objective->scopeId,
             array_filter($aimed, static fn (QuestObjective $objective): bool => QuestObjective::SCOPE_GAME === $objective->scope),
         ))));
-        $events = array_column($this->quests->scopeOptions()['events'], 'title', 'id');
+        $options = $this->quests->scopeOptions();
+        $events = array_column($options['events'], 'title', 'id');
+        $counters = array_column($options['counters'], null, 'id');
 
         $scopes = [];
         $slugs = [];
+        $units = [];
         foreach ($aimed as $objective) {
+            if (QuestObjective::SCOPE_COUNTER === $objective->scope) {
+                $counter = $counters[(string) $objective->scopeId] ?? null;
+                $scopes[$objective->key()] = $counter['gameName'] ?? 'cible retirée';
+                $units[$objective->key()] = $counter['label'] ?? 'compteur supprimé';
+                continue;
+            }
             $game = QuestObjective::SCOPE_GAME === $objective->scope ? ($games[(string) $objective->scopeId] ?? null) : null;
             if (null !== $game) {
                 $slugs[$objective->key()] = $game['slug'];
@@ -156,7 +168,7 @@ final readonly class MyWeeklyQuests
             $scopes[$objective->key()] = $objective->selfName() ?? $game['name'] ?? (QuestObjective::SCOPE_EVENT === $objective->scope ? $events[(string) $objective->scopeId] ?? null : null) ?? 'cible retirée';
         }
 
-        return [$scopes, $slugs];
+        return [$scopes, $slugs, $units];
     }
 
     /**
@@ -210,7 +222,7 @@ final readonly class MyWeeklyQuests
         }
         $total = $this->quests->groupTotal($week, $objective);
         $mine = $this->quests->counts($week, [$objective], $userId)[$objective->key()][$userId] ?? 0;
-        [$scopes, $slugs] = $this->scopeNames([$quest]);
+        [$scopes, $slugs, $units] = $this->scopeNames([$quest]);
 
         return [
             'key' => $quest->getId(),
@@ -218,7 +230,7 @@ final readonly class MyWeeklyQuests
             'description' => $quest->getDescription(),
             'reward' => $quest->getReward(),
             'metric' => $objective->metric->value,
-            'unit' => $objective->metric->unitFor($objective->target),
+            'unit' => $units[$objective->key()] ?? $objective->metric->unitFor($objective->target),
             'target' => $objective->target,
             'total' => $total,
             'mine' => $mine,

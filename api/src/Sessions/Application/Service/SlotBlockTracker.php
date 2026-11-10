@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Service;
 
+use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Message\NotifySlotUnblockedJob;
 use App\Sessions\Domain\Entity\SlotBlockEpisode;
@@ -22,11 +23,13 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * arrives on every state change and after every reachability recompute (story 9.23). A slot that
  * leaves a real block dispatches one notification job, after the episodes are written.
  *
- * Private runs only, and not an imported seed (no reachability is computed for one). Event and
- * weekly sessions have no run and are left alone.
+ * Private runs, and not an imported seed (no reachability is computed for one). Story 52.3: an event
+ * session's episodes are followed too, for the Passeur - silently: no notification, no release kept for the
+ * recap. Weekly sessions (no run, no event) are left alone.
  *
- * Story 40.3: a block never outlives a server restart - the bridge's start (unknown state) closes it
- * silently, and so does an episode begun before the session's last stop.
+ * Story 40.3: a server restart is no way out of a block - the bridge's start (unknown state) and an episode
+ * begun before the session's last stop never notify. Story 52.4: the episode is suspended rather than
+ * closed, and resumes with its first start when the slot is blocked again without receiving anything.
  */
 final readonly class SlotBlockTracker
 {
@@ -34,6 +37,7 @@ final readonly class SlotBlockTracker
         private RunRepositoryInterface $runs,
         private SessionSlotRepositoryInterface $slots,
         private SessionRepositoryInterface $sessions,
+        private EventRepositoryInterface $events,
         private SlotBlockEpisodeRepositoryInterface $episodes,
         private SlotBlockReleaseRepositoryInterface $releases,
         private MessageBusInterface $messageBus,
@@ -52,7 +56,13 @@ final readonly class SlotBlockTracker
         }
 
         $run = $this->runs->findBySessionId($sessionId);
-        if (null === $run || $run->isImportedSeed()) {
+        if (null !== $run && $run->isImportedSeed()) {
+            return;
+        }
+        $session = $this->sessions->findById($sessionId);
+        // Story 52.3: without a run, only an event's session - a weekly's carries its weekly run id instead.
+        $silent = null === $run;
+        if ($silent && (null === $session || null === $this->events->findById($session->getEventId()))) {
             return;
         }
 
@@ -62,9 +72,9 @@ final readonly class SlotBlockTracker
             $open[$episode->getSlotIndex()] = $episode;
         }
         $released = $this->releasedSlotNames($sessionId);
-        // Story 40.3: nothing happens in a game while its server is down - a block begun before the last stop
+        // Story 40.3: nothing happens in a game while its server is down - a block not confirmed since the last stop
         // says nothing reliable once the server is back (it restarted from its last save).
-        $stoppedAt = $this->sessions->findById($sessionId)?->getStoppedAt();
+        $stoppedAt = $session?->getStoppedAt();
 
         $unblocked = [];
         foreach ($slots as $slotIndex => $slot) {
@@ -75,14 +85,28 @@ final readonly class SlotBlockTracker
 
             $key = (string) $slotIndex;
             $episode = $open[$key] ?? null;
-            $decision = SlotBlockRule::decide($episode, SlotBlockRule::stateOf($slot, in_array($slotName, $released, true)), $now);
-            if (SlotBlockDecision::CloseAndNotify === $decision && null !== $episode && null !== $stoppedAt && $episode->getBlockedSince() < $stoppedAt) {
+            $items = $slot['items_received'] ?? null;
+            $items = is_int($items) ? $items : null;
+            $decision = SlotBlockRule::decide($episode, SlotBlockRule::stateOf($slot, in_array($slotName, $released, true)), $now, $stoppedAt, $items);
+            if (SlotBlockDecision::CloseAndNotify === $decision && $silent) {
                 $decision = SlotBlockDecision::CloseSilently;
             }
 
             if (SlotBlockDecision::Open === $decision) {
-                $this->episodes->add(SlotBlockEpisode::open($sessionId, $key, $slotName, $now));
-            } elseif (null !== $episode && (SlotBlockDecision::CloseSilently === $decision || SlotBlockDecision::CloseAndNotify === $decision)) {
+                $this->episodes->add(SlotBlockEpisode::open($sessionId, $key, $slotName, $now, $items));
+                continue;
+            }
+            if (null === $episode) {
+                continue;
+            }
+            match ($decision) {
+                SlotBlockDecision::Keep => $episode->observe($items),
+                SlotBlockDecision::Suspend => $episode->suspend($now),
+                SlotBlockDecision::Resume => $episode->resume($now, $items ?? 0),
+                SlotBlockDecision::Reopen => $episode->restart($now, $items),
+                default => null,
+            };
+            if (SlotBlockDecision::CloseSilently === $decision || SlotBlockDecision::CloseAndNotify === $decision) {
                 $this->episodes->remove($episode);
                 if (SlotBlockDecision::CloseAndNotify === $decision) {
                     // Story 43.10: a real block left is kept for the recap, in the same flush as the episode's removal.

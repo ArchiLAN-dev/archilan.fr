@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SessionConnectionGate } from "@/features/events/session-connection-gate";
+import { PresenceCard } from "@/features/presence/presence-editor";
 import { BroadcastConsentCard } from "@/features/streaming/broadcast-consent-card";
 
 export const metadata: Metadata = {
@@ -18,6 +19,8 @@ export default function SessionPage({ params }: SessionPageProps) {
       <SessionConnectionGate params={params} />
       {/* Story 47.1: whether the ArchiLAN broadcast may show the member's stream. */}
       <BroadcastConsentCard params={params} />
+      {/* Story 52.2: when the member is at the event. */}
+      <PresenceCard params={params} />
     </div>
   );
 }

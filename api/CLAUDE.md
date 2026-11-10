@@ -61,7 +61,7 @@ stay reviewer-enforced: **when this file and the code disagree, the code wins an
 
 Every PHP class lives under `src/{Context}/{Layer}/`. Known contexts (authoritative list: `DddArchitectureValidator::CONTEXTS`):
 
-`Identity` · `Events` · `Registrations` · `GameSelection` · `Content` · `Payments` · `Realtime` · `Communications` · `Legal` · `Sessions` · `PersonalRuns` · `CatalogSync` · `Streaming` · `Membership` · `WeeklyRuns` · `SessionConfig` · `Community` · `Wallet` · `Notes` · `Shared`
+`Identity` · `Events` · `Registrations` · `GameSelection` · `Content` · `Payments` · `Realtime` · `Communications` · `Legal` · `Sessions` · `PersonalRuns` · `CatalogSync` · `Streaming` · `Membership` · `WeeklyRuns` · `SessionConfig` · `Community` · `Wallet` · `Notes` · `Surveys` · `Shared`
 
 Adding a new context requires: (1) create the four layer directories, (2) add to `DddArchitectureValidator::CONTEXTS`, (3) add Domain exclusion to `services.yaml`, (4) add Doctrine mapping if the domain contains entities.
 
@@ -192,7 +192,7 @@ Project convention, NOT enforced by the preset (the risky `declare_strict_types`
 
 **AC-T6:** Functional tests extend `Symfony\Bundle\FrameworkBundle\Test\WebTestCase`.  
 **AC-T7:** The schema is built **once per phpunit process**, with every mapped entity, by `BuildSchemaOnceSubscriber` (registered as a PHPUnit extension in `phpunit.xml.dist`). A test class never declares an entity subset and never calls `SchemaTool` itself.  
-**AC-T8:** `FunctionalTestCase::setUp()` wipes rows only (`TRUNCATE ... RESTART IDENTITY CASCADE`), so each test still starts from an empty database with reset sequences. Rebuilding the schema per test cost ~420 ms x 1029 tests, ~55% of the suite (story 33.25). Do not reintroduce a per-test `createSchema`.  
+**AC-T8:** `FunctionalTestCase::setUp()` wipes rows only: a `DELETE` per table under `session_replication_role = replica` (foreign keys skipped), then `setval` on the used sequences, so each test still starts from an empty database with reset sequences. Rebuilding the schema per test cost ~420 ms x 1029 tests, ~55% of the suite (story 33.25). Do not reintroduce a per-test `createSchema`, nor `TRUNCATE`: it gives every table a new file, and one ParaTest pass left ~780,000 files and an 8-minute checkpoint behind (story 33.30).  
 **AC-T9:** No `$this->markTestSkipped()` unless the feature is explicitly behind a feature flag.  
 **AC-T10:** Assert HTTP status codes explicitly before asserting body content.
 

@@ -337,6 +337,22 @@ export function messageFor(item: NotificationItem): string {
         ? `${problem} : ${item.data.gameName}`
         : "Un apworld est en échec";
     }
+    case "departure_requested": {
+      // Story 52.6: a player left; the staff (the owner of a private run) may release their world.
+      const player = hasStringProp(item.data, "playerName") && item.data.playerName !== "" ? item.data.playerName : "Un joueur";
+      return `${player} a quitté la partie : libérer son monde ?`;
+    }
+    case "passeur_opened": {
+      // Story 52.4: a blocked player paid the Passeur to open a chest of the member's world.
+      const buyer = hasStringProp(item.data, "buyerName") && item.data.buyerName !== "" ? item.data.buyerName : "un joueur";
+      return `Le Passeur a ouvert un coffre de ton monde pour ${buyer}`;
+    }
+    case "survey_opened":
+    case "survey_reminder": {
+      // Story 51.3: a survey of one of the member's events opened, or still waits for their answer.
+      const survey = hasStringProp(item.data, "surveyTitle") && item.data.surveyTitle !== "" ? `« ${item.data.surveyTitle} »` : "un sondage";
+      return item.type === "survey_reminder" ? `Tu n'as pas encore répondu à ${survey}` : `Nouveau sondage : ${survey}`;
+    }
     case "game_apworld_updated": {
       // Story 38.22: a followed game got a new apworld on the site, or its first one.
       const game = hasStringProp(item.data, "gameName") && item.data.gameName !== "" ? item.data.gameName : "Un jeu suivi";
@@ -398,6 +414,14 @@ export function hrefFor(item: NotificationItem): string {
     || item.type === "run_recap_ready"
   ) {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte/parties";
+  }
+  if (item.type === "passeur_opened" || item.type === "departure_requested") {
+    return hasStringProp(item.data, "url") && item.data.url.startsWith("/") ? item.data.url : "/compte";
+  }
+  if (item.type === "survey_opened" || item.type === "survey_reminder") {
+    return hasStringProp(item.data, "eventId") && item.data.eventId !== "" && hasStringProp(item.data, "surveyId") && item.data.surveyId !== ""
+      ? `/evenements/${item.data.eventId}/sondages/${item.data.surveyId}`
+      : "/compte";
   }
   if (item.type === "game_apworld_updated") {
     return hasStringProp(item.data, "gameSlug") && item.data.gameSlug !== "" ? `/jeux/${item.data.gameSlug}` : "/jeux";

@@ -30,6 +30,10 @@ const TYPE_LABELS: Record<string, { label: string; hint: string }> = {
   run_all_ready: { label: "Tout le monde est prêt", hint: "Tous les joueurs de ta partie se sont dits prêts : tu peux lancer." },
   run_recap_ready: { label: "Récap prêt", hint: "Une partie où tu as joué est terminée et son récap est prêt." },
   game_apworld_updated: { label: "Jeux suivis", hint: "Un nouvel apworld est mis en place pour un jeu que tu suis." },
+  survey_opened: { label: "Sondages", hint: "L'orga ouvre un sondage sur un événement où tu es inscrit." },
+  survey_reminder: { label: "Relances de sondage", hint: "Un sondage qui te concerne attend encore ta réponse." },
+  departure_requested: { label: "Départs", hint: "Un joueur a quitté une partie que tu gères : libérer son monde ou non." },
+  passeur_opened: { label: "Le Passeur", hint: "Le Passeur a ouvert un coffre de ton monde pendant ton absence, pour un joueur bloqué." },
 };
 
 /**

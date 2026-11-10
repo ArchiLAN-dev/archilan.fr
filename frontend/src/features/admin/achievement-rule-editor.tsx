@@ -13,6 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { GripVertical, Plus, X } from "lucide-react";
 
+import { COUNTER_PICK, counterFact, counterIdOfFact, isCounterFact } from "./admin-achievement-counter-scope";
 import { EVENTS_FACT, eventIdOfFact, eventScopedFact, isEventScopedFact } from "./admin-achievement-event-scope";
 import {
   isRuleGroup,
@@ -204,6 +205,11 @@ function ConditionEditor({
   const eventScoped = isEventScopedFact(condition.fact);
   const eventId = eventIdOfFact(condition.fact);
   const eventMissing = eventId !== null && !options.events.some((e) => e.id === eventId);
+  // Story 30.57: a counter of checks or items, picked next to the criterion.
+  const counterScoped = isCounterFact(condition.fact);
+  const counterId = counterIdOfFact(condition.fact);
+  const counterMissing = counterId !== null && !options.counters.some((c) => c.id === counterId);
+  const criterion = eventScoped ? EVENTS_FACT : counterScoped ? COUNTER_PICK : condition.fact;
   const field = "min-h-9 rounded-lg border border-border bg-surface px-2 text-sm text-foreground outline-none focus:border-accent";
 
   return (
@@ -212,8 +218,8 @@ function ConditionEditor({
       <select
         aria-label="Critère"
         className={`min-h-9 rounded-lg border px-2 text-sm font-semibold outline-none focus:border-accent ${FAMILY_STYLES[family].chip}`}
-        onChange={(e) => onChange({ ...condition, fact: e.target.value })}
-        value={eventScoped ? EVENTS_FACT : condition.fact}
+        onChange={(e) => onChange({ ...condition, fact: e.target.value === COUNTER_PICK ? counterFact(options.counters[0]?.id ?? "") : e.target.value })}
+        value={criterion}
       >
         {factsByFamily(options).map((group) => (
           <optgroup key={group.family} label={FAMILY_LABELS[group.family]}>
@@ -224,7 +230,23 @@ function ConditionEditor({
             ))}
           </optgroup>
         ))}
+        {options.counters.length > 0 || counterScoped ? (
+          <optgroup label="Checks et items précis">
+            <option value={COUNTER_PICK}>Compteur…</option>
+          </optgroup>
+        ) : null}
       </select>
+      {counterScoped ? (
+        <select aria-label="Compteur" className={field} onChange={(e) => onChange({ ...condition, fact: counterFact(e.target.value) })} value={counterId ?? ""}>
+          {counterId === null ? <option value="">Choisir un compteur</option> : null}
+          {options.counters.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+          {counterMissing && counterId !== null ? <option value={counterId}>(compteur supprimé)</option> : null}
+        </select>
+      ) : null}
       {eventScoped ? (
         <select aria-label="Événement" className={field} onChange={(e) => onChange({ ...condition, fact: eventScopedFact(e.target.value) })} value={eventId ?? ""}>
           <option value="">Tous les événements</option>

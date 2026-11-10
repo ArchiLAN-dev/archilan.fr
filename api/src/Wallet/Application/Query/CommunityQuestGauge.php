@@ -43,14 +43,17 @@ final readonly class CommunityQuestGauge
                 return null;
             }
 
+            $scopeName = $this->scopeName($objective);
+
             return [
                 'title' => $quest->getTitle(),
                 'description' => $quest->getDescription(),
-                'objective' => QuestAnnouncement::describe($objective, $this->scopeName($objective)),
+                'objective' => QuestAnnouncement::describe($objective, $scopeName),
                 'reward' => $entry->getReward() ?? $quest->getReward(),
                 'target' => $objective->target,
                 'total' => $total,
-                'unit' => $objective->metric->unitFor($objective->target),
+                // Story 41.72: a counter counts in its label.
+                'unit' => QuestObjective::SCOPE_COUNTER === $objective->scope ? ($scopeName ?? 'compteur supprimé') : $objective->metric->unitFor($objective->target),
                 'duration' => $objective->metric->isDuration(),
                 'reached' => $total >= $objective->target,
                 'renewsAt' => $week->end->format(\DATE_ATOM),
@@ -66,6 +69,7 @@ final readonly class CommunityQuestGauge
         return match ($objective->scope) {
             QuestObjective::SCOPE_GAME => $this->games->gamesNamed([(string) $objective->scopeId])[(string) $objective->scopeId]['name'] ?? null,
             QuestObjective::SCOPE_EVENT => array_column($this->games->scopeOptions()['events'], 'title', 'id')[(string) $objective->scopeId] ?? null,
+            QuestObjective::SCOPE_COUNTER => array_column($this->games->scopeOptions()['counters'], 'label', 'id')[(string) $objective->scopeId] ?? null,
             default => null,
         };
     }

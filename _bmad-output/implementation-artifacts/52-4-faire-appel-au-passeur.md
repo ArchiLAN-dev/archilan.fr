@@ -1,0 +1,126 @@
+# Story 52.4 - Faire appel au Passeur (pelles d'argent ou de bronze)
+
+**Status:** done
+**Epic:** 52 - Le Passeur (`_bmad-output/planning-artifacts/epics/epic-52-passeur.md`)
+**Date:** 2026-11-09
+**Branche:** `feature/epic-52-story-4-faire-appel-au-passeur` (depuis `develop`)
+**Dépend de:** 52.1 (opération du bridge), 52.2 (créneaux), 52.3 (candidats).
+
+## Story
+
+En tant que joueur bloqué par un objet rangé chez un absent,
+je veux payer des pelles pour faire ouvrir ce coffre,
+afin de reprendre ma partie sans attendre son arrivée.
+
+## Contexte (cartographie du 2026-11-09)
+
+- Achat d'indice en pelles : `api/src/Sessions/Application/Command/BuyHintWithPelles.php` (débit, commande admin
+  via le bridge, remboursement si échec), `PelleHintTerms`, `PelleHintPurchase`. Le Passeur suit le même circuit.
+- Registre : `RecordPelleMovement` est le seul point d'écriture (`api/src/Wallet/`), `PelleKind` (`gold`, `event`,
+  `bronze`), `PelleReason`.
+- Pelles de bronze d'une partie privée : `pelle_movement.run_id`, réglages `bronze*` dans `SessionServerConfig`.
+- Réglages de partie : `SessionServerConfig` (`pelleHints`, prix) ; réglages d'événement : contexte `Events`.
+
+## Décisions (validées par Jean le 2026-11-09)
+
+1. **Monnaie** : en événement, pelles d'argent de l'événement **seulement** (pas d'or en secours) ; en partie
+   privée, pelles de bronze de la partie. Jamais en hebdo.
+2. **Prix** : prix de base par défaut = 3 fois le prix d'un indice d'objet ; baisse de 10 % du prix de base toutes
+   les 15 minutes de blocage (depuis le début du BK suivi par `SlotBlockTracker`), plancher 40 %. Arrondi à
+   l'entier supérieur. L'attente compte depuis le début du BK **en cours** : une sortie de BK (le joueur a reçu de
+   quoi avancer) remet le prix au plein tarif. Un épisode clos par un redémarrage du serveur (40.3) puis rouvert
+   sans aucun objet reçu entre les deux compte comme le même BK, pour qu'une relance ne pénalise pas le joueur
+   (validé par Jean le 2026-11-10). Le prix affiché est celui débité (recalculé au moment de l'achat ; écart refusé avec 409
+   `passeur_price_changed` pour que le joueur confirme le nouveau prix).
+3. **Part de l'absent** : 50 % du prix payé (arrondi à l'inférieur) versés à l'absent dans la même monnaie ; le
+   reste est détruit. Jamais de création de pelles.
+4. **Limite** : 5 ouvertures par monde absent et par jour (jour civil Europe/Paris).
+5. **Désactivé par défaut** ; activé par l'orga sur l'événement, par le propriétaire sur une partie privée.
+6. **L'absent ne peut pas refuser.** Il est notifié à chaque ouverture.
+7. **Nouvelles raisons du registre** : `passeur_purchase`, `passeur_refund`, `passeur_share`. Clés d'idempotence
+   par achat (`passeur:{purchaseId}:...`).
+8. **Trace** : une table `passeur_opening` (session, acheteur, slot acheteur, slot absent, emplacement, objet,
+   prix payé, part versée, statut, dates) sert à la limite par jour, à 52.5 et au journal admin.
+
+## Apports du spike 52.1
+
+- Route du bridge : `POST /slots/{slot}/locations/{location_id}/send` (jeton interne). 200 = ouvert (emplacement,
+  objet, destinataire) ; refus `{"code", "message"}` : 409 `already_checked`, 404 `unknown_location` ou
+  `unknown_slot`, 422 `refused`, 504 `timeout`, 503 `ws_disconnected`. Un 504 est ambigu (l'ouverture a pu se faire
+  sans que le bridge la voie) : avant de rembourser, relire l'état de l'emplacement (déjà ouvert = succès).
+- Chaque ouverture laisse un écho `!admin /send_location ...` dans le chat : le masquer dans le feed du site et
+  publier le message du Passeur à la place (critère 2).
+
+## Critères d'acceptation
+
+1. Sur sa page de partie, un joueur bloqué avec un candidat (52.3) voit : le joueur absent, l'objet attendu, le prix
+   du moment, son solde dans la bonne monnaie, un bouton « Faire appel au Passeur ».
+2. Achat réussi : débit, ouverture par le bridge, part créditée à l'absent, ligne `passeur_opening` en succès,
+   message dans le feed (« Le Passeur a ouvert un coffre du monde de Bob pour Alice »), notification à l'absent.
+3. Échec du bridge ou refus du serveur : remboursement intégral, aucune part versée, ligne en échec, message clair.
+4. Refus avant débit : Passeur désactivé, pas de candidat, solde insuffisant, limite du jour atteinte, prix changé,
+   session pas en cours.
+5. En événement, l'or n'est jamais débité, même si le solde d'argent est insuffisant.
+6. Réglages (événement et partie privée) : activation, prix de base, baisse, plancher, part de l'absent, limite par
+   jour ; délai d'absence en partie privée (2 h par défaut). Valeurs bornées.
+7. Deux achats simultanés sur le même emplacement : un seul aboutit (verrou), l'autre est remboursé ou refusé
+   avant débit.
+
+## Tests et gates
+
+8. Unitaires : calcul du prix (paliers, plancher, arrondi), part, limite par jour.
+9. Fonctionnels : achat réussi (argent et bronze), échec avec remboursement, chaque refus, or jamais débité,
+   concurrence, idempotence d'une requête rejouée.
+10. Front : proposition, confirmation avec prix, états d'erreur ; réglages admin et propriétaire.
+11. `composer gates` et `pnpm gates` verts.
+
+## Tasks / Subtasks
+
+- [x] **Task 1** (AC 6) - Réglages événement et partie privée, migration.
+- [x] **Task 2** (AC 2-5, 7) - Commande d'achat, raisons du registre, table `passeur_opening`, port vers le bridge.
+- [x] **Task 3** (AC 2) - Feed et notification à l'absent (type de notification réglable, push).
+- [x] **Task 4** (AC 1) - Proposition sur la page de partie (événement et partie privée).
+- [x] **Task 5** (AC 11) - Gates verts, Dev Agent Record.
+
+## Dev Agent Record
+
+**Implémenté le 2026-11-09** (branche empilée sur 52.3).
+
+- **Réglages** : 7 champs dans `SessionServerConfig` (`passeur`, `passeurBasePrice` 60, `passeurDecayPercent` 10,
+  `passeurFloorPercent` 40, `passeurSharePercent` 50, `passeurDailyLimit` 5, `passeurAbsenceMinutes` 120), bornés
+  (`invalid_passeur_setting`), repris par `SessionConfig` et `SessionConfigOverride`. Admin : section « Le Passeur »
+  pour l'événement et la partie privée, absente des hebdos ; le délai d'absence n'est montré qu'en partie privée.
+- **Prix** (`Domain/Service/PasseurPrice`) : palier de 15 min, baisse en points de pourcentage, plancher, arrondi
+  au supérieur, jamais sous 1 ; part arrondie à l'inférieur ; journée de minuit à minuit (Paris).
+- **Achat** (`CallThePasseur`) : tous les refus avant débit (`passeur_disabled`, `session_not_running`,
+  `passeur_not_blocked`, `passeur_no_candidate`, `passeur_daily_limit`, `passeur_price_changed` avec le nouveau
+  prix en `details`, `insufficient_pelles`), puis ligne `passeur_opening` en `pending` (verrou : index unique partiel
+  sur le coffre hors échecs, `INSERT ... ON CONFLICT DO NOTHING`), débit, `bridge.open()`. Ouvert : part à
+  l'absent, ligne `opened`, message `passeur` dans le feed, notification `passeur_opened` (cloche + push, réglable).
+  Pas ouvert : remboursement intégral, ligne `failed`. Requête rejouée (même `requestId`) : même réponse, un seul
+  paiement. Événement : argent seulement ; partie privée : bronze de la partie.
+- **Registre** : raisons `passeur_purchase`, `passeur_refund`, `passeur_share` (circulation du bronze, libellés front).
+- **Feed** : l'écho `!admin` du bridge dans le chat n'est plus diffusé (`FeedPushController`), le site publie sa
+  propre ligne.
+- **Page de partie** : `features/passeur/` (API, panneau, tests), au-dessus des onglets, visible seulement avec une
+  offre ; confirmation avec le prix, solde, prochaine baisse.
+- **Migration** : `Version20261109120005` (table `passeur_opening`).
+- **Tests** : `PasseurPriceTest` (6), `CallThePasseurTest` (9 : argent, bronze, remboursement, rejeu, verrou,
+  refus, désactivé/non bloqué, accès, écho masqué), front `passeur.test.tsx` (4). `FriendActivityTest` liste le
+  nouveau type de notification.
+- **Gates** : API 3719 tests verts (ParaTest), phpstan, cs-fixer, DDD, rector ; front typecheck, lint, 1482 tests,
+  build.
+
+**Effets de bord connus** : en partie privée, le check ouvert pour l'absent lui crédite aussi son bronze par check ;
+une prime ouverte sur l'objet est versée à l'absent (c'est lui qui l'a « envoyé »).
+
+**Continuité du BK après redémarrage (validée par Jean le 2026-11-10, branche feature/epic-52-story-4-bk-apres-redemarrage)** :
+- migration `Version20261110100000` : `items_received`, `suspended_at`, `resumed_at` sur `session_slot_block` ;
+- l'état inconnu du bridge (démarrage) suspend l'épisode au lieu de le fermer ; un épisode non confirmé depuis le
+  dernier arrêt de la session (40.3, état inconnu manqué) est traité pareil ;
+- au premier état suivant : bloqué sans objet reçu depuis (`items_received` inchangé) = même BK, début conservé
+  (`Resume`) ; bloqué avec un objet reçu = nouveau BK à partir de maintenant (`Reopen`) ; débloqué ou terminé =
+  fermeture silencieuse, comme en 40.3 ;
+- un BK repris est confirmé : en partie privée, sa sortie notifie à nouveau (récap avec le début d'origine) ;
+- un BK suspendu n'ouvre pas le Passeur tant que l'état suivant ne l'a pas confirmé ;
+- tests : SlotBlockRuleTest (+2), SlotBlockTrackerTest (+3), PasseurCandidatesTest (+1).

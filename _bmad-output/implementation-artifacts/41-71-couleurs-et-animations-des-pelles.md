@@ -1,6 +1,6 @@
 # Story 41.71: Une couleur et une animation pour chaque pelle
 
-**Status:** review
+**Status:** done
 **Epic:** 41 - Les Pelles, monnaie virtuelle d'ArchiLAN
 **Date:** 2026-11-05
 

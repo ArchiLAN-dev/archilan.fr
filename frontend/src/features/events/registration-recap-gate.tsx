@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle, XCircle } from "lucide-react";
 
 import { RegistrationStepper } from "@/features/events/registration-stepper";
+import { RegistrationSurveysRecap, useRegistrationSurveys } from "@/features/surveys/registration-questions";
 import { SlotNeedsReview } from "@/features/games/slot-needs-review";
 import { ConfigureSlotYamlLink, resolveSlotYamlStatus, SlotYamlStatusBadge } from "@/features/games/slot-yaml-status";
 
@@ -72,6 +73,9 @@ export function RegistrationRecapGate({
   });
 
   const recapData = recapQuery.data?.kind === "success" ? recapQuery.data.data : null;
+  // Story 51.5: the step and the answers of the organisers' questions at registration.
+  const registrationSurveys = useRegistrationSurveys(eventSlug);
+  const withQuestions = registrationSurveys !== undefined && registrationSurveys.length > 0;
 
   async function handleSubmit() {
     if (recapData === null) return;
@@ -212,7 +216,7 @@ export function RegistrationRecapGate({
 
   return (
     <article className="grid gap-8">
-      <RegistrationStepper currentStep={2} />
+      <RegistrationStepper currentStep={withQuestions ? 3 : 2} withQuestions={withQuestions} />
 
       <header className="grid gap-2">
         <h1 className="font-heading text-3xl font-bold leading-tight text-foreground">
@@ -233,6 +237,8 @@ export function RegistrationRecapGate({
           Ton inscription n&apos;est pas encore confirmée : vérifie tes jeux puis clique sur « Confirmer l&apos;inscription ».
         </p>
       )}
+
+      <RegistrationSurveysRecap eventSlug={eventSlug} registrationId={registrationId} />
 
       {data.gameSelectionEnabled ? (
         <section className="grid gap-4">

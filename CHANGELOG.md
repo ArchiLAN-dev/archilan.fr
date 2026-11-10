@@ -5,6 +5,150 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.61.0] - 2026-11-10
+
+Le Passeur (epic 52) : à une LAN où chacun arrive et repart à son heure, un joueur bloqué par le monde d'un absent
+peut faire ouvrir le coffre qui le débloque, le départ d'un joueur passe par un release assisté, et l'orga voit
+avant le lancement qui risque d'attendre qui. Quatre migrations (`Version20261109120004` à
+`Version20261109120007`), aucune variable. Nécessite le bridge v0.17.0.
+
+### À faire après le déploiement
+
+- Déployer d'abord le bridge v0.17.0 (nouvelles routes `/slots/{slot}/locations/{id}/send` et `/slots/{slot}/passeur/*`).
+- Lancer les migrations (`php bin/console doctrine:migrations:migrate`) : tables `registration_presence_window`,
+  `passeur_opening` et `departure_request`.
+- Vérifier que le worker `async` et le scheduler tournent : les départs déclarés sont relevés toutes les 10 minutes.
+- Le Passeur est désactivé par défaut : l'activer dans la configuration serveur de l'événement ou de la partie.
+
+### Ajouté
+
+- Créneaux de présence (story 52.2) : chaque inscrit déclare ses plages de présence pendant l'événement ; frise
+  admin des présences sur `/admin/evenements/{id}/presences`.
+- Le coffre qui débloque (story 52.3) : pour un slot en BK, la liste des emplacements d'autres mondes qui le
+  débloqueraient, avec le calcul « et si » du suivi exact. Le suivi des blocages couvre aussi les sessions
+  d'événement.
+- Faire appel au Passeur (story 52.4) : ouvrir l'emplacement d'un joueur absent (hors créneau et sans client
+  connecté) qui bloque un joueur présent. Prix en pelles d'argent en événement, de bronze en partie privée,
+  dégressif depuis le début du blocage, part reversée à l'absent, limite d'ouvertures par monde et par jour,
+  remboursement si l'ouverture échoue. Sept réglages dans la configuration serveur.
+- Ce que le Passeur a ouvert (story 52.5) : encart pour l'absent à son retour, journal des ouvertures pour l'orga
+  (événement, session) et pour le propriétaire d'une partie privée, badge « Passeur » dans la timeline.
+- Départ assisté (story 52.6) : le joueur qui part demande son release, l'orga (ou le propriétaire en partie
+  privée) le lance ou le refuse ; une demande part aussi d'elle-même à la fin du dernier créneau déclaré.
+  Nouveau type de notification réglable.
+- Carte des dépendances (story 52.7) : avant le lancement, pour chaque génération d'un événement, les objets des
+  premières sphères d'un joueur qui sont dans le monde d'un autre absent en même temps, avec un score par
+  génération et la meilleure marquée.
+
+### Corrigé
+
+- Les commandes admin envoyées au serveur citent les noms de joueurs qui contiennent des espaces (#1048).
+
+## [0.60.0] - 2026-11-09
+
+Sondages par événement (epic 51) : l'orga pose ses questions avant ou après l'événement, et à l'inscription.
+Trois migrations (`Version20261109120001` à `Version20261109120003`), aucune variable.
+
+### À faire après le déploiement
+
+- Lancer les migrations (`php bin/console doctrine:migrations:migrate`) : tables `survey`, `survey_question`,
+  `survey_option`, `survey_participation`, `survey_response`, `survey_answer` et colonnes de suivi des annonces.
+- Vérifier que le worker `async` et le scheduler tournent : le passage des sondages (annonces et relances) part
+  toutes les 10 minutes. Au premier passage, tout sondage déjà publié et ouvert est annoncé.
+
+### Ajouté
+
+- Sondages d'événement côté admin (stories 51.1 et 51.4) :
+  - création depuis le tableau de bord de l'événement : titre, intro, période, public (inscrits, participants,
+    à l'inscription), anonymat, envoi par mail ;
+  - questions à choix unique ou multiple, texte libre, note sur 5, obligatoires ou non ;
+  - résultats : répartition des réponses, textes libres (anonymes triés, affichés à partir de 3 réponses),
+    répondants et non-répondants pour un sondage nominatif ;
+  - bloc « Sondages » sur la fiche d'une inscription.
+- Les joueurs répondent (story 51.2) : encart sur la page de l'événement, page de réponse, réponses modifiables
+  jusqu'à la fermeture (sauf sondage anonyme).
+- Annonces et relances (story 51.3) : notification (cloche, push) et mail à l'ouverture, relance automatique
+  48 h avant la fermeture (au milieu de la période si elle dure moins de 4 jours), relance manuelle limitée à une
+  par 24 h, réservées à ceux qui n'ont pas répondu. Deux nouveaux types de notification réglables.
+- Questions à l'inscription (story 51.5) : étape « Questions » dans le parcours, entre les jeux et le
+  récapitulatif, quand l'orga en pose ; la confirmation attend les réponses obligatoires. Les inscriptions déjà
+  confirmées et celles faites par un admin ne sont pas bloquées.
+
+## [0.59.0] - 2026-11-09
+
+Inscription d'un joueur de bout en bout par un admin, et tests locaux qui n'engorgent plus Postgres. Une migration
+(`Version20261109120000`), aucune variable.
+
+### À faire après le déploiement
+
+- Lancer les migrations (`php bin/console doctrine:migrations:migrate`) : deux colonnes nullables sur `registration`.
+
+### Ajouté
+
+- Un admin peut inscrire un joueur de bout en bout (story 5.10) :
+  - « Inscrire un joueur » depuis la liste des inscriptions, avec recherche de membre ;
+  - « Réactiver l'inscription » sur une inscription annulée, y compris libérée à la clôture, avec ses jeux et
+    leur YAML ;
+  - « Confirmer pour le joueur » sur une inscription non confirmée, avec le mail de confirmation en option.
+- Les règles d'un joueur deviennent des avertissements pour l'admin, à valider avant de continuer :
+  - fenêtre d'inscription, capacité, email non vérifié, événement privé, en brouillon ou en cours ;
+  - nombre de jeux, jeu hors de l'événement, slot sans YAML.
+- Restent bloquants : événement terminé, joueur inconnu ou banni, confirmation sans aucun jeu.
+- Badges « Créée par un admin » et « Confirmée par un admin » dans le détail admin. Chaque action est tracée dans le
+  journal d'audit.
+
+### Modifié
+
+- Tests fonctionnels de l'API : les tables sont vidées par `DELETE` au lieu de `TRUNCATE` (story 33.30).
+  - Une passe locale crée environ 5 700 fichiers Postgres au lieu de 780 000.
+  - Le checkpoint qui suit passe de plus de 8 minutes à moins de 20 secondes.
+  - La suite va environ un tiers plus vite.
+
+## [0.58.0] - 2026-11-09
+
+Modification des inscriptions par les admins, compteurs de checks et d'items pour les succès et les quêtes, couleurs
+des pelles. Une migration (`Version20261108120000`), aucune variable.
+
+### À faire après le déploiement
+
+- Lancer `php bin/console app:games:backfill-locations` : les compteurs proposent les noms de lieux et d'items connus
+  de chaque jeu, absents des introspections anciennes (Ocarina of Time notamment).
+
+### Ajouté
+
+- Les admins modifient l'inscription d'un joueur depuis son détail : ajouter ou retirer des jeux, et modifier le YAML
+  de chaque slot avec l'éditeur du joueur, même après la clôture des inscriptions (story 5.9).
+- Compteurs de checks et d'items pour les succès : un compteur vise des lieux visités ou des items reçus ou envoyés
+  sur un jeu, en total, en maximum par partie ou en noms distincts, et un succès peut s'appuyer dessus
+  (story 30.57).
+- Objectif de quête hebdomadaire sur un compteur, par exemple « Battez Morpha » ou « 20 Gold Skulltula Tokens »,
+  quête collective comprise (story 41.72).
+- Chaque type de pelle a sa couleur, et les soldes principaux une animation courte (story 41.71). Rien ne bouge
+  avec la réduction des animations activée.
+
+### Modifié
+
+- La CI se relance quand une PR change de branche de base.
+- Postgres local : récupération rapide après un arrêt brutal de Docker Desktop (`recovery_init_sync_method=syncfs`
+  dans `docker-compose.yml`, développement seulement).
+
+## [0.57.2] - 2026-11-09
+
+Correctif de l'éditeur YAML et mise à jour de sécurité du serveur web de l'API. Aucune migration ni variable.
+
+### Corrigé
+
+- Une liste de nombres reste en nombres dans le YAML du joueur. L'éditeur la réécrivait entre guillemets
+  (`link_tunic_color: ['30', '105', '27']`) et la génération de Majora's Mask Recompiled échouait. Un YAML déjà
+  enregistré est réparé au prochain enregistrement du slot.
+- Une option numérique accepte sa valeur minimale dans « Valeurs numériques spécifiques » : le bouton « Ajouter »
+  restait grisé sur le minimum affiché (0 jeton de Skulltula d'or sur Majora's Mask), il fallait monter puis redescendre.
+
+### Sécurité
+
+- FrankenPHP 1.13.5 (image `api-web`) : release de sécurité FrankenPHP et `golang.org/x/net` 0.62.0
+  (CVE-2026-78661), qui bloquait la publication de l'image.
+
 ## [0.57.1] - 2026-11-05
 
 Mise à jour de sécurité des dépendances. Seule l'API change, aucune migration ni variable.

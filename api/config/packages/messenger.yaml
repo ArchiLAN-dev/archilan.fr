@@ -42,6 +42,11 @@ framework:
             'App\Communications\Application\Message\RegistrationReleasedMessage': async
             # Story 4.23: the hourly pass over unconfirmed registrations runs on the async worker.
             'App\Registrations\Application\Message\ProcessUnconfirmedRegistrationsMessage': async
+            # Story 51.3: the survey pass and its e-mails run on the async worker.
+            'App\Surveys\Application\Message\NotifySurveysMessage': async
+            # Story 52.6: the pass over declared departures.
+            'App\Sessions\Application\Message\RequestDeclaredDeparturesMessage': async
+            'App\Communications\Application\Message\SurveyNoticeMessage': async
             'App\Communications\Application\Message\PasswordResetMessage': async
             'App\Communications\Application\Message\EmailConfirmationMessage': async
             'App\Communications\Application\Message\SessionRunningMessage': async

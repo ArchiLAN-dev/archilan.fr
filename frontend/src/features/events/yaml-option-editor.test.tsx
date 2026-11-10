@@ -85,6 +85,32 @@ G:
     expect(html).toContain("Valeur 50");
   });
 
+  /**
+   * Majora's Mask: 0 Gold Skulltula Tokens is valid, but the stepper showed 0 with "Ajouter" disabled until it was
+   * changed - the minimum was only reachable by going up then down. The value shown is the one added.
+   */
+  test("la valeur minimale affichée peut être ajoutée sans la modifier", () => {
+    const yaml = `name: Alice
+game: G
+G:
+  required_skull_tokens:
+    random: 0
+    30: 50
+`;
+
+    const html = render(
+      <YamlOptionEditor
+        defaultYaml={yaml}
+        optionTypes={{ required_skull_tokens: { type: "range", min: 0, max: 30, default: 30 } }}
+        playerYaml={null}
+      />,
+    );
+
+    const addButton = html.match(/<button[^>]*>Ajouter<\/button>/)?.[0];
+    expect(addButton).toBeDefined();
+    expect(addButton).not.toMatch(/\sdisabled(=|\s|>)/);
+  });
+
   /** The parameterised random aliases had the same blind spot, and it predates story 9.33. */
   test("un alias aléatoire paramétré est affiché lui aussi", () => {
     const yaml = `name: Alice

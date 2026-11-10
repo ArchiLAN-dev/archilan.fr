@@ -155,6 +155,7 @@ export function AdminWeeklyRunTemplateDetail({ templateId }: { templateId: strin
             clear: () => clearOverride(`/admin/session-config/override/${templateId}`),
           }}
           scopeLabel="ce template (toutes ses entrées)"
+          showPasseur={false}
         />
       </CollapsibleConfigPanel>
 

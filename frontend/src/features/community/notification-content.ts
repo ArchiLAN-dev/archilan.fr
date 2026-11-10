@@ -294,6 +294,30 @@ export function contentFor(item: NotificationItem, fallback: string): Notificati
       const sentence = fallback.split(" : ")[0] ?? fallback;
       return base("action", "Action requise", icon("puzzle"), game !== "" ? [{ text: `${sentence} : ` }, strong(game)] : [{ text: fallback }]);
     }
+    case "departure_requested": {
+      // Story 52.6: a player left - who, from which party, and whether they said so or their declared departure passed.
+      const player = text(data, "playerName") || "Un joueur";
+      const session = text(data, "sessionTitle");
+      const why = text(data, "origin") === "schedule" ? "Départ déclaré passé, slot déconnecté" : "Départ signalé par le joueur";
+      return { ...base("action", "Départ", icon("unlock"), [strong(player), { text: " a quitté la partie : libérer son monde ?" }]), detail: session !== "" ? `${session} · ${why}` : why };
+    }
+    case "passeur_opened": {
+      // Story 52.4: a chest of the member's world opened for a blocked player, and the member's share.
+      const buyer = text(data, "buyerName") || "un joueur";
+      const location = text(data, "locationName");
+      const share = typeof data.share === "number" && data.share > 0 ? data.share : 0;
+      const detail = [location !== "" ? `Coffre : ${location}` : "", share > 0 ? `Tu reçois ${share} ${share > 1 ? "pelles" : "pelle"}` : ""].filter((part) => part !== "").join(" · ");
+      return { ...base("run", "Le Passeur", icon("pelles"), [{ text: "Le Passeur a ouvert un coffre de ton monde pour " }, strong(buyer)]), detail: detail !== "" ? detail : null };
+    }
+    case "survey_opened":
+    case "survey_reminder": {
+      // Story 51.3: the survey by its title, its event under it.
+      const survey = text(data, "surveyTitle") || "un sondage";
+      const event = text(data, "eventTitle");
+      const title: Segment[] =
+        item.type === "survey_reminder" ? [{ text: "Tu n'as pas encore répondu à " }, strong(survey)] : [{ text: "Nouveau sondage : " }, strong(survey)];
+      return { ...base("action", "Sondage", icon("comment"), title), detail: event !== "" ? event : null };
+    }
     case "game_apworld_updated": {
       // Story 38.22: a followed game got a new apworld on the site, or its first one.
       const game = text(data, "gameName") || "Un jeu suivi";

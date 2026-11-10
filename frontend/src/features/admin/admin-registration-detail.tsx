@@ -1,10 +1,14 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, ChevronLeft, Clock, CreditCard, Lock, Mail, RefreshCw, Shield, ShieldAlert, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronLeft, Clock, CreditCard, Lock, Mail, Pencil, RefreshCw, Shield, ShieldAlert, Trash2, XCircle } from "lucide-react";
 import Link from "next/link";
-import { use, useEffect, useId, useState } from "react";
+import { use, useEffect, useId, useState, type ReactNode } from "react";
 
+import { AdminRegistrationActions } from "@/features/admin/admin-registration-actions";
+import { AdminGamesEditor, AdminSlotYamlEditor } from "@/features/admin/admin-registration-editor";
 import { AdminNotesPanel } from "@/features/notes/admin-notes-panel";
+import { AdminPresencePanel } from "@/features/presence/presence-editor";
+import { RegistrationSurveysPanel } from "@/features/surveys/registration-surveys-panel";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
@@ -33,12 +37,17 @@ type RegistrationDetail = {
   usedPrivateAccess: boolean;
   createdAt: string;
   submittedAt: string | null;
+  /** Story 5.10: an admin registered or confirmed on the member's behalf (absent on older payloads). */
+  createdByAdmin?: boolean;
+  confirmedByAdmin?: boolean;
   participant: {
     userId: string;
     displayName: string | null;
     email: string;
   };
   gameSelectionComplete: boolean;
+  /** Story 5.9: without game selection on the event, there are no games to edit. */
+  gameSelectionEnabled: boolean;
   games: GameDetail[];
   payment: PaymentDetail | null;
 };
@@ -79,6 +88,8 @@ export function AdminRegistrationDetail({
   const [cancelState, setCancelState] = useState<CancelState>("idle");
   const [messageState, setMessageState] = useState<MessageState>("idle");
   const [syncState, setSyncState] = useState<SyncState>("idle");
+  // Story 5.9: bumped after an admin edit, to reload the detail from the API.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,7 +137,7 @@ export function AdminRegistrationDetail({
     return () => {
       cancelled = true;
     };
-  }, [eventId, registrationId]);
+  }, [eventId, registrationId, reloadKey]);
 
   async function handleCancelConfirmed() {
     setCancelState("cancelling");
@@ -211,6 +222,12 @@ export function AdminRegistrationDetail({
         onSendMessage={handleSendMessage}
         onMessageReset={() => { setMessageState("idle"); }}
         onTriggerSync={handleTriggerSync}
+        onReload={() => {
+          // A reactivated registration is no longer the one cancelled on this screen.
+          setCancelState("idle");
+          setReloadKey((key) => key + 1);
+        }}
+        registrationId={registrationId}
         state={state}
       />
     </section>
@@ -230,6 +247,8 @@ function DetailBody({
   onSendMessage,
   onMessageReset,
   onTriggerSync,
+  onReload,
+  registrationId,
   state,
 }: {
   cancelState: CancelState;
@@ -242,8 +261,13 @@ function DetailBody({
   onSendMessage: (subject: string, body: string) => Promise<void>;
   onMessageReset: () => void;
   onTriggerSync: () => Promise<void>;
+  onReload: () => void;
+  registrationId: string;
   state: DetailState;
 }) {
+  const [editingGames, setEditingGames] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+
   if (state.kind === "loading") {
     return <p className="text-muted-foreground">Chargement...</p>;
   }
@@ -277,6 +301,8 @@ function DetailBody({
   }
 
   const { detail } = state;
+  // Story 5.9: an active registration can be edited by the admin, whatever the registration window.
+  const editable = isEditableByAdmin(detail.status, cancelState);
 
   return (
     <div className="grid gap-6">
@@ -286,6 +312,8 @@ function DetailBody({
         onCancelRequested={onCancelRequested}
       />
       <AdminNotesPanel targetId={detail.registrationId} targetType="registration" />
+      <RegistrationSurveysPanel eventId={eventId} registrationId={registrationId} />
+      <AdminPresencePanel eventId={eventId} registrationId={registrationId} />
       {cancelState === "confirming" ? (
         <CancelDialog
           onCancel={onCancelDismissed}
@@ -302,31 +330,79 @@ function DetailBody({
           Impossible d&apos;annuler l&apos;inscription. Réessaie.
         </p>
       ) : null}
+      {cancelState === "cancelling" || cancelState === "confirming" ? null : (
+        <AdminRegistrationActions
+          eventId={eventId}
+          onDone={onReload}
+          registrationId={registrationId}
+          status={detail.status}
+          submittedAt={detail.submittedAt}
+        />
+      )}
       <PaymentCard eventId={eventId} payment={detail.payment} syncState={syncState} onTriggerSync={onTriggerSync} />
       <MessageForm messageState={messageState} onReset={onMessageReset} onSubmit={onSendMessage} />
-      {detail.games.length > 0 ? (
-        <div className="grid gap-4">
-          <div className="flex items-center gap-3">
-            <h2 className="font-heading text-xl font-semibold text-foreground">Jeux sélectionnés</h2>
-            {detail.gameSelectionComplete ? (
-              <span className="inline-flex items-center gap-1 rounded border border-success/40 bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
-                <CheckCircle2 aria-hidden="true" className="size-3" />
-                Complet
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 rounded border border-danger/40 bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger">
-                <AlertTriangle aria-hidden="true" className="size-3" />
-                Incomplet
-              </span>
-            )}
-          </div>
-          {detail.games.map((game) => (
-            <GameCard game={game} key={game.slotId} />
-          ))}
+      {editingGames && editable ? (
+        <AdminGamesEditor
+          eventId={eventId}
+          registrationId={registrationId}
+          slots={detail.games}
+          onClose={() => { setEditingGames(false); }}
+          onSaved={() => {
+            setEditingGames(false);
+            onReload();
+          }}
+        />
+      ) : null}
+      <div className="grid gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="font-heading text-xl font-semibold text-foreground">Jeux sélectionnés</h2>
+          {detail.games.length === 0 ? null : detail.gameSelectionComplete ? (
+            <span className="inline-flex items-center gap-1 rounded border border-success/40 bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+              <CheckCircle2 aria-hidden="true" className="size-3" />
+              Complet
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded border border-danger/40 bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger">
+              <AlertTriangle aria-hidden="true" className="size-3" />
+              Incomplet
+            </span>
+          )}
+          {editable && detail.gameSelectionEnabled && !editingGames && editingSlotId === null ? (
+            <button
+              className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded border border-border px-3 text-sm text-foreground hover:border-accent"
+              onClick={() => {
+                setEditingSlotId(null);
+                setEditingGames(true);
+              }}
+              type="button"
+            >
+              <Pencil aria-hidden="true" className="size-4" />
+              Modifier les jeux
+            </button>
+          ) : null}
         </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">Aucun jeu sélectionné.</p>
-      )}
+        {detail.games.length > 0 ? (
+          detail.games.map((game) => (
+            <GameCard
+              game={game}
+              key={game.slotId}
+              onEditYaml={editable && !editingGames && editingSlotId !== game.slotId ? () => { setEditingSlotId(game.slotId); } : undefined}
+            >
+              {editable && editingSlotId === game.slotId ? (
+                <AdminSlotYamlEditor
+                  eventId={eventId}
+                  registrationId={registrationId}
+                  slotId={game.slotId}
+                  onClose={() => { setEditingSlotId(null); }}
+                  onSaved={onReload}
+                />
+              ) : null}
+            </GameCard>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">Aucun jeu sélectionné.</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -353,6 +429,8 @@ function ParticipantCard({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={detail.status} />
+          {detail.createdByAdmin === true ? <AdminOriginBadge label="Créée par un admin" /> : null}
+          {detail.confirmedByAdmin === true ? <AdminOriginBadge label="Confirmée par un admin" /> : null}
           {detail.usedPrivateAccess ? (
             <span className="inline-flex items-center gap-1 rounded border border-accent-warm/40 bg-accent-warm/10 px-2 py-0.5 text-xs font-semibold text-accent-warm">
               <Lock aria-hidden="true" className="size-3" />
@@ -750,7 +828,14 @@ function MessageForm({
 
 // ─── GameCard ─────────────────────────────────────────────────────────────────
 
-export function GameCard({ game }: { game: GameDetail }) {
+type GameCardProps = {
+  game: GameDetail;
+  /** Story 5.9: offered on an editable registration - opens the YAML editor below the card. */
+  onEditYaml?: () => void;
+  children?: ReactNode;
+};
+
+export function GameCard({ game, onEditYaml, children }: GameCardProps) {
   const statusLabel = game.warnings.length > 0
     ? "Avertissement"
     : "YAML manquant";
@@ -767,6 +852,16 @@ export function GameCard({ game }: { game: GameDetail }) {
         <h3 className="font-heading text-base font-semibold text-foreground">{game.gameName}</h3>
         {!game.isComplete ? (
           <span className="ml-auto text-xs text-danger">{statusLabel}</span>
+        ) : null}
+        {onEditYaml ? (
+          <button
+            className={`${game.isComplete ? "ml-auto " : ""}inline-flex min-h-9 items-center gap-1.5 rounded border border-border px-3 text-xs text-foreground hover:border-accent`}
+            onClick={onEditYaml}
+            type="button"
+          >
+            <Pencil aria-hidden="true" className="size-3.5" />
+            Modifier le YAML
+          </button>
         ) : null}
       </div>
 
@@ -795,6 +890,7 @@ export function GameCard({ game }: { game: GameDetail }) {
       ) : (
         <p className="px-5 py-4 text-sm text-muted-foreground">Aucun YAML enregistré pour ce slot.</p>
       )}
+      {children}
     </div>
   );
 }
@@ -819,7 +915,22 @@ function StatusBadge({ status }: { status: RegistrationDetail["status"] }) {
   );
 }
 
+/** Story 5.10: the registration was made or confirmed by an admin, in the member's place. */
+function AdminOriginBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent-text">
+      <Shield aria-hidden="true" className="size-3" />
+      {label}
+    </span>
+  );
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Story 5.9: an admin edits any registration still active (a cancelled one is left as it is). */
+export function isEditableByAdmin(status: RegistrationDetail["status"], cancelState: CancelState): boolean {
+  return status === "reserved" && cancelState !== "cancelled" && cancelState !== "cancelling";
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -863,6 +974,8 @@ export function isDetailPayload(payload: unknown): payload is { data: Registrati
       "status" in data &&
       "participant" in data &&
       "games" in data &&
+      "gameSelectionEnabled" in data &&
+      typeof data.gameSelectionEnabled === "boolean" &&
       Array.isArray(data.games) &&
       data.games.every(isGameDetail) &&
       "payment" in data,

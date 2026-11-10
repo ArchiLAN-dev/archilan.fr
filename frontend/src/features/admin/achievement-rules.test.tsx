@@ -19,6 +19,7 @@ const options: AchievementFormOptions = {
   operators: [">=", ">", "=", "!=", "<=", "<", "between"],
   groupOps: ["all", "any", "none"],
   events: [{ id: "lan3", title: "ArchiLAN #3" }],
+  counters: [{ id: "c-1", label: "Morpha vaincu" }],
 };
 
 const cond = (fact: string, value: number, operator: RuleCondition["operator"] = ">="): RuleCondition => ({ fact, operator, value });
@@ -40,6 +41,7 @@ describe("achievement rules", () => {
     expect(familyOf("itemsFromOthers")).toBe("progression");
     expect(familyOf("event_goal:lan3")).toBe("objectifs");
     expect(familyOf("superlative:most_generous")).toBe("recaps");
+    expect(familyOf("counter:c-1")).toBe("progression");
     expect(familyOf("weeklyDuelsWon")).toBe("ensemble");
     expect(familyOf("unknown")).toBe("autres");
     expect(factsByFamily(options).map((g) => g.family)).toEqual(["parties", "progression", "objectifs", "quetes", "recaps"]);

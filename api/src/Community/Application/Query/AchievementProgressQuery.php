@@ -10,6 +10,7 @@ use App\Community\Domain\Entity\AchievementCollection;
 use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
 use App\Community\Domain\Repository\AchievementCollectionRepositoryInterface;
+use App\Community\Domain\Repository\AchievementCounterRepositoryInterface;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Service\AchievementRuleFactory;
@@ -29,6 +30,7 @@ final readonly class AchievementProgressQuery
         private AchievementCollectionRepositoryInterface $collections,
         private MetricBagBuilder $metrics,
         private EventCatalogueQueryInterface $events,
+        private AchievementCounterRepositoryInterface $counters,
     ) {
     }
 
@@ -80,21 +82,35 @@ final readonly class AchievementProgressQuery
     }
 
     /**
-     * Each condition gets the label of its criterion, an event's by its title.
+     * Each condition gets the label of its criterion, an event's by its title, a counter's (story 30.57) by its label.
      *
-     * @param array<mixed>               $node
-     * @param array<string, string>|null $eventTitles
+     * @param array<mixed> $node
      *
      * @return array<string, mixed>
      */
-    private function labelled(array $node, ?array $eventTitles = null): array
+    private function labelled(array $node): array
     {
-        if (null === $eventTitles) {
-            $eventTitles = [];
-            foreach ($this->events->selectableEvents() as $event) {
-                $eventTitles[$event['id']] = $event['title'];
-            }
+        $eventTitles = [];
+        foreach ($this->events->selectableEvents() as $event) {
+            $eventTitles[$event['id']] = $event['title'];
         }
+        $counterLabels = [];
+        foreach ($this->counters->findByIds(AchievementMetricCatalog::counterIdsIn($node)) as $counter) {
+            $counterLabels[$counter->getId()] = $counter->getLabel();
+        }
+
+        return $this->labelledWith($node, $eventTitles, $counterLabels);
+    }
+
+    /**
+     * @param array<mixed>          $node
+     * @param array<string, string> $eventTitles
+     * @param array<string, string> $counterLabels
+     *
+     * @return array<string, mixed>
+     */
+    private function labelledWith(array $node, array $eventTitles, array $counterLabels): array
+    {
         $out = [];
         foreach ($node as $field => $value) {
             $out[(string) $field] = $value;
@@ -102,13 +118,16 @@ final readonly class AchievementProgressQuery
         $fact = $node['fact'] ?? null;
         if (is_string($fact)) {
             $eventId = AchievementMetricCatalog::eventIdFromFact($fact);
-            $out['label'] = null !== $eventId
-                ? sprintf('Objectif atteint à « %s »', $eventTitles[$eventId] ?? 'un événement')
-                : AchievementMetricCatalog::facts()[$fact] ?? $fact;
+            $counterId = AchievementMetricCatalog::counterIdFromFact($fact);
+            $out['label'] = match (true) {
+                null !== $eventId => sprintf('Objectif atteint à « %s »', $eventTitles[$eventId] ?? 'un événement'),
+                null !== $counterId => $counterLabels[$counterId] ?? 'Compteur supprimé',
+                default => AchievementMetricCatalog::facts()[$fact] ?? $fact,
+            };
         }
         $rules = $node['rules'] ?? null;
         if (is_array($rules)) {
-            $out['rules'] = array_values(array_map(fn (mixed $child): array => is_array($child) ? $this->labelled($child, $eventTitles) : [], $rules));
+            $out['rules'] = array_values(array_map(fn (mixed $child): array => is_array($child) ? $this->labelledWith($child, $eventTitles, $counterLabels) : [], $rules));
         }
 
         return $out;

@@ -33,6 +33,7 @@ final readonly class DddArchitectureValidator
         'Community',
         'Wallet',
         'Notes',
+        'Surveys',
     ];
 
     /**
