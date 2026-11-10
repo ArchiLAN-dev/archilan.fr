@@ -55,6 +55,16 @@ describe("le Passeur", () => {
     expect(passeurRefreshIn(null, opens)).toBe(60_000);
   });
 
+  test("a co-player of the slot sees the offer but cannot call (story 11.10)", () => {
+    const html = renderToStaticMarkup(<PasseurView canCall={false} offer={offer} onCall={neverCalled} />);
+
+    expect(html).toContain("Grappin");
+    expect(html).toContain("disabled=\"\"");
+    expect(html).toContain("Seul le titulaire du slot peut faire appel au Passeur.");
+    expect(isPasseurState({ enabled: true, canCall: false, offer })).toBe(true);
+    expect(isPasseurState({ enabled: true, canCall: "no", offer })).toBe(false);
+  });
+
   test("the panel says whose chest, what it holds, and the price of the moment", () => {
     const html = renderToStaticMarkup(<PasseurView offer={offer} onCall={neverCalled} />);
 

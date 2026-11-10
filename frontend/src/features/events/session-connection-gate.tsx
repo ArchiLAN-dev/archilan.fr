@@ -6,6 +6,7 @@ import { AlertCircle, Check, Clock, Copy, Download, XCircle } from "lucide-react
 
 import { env } from "@/lib/env";
 import { ConnectionFields } from "@/components/connection-fields";
+import { EventSlotCoPlayers } from "./event-slot-co-players";
 import type { ConnectionSlot } from "@/components/slot-name-field";
 import { DEFAULT_STALE_TIME, REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useSSE } from "@/hooks/use-sse";
@@ -241,7 +242,7 @@ function ConnectionView({
           <h2 className="font-heading text-xl font-semibold text-foreground">Tes créneaux</h2>
           <div className="grid gap-3">
             {data.slots.map((slot) => (
-              <SlotCard key={slot.slotOrder} slot={slot} />
+              <SlotCard eventId={data.eventId} key={slot.slotOrder} slot={slot} />
             ))}
           </div>
         </section>
@@ -442,14 +443,21 @@ function ConnectionField({ label, value }: { label: string; value: string }) {
 
 // ─── Slot card ────────────────────────────────────────────────────────────────
 
-function SlotCard({ slot }: { slot: SessionSlotInfo }) {
+function SlotCard({ slot, eventId }: { slot: SessionSlotInfo; eventId: string | null }) {
   return (
-    <div className="flex items-center justify-between gap-3 card-glow rounded-lg border border-border px-4 py-3">
-      <div className="min-w-0">
-        <p className="font-semibold text-foreground">{slot.gameName}</p>
-        <p className="text-xs text-muted-foreground">Slot : {slot.slotName}</p>
+    <div className="grid gap-3 card-glow rounded-lg border border-border px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-foreground">{slot.gameName}</p>
+          <p className="text-xs text-muted-foreground">Slot : {slot.slotName}</p>
+          {slot.coPlayed ? (
+            <p className="mt-1 text-xs text-accent-text">Tu joues ce slot en co-joueur, avec son titulaire.</p>
+          ) : null}
+        </div>
+        <ConnectionField label="Slot" value={slot.slotName} />
       </div>
-      <ConnectionField label="Slot" value={slot.slotName} />
+      {/* Story 11.10: the holder adds the event's confirmed registrants who play this slot with them. */}
+      {eventId && slot.slotId ? <EventSlotCoPlayers eventId={eventId} slotId={slot.slotId} /> : null}
     </div>
   );
 }

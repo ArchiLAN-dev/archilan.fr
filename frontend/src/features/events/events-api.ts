@@ -501,9 +501,15 @@ export type SessionSlotInfo = {
   slotOrder: number;
   gameId: string;
   gameName: string;
+  /** Story 11.10: the game slot id (its co-players), null on older payloads. */
+  slotId: string | null;
+  /** Story 11.10: played on someone else's registration, as a co-player. */
+  coPlayed: boolean;
 };
 
 export type ConnectionData = {
+  /** Story 11.10: null on older payloads. */
+  eventId: string | null;
   session: SessionPayload | null;
   slots: SessionSlotInfo[];
 };
@@ -538,7 +544,14 @@ function parseSessionSlot(v: unknown): SessionSlotInfo | null {
   if (!hasNumberProp(v, "slotOrder")) return null;
   if (!hasStringProp(v, "gameId")) return null;
   if (!hasStringProp(v, "gameName")) return null;
-  return { slotName: v.slotName, slotOrder: v.slotOrder, gameId: v.gameId, gameName: v.gameName };
+  return {
+    slotName: v.slotName,
+    slotOrder: v.slotOrder,
+    gameId: v.gameId,
+    gameName: v.gameName,
+    slotId: hasStringProp(v, "slotId") ? v.slotId : null,
+    coPlayed: hasBooleanProp(v, "coPlayed") ? v.coPlayed : false,
+  };
 }
 
 function parseConnectionData(payload: unknown): ConnectionData | null {
@@ -556,7 +569,9 @@ function parseConnectionData(payload: unknown): ConnectionData | null {
     return parsed ? [parsed] : [];
   });
 
-  return { session, slots };
+  const eventId: unknown = Reflect.get(d, "eventId");
+
+  return { eventId: typeof eventId === "string" ? eventId : null, session, slots };
 }
 
 export async function fetchSessionConnection(

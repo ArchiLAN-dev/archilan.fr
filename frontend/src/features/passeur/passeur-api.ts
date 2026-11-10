@@ -19,7 +19,8 @@ export type PasseurOffer = {
   availableAt?: string | null;
 };
 
-export type PasseurState = { enabled: boolean; offer: PasseurOffer | null };
+/** Story 11.10: `canCall` false for a co-player of the slot (only its holder calls); absent on older payloads. */
+export type PasseurState = { enabled: boolean; canCall?: boolean; offer: PasseurOffer | null };
 
 export type PasseurCallResult =
   | { kind: "ok"; itemName: string; absentPlayerName: string; price: number }
@@ -54,7 +55,13 @@ export function isPasseurOffer(v: unknown): v is PasseurOffer {
 }
 
 export function isPasseurState(v: unknown): v is PasseurState {
-  return isObject(v) && hasBooleanProp(v, "enabled") && "offer" in v && (v.offer === null || isPasseurOffer(v.offer));
+  return (
+    isObject(v) &&
+    hasBooleanProp(v, "enabled") &&
+    (!("canCall" in v) || typeof v.canCall === "boolean") &&
+    "offer" in v &&
+    (v.offer === null || isPasseurOffer(v.offer))
+  );
 }
 
 /** Null when the player may not see it, or the party cannot say: the panel stays hidden. */

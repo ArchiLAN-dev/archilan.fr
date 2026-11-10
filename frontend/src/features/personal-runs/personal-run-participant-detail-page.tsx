@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { SlotNeedsReview } from "@/features/games/slot-needs-review";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import { fetchParticipantGameSelection, fetchPersonalRun } from "./personal-runs-api";
+import { fetchParticipantGameSelection, fetchPersonalRun, replaceSlotCoPlayers } from "./personal-runs-api";
 import type { ParticipantGameSlot, ParticipantLevel, ParticipantStats } from "./types";
 import { PersonalRunYamlViewerDialog } from "./personal-run-yaml-viewer-dialog";
 import { SlotCoPlayers, type CoPlayerCandidate } from "./slot-co-players";
@@ -309,8 +309,7 @@ export function PersonalRunParticipantDetailPage({
                   candidates={coPlayerCandidates}
                   coPlayers={slot.coPlayers ?? []}
                   onChanged={() => detailQuery.refetch()}
-                  runId={runId}
-                  slotId={slot.slotId}
+                  onSave={(userIds) => replaceSlotCoPlayers(runId, slot.slotId, userIds)}
                 />
 
                 {slot.playerYaml !== null ? (

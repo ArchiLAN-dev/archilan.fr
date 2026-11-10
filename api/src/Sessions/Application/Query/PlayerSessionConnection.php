@@ -31,7 +31,7 @@ final readonly class PlayerSessionConnection
      *   - the registration exists and belongs to the given user
      *   - the registration is confirmed (reserved + submittedAt set)
      *
-     * @return array{session: SessionView|null, slots: list<array{slotName: string, slotOrder: int, gameId: string, gameName: string}>}|null
+     * @return array{eventId: string, session: SessionView|null, slots: list<array{slotName: string, slotOrder: int, gameId: string, gameName: string, slotId: string|null, coPlayed: bool}>}|null
      */
     public function getConnection(string $registrationId, string $userId): ?array
     {
@@ -47,15 +47,15 @@ final readonly class PlayerSessionConnection
             return null;
         }
 
-        $sessionId = $this->playerConnectionQuery->findLatestSessionIdByRegistrationId($registrationId);
+        $sessionId = $this->playerConnectionQuery->findLatestSessionIdForPlayer($registration->getEventId(), $registrationId, $userId);
 
         if (null === $sessionId) {
-            return ['session' => null, 'slots' => []];
+            return ['eventId' => $registration->getEventId(), 'session' => null, 'slots' => []];
         }
 
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
-            return ['session' => null, 'slots' => []];
+            return ['eventId' => $registration->getEventId(), 'session' => null, 'slots' => []];
         }
 
         // Owned slots plus the ones this member was added to as a co-player (story 16.17): a shared
@@ -80,11 +80,17 @@ final readonly class PlayerSessionConnection
                 'slotOrder' => $s->getSlotOrder(),
                 'gameId' => $s->getGameId(),
                 'gameName' => $nameById[$s->getGameId()] ?? $s->getGameId(),
+                // Story 11.10: the game slot id (for its co-players) and whether the member plays it on someone
+                // else's registration.
+                'slotId' => $s->getSlotId(),
+                'coPlayed' => $s->getRegistrationId() !== $registrationId,
             ],
             $sessionSlots,
         );
 
         return [
+            // Story 11.10: the event, for the co-players of each slot.
+            'eventId' => $registration->getEventId(),
             'session' => $session->payload(),
             'slots' => $slots,
         ];

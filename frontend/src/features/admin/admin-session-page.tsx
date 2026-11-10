@@ -60,6 +60,7 @@ import { GenerationFailureNotice, TechnicalLog } from "@/features/games/generati
 import { PasseurJournal } from "@/features/passeur/passeur-journal";
 import { DeparturesPanel } from "@/features/departures/departures";
 import { DependencyMapPanel } from "@/features/dependencies/dependency-map";
+import { EventSlotCoPlayers } from "@/features/events/event-slot-co-players";
 import {
   canCreateSession,
   charLength,
@@ -1164,6 +1165,7 @@ function SessionDetail({
                       <th className="px-4 py-3 font-medium">#</th>
                       <th className="px-4 py-3 font-medium">Nom de slot</th>
                       <th className="px-4 py-3 font-medium">Inscription</th>
+                      <th className="px-4 py-3 font-medium">Co-joueurs</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1172,6 +1174,10 @@ function SessionDetail({
                         <td className="px-4 py-3 text-muted-foreground">{slot.slotOrder + 1}</td>
                         <td className="px-4 py-3 font-mono font-semibold text-foreground">{slot.slotName}</td>
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{slot.registrationId.slice(0, 8)}…</td>
+                        {/* Story 11.10: other registrants of the event who play this slot. */}
+                        <td className="min-w-56 px-4 py-3">
+                          {slot.slotId ? <EventSlotCoPlayers eventId={eventId} slotId={slot.slotId} /> : null}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
