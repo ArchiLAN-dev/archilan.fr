@@ -1,6 +1,6 @@
 # Story 50.7: Brouillons et runs perso hors des listes publiques
 
-**Status:** review
+**Status:** done
 **Epic:** 50 - Sécurité
 **Date:** 2026-11-06
 
