@@ -107,6 +107,24 @@ final class PasseurCandidatesTest extends FunctionalTestCase
         self::assertSame(['Claw', 'Dash'], array_column($data['candidates'], 'itemName'));
     }
 
+    public function testABlockSuspendedByARestartOffersNoPasseur(): void
+    {
+        // Story 52.4: until the slot's next state confirms it, a block interrupted by a restart is not one.
+        $episode = SlotBlockEpisode::open($this->sessionId, '1', 'Alice', new \DateTimeImmutable('-10 minutes'), 8);
+        $episode->suspend(new \DateTimeImmutable('-1 minute'));
+        $this->entityManager->persist($episode);
+        $this->entityManager->flush();
+
+        $this->loginAs($this->admin);
+        $this->client->request('GET', $this->url);
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertFalse($data['blocked']);
+        self::assertSame([], $this->bridge->measured);
+    }
+
     public function testABridgeThatCannotAnswerIsA503AndAnUnknownSessionA404(): void
     {
         $this->blockAlice();

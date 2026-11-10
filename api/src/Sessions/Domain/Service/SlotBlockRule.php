@@ -48,17 +48,34 @@ final class SlotBlockRule
         return '' !== $slotName && self::OBSERVER_SLOT_NAME !== $slotName;
     }
 
-    public static function decide(?SlotBlockEpisode $episode, SlotBlockState $state, \DateTimeImmutable $now): SlotBlockDecision
+    /**
+     * @param \DateTimeImmutable|null $stoppedAt     the session's last stop (story 40.3)
+     * @param int|null                $itemsReceived the slot's received items in this push, when the bridge says
+     */
+    public static function decide(?SlotBlockEpisode $episode, SlotBlockState $state, \DateTimeImmutable $now, ?\DateTimeImmutable $stoppedAt = null, ?int $itemsReceived = null): SlotBlockDecision
     {
         if (null === $episode) {
             return SlotBlockState::Blocked === $state ? SlotBlockDecision::Open : SlotBlockDecision::Ignore;
         }
 
+        // Story 40.3: the bridge only reports an unknown state when it starts, rebuilt from the last save - the
+        // block is no longer confirmed. Story 52.4: it is suspended, not forgotten.
+        if (SlotBlockState::Unknown === $state) {
+            return SlotBlockDecision::Suspend;
+        }
+
+        // Interrupted by a restart (suspended, or begun before the last stop): the first state seen afterwards is
+        // no way out of a block, and a block again is the same one only when nothing was received in between.
+        if ($episode->isSuspended() || $episode->predates($stoppedAt)) {
+            if (SlotBlockState::Blocked !== $state) {
+                return SlotBlockDecision::CloseSilently;
+            }
+
+            return $episode->continuesWith($itemsReceived) ? SlotBlockDecision::Resume : SlotBlockDecision::Reopen;
+        }
+
         return match ($state) {
             SlotBlockState::Blocked => SlotBlockDecision::Keep,
-            // Story 40.3: the bridge only reports an unknown state when it starts, rebuilt from the last save -
-            // what was before no longer holds, and the first recompute must not pass for leaving a block.
-            SlotBlockState::Unknown => SlotBlockDecision::CloseSilently,
             SlotBlockState::Settled => SlotBlockDecision::CloseSilently,
             SlotBlockState::Unblocked => $episode->lastedAtLeast(self::MIN_BLOCKED_SECONDS, $now)
                 ? SlotBlockDecision::CloseAndNotify

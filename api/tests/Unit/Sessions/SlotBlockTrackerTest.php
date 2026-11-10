@@ -93,10 +93,59 @@ final class SlotBlockTrackerTest extends TestCase
         $tracker->track('session-1', $this->payload(reachableNow: 0));
         $this->clock->sleep(3600);
         $tracker->track('session-1', $this->payload(reachableNow: null));
-        self::assertSame([], $this->episodes->all);
+        self::assertCount(1, $this->episodes->all, 'story 52.4: suspended, not forgotten');
+        self::assertTrue(array_values($this->episodes->all)[0]->isSuspended());
 
         $tracker->track('session-1', $this->payload(reachableNow: 3));
+        self::assertSame([], $this->episodes->all);
         self::assertSame([], $this->bus->messages);
+    }
+
+    public function testABlockKeepsItsStartAcrossARestartWhenNothingWasReceived(): void
+    {
+        // Story 52.4: the Passeur's price decreases from the start of the block - a restart must not reset it.
+        $tracker = $this->tracker($this->privateRun());
+
+        $tracker->track('session-1', $this->payload(reachableNow: 0));
+        $this->clock->sleep(3600);
+        $tracker->track('session-1', $this->payload(reachableNow: null));
+        $tracker->track('session-1', $this->payload(reachableNow: 0));
+
+        self::assertCount(1, $this->episodes->all);
+        $episode = array_values($this->episodes->all)[0];
+        self::assertFalse($episode->isSuspended());
+        self::assertEquals(new \DateTimeImmutable('2026-09-29T10:00:00+00:00'), $episode->getBlockedSince());
+
+        $this->clock->sleep(300);
+        $tracker->track('session-1', $this->payload(reachableNow: 2, items: 9));
+        self::assertCount(1, $this->bus->messages, 'a resumed block is confirmed: leaving it notifies');
+        self::assertEquals(new \DateTimeImmutable('2026-09-29T10:00:00+00:00'), $this->releases->all[0]->getBlockedSince());
+    }
+
+    public function testABlockAfterARestartIsNewWhenTheSlotReceivedSomething(): void
+    {
+        $tracker = $this->tracker($this->privateRun());
+
+        $tracker->track('session-1', $this->payload(reachableNow: 0));
+        $this->clock->sleep(3600);
+        $tracker->track('session-1', $this->payload(reachableNow: null));
+        $tracker->track('session-1', $this->payload(reachableNow: 0, items: 9));
+
+        self::assertCount(1, $this->episodes->all);
+        self::assertEquals(new \DateTimeImmutable('2026-09-29T11:00:00+00:00'), array_values($this->episodes->all)[0]->getBlockedSince());
+    }
+
+    public function testAMissedRestartIsSeenThroughTheLastStop(): void
+    {
+        // No unknown state was received, but the session stopped meanwhile: the block resumes all the same.
+        $session = $this->stoppedSessionAt($this->clock->now()->modify('+10 minutes'));
+        $tracker = $this->tracker($this->privateRun(), session: $session);
+
+        $tracker->track('session-1', $this->payload(reachableNow: 0));
+        $this->clock->sleep(3600);
+        $tracker->track('session-1', $this->payload(reachableNow: 0));
+
+        self::assertEquals(new \DateTimeImmutable('2026-09-29T10:00:00+00:00'), array_values($this->episodes->all)[0]->getBlockedSince());
     }
 
     public function testABlockBegunBeforeTheLastStopNeverNotifies(): void
@@ -230,21 +279,21 @@ final class SlotBlockTrackerTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function payload(?int $reachableNow): array
+    private function payload(?int $reachableNow, int $items = 8): array
     {
-        return ['slots' => ['1' => $this->slot('Alice_HK1', $reachableNow)]];
+        return ['slots' => ['1' => $this->slot('Alice_HK1', $reachableNow, $items)]];
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function slot(string $name, ?int $reachableNow): array
+    private function slot(string $name, ?int $reachableNow, int $items = 8): array
     {
         return [
             'slot_name' => $name,
             'checks_done' => 12,
             'checks_total' => 47,
-            'items_received' => 8,
+            'items_received' => $items,
             'client_status' => 20,
             'goal_reached_at' => null,
             'reachable_now' => $reachableNow,

@@ -1,6 +1,6 @@
 # Story 52.5 - Ce que le Passeur a ouvert
 
-**Status:** review
+**Status:** done
 **Epic:** 52 - Le Passeur (`_bmad-output/planning-artifacts/epics/epic-52-passeur.md`)
 **Date:** 2026-11-09
 **Branche:** `feature/epic-52-story-5-ce-que-le-passeur-a-ouvert` (depuis `develop`)

@@ -49,7 +49,8 @@ final readonly class PasseurCandidatesQuery
         // Decision 0: the Passeur only exists for a slot in BK.
         $blockedSince = null;
         foreach ($this->episodes->findBySessionId($sessionId) as $episode) {
-            if ((string) $slotIndex === $episode->getSlotIndex()) {
+            // Story 52.4: a block suspended by a restart is not confirmed until the slot's next state.
+            if ((string) $slotIndex === $episode->getSlotIndex() && !$episode->isSuspended()) {
                 $blockedSince = $episode->getBlockedSince();
             }
         }
