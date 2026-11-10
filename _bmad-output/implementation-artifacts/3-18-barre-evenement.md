@@ -23,8 +23,9 @@ colonne qui réduit la frise des présences et les tableaux d'inscriptions.
 
 1. La colonne disparaît : une **barre d'événement** en haut de toutes les pages de l'événement, sur toute la largeur.
    - Ligne 1 : lien « Événements », nom de l'événement, pastille de statut, dates et lieu en petit.
-   - Ligne 2 : onglets avec icône (mêmes icônes que les cartes du hub), soulignés quand ils sont actifs, groupes
-     séparés par un trait vertical discret (Vue d'ensemble | Préparation | Joueurs | Jour J).
+   - Ligne 2 : onglets avec icône (mêmes icônes que les cartes du hub), **du même style que les onglets du reste du
+     site** (pelles, classement, run perso, sondage ; demande de Jean) : texte en gras, soulignement accent sur
+     l'actif, sans séparateurs. Le style est partagé dans `components/ui/tabs.ts` (`TAB_LIST_CLASS`, `tabClassName`).
    - Défilement horizontal sur mobile, la barre reste collée en haut au défilement (fond opaque).
 2. La vue d'ensemble ne répète plus le nom ni les dates : la barre les porte. Elle garde les transitions de statut
    et les cartes de sections.
@@ -35,7 +36,7 @@ colonne qui réduit la frise des présences et les tableaux d'inscriptions.
 1. Aucune page sous `/admin/evenements/{id}` n'a de colonne de navigation ; le contenu prend toute la largeur.
 2. La barre montre le nom, le statut, les dates et le lieu, et un lien vers la liste des événements.
 3. Chaque section est un onglet avec icône ; l'onglet courant porte `aria-current="page"` et un soulignement.
-4. Les groupes sont séparés visuellement ; l'ordre et les sections sont ceux de 3.17.
+4. Les onglets ont le style de ceux du reste du site ; l'ordre et les sections sont ceux de 3.17.
 5. Sur mobile, les onglets défilent horizontalement sans faire déborder la page.
 6. La vue d'ensemble n'affiche plus de second titre de l'événement.
 7. Tests : rendu de la barre (titre, statut, onglet courant, séparateurs), vue d'ensemble sans h1 en double.
@@ -52,7 +53,7 @@ colonne qui réduit la frise des présences et les tableaux d'inscriptions.
 
 - `admin-event-nav.tsx` rend deux frères : l'en-tête (lien Événements, nom, statut, mise en avant, dates, lieu,
   visibilité ; squelette pendant le chargement) et la barre d'onglets collante (`top-14` sous l'en-tête mobile de
-  l'admin, `top-0` à partir de `md`), une icône par onglet, séparateurs `data-separator` entre les groupes.
+  l'admin, `top-0` à partir de `md`), une icône par onglet, style d'onglet commun `components/ui/tabs.ts`.
 - `layout.tsx` : plus de grille à deux colonnes. La vue d'ensemble perd son h1 au nom de l'événement (titre
   « Vue d'ensemble » à côté des transitions).
 - Vérifié en local sur 127.0.0.1 (démo 4.23) en desktop : barre pleine largeur, onglet courant souligné.

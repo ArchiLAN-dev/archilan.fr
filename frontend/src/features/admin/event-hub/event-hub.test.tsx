@@ -174,8 +174,8 @@ describe("the sections of an event (story 3.17)", () => {
     expect(html).toContain("Publié");
     expect(html).toContain("Accueil");
     expect(html).toContain("Clermont-Ferrand");
-    // Four groups, three separators; every tab has its icon.
-    expect(html.match(/data-separator=""/g)).toHaveLength(3);
+    // The site's tabs, each with its icon.
+    expect(html).toContain("border-b-2 px-4 text-sm font-semibold");
     expect(html.match(/<a [^>]*href="\/admin\/evenements\/e1[^"]*"[^>]*><svg/g)).toHaveLength(9);
     expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/evenements\/e1\/presences"/);
     // No side column any more.
