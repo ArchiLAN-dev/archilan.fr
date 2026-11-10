@@ -4,79 +4,51 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen, Bot, Calendar, ChartColumn, CreditCard, Flag, Frame, Gamepad2, Handshake, HeartPulse, LayoutDashboard, Library, LogOut, Megaphone, Menu, Newspaper, NotebookPen, PanelTop, SlidersHorizontal, Store, Tag, Target, Timer, Trophy, Users, X } from "lucide-react";
-import { APWORLD_INCIDENT_SUMMARY_QUERY_KEY, fetchApworldIncidentSummary } from "@/features/admin/admin-apworld-health-api";
-import { DEFAULT_CONTRIBUTION_FILTERS, fetchContributionQueue } from "@/features/admin/admin-game-contributions-api";
-import { DEFAULT_REPORT_FILTERS, fetchModerationQueue } from "@/features/admin/admin-moderation-api";
+import { ArrowLeft, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { useAdminBadges } from "@/features/admin/admin-section-tabs";
+import { ADMIN_NAV_GROUPS, isSectionActive, sectionBadge } from "@/features/admin/admin-sections";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { QueryProvider } from "@/lib/query-provider";
 
-const navGroups = [
-  {
-    label: null,
-    items: [
-      { href: "/admin", icon: LayoutDashboard, label: "Dashboard", shortLabel: "Home", exact: true },
-      { href: "/admin/statistiques", icon: ChartColumn, label: "Statistiques", shortLabel: "Stats", exact: false },
-    ],
-  },
-  {
-    label: "Contenu",
-    items: [
-      { href: "/admin/evenements", icon: Calendar, label: "Événements", shortLabel: "Events", exact: false },
-      { href: "/admin/actualites", icon: Newspaper, label: "Actualités", shortLabel: "Actus", exact: false },
-      // Story 10.14: the announcement opened as a modal on the home page.
-      { href: "/admin/annonces", icon: Megaphone, label: "Annonces", shortLabel: "Annonces", exact: false },
-      // Story 45.1: the partners of the association.
-      { href: "/admin/partenaires", icon: Handshake, label: "Partenaires", shortLabel: "Partenaires", exact: false },
-      { href: "/admin/jeux", icon: Gamepad2, label: "Jeux", shortLabel: "Jeux", exact: false },
-    ],
-  },
-  {
-    label: "Communauté",
-    items: [
-      { href: "/admin/utilisateurs", icon: Users, label: "Utilisateurs", shortLabel: "Users", exact: false },
-      { href: "/admin/adhesions", icon: CreditCard, label: "Adhésions", shortLabel: "Adhés.", exact: false },
-      { href: "/admin/achievements", icon: Trophy, label: "Succès", shortLabel: "Succès", exact: false },
-      { href: "/admin/boutique", icon: Store, label: "Boutique", shortLabel: "Boutique", exact: false },
-      // Story 41.15: one entry, two tabs (weeks, quest types) on the page itself.
-      { href: "/admin/quetes", icon: Target, label: "Quêtes hebdo", shortLabel: "Quêtes", exact: false },
-      { href: "/admin/cadres", icon: Frame, label: "Cadres", shortLabel: "Cadres", exact: false },
-      { href: "/admin/bannieres", icon: PanelTop, label: "Bannières", shortLabel: "Bannières", exact: false },
-      // Story 41.22: profile titles, a text cosmetic.
-      { href: "/admin/titres", icon: Tag, label: "Titres", shortLabel: "Titres", exact: false },
-    ],
-  },
-  {
-    // Story 39.13: each moderation queue has its own page and its own count of what waits.
-    label: "Modération",
-    items: [
-      { href: "/admin/moderation/signalements", icon: Flag, label: "Signalements", shortLabel: "Signal.", exact: false },
-      { href: "/admin/moderation/contributions", icon: NotebookPen, label: "Contributions", shortLabel: "Contrib.", exact: false },
-    ],
-  },
-  {
-    label: "Archipelago",
-    items: [
-      { href: "/admin/catalogue", icon: Library, label: "Catalogue", shortLabel: "Catalogue", exact: false },
-      { href: "/admin/sante-apworlds", icon: HeartPulse, label: "Santé apworlds", shortLabel: "Santé", exact: false },
-      { href: "/admin/aide-archipelago", icon: BookOpen, label: "Aide Archipelago", shortLabel: "Aide", exact: false },
-      { href: "/admin/weekly-runs", icon: Timer, label: "Runs hebdos", shortLabel: "Runs", exact: false },
-      { href: "/admin/sessions/config", icon: SlidersHorizontal, label: "Config sessions", shortLabel: "Config", exact: false },
-    ],
-  },
-  {
-    label: "Intégrations",
-    items: [
-      { href: "/admin/discord", icon: Bot, label: "Bot Discord", shortLabel: "Discord", exact: false },
-    ],
-  },
-] as const;
+/** Story 3.19: the collapsed sidebar is remembered in the browser. */
+export const SIDEBAR_STORAGE_KEY = "archilan.admin.sidebar";
 
-function isItemActive(pathname: string, href: string, exact: boolean): boolean {
-  return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+type PreferenceStorage = Pick<Storage, "getItem" | "setItem">;
+
+/** Whether the sidebar was left collapsed. Full when nothing readable is stored. */
+export function readSidebarCollapsed(storage: PreferenceStorage | null): boolean {
+  try {
+    return storage?.getItem(SIDEBAR_STORAGE_KEY) === "collapsed";
+  } catch {
+    return false;
+  }
+}
+
+export function writeSidebarCollapsed(storage: PreferenceStorage | null, collapsed: boolean): void {
+  try {
+    storage?.setItem(SIDEBAR_STORAGE_KEY, collapsed ? "collapsed" : "full");
+  } catch {
+    // Private window or blocked storage: the choice simply lasts for this page.
+  }
+}
+
+function browserStorage(): PreferenceStorage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Story 3.19: the classes of the two sidebars and of the content, full or collapsed at desktop width. */
+export function sidebarLayout(collapsed: boolean): { full: string; rail: string; main: string } {
+  return {
+    full: collapsed ? "hidden" : "hidden lg:flex",
+    rail: collapsed ? "hidden md:flex" : "hidden md:flex lg:hidden",
+    main: collapsed ? "lg:ml-12" : "lg:ml-60",
+  };
 }
 
 /** Count of items waiting for someone, next to a menu entry. Nothing when there are none. */
@@ -136,34 +108,20 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [menuState, setMenuState] = useState({ open: false, pathname });
   const mobileMenuOpen = menuState.open && menuState.pathname === pathname;
+  // Story 3.19: read once on the client; the auth skeleton renders first, so nothing depends on it at hydration.
+  const [collapsed, setCollapsed] = useState(() => readSidebarCollapsed(browserStorage()));
+  const layout = sidebarLayout(collapsed);
 
-  // Story 38.3: apworld incidents nobody has taken yet, as a badge on the health page entry. Declared
-  // before the early returns (rules of hooks), and only fetched for an admin.
+  function toggleSidebar() {
+    const next = !collapsed;
+    setCollapsed(next);
+    writeSidebarCollapsed(browserStorage(), next);
+  }
+
+  // Story 3.20: what waits, summed per menu entry. Declared before the early returns (rules of hooks), fetched
+  // for an admin only.
   const isAdmin = user?.roles.includes("ROLE_ADMIN") ?? false;
-  const { data: apworldSummary } = useQuery({
-    queryKey: APWORLD_INCIDENT_SUMMARY_QUERY_KEY,
-    queryFn: fetchApworldIncidentSummary,
-    enabled: isAdmin,
-    staleTime: 60_000,
-  });
-  // Story 39.13: what waits in each moderation queue (same queries, hence same cache, as their pages).
-  const { data: pendingReports } = useQuery({
-    queryKey: ["admin-moderation", "pending-count"],
-    queryFn: () => fetchModerationQueue(DEFAULT_REPORT_FILTERS),
-    enabled: isAdmin,
-    staleTime: 60_000,
-  });
-  const { data: pendingContributions } = useQuery({
-    queryKey: ["admin-game-contributions", "pending-count"],
-    queryFn: () => fetchContributionQueue(DEFAULT_CONTRIBUTION_FILTERS),
-    enabled: isAdmin,
-    staleTime: 60_000,
-  });
-  const badges: Record<string, number> = {
-    "/admin/sante-apworlds": apworldSummary?.unacknowledged ?? 0,
-    "/admin/moderation/signalements": pendingReports?.count ?? 0,
-    "/admin/moderation/contributions": pendingContributions?.count ?? 0,
-  };
+  const badges = useAdminBadges(isAdmin);
 
   useEffect(() => {
     document.body.classList.toggle("overflow-hidden", mobileMenuOpen);
@@ -194,7 +152,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar - visible ≥1024px */}
       <aside
         aria-label="Navigation administration"
-        className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface lg:flex"
+        className={`fixed inset-y-0 left-0 z-40 w-60 flex-col border-r border-border bg-surface ${layout.full}`}
       >
         <div className="flex items-center gap-2.5 border-b border-border px-4 py-4">
           <Image
@@ -205,22 +163,32 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
             src="/images/logo.webp"
             width={32}
           />
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="font-heading text-sm font-bold text-foreground">ArchiLAN</p>
             <p className="text-xs text-muted-foreground">Administration</p>
           </div>
+          <button
+            aria-label="Réduire le menu"
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+            onClick={toggleSidebar}
+            title="Réduire le menu"
+            type="button"
+          >
+            <PanelLeftClose aria-hidden="true" className="size-4" />
+          </button>
         </div>
 
         <nav aria-label="Sections" className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
-          {navGroups.map((group) => (
+          {ADMIN_NAV_GROUPS.map((group) => (
             <div className="flex flex-col gap-1" key={group.label ?? "top"}>
               {group.label ? (
                 <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                   {group.label}
                 </p>
               ) : null}
-              {group.items.map(({ href, icon: Icon, label, exact }) => {
-                const active = isItemActive(pathname, href, exact);
+              {group.sections.map((section) => {
+                const { href, icon: Icon, label } = section;
+                const active = isSectionActive(pathname, section);
                 return (
                   <Link
                     aria-current={active ? "page" : undefined}
@@ -235,7 +203,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
                   >
                     <Icon aria-hidden="true" className="size-4 shrink-0" />
                     {label}
-                    <NavBadge count={badges[href] ?? 0} />
+                    <NavBadge count={sectionBadge(section, badges)} />
                   </Link>
                 );
               })}
@@ -262,12 +230,12 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Tablet sidebar - icon-only, 48px, visible 768–1023px */}
+      {/* Icon rail, 48px: tablet, and desktop once collapsed (story 3.19) */}
       <aside
-        aria-hidden="true"
-        className="fixed inset-y-0 left-0 z-40 hidden w-12 flex-col border-r border-border bg-surface md:flex lg:hidden"
+        aria-label="Navigation administration"
+        className={`fixed inset-y-0 left-0 z-40 w-12 flex-col border-r border-border bg-surface ${layout.rail}`}
       >
-        <div className="flex items-center justify-center border-b border-border py-4">
+        <div className="flex flex-col items-center gap-2 border-b border-border py-4">
           <Image
             alt=""
             aria-hidden="true"
@@ -276,16 +244,29 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
             src="/images/logo.webp"
             width={28}
           />
+          <button
+            aria-label="Agrandir le menu"
+            className="hidden size-8 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground lg:inline-flex"
+            onClick={toggleSidebar}
+            title="Agrandir le menu"
+            type="button"
+          >
+            <PanelLeftOpen aria-hidden="true" className="size-4" />
+          </button>
         </div>
 
-        <nav className="flex flex-1 flex-col items-center gap-1 overflow-y-auto py-3">
-          {navGroups.map((group, groupIndex) => (
+        <nav aria-label="Sections" className="flex flex-1 flex-col items-center gap-1 overflow-y-auto py-3">
+          {ADMIN_NAV_GROUPS.map((group, groupIndex) => (
             <div className="flex flex-col items-center gap-1" key={group.label ?? "top"}>
-              {groupIndex > 0 ? <div className="my-1 h-px w-6 bg-border" /> : null}
-              {group.items.map(({ href, icon: Icon, label, exact }) => {
-                const active = isItemActive(pathname, href, exact);
+              {groupIndex > 0 ? <div aria-hidden="true" className="my-1 h-px w-6 bg-border" /> : null}
+              {group.sections.map((section) => {
+                const { href, icon: Icon, label } = section;
+                const active = isSectionActive(pathname, section);
+                const waiting = sectionBadge(section, badges);
                 return (
                   <Link
+                    aria-current={active ? "page" : undefined}
+                    aria-label={waiting > 0 ? `${label}, ${waiting} à prendre en charge` : label}
                     className={[
                       "relative flex size-10 items-center justify-center rounded transition-colors",
                       active
@@ -297,7 +278,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
                     title={label}
                   >
                     <Icon aria-hidden="true" className="size-5" />
-                    {(badges[href] ?? 0) > 0 ? (
+                    {waiting > 0 ? (
                       <span aria-hidden="true" className="absolute right-1.5 top-1.5 size-2 rounded-full bg-danger" />
                     ) : null}
                   </Link>
@@ -309,6 +290,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
 
         <div className="flex flex-col items-center gap-1 border-t border-border py-3">
           <Link
+            aria-label="Site public"
             className="flex size-10 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
             href="/"
             title="Site public"
@@ -316,6 +298,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
             <ArrowLeft aria-hidden="true" className="size-5" />
           </Link>
           <button
+            aria-label="Se déconnecter"
             className="flex size-10 items-center justify-center rounded text-muted-foreground transition-colors hover:text-danger"
             onClick={handleLogout}
             title="Se déconnecter"
@@ -365,15 +348,16 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
       >
         <nav aria-label="Navigation administration mobile" className="flex h-full flex-col overflow-y-auto p-4">
           <div className="flex flex-col gap-4">
-            {navGroups.map((group) => (
+            {ADMIN_NAV_GROUPS.map((group) => (
               <div className="flex flex-col gap-1" key={group.label ?? "top"}>
                 {group.label ? (
                   <p className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                     {group.label}
                   </p>
                 ) : null}
-                {group.items.map(({ href, icon: Icon, label, exact }) => {
-                  const active = isItemActive(pathname, href, exact);
+                {group.sections.map((section) => {
+                const { href, icon: Icon, label } = section;
+                  const active = isSectionActive(pathname, section);
                   return (
                     <Link
                       aria-current={active ? "page" : undefined}
@@ -388,7 +372,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
                     >
                       <Icon aria-hidden="true" className="size-5 shrink-0" />
                       {label}
-                      <NavBadge count={badges[href] ?? 0} />
+                      <NavBadge count={sectionBadge(section, badges)} />
                     </Link>
                   );
                 })}
@@ -417,7 +401,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
 
       {/* Content area */}
       <main
-        className="flex-1 overflow-auto pt-14 md:ml-12 md:pt-0 lg:ml-60"
+        className={`min-w-0 flex-1 overflow-auto pt-14 md:ml-12 md:pt-0 ${layout.main}`}
         id="admin-main-content"
       >
         {children}

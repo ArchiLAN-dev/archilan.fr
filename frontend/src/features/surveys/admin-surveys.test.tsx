@@ -6,7 +6,7 @@ import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
 import { SurveyList } from "./admin-event-surveys";
 import { AdminSurveyEditor, optionLines } from "./admin-survey-editor";
-import { answerText, NonRespondentList, RespondentList, SurveyResultsView } from "./admin-survey-results";
+import { answerGroups, answerText, filterRespondents, NonRespondentList, RespondentList, ResultsViews, SurveyResultsView } from "./admin-survey-results";
 import {
   addQuestion,
   fetchRegistrationSurveys,
@@ -16,6 +16,7 @@ import {
   isSurveyResults,
   percent,
   type AdminSurvey,
+  type RespondentAnswers,
   type SurveyResults,
 } from "./admin-surveys-api";
 import { labelledAnswer, RegistrationSurveys } from "./registration-surveys-panel";
@@ -225,5 +226,99 @@ describe("admin surveys", () => {
     expect(optionLines(" Samedi \n\nDimanche\n")).toEqual(["Samedi", "Dimanche"]);
     expect(fromLocalInput("")).toBeUndefined();
     expect(fromLocalInput("2026-11-16T17:30")).toMatch(/^2026-11-16T\d{2}:30:00\.000Z$/);
+  });
+});
+
+/** Story 51.6: results readable with many respondents. */
+describe("survey results by question and by member (story 51.6)", () => {
+  const people: RespondentAnswers[] = [
+    {
+      userId: "u1",
+      displayName: "Zoé",
+      registrationId: "r1",
+      respondedAt: "2026-11-11T09:00:00+00:00",
+      answers: [
+        { questionId: "coming", optionIds: ["yes"], text: null, rating: null },
+        { questionId: "mark", optionIds: [], text: null, rating: 5 },
+        { questionId: "word", optionIds: [], text: "Alors on danse", rating: null },
+      ],
+    },
+    {
+      userId: "u2",
+      displayName: "Bob",
+      registrationId: "r2",
+      respondedAt: "2026-11-11T10:00:00+00:00",
+      answers: [
+        { questionId: "coming", optionIds: ["no"], text: null, rating: null },
+        { questionId: "mark", optionIds: [], text: null, rating: 4 },
+      ],
+    },
+    {
+      userId: "u3",
+      displayName: "Alice",
+      registrationId: null,
+      respondedAt: "2026-11-11T11:00:00+00:00",
+      answers: [{ questionId: "coming", optionIds: ["yes"], text: null, rating: null }],
+    },
+  ];
+
+  it("groups who answered what: by option, by mark from 5, texts with their author", () => {
+    const [coming, mark, word] = results.questions;
+
+    expect(answerGroups(coming, people).map((group) => [group.label, group.people.map((p) => p.respondent.displayName)])).toEqual([
+      ["Oui", ["Zoé", "Alice"]],
+      ["Non", ["Bob"]],
+      ["Peut-être (retirée)", []],
+    ]);
+    expect(answerGroups(mark, people).map((group) => [group.key, group.people.length])).toEqual([
+      ["5", 1],
+      ["4", 1],
+    ]);
+    expect(answerGroups(word, people)[0].people).toEqual([{ respondent: people[0], text: "Alors on danse" }]);
+  });
+
+  it("filters the members by name, without accents, and by an answer", () => {
+    expect(filterRespondents(people, { search: "zoe", choice: null }).map((p) => p.displayName)).toEqual(["Zoé"]);
+    expect(filterRespondents(people, { search: "", choice: "coming:yes" }).map((p) => p.displayName)).toEqual(["Zoé", "Alice"]);
+    expect(filterRespondents(people, { search: "bob", choice: "coming:yes" })).toEqual([]);
+  });
+
+  it("lets each option open who chose it, and keeps the totals first", () => {
+    const html = render(<SurveyResultsView eventId="e1" respondents={people} results={results} />);
+
+    expect(html).toContain("2 · 67 %");
+    expect(html).toContain('aria-label="Voir qui a répondu « Oui »"');
+    expect(html).toContain("Qui a répondu quoi (3)");
+    expect(html).toContain("Lire les réponses (2)");
+    // Folded until asked: the names are not listed yet, nor the texts.
+    expect(html).not.toContain("Zoé");
+    expect(html).not.toContain("Alors on danse");
+  });
+
+  it("shows a table of the members, and no member view for an anonymous survey", () => {
+    const table = render(<RespondentList eventId="e1" questions={survey.questions} respondents={people} />);
+    expect(table).toContain("3 sur 3");
+    expect(table).toContain('<optgroup label="Tu viens ?">');
+    expect(table.match(/<tr/g)).toHaveLength(4);
+    expect(table).toContain("5 / 5");
+
+    const views = (anonymous: boolean) =>
+      render(
+        <ResultsViews
+          eventId="e1"
+          missing={[{ userId: "u4", registrationId: "r4", displayName: "Dave" }]}
+          onView={() => undefined}
+          questions={survey.questions}
+          respondents={anonymous ? null : people}
+          results={{ ...results, anonymous }}
+          view="respondents"
+        />,
+      );
+    expect(views(false)).toContain("Par inscrit (3)");
+    expect(views(false)).toContain("Pas encore répondu (1)");
+    expect(views(true)).not.toContain("Par inscrit");
+    // Asked for the member view, an anonymous survey falls back to its totals, with nobody named.
+    expect(views(true)).toContain("4,5 / 5 de moyenne");
+    expect(views(true)).not.toContain("Qui a répondu quoi");
   });
 });

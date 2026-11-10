@@ -5,6 +5,34 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.63.0] - 2026-11-10
+
+Une administration plus lisible : le hub d'un événement en barre d'onglets (story 3.18), les présences des longs
+événements en grille planning semaine par semaine (story 52.10), les résultats de sondage par question avec la
+liste détaillée en dessous (story 51.6), une barre latérale repliable (story 3.19) et un menu ramené de 23 à 12
+entrées (story 3.20). Frontend seul : aucune migration, aucune variable, services inchangés.
+
+### Ajouté
+
+- Présences en grille planning (story 52.10) : une ligne par inscrit, une case par demi-journée, la ligne du nombre
+  de présents en tête. Un événement de plus de 4 jours se lit semaine par semaine (semaine courante par défaut),
+  ou en entier à un jour par case.
+- Résultats de sondage par question (story 51.6) : total en tête, détail « qui a répondu quoi » repliable sous
+  chaque question, clic sur une option pour filtrer ; vue par inscrit avec recherche et filtre par réponse, vue
+  des inscrits qui n'ont pas encore répondu.
+- Barre latérale de l'admin repliable (story 3.19) : réduite à une colonne d'icônes, choix retenu dans le
+  navigateur.
+
+### Modifié
+
+- Hub admin d'un événement (story 3.18) : l'en-tête de l'événement et ses sections en barre d'onglets en haut de
+  page, à la place de la colonne de gauche.
+- Onglets communs au site (`components/ui/tabs.ts`) pour le hub, les résultats de sondage et le menu admin.
+- Menu de l'admin regroupé (story 3.20) : Dashboard (avec Statistiques), Publications (Actualités, Annonces),
+  Récompenses (Succès, Boutique, Quêtes hebdo, Cadres, Bannières, Titres), Modération, Apworlds (Catalogue, Santé,
+  Aide) et Sessions (Runs hebdos, Config) deviennent des pages à onglets. Les adresses ne changent pas ; une
+  entrée cumule les pastilles de ses onglets.
+
 ## [0.62.0] - 2026-11-10
 
 Le Passeur sans condition d'absence, après un temps minimum en BK (story 52.9), le BK qui survit à un redémarrage
