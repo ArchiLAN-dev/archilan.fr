@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing, ChevronDown, Lock, Search, Star } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { TAB_LIST_CLASS, tabClassName } from "@/components/ui/tabs";
 
 import {
   adminSurveyKey,
@@ -99,13 +100,11 @@ export function ResultsViews({ results, questions, respondents, missing, eventId
 
   return (
     <div className="grid gap-5">
-      <div aria-label="Vue des résultats" className="flex flex-wrap gap-1 border-b border-border" role="group">
+      <div aria-label="Vue des résultats" className={TAB_LIST_CLASS} role="group">
         {views.map((option) => (
           <button
             aria-pressed={shown === option.value}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
-              shown === option.value ? "border-accent font-semibold text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+            className={tabClassName(shown === option.value)}
             key={option.value}
             onClick={() => onView(option.value)}
             type="button"
