@@ -5,6 +5,45 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.62.0] - 2026-11-10
+
+Le Passeur sans condition d'absence, après un temps minimum en BK (story 52.9), le BK qui survit à un redémarrage
+du serveur, le hub admin d'un événement (story 3.17), une frise des présences lisible (story 52.8) et les brouillons
+et runs perso sortis des listes publiques (story 50.7). Une migration (`Version20261110100000`), aucune variable.
+Bridge inchangé (v0.17.0).
+
+### À faire après le déploiement
+
+- Lancer les migrations (`php bin/console doctrine:migrations:migrate`) : trois colonnes nullables sur
+  `session_slot_block`.
+- Parties en cours avec le Passeur actif : elles passent au délai par défaut de 30 minutes en BK avant de pouvoir
+  l'appeler, et le prix repart du prix de base à partir de ce moment. Réglable dans la configuration serveur
+  (« En BK depuis au moins (minutes) », 0 pour tout de suite).
+
+### Ajouté
+
+- Hub admin d'un événement (story 3.17) : une page par événement avec ses sections (inscriptions, jeux, sessions,
+  sondages, pelles, présences, partenaires), une navigation commune et l'action suivante selon le cycle de vie.
+- Temps minimum en BK avant le Passeur (story 52.9) : nouveau réglage, 30 minutes par défaut (0 à 1440). Pendant
+  l'attente, le coffre est visible et le bouton indique l'heure de disponibilité ; un appel trop tôt est refusé
+  sans débit. Le prix ne baisse qu'à partir de la disponibilité.
+
+### Modifié
+
+- Le Passeur ouvre un emplacement de n'importe quel autre monde, que son joueur soit là ou non (story 52.9) : le
+  réglage d'absence disparaît, un réglage déjà enregistré est ignoré. Le monde de l'acheteur reste exclu.
+- Frise des présences admin plus lisible (story 52.8) : jours et demi-journées, heures dans les barres, filtre
+  déclarés / non déclarés, cartes par demi-journée sur mobile.
+- Le texte d'intro d'un sondage est mis en valeur au-dessus des questions (#1061).
+
+### Corrigé
+
+- Un redémarrage du serveur ne ferme plus le BK en cours : sans objet reçu entre-temps, le même BK reprend avec son
+  début d'origine, et le prix du Passeur ne repart pas au plein tarif (#1057).
+- Les brouillons et les runs perso sortent des listes publiques : streams et classement d'un brouillon réservés
+  aux admins, plus de board Minimapperz pour un brouillon, streams d'une run perso réservés à ses joueurs
+  (story 50.7, #1020).
+
 ## [0.61.0] - 2026-11-10
 
 Le Passeur (epic 52) : à une LAN où chacun arrive et repart à son heure, un joueur bloqué par le monde d'un absent
