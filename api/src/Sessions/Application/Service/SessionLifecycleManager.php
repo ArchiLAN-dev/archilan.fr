@@ -609,6 +609,11 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
 
                     return ['found' => true, 'from' => $from, 'action' => 'reconciled', 'to' => Session::STATUS_GENERATED];
                 }
+                // Story 17.35: a big multiworld generates for longer than the threshold. While the orchestrateur
+                // still reports it generating, its own sweeper watches the container and reports a dead one.
+                if (null !== $info && 'generating' === $info['status']) {
+                    return ['found' => true, 'from' => $from, 'action' => 'skipped', 'to' => null];
+                }
                 $this->recordCrash($sessionId, "Génération bloquée : aucun retour de l'orchestrateur.");
 
                 return ['found' => true, 'from' => $from, 'action' => 'forced_failed', 'to' => Session::STATUS_FAILED];

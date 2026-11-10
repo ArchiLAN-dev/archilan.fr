@@ -56,7 +56,7 @@ final class Session
     /** Seuils (en secondes) d'inactivité au-delà desquels une session est considérée bloquée. */
     public const array STALE_THRESHOLDS = [
         self::STATUS_VALIDATING => 180,  // 3 min - la validation est rapide
-        self::STATUS_GENERATING => 1200, // 20 min - une génération peut être longue
+        self::STATUS_GENERATING => 1200, // 20 min, puis l'orchestrateur tranche tant qu'il génère (story 17.35)
         self::STATUS_LAUNCHING => 600,  // 10 min
         self::STATUS_RUNNING => 300,  // 5 min (heartbeat bridge toutes les 30s)
         self::STATUS_RESTARTING => 300,  // 5 min - une relance depuis idle est rapide
