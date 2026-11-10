@@ -172,19 +172,36 @@ export function planningColumns(start: number, end: number, unit: "day" | "half"
   }));
 }
 
-/** What one registrant's cell holds: nothing declared, absent, or there for a part of the column (0 to 1). */
-export type Cell = { kind: "undeclared" } | { kind: "absent" } | { kind: "present"; from: number; to: number; full: boolean; title: string };
+/** A stretch of presence inside a column, as fractions of it (0 to 1). */
+export type CellPart = { from: number; to: number };
+
+/**
+ * What one registrant's cell holds: nothing declared, absent, or there for parts of the column. Each declared window
+ * is its own part, overlapping ones merged: a gap between two windows (gone from 02:00 to 10:00) stays visible.
+ */
+export type Cell = { kind: "undeclared" } | { kind: "absent" } | { kind: "present"; parts: CellPart[]; full: boolean; title: string };
 
 export function planningCell(windows: PresenceWindow[], column: Span): Cell {
   if (windows.length === 0) return { kind: "undeclared" };
   const span = column.endsAt - column.startsAt;
   const touching = windows.filter((w) => new Date(w.startsAt).getTime() < column.endsAt && new Date(w.endsAt).getTime() > column.startsAt);
   if (touching.length === 0 || span <= 0) return { kind: "absent" };
-  const from = Math.max(0, (Math.min(...touching.map((w) => new Date(w.startsAt).getTime())) - column.startsAt) / span);
-  const to = Math.min(1, (Math.max(...touching.map((w) => new Date(w.endsAt).getTime())) - column.startsAt) / span);
-  // Within half an hour of each edge of a day counts as the whole of it.
+  // Within half an hour of an edge, or of the next window, counts as no gap.
   const slack = Math.min(0.02, 1_800_000 / span);
-  return { kind: "present", from, to, full: from <= slack && to >= 1 - slack, title: touching.map(describeWindow).join(" ; ") };
+  const clipped = touching
+    .map((w) => ({
+      from: Math.max(0, (new Date(w.startsAt).getTime() - column.startsAt) / span),
+      to: Math.min(1, (new Date(w.endsAt).getTime() - column.startsAt) / span),
+    }))
+    .sort((a, b) => a.from - b.from);
+  const parts: CellPart[] = [];
+  for (const part of clipped) {
+    const last = parts.at(-1);
+    if (last && part.from <= last.to + slack) last.to = Math.max(last.to, part.to);
+    else parts.push({ ...part });
+  }
+  const full = parts.length === 1 && parts[0].from <= slack && parts[0].to >= 1 - slack;
+  return { kind: "present", parts, full, title: touching.map(describeWindow).join(" ; ") };
 }
 
 function tone(count: number, total: number): string {
@@ -449,10 +466,13 @@ function PlanningCell({ cell, column, name }: { cell: Cell; column: Column; name
   }
   return (
     <span aria-label={`${name}, ${column.label} : ${cell.title}`} className="relative block h-6 overflow-hidden rounded-sm bg-surface-2" data-cell={cell.full ? "full" : "part"} role="img" title={cell.title}>
-      <span
-        className={`absolute inset-y-0 rounded-sm ${cell.full ? "bg-accent-text" : "bg-accent-text/55"}`}
-        style={{ left: `${cell.from * 100}%`, width: `${Math.max(12, (cell.to - cell.from) * 100)}%` }}
-      />
+      {cell.parts.map((part) => (
+        <span
+          className={`absolute inset-y-0 rounded-sm ${cell.full ? "bg-accent-text" : "bg-accent-text/55"}`}
+          key={part.from}
+          style={cell.full ? { left: 0, width: "100%" } : { left: `${part.from * 100}%`, width: `${Math.max(8, (part.to - part.from) * 100)}%` }}
+        />
+      ))}
     </span>
   );
 }
