@@ -177,9 +177,36 @@ describe("story 52.10 - a long event as a planning grid, a column per day", () =
     const carol = people[2].windows;
 
     expect(planningCell(carol, columns[6])).toEqual({ kind: "absent" });
-    expect(planningCell(carol, columns[7])).toMatchObject({ kind: "present", full: false, to: 1 });
-    expect(planningCell(carol, columns[8])).toMatchObject({ kind: "present", full: true, from: 0, to: 1 });
+    const partial = planningCell(carol, columns[7]);
+    expect(partial).toMatchObject({ kind: "present", full: false });
+    expect(partial.kind === "present" ? partial.parts.at(-1)?.to : null).toBe(1);
+    expect(planningCell(carol, columns[8])).toMatchObject({ kind: "present", full: true, parts: [{ from: 0, to: 1 }] });
     expect(planningCell(people[1].windows, columns[8])).toEqual({ kind: "undeclared" });
+  });
+
+  it("keeps a gap between two windows in the same cell visible", () => {
+    // Story 52.10 fix: gone from 02:00 to 10:00, the morning was drawn full from the first start to the last end.
+    const morning = { startsAt: Date.parse("2026-11-14T00:00:00+01:00"), endsAt: Date.parse("2026-11-14T12:00:00+01:00") };
+    const windows = [
+      { startsAt: "2026-11-13T18:00:00+01:00", endsAt: "2026-11-14T02:00:00+01:00" },
+      { startsAt: "2026-11-14T10:00:00+01:00", endsAt: "2026-11-15T02:00:00+01:00" },
+    ];
+    const cell = planningCell(windows, morning);
+
+    expect(cell).toMatchObject({ kind: "present", full: false });
+    expect(cell.kind === "present" ? cell.parts.map((p) => [Number(p.from.toFixed(3)), Number(p.to.toFixed(3))]) : null).toEqual([
+      [0, 0.167],
+      [0.833, 1],
+    ]);
+  });
+
+  it("merges windows that touch into one part", () => {
+    const day = { startsAt: Date.parse("2026-11-14T00:00:00+01:00"), endsAt: Date.parse("2026-11-15T00:00:00+01:00") };
+    const windows = [
+      { startsAt: "2026-11-13T18:00:00+01:00", endsAt: "2026-11-14T12:00:00+01:00" },
+      { startsAt: "2026-11-14T12:10:00+01:00", endsAt: "2026-11-15T02:00:00+01:00" },
+    ];
+    expect(planningCell(windows, day)).toMatchObject({ kind: "present", full: true, parts: [{ from: 0, to: 1 }] });
   });
 
   it("cuts the weeks from Monday and finds the week of a moment", () => {
