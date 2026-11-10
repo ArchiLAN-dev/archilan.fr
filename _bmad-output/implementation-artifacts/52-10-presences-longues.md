@@ -20,50 +20,44 @@ moins de 25 px, des nombres et libellés tronqués, des barres sans texte lisibl
 
 ## Décisions
 
-1. **Événement court** (4 jours ou moins) : rien ne change, la frise de 52.8 couvre tout l'événement.
-2. **Événement long** (plus de 4 jours) :
-   - **Calendrier** en tête : une ligne par semaine (lundi à dimanche, heure de Paris), une case par jour avec sa date
-     et le nombre de présents ce jour-là (présent = une plage qui touche le jour, ou rien de déclaré), colorée comme
-     l'histogramme de 52.8 (au moins 75 %, au moins 50 %, en dessous). Les jours hors de l'événement sont vides.
-   - **Une semaine à la fois** dans la frise : la semaine se choisit en cliquant sa ligne du calendrier, ou par
-     « semaine précédente / suivante ». Par défaut, la semaine en cours si l'événement a commencé, sinon la première.
-   - La frise de la semaine garde tout 52.8 (bandeau des jours, histogramme par demi-journée, graduations, lignes,
-     repère « maintenant »), bornée à la semaine. Une barre qui déborde de la semaine est coupée au bord et garde ses
-     vraies heures dans son texte. Un inscrit déclaré mais absent toute la semaine a sa ligne marquée « pas là cette
-     semaine ».
-   - Sur mobile : le calendrier (sept colonnes étroites), puis les cartes par demi-journée de la semaine choisie.
-3. Le résumé (inscrits, déclarés, non déclarés, creux) reste calculé sur tout l'événement.
+Première version (calendrier par semaine + frise d'une semaine) jugée encore « imbuvable » par Jean le 2026-11-10 ;
+remplacée, sur son choix parmi trois maquettes, par une **grille planning** :
+
+1. Une ligne par inscrit (lien vers son inscription), une colonne par **jour** sur tout l'événement quand il dure plus
+   de 4 jours, par **demi-journée** sinon. Plus de frise à barres ni d'heures écrites.
+2. Case pleine : présent toute la colonne (à une demi-heure près). Case en partie remplie : présent une partie, la
+   partie remplie à sa place (arrivée l'après-midi : la droite de la case). Case hachurée : rien déclaré, compté
+   présent. Case vide : absent. Les heures exactes sont dans le titre de la case (survol) et sur la fiche.
+3. En tête de chaque colonne : le jour (ou la demi-journée) et le nombre de présents, coloré selon la part présente.
+   Un trait plus épais sépare les semaines (chaque lundi) ou les jours (demi-journées). La colonne du jour est
+   marquée.
+4. Le pseudo reste collé à gauche quand la grille défile ; mêmes résumé, filtre Tous / Déclarés / Non déclarés et
+   tri que 52.8, sur toutes les tailles d'écran (la grille défile de côté sur mobile, les cartes de 52.8 partent).
 
 ## Critères d'acceptation
 
-1. Un événement de 4 jours ou moins s'affiche comme avant (pas de calendrier, pas de navigation).
-2. Un événement plus long montre le calendrier : semaines du lundi au dimanche, date et nombre de présents par jour,
-   cases vides hors de l'événement, couleur selon la part présente.
-3. La frise ne montre qu'une semaine ; la semaine choisie est marquée dans le calendrier (`aria-pressed`) ; précédente
-   et suivante sont désactivées aux bornes.
-4. Semaine par défaut : celle qui contient « maintenant » pendant l'événement, sinon la première.
-5. Barres coupées aux bords de la semaine, texte aux vraies heures ; ligne « pas là cette semaine » si besoin.
-6. Les jours suivent l'heure de Paris, changement d'heure compris (une case par jour civil, pas de doublon).
-7. Tests : découpe en jours et en semaines (y compris passage à l'heure d'hiver), calendrier, semaine par défaut,
-   bornage de la frise, événement court inchangé.
-8. `pnpm gates` vert.
+1. Un événement de plus de 4 jours a une colonne par jour civil de Paris (changement d'heure compris, pas de
+   doublon) ; 4 jours ou moins, une colonne par demi-journée.
+2. Chaque case dit plein, une partie, rien déclaré ou absent, avec les heures au survol et un libellé accessible.
+3. Les colonnes portent le nombre de présents ; les semaines (ou les jours) sont séparées ; le jour courant marqué.
+4. Le filtre et le tri de 52.8 s'appliquent ; « Aucun inscrit dans ce filtre » si vide.
+5. Tests : colonnes (jours et demi-journées), cases, rendu complet d'un événement long et court.
+6. `pnpm gates` vert.
 
 ## Tâches
 
-- [x] Découpe : jours de Paris, semaines du lundi, semaine contenant un instant.
-- [x] Calendrier des présences.
-- [x] Frise bornée à une plage (au lieu de l'événement entier), navigation par semaine.
-- [x] Mobile : cartes de la semaine.
-- [x] Tests, gates, vérification visuelle sur la démo 4.23.
+- [x] Découpe en jours de Paris et colonnes de la grille.
+- [x] Cases (plein, partie, rien déclaré, absent).
+- [x] Grille avec en-têtes, comptes, séparateurs, colonne collée.
+- [x] Tests, gates, vérification visuelle sur la démo 4.23 avec des données de démo locales (20 inscrits).
 
 ## Dev Agent Record
 
-- `admin-presence-timeline.tsx` : `halfDaysBetween`, `parisDays` (coupes à minuit de Paris, heure par heure, donc
-  une case par date au changement d'heure), `parisWeeks` (lundi à dimanche, bornées à l'événement), `weekIndexAt`,
-  `LONG_EVENT_MS` (4 jours). `PresenceCalendar` : une ligne-bouton par semaine (`aria-pressed`), sept cases
-  (`data-day="in"` / `"out"`), date, pastille de couleur et nombre de présents ; largeur bornée (`max-w-2xl`).
-- La frise prend une plage (`range`) : l'événement entier, ou la semaine choisie. Les barres hors plage ne sont pas
-  dessinées, celles à cheval sont coupées par le bornage existant ; « pas là cette semaine » pour un déclaré absent
-  de la plage. Le résumé reste sur tout l'événement ; les cartes mobiles suivent la semaine.
-- Vérifié en local sur 127.0.0.1 (démo 4.23, un mois) : calendrier de 5 semaines, frise d'une semaine lisible.
-- Tests : `presence.test.tsx` (+4). Front : typecheck, lint, 1529 tests, build verts.
+- `admin-presence-timeline.tsx` : `planningColumns` (jours ou demi-journées, `group` aux lundis ou aux matins),
+  `planningCell` (union des plages qui touchent la colonne, en fraction ; plein à une demi-heure près), `PlanningGrid`
+  (tableau, pseudo `sticky`, comptes colorés, `data-today`), `PlanningCell` (`data-cell="full|part"`). Retirés : la
+  frise à barres, le calendrier et la navigation par semaine de la première version, `hourTicks`, `dayBands`,
+  `absentDuring`, `shortMoment`, les cartes mobiles.
+- La page a son propre padding (`px-4 pt-6 md:px-6`) depuis la barre de 3.18.
+- Vérifié en local sur la démo 4.23 (un mois, 21 inscrits) : grille lisible d'un coup, sur toute la largeur.
+- Tests : `presence.test.tsx` réécrit pour la grille. Front : typecheck, lint, tests, build verts.
