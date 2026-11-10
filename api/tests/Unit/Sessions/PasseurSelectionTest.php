@@ -11,19 +11,29 @@ use PHPUnit\Framework\TestCase;
 /** Story 52.3: the chests the Passeur may open, and their order. */
 final class PasseurSelectionTest extends TestCase
 {
-    public function testAProgressionItemInAnAbsentWorldIsACandidate(): void
+    public function testAProgressionItemInAnyOtherWorldIsACandidate(): void
     {
         $claw = self::item(finder: 2, location: 401, itemId: 101, sphere: 3);
-
-        self::assertSame([$claw], PasseurSelection::candidates([$claw], [2]));
-    }
-
-    public function testFillerAndPresentWorldsAreLeftOut(): void
-    {
-        $geo = self::item(finder: 2, location: 402, itemId: 102, sphere: 1, progression: false);
         $atCarol = self::item(finder: 3, location: 501, itemId: 103, sphere: 1);
 
-        self::assertSame([], PasseurSelection::candidates([$geo, $atCarol], [2]));
+        // Story 52.9: whether the player of that world is there or not.
+        self::assertSame([$atCarol, $claw], PasseurSelection::candidates([$claw, $atCarol], 1));
+    }
+
+    public function testTheBuyersOwnWorldIsNeverACandidate(): void
+    {
+        $own = self::item(finder: 1, location: 301, itemId: 104, sphere: 1);
+        $claw = self::item(finder: 2, location: 401, itemId: 101, sphere: 3);
+
+        // Story 52.9: the bridge already leaves it out; the API does not rely on it to never sell one's own chest.
+        self::assertSame([$claw], PasseurSelection::candidates([$own, $claw], 1));
+    }
+
+    public function testFillerIsLeftOut(): void
+    {
+        $geo = self::item(finder: 2, location: 402, itemId: 102, sphere: 1, progression: false);
+
+        self::assertSame([], PasseurSelection::candidates([$geo], 1));
     }
 
     public function testOneCopyOfAnItemTheLatestInThePlaythrough(): void
@@ -32,7 +42,7 @@ final class PasseurSelectionTest extends TestCase
         $late = self::item(finder: 4, location: 650, itemId: 101, sphere: 6);
         $untracked = self::item(finder: 2, location: 499, itemId: 101, sphere: null);
 
-        self::assertSame([$late], PasseurSelection::candidates([$early, $untracked, $late], [2, 4]));
+        self::assertSame([$late], PasseurSelection::candidates([$early, $untracked, $late], 1));
     }
 
     public function testWithoutMeasureTheEarliestSphereComesFirstAndAnUntrackedWorldLast(): void
@@ -42,7 +52,7 @@ final class PasseurSelectionTest extends TestCase
         $early = self::item(finder: 2, location: 402, itemId: 103, sphere: 2);
         $earlyToo = self::item(finder: 2, location: 400, itemId: 104, sphere: 2);
 
-        self::assertSame([$earlyToo, $early, $late, $untracked], PasseurSelection::candidates([$untracked, $late, $early, $earlyToo], [2]));
+        self::assertSame([$earlyToo, $early, $late, $untracked], PasseurSelection::candidates([$untracked, $late, $early, $earlyToo], 1));
     }
 
     public function testTheMeasuredGainRanksFirstThenTheLocationId(): void

@@ -220,17 +220,15 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
       </Section>
 
       {type !== "weekly" ? (
-        <Section description="Ouvrir le coffre d'un joueur absent pour débloquer un joueur en BK, contre des pelles (jamais en hebdo)." title="Le Passeur">
+        <Section description="Ouvrir le coffre d'un autre monde pour débloquer un joueur en BK, contre des pelles (jamais en hebdo)." title="Le Passeur">
           <SwitchRow checked={server.passeur} description={sessionConfigHelp.passeur} label="Activer le Passeur" onChange={(c) => patchServer({ passeur: c })} />
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <NumberField hint={sessionConfigHelp.passeurBasePrice} label="Prix de départ (pelles)" max={1000} min={1} onChange={(n) => patchServer({ passeurBasePrice: n })} value={server.passeurBasePrice} />
             <NumberField hint={sessionConfigHelp.passeurDecayPercent} label="Baisse par quart d'heure (%)" max={100} min={0} onChange={(n) => patchServer({ passeurDecayPercent: n })} value={server.passeurDecayPercent} />
             <NumberField hint={sessionConfigHelp.passeurFloorPercent} label="Plancher (%)" max={100} min={0} onChange={(n) => patchServer({ passeurFloorPercent: n })} value={server.passeurFloorPercent} />
-            <NumberField hint={sessionConfigHelp.passeurSharePercent} label="Part de l'absent (%)" max={100} min={0} onChange={(n) => patchServer({ passeurSharePercent: n })} value={server.passeurSharePercent} />
+            <NumberField hint={sessionConfigHelp.passeurSharePercent} label="Part du joueur du monde ouvert (%)" max={100} min={0} onChange={(n) => patchServer({ passeurSharePercent: n })} value={server.passeurSharePercent} />
             <NumberField hint={sessionConfigHelp.passeurDailyLimit} label="Ouvertures par monde et par jour" max={100} min={1} onChange={(n) => patchServer({ passeurDailyLimit: n })} value={server.passeurDailyLimit} />
-            {type === "private" ? (
-              <NumberField hint={sessionConfigHelp.passeurAbsenceMinutes} label="Absent après (minutes)" max={1440} min={15} onChange={(n) => patchServer({ passeurAbsenceMinutes: n })} value={server.passeurAbsenceMinutes} />
-            ) : null}
+            <NumberField hint={sessionConfigHelp.passeurMinBlockedMinutes} label="En BK depuis au moins (minutes)" max={1440} min={0} onChange={(n) => patchServer({ passeurMinBlockedMinutes: n })} value={server.passeurMinBlockedMinutes} />
           </div>
         </Section>
       ) : null}

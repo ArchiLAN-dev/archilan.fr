@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Query;
 
-/** Story 52.5: the absent player's notice - only theirs, nobody else's. */
+/** Story 52.5: the notice of an opened world's player - only theirs, nobody else's. */
 final readonly class PasseurNoticeQuery
 {
     public function __construct(private PasseurOpeningQueryInterface $openings)

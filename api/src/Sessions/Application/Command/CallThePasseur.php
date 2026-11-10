@@ -32,12 +32,13 @@ use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 
 /**
- * Story 52.4: a blocked player pays for a chest of an absent player's world, the Passeur opens it.
+ * Story 52.4: a blocked player pays for a chest of another player's world, the Passeur opens it.
+ * The `absent*` names are historical (story 52.9 dropped the absence condition): they mean that world's player.
  *
  * Every refusal comes before the debit: the Passeur off, no block, a chest that is no longer a candidate, the day's
- * limit of the absent world reached, a price that moved since the player read it, not enough pelles. Then the opening
- * is written pending - the lock on the chest - the buyer pays, the bridge opens. Opened: the absent player gets their
- * share, the feed and the absent player are told. Not opened: the buyer gets everything back.
+ * limit of that world reached, a price that moved since the player read it, not enough pelles. Then the opening
+ * is written pending - the lock on the chest - the buyer pays, the bridge opens. Opened: that world's player gets their
+ * share, the feed and that player are told. Not opened: the buyer gets everything back.
  *
  * An event pays in its silver pelles only, never in gold; a private run in its bronze.
  */
@@ -93,6 +94,10 @@ final readonly class CallThePasseur
         if (null === $offer->blockedSince) {
             throw new ConflictException('Tu n\'es pas bloqué : le Passeur n\'intervient qu\'en BK.', 'passeur_not_blocked');
         }
+        $opensAt = $terms->opensAt($offer->blockedSince);
+        if ($now < $opensAt) {
+            throw new ConflictException('Le Passeur n\'intervient pas encore : reste un peu en BK.', 'passeur_too_early', ['availableAt' => $opensAt->format(\DateTimeInterface::ATOM)]);
+        }
         $candidate = $this->candidate($offer->candidates, $findingSlot, $locationId);
 
         [$dayStart, $dayEnd] = PasseurPrice::dayOf($now);
@@ -100,7 +105,7 @@ final readonly class CallThePasseur
             throw new ConflictException('Le Passeur a déjà ouvert assez de coffres de ce monde aujourd\'hui.', 'passeur_daily_limit');
         }
 
-        $price = PasseurPrice::at($terms->config->passeurBasePrice, $terms->config->passeurDecayPercent, $terms->config->passeurFloorPercent, $offer->blockedSince, $now);
+        $price = PasseurPrice::at($terms->config->passeurBasePrice, $terms->config->passeurDecayPercent, $terms->config->passeurFloorPercent, $opensAt, $now);
         if ($price !== $expectedPrice) {
             throw new ConflictException(sprintf('Le prix a changé : %d pelles.', $price), 'passeur_price_changed', ['price' => $price]);
         }
@@ -182,7 +187,7 @@ final readonly class CallThePasseur
         return new CallThePasseurResult($opening->getId(), $kind, $opening->getPrice(), $opening->getShare(), $opening->getItemName(), $this->slotName($opening->getSessionId(), $opening->getFindingSlot()) ?? '', true);
     }
 
-    /** The absent player's share, in the pelles the buyer paid; 0 when nobody can receive it (a banned member). */
+    /** The share of the world's player, in the pelles the buyer paid; 0 when nobody can receive it (a banned member). */
     private function payShare(PasseurOpening $opening, int $share): int
     {
         $absent = $opening->getAbsentUserId();

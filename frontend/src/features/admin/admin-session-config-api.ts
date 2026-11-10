@@ -34,14 +34,15 @@ export type SessionServerConfig = {
   bronzePerGoal: number;
   /** Story 27.12: players see their slot's spheres (items stripped). */
   spheresVisible: boolean;
-  /** Story 52.4: the Passeur opens an absent player's chest for a blocked one (never in a weekly). */
+  /** Story 52.4: the Passeur opens another world's chest for a blocked player (never in a weekly). */
   passeur: boolean;
   passeurBasePrice: number;
   passeurDecayPercent: number;
   passeurFloorPercent: number;
   passeurSharePercent: number;
   passeurDailyLimit: number;
-  passeurAbsenceMinutes: number;
+  /** Story 52.9: minutes in BK before the Passeur may be called. */
+  passeurMinBlockedMinutes: number;
 };
 
 export type SessionGenerationConfig = {
@@ -197,7 +198,7 @@ function isServerConfig(v: unknown): v is SessionServerConfig {
   if (!("passeurFloorPercent" in v) || typeof v.passeurFloorPercent !== "number") return false;
   if (!("passeurSharePercent" in v) || typeof v.passeurSharePercent !== "number") return false;
   if (!("passeurDailyLimit" in v) || typeof v.passeurDailyLimit !== "number") return false;
-  if (!("passeurAbsenceMinutes" in v) || typeof v.passeurAbsenceMinutes !== "number") return false;
+  if (!("passeurMinBlockedMinutes" in v) || typeof v.passeurMinBlockedMinutes !== "number") return false;
   if (!("joinPassword" in v)) return false;
   return v.joinPassword === null || typeof v.joinPassword === "string";
 }

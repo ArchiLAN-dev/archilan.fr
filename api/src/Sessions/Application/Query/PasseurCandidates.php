@@ -14,12 +14,10 @@ final readonly class PasseurCandidates
     public const string RANKING_SPHERE = 'sphere';
 
     /**
-     * @param list<int>              $absentSlots
      * @param list<PasseurCandidate> $candidates
      */
     public function __construct(
         public ?\DateTimeImmutable $blockedSince,
-        public array $absentSlots,
         public string $ranking,
         public array $candidates,
     ) {
@@ -27,6 +25,6 @@ final readonly class PasseurCandidates
 
     public static function notBlocked(): self
     {
-        return new self(null, [], self::RANKING_SPHERE, []);
+        return new self(null, self::RANKING_SPHERE, []);
     }
 }

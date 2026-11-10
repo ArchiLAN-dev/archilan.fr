@@ -58,6 +58,7 @@ final readonly class PasseurController
                 'balance' => $offer->balance,
                 'blockedSince' => $offer->blockedSince->format(\DateTimeInterface::ATOM),
                 'nextDropAt' => $offer->nextDropAt?->format(\DateTimeInterface::ATOM),
+                'availableAt' => $offer->availableAt?->format(\DateTimeInterface::ATOM),
             ],
         ]]);
     }

@@ -3,10 +3,10 @@ import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { callThePasseur, dismissPasseurNotice, fetchPasseur, fetchPasseurJournal, fetchPasseurNotice, isPasseurOpening, isPasseurState, type PasseurOffer, type PasseurOpening } from "./passeur-api";
+import { callThePasseur, dismissPasseurNotice, fetchPasseur, fetchPasseurJournal, fetchPasseurNotice, isPasseurOffer, isPasseurOpening, isPasseurState, type PasseurOffer, type PasseurOpening } from "./passeur-api";
 import { PasseurJournalView } from "./passeur-journal";
 import { PasseurNoticeView } from "./passeur-notice";
-import { PasseurView } from "./passeur-panel";
+import { PasseurView, passeurRefreshIn } from "./passeur-panel";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -28,12 +28,41 @@ const neverCalled = () => Promise.reject(new Error("not called"));
 
 /** Story 52.4: the Passeur on a slot page. */
 describe("le Passeur", () => {
+  test("story 52.9: before the delay in BK, the chest shows but the call waits", () => {
+    const html = renderToStaticMarkup(<PasseurView offer={{ ...offer, price: 60, nextDropAt: null, availableAt: "2026-11-09T14:30:00+01:00" }} onCall={neverCalled} />);
+
+    expect(html).toContain("Le Passeur pourra ouvrir");
+    expect(html).toContain("Coffre du temple");
+    expect(html).toContain("disponible à 14:30");
+    expect(html).toContain("disabled=\"\"");
+  });
+
+  test("an offer from an API without the delay is still read", () => {
+    expect("availableAt" in offer).toBe(false);
+    expect(isPasseurOffer(offer)).toBe(true);
+    expect(isPasseurOffer({ ...offer, availableAt: null })).toBe(true);
+    expect(isPasseurOffer({ ...offer, availableAt: 12 })).toBe(false);
+  });
+
+  test("story 52.9: the offer is read again as soon as the Passeur opens", () => {
+    const opens = Date.parse("2026-11-09T14:30:00+01:00");
+    const waiting = { enabled: true, offer: { ...offer, availableAt: "2026-11-09T14:30:00+01:00" } };
+
+    expect(passeurRefreshIn(waiting, opens - 20_000)).toBe(21_000);
+    expect(passeurRefreshIn(waiting, opens - 5 * 60_000)).toBe(60_000);
+    expect(passeurRefreshIn(waiting, opens + 1_000)).toBe(60_000);
+    expect(passeurRefreshIn({ enabled: true, offer }, opens)).toBe(60_000);
+    expect(passeurRefreshIn(null, opens)).toBe(60_000);
+  });
+
   test("the panel says whose chest, what it holds, and the price of the moment", () => {
     const html = renderToStaticMarkup(<PasseurView offer={offer} onCall={neverCalled} />);
 
     expect(html).toContain("Le Passeur");
     expect(html).toContain("Coffre du temple");
     expect(html).toContain("Bob");
+    // Story 52.9: Bob may be there, playing something else.
+    expect(html).not.toContain("absent");
     expect(html).toContain("Grappin");
     expect(html).toContain("(au lieu de 60)");
     expect(html).toContain("Prochaine baisse à 14:30");
@@ -99,12 +128,14 @@ const opening: PasseurOpening = {
 
 /** Story 52.5: what the Passeur opened. */
 describe("ce que le Passeur a ouvert", () => {
-  test("the absent player's notice lists the chests, for whom, and the total received", () => {
+  test("the opened world's player's notice lists the chests, for whom, and the total received", () => {
     const html = renderToStaticMarkup(
       <PasseurNoticeView notice={{ openings: [opening, { ...opening, id: "o2", itemName: "Dash", share: 20 }], total: 50, kind: "bronze" }} onDismiss={() => Promise.resolve(true)} />,
     );
 
-    expect(html).toContain("le Passeur a ouvert 2 emplacements de ton monde");
+    // Story 52.9: the world's player may well have been there.
+    expect(html).toContain("Le Passeur a ouvert 2 emplacements de ton monde");
+    expect(html).not.toContain("absence");
     expect(html).toContain("Link House");
     expect(html).toContain("Claw pour Alice");
     expect(html).toContain(">50<");

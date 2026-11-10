@@ -24,7 +24,7 @@ use App\Wallet\Domain\Entity\PelleMovement;
 use App\Wallet\Domain\Enum\PelleKind;
 use App\Wallet\Domain\Enum\PelleReason;
 
-/** Story 52.4: a blocked player pays the Passeur to open a chest of an absent player's world. */
+/** Story 52.4: a blocked player pays the Passeur to open a chest of another player's world. */
 final class CallThePasseurTest extends FunctionalTestCase
 {
     private const string SECRET = 'test-runner-secret';
@@ -72,7 +72,7 @@ final class CallThePasseurTest extends FunctionalTestCase
         self::assertSame(['2:401'], $this->bridge->opened);
         self::assertSame(40, $this->balance($this->alice, PelleKind::Event));
         self::assertSame(500, $this->balance($this->alice, PelleKind::Gold), 'gold is never spent on the Passeur');
-        self::assertSame(30, $this->balance($this->bob, PelleKind::Event), 'the absent player gets their share');
+        self::assertSame(30, $this->balance($this->bob, PelleKind::Event), 'the player of the opened world gets their share');
 
         $opening = $this->onlyOpening();
         self::assertSame(PasseurOpening::STATUS_OPENED, $opening->getStatus());
@@ -169,7 +169,7 @@ final class CallThePasseurTest extends FunctionalTestCase
         self::assertSame('passeur_price_changed', $this->errorCode());
         self::assertSame(['price' => 60], $this->part('error')['details'] ?? null);
 
-        // Not progression, or not in an absent world: not a candidate.
+        // Not progression: not a candidate.
         $this->call(['findingSlot' => 2, 'locationId' => 403, 'price' => 60, 'requestId' => 'r3']);
         self::assertResponseStatusCodeSame(409);
         self::assertSame('passeur_no_candidate', $this->errorCode());
@@ -228,6 +228,43 @@ final class CallThePasseurTest extends FunctionalTestCase
         self::assertSame(['Bob', 'Claw', 60, 'event', 100], [$data['offer']['absentPlayerName'], $data['offer']['itemName'], $data['offer']['price'], $data['offer']['kind'], $data['offer']['balance']]);
     }
 
+    public function testThePasseurWaitsTheConfiguredTimeInBk(): void
+    {
+        $this->eventSession(['passeur' => true, 'passeurMinBlockedMinutes' => 60]);
+        $this->silver($this->alice, 100);
+        $this->loginAs($this->alice);
+
+        // Story 52.9: 40 minutes in BK, 60 required. The chest shows, the call waits.
+        $this->client->request('GET', $this->url());
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertIsArray($data['offer']);
+        self::assertIsString($data['offer']['availableAt']);
+        self::assertSame([60, null], [$data['offer']['price'], $data['offer']['nextDropAt']]);
+
+        $this->call(['findingSlot' => 2, 'locationId' => 401, 'price' => 60, 'requestId' => 'r1']);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('passeur_too_early', $this->errorCode());
+        self::assertSame(100, $this->balance($this->alice, PelleKind::Event));
+        self::assertSame([], $this->bridge->opened);
+    }
+
+    public function testThePriceDropsFromWhenThePasseurIsAvailable(): void
+    {
+        // No wait: available since the block began 40 minutes ago, two drops of 10 %.
+        $this->eventSession(['passeur' => true, 'passeurMinBlockedMinutes' => 0]);
+        $this->silver($this->alice, 100);
+        $this->loginAs($this->alice);
+
+        $this->client->request('GET', $this->url());
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertIsArray($data['offer']);
+        self::assertSame([48, null], [$data['offer']['price'], $data['offer']['availableAt']]);
+    }
+
     public function testTheBridgeAdminEchoIsKeptOutOfTheFeed(): void
     {
         $this->eventSession(['passeur' => true]);
@@ -252,8 +289,8 @@ final class CallThePasseurTest extends FunctionalTestCase
         $aliceRegistration = $this->createRegistration($this->eventId, $this->alice->getId())->getId();
         $bobRegistration = $this->createRegistration($this->eventId, $this->bob->getId())->getId();
         $this->session($this->eventId, $aliceRegistration, $bobRegistration, $blocked);
-        // Bob only comes tonight: absent now.
-        $this->entityManager->persist(RegistrationPresenceWindow::create($bobRegistration, $now->modify('+6 hours'), $now->modify('+20 hours')));
+        // Story 52.9: Bob is there right now, the Passeur opens his world all the same.
+        $this->entityManager->persist(RegistrationPresenceWindow::create($bobRegistration, $now->modify('-2 hours'), $now->modify('+20 hours')));
         $this->entityManager->flush();
         if ([] !== $override) {
             $this->override($this->sessionId, $override);
@@ -268,7 +305,6 @@ final class CallThePasseurTest extends FunctionalTestCase
         $this->session($run->getId(), $this->alice->getId(), $this->bob->getId(), true);
         $run->attachSession($this->sessionId);
         $this->entityManager->flush();
-        // Bob was never seen in the 3 hours since the start: absent past the 2 hours of a private run.
         $this->override($run->getId(), ['passeur' => true, 'bronzePerCheck' => 0]);
     }
 
@@ -281,7 +317,8 @@ final class CallThePasseurTest extends FunctionalTestCase
         $this->entityManager->persist(SessionSlot::create(bin2hex(random_bytes(16)), $this->sessionId, $bobSlotOwner, 'game-1', 'Bob', 2, 'slot-bob'));
         $this->entityManager->persist(new SessionPlayersSnapshot($this->sessionId, ['slots' => ['1' => ['slot_name' => 'Alice'], '2' => ['slot_name' => 'Bob']]], $started));
         if ($blocked) {
-            $this->entityManager->persist(SlotBlockEpisode::open($this->sessionId, '1', 'Alice', new \DateTimeImmutable('-10 minutes')));
+            // In BK for 40 minutes: past the 30 minutes the Passeur waits by default (story 52.9), price still whole.
+            $this->entityManager->persist(SlotBlockEpisode::open($this->sessionId, '1', 'Alice', new \DateTimeImmutable('-40 minutes')));
         }
         $this->entityManager->flush();
     }

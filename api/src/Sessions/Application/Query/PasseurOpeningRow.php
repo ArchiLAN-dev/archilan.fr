@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Query;
 
 /**
- * Story 52.5: one call to the Passeur, as the journals and the absent player's notice show it. `status` is
+ * Story 52.5: one call to the Passeur, as the journals and the opened world's player's notice show it. `status` is
  * `pending`, `opened` or `failed`; `kind` says which pelles paid (`event` silver or `bronze`).
  */
 final readonly class PasseurOpeningRow

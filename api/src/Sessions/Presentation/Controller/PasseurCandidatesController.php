@@ -39,7 +39,6 @@ final readonly class PasseurCandidatesController
         return new JsonResponse(['data' => [
             'blocked' => null !== $result->blockedSince,
             'blockedSince' => $result->blockedSince?->format(\DateTimeInterface::ATOM),
-            'absentSlots' => $result->absentSlots,
             'ranking' => $result->ranking,
             'candidates' => array_map(static fn (PasseurCandidate $candidate): array => [
                 'findingSlot' => $candidate->item->findingSlot,
