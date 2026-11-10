@@ -81,6 +81,34 @@ final class ReconcilePendingSessionTest extends FunctionalTestCase
         $this->assertRunStatus($run->getId(), Run::STATUS_DRAFT);
     }
 
+    public function testALongGenerationTheOrchestrateurStillRunsIsLeftAlone(): void
+    {
+        // Story 17.35: 80 worlds generated for 30 min; the watchdog failed the session at 20 and the
+        // orchestrateur's late session.generated was then refused.
+        $session = $this->createSessionAt(Session::STATUS_GENERATING);
+        $run = $this->linkRun($session->getId(), Run::STATUS_STARTING);
+
+        NullRunnerGateway::$nextSessionInfo = ['status' => 'generating', 'bridgePort' => null, 'apPort' => null];
+
+        $result = $this->reconciler()->reconcilePending($session->getId());
+
+        self::assertSame('skipped', $result['action'] ?? null);
+        $this->assertSessionStatus($session->getId(), Session::STATUS_GENERATING);
+        $this->assertRunStatus($run->getId(), Run::STATUS_STARTING);
+    }
+
+    public function testAGenerationTheOrchestrateurReportsCrashedIsFailed(): void
+    {
+        $session = $this->createSessionAt(Session::STATUS_GENERATING);
+
+        NullRunnerGateway::$nextSessionInfo = ['status' => 'crashed', 'bridgePort' => null, 'apPort' => null];
+
+        $result = $this->reconciler()->reconcilePending($session->getId());
+
+        self::assertSame('forced_failed', $result['action'] ?? null);
+        $this->assertSessionStatus($session->getId(), Session::STATUS_FAILED);
+    }
+
     public function testStuckRunningCrashRecoveredToIdle(): void
     {
         $session = $this->createRunningSession();

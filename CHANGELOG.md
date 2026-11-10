@@ -5,6 +5,19 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.65.1] - 2026-11-10
+
+Correctif : une génération de plus de 20 minutes n'est plus déclarée en échec (story 17.35). API seule : aucune
+migration, aucune variable, services inchangés.
+
+### Corrigé
+
+- Génération : au-delà de 20 minutes, le garde-fou des sessions bloquées déclarait l'échec (« Génération bloquée :
+  aucun retour de l'orchestrateur ») même quand l'orchestrateur générait encore. Une grosse session (plus de 80
+  mondes) réussissait donc côté serveur, mais restait en échec sur le site. Tant que l'orchestrateur répond
+  qu'il génère, le site attend maintenant : c'est l'orchestrateur, qui surveille le conteneur, qui signale un
+  plantage.
+
 ## [0.65.0] - 2026-11-10
 
 Tester la config d'un slot depuis une session d'événement (story 11.11). Aucune migration, aucune variable,
