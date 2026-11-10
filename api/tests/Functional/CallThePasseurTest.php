@@ -16,6 +16,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Entity\SlotBlockEpisode;
+use App\Sessions\Domain\Entity\SlotCoPlayer;
 use App\Sessions\Domain\ValueObject\PasseurItem;
 use App\Sessions\Infrastructure\Double\StubPasseurBridge;
 use App\Wallet\Application\Command\RecordPelleMovement;
@@ -199,7 +200,7 @@ final class CallThePasseurTest extends FunctionalTestCase
 
         $this->client->request('GET', $this->url());
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['enabled' => false, 'offer' => null], $this->decodedJsonResponse()['data']);
+        self::assertSame(['enabled' => false, 'canCall' => true, 'offer' => null], $this->decodedJsonResponse()['data']);
 
         $set = self::getContainer()->get(SetSessionConfigOverride::class);
         self::assertInstanceOf(SetSessionConfigOverride::class, $set);
@@ -226,6 +227,32 @@ final class CallThePasseurTest extends FunctionalTestCase
         self::assertTrue($data['enabled']);
         self::assertIsArray($data['offer']);
         self::assertSame(['Bob', 'Claw', 60, 'event', 100], [$data['offer']['absentPlayerName'], $data['offer']['itemName'], $data['offer']['price'], $data['offer']['kind'], $data['offer']['balance']]);
+    }
+
+    public function testACoPlayerOfAnEventSlotSeesTheOfferButMayNotCall(): void
+    {
+        $this->eventSession(['passeur' => true]);
+        $carol = $this->createUser('carol@example.org', ['ROLE_USER'], 'Carol');
+        $this->entityManager->persist(SlotCoPlayer::create(bin2hex(random_bytes(16)), 'slot-alice', $carol->getId(), new \DateTimeImmutable()));
+        $this->entityManager->flush();
+        $this->silver($carol, 100);
+
+        $this->loginAs($carol);
+        $this->client->request('GET', $this->url());
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertFalse($data['canCall']);
+
+        $this->call(['findingSlot' => 2, 'locationId' => 401, 'price' => 60, 'requestId' => 'co-1']);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame(100, $this->balance($carol, PelleKind::Event));
+
+        $this->loginAs($this->alice);
+        $this->client->request('GET', $this->url());
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertTrue($data['canCall']);
     }
 
     public function testThePasseurWaitsTheConfiguredTimeInBk(): void

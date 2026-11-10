@@ -16,7 +16,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Story 52.4: the Passeur on a slot page - its proposal, and the call. Only the player of the slot (or an admin), as
- * for a hint bought with pelles.
+ * for a hint bought with pelles. Story 11.10: a co-player sees the proposal but may not call; only the holder of the
+ * slot (or an admin) can.
  */
 final readonly class PasseurController
 {
@@ -46,6 +47,7 @@ final readonly class PasseurController
 
         return new JsonResponse(['data' => [
             'enabled' => $result['enabled'],
+            'canCall' => $this->holdsSlot($user, $sessionId, $slotIndex),
             'offer' => null === $offer ? null : [
                 'findingSlot' => $offer->findingSlot,
                 'absentPlayerName' => $offer->absentPlayerName,
@@ -70,8 +72,8 @@ final readonly class PasseurController
         if ($user instanceof JsonResponse) {
             return $user;
         }
-        if (!$this->ownsSlot($user, $sessionId, $slotIndex)) {
-            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
+        if (!$this->holdsSlot($user, $sessionId, $slotIndex)) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Seul le titulaire du slot peut appeler le Passeur.', 403);
         }
 
         $body = json_decode($request->getContent(), true);
@@ -93,6 +95,12 @@ final readonly class PasseurController
             'absentPlayerName' => $result->absentPlayerName,
             'replayed' => $result->replayed,
         ]]);
+    }
+
+    private function holdsSlot(User $user, string $sessionId, int $slotIndex): bool
+    {
+        return in_array('ROLE_ADMIN', $user->getRoles(), true)
+            || $this->sessionQuery->doesUserHoldSlot($user->getId(), $sessionId, $slotIndex);
     }
 
     private function ownsSlot(User $user, string $sessionId, int $slotIndex): bool

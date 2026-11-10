@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { UserPlus, Users, X } from "lucide-react";
 
-import { replaceSlotCoPlayers } from "./personal-runs-api";
-import type { SlotCoPlayer } from "./types";
 
 /**
  * Who else plays a slot (story 16.17).
@@ -15,24 +13,23 @@ import type { SlotCoPlayer } from "./types";
  *
  * Read-only for everyone but the run owner: they are the person who knows how the party is actually
  * organised, and letting players attach themselves to a slot would let anyone claim someone else's
- * game.
+ * game. Story 11.10: also the slots of an event (admin or holder), hence the save handed in.
  */
 export type CoPlayerCandidate = { userId: string; displayName: string };
 
 export function SlotCoPlayers({
-  runId,
-  slotId,
   coPlayers,
   candidates,
   canManage,
+  onSave,
   onChanged,
 }: {
-  runId: string;
-  slotId: string;
-  coPlayers: SlotCoPlayer[];
-  /** Participants of the run who may be added - the slot's owner is not among them. */
+  coPlayers: CoPlayerCandidate[];
+  /** Who may be added - the slot's owner is not among them. */
   candidates: CoPlayerCandidate[];
   canManage: boolean;
+  /** Replace the whole roster; true when it was saved. */
+  onSave: (userIds: string[]) => Promise<boolean>;
   onChanged: () => Promise<unknown> | void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -44,7 +41,7 @@ export function SlotCoPlayers({
   async function save(userIds: string[]) {
     setBusy(true);
     setError(null);
-    const ok = await replaceSlotCoPlayers(runId, slotId, userIds);
+    const ok = await onSave(userIds);
     if (ok) {
       await onChanged();
     } else {

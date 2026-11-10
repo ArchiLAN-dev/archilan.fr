@@ -128,24 +128,56 @@ final readonly class SessionQuery
      */
     public function doesUserOwnSlot(string $userId, string $sessionId, int $slotIndex): bool
     {
-        $session = $this->sessions->findById($sessionId);
-        if (!$session instanceof Session) {
-            return false;
-        }
-
-        $slotName = $this->archipelagoSlotName($sessionId, $slotIndex);
-        if (null === $slotName) {
-            return false;
-        }
-
-        $slot = $this->slots->findBySessionAndSlotName($sessionId, $slotName);
-        if (!$slot instanceof SessionSlot) {
+        $found = $this->slotAt($sessionId, $slotIndex);
+        if (null === $found) {
             return false;
         }
 
         // Owning the slot is one way in; being a co-player of it is the other (story 16.17). The
         // owner key stays null for someone with no slots of their own, who may still co-play one.
-        return $this->playedSlots->plays($slot, $this->slotOwnerKey($userId, $sessionId, $session->getEventId()), $userId);
+        return $this->playedSlots->plays($found['slot'], $this->slotOwnerKey($userId, $sessionId, $found['eventId']), $userId);
+    }
+
+    /**
+     * Story 11.10: on an event session, is the member the one who declared the slot? Co-players excluded, for what
+     * only the holder may do (the Passeur). A personal run keeps its rule: its co-players play the slot in full.
+     */
+    public function doesUserHoldSlot(string $userId, string $sessionId, int $slotIndex): bool
+    {
+        $found = $this->slotAt($sessionId, $slotIndex);
+        if (null === $found) {
+            return false;
+        }
+
+        $ownerKey = $this->slotOwnerKey($userId, $sessionId, $found['eventId']);
+        if ($this->runs->findBySessionId($sessionId) instanceof Run) {
+            return $this->playedSlots->plays($found['slot'], $ownerKey, $userId);
+        }
+
+        return null !== $ownerKey && '' !== $ownerKey && $found['slot']->getRegistrationId() === $ownerKey;
+    }
+
+    /**
+     * @return array{slot: SessionSlot, eventId: string}|null
+     */
+    private function slotAt(string $sessionId, int $slotIndex): ?array
+    {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            return null;
+        }
+
+        $slotName = $this->archipelagoSlotName($sessionId, $slotIndex);
+        if (null === $slotName) {
+            return null;
+        }
+
+        $slot = $this->slots->findBySessionAndSlotName($sessionId, $slotName);
+        if (!$slot instanceof SessionSlot) {
+            return null;
+        }
+
+        return ['slot' => $slot, 'eventId' => $session->getEventId()];
     }
 
     /**
