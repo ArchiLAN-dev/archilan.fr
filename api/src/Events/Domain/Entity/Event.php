@@ -104,6 +104,9 @@ final class Event
         private ?string $practicalInfo = null,
         #[ORM\Column(name: 'practical_info_updated_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $practicalInfoUpdatedAt = null,
+        /** Story 53.8: the registrants get a mail the day before; the admin can switch it off for an event. */
+        #[ORM\Column(name: 'eve_reminder_enabled', type: 'boolean', options: ['default' => true])]
+        private bool $eveReminderEnabled = true,
     ) {
     }
 
@@ -305,6 +308,21 @@ final class Event
         $this->practicalInfo = $markdown;
         $this->practicalInfoUpdatedAt = null === $markdown ? null : $now;
         $this->updatedAt = $now;
+    }
+
+    /** Story 53.8: whether the registrants get the mail of the day before. */
+    public function switchEveReminder(bool $enabled, \DateTimeImmutable $now): void
+    {
+        if ($enabled === $this->eveReminderEnabled) {
+            return;
+        }
+        $this->eveReminderEnabled = $enabled;
+        $this->updatedAt = $now;
+    }
+
+    public function isEveReminderEnabled(): bool
+    {
+        return $this->eveReminderEnabled;
     }
 
     public function getPracticalInfo(): ?string

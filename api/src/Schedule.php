@@ -23,6 +23,7 @@ use App\PersonalRuns\Application\Message\ExpireRunListingsMessage;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
 use App\PersonalRuns\Application\Message\SyncRunListingsToDiscordMessage;
 use App\Registrations\Application\Message\ProcessUnconfirmedRegistrationsMessage;
+use App\Registrations\Application\Message\SendEventEveRemindersMessage;
 use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Sessions\Application\Message\RequestDeclaredDeparturesMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
@@ -79,6 +80,11 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Story 4.23: remind unconfirmed registrations 48 h before registrations close, release them once
                 // closed. Hourly, so the reminder and the release land within the hour.
                 RecurringMessage::cron('20 * * * *', new ProcessUnconfirmedRegistrationsMessage()),
+            )
+            ->add(
+                // Story 53.8: the confirmed registrants of an event starting in 12 to 36 hours get the mail of the day
+                // before, once. Hourly, so each one goes about a day ahead.
+                RecurringMessage::cron('0 * * * *', new SendEventEveRemindersMessage()),
             )
             ->add(
                 // Story 51.3: a survey's audience is told it opened, then reminded once, within ten minutes.

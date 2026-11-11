@@ -26,6 +26,8 @@ export type EventFormInput = {
   helloassoFormSlug: string;
   /** Story 53.4: always sent, like the slug; empty removes it. */
   practicalInfo: string;
+  /** Story 53.8: the registrants get a mail the day before. */
+  eveReminderEnabled: boolean;
 };
 
 export type EventField =
@@ -62,6 +64,8 @@ export type AdminEventFormData = {
   helloassoFormSlug: string | null;
   /** Story 53.4: absent from an older API answer, which reads as none. */
   practicalInfo?: string | null;
+  /** Story 53.8: absent from an older API answer, which reads as on. */
+  eveReminderEnabled?: boolean;
 };
 
 /** Story 53.4: the headings offered on a first click, so the organisers do not start from a blank page. */
@@ -139,6 +143,7 @@ export function EventForm({
         isPublic: form.get("isPublic") === "on",
         helloassoFormSlug: String(form.get("helloassoFormSlug") ?? "").trim(),
         practicalInfo: String(form.get("practicalInfo") ?? ""),
+        eveReminderEnabled: form.get("eveReminderEnabled") === "on",
       });
 
       if (mode === "create") {
@@ -314,6 +319,16 @@ export function EventForm({
           value={practicalInfo}
         />
         {errors.practicalInfo ? <span className="text-xs text-danger" id={practicalInfoErrorId}>{errors.practicalInfo}</span> : null}
+        {/* Story 53.8: the mail of the day before (start, venue, what is left to do), never the practical info. */}
+        <label className="flex items-start gap-2 text-sm text-foreground">
+          <input className="mt-0.5 size-4" defaultChecked={event?.eveReminderEnabled ?? true} name="eveReminderEnabled" type="checkbox" />
+          <span>
+            Envoyer un mail la veille aux inscrits confirmés
+            <span className="block text-xs text-muted-foreground">
+              L&apos;heure, le lieu et ce qu&apos;il leur reste à faire, avec le lien vers leur espace. Les infos pratiques n&apos;y figurent pas.
+            </span>
+          </span>
+        </label>
       </fieldset>
 
       <div className="grid gap-2">

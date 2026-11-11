@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Communications;
 use App\Communications\Application\Email\AdminDirectMessageEmail;
 use App\Communications\Application\Email\ArchilanEmail;
 use App\Communications\Application\Email\EventCapacityReachedEmail;
+use App\Communications\Application\Email\EventEveReminderEmail;
 use App\Communications\Application\Email\RegistrationConfirmationEmail;
 use App\Communications\Application\Email\RegistrationConfirmationReminderEmail;
 use App\Communications\Application\Email\RegistrationReleasedEmail;
@@ -49,6 +50,14 @@ final class HtmlEmailsTest extends TestCase
         yield 'survey reminder' => [
             new SurveyReminderEmail('a@example.org', 'Alice', 'Ton retour', 'ArchiLAN #4', '27/11/2026 à 18h00', true, self::SITE.'/evenements/e1/sondages/s2', self::SITE),
             ['Tu n&#039;as pas encore répondu', 'Ton retour', 'Tes réponses sont anonymes', 'Répondre'],
+        ];
+        yield 'eve reminder with steps left' => [
+            new EventEveReminderEmail('a@example.org', 'Alice', 'ArchiLAN #4', '21/11/2026 à 10h00', 'Salle des fêtes', ['Choisir tes jeux', 'Payer ta place'], self::SITE.'/evenements/e1/mon-event', self::SITE),
+            ['C&#039;est demain !', '21/11/2026 à 10h00', 'Salle des fêtes', 'Il te reste à faire', 'Choisir tes jeux', 'Payer ta place', 'href="https://archilan.fr/evenements/e1/mon-event"', 'Mon espace'],
+        ];
+        yield 'eve reminder, ready' => [
+            new EventEveReminderEmail('a@example.org', 'Alice', 'ArchiLAN #4', '21/11/2026 à 10h00', '', [], self::SITE.'/evenements/e1/mon-event', self::SITE),
+            ['Tout est prêt de ton côté'],
         ];
         yield 'place released' => [
             new RegistrationReleasedEmail('a@example.org', 'Alice', 'ArchiLAN #4', self::SITE.'/evenements/e1', self::SITE),
