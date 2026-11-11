@@ -1,8 +1,8 @@
 # Serveur média de la LAN
 
 Le serveur média permet aux joueurs d'envoyer leur écran à la régie par le réseau de la LAN, sans rien publier sur
-Internet (epic 47, partie 2). Ce dossier a été créé par le spike 47.4. La configuration fonctionne, mais la clé est
-encore une clé d'essai unique : c'est la story 47.5 qui donnera une clé par inscription.
+Internet (epic 47, partie 2). Ce dossier a été créé par le spike 47.4. Depuis la story 47.5, chaque inscrit confirmé
+a sa propre clé.
 
 ## Fonctionnement
 
@@ -10,7 +10,15 @@ encore une clé d'essai unique : c'est la story 47.5 qui donnera une clé par in
   - en WHIP, depuis OBS 30 ou plus récent ;
   - en SRT, en repli.
 - **Avant chaque publication**, MediaMTX demande l'autorisation au site (`POST /api/v1/media-auth`). Le site répond
-  200 ou 401. Seule cette question passe par Internet.
+  200 ou 401. Seule cette question passe par Internet. Le site accepte un inscrit confirmé, qui n'a pas refusé la
+  diffusion et dont le compte n'est pas banni, avec sa clé du moment, de 24 h avant le début à la fin de
+  l'événement.
+- **Le serveur média de l'événement** se règle dans l'admin, sur la fiche de l'événement : bloc « Diffusion locale »,
+  champ « Serveur média local » (le nom d'hôte, par exemple `media.lan.archilan.fr`). Vide : pas de diffusion
+  locale.
+- **Chaque inscrit** trouve son chemin `p-...`, sa clé et les adresses à coller dans OBS dans son espace de
+  l'événement (story 47.7). La clé est calculée à partir d'`APP_SECRET`, jamais stockée : changer `APP_SECRET`
+  invalide toutes les clés. Le joueur peut régénérer la sienne, l'ancienne cesse aussitôt de marcher.
 - **La régie lit les flux en WHEP (WebRTC)**, uniquement sur la LAN. Cette lecture ne demande rien au site : si
   Internet tombe, les flux déjà ouverts restent lisibles.
 - **Les chemins** ont la forme `p-<identifiant>`. Tout autre chemin est refusé par MediaMTX lui-même.
@@ -23,8 +31,7 @@ encore une clé d'essai unique : c'est la story 47.5 qui donnera une clé par in
    - `MTX_WEBRTCADDITIONALHOSTS` : l'IP LAN fixe de la machine, par exemple `192.168.1.10`.
 3. Mettre le certificat dans `certs/` (voir plus bas) : `fullchain.pem` et `privkey.pem`.
 4. `docker compose up -d`, puis `docker compose logs -f`.
-5. Côté site, pendant le spike, `MEDIA_AUTH_SPIKE_KEY` doit avoir une valeur dans l'environnement de l'API. Sans
-   elle, l'endpoint répond 404 et toute publication est refusée.
+5. Côté site : renseigner « Serveur média local » sur l'événement dans l'admin.
 
 Le compose utilise le réseau de l'hôte (`network_mode: host`), pour que WebRTC annonce les vraies adresses de la
 machine. Docker Desktop (Windows, macOS) ne gère pas ce mode comme Linux : pour un essai sur un poste de dev, voir
@@ -86,11 +93,12 @@ OBS envoie alors de l'H264 sans B-frames et du son Opus : l'écran régie le lit
 
 ## Essai local (poste de dev, Docker Desktop)
 
-Sans certificat ni réseau de l'hôte, avec l'API lancée en `php -S 0.0.0.0:8000 -t public` et
-`MEDIA_AUTH_SPIKE_KEY` dans `api/.env.local` :
+Sans certificat ni réseau de l'hôte, avec l'API lancée en `php -S 0.0.0.0:8000 -t public`, un événement publié qui
+commence dans moins de 24 h avec un serveur média renseigné, et un inscrit confirmé (son chemin et sa clé :
+`GET /api/v1/registrations/<id>/media-publish`, connecté avec son compte) :
 
 ```
-docker run -d --name mtx-spike -v "<chemin>/mediamtx.yml:/mediamtx.yml:ro" \
+docker run -d --name mtx-essai -v "<chemin>/mediamtx.yml:/mediamtx.yml:ro" \
   -e MTX_AUTHHTTPADDRESS=http://host.docker.internal:8000/api/v1/media-auth \
   -e MTX_WEBRTCENCRYPTION=no -e MTX_APIADDRESS=:9997 -e MTX_WEBRTCALLOWORIGINS='*' \
   -p 8889:8889 -p 8890:8890/udp -p 8189:8189/udp -p 9997:9997 bluenviron/mediamtx:1.21.3
@@ -100,7 +108,7 @@ Publier une mire avec ffmpeg :
 
 ```
 ffmpeg -re -f lavfi -i testsrc2=size=1280x720:rate=30 -c:v libx264 -preset veryfast -tune zerolatency -bf 0 \
-  -g 60 -b:v 2500k -f mpegts "srt://localhost:8890?streamid=publish:p-alice:alice:<clé>&pkt_size=1316"
+  -g 60 -b:v 2500k -f mpegts "srt://localhost:8890?streamid=publish:<chemin>:archilan:<clé>&pkt_size=1316"
 ```
 
-Puis ouvrir `http://127.0.0.1:3000/o/whep-essai?url=http://localhost:8889/p-alice/whep`.
+Puis ouvrir `http://127.0.0.1:3000/o/whep-essai?url=http://localhost:8889/<chemin>/whep`.

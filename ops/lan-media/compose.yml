@@ -1,4 +1,4 @@
-# Serveur média de la LAN ArchiLAN (story 47.4, spike).
+# Serveur média de la LAN ArchiLAN (stories 47.4 et 47.5).
 # Sur la machine de régie (Linux) : cp .env.example .env, renseigner, puis
 #   docker compose up -d
 # Réseau de l'hôte : WebRTC annonce les vraies IP de la machine, sans NAT Docker.
