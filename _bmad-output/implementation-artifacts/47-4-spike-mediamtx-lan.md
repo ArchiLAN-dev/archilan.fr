@@ -1,6 +1,6 @@
 # Story 47.4 - Spike : MediaMTX sur la LAN, de la clé à l'écran régie
 
-**Status:** ready-for-dev
+**Status:** in-progress (essais sur la LAN à faire : questions 2, 3 et 5)
 **Epic:** 47 - Multistream des participants, partie 2 « Diffusion locale par MediaMTX »
 (`_bmad-output/planning-artifacts/epics/epic-47-multistream.md`)
 **Date:** 2026-11-11
@@ -78,12 +78,14 @@ afin de savoir si la diffusion locale est faisable telle que l'epic la décrit, 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 2) - MediaMTX épinglé en compose sur une machine de test, `mediamtx.yml`, certificat DNS-01 sur
-  un nom de test.
-- [ ] **Task 2** (AC 1, 3, 7) - Endpoint d'essai `media-auth`, essais du jeton WHIP et SRT (questions 1 et 4).
-- [ ] **Task 3** (AC 1, 4, 5) - Lecture WHEP depuis une page HTTPS dans OBS et dans Chrome (questions 2 et 3).
-- [ ] **Task 4** (AC 1, 5) - Charge, latence, coupures, API des chemins, Internet coupé (questions 5 à 7).
-- [ ] **Task 5** (AC 6) - Recommandation, mise à jour de l'epic, Dev Agent Record.
+- [x] **Task 1** (AC 2) - MediaMTX épinglé en compose sur une machine de test, `mediamtx.yml`, certificat DNS-01 sur
+  un nom de test (procédure écrite, certificat réel à obtenir sur la LAN).
+- [x] **Task 2** (AC 1, 3, 7) - Endpoint d'essai `media-auth`, essais du jeton WHIP et SRT (questions 1 et 4).
+- [ ] **Task 3** (AC 1, 4, 5) - Lecture WHEP depuis une page HTTPS dans OBS et dans Chrome (questions 2 et 3). Page
+  d'essai livrée et lecture vérifiée en local (http) ; essai HTTPS public vers IP privée dans OBS à faire sur la LAN.
+- [ ] **Task 4** (AC 1, 5) - Charge, latence, coupures, API des chemins, Internet coupé (questions 5 à 7). Questions 6
+  et 7 tranchées ; charge et latence (5) à mesurer sur la LAN.
+- [x] **Task 5** (AC 6) - Recommandation, mise à jour de l'epic, Dev Agent Record.
 
 ## Dev Notes
 
@@ -94,3 +96,119 @@ afin de savoir si la diffusion locale est faisable telle que l'epic la décrit, 
 - Ne pas exposer MediaMTX sur Internet pendant les essais : le certificat DNS-01 n'en a pas besoin.
 
 ## Dev Agent Record
+
+### Environnement d'essai (2026-11-11)
+
+MediaMTX v1.21.3 (image `bluenviron/mediamtx:1.21.3`, Docker Desktop sur Windows 11, ports publiés), API en
+`php -S 0.0.0.0:8000`, frontend en `next start`, Chrome à jour piloté par DevTools, ffmpeg 8.0.1 (SRT). Pas d'OBS ni
+de deuxième machine : les questions 2, 3 et 5 restent à mesurer sur la LAN. Les réponses 1, 4, 6 et 7 sont
+confirmées par l'essai et par le code de MediaMTX v1.21.3 (`internal/auth/credentials.go`, `internal/auth/manager.go`).
+
+### Réponses
+
+1. **Jeton WHIP : tranché.**
+   - MediaMTX lit `Authorization: Bearer <x>`. Sans « : », `x` part dans `token`. Avec un seul « : », `user:pass`
+     partent dans `user` et `password` (et `token` est aussi rempli).
+   - En SRT (`streamid=publish:<chemin>:<user>:<clé>`), la clé part dans `password` (et `token`).
+   - Corps reçu par l'API : `{ip, user, password, token, action, path, protocol, id, query, userAgent}`, avec
+     `protocol` à `webrtc` ou `srt`.
+   - Essais :
+     - WHIP, bonne clé : autorisé (puis 400 sur la fausse offre SDP) ;
+     - WHIP, mauvaise clé : 401 renvoyé par MediaMTX ;
+     - SRT, bonne clé : publication acceptée ;
+     - SRT, mauvaise clé : ffmpeg échoue en « I/O error ».
+   - Un chemin hors `p-*` est refusé par MediaMTX avant toute demande au site (« path 'regie' is not configured »).
+   - **Pour 47.5** : la clé ne doit jamais contenir « : ». L'API la cherche dans `token`, puis dans `password`.
+2. **Lecture depuis une page HTTPS publique : à mesurer sur la LAN.** Ce qu'on sait déjà :
+   - La lecture WHEP est vérifiée depuis une page du site (`/o/whep-essai`), dont l'origine diffère de celle de
+     MediaMTX. Le CORS se règle par `webrtcAllowOrigins`.
+   - Depuis la version 142, Chrome applique le Local Network Access : une page publique qui appelle une IP privée
+     déclenche une demande d'autorisation (un clic, mémorisé par site). La règle porte sur la requête HTTP de
+     signalisation WHEP, pas sur les médias WebRTC.
+   - La source navigateur d'OBS 31 embarque Chromium 127 (CEF 6533), antérieur à cette règle. A priori, pas de
+     blocage. Mais si une future version d'OBS l'applique, il n'y aura aucune fenêtre pour accepter.
+   - **Plan B si OBS bloque** : servir l'écran régie depuis la LAN. Un proxy local `https://regie.lan.archilan.fr`
+     renvoie vers le site ; la page a alors une origine privée qui appelle une IP privée, hors de la règle. Le code
+     de l'écran ne change pas.
+3. **Certificat : procédure écrite** (`ops/lan-media/README.md`, lego en DNS-01). Elle reste à dérouler pour de vrai
+   avec les accès du fournisseur DNS d'archilan.fr. Risque relevé : un DNS qui filtre les réponses en IP privée.
+4. **WebRTC et flux SRT : tranché.**
+   - H264 sans B-frames + Opus : lu (1280x720, 31 i/s, gigue de 7 à 10 ms, aucune perte).
+   - H264 avec B-frames : lecture refusée (« WebRTC doesn't support H264 streams with B-frames »).
+   - AAC : piste ignorée (« skipping track 2 (MPEG-4 Audio) »), l'image passe.
+   - WHIP depuis OBS envoie déjà sans B-frames et en Opus.
+   - **Pour 47.7** : en SRT, le texte du joueur doit imposer B-frames à 0.
+5. **Charge : à mesurer sur la LAN.** Indication locale : MediaMTX consomme 7 % d'un cœur et 43 Mo avec deux flux
+   720p30 à 2,5 Mbit/s et un lecteur. Côté navigateur, il faut un lecteur WHEP par case.
+6. **API des chemins : tranché.**
+   - `GET /v3/paths/list` renvoie `{itemCount, pageCount, items: [{name, confName, online, onlineTime, available,
+     source: {type, id}, tracks, inboundBytes, readers}]}`.
+   - `ready` et `readyTime` sont dépréciés en 1.21 : **utiliser `online` et `onlineTime`** (47.6).
+   - Un flux coupé disparaît aussitôt de la liste (`itemCount: 0`).
+   - L'agent relie le chemin à l'inscription par son nom (`p-<identifiant>`) ; il n'a rien d'autre à lire.
+7. **Internet coupé : tranché.**
+   - Si l'API est injoignable, une nouvelle publication est refusée en 4 s environ (« HTTP request failed ...
+     connection refused »).
+   - Un flux déjà ouvert continue : vérifié, il reste `online` et ses octets montent.
+   - La lecture est exclue de l'autorisation (`authHTTPExclude: read`) : la régie lit sans Internet.
+
+### Points découverts
+
+- **Coupure côté lecteur (corrigée dans le spike)** : quand un joueur coupait son flux, WebRTC ne passait en échec
+  qu'au bout de 25 s environ (délai ICE), avec la dernière image figée à l'écran. Pendant les ~10 s où MediaMTX croit
+  encore le flux SRT ouvert, un nouvel essai se connectait aussi et affichait « En direct » sans image. Correctif
+  dans `whep-player.tsx` :
+  - un lecteur connecté sans nouvelle image décodée pendant 3 s (`watchStall`, `STALL_TICKS`) est coupé et relancé ;
+  - « En direct » attend la première image, et non plus la seule connexion ;
+  - l'image et les statistiques sont effacées dès la coupure.
+  Revérifié en local : coupure affichée environ 3 s après l'arrêt des images, reprise seule quand le flux revient.
+  **Pour 47.8** : garder ce comportement, et retirer la case dès que l'agent ne voit plus le flux.
+- MediaMTX 1.21 active MoQ par défaut (ports 8892 et 8893) : je l'ai coupé dans `mediamtx.yml`.
+- Le message d'erreur de l'API (401) apparaît dans les journaux de MediaMTX : il ne doit rien dire de sensible.
+  C'est le cas (« Refusé. »).
+
+### Recommandation
+
+- **WHIP en mode principal, SRT en repli**, comme prévu. Le jeton est la clé brute, sans « : ».
+- **Lecture libre sur la LAN**, autorisation seulement pour la publication.
+- **Agent qui pousse l'état complet**, lu sur `online` (47.6), comme prévu.
+- Aucune décision de 47.5 à 47.9 ne change. Les précisions sont ajoutées à l'epic : clé sans « : », `online`,
+  détection des lecteurs figés, B-frames en SRT, plan B de l'écran servi par la LAN.
+- **Reste à faire sur la LAN avant 47.8** (Jean, deux PC) :
+  - obtenir le certificat réel ;
+  - publier depuis OBS joueur en WHIP ;
+  - lire dans la source navigateur OBS de la régie sur `https://archilan.fr/o/whep-essai` (préprod ou prod, avec
+    `MEDIA_AUTH_SPIKE_KEY`) ;
+  - mesurer avec 6 puis 9 joueurs, et la latence au chrono.
+- 47.5 et 47.6 peuvent commencer sans attendre ces essais.
+
+### Livré
+
+- `ops/lan-media/` :
+  - `mediamtx.yml` commenté ;
+  - `compose.yml` (image épinglée, réseau de l'hôte) ;
+  - `.env.example` ;
+  - `.gitignore` (`.env`, `certs/`) ;
+  - `README.md` (installation, ports, certificat, OBS, vérification, essai local).
+- API : `POST /api/v1/media-auth` (`MediaAuthController`, `MediaPublishSpikeGate`).
+  - Désactivé sans `MEDIA_AUTH_SPIKE_KEY` (404).
+  - Accepte la publication seulement, sur un chemin `p-*`, avec la clé dans `token` ou `password`.
+  - Journalise chaque demande sans secret (`streaming.media_auth_spike`).
+- Frontend :
+  - `features/streaming/whep-player.tsx` (`negotiateWhep`, `WhepPlayer`, `WhepTestScreen`), qui sert de base à 47.8 ;
+  - page `/o/whep-essai?url=...` (jusqu'à 9 lecteurs, avec leurs statistiques).
+- Tests :
+  - `MediaPublishSpikeGateTest` (unitaire) ;
+  - `MediaAuthSpikeTest` (fonctionnel, clé de `.env.test`) ;
+  - `whep-player.test.tsx`.
+
+### File List
+
+- ops/lan-media/README.md, mediamtx.yml, compose.yml, .env.example, .gitignore (nouveaux)
+- api/src/Streaming/Application/Service/MediaPublishSpikeGate.php (nouveau)
+- api/src/Streaming/Presentation/Controller/MediaAuthController.php (nouveau)
+- api/config/services.yaml, api/.env, api/.env.test
+- api/tests/Unit/Streaming/MediaPublishSpikeGateTest.php, api/tests/Functional/MediaAuthSpikeTest.php (nouveaux)
+- frontend/src/features/streaming/whep-player.tsx, whep-player.test.tsx (nouveaux)
+- frontend/src/app/(overlay)/o/whep-essai/page.tsx (nouveau)
+- _bmad-output/planning-artifacts/epics/epic-47-multistream.md (précisions du spike)

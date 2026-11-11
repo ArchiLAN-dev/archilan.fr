@@ -131,6 +131,8 @@ qui met à jour 47.5 à 47.9. Story détaillée : `47-4-spike-mediamtx-lan.md`.
   refusée, le compte non banni. 200 ou 401, sans détail. Limitation de débit.
 - Tests unitaires de la clé (stable, change avec la version, différente par inscription) et fonctionnels de
   l'endpoint (chaque cas de refus).
+- Spike 47.4 : la clé ne contient jamais « : » (sinon MediaMTX la coupe en `user:password`) ; l'API la lit dans
+  `token` (WHIP) puis `password` (SRT). Remplace l'endpoint d'essai et `MEDIA_AUTH_SPIKE_KEY`.
 
 ### 47.6 - L'agent de la régie et l'état des flux
 
@@ -138,13 +140,16 @@ qui met à jour 47.5 à 47.9. Story détaillée : `47-4-spike-mediamtx-lan.md`.
   liste des chemins prêts à `PUT /api/v1/events/{id}/local-streams`, signé HMAC avec le secret de l'agent.
 - L'API garde l'état (chemins en ligne, depuis quand, dernier envoi) ; hors ligne au-delà de 30 s sans envoi.
 - Tests : signature (refus si fausse ou périmée), remplacement complet de l'état, péremption.
+- Spike 47.4 : lire `online` / `onlineTime` (`ready` est déprécié en MediaMTX 1.21) ; un flux coupé sort aussitôt
+  de la liste.
 
 ### 47.7 - « Diffuser pour la régie » : la carte du joueur
 
 - Carte dans les outils de l'espace inscrit (53.3), seulement si l'événement a un serveur média, l'inscription est
   confirmée, la diffusion non refusée, de la veille à la fin de l'événement.
 - WHIP en tête (serveur + jeton Bearer, boutons Copier, clé masquée par défaut), SRT en repli (URL complète, rappel
-  B-frames à 0), réglages conseillés, bouton « Régénérer ma clé ».
+  B-frames à 0 : sinon l'écran régie ne peut pas lire le flux, constaté au spike 47.4), réglages conseillés, bouton
+  « Régénérer ma clé ».
 - État en direct : « La régie te reçoit » ou « En attente de ton flux » (lu sur l'état de 47.6).
 - Guide d'aide « diffusion » (53.5) complété ; ligne du mail de la veille (53.8) : « tes réglages de diffusion sont
   dans ton espace », jamais la clé dans un mail.
@@ -156,6 +161,9 @@ qui met à jour 47.5 à 47.9. Story détaillée : `47-4-spike-mediamtx-lan.md`.
 - `/o/streams` : lecteur WHEP (WebRTC, muet, reconnexion automatique) pour les entrées locales, iframe Twitch pour
   les autres ; même mosaïque, même rotation, même plafond.
 - La mosaïque publique (47.3) et la page de l'événement ignorent les entrées `local`.
+- Spike 47.4 : partir de `features/streaming/whep-player.tsx`, qui coupe déjà un lecteur sans image depuis 3 s
+  (WebRTC seul attendrait 25 s) ; retirer en plus la case dès que l'agent ne voit plus le flux.
+  Plan B si la source navigateur d'OBS refuse l'accès au réseau local : écran servi depuis la LAN par un proxy.
 
 ### 47.9 - Le suivi côté admin
 
