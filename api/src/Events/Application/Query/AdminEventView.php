@@ -47,6 +47,8 @@ final readonly class AdminEventView
         public ?string $practicalInfoUpdatedAt,
         /** Story 53.8: the registrants get a mail the day before. */
         public bool $eveReminderEnabled = true,
+        /** Story 47.5: the LAN media server the players publish to, null when local broadcasting is off. */
+        public ?string $mediaServerHost = null,
     ) {
     }
 }

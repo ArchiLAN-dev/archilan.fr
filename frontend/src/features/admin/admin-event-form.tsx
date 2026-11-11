@@ -28,6 +28,8 @@ export type EventFormInput = {
   practicalInfo: string;
   /** Story 53.8: the registrants get a mail the day before. */
   eveReminderEnabled: boolean;
+  /** Story 47.5: always sent, like the slug; empty switches local broadcasting off. */
+  mediaServerHost: string;
 };
 
 export type EventField =
@@ -42,7 +44,8 @@ export type EventField =
   | "registrationOpensAt"
   | "registrationClosesAt"
   | "helloassoFormSlug"
-  | "practicalInfo";
+  | "practicalInfo"
+  | "mediaServerHost";
 
 export type FieldErrors = Partial<Record<EventField, string>>;
 
@@ -66,6 +69,8 @@ export type AdminEventFormData = {
   practicalInfo?: string | null;
   /** Story 53.8: absent from an older API answer, which reads as on. */
   eveReminderEnabled?: boolean;
+  /** Story 47.5: the LAN media server the players publish to; absent from an older API answer, which reads as none. */
+  mediaServerHost?: string | null;
 };
 
 /** Story 53.4: the headings offered on a first click, so the organisers do not start from a blank page. */
@@ -116,6 +121,8 @@ export function EventForm({
   const descriptionErrorId = useId();
   const practicalInfoErrorId = useId();
   const practicalInfoHintId = useId();
+  const mediaServerErrorId = useId();
+  const mediaServerHintId = useId();
   const photoGalleryErrorId = useId();
 
   async function submit(formEvent: FormEvent<HTMLFormElement>) {
@@ -144,6 +151,7 @@ export function EventForm({
         helloassoFormSlug: String(form.get("helloassoFormSlug") ?? "").trim(),
         practicalInfo: String(form.get("practicalInfo") ?? ""),
         eveReminderEnabled: form.get("eveReminderEnabled") === "on",
+        mediaServerHost: String(form.get("mediaServerHost") ?? "").trim(),
       });
 
       if (mode === "create") {
@@ -331,6 +339,29 @@ export function EventForm({
         </label>
       </fieldset>
 
+      {/* Story 47.5: the players send their screen to this server on the LAN (ops/lan-media), each with their own key. */}
+      <fieldset className="grid gap-2 rounded-lg border border-border p-4">
+        <legend className="px-1 text-sm font-semibold text-foreground">Diffusion locale</legend>
+        <label className="grid gap-1 text-sm text-foreground">
+          <span>Serveur média local</span>
+          <input
+            aria-describedby={errors.mediaServerHost ? mediaServerErrorId : mediaServerHintId}
+            aria-invalid={errors.mediaServerHost ? true : undefined}
+            className="rounded border border-border bg-surface px-3 py-2 text-sm text-foreground"
+            defaultValue={event?.mediaServerHost ?? ""}
+            name="mediaServerHost"
+            placeholder="media.lan.archilan.fr"
+            type="text"
+          />
+        </label>
+        <p className="text-xs text-muted-foreground" id={mediaServerHintId}>
+          Le nom du serveur MediaMTX de la LAN, sans https:// ni port. Les inscrits confirmés pourront y envoyer leur
+          écran à la régie, de la veille à la fin de l&apos;événement. Vide : pas de diffusion locale. Installation :
+          ops/lan-media.
+        </p>
+        {errors.mediaServerHost ? <span className="text-xs text-danger" id={mediaServerErrorId}>{errors.mediaServerHost}</span> : null}
+      </fieldset>
+
       <div className="grid gap-2">
         <span className="text-sm font-semibold text-foreground">Galerie photos</span>
         {errors.photoGallery ? <span className="text-xs text-danger" id={photoGalleryErrorId}>{errors.photoGallery}</span> : null}
@@ -413,6 +444,7 @@ export function fieldErrorsFromPayload(payload: unknown): FieldErrors {
     registrationClosesAt: firstDetail(details, "registrationClosesAt"),
     helloassoFormSlug: firstDetail(details, "helloassoFormSlug"),
     practicalInfo: firstDetail(details, "practicalInfo"),
+    mediaServerHost: firstDetail(details, "mediaServerHost"),
   };
 }
 

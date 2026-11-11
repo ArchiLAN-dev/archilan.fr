@@ -86,3 +86,37 @@ describe("event form eve reminder", () => {
     expect(older.match(checkbox)?.[0]).toContain("checked");
   });
 });
+
+describe("story 47.5 - local broadcasting server", () => {
+  const saved = {
+    id: "e1",
+    title: "ArchiLAN 5",
+    description: "Desc",
+    coverImageUrl: null,
+    coverImageKey: null,
+    photoGallery: [],
+    startsAt: "2026-11-21T09:00:00Z",
+    endsAt: "2026-11-22T17:00:00Z",
+    venue: "Clermont",
+    capacity: 40,
+    confirmedRegistrations: 0,
+    registrationOpensAt: "2026-10-01T00:00:00Z",
+    registrationClosesAt: "2026-11-20T00:00:00Z",
+    isPublic: true,
+    helloassoFormSlug: null,
+  };
+  const field = /<input[^>]*name="mediaServerHost"[^>]*>/;
+
+  it("is empty for a new event and shows the saved server", () => {
+    const blank = renderToStaticMarkup(<EventForm event={null} mode="create" onSubmit={async () => undefined} />);
+    expect(blank).toContain("Serveur média local");
+    expect(blank.match(field)?.[0]).toContain('value=""');
+
+    const set = renderToStaticMarkup(<EventForm event={{ ...saved, mediaServerHost: "media.lan.archilan.fr" }} mode="edit" onSubmit={async () => undefined} />);
+    expect(set.match(field)?.[0]).toContain('value="media.lan.archilan.fr"');
+  });
+
+  it("maps the API error to the field", () => {
+    expect(fieldErrorsFromPayload({ error: { details: { mediaServerHost: ["Le serveur média est un nom d'hôte seul."] } } }).mediaServerHost).toBe("Le serveur média est un nom d'hôte seul.");
+  });
+});

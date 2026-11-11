@@ -1,0 +1,43 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Streaming\Application\Support;
+
+/**
+ * Story 47.5: what a registrant needs to publish their screen to the LAN media server (MediaMTX), derived from
+ * APP_SECRET and never stored. The path is opaque (neither the nickname nor the registration id) and stable; the key
+ * changes with the registration's key version. Both are hexadecimal: MediaMTX splits a Bearer token on ":", so a key
+ * must never hold one (spike 47.4).
+ */
+final readonly class MediaPublishCredentials
+{
+    public const int WHIP_PORT = 8889;
+    public const int SRT_PORT = 8890;
+    public const string PATH_PATTERN = '/^p-[0-9a-f]{20}$/';
+
+    public function __construct(private string $appSecret)
+    {
+    }
+
+    public function pathFor(string $registrationId): string
+    {
+        return 'p-'.substr(hash_hmac('sha256', 'archilan-media-path|'.$registrationId, $this->appSecret), 0, 20);
+    }
+
+    public function keyFor(string $eventId, string $registrationId, int $version): string
+    {
+        return substr(hash_hmac('sha256', sprintf('archilan-media-key|%s|%s|%d', $eventId, $registrationId, $version), $this->appSecret), 0, 32);
+    }
+
+    public static function whipUrl(string $host, string $path): string
+    {
+        return sprintf('https://%s:%d/%s/whip', $host, self::WHIP_PORT, $path);
+    }
+
+    /** The player name MediaMTX wants in the stream id is not read: the path says who publishes. */
+    public static function srtUrl(string $host, string $path, string $key): string
+    {
+        return sprintf('srt://%s:%d?streamid=publish:%s:archilan:%s&pkt_size=1316', $host, self::SRT_PORT, $path, $key);
+    }
+}

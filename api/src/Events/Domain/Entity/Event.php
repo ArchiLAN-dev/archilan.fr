@@ -27,6 +27,8 @@ final class Event
 
     /** Story 53.4: the registrants-only practical information, in markdown. */
     public const int PRACTICAL_INFO_MAX_LENGTH = 10000;
+    /** Story 47.5: a bare host name (no scheme, no port), lowercase, at least one dot. */
+    public const string MEDIA_SERVER_HOST_PATTERN = '/^(?=.{4,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/';
 
     /**
      * @return list<string>
@@ -107,6 +109,9 @@ final class Event
         /** Story 53.8: the registrants get a mail the day before; the admin can switch it off for an event. */
         #[ORM\Column(name: 'eve_reminder_enabled', type: 'boolean', options: ['default' => true])]
         private bool $eveReminderEnabled = true,
+        /** Story 47.5: the LAN media server (MediaMTX) the players publish to; null = no local broadcasting. */
+        #[ORM\Column(name: 'media_server_host', type: 'string', length: 253, nullable: true)]
+        private ?string $mediaServerHost = null,
     ) {
     }
 
@@ -323,6 +328,33 @@ final class Event
     public function isEveReminderEnabled(): bool
     {
         return $this->eveReminderEnabled;
+    }
+
+    public static function isValidMediaServerHost(string $host): bool
+    {
+        return 1 === preg_match(self::MEDIA_SERVER_HOST_PATTERN, $host);
+    }
+
+    /** Story 47.5: where the players send their screen on the LAN; blank or null switches local broadcasting off. */
+    public function pointMediaServer(?string $host, \DateTimeImmutable $now): void
+    {
+        $host = null === $host ? null : strtolower(trim($host));
+        if ('' === $host) {
+            $host = null;
+        }
+        if (null !== $host && !self::isValidMediaServerHost($host)) {
+            throw new \DomainException('event_media_server_invalid');
+        }
+        if ($host === $this->mediaServerHost) {
+            return;
+        }
+        $this->mediaServerHost = $host;
+        $this->updatedAt = $now;
+    }
+
+    public function getMediaServerHost(): ?string
+    {
+        return $this->mediaServerHost;
     }
 
     public function getPracticalInfo(): ?string

@@ -88,6 +88,7 @@ final readonly class AdminEventDrafts
         $event->linkHelloassoForm($parsed['helloassoFormSlug'], $this->clock->now());
         $event->writePracticalInfo($parsed['practicalInfo'], $this->clock->now());
         $event->switchEveReminder($parsed['eveReminderEnabled'], $this->clock->now());
+        $event->pointMediaServer($parsed['mediaServerHost'], $this->clock->now());
         $this->eventRepository->save($event);
         $this->publicPages->eventChanged($event->getId());
 
@@ -149,6 +150,9 @@ final readonly class AdminEventDrafts
         }
         if ($parsed['eveReminderEnabledProvided']) {
             $event->switchEveReminder($parsed['eveReminderEnabled'], $this->clock->now());
+        }
+        if ($parsed['mediaServerHostProvided']) {
+            $event->pointMediaServer($parsed['mediaServerHost'], $this->clock->now());
         }
         $this->eventRepository->save($event);
         $this->publicPages->eventChanged($event->getId());
@@ -219,7 +223,7 @@ final readonly class AdminEventDrafts
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool}
+     * @return array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool, mediaServerHost: string|null, mediaServerHostProvided: bool}
      */
     private function parse(array $input): array
     {
@@ -247,11 +251,14 @@ final readonly class AdminEventDrafts
             // Story 53.8: on by default; a save that does not send it keeps it.
             'eveReminderEnabled' => false !== ($input['eveReminderEnabled'] ?? true),
             'eveReminderEnabledProvided' => is_bool($input['eveReminderEnabled'] ?? null),
+            // Story 47.5: a save that does not send it keeps it; blank removes it.
+            'mediaServerHost' => is_string($input['mediaServerHost'] ?? null) && '' !== trim($input['mediaServerHost']) ? strtolower(trim($input['mediaServerHost'])) : null,
+            'mediaServerHostProvided' => array_key_exists('mediaServerHost', $input),
         ];
     }
 
     /**
-     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool} $input
+     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool, mediaServerHost: string|null, mediaServerHostProvided: bool} $input
      *
      * @return array{title: string, description: string, startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable, venue: string, capacity: int, registrationOpensAt: \DateTimeImmutable, registrationClosesAt: \DateTimeImmutable, isPublic: bool}|null
      */
@@ -281,7 +288,7 @@ final readonly class AdminEventDrafts
     }
 
     /**
-     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool} $input
+     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool, mediaServerHost: string|null, mediaServerHostProvided: bool} $input
      *
      * @return array<string, list<string>>
      */
@@ -335,6 +342,10 @@ final readonly class AdminEventDrafts
                 // The slug goes as is into the checkout widget's address: anything else breaks the billetterie.
                 $errors->add('helloassoFormSlug', "Le slug ne contient que des minuscules, chiffres et tirets (la fin de l'adresse du formulaire HelloAsso, ex. archilan-4).");
             }
+        }
+
+        if (null !== $input['mediaServerHost'] && !Event::isValidMediaServerHost($input['mediaServerHost'])) {
+            $errors->add('mediaServerHost', "Le serveur média est un nom d'hôte seul, sans https:// ni port (ex. media.lan.archilan.fr).");
         }
 
         if (null !== $input['practicalInfo'] && mb_strlen($input['practicalInfo']) > Event::PRACTICAL_INFO_MAX_LENGTH) {
@@ -434,6 +445,7 @@ final readonly class AdminEventDrafts
             $event->getPracticalInfo(),
             $event->getPracticalInfoUpdatedAt()?->format(\DateTimeInterface::ATOM),
             $event->isEveReminderEnabled(),
+            $event->getMediaServerHost(),
         );
     }
 

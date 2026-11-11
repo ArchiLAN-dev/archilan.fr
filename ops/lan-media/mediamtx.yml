@@ -1,4 +1,4 @@
-# Serveur média de la LAN ArchiLAN (story 47.4, spike).
+# Serveur média de la LAN ArchiLAN (stories 47.4 et 47.5).
 # MediaMTX v1.21.3. Les réglages absents de ce fichier gardent la valeur par défaut de MediaMTX.
 # Les valeurs propres à une LAN (adresse de l'API, IP de la machine) viennent de l'environnement :
 # MediaMTX lit toute clé en MTX_<CLE_EN_MAJUSCULES>, voir compose.yml et .env.example.

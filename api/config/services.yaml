@@ -103,10 +103,6 @@ services:
     App\Wallet\Infrastructure\Http\MinimapperzHttpClient:
         arguments:
             $baseUrl: '%env(default:default_minimapperz_api_url:MINIMAPPERZ_API_URL)%'
-    # Story 47.4 (spike): the test key the LAN MediaMTX server is let in with; empty = no /api/v1/media-auth.
-    App\Streaming\Application\Service\MediaPublishSpikeGate:
-        arguments:
-            $spikeKey: '%env(default:default_empty_string:MEDIA_AUTH_SPIKE_KEY)%'
     # Story 41.40: the blind test app and the secret both sides sign with; empty = blind test unavailable.
     App\Wallet\Application\Support\BlindTestLink:
         arguments:
