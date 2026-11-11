@@ -127,3 +127,12 @@ L'agent se lance à côté, sans Docker, avec les lignes de « Configuration de 
 ARCHILAN_API_URL=http://localhost:8000 ARCHILAN_EVENT_ID=<id> ARCHILAN_AGENT_SECRET=<secret> \
   MTX_API_URL=http://localhost:9997 python agent.py
 ```
+
+**Écran régie en local, en HTTPS** (story 47.8) : l'écran `/o/streams` lit `https://<serveur média>:8889`. Pour
+l'essayer sur un poste de dev, `media.localtest.me` pointe vers 127.0.0.1 dans le DNS public :
+
+1. `mkcert -cert-file certs/fullchain.pem -key-file certs/privkey.pem media.localtest.me` ;
+2. le `docker run` plus haut sans `-e MTX_WEBRTCENCRYPTION=no`, avec `-v "<chemin>/certs:/certs:ro"` et
+   `-e MTX_WEBRTCADDITIONALHOSTS=127.0.0.1` ;
+3. « Serveur média local » de l'événement : `media.localtest.me` ; l'agent lancé comme ci-dessus ;
+4. ouvrir `http://localhost:3000/o/streams?event=<id>`.

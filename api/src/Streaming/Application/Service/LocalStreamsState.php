@@ -45,6 +45,24 @@ final readonly class LocalStreamsState
         ];
     }
 
+    /**
+     * Story 47.8: the registrations whose stream the régie receives now.
+     *
+     * @return array<string, true>
+     */
+    public function liveRegistrations(string $eventId): array
+    {
+        $now = $this->clock->now();
+        $live = [];
+        foreach ($this->streams->streamsOf($eventId) as $stream) {
+            if ($stream->isLiveAt($now)) {
+                $live[$stream->getRegistrationId()] = true;
+            }
+        }
+
+        return $live;
+    }
+
     /** Story 47.7: whether the régie receives this registrant's stream now. */
     public function isLive(string $eventId, string $registrationId): bool
     {

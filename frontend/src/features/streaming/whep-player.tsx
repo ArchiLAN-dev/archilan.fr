@@ -221,8 +221,13 @@ function readInboundVideo(report: RTCStatsReport): WhepStats | null {
 
 const STATE_LABELS: Record<WhepState, string> = { connecting: "Connexion...", playing: "En direct", failed: "Coupé, nouvel essai..." };
 
-export function WhepPlayer({ whepUrl, showStats = false }: { whepUrl: string; showStats?: boolean }) {
+export function WhepPlayer({ whepUrl, showStats = false, bare = false }: { whepUrl: string; showStats?: boolean; bare?: boolean }) {
   const { videoRef, state, stats } = useWhep(whepUrl);
+
+  // Story 47.8: on the régie screen, the picture alone; the cell draws the player's name.
+  if (bare) {
+    return <video ref={videoRef} autoPlay muted playsInline className="size-full bg-black object-contain" />;
+  }
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
