@@ -144,6 +144,17 @@ final class Version20261111100001 extends AbstractMigration
 
                 Dans ton espace pour l'événement, carte « Ton stream sur la régie », décoche la case : ton live ne sera plus repris par la régie, sans autre conséquence. Tu peux changer d'avis jusqu'à la fin de l'événement.
 
+                ## Envoyer ton écran à la régie (LAN)
+
+                Sur place, tu peux aussi envoyer ton écran directement à la régie, par le réseau de la LAN, sans streamer sur Internet. Rien n'est public : seule la régie le voit, et elle peut le montrer à l'écran de la salle ou sur la chaîne ArchiLAN.
+
+                Dès la veille de l'événement, ton espace a une carte « Diffuser pour la régie » avec tes réglages OBS :
+
+                - **WHIP** (OBS 30 ou plus récent, recommandé) : dans `Paramètres > Stream`, choisis le service « WHIP », colle le serveur et le jeton Bearer de ta carte, puis lance le stream.
+                - **SRT** (en repli) : colle l'adresse SRT complète comme serveur personnalisé, et mets les **B-frames à 0** dans les réglages de l'encodeur, sinon la régie ne peut pas lire ton flux.
+
+                La carte affiche « La régie te reçoit » quand ton flux arrive. Ta clé est personnelle : si tu l'as partagée par erreur, « Régénérer ma clé » en donne une nouvelle et l'ancienne cesse aussitôt de marcher.
+
                 ## Voir les autres
 
                 La page Streams du site montre aussi les lives des joueurs en mosaïque.

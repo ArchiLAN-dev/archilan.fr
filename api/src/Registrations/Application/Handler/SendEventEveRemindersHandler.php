@@ -107,6 +107,7 @@ final readonly class SendEventEveRemindersHandler
                 $event->getVenue(),
                 $this->stepsLeft($registration),
                 $hubUrl,
+                null !== $event->getMediaServerHost() && $registration->hasBroadcastConsent(),
             ));
         } catch (\Throwable $e) {
             $this->logger->warning('registration.eve_reminder_failed', ['registrationId' => $registration->getId(), 'error' => $e->getMessage()]);

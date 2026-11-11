@@ -44,4 +44,17 @@ final readonly class LocalStreamsState
             'streams' => $views,
         ];
     }
+
+    /** Story 47.7: whether the régie receives this registrant's stream now. */
+    public function isLive(string $eventId, string $registrationId): bool
+    {
+        $now = $this->clock->now();
+        foreach ($this->streams->streamsOf($eventId) as $stream) {
+            if ($stream->getRegistrationId() === $registrationId) {
+                return $stream->isLiveAt($now);
+            }
+        }
+
+        return false;
+    }
 }

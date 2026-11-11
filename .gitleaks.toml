@@ -8,6 +8,8 @@ description = "Faux positifs verifies"
 paths = [
     '''api/\.env\.test$''',
     '''api/tests/Functional/PushSubscriptionControllerTest\.php$''',
+    # Story 47.7: a made-up 32-hex publishing key (0123...cdef), the shape of a real one.
+    '''frontend/src/features/streaming/media-publish\.test\.tsx$''',
     '''packages/[^/]+/vendor/''',
     '''bridge/BRIDGE_API\.md$''',
     '''bridge/tests/''',

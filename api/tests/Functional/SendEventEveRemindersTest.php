@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Communications\Application\Email\EventEveReminderEmail;
 use App\Communications\Application\Message\EventEveReminderMessage;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
@@ -46,7 +47,41 @@ final class SendEventEveRemindersTest extends FunctionalTestCase
         // Nothing required left on an event without game selection nor payment.
         self::assertSame([], $mail->stepsLeft);
         self::assertStringEndsWith('/mon-event', $mail->hubUrl);
+        self::assertFalse($mail->localBroadcast);
         self::assertNotNull($this->reload($confirmed)->getEveReminderSentAt());
+    }
+
+    public function testWithAMediaServerTheMailMentionsTheRegie(): void
+    {
+        [$event] = $this->eventWithRegistrations();
+        $event->pointMediaServer('media.lan.archilan.fr', new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        $this->runPassAt('2026-11-20T10:00:00+00:00');
+        self::assertCount(1, $this->dispatched);
+        $mail = $this->dispatched[0];
+        self::assertInstanceOf(EventEveReminderMessage::class, $mail);
+        self::assertTrue($mail->localBroadcast);
+
+        // Story 47.7: the mail says where the settings are, never the key.
+        $email = new EventEveReminderEmail('a@example.org', null, 'ArchiLAN 4', 'demain', '', [], 'https://archilan.test/mon-event', '', true);
+        self::assertStringContainsString(EventEveReminderEmail::LOCAL_BROADCAST_LINE, $email->textBody());
+        self::assertStringContainsString('régie', $email->htmlBody());
+        self::assertStringNotContainsString(EventEveReminderEmail::LOCAL_BROADCAST_LINE, new EventEveReminderEmail('a@example.org', null, 'ArchiLAN 4', 'demain', '', [], 'https://archilan.test/mon-event')->textBody());
+    }
+
+    public function testTheRegistrantWhoRefusedTheBroadcastHearsNothingAboutTheRegie(): void
+    {
+        [$event, , $confirmed] = $this->eventWithRegistrations();
+        $event->pointMediaServer('media.lan.archilan.fr', new \DateTimeImmutable());
+        $confirmed->chooseBroadcastConsent(false, new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        $this->runPassAt('2026-11-20T10:00:00+00:00');
+        self::assertCount(1, $this->dispatched);
+        $mail = $this->dispatched[0];
+        self::assertInstanceOf(EventEveReminderMessage::class, $mail);
+        self::assertFalse($mail->localBroadcast);
     }
 
     public function testTheUnconfirmedAndTheCancelledGetNothing(): void

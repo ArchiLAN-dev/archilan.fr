@@ -110,6 +110,31 @@ final class MediaPublishTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(200);
     }
 
+    public function testTheRegistrantSeesWhenTheRegieReceivesTheirStream(): void
+    {
+        [$event, $registration, $user] = $this->scenario();
+        $this->loginAs($user);
+        $url = sprintf('/api/v1/registrations/%s/media-publish', $registration->getId());
+
+        $this->client->request('GET', $url);
+        self::assertResponseStatusCodeSame(200);
+        self::assertFalse($this->data()['live']);
+
+        // Story 47.6: the régie agent reports the stream online.
+        $body = json_encode(['streams' => [['path' => $this->path($registration)]]], \JSON_THROW_ON_ERROR);
+        $timestamp = (string) time();
+        $this->client->request('PUT', sprintf('/api/v1/events/%s/local-streams', $event->getId()), server: [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_ARCHILAN_TIMESTAMP' => $timestamp,
+            'HTTP_X_ARCHILAN_SIGNATURE' => hash_hmac('sha256', $timestamp.'.'.$body, $this->credentials()->agentSecretFor($event->getId())),
+        ], content: $body);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->client->request('GET', $url);
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->data()['live']);
+    }
+
     public function testWithoutAccessTheRegistrantLearnsWhyAndAnotherMemberIsTurnedAway(): void
     {
         [, $registration, $user] = $this->scenario(startsIn: '+3 days');

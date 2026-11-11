@@ -19,7 +19,7 @@ use Psr\Clock\ClockInterface;
  * Story 47.5: a registrant's own access to the LAN media server (read by the 47.7 card): their path, key and the
  * addresses to paste in OBS, or why they have none; and a new key on request.
  *
- * @phpstan-type MediaPublishView array{available: bool, reason: string|null, path: string|null, key: string|null, whipUrl: string|null, srtUrl: string|null, opensAt: string|null, closesAt: string|null}
+ * @phpstan-type MediaPublishView array{available: bool, live: bool, reason: string|null, path: string|null, key: string|null, whipUrl: string|null, srtUrl: string|null, opensAt: string|null, closesAt: string|null}
  */
 final readonly class MediaPublishAccess
 {
@@ -29,6 +29,7 @@ final readonly class MediaPublishAccess
         private UserRepositoryInterface $users,
         private MediaPublishCredentials $credentials,
         private ClockInterface $clock,
+        private LocalStreamsState $localStreams,
     ) {
     }
 
@@ -83,7 +84,7 @@ final readonly class MediaPublishAccess
         ];
 
         if (null !== $refusal || null === $host) {
-            return ['available' => false, 'reason' => $refusal ?? MediaPublishEligibility::NO_MEDIA_SERVER, 'path' => null, 'key' => null, 'whipUrl' => null, 'srtUrl' => null, 'opensAt' => $window[0], 'closesAt' => $window[1]];
+            return ['available' => false, 'live' => false, 'reason' => $refusal ?? MediaPublishEligibility::NO_MEDIA_SERVER, 'path' => null, 'key' => null, 'whipUrl' => null, 'srtUrl' => null, 'opensAt' => $window[0], 'closesAt' => $window[1]];
         }
 
         $path = $this->credentials->pathFor($registration->getId());
@@ -91,6 +92,8 @@ final readonly class MediaPublishAccess
 
         return [
             'available' => true,
+            // Story 47.7: the régie agent sees the stream (story 47.6).
+            'live' => $this->localStreams->isLive($event->getId(), $registration->getId()),
             'reason' => null,
             'path' => $path,
             'key' => $key,
