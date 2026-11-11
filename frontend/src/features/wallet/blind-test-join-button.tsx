@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Music, QrCode } from "lucide-react";
 
 import { useAuth } from "@/features/auth/auth-context";
+import { HelpLink } from "@/components/help-link";
 import { qrPath } from "@/lib/qr-code";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchBlindTestEntryUrl } from "./blind-test-api";
@@ -16,7 +17,7 @@ const QUIET_ZONE = 4;
  * opens the app here; the QR code opens it on a phone. Either way the app starts the login, and the site tells it who
  * plays through a one-time code: nothing in this address identifies the member.
  */
-export function BlindTestJoinButton({ eventId }: { eventId: string }) {
+export function BlindTestJoinButton({ eventId, helpHref }: { eventId: string; helpHref?: string | null }) {
   const { user } = useAuth();
   const [showQr, setShowQr] = useState(false);
   const { data: url } = useQuery({
@@ -53,6 +54,7 @@ export function BlindTestJoinButton({ eventId }: { eventId: string }) {
         </button>
       </div>
       {showQr ? <BlindTestQr url={url} /> : null}
+      <HelpLink href={helpHref} />
     </div>
   );
 }

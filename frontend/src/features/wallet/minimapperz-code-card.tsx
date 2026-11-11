@@ -7,13 +7,14 @@ import { Compass, Copy, ExternalLink } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { claimMinimapperzCode } from "./minimapperz-api";
+import { HelpLink } from "@/components/help-link";
 
 /**
  * Story 49.2: a registrant's Minimapperz code, shown on the event's page while the link is on. The first visit hands
  * the code out; it stays the same afterwards. Typed when joining the LAN on Minimapperz, it ties the games played
  * there to the member's pelles.
  */
-export function MinimapperzCodeCard({ eventId }: { eventId: string }) {
+export function MinimapperzCodeCard({ eventId, helpHref }: { eventId: string; helpHref?: string | null }) {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const { data } = useQuery({
@@ -61,6 +62,7 @@ export function MinimapperzCodeCard({ eventId }: { eventId: string }) {
       <p className="text-xs text-muted-foreground">
         Saisis ce code en rejoignant la LAN sur Minimapperz : tes parties te rapporteront des pelles d&apos;argent. Il est à toi seul, ne le partage pas.
       </p>
+      <HelpLink href={helpHref} />
     </div>
   );
 }
