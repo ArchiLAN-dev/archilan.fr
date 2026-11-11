@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Children, useEffect, type ReactNode } from "react";
+import { Children, Fragment, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, BookOpen, CalendarDays, CheckCircle, Gamepad2, Info, ListChecks, MapPin, Wrench } from "lucide-react";
+import { AlertCircle, AlertTriangle, BookOpen, CalendarDays, CheckCircle, Gamepad2, History, Info, ListChecks, MapPin, Wrench } from "lucide-react";
 
 import { Markdown } from "@/components/markdown/markdown";
 
@@ -13,7 +13,8 @@ import { fetchHelpGuides, helpGuidePath, type HelpGuideCard } from "@/features/c
 import type { EventStatus } from "@/features/events/event-types";
 import { eventSchedule } from "@/features/events/event-schedule";
 import { eventPhase, eventPhaseLabel, type EventPhase } from "./event-phase";
-import { HELP_GUIDES_QUERY_KEY, RegistrantHubTools } from "./hub-tools";
+import { hubSectionOrder, type HubSectionKey } from "./hub-sections";
+import { HELP_GUIDES_QUERY_KEY, HubRelive, RegistrantHubTools } from "./hub-tools";
 import { RegistrantChecklist } from "./registrant-checklist";
 import {
   fetchPracticalInfo,
@@ -34,6 +35,10 @@ export type RegistrantHubEvent = {
   startsAt?: string;
   endsAt?: string;
   location: string;
+  /** Story 53.6: the replay of the event, once it is over. */
+  vodUrl?: string | null;
+  /** Story 53.6: the event page shows a photo gallery. */
+  hasPhotos?: boolean;
 };
 
 export type RegistrantHubRegistration = {
@@ -103,17 +108,30 @@ export function RegistrantHub({ event }: Props) {
     return <RegistrantHubSkeleton />;
   }
 
+  // Story 53.6: recomputed every minute with the clock, so the space turns to "during" without a reload.
+  const phase = eventPhase(event, now);
+
   return (
     <RegistrantHubView
       event={event}
       checklist={checklist?.items ?? null}
       guides={guides ?? null}
       now={now}
+      relive={
+        <HubRelive
+          confirmed={data.confirmed}
+          eventSlug={event.slug}
+          hasPhotos={event.hasPhotos ?? false}
+          registrationId={data.registrationId}
+          vodUrl={event.vodUrl ?? null}
+        />
+      }
       tools={
         <RegistrantHubTools
           confirmed={data.confirmed}
           eventId={event.id}
           eventSlug={event.slug}
+          phase={phase}
           registrationId={data.registrationId}
         />
       }
@@ -135,24 +153,34 @@ type ViewProps = {
   tools?: ReactNode;
   /** Story 53.5: the published guides; null while loading or on a failure (the Archipelago one still shows). */
   guides?: HelpGuideCard[] | null;
+  /** Story 53.6: "Revivre l'event", handed in by the gate (it reads the member's game). */
+  relive?: ReactNode;
 };
 
-export function RegistrantHubView({ event, registration, now, practicalInfo = null, checklist = null, tools, guides = null }: ViewProps) {
+export function RegistrantHubView({ event, registration, now, practicalInfo = null, checklist = null, tools, guides = null, relive }: ViewProps) {
   const phase = eventPhase(event, now);
   const registrationPath = `/evenements/${event.slug}/inscription/${registration.registrationId}`;
 
-  return (
-    <div className="grid gap-8">
-      <RegistrantHubHeader event={event} now={now} phase={phase} registration={registration} />
-      {checklist !== null ? (
+  const sections: Record<HubSectionKey, ReactNode> = {
+    checklist:
+      checklist !== null ? (
         <RegistrantHubSection icon={<ListChecks aria-hidden="true" className="size-5" />} title="Ce qu'il me reste à faire">
-          <RegistrantChecklist eventSlug={event.slug} items={checklist} registrationId={registration.registrationId} />
+          {/* Story 53.6: during the event the list folds behind its counter, the tools come first. */}
+          <RegistrantChecklist eventSlug={event.slug} folded={phase === "during"} items={checklist} registrationId={registration.registrationId} />
         </RegistrantHubSection>
-      ) : null}
+      ) : null,
+    tools: (
       <RegistrantHubSection icon={<Wrench aria-hidden="true" className="size-5" />} id="outils" title="Les outils de l'event">
         {tools}
       </RegistrantHubSection>
-      <PracticalInfoSection practicalInfo={practicalInfo} />
+    ),
+    practicalInfo: <PracticalInfoSection practicalInfo={practicalInfo} />,
+    relive: (
+      <RegistrantHubSection icon={<History aria-hidden="true" className="size-5" />} title="Revivre l'event">
+        {relive}
+      </RegistrantHubSection>
+    ),
+    links: (
       <div className="grid gap-6 lg:grid-cols-2">
         <RegistrantHubSection icon={<Gamepad2 aria-hidden="true" className="size-5" />} title="Mon inscription">
           <ul className="grid gap-2 text-sm">
@@ -172,6 +200,15 @@ export function RegistrantHubView({ event, registration, now, practicalInfo = nu
         </RegistrantHubSection>
         <GuidesSection guides={guides} />
       </div>
+    ),
+  };
+
+  return (
+    <div className="grid gap-8">
+      <RegistrantHubHeader event={event} now={now} phase={phase} registration={registration} />
+      {hubSectionOrder(phase).map((key) => (
+        <Fragment key={key}>{sections[key]}</Fragment>
+      ))}
     </div>
   );
 }

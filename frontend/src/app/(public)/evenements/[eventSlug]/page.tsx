@@ -389,7 +389,7 @@ function EventPhotoGallery({ event }: { event: PublicEvent }) {
   }
 
   return (
-    <section aria-labelledby="event-photos-heading" className="grid gap-6 border-t border-border pt-12">
+    <section aria-labelledby="event-photos-heading" className="grid scroll-mt-24 gap-6 border-t border-border pt-12" id="photos">
       <div>
         <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-accent-text text-on-canvas">
           Galerie
