@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Gamepad2, Shovel } from "lucide-react";
 
 import { ConnectionFields } from "@/components/connection-fields";
+import { HelpLink } from "@/components/help-link";
+import { fetchHelpGuides, HELP_GUIDE_SLUGS, helpGuidePath, type HelpGuideCard } from "@/features/content/help-guides-api";
 import { fetchSessionConnection, type SessionConnectionResult } from "@/features/events/events-api";
 import { EventSurveyBanner } from "@/features/surveys/event-survey-banner";
 import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
@@ -43,31 +45,56 @@ export function RegistrantHubTools({ eventId, eventSlug, registrationId, confirm
     retry: false,
   });
 
+  const { data: guides } = useQuery({
+    queryKey: HELP_GUIDES_QUERY_KEY,
+    queryFn: fetchHelpGuides,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const help = (slug: string) => guideHref(guides ?? null, slug);
+
   const sessionPath = `/evenements/${eventSlug}/inscription/${registrationId}/session`;
   const runningSessionId = connection?.kind === "success" && connection.data.session?.status === "running" ? connection.data.session.id : null;
 
   return (
     <div className="grid gap-4">
-      {confirmed ? <HubSessionCard result={connection ?? null} sessionPath={sessionPath} /> : null}
+      {confirmed ? <HubSessionCard helpHref={help(HELP_GUIDE_SLUGS.firstGame)} result={connection ?? null} sessionPath={sessionPath} /> : null}
       {/* Story 52.5: what the Passeur opened while the member was away, during their game. */}
-      {runningSessionId !== null ? <PasseurNoticeCard sessionId={runningSessionId} /> : null}
-      <BlindTestJoinButton eventId={eventId} />
-      <MinimapperzCodeCard eventId={eventId} />
+      {runningSessionId !== null ? <PasseurNoticeCard helpHref={help(HELP_GUIDE_SLUGS.passeur)} sessionId={runningSessionId} /> : null}
+      <BlindTestJoinButton eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.blindTest)} />
+      <MinimapperzCodeCard eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.minimapperz)} />
       <EventSurveyBanner eventId={eventId} eventSlug={eventSlug} />
-      <HubPellesCard eventId={eventId} wallet={wallet ?? null} />
+      <HubPellesCard eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.pelles)} wallet={wallet ?? null} />
       <div className="scroll-mt-24" id="presence">
         <RegistrationPresenceCard registrationId={registrationId} />
       </div>
-      <RegistrationBroadcastConsentCard registrationId={registrationId} />
+      <RegistrationBroadcastConsentCard helpHref={help(HELP_GUIDE_SLUGS.broadcast)} registrationId={registrationId} />
     </div>
   );
+}
+
+/** Shared with the guides section of the hub: one read of the published guides. */
+export const HELP_GUIDES_QUERY_KEY = ["help-guides"] as const;
+
+/** Story 53.5: the guide of a tool card, only once it is published (a draft or a deleted guide gives no link). */
+export function guideHref(guides: readonly HelpGuideCard[] | null, slug: string): string | null {
+  return guides?.some((guide) => guide.slug === slug) ? helpGuidePath(slug) : null;
 }
 
 /** Same list as the session page: the game is being built, no address yet. */
 const PRE_LAUNCH_STATUSES = ["draft", "validating", "ready", "generating", "generated", "launching"];
 
 /** Story 53.3: where the member's game stands, with the address to copy once it runs. */
-export function HubSessionCard({ result, sessionPath }: { result: SessionConnectionResult | null; sessionPath: string }) {
+export function HubSessionCard({
+  result,
+  sessionPath,
+  helpHref = null,
+}: {
+  result: SessionConnectionResult | null;
+  sessionPath: string;
+  /** Story 53.5: the guide of a first game. */
+  helpHref?: string | null;
+}) {
   if (result === null || result.kind !== "success") return null;
   const { session, slots } = result.data;
 
@@ -104,12 +131,13 @@ export function HubSessionCard({ result, sessionPath }: { result: SessionConnect
       <Link className="w-fit text-sm text-accent-text hover:text-accent-text-hover" href={sessionPath}>
         Détail de ma partie
       </Link>
+      <HelpLink href={helpHref} />
     </div>
   );
 }
 
 /** Story 53.3: the member's gold pelles and the ones of this event, with the way to the history. */
-export function HubPellesCard({ eventId, wallet }: { eventId: string; wallet: Wallet | null }) {
+export function HubPellesCard({ eventId, wallet, helpHref = null }: { eventId: string; wallet: Wallet | null; helpHref?: string | null }) {
   if (wallet === null) return null;
   const eventBalance = wallet.events.find((balance) => balance.eventId === eventId)?.balance ?? 0;
 
@@ -131,6 +159,7 @@ export function HubPellesCard({ eventId, wallet }: { eventId: string; wallet: Wa
       <Link className="w-fit text-sm text-accent-text hover:text-accent-text-hover" href="/compte/pelles">
         Mes pelles et leur historique
       </Link>
+      <HelpLink href={helpHref} />
     </div>
   );
 }

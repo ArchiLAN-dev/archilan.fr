@@ -519,6 +519,7 @@ services:
     App\Content\Domain\Repository\PostRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrinePostRepository'
     App\Content\Domain\Repository\HomeAnnouncementRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrineHomeAnnouncementRepository'
     App\Content\Domain\Repository\PartnerRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrinePartnerRepository'
+    App\Content\Domain\Repository\HelpGuideRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrineHelpGuideRepository'
 
     # Story 46.1: admin notes. The target check lives behind a port, answered by the context owning the target.
     App\Notes\Domain\Repository\AdminNoteRepositoryInterface: '@App\Notes\Infrastructure\Doctrine\DoctrineAdminNoteRepository'

@@ -79,6 +79,7 @@ function allSourcesReturn(): void {
     http.get(`${BASE}/community/public-profile-slugs`, () =>
       HttpResponse.json({ data: [{ slug: "alice-pub", updatedAt: "2024-07-01T09:00:00+00:00" }] }),
     ),
+    http.get(`${BASE}/help-guides`, () => HttpResponse.json({ data: [{ slug: "pelles", title: "Les pelles", summary: "La monnaie." }] })),
   );
 }
 
@@ -106,6 +107,9 @@ describe("sitemap", () => {
     expect(result).toContain("http://localhost:3000/runs-hebdo/jeu/super-metroid");
     expect(result).toContain("http://localhost:3000/parties/sess-1");
     expect(result).toContain("http://localhost:3000/joueurs/alice-pub");
+    // Story 53.5: the help index and each published guide.
+    expect(result).toContain("http://localhost:3000/aide");
+    expect(result).toContain("http://localhost:3000/aide/pelles");
   });
 
   it("sets lastModified only from real timestamps: posts and recap sessions", async () => {
@@ -172,6 +176,7 @@ describe("sitemap", () => {
       http.get(`${BASE}/games`, () => HttpResponse.error()),
       http.get(`${BASE}/weekly-runs/current`, () => HttpResponse.error()),
       http.get(`${BASE}/community/public-profile-slugs`, () => HttpResponse.error()),
+      http.get(`${BASE}/help-guides`, () => HttpResponse.error()),
     );
 
     const result = await urls();
@@ -179,6 +184,6 @@ describe("sitemap", () => {
     expect(result).toContain("http://localhost:3000/");
     expect(result).toContain("http://localhost:3000/aide/archipelago");
     // No dynamic entries survived, but the route did not throw.
-    expect(result).toHaveLength(15);
+    expect(result).toHaveLength(16);
   });
 });

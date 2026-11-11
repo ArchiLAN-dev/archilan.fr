@@ -42,4 +42,17 @@ final readonly class PublicPagesRevalidation
     {
         $this->messageBus->dispatch(new RevalidatePublicPagesJob([PublicPageCacheInterface::PARTNERS]));
     }
+
+    /** The help guides changed (story 53.5): `/aide`, and each guide page under its slug, or two when it was renamed. */
+    public function helpGuidesChanged(string ...$slugs): void
+    {
+        $tags = [PublicPageCacheInterface::GUIDES];
+        foreach (array_unique($slugs) as $slug) {
+            if ('' !== $slug) {
+                $tags[] = 'guide:'.$slug;
+            }
+        }
+
+        $this->messageBus->dispatch(new RevalidatePublicPagesJob($tags));
+    }
 }

@@ -4,14 +4,16 @@ import Link from "next/link";
 import { Children, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, CalendarDays, CheckCircle, Gamepad2, Info, ListChecks, MapPin, Wrench } from "lucide-react";
+import { AlertCircle, AlertTriangle, BookOpen, CalendarDays, CheckCircle, Gamepad2, Info, ListChecks, MapPin, Wrench } from "lucide-react";
 
 import { Markdown } from "@/components/markdown/markdown";
 
+import { ARCHIPELAGO_GUIDE_CARD } from "@/features/content/help-guide-views";
+import { fetchHelpGuides, helpGuidePath, type HelpGuideCard } from "@/features/content/help-guides-api";
 import type { EventStatus } from "@/features/events/event-types";
 import { eventSchedule } from "@/features/events/event-schedule";
 import { eventPhase, eventPhaseLabel, type EventPhase } from "./event-phase";
-import { RegistrantHubTools } from "./hub-tools";
+import { HELP_GUIDES_QUERY_KEY, RegistrantHubTools } from "./hub-tools";
 import { RegistrantChecklist } from "./registrant-checklist";
 import {
   fetchPracticalInfo,
@@ -73,6 +75,15 @@ export function RegistrantHub({ event }: Props) {
     retry: false,
   });
 
+  // Story 53.5: the published guides, shared with the tool cards' "C'est quoi ?" links.
+  const { data: guides } = useQuery({
+    queryKey: HELP_GUIDES_QUERY_KEY,
+    queryFn: fetchHelpGuides,
+    enabled: registered,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
   const redirect = data === undefined ? null : hubRedirect(data, event.slug);
   useEffect(() => {
     if (redirect !== null) router.replace(redirect);
@@ -96,6 +107,7 @@ export function RegistrantHub({ event }: Props) {
     <RegistrantHubView
       event={event}
       checklist={checklist?.items ?? null}
+      guides={guides ?? null}
       now={now}
       tools={
         <RegistrantHubTools
@@ -121,9 +133,11 @@ type ViewProps = {
   checklist?: ChecklistItem[] | null;
   /** Story 53.3: the event's tools, handed in by the gate (they read their own data). */
   tools?: ReactNode;
+  /** Story 53.5: the published guides; null while loading or on a failure (the Archipelago one still shows). */
+  guides?: HelpGuideCard[] | null;
 };
 
-export function RegistrantHubView({ event, registration, now, practicalInfo = null, checklist = null, tools }: ViewProps) {
+export function RegistrantHubView({ event, registration, now, practicalInfo = null, checklist = null, tools, guides = null }: ViewProps) {
   const phase = eventPhase(event, now);
   const registrationPath = `/evenements/${event.slug}/inscription/${registration.registrationId}`;
 
@@ -156,8 +170,30 @@ export function RegistrantHubView({ event, registration, now, practicalInfo = nu
             ) : null}
           </ul>
         </RegistrantHubSection>
+        <GuidesSection guides={guides} />
       </div>
     </div>
+  );
+}
+
+/** Story 53.5: the help guides, the Archipelago one first, for the "c'est quoi ce truc ?" moments. */
+function GuidesSection({ guides }: { guides: HelpGuideCard[] | null }) {
+  return (
+    <RegistrantHubSection icon={<BookOpen aria-hidden="true" className="size-5" />} title="Les guides">
+      <ul className="grid gap-3 text-sm">
+        {[ARCHIPELAGO_GUIDE_CARD, ...(guides ?? [])].map((guide) => (
+          <li className="grid gap-0.5" key={guide.slug}>
+            <Link className="font-semibold text-accent-text hover:text-accent-text-hover" href={helpGuidePath(guide.slug)}>
+              {guide.title}
+            </Link>
+            <span className="text-xs text-muted-foreground">{guide.summary}</span>
+          </li>
+        ))}
+      </ul>
+      <Link className="w-fit text-sm text-accent-text hover:text-accent-text-hover" href="/aide">
+        Tous les guides
+      </Link>
+    </RegistrantHubSection>
   );
 }
 
