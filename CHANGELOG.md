@@ -5,6 +5,59 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.66.0] - 2026-11-11
+
+« Mon event », l'espace de l'inscrit (epic 53, stories 53.1 à 53.8), et la diffusion locale des écrans des
+joueurs vers la régie d'une LAN (epic 47, stories 47.4 à 47.9). Cinq migrations (Version20261111100000 à
+Version20261111100004), aucune variable, services inchangés. Le mail de la veille est envoyé par le scheduler
+(passage horaire sur le worker async). La diffusion locale demande, le jour J, un serveur MediaMTX et l'agent de
+régie sur la LAN (`ops/lan-media/`), avec un accès Internet vers le site.
+
+### Ajouté
+
+- Espace inscrit « Mon event » (`/evenements/<event>/mon-event`) : une page par événement qui rassemble tout ce
+  qui concerne l'inscrit. En-tête avec dates, lieu, statut de l'inscription et moment (J-3, En cours, Terminé).
+  Réservée aux inscrits : un visiteur est envoyé vers la connexion, un non-inscrit vers la page de l'événement.
+- Ce qu'il me reste à faire : checklist cochée automatiquement (confirmation, jeux, réglages YAML, questions de
+  l'orga, paiement HelloAsso, sondages, présence, Discord), chaque ligne à faire mène au bon écran.
+- Infos pratiques réservées aux inscrits : nouveau bloc du formulaire admin d'un événement (markdown, avec un
+  modèle Accès / À apporter / Sur place / Contacts / Questions fréquentes). Jamais publiées sur la page publique.
+- Les outils de l'event dans l'espace : ma partie Archipelago (adresse de connexion copiable), blind test, code
+  Minimapperz, sondages, pelles, Passeur, présence et diffusion, chacun avec un lien « C'est quoi ? ».
+- Guides d'aide modifiables depuis l'admin (Publications, onglet « Guides d'aide ») : création, ordre,
+  publication. Pages publiques `/aide` et `/aide/<guide>`, présentes dans le sitemap. Six guides de départ
+  publiés : première partie, pelles, Passeur, blind test, Minimapperz, diffusion (avec l'envoi de son écran à la
+  régie).
+- L'espace suit le moment de l'événement : avant, la checklist en tête ; pendant, les outils et la partie en
+  tête, checklist repliée ; après, une section « Revivre l'event » (résultats, récap de ma partie, VOD, photos).
+- Trouver l'espace : bandeau « Ton espace » sur la page de l'événement pour un inscrit, entrée « Mon event » dans
+  le menu du compte (événement en cours ou dans les 14 jours), lien dans le mail de confirmation, dans le
+  récapitulatif d'inscription et la page de session, et page admin « QR code de l'espace » à imprimer pour la
+  LAN (groupe Jour J).
+- Mail de la veille : les inscrits confirmés reçoivent une fois, environ un jour avant le début, un mail avec
+  l'heure, le lieu, ce qu'il leur reste à faire et le lien vers leur espace. Désactivable par événement (case
+  dans le bloc infos pratiques du formulaire admin, cochée par défaut). Quand l'événement a un serveur média, le
+  mail rappelle aux joueurs qui acceptent la diffusion qu'ils peuvent envoyer leur écran à la régie.
+- Diffusion locale : un événement peut pointer un serveur média sur la LAN (bloc « Diffusion locale » du
+  formulaire admin). Chaque inscrit confirmé qui accepte la diffusion reçoit une clé de publication personnelle,
+  régénérable. Le serveur MediaMTX demande au site l'autorisation de chaque publication
+  (`POST /api/v1/media-auth`) : rien n'est diffusé sans clé valide, et rien n'est jamais public.
+- Carte « Diffuser pour la régie » dans l'espace inscrit : réglages OBS (WHIP) prêts à copier, clé à révéler ou
+  régénérer, et indicateur « La régie te reçoit » quand le flux arrive.
+- Agent de régie (`ops/lan-media/agent.py`, service du compose) : il signale au site, toutes les 10 secondes, les
+  flux en ligne sur le serveur média. Sa configuration (3 lignes à coller) se trouve dans le formulaire admin de
+  l'événement, avec le lien vers la procédure d'installation.
+- Écran régie `/o/streams` : les écrans reçus sur la LAN passent en tête, lus en direct (WHEP), avant les
+  chaînes Twitch des autres joueurs ; un joueur coupé disparaît de lui-même.
+- Suivi admin le jour J : entrée « Serveur média » dans le hub de l'événement (Non configuré, Agent jamais vu,
+  Agent vu il y a X s avec le nombre en direct, Agent muet depuis X min) et colonne « Diffusion locale » dans la
+  liste des inscriptions (En direct, Coupé il y a X min, Jamais).
+
+### Modifié
+
+- Page publique d'un événement : le blind test, le code Minimapperz et le bandeau des sondages passent dans
+  l'espace de l'inscrit.
+
 ## [0.65.1] - 2026-11-10
 
 Correctif : une génération de plus de 20 minutes n'est plus déclarée en échec (story 17.35). API seule : aucune
