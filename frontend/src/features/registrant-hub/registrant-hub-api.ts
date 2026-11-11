@@ -47,6 +47,53 @@ export function registrantHubPath(eventSlug: string): string {
   return `/evenements/${eventSlug}/mon-event`;
 }
 
+/** Story 53.2: one line of the registrant's checklist; the front words it from `key`. */
+export type ChecklistItem = {
+  key: string;
+  state: "done" | "todo" | "optional";
+  required: boolean;
+  detail?: Record<string, number | boolean | string>;
+};
+
+export type RegistrantChecklistData = {
+  phase: "before" | "during" | "after";
+  items: ChecklistItem[];
+};
+
+export async function fetchRegistrantChecklist(registrationId: string): Promise<RegistrantChecklistData | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/registrations/${registrationId}/checklist`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    return isRegistrantChecklistPayload(payload) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function isRegistrantChecklistPayload(payload: unknown): payload is { data: RegistrantChecklistData } {
+  if (typeof payload !== "object" || payload === null || !("data" in payload)) return false;
+  const data: unknown = payload.data;
+  if (typeof data !== "object" || data === null) return false;
+  if (!("phase" in data) || (data.phase !== "before" && data.phase !== "during" && data.phase !== "after")) return false;
+  return "items" in data && Array.isArray(data.items) && data.items.every(isChecklistItem);
+}
+
+function isChecklistItem(item: unknown): item is ChecklistItem {
+  if (typeof item !== "object" || item === null) return false;
+  if (!("key" in item) || typeof item.key !== "string") return false;
+  if (!("state" in item) || (item.state !== "done" && item.state !== "todo" && item.state !== "optional")) return false;
+  if (!("required" in item) || typeof item.required !== "boolean") return false;
+  if (!("detail" in item)) return true;
+  const detail: unknown = item.detail;
+  return (
+    typeof detail === "object" &&
+    detail !== null &&
+    !Array.isArray(detail) &&
+    Object.values(detail).every((value) => typeof value === "number" || typeof value === "boolean" || typeof value === "string")
+  );
+}
+
 /** Story 53.4: the organisers' practical information, for the registrants only. */
 export type PracticalInfo = {
   markdown: string | null;

@@ -1,9 +1,9 @@
 # Story 53.2 - Ce qu'il me reste à faire
 
-**Status:** ready-for-dev
+**Status:** in-progress (tests fonctionnels API et vérification réelle à faire)
 **Epic:** 53 - Mon event, l'espace de l'inscrit (`_bmad-output/planning-artifacts/epics/epic-53-espace-inscrit.md`)
 **Date:** 2026-11-11
-**Branche:** `feature/epic-53-story-2-checklist-inscrit` (depuis `develop`)
+**Branche:** `feature/epic-53-story-2-checklist-inscrit` (empilée sur `feature/epic-53-story-4-infos-pratiques`, PR #1084, elle-même sur #1083)
 **Dépend de:** 53.1.
 
 ## Story
@@ -73,10 +73,10 @@ afin de ne rien oublier sans fouiller le site.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 6) - `EventPhase`, construction pure des lignes, tests unitaires.
-- [ ] **Task 2** (AC 1, 4) - Interfaces de lecture et implémentations (`Surveys`, `Payments`), `RegistrantChecklistQuery`.
-- [ ] **Task 3** (AC 3, 7) - Contrôleur et tests fonctionnels.
-- [ ] **Task 4** (AC 2, 5, 8) - Section front, client API, tests.
+- [x] **Task 1** (AC 6) - `EventPhase`, construction pure des lignes, tests unitaires.
+- [x] **Task 2** (AC 1, 4) - Interfaces de lecture et implémentations (`Surveys`, `Payments`), `RegistrantChecklistQuery`.
+- [x] **Task 3** (AC 3, 7) - Contrôleur et tests fonctionnels.
+- [x] **Task 4** (AC 2, 5, 8) - Section front, client API, tests.
 - [ ] **Task 5** (AC 9) - Gates, vérification réelle.
 
 ## Dev Notes
@@ -86,3 +86,50 @@ afin de ne rien oublier sans fouiller le site.
   le libellé si rien n'est trouvé (« payé avec un autre email ? préviens l'orga »).
 
 ## Dev Agent Record
+
+### Agent Model Used
+
+Claude Opus 5.5
+
+### Completion Notes List
+
+- Domaine : `Events\Domain\Service\EventPhase` (même règle que `eventPhase` front, testée sur les mêmes cas) et
+  `Registrations\Domain\Service\RegistrantChecklist::build()`, pure, qui décide des lignes et de leur état.
+- **YAML, écart assumé avec la décision 3** : une ligne ne compte pas « tous les slots ont un `playerYaml` » mais suit la
+  lecture du récapitulatif (`resolveSlotYamlStatus`) : seuls les slots dont l'apworld est prêt comptent, et un slot
+  attend le joueur seulement si le jeu n'a pas d'options par défaut. Sinon la checklist aurait réclamé un YAML que le
+  récapitulatif dit inutile. `detail` = `{done, total, firstSlotId?}`.
+- Sondages : interface `RegistrantSurveysQueryInterface` (Registrations), implémentée par
+  `Surveys\Infrastructure\Dbal\DbalRegistrantSurveysQuery` : questions d'inscription présentes (ligne
+  `registration_questions`, faite selon `PendingRegistrationSurveyQueryInterface` existant) et sondages `registrants`
+  ouverts non répondus (ligne `surveys`). Les sondages `participants` (après l'événement) ne sont pas comptés ici.
+- Paiement : `HelloAssoPaymentLookup` appelé directement (comme `Events` utilise `RegistrationCounter`), par l'email du
+  compte. Payé = `processed`, `confirmed`, `paid`, `succeeded` (même lecture que le tableau admin). Non payé :
+  `detail` = `{found, stale}`.
+- Discord relié = `User::getDiscordId()` non nul. Présence faite = au moins une plage.
+- `GET /api/v1/registrations/{id}/checklist` (`RegistrantChecklistController`, `RegistrantChecklistQuery`) : 401, 403
+  pour un autre membre, 404 inscription annulée ou inconnue.
+- Front : `fetchRegistrantChecklist` (gardes de type), `RegistrantChecklist` + `checklistLine` (libellé et lien par
+  clé, clé inconnue ignorée), section « Ce qu'il me reste à faire » relue à chaque visite ; « x sur y étapes faites »,
+  repliée derrière « Tu es prêt ! » quand tout l'obligatoire est fait. Lien présence vers le récapitulatif en
+  attendant l'ancre de la 53.3 ; sondages vers la page de l'événement (l'encart y est encore jusqu'à la 53.7).
+- Gates API : PHPStan, cs-fixer, `app:architecture:ddd`, Rector verts ; tests unitaires verts (14). **Tests
+  fonctionnels écrits, non lancés** (Postgres arrêté).
+- Gates front : typecheck, lint, test (252 suites, 1601 tests), build verts.
+
+### File List
+
+- `api/config/services.yaml` (modifié)
+- `api/src/Events/Domain/Service/EventPhase.php` (nouveau)
+- `api/src/Registrations/Domain/Service/RegistrantChecklist.php` (nouveau)
+- `api/src/Registrations/Application/Query/RegistrantSurveysQueryInterface.php` (nouveau)
+- `api/src/Registrations/Application/Query/RegistrantChecklistQuery.php` (nouveau)
+- `api/src/Registrations/Presentation/Controller/RegistrantChecklistController.php` (nouveau)
+- `api/src/Surveys/Infrastructure/Dbal/DbalRegistrantSurveysQuery.php` (nouveau)
+- `api/tests/Unit/Events/EventPhaseTest.php` (nouveau)
+- `api/tests/Unit/Registrations/RegistrantChecklistTest.php` (nouveau)
+- `api/tests/Functional/RegistrantChecklistTest.php` (nouveau)
+- `frontend/src/features/registrant-hub/registrant-checklist.tsx` (nouveau)
+- `frontend/src/features/registrant-hub/registrant-checklist.test.tsx` (nouveau)
+- `frontend/src/features/registrant-hub/registrant-hub-api.ts` (modifié)
+- `frontend/src/features/registrant-hub/registrant-hub.tsx` (modifié)
