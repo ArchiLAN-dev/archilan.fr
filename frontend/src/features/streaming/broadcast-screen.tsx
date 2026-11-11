@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { parseOverlayParams } from "@/features/overlay/overlay-params";
 import { cn } from "@/lib/utils";
-import { fetchBroadcastStreams, type ParticipantStream } from "./participant-streams-api";
+import { broadcastStreamKey, fetchBroadcastStreams, type BroadcastStream } from "./participant-streams-api";
+import { WhepPlayer } from "./whep-player";
 
 export type BroadcastScreenMode = "mosaique" | "rotation";
 
@@ -20,8 +21,11 @@ export type BroadcastScreenParams = {
   bg: string | null;
 };
 
-/** A player who goes live, or stops, reaches OBS within a minute. */
-export const BROADCAST_SCREEN_REFRESH_MS = 60 * 1000;
+/**
+ * A player who goes live, or stops, reaches OBS within 15 s. Story 47.8: a LAN screen leaves as soon as the régie
+ * agent no longer sees it (the Twitch status stays cached by the API).
+ */
+export const BROADCAST_SCREEN_REFRESH_MS = 15 * 1000;
 
 /** At most three thumbnails fit beside the featured stream (a quarter of the width each). */
 const ROTATION_THUMBNAILS = 3;
@@ -122,29 +126,29 @@ export function BroadcastScreen({ params }: { params: BroadcastScreenParams }) {
 
 const COLUMN_CLASSES: Record<1 | 2 | 3, string> = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3" };
 
-export function BroadcastMosaic({ streams }: { streams: ParticipantStream[] }) {
+export function BroadcastMosaic({ streams }: { streams: BroadcastStream[] }) {
   if (streams.length === 0) return null;
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden">
       <div className={cn("grid w-full", COLUMN_CLASSES[mosaicColumns(streams.length)])}>
         {streams.map((stream) => (
-          <BroadcastCell key={stream.twitchLogin} stream={stream} />
+          <BroadcastCell key={broadcastStreamKey(stream)} stream={stream} />
         ))}
       </div>
     </div>
   );
 }
 
-export function BroadcastRotation({ featured, thumbnails }: { featured: ParticipantStream | null; thumbnails: ParticipantStream[] }) {
+export function BroadcastRotation({ featured, thumbnails }: { featured: BroadcastStream | null; thumbnails: BroadcastStream[] }) {
   if (featured === null) return null;
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden">
       <div className={cn("grid w-full items-start", thumbnails.length > 0 ? "grid-cols-[3fr_1fr]" : "grid-cols-1")}>
-        <BroadcastCell key={featured.twitchLogin} stream={featured} />
+        <BroadcastCell key={broadcastStreamKey(featured)} stream={featured} />
         {thumbnails.length > 0 ? (
           <div className="grid">
             {thumbnails.map((stream) => (
-              <BroadcastCell compact key={stream.twitchLogin} stream={stream} />
+              <BroadcastCell compact key={broadcastStreamKey(stream)} stream={stream} />
             ))}
           </div>
         ) : null}
@@ -153,15 +157,26 @@ export function BroadcastRotation({ featured, thumbnails }: { featured: Particip
   );
 }
 
-/** One muted, autoplaying Twitch player with the member's name: OBS mixes the scene's sound, not this page. */
-export function BroadcastCell({ stream, compact = false }: { stream: ParticipantStream; compact?: boolean }) {
+/**
+ * One muted, autoplaying player with the member's name: OBS mixes the scene's sound, not this page. A Twitch iframe,
+ * or (story 47.8) the WebRTC player of a LAN screen, which reconnects by itself.
+ */
+export function BroadcastCell({ stream, compact = false }: { stream: BroadcastStream; compact?: boolean }) {
   // The Twitch player wants the embedding hostname as `parent`; cells only mount client-side, once the list is read.
   const [parent] = useState(() => (typeof window === "undefined" ? "" : window.location.hostname));
   const name = stream.displayName ?? stream.slug;
-  const src = `https://player.twitch.tv/?channel=${encodeURIComponent(stream.twitchLogin)}&parent=${encodeURIComponent(parent)}&muted=true&autoplay=true`;
   return (
     <figure className="relative aspect-video overflow-hidden bg-black">
-      {parent !== "" ? <iframe allow="autoplay" className="size-full border-0" src={src} title={`Stream Twitch de ${name}`} /> : null}
+      {stream.kind === "local" ? (
+        <WhepPlayer bare whepUrl={stream.whepUrl} />
+      ) : parent !== "" ? (
+        <iframe
+          allow="autoplay"
+          className="size-full border-0"
+          src={`https://player.twitch.tv/?channel=${encodeURIComponent(stream.twitchLogin)}&parent=${encodeURIComponent(parent)}&muted=true&autoplay=true`}
+          title={`Stream Twitch de ${name}`}
+        />
+      ) : null}
       <figcaption
         className={cn(
           "pointer-events-none absolute bottom-0 left-0 rounded-tr-lg bg-black/70 font-semibold text-white",

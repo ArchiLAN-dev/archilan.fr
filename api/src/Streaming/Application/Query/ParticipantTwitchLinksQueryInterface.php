@@ -25,6 +25,14 @@ interface ParticipantTwitchLinksQueryInterface
      */
     public function forEventBroadcast(string $eventId): ?array;
 
+    /**
+     * Story 47.8: the registrations of an event that may go on air from the LAN media server: reserved, broadcast
+     * not refused, account neither deleted nor blocked. Empty for a completed or unknown event.
+     *
+     * @return list<array{registrationId: string, userId: string, slug: string, displayName: string|null}>
+     */
+    public function localBroadcastRegistrants(string $eventId): array;
+
     /** @return list<ParticipantLinkRow>|null */
     public function forPersonalRun(string $runId): ?array;
 

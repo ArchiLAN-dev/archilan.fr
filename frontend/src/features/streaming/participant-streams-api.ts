@@ -43,10 +43,36 @@ export async function fetchParticipantStreams(
 }
 
 /**
- * Story 47.2: the lives the ArchiLAN broadcast may show (47.1 opt-outs left out). null when the read failed, so the
- * OBS screen keeps its last list on air instead of going blank.
+ * Story 47.8: what the régie screen shows. A Twitch live, or a screen the régie receives on the LAN media server,
+ * read in WebRTC (WHEP) from the régie's machine only.
  */
-export async function fetchBroadcastStreams(eventId: string): Promise<ParticipantStream[] | null> {
+export type BroadcastStream =
+  | ({ kind: "twitch" } & ParticipantStream)
+  | { kind: "local"; userId: string; slug: string; displayName: string | null; whepUrl: string };
+
+/** One key per player on screen: a player shows once, from the LAN or from Twitch. */
+export function broadcastStreamKey(stream: BroadcastStream): string {
+  return stream.kind === "local" ? `local-${stream.userId}` : `twitch-${stream.twitchLogin}`;
+}
+
+export function isBroadcastStream(v: unknown): v is BroadcastStream {
+  if (typeof v !== "object" || v === null || !("kind" in v)) return false;
+  if (v.kind === "twitch") return isParticipantStream(v);
+  return (
+    v.kind === "local" &&
+    hasStringProp(v, "userId") &&
+    hasStringProp(v, "slug") &&
+    "displayName" in v &&
+    (v.displayName === null || typeof v.displayName === "string") &&
+    hasStringProp(v, "whepUrl")
+  );
+}
+
+/**
+ * Story 47.2: the lives the ArchiLAN broadcast may show (47.1 opt-outs left out). null when the read failed, so the
+ * OBS screen keeps its last list on air instead of going blank. Story 47.8: the LAN screens come first.
+ */
+export async function fetchBroadcastStreams(eventId: string): Promise<BroadcastStream[] | null> {
   try {
     const response = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/broadcast-streams`);
     if (!response.ok) {
@@ -54,7 +80,9 @@ export async function fetchBroadcastStreams(eventId: string): Promise<Participan
     }
 
     const payload: unknown = await response.json();
-    return isParticipantStreamsPayload(payload) ? payload.data : null;
+    if (typeof payload !== "object" || payload === null || !("data" in payload) || !Array.isArray(payload.data)) return null;
+    const streams: unknown[] = payload.data;
+    return streams.every(isBroadcastStream) ? streams : null;
   } catch {
     return null;
   }

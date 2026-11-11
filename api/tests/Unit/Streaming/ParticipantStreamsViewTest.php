@@ -13,8 +13,12 @@ use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Streaming\Application\Port\TwitchApiClientInterface;
 use App\Streaming\Application\Query\ParticipantStreamsView;
 use App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface;
+use App\Streaming\Application\Service\LocalStreamsState;
 use App\Streaming\Application\Support\LiveTwitchLogins;
+use App\Streaming\Application\Support\MediaPublishCredentials;
+use App\Streaming\Domain\Repository\LocalStreamRepositoryInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
@@ -116,6 +120,15 @@ final class ParticipantStreamsViewTest extends TestCase
             self::createStub(UserRepositoryInterface::class),
         );
 
-        return new ParticipantStreamsView($query, new LiveTwitchLogins($client, $cache), $client, $cache, $audience);
+        return new ParticipantStreamsView(
+            $query,
+            new LiveTwitchLogins($client, $cache),
+            $client,
+            $cache,
+            $audience,
+            self::createStub(EventRepositoryInterface::class),
+            new LocalStreamsState(self::createStub(LocalStreamRepositoryInterface::class), new MockClock()),
+            new MediaPublishCredentials('secret'),
+        );
     }
 }

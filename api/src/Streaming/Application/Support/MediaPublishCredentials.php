@@ -50,6 +50,12 @@ final readonly class MediaPublishCredentials
         return sprintf('https://%s:%d/%s/whip', $host, self::WHIP_PORT, $path);
     }
 
+    /** Story 47.8: where the régie screen reads a player's stream (WebRTC, LAN only). */
+    public static function whepUrl(string $host, string $path): string
+    {
+        return sprintf('https://%s:%d/%s/whep', $host, self::WHIP_PORT, $path);
+    }
+
     /** The player name MediaMTX wants in the stream id is not read: the path says who publishes. */
     public static function srtUrl(string $host, string $path, string $key): string
     {

@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Streaming\Application\Query;
 
+use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Streaming\Application\Port\TwitchApiClientInterface;
+use App\Streaming\Application\Service\LocalStreamsState;
 use App\Streaming\Application\Support\LiveTwitchLogins;
+use App\Streaming\Application\Support\MediaPublishCredentials;
 use App\Streaming\Domain\Service\TwitchLinkResolver;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
@@ -19,6 +22,8 @@ use Symfony\Contracts\Cache\ItemInterface;
  * does not exist (distinct from an existing session with no streamers, which yields an empty list).
  *
  * @phpstan-type ParticipantStream array{userId: string, slug: string, displayName: string|null, twitchLogin: string, avatarUrl: string|null, live: bool, viewerCount: int|null}
+ * @phpstan-type BroadcastTwitchStream array{kind: 'twitch', userId: string, slug: string, displayName: string|null, twitchLogin: string, avatarUrl: string|null, live: bool, viewerCount: int|null}
+ * @phpstan-type BroadcastLocalStream array{kind: 'local', userId: string, slug: string, displayName: string|null, whepUrl: string}
  */
 final readonly class ParticipantStreamsView
 {
@@ -28,6 +33,9 @@ final readonly class ParticipantStreamsView
         private TwitchApiClientInterface $client,
         private CacheInterface $cache,
         private SessionRecapAudience $audience,
+        private EventRepositoryInterface $events,
+        private LocalStreamsState $localStreams,
+        private MediaPublishCredentials $credentials,
     ) {
     }
 
@@ -52,15 +60,59 @@ final readonly class ParticipantStreamsView
     }
 
     /**
-     * Story 47.1: what the broadcast may show, the live streams of the members who agreed to it.
+     * Story 47.1: what the broadcast may show, the live streams of the members who agreed to it. Story 47.8: first the
+     * screens the régie receives on the LAN media server (`local`), then the Twitch lives (`twitch`); a member on
+     * both shows once, from the LAN (its latency, and no need for Internet).
      *
-     * @return list<ParticipantStream>|null
+     * @return list<BroadcastLocalStream|BroadcastTwitchStream>|null
      */
     public function forEventBroadcast(string $eventId): ?array
     {
         $streams = $this->present($this->query->forEventBroadcast($eventId));
+        if (null === $streams) {
+            return null;
+        }
 
-        return null === $streams ? null : array_values(array_filter($streams, static fn (array $stream): bool => $stream['live']));
+        $local = $this->localBroadcast($eventId);
+        $onLan = array_flip(array_map(static fn (array $stream): string => $stream['userId'], $local));
+        $twitch = [];
+        foreach ($streams as $stream) {
+            if ($stream['live'] && !isset($onLan[$stream['userId']])) {
+                $twitch[] = ['kind' => 'twitch', ...$stream];
+            }
+        }
+
+        return [...$local, ...$twitch];
+    }
+
+    /** @return list<BroadcastLocalStream> */
+    private function localBroadcast(string $eventId): array
+    {
+        $host = $this->events->findById($eventId)?->getMediaServerHost();
+        if (null === $host) {
+            return [];
+        }
+        $live = $this->localStreams->liveRegistrations($eventId);
+        if ([] === $live) {
+            return [];
+        }
+
+        $streams = [];
+        foreach ($this->query->localBroadcastRegistrants($eventId) as $registrant) {
+            if (!isset($live[$registrant['registrationId']])) {
+                continue;
+            }
+            $streams[] = [
+                'kind' => 'local',
+                'userId' => $registrant['userId'],
+                'slug' => $registrant['slug'],
+                'displayName' => $registrant['displayName'],
+                'whepUrl' => MediaPublishCredentials::whepUrl($host, $this->credentials->pathFor($registrant['registrationId'])),
+            ];
+        }
+        usort($streams, static fn (array $a, array $b): int => mb_strtolower($a['displayName'] ?? $a['slug']) <=> mb_strtolower($b['displayName'] ?? $b['slug']));
+
+        return $streams;
     }
 
     /** @return list<ParticipantStream>|null */
