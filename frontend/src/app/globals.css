@@ -441,3 +441,27 @@ html {
     box-shadow: inset 0 0 0 transparent;
   }
 }
+
+/* Story 53.7: a printable sheet (the hub's QR code) prints alone on an A5 page, without the admin's frame. */
+@media print {
+  @page {
+    size: A5;
+    margin: 12mm;
+  }
+
+  body:has([data-print-sheet]) * {
+    visibility: hidden;
+  }
+
+  [data-print-sheet],
+  [data-print-sheet] * {
+    visibility: visible;
+  }
+
+  [data-print-sheet] {
+    position: absolute;
+    inset: 0;
+    background: #ffffff;
+    color: #000000;
+  }
+}

@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, Gamepad2, LayoutDashboard, LogOut, Shield, User } from "lucide-react";
+import { CalendarCheck, ChevronDown, Gamepad2, LayoutDashboard, LogOut, Shield, User } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchMyCommunityProfile } from "@/features/community/community-profile-api";
+import { useHubEntry, type HubEntry } from "@/features/registrant-hub/hub-entry";
 import { useAuth, type AuthUser } from "./auth-context";
 import { MemberAvatar } from "../community/member-avatar";
 
@@ -40,6 +41,7 @@ export function UserMenu({ user }: { user: AuthUser }) {
     retry: false,
   });
   const avatarUrl = profile?.avatarUrl ?? null;
+  const hubEntry = useHubEntry(true);
 
   useEffect(() => {
     if (!open) return;
@@ -114,7 +116,7 @@ export function UserMenu({ user }: { user: AuthUser }) {
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             </div>
           </div>
-          <AccountMenuLinks onNavigate={() => setOpen(false)} user={user} />
+          <AccountMenuLinks hubEntry={hubEntry} onNavigate={() => setOpen(false)} user={user} />
           <div className="border-t border-border py-1">
             <button
               className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
@@ -134,17 +136,20 @@ export function UserMenu({ user }: { user: AuthUser }) {
 type AccountMenuLinksProps = {
   user: AuthUser;
   onNavigate: () => void;
+  /** Story 53.7: the space of the member's current or next event, when there is one. */
+  hubEntry?: HubEntry | null;
 };
 
 /**
  * The account links of the open panel. Pulled out of `UserMenu`, which only renders them once opened,
  * so their list can be rendered statically in tests.
  */
-export function AccountMenuLinks({ user, onNavigate }: AccountMenuLinksProps) {
+export function AccountMenuLinks({ user, onNavigate, hubEntry = null }: AccountMenuLinksProps) {
   const isAdmin = user.roles.includes("ROLE_ADMIN");
 
   return (
     <div className="grid py-1">
+      {hubEntry ? <MenuLink href={hubEntry.href} icon={CalendarCheck} label="Mon event" onNavigate={onNavigate} /> : null}
       {/* Story 16.22: the private runs come first, one click away instead of through the account space. */}
       <MenuLink href="/compte/parties" icon={Gamepad2} label="Mes parties" onNavigate={onNavigate} />
       {user.slug ? <MenuLink href={`/joueurs/${user.slug}`} icon={User} label="Mon profil" onNavigate={onNavigate} /> : null}

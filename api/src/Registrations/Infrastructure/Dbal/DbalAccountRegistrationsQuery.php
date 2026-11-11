@@ -26,6 +26,8 @@ final readonly class DbalAccountRegistrationsQuery implements AccountRegistratio
                 'e.id AS event_id',
                 'e.title AS event_title',
                 'e.starts_at AS event_starts_at',
+                'e.ends_at AS event_ends_at',
+                'e.status AS event_status',
             )
             ->from('registration', 'r')
             ->join('r', 'event', 'e', $qb->expr()->eq('e.id', 'r.event_id'))
@@ -68,10 +70,27 @@ final readonly class DbalAccountRegistrationsQuery implements AccountRegistratio
                 'registrationStatus' => $frontendStatus,
                 'slotCount' => $slotCount,
                 'sessionStatus' => $sessionStatusByEvent[$eventId] ?? null,
+                // Story 53.7: ISO dates and the event's status, for the "Mon event" entry of the account menu.
+                'eventStartsAt' => $this->isoDate($row['event_starts_at']),
+                'eventEndsAt' => $this->isoDate($row['event_ends_at']),
+                'eventStatus' => is_string($row['event_status']) ? $row['event_status'] : '',
             ];
         }
 
         return $result;
+    }
+
+    private function isoDate(mixed $value): ?string
+    {
+        if (!is_string($value) || '' === $value) {
+            return null;
+        }
+
+        try {
+            return new \DateTimeImmutable($value)->format(\DateTimeInterface::ATOM);
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     /**

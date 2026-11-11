@@ -18,6 +18,8 @@ final class RegistrationConfirmationEmail extends ArchilanEmail
         private readonly array $selectedGameNames,
         private readonly string $registrationUrl = '',
         private readonly string $siteUrl = '',
+        /** Story 53.7: the registrant hub of the event, the place to come back to. */
+        private readonly string $hubUrl = '',
     ) {
     }
 
@@ -57,7 +59,7 @@ final class RegistrationConfirmationEmail extends ArchilanEmail
         🎮 Jeux sélectionnés :
         {$gameList}
 
-        {$this->detailsLine()}
+        {$this->detailsLine()}{$this->hubLine()}
 
         À très bientôt !
         L'équipe ArchiLAN
@@ -71,11 +73,20 @@ final class RegistrationConfirmationEmail extends ArchilanEmail
             .self::paragraph('Ton inscription à '.self::strong($this->eventTitle).' est confirmée. On a hâte de te voir !')
             .self::infoBox([['📅 Date', $this->eventStartsAt], ['📍 Lieu', $this->eventVenue]])
             .self::bulletList('🎮 Tes jeux', $this->selectedGameNames, 'Aucun jeu sélectionné.')
+            .('' !== $this->hubUrl ? self::paragraph("Ce qu'il te reste à faire, tes codes et les infos pratiques t'attendent dans ton espace pour l'événement.").self::button($this->hubUrl, "Mon espace pour l'événement") : '')
             .('' !== $this->registrationUrl ? self::button($this->registrationUrl, 'Voir mon inscription') : '')
             .self::note('À très bientôt !')
             .self::signature();
 
         return $this->htmlLayout($inner, "Ton inscription à {$this->eventTitle} est confirmée.", self::logoUrlFor($this->siteUrl));
+    }
+
+    private function hubLine(): string
+    {
+        return '' !== $this->hubUrl
+            ? "
+Ton espace pour l'événement (ce qu'il te reste à faire, infos pratiques) : {$this->hubUrl}"
+            : '';
     }
 
     private function detailsLine(): string

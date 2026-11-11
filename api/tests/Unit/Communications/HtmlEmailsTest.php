@@ -35,8 +35,8 @@ final class HtmlEmailsTest extends TestCase
     public static function emails(): iterable
     {
         yield 'registration confirmed' => [
-            new RegistrationConfirmationEmail('a@example.org', 'Alice', 'ArchiLAN #4', '07/11/2026 à 18h00', 'Lille', ['Celeste', 'Hollow Knight'], self::SITE.'/evenements/e1/inscription/r1/recap', self::SITE),
-            ['Inscription confirmée', 'ArchiLAN #4', '07/11/2026 à 18h00', 'Lille', '<li>Celeste</li>', '<li>Hollow Knight</li>', 'href="https://archilan.fr/evenements/e1/inscription/r1/recap"', 'Voir mon inscription'],
+            new RegistrationConfirmationEmail('a@example.org', 'Alice', 'ArchiLAN #4', '07/11/2026 à 18h00', 'Lille', ['Celeste', 'Hollow Knight'], self::SITE.'/evenements/e1/inscription/r1/recap', self::SITE, self::SITE.'/evenements/e1/mon-event'),
+            ['Inscription confirmée', 'ArchiLAN #4', '07/11/2026 à 18h00', 'Lille', '<li>Celeste</li>', '<li>Hollow Knight</li>', 'href="https://archilan.fr/evenements/e1/inscription/r1/recap"', 'Voir mon inscription', 'href="https://archilan.fr/evenements/e1/mon-event"', 'Mon espace pour l&#039;événement'],
         ];
         yield 'confirmation reminder' => [
             new RegistrationConfirmationReminderEmail('a@example.org', 'Alice', 'ArchiLAN #4', '01/11/2026', self::SITE.'/recap', self::SITE),
@@ -128,5 +128,8 @@ final class HtmlEmailsTest extends TestCase
         self::assertInstanceOf(Email::class, $sent);
         self::assertStringContainsString('https://archilan.fr/evenements/e1/inscription/r1/recap', (string) $sent->getHtmlBody());
         self::assertStringContainsString('https://archilan.fr/evenements/e1/inscription/r1/recap', (string) $sent->getTextBody());
+        // Story 53.7: the registrant hub, in both bodies.
+        self::assertStringContainsString('https://archilan.fr/evenements/e1/mon-event', (string) $sent->getHtmlBody());
+        self::assertStringContainsString('https://archilan.fr/evenements/e1/mon-event', (string) $sent->getTextBody());
     }
 }
