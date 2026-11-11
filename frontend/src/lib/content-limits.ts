@@ -10,6 +10,8 @@
  * (both rejected server-side) and install-step descriptions (truncated by InstallStepsNormalizer).
  */
 export const EVENT_DESCRIPTION_MAX = 5000;
+/** Story 53.4: the registrants-only practical information, mirrored by `Event::PRACTICAL_INFO_MAX_LENGTH`. */
+export const EVENT_PRACTICAL_INFO_MAX = 10000;
 export const GAME_DESCRIPTION_MAX = 5000;
 export const ACHIEVEMENT_DESCRIPTION_MAX = 1000;
 export const CONTRIBUTION_MESSAGE_MAX = 2000;

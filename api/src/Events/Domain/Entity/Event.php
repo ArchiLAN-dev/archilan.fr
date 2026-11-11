@@ -25,6 +25,9 @@ final class Event
     public const int MAX_PARTNERS = 5;
     public const int PARTNER_MENTION_MAX_LENGTH = 120;
 
+    /** Story 53.4: the registrants-only practical information, in markdown. */
+    public const int PRACTICAL_INFO_MAX_LENGTH = 10000;
+
     /**
      * @return list<string>
      */
@@ -96,6 +99,11 @@ final class Event
         /** Story 3.15: the admin's pick for the home page; the command keeps at most one event featured. */
         #[ORM\Column(name: 'featured_on_home', type: 'boolean', options: ['default' => false])]
         private bool $featuredOnHome = false,
+        /** Story 53.4: never public (it may hold the wifi or a door code); read by registrants and admins only. */
+        #[ORM\Column(name: 'practical_info', type: 'text', nullable: true)]
+        private ?string $practicalInfo = null,
+        #[ORM\Column(name: 'practical_info_updated_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $practicalInfoUpdatedAt = null,
     ) {
     }
 
@@ -277,6 +285,36 @@ final class Event
     {
         $this->helloassoFormSlug = self::nullableTrim($slug);
         $this->updatedAt = $now;
+    }
+
+    /**
+     * Story 53.4: blank text removes the information. The date moves only when the text changes, so saving the rest of
+     * the event does not make the registrants believe something new was written.
+     */
+    public function writePracticalInfo(?string $markdown, \DateTimeImmutable $now): void
+    {
+        $markdown = self::nullableTrim($markdown);
+        if (null !== $markdown && mb_strlen($markdown) > self::PRACTICAL_INFO_MAX_LENGTH) {
+            throw new \DomainException('event_practical_info_too_long');
+        }
+
+        if ($markdown === $this->practicalInfo) {
+            return;
+        }
+
+        $this->practicalInfo = $markdown;
+        $this->practicalInfoUpdatedAt = null === $markdown ? null : $now;
+        $this->updatedAt = $now;
+    }
+
+    public function getPracticalInfo(): ?string
+    {
+        return $this->practicalInfo;
+    }
+
+    public function getPracticalInfoUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->practicalInfoUpdatedAt;
     }
 
     public function getCoverImageUrl(): ?string

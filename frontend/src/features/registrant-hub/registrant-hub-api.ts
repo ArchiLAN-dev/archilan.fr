@@ -46,3 +46,28 @@ export function hubRedirect(access: RegistrantHubAccess, eventSlug: string): str
 export function registrantHubPath(eventSlug: string): string {
   return `/evenements/${eventSlug}/mon-event`;
 }
+
+/** Story 53.4: the organisers' practical information, for the registrants only. */
+export type PracticalInfo = {
+  markdown: string | null;
+  updatedAt: string | null;
+};
+
+export async function fetchPracticalInfo(eventId: string): Promise<PracticalInfo | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/events/${eventId}/practical-info`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    return isPracticalInfoPayload(payload) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function isPracticalInfoPayload(payload: unknown): payload is { data: PracticalInfo } {
+  if (typeof payload !== "object" || payload === null || !("data" in payload)) return false;
+  const data: unknown = payload.data;
+  if (typeof data !== "object" || data === null) return false;
+  if (!("markdown" in data) || (data.markdown !== null && typeof data.markdown !== "string")) return false;
+  return "updatedAt" in data && (data.updatedAt === null || typeof data.updatedAt === "string");
+}
