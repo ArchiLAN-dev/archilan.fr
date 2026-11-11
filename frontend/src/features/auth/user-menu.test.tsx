@@ -35,4 +35,13 @@ describe("AccountMenuLinks", () => {
       "/admin",
     ]);
   });
+
+  test("leads to the space of the member's event first, when there is one (story 53.7)", () => {
+    const html = renderToStaticMarkup(
+      <AccountMenuLinks hubEntry={{ href: "/evenements/e1/mon-event", eventTitle: "ArchiLAN 4" }} onNavigate={() => undefined} user={member} />,
+    );
+
+    expect(html).toContain("Mon event");
+    expect([...html.matchAll(/href="([^"]+)"/g)].map((match) => match[1])[0]).toBe("/evenements/e1/mon-event");
+  });
 });

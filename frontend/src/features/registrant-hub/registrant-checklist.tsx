@@ -37,7 +37,8 @@ export function checklistLine(item: ChecklistItem, { eventSlug, registrationId }
       return { label: "Répondre aux questions de l'orga", href: `${registration}/questions` };
     case "surveys": {
       const count = typeof detail.count === "number" ? detail.count : 1;
-      return { label: count > 1 ? `${count} sondages t'attendent` : "Un sondage t'attend", href: `/evenements/${eventSlug}` };
+      // Story 53.7: the survey banner moved from the public page to the hub's tools.
+      return { label: count > 1 ? `${count} sondages t'attendent` : "Un sondage t'attend", href: `/evenements/${eventSlug}/mon-event#outils` };
     }
     case "payment":
       return {

@@ -12,6 +12,7 @@ import { TwitchPlayerProvider } from "@/features/streaming/twitch-player-context
 import { TwitchPersistentPlayer } from "@/features/streaming/twitch-mini-player";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { UserMenu } from "@/features/auth/user-menu";
+import { useHubEntry } from "@/features/registrant-hub/hub-entry";
 import { NotificationCenter } from "@/features/community/notification-center";
 import { ShopBalance } from "@/features/wallet/shop-balance";
 import { RunListingsBadge } from "@/features/personal-runs/run-listings";
@@ -132,6 +133,8 @@ function AuthNavDesktop() {
 function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
   const { user, loading, setUser } = useAuth();
   const router = useRouter();
+  // Story 53.7: the space of the member's current or next event.
+  const hubEntry = useHubEntry(user !== null);
 
   async function handleLogout() {
     await apiFetch(`${env.apiBaseUrl}/auth/logout`, { method: "POST" }).catch(() => {});
@@ -148,6 +151,15 @@ function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
     const isAdmin = user.roles.includes("ROLE_ADMIN");
     return (
       <>
+        {hubEntry ? (
+          <Link
+            className="inline-flex min-h-12 items-center justify-center rounded border border-accent px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent-text"
+            href={hubEntry.href}
+            onClick={onNavigate}
+          >
+            Mon event
+          </Link>
+        ) : null}
         <Link
           className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
           href="/compte/parties"

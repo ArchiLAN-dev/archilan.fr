@@ -15,6 +15,9 @@ interface AccountRegistrationsQueryInterface
      *     registrationStatus: string,
      *     slotCount: int,
      *     sessionStatus: string|null,
+     *     eventStartsAt: string|null,
+     *     eventEndsAt: string|null,
+     *     eventStatus: string,
      * }>
      */
     public function findForUser(string $userId): array;

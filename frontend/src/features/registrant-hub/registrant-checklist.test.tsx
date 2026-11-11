@@ -22,6 +22,8 @@ describe("checklistLine", () => {
     expect(href({ key: "registration_questions", state: "todo", required: true })).toBe("/evenements/archilan-4/inscription/r1/questions");
     expect(href({ key: "payment", state: "todo", required: true })).toBe("/evenements/archilan-4#billetterie");
     expect(href({ key: "discord", state: "optional", required: false })).toBe("/compte/securite");
+    // Story 53.7: the surveys are in the hub's tools, no longer on the public page.
+    expect(href({ key: "surveys", state: "optional", required: false })).toBe("/evenements/archilan-4/mon-event#outils");
   });
 
   it("words the progress and the counts", () => {

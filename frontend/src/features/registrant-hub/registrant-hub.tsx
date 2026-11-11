@@ -135,7 +135,7 @@ export function RegistrantHubView({ event, registration, now, practicalInfo = nu
           <RegistrantChecklist eventSlug={event.slug} items={checklist} registrationId={registration.registrationId} />
         </RegistrantHubSection>
       ) : null}
-      <RegistrantHubSection icon={<Wrench aria-hidden="true" className="size-5" />} title="Les outils de l'event">
+      <RegistrantHubSection icon={<Wrench aria-hidden="true" className="size-5" />} id="outils" title="Les outils de l'event">
         {tools}
       </RegistrantHubSection>
       <PracticalInfoSection practicalInfo={practicalInfo} />
@@ -258,14 +258,16 @@ type SectionProps = {
   title: string;
   icon?: ReactNode;
   children?: ReactNode;
+  /** Anchor the checklist links to. */
+  id?: string;
 };
 
 /** A block of the hub. A section with nothing to show is not rendered at all. */
-export function RegistrantHubSection({ title, icon, children }: SectionProps) {
+export function RegistrantHubSection({ title, icon, children, id }: SectionProps) {
   if (Children.toArray(children).length === 0) return null;
 
   return (
-    <section className="grid content-start gap-4 rounded-lg border border-border bg-surface p-5">
+    <section className="grid scroll-mt-24 content-start gap-4 rounded-lg border border-border bg-surface p-5" id={id}>
       <h2 className="flex items-center gap-2 font-heading text-lg font-semibold text-foreground">
         {icon ?? <ListChecks aria-hidden="true" className="size-5" />}
         {title}
