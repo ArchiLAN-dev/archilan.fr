@@ -22,15 +22,23 @@ a sa propre clé.
 - **La régie lit les flux en WHEP (WebRTC)**, uniquement sur la LAN. Cette lecture ne demande rien au site : si
   Internet tombe, les flux déjà ouverts restent lisibles.
 - **Les chemins** ont la forme `p-<identifiant>`. Tout autre chemin est refusé par MediaMTX lui-même.
+- **L'agent de la régie** (`agent.py`, story 47.6) lit toutes les 10 s les flux en ligne sur l'API locale de
+  MediaMTX et en envoie la liste au site, signée avec le secret de l'agent de l'événement. Le site sait ainsi qui
+  diffuse. Sans nouvelles de l'agent pendant 30 s, le site ne compte plus aucun flux comme en direct.
 
 ## Installation sur la machine de régie (Linux)
 
 1. Installer Docker et le plugin compose.
 2. Copier ce dossier, puis `cp .env.example .env` et renseigner :
    - `MTX_AUTHHTTPADDRESS` : `https://archilan.fr/api/v1/media-auth` ;
-   - `MTX_WEBRTCADDITIONALHOSTS` : l'IP LAN fixe de la machine, par exemple `192.168.1.10`.
+   - `MTX_WEBRTCADDITIONALHOSTS` : l'IP LAN fixe de la machine, par exemple `192.168.1.10` ;
+   - les trois lignes `ARCHILAN_*` de l'agent : dans l'admin du site, fiche de l'événement, bloc « Diffusion
+     locale », bouton « Configuration de l'agent » (visible une fois le serveur média enregistré). Une configuration
+     par événement : à refaire pour chaque LAN.
 3. Mettre le certificat dans `certs/` (voir plus bas) : `fullchain.pem` et `privkey.pem`.
-4. `docker compose up -d`, puis `docker compose logs -f`.
+4. `docker compose up -d`, puis `docker compose logs -f`. L'agent écrit une ligne à chaque changement, par
+   exemple `3 en direct, 0 ignorés`, et dit si MediaMTX est injoignable ou si le site refuse l'envoi (secret faux,
+   horloge de la machine décalée de plus de 2 minutes).
 5. Côté site : renseigner « Serveur média local » sur l'événement dans l'admin.
 
 Le compose utilise le réseau de l'hôte (`network_mode: host`), pour que WebRTC annonce les vraies adresses de la
@@ -112,3 +120,10 @@ ffmpeg -re -f lavfi -i testsrc2=size=1280x720:rate=30 -c:v libx264 -preset veryf
 ```
 
 Puis ouvrir `http://127.0.0.1:3000/o/whep-essai?url=http://localhost:8889/<chemin>/whep`.
+
+L'agent se lance à côté, sans Docker, avec les lignes de « Configuration de l'agent » :
+
+```
+ARCHILAN_API_URL=http://localhost:8000 ARCHILAN_EVENT_ID=<id> ARCHILAN_AGENT_SECRET=<secret> \
+  MTX_API_URL=http://localhost:9997 python agent.py
+```

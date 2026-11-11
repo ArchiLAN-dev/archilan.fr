@@ -301,3 +301,28 @@ function extractRecapDetails(payload: unknown): Record<string, string> {
   }
   return result;
 }
+
+/** Story 47.6: what the régie agent of an event needs, read by an admin. */
+export type MediaAgentConfig = { eventId: string; secret: string };
+
+export function isMediaAgentConfig(v: unknown): v is MediaAgentConfig {
+  return typeof v === "object" && v !== null && "eventId" in v && typeof v.eventId === "string" && "secret" in v && typeof v.secret === "string";
+}
+
+export async function fetchAdminMediaAgent(eventId: string): Promise<MediaAgentConfig | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${encodeURIComponent(eventId)}/media-agent`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) return null;
+    return isMediaAgentConfig(payload.data) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The lines to paste in `ops/lan-media/.env`: the agent calls the site root, not the `/api/v1` base. */
+export function mediaAgentEnvLines(apiBaseUrl: string, config: MediaAgentConfig): string {
+  const siteRoot = apiBaseUrl.replace(/\/+$/, "").replace(/\/api\/v1$/, "");
+  return [`ARCHILAN_API_URL=${siteRoot}`, `ARCHILAN_EVENT_ID=${config.eventId}`, `ARCHILAN_AGENT_SECRET=${config.secret}`].join("\n");
+}

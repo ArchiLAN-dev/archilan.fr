@@ -9,6 +9,8 @@ import { EVENT_DESCRIPTION_MAX, EVENT_PRACTICAL_INFO_MAX } from "@/lib/content-l
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
+import { MediaAgentConfig } from "./media-agent-config";
+
 export type EventFormInput = {
   title: string;
   description: string;
@@ -360,6 +362,8 @@ export function EventForm({
           ops/lan-media.
         </p>
         {errors.mediaServerHost ? <span className="text-xs text-danger" id={mediaServerErrorId}>{errors.mediaServerHost}</span> : null}
+        {/* Story 47.6: once the event is saved with a media server, the régie agent's settings. */}
+        {event?.id && event.mediaServerHost ? <MediaAgentConfig eventId={event.id} /> : null}
       </fieldset>
 
       <div className="grid gap-2">

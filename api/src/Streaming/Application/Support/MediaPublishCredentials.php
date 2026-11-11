@@ -15,6 +15,7 @@ final readonly class MediaPublishCredentials
     public const int WHIP_PORT = 8889;
     public const int SRT_PORT = 8890;
     public const string PATH_PATTERN = '/^p-[0-9a-f]{20}$/';
+    public const int AGENT_MAX_CLOCK_SKEW_SECONDS = 120;
 
     public function __construct(private string $appSecret)
     {
@@ -28,6 +29,20 @@ final readonly class MediaPublishCredentials
     public function keyFor(string $eventId, string $registrationId, int $version): string
     {
         return substr(hash_hmac('sha256', sprintf('archilan-media-key|%s|%s|%d', $eventId, $registrationId, $version), $this->appSecret), 0, 32);
+    }
+
+    /** Story 47.6: the secret the régie agent signs its reports with, one per event. */
+    public function agentSecretFor(string $eventId): string
+    {
+        return hash_hmac('sha256', 'archilan-media-agent|'.$eventId, $this->appSecret);
+    }
+
+    /** Story 47.6: a report the agent signed, `{timestamp}.{body}` under the event's secret, sent within 2 minutes. */
+    public function verifyAgentRequest(string $eventId, string $timestamp, string $signature, string $body, \DateTimeImmutable $now): bool
+    {
+        return ctype_digit($timestamp)
+            && abs($now->getTimestamp() - (int) $timestamp) <= self::AGENT_MAX_CLOCK_SKEW_SECONDS
+            && hash_equals(hash_hmac('sha256', $timestamp.'.'.$body, $this->agentSecretFor($eventId)), strtolower(trim($signature)));
     }
 
     public static function whipUrl(string $host, string $path): string
