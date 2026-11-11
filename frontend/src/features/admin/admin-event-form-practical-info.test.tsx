@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { EventForm, fieldErrorsFromPayload, PRACTICAL_INFO_TEMPLATE } from "./admin-event-form";
+import { isMediaAgentConfig, mediaAgentEnvLines } from "./admin-events-api";
 
 /** Story 53.4: the registrants-only practical information in the event form. */
 describe("event form practical info", () => {
@@ -114,6 +115,19 @@ describe("story 47.5 - local broadcasting server", () => {
 
     const set = renderToStaticMarkup(<EventForm event={{ ...saved, mediaServerHost: "media.lan.archilan.fr" }} mode="edit" onSubmit={async () => undefined} />);
     expect(set.match(field)?.[0]).toContain('value="media.lan.archilan.fr"');
+  });
+
+  it("offers the régie agent settings once the event has a media server (story 47.6)", () => {
+    expect(renderToStaticMarkup(<EventForm event={saved} mode="edit" onSubmit={async () => undefined} />)).not.toContain("Configuration de l&#x27;agent");
+    const set = renderToStaticMarkup(<EventForm event={{ ...saved, mediaServerHost: "media.lan.archilan.fr" }} mode="edit" onSubmit={async () => undefined} />);
+    expect(set).toContain("Configuration de l&#x27;agent");
+  });
+
+  it("writes the agent lines against the site root (story 47.6)", () => {
+    const config = { eventId: "e1", secret: "abc" };
+    expect(mediaAgentEnvLines("https://archilan.fr/api/v1", config)).toBe("ARCHILAN_API_URL=https://archilan.fr\nARCHILAN_EVENT_ID=e1\nARCHILAN_AGENT_SECRET=abc");
+    expect(mediaAgentEnvLines("http://localhost:8000/api/v1/", config).split("\n")[0]).toBe("ARCHILAN_API_URL=http://localhost:8000");
+    expect(isMediaAgentConfig({ eventId: "e1", secret: 3 })).toBe(false);
   });
 
   it("maps the API error to the field", () => {

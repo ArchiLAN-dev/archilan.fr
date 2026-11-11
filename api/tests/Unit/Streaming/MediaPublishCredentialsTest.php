@@ -38,6 +38,25 @@ final class MediaPublishCredentialsTest extends TestCase
         self::assertNotSame($key, $credentials->keyFor('event-2', 'reg-1', 0));
     }
 
+    public function testTheAgentSecretIsPerEventAndChecksASignedFreshReport(): void
+    {
+        $credentials = new MediaPublishCredentials('secret');
+        $secret = $credentials->agentSecretFor('event-1');
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $secret);
+        self::assertNotSame($secret, $credentials->agentSecretFor('event-2'));
+
+        $now = new \DateTimeImmutable('2026-11-20T18:00:00+00:00');
+        $timestamp = (string) $now->getTimestamp();
+        $body = '{"streams":[]}';
+        $signature = hash_hmac('sha256', $timestamp.'.'.$body, $secret);
+
+        self::assertTrue($credentials->verifyAgentRequest('event-1', $timestamp, strtoupper($signature), $body, $now));
+        self::assertFalse($credentials->verifyAgentRequest('event-2', $timestamp, $signature, $body, $now));
+        self::assertFalse($credentials->verifyAgentRequest('event-1', $timestamp, $signature, '{"streams":[1]}', $now));
+        self::assertFalse($credentials->verifyAgentRequest('event-1', $timestamp, $signature, $body, $now->modify('+121 seconds')));
+        self::assertFalse($credentials->verifyAgentRequest('event-1', 'soon', $signature, $body, $now));
+    }
+
     public function testTheAddressesPointAtTheLanServerPorts(): void
     {
         self::assertSame('https://media.lan.archilan.fr:8889/p-abc/whip', MediaPublishCredentials::whipUrl('media.lan.archilan.fr', 'p-abc'));

@@ -473,6 +473,7 @@ services:
     App\Sessions\Application\Query\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalActiveRegistrationQuery'
 
     App\Streaming\Application\Port\TwitchApiClientInterface: '@App\Streaming\Infrastructure\Http\TwitchApiClient'
+    App\Streaming\Domain\Repository\LocalStreamRepositoryInterface: '@App\Streaming\Infrastructure\Doctrine\DoctrineLocalStreamRepository'
     App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface: '@App\Streaming\Infrastructure\Dbal\DbalParticipantTwitchLinksQuery'
 
     App\Streaming\Infrastructure\Http\TwitchApiClient:

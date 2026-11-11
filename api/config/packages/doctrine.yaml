@@ -83,8 +83,8 @@ doctrine:
             Streaming:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Streaming/Domain'
-                prefix: 'App\Streaming\Domain'
+                dir: '%kernel.project_dir%/src/Streaming/Domain/Entity'
+                prefix: 'App\Streaming\Domain\Entity'
                 alias: Streaming
             Community:
                 type: attribute
