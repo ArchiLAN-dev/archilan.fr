@@ -7,6 +7,7 @@ namespace App\Streaming\Presentation\Controller;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use App\Streaming\Application\Command\ReportLocalStreams;
+use App\Streaming\Application\Service\AdminLocalStreams;
 use App\Streaming\Application\Service\MediaAgentAccess;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,6 +22,7 @@ final readonly class LocalStreamsController
         private ApiAccessGuard $apiAccessGuard,
         private ReportLocalStreams $report,
         private MediaAgentAccess $agentAccess,
+        private AdminLocalStreams $adminStreams,
     ) {
     }
 
@@ -47,5 +49,17 @@ final readonly class LocalStreamsController
         }
 
         return new JsonResponse(['data' => $this->agentAccess->forAdmin($eventId), 'meta' => []]);
+    }
+
+    /** Story 47.9: whether the régie agent runs, and who is on air from the LAN. */
+    #[Route('/api/v1/admin/events/{eventId}/local-streams', name: 'api_admin_events_local_streams', methods: ['GET'])]
+    public function state(Request $request, string $eventId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return new JsonResponse(['data' => $this->adminStreams->forEvent($eventId), 'meta' => []]);
     }
 }
