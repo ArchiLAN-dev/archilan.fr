@@ -61,10 +61,12 @@ export function checklistLine(item: ChecklistItem, { eventSlug, registrationId }
 
 type Props = Context & {
   items: ChecklistItem[];
+  /** Story 53.6: folded behind its counter (during the event), like a ready list. */
+  folded?: boolean;
 };
 
 /** Story 53.2: what the registrant still has to do; folded behind "Tu es prêt !" once every required step is done. */
-export function RegistrantChecklist({ items, eventSlug, registrationId }: Props) {
+export function RegistrantChecklist({ items, eventSlug, registrationId, folded = false }: Props) {
   const lines = items.flatMap((item) => {
     const line = checklistLine(item, { eventSlug, registrationId });
     return line === null ? [] : [{ item, line }];
@@ -90,9 +92,9 @@ export function RegistrantChecklist({ items, eventSlug, registrationId }: Props)
       <p className="text-sm text-muted-foreground">
         {ready ? "Tu es prêt !" : `${requiredDone} sur ${required.length} étapes faites`}
       </p>
-      {ready ? (
+      {ready || folded ? (
         <details className="group">
-          <summary className="cursor-pointer text-sm text-accent-text hover:text-accent-text-hover">Revoir la liste</summary>
+          <summary className="cursor-pointer text-sm text-accent-text hover:text-accent-text-hover">{ready ? "Revoir la liste" : "Voir la liste"}</summary>
           <div className="mt-3">{list}</div>
         </details>
       ) : (

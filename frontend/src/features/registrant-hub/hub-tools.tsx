@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Gamepad2, Shovel } from "lucide-react";
+import { ExternalLink, Gamepad2, Shovel } from "lucide-react";
 
 import { ConnectionFields } from "@/components/connection-fields";
 import { HelpLink } from "@/components/help-link";
@@ -16,20 +16,21 @@ import { BlindTestJoinButton } from "@/features/wallet/blind-test-join-button";
 import { MinimapperzCodeCard } from "@/features/wallet/minimapperz-code-card";
 import { fetchMyWallet, type Wallet } from "@/features/wallet/wallet-api";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import type { EventPhase } from "./event-phase";
+import { FINISHED_SESSION_STATUSES, reliveLinks, type ReliveLink } from "./hub-sections";
 
 type Props = {
   eventId: string;
   eventSlug: string;
   registrationId: string;
   confirmed: boolean;
+  /** Story 53.6: after the event, only the surveys and the pelles stay. */
+  phase?: EventPhase;
 };
 
-/**
- * Story 53.3: every tool of the event in one place. The existing cards read their own endpoint and render nothing while
- * their tool is off (blind test closed, no Minimapperz link, no survey), so the grid never shows an empty frame.
- */
-export function RegistrantHubTools({ eventId, eventSlug, registrationId, confirmed }: Props) {
-  const { data: connection } = useQuery({
+/** The member's game, read by the tools and by "Revivre l'event" under one key. */
+function useHubSession(registrationId: string, confirmed: boolean) {
+  return useQuery({
     queryKey: ["registrant-hub-session", registrationId],
     queryFn: () => fetchSessionConnection(registrationId),
     // The game comes with a confirmed registration only.
@@ -38,6 +39,14 @@ export function RegistrantHubTools({ eventId, eventSlug, registrationId, confirm
     refetchInterval: 60_000,
     retry: false,
   });
+}
+
+/**
+ * Story 53.3: every tool of the event in one place. The existing cards read their own endpoint and render nothing while
+ * their tool is off (blind test closed, no Minimapperz link, no survey), so the grid never shows an empty frame.
+ */
+export function RegistrantHubTools({ eventId, eventSlug, registrationId, confirmed, phase = "before" }: Props) {
+  const { data: connection } = useHubSession(registrationId, phase !== "after" && confirmed);
   const { data: wallet } = useQuery({
     queryKey: ["registrant-hub-wallet"],
     queryFn: () => fetchMyWallet(1),
@@ -56,6 +65,15 @@ export function RegistrantHubTools({ eventId, eventSlug, registrationId, confirm
   const sessionPath = `/evenements/${eventSlug}/inscription/${registrationId}/session`;
   const runningSessionId = connection?.kind === "success" && connection.data.session?.status === "running" ? connection.data.session.id : null;
 
+  if (phase === "after") {
+    return (
+      <div className="grid gap-4">
+        <EventSurveyBanner eventId={eventId} eventSlug={eventSlug} />
+        <HubPellesCard eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.pelles)} wallet={wallet ?? null} />
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4">
       {confirmed ? <HubSessionCard helpHref={help(HELP_GUIDE_SLUGS.firstGame)} result={connection ?? null} sessionPath={sessionPath} /> : null}
@@ -70,6 +88,52 @@ export function RegistrantHubTools({ eventId, eventSlug, registrationId, confirm
       </div>
       <RegistrationBroadcastConsentCard helpHref={help(HELP_GUIDE_SLUGS.broadcast)} registrationId={registrationId} />
     </div>
+  );
+}
+
+type ReliveProps = {
+  eventSlug: string;
+  registrationId: string;
+  confirmed: boolean;
+  vodUrl: string | null;
+  hasPhotos: boolean;
+};
+
+/** Story 53.6: "Revivre l'event", with the recap of the member's game once it is over. */
+export function HubRelive({ eventSlug, registrationId, confirmed, vodUrl, hasPhotos }: ReliveProps) {
+  const { data: connection } = useHubSession(registrationId, confirmed);
+  const session = connection?.kind === "success" ? connection.data.session : null;
+  const recapSessionId = session !== null && FINISHED_SESSION_STATUSES.includes(session.status) ? session.id : null;
+
+  return <ReliveLinks links={reliveLinks({ eventSlug, recapSessionId, vodUrl, hasPhotos })} />;
+}
+
+export function ReliveLinks({ links }: { links: ReliveLink[] }) {
+  return (
+    <ul className="grid gap-2 sm:grid-cols-2">
+      {links.map((link) => (
+        <li key={link.key}>
+          {link.external ? (
+            <a
+              className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+              href={link.href}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {link.label}
+              <ExternalLink aria-hidden className="size-4 text-muted-foreground" />
+            </a>
+          ) : (
+            <Link
+              className="flex min-h-11 items-center rounded-lg border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+              href={link.href}
+            >
+              {link.label}
+            </Link>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
