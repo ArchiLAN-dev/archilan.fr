@@ -112,6 +112,7 @@ describe("the event hub (story 3.17)", () => {
       "Sondages",
       "Pelles",
       "Run et sessions",
+      "Serveur média",
       "QR code de l'espace",
       "Récap / VOD",
       "Mettre en avant",

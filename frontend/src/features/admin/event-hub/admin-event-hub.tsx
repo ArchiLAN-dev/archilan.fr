@@ -7,6 +7,7 @@ import {
   Handshake,
   House,
   KeyRound,
+  MonitorUp,
   Pencil,
   QrCode,
   Server,
@@ -21,7 +22,7 @@ import { notFound } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import { fetchAdminEvents, type AdminEvent } from "../admin-events-api";
+import { fetchAdminEvents, fetchAdminLocalStreams, LOCAL_STREAMS_REFRESH_MS, mediaServerHubState, type AdminEvent, type AdminLocalStreams } from "../admin-events-api";
 import {
   ActionIcon,
   EventActionDialogs,
@@ -40,6 +41,14 @@ export function AdminEventHub({ eventId }: { eventId: string }) {
     queryKey: ["admin-events"],
     queryFn: fetchAdminEvents,
     staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  // Story 47.9: the régie agent and the LAN streams, followed on the day.
+  const { data: localStreams } = useQuery({
+    queryKey: ["admin-local-streams", eventId],
+    queryFn: () => fetchAdminLocalStreams(eventId),
+    staleTime: LOCAL_STREAMS_REFRESH_MS,
+    refetchInterval: LOCAL_STREAMS_REFRESH_MS,
     retry: false,
   });
 
@@ -64,6 +73,7 @@ export function AdminEventHub({ eventId }: { eventId: string }) {
       <EventActionMessage message={actions.message} />
       <AdminEventHubView
         event={event}
+        localStreams={localStreams ?? null}
         onConfigurePrivateAccess={actions.openPrivateAccess}
         onConfigureRecap={actions.openRecap}
         onFeature={actions.toggleFeatured}
@@ -83,13 +93,15 @@ export type HubSection = { title: string; entries: HubEntry[] };
 
 type ViewProps = {
   event: AdminEvent;
+  /** Story 47.9: null while unread or unreadable, then the line shows no state. */
+  localStreams?: AdminLocalStreams | null;
   onConfigurePrivateAccess: (event: AdminEvent) => void;
   onConfigureRecap: (event: AdminEvent) => void;
   onFeature: (event: AdminEvent) => void;
   onTransition: (event: AdminEvent, status: EventStatus) => void;
 };
 
-export function hubSections({ event, onConfigurePrivateAccess, onConfigureRecap, onFeature }: Omit<ViewProps, "onTransition">): HubSection[] {
+export function hubSections({ event, localStreams = null, onConfigurePrivateAccess, onConfigureRecap, onFeature }: Omit<ViewProps, "onTransition">): HubSection[] {
   const base = eventHubHref(event.id);
 
   const privateAccess: HubEntry = event.isPublic
@@ -145,7 +157,15 @@ export function hubSections({ event, onConfigurePrivateAccess, onConfigureRecap,
       ],
     },
     // Story 53.7: the QR code of the registrant space, printed for the LAN's tables.
-    { title: "Jour J", entries: [run, { kind: "link", label: "QR code de l'espace", href: `${base}/qr-espace`, icon: QrCode }] },
+    {
+      title: "Jour J",
+      entries: [
+        run,
+        // Story 47.9: the LAN media server and its régie agent, set on the event's page.
+        { kind: "link", label: "Serveur média", href: `${base}/modifier`, icon: MonitorUp, state: mediaServerHubState(localStreams) },
+        { kind: "link", label: "QR code de l'espace", href: `${base}/qr-espace`, icon: QrCode },
+      ],
+    },
     { title: "Après", entries: [recap, featured] },
   ];
 }

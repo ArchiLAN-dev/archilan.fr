@@ -11,6 +11,9 @@ import { fetchAdminMediaAgent, mediaAgentEnvLines } from "./admin-events-api";
 
 type Props = { eventId: string };
 
+/** Story 47.9: the setup procedure of the LAN media server and the régie agent. */
+export const LAN_MEDIA_PROCEDURE_URL = "https://github.com/ArchiLAN-dev/archilan.fr/tree/main/ops/lan-media";
+
 /**
  * Story 47.6: the three lines of `ops/lan-media/.env` that let the régie agent report the streams of this event. The
  * secret is only fetched on demand.
@@ -58,6 +61,13 @@ function MediaAgentLines({ eventId }: Props) {
       <p className="text-xs text-muted-foreground">
         À coller dans <code>ops/lan-media/.env</code> sur la machine de régie, puis <code>docker compose up -d</code>. Le secret
         est propre à cet événement : ne le partage pas.
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Mise en place du serveur et de l&apos;agent :{" "}
+        <a className="font-medium text-primary underline-offset-2 hover:underline" href={LAN_MEDIA_PROCEDURE_URL} rel="noreferrer" target="_blank">
+          procédure ops/lan-media
+        </a>
+        .
       </p>
       {isLoading ? <p className="text-sm text-muted-foreground">Chargement…</p> : null}
       {!isLoading && lines === null ? (

@@ -18,6 +18,7 @@ import {
 } from "./admin-registration-api";
 import { AdminRegisterMember } from "./admin-register-member";
 import { BroadcastScreenLinks } from "./broadcast-screen-links";
+import { fetchAdminLocalStreams, LOCAL_STREAMS_REFRESH_MS, localStreamLabel, type AdminLocalStream } from "./admin-events-api";
 
 // ─── Page state ──────────────────────────────────────────────────────────────
 
@@ -64,6 +65,17 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
     enabled: registrationIds.length > 0,
     staleTime: DEFAULT_STALE_TIME,
   });
+
+  // Story 47.9: who sends their screen to the régie, only for an event with a LAN media server.
+  const { data: localStreams } = useQuery({
+    queryKey: ["admin-local-streams", eventId],
+    queryFn: () => fetchAdminLocalStreams(eventId),
+    staleTime: LOCAL_STREAMS_REFRESH_MS,
+    refetchInterval: LOCAL_STREAMS_REFRESH_MS,
+    retry: false,
+  });
+  const localStreamsByRegistration =
+    localStreams && localStreams.mediaServerHost !== null ? Object.fromEntries(localStreams.streams.map((stream) => [stream.registrationId, stream])) : null;
 
   // Re-evaluate stale status whenever a load completes or every 30 s.
   // `dataUpdatedAt` advances each time a fetch resolves (the queryFn never throws), which mirrors
@@ -292,7 +304,13 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
         </div>
       </div>
 
-      <RegistrationList eventId={eventId} highlightedRegistrationIds={highlightedRegistrationIds} openNotes={openNotes ?? null} state={state} />
+      <RegistrationList
+        eventId={eventId}
+        highlightedRegistrationIds={highlightedRegistrationIds}
+        localStreams={localStreamsByRegistration}
+        openNotes={openNotes ?? null}
+        state={state}
+      />
 
       {state.kind === "ready" ? <BroadcastScreenLinks eventId={eventId} /> : null}
     </section>
@@ -304,11 +322,14 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
 export function RegistrationList({
   eventId,
   highlightedRegistrationIds,
+  localStreams = null,
   openNotes,
   state,
 }: {
   eventId: string;
   highlightedRegistrationIds: Set<string>;
+  /** Story 47.9: by registration; null without a LAN media server, and the column is left out. */
+  localStreams?: Record<string, AdminLocalStream> | null;
   openNotes: Record<string, OpenNoteSummary> | null;
   state: DashboardState;
 }) {
@@ -364,6 +385,7 @@ export function RegistrationList({
             <th className="px-4 py-3 font-medium">Participant</th>
             <th className="px-4 py-3 font-medium">Email</th>
             <th className="px-4 py-3 font-medium">Statut</th>
+            {localStreams !== null ? <th className="px-4 py-3 font-medium">Diffusion locale</th> : null}
             <th className="px-4 py-3 font-medium">Accès privé</th>
             <th className="px-4 py-3 font-medium">Jeux sélectionnés</th>
             <th className="px-4 py-3 font-medium">Complet</th>
@@ -388,6 +410,11 @@ export function RegistrationList({
               <td className="px-4 py-4">
                 <StatusBadge status={r.status} />
               </td>
+              {localStreams !== null ? (
+                <td className="px-4 py-4">
+                  <LocalStreamCell stream={localStreams[r.registrationId]} />
+                </td>
+              ) : null}
               <td className="px-4 py-4 text-center">
                 {r.usedPrivateAccess ? (
                   <Lock aria-label="Accès privé utilisé" className="mx-auto size-4 text-accent-warm" />
@@ -463,6 +490,20 @@ function PaymentSummaryBadge({ payment }: { payment: PaymentSummary | null }) {
       ) : null}
     </div>
   );
+}
+
+/** Story 47.9: whether the régie receives this member's screen from the LAN. */
+function LocalStreamCell({ stream }: { stream: AdminLocalStream | undefined }) {
+  const label = localStreamLabel(stream);
+  if (stream?.live) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-success">
+        <Radio aria-hidden="true" className="size-3.5" />
+        {label}
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">{label}</span>;
 }
 
 /** Story 47.1: the broadcast is on by default, so only the members who opted out are marked. */

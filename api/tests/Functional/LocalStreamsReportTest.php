@@ -122,6 +122,54 @@ final class LocalStreamsReportTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function testTheAdminFollowsTheAgentAndWhoIsOnAir(): void
+    {
+        [$event, $alice, $bob] = $this->scenario();
+        // Set up before any request: a request resets the entity manager and detaches these entities.
+        [$withoutServer] = $this->scenario(title: 'Sans serveur', email: 'z');
+        $withoutServer->pointMediaServer(null, new \DateTimeImmutable());
+        $past = new \DateTimeImmutable('-5 minutes');
+        $cut = new LocalStream(bin2hex(random_bytes(16)), $event->getId(), $bob->getId(), $this->path($bob), $past);
+        $cut->seenOnline(null, $past);
+        $cut->seenOffline();
+        $this->entityManager->persist($cut);
+        $this->entityManager->flush();
+        $url = sprintf('/api/v1/admin/events/%s/local-streams', $event->getId());
+
+        $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']));
+        $this->client->request('GET', $url);
+        self::assertResponseStatusCodeSame(200);
+        $view = $this->data();
+        self::assertSame('media.lan.archilan.fr', $view['mediaServerHost']);
+        self::assertNull($view['agentSeenSecondsAgo']);
+        self::assertSame(0, $view['liveCount']);
+
+        $this->report($event, ['streams' => [['path' => $this->path($alice)]]]);
+        self::assertResponseStatusCodeSame(200);
+        $this->client->request('GET', $url);
+        self::assertResponseStatusCodeSame(200);
+        $view = $this->data();
+        self::assertIsInt($view['agentSeenSecondsAgo']);
+        self::assertLessThanOrEqual(5, $view['agentSeenSecondsAgo']);
+        self::assertSame(1, $view['liveCount']);
+        $streams = $view['streams'];
+        self::assertIsArray($streams);
+        $byRegistration = array_column($streams, null, 'registrationId');
+        self::assertSame(['registrationId' => $alice->getId(), 'live' => true, 'cutMinutesAgo' => null], $byRegistration[$alice->getId()] ?? null);
+        self::assertSame(['registrationId' => $bob->getId(), 'live' => false, 'cutMinutesAgo' => 5], $byRegistration[$bob->getId()] ?? null);
+
+        $this->client->request('GET', sprintf('/api/v1/admin/events/%s/local-streams', $withoutServer->getId()));
+        self::assertResponseStatusCodeSame(200);
+        self::assertNull($this->data()['mediaServerHost']);
+
+        $this->client->request('GET', '/api/v1/admin/events/unknown/local-streams');
+        self::assertResponseStatusCodeSame(404);
+
+        $this->loginAs($this->createUser('member@example.org'));
+        $this->client->request('GET', $url);
+        self::assertResponseStatusCodeSame(403);
+    }
+
     /** @return array{0: Event, 1: Registration, 2: Registration} */
     private function scenario(string $title = 'ArchiLAN 5', string $email = ''): array
     {
