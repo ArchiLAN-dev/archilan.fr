@@ -12,6 +12,11 @@ type Props = { params: Promise<{ registrationId: string }> };
 /** Story 47.1: on the member's own registration, whether the ArchiLAN broadcast may show their Twitch stream. */
 export function BroadcastConsentCard({ params }: Props) {
   const { registrationId } = use(params);
+  return <RegistrationBroadcastConsentCard registrationId={registrationId} />;
+}
+
+/** Story 53.3: the same card for a known registration (the registrant hub has no route params to hand over). */
+export function RegistrationBroadcastConsentCard({ registrationId }: { registrationId: string }) {
   const { data } = useQuery({
     queryKey: broadcastConsentKey(registrationId),
     queryFn: () => fetchBroadcastConsent(registrationId),

@@ -49,7 +49,8 @@ export function checklistLine(item: ChecklistItem, { eventSlug, registrationId }
         href: `/evenements/${eventSlug}#billetterie`,
       };
     case "presence":
-      return { label: "Dire quand je suis là", hint: item.state === "done" ? undefined : "Facultatif", href: `${registration}/recap` };
+      // Story 53.3: the presence card sits in the hub's tools.
+      return { label: "Dire quand je suis là", hint: item.state === "done" ? undefined : "Facultatif", href: `/evenements/${eventSlug}/mon-event#presence` };
     case "discord":
       return { label: "Relier mon compte Discord", hint: item.state === "done" ? undefined : "Facultatif", href: "/compte/securite" };
     default:
