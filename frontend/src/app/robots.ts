@@ -30,6 +30,8 @@ export default function robots(): MetadataRoute.Robots {
         // A bare `/inscription` only matches the root-level auth page (prefix from root);
         // the per-event registration funnel needs its own wildcard rule.
         "/evenements/*/inscription",
+        // Story 53.1: the registrant hub, behind the login like the funnel.
+        "/evenements/*/mon-event",
       ],
     },
     sitemap: new URL("/sitemap.xml", env.appUrl).toString(),

@@ -25,6 +25,7 @@ describe("robots", () => {
       "/confirmation-email",
       "/runs/",
       "/evenements/*/inscription",
+      "/evenements/*/mon-event",
     ]);
   });
 
