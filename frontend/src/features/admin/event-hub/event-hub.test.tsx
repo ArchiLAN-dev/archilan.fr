@@ -112,6 +112,8 @@ describe("the event hub (story 3.17)", () => {
       "Sondages",
       "Pelles",
       "Run et sessions",
+      "Serveur média",
+      "QR code de l'espace",
       "Récap / VOD",
       "Mettre en avant",
     ]);
@@ -176,7 +178,7 @@ describe("the sections of an event (story 3.17)", () => {
     expect(html).toContain("Clermont-Ferrand");
     // The site's tabs, each with its icon.
     expect(html).toContain("border-b-2 px-4 text-sm font-semibold");
-    expect(html.match(/<a [^>]*href="\/admin\/evenements\/e1[^"]*"[^>]*><svg/g)).toHaveLength(9);
+    expect(html.match(/<a [^>]*href="\/admin\/evenements\/e1[^"]*"[^>]*><svg/g)).toHaveLength(10);
     expect(html).toMatch(/aria-current="page"[^>]*href="\/admin\/evenements\/e1\/presences"/);
     // No side column any more.
     expect(html).not.toContain("lg:grid-cols");

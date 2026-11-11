@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { RegistrationRecapGate } from "@/features/events/registration-recap-gate";
+import { HubLink } from "@/features/registrant-hub/hub-link";
 import { PresenceCard } from "@/features/presence/presence-editor";
 import { BroadcastConsentCard } from "@/features/streaming/broadcast-consent-card";
 
@@ -16,6 +17,8 @@ type RecapPageProps = {
 export default function RecapPage({ params }: RecapPageProps) {
   return (
     <div className="mx-auto max-w-content px-4 py-10 sm:px-6">
+      {/* Story 53.7: back to the registrant space. */}
+      <HubLink params={params} />
       <RegistrationRecapGate params={params} />
       {/* Story 47.1: whether the ArchiLAN broadcast may show the member's stream. */}
       <BroadcastConsentCard params={params} />

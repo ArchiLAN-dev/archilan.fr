@@ -13,12 +13,16 @@ import {
   parseBroadcastScreenParams,
   rotationSlots,
 } from "./broadcast-screen";
-import { fetchBroadcastStreams, type ParticipantStream } from "./participant-streams-api";
+import { broadcastStreamKey, fetchBroadcastStreams, isBroadcastStream, type BroadcastStream } from "./participant-streams-api";
 
 const BASE = TEST_API_BASE_URL;
 
-function live(login: string, displayName: string | null = null): ParticipantStream {
-  return { userId: `u-${login}`, slug: `slug-${login}`, displayName, twitchLogin: login, avatarUrl: null, live: true, viewerCount: 10 };
+function live(login: string, displayName: string | null = null): BroadcastStream {
+  return { kind: "twitch", userId: `u-${login}`, slug: `slug-${login}`, displayName, twitchLogin: login, avatarUrl: null, live: true, viewerCount: 10 };
+}
+
+function onLan(slug: string, displayName: string | null = null): BroadcastStream {
+  return { kind: "local", userId: `u-${slug}`, slug, displayName, whepUrl: `https://media.lan.archilan.fr:8889/p-${slug}/whep` };
 }
 
 /** Story 47.2: the régie screen for OBS. */
@@ -78,6 +82,25 @@ describe("broadcast screen", () => {
     const rotation = renderToStaticMarkup(<BroadcastRotation featured={live("alice", "Alice")} thumbnails={[live("bob", "Bob")]} />);
     expect(rotation).toContain("grid-cols-[3fr_1fr]");
     expect(rotation).toContain(">Bob</figcaption>");
+  });
+
+  it("plays a LAN screen in WebRTC next to a Twitch live, one key per player (story 47.8)", () => {
+    const mosaic = renderToStaticMarkup(<BroadcastMosaic streams={[onLan("carol", "Carol"), live("bob", "Bob")]} />);
+    expect(mosaic).toContain("<video");
+    expect(mosaic).toContain(">Carol</figcaption>");
+    expect(mosaic).toContain(">Bob</figcaption>");
+    expect(broadcastStreamKey(onLan("carol"))).toBe("local-u-carol");
+    expect(broadcastStreamKey(live("bob"))).toBe("twitch-bob");
+  });
+
+  it("accepts both kinds of entry and nothing else (story 47.8)", async () => {
+    expect(isBroadcastStream(onLan("carol"))).toBe(true);
+    expect(isBroadcastStream(live("bob"))).toBe(true);
+    expect(isBroadcastStream({ kind: "local", userId: "u", slug: "s", displayName: null })).toBe(false);
+    expect(isBroadcastStream({ ...live("bob"), kind: "youtube" })).toBe(false);
+
+    server.use(http.get(`${BASE}/events/e3/broadcast-streams`, () => HttpResponse.json({ data: [onLan("carol"), live("bob")], meta: [] })));
+    expect(await fetchBroadcastStreams("e3")).toEqual([onLan("carol"), live("bob")]);
   });
 
   it("gives the admin the links to paste in OBS", () => {

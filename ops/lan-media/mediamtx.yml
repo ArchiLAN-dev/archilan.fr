@@ -1,0 +1,67 @@
+# Serveur média de la LAN ArchiLAN (stories 47.4 et 47.5).
+# MediaMTX v1.21.3. Les réglages absents de ce fichier gardent la valeur par défaut de MediaMTX.
+# Les valeurs propres à une LAN (adresse de l'API, IP de la machine) viennent de l'environnement :
+# MediaMTX lit toute clé en MTX_<CLE_EN_MAJUSCULES>, voir compose.yml et .env.example.
+
+logLevel: info
+
+###############################################
+# Autorisation : le site décide qui publie.
+# À chaque publication, MediaMTX envoie en POST à authHTTPAddress un JSON
+# {ip, user, password, token, action, path, protocol, id, query, userAgent}.
+# Réponse 2xx = accepté, sinon refusé. La clé arrive :
+#  - dans `token` pour OBS en WHIP (champ « Jeton Bearer » sans « : ») ;
+#  - dans `password` pour SRT (streamid=publish:<chemin>:<pseudo>:<clé>).
+# Si l'API ne répond pas (Internet coupé), la publication est refusée ;
+# un flux déjà ouvert continue.
+authMethod: http
+authHTTPAddress: https://archilan.fr/api/v1/media-auth
+# Actions jamais envoyées au site : la lecture est libre sur la LAN (la régie
+# lit sans dépendre d'Internet), l'API de contrôle n'écoute que la machine.
+authHTTPExclude:
+  - action: read
+  - action: playback
+  - action: api
+  - action: metrics
+  - action: pprof
+
+###############################################
+# API de contrôle : lue par l'agent de la régie (story 47.6).
+# Seulement sur la machine elle-même.
+api: true
+apiAddress: 127.0.0.1:9997
+
+###############################################
+# Protocoles inutiles ici.
+rtsp: false
+rtmp: false
+hls: false
+playback: false
+moq: false
+
+###############################################
+# WebRTC : publication WHIP (OBS 30+) et lecture WHEP (écran régie).
+# HTTPS obligatoire : l'écran régie est une page https://archilan.fr.
+webrtc: true
+webrtcAddress: :8889
+webrtcEncryption: true
+webrtcServerKey: /certs/privkey.pem
+webrtcServerCert: /certs/fullchain.pem
+webrtcAllowOrigins: ['https://archilan.fr', 'https://www.archilan.fr']
+# Médias WebRTC en UDP sur ce port (à ouvrir sur la LAN).
+webrtcLocalUDPAddress: :8189
+# L'IP LAN de la machine est annoncée aux clients (MTX_WEBRTCADDITIONALHOSTS).
+webrtcIPsFromInterfaces: true
+webrtcAdditionalHosts: []
+
+###############################################
+# SRT : repli pour les encodeurs sans WHIP.
+srt: true
+srtAddress: :8890
+
+###############################################
+# Chemins : un par joueur, `p-` suivi d'un identifiant opaque donné par le site.
+# Tout autre chemin est refusé par MediaMTX lui-même.
+paths:
+  "~^p-[a-z0-9-]{1,40}$":
+    source: publisher

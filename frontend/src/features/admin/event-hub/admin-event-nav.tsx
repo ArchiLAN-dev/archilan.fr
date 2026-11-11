@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, ChevronLeft, ClipboardList, Gamepad2, Handshake, LayoutDashboard, Pencil, Server, Shovel, Users } from "lucide-react";
+import { CalendarClock, ChevronLeft, ClipboardList, Gamepad2, Handshake, LayoutDashboard, Pencil, QrCode, Server, Shovel, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -37,7 +37,14 @@ export function eventNavGroups(eventId: string): NavGroup[] {
         { label: "Pelles", href: `${base}/pelles`, icon: Shovel },
       ],
     },
-    { title: "Jour J", items: [{ label: "Run et sessions", href: `${base}/session`, icon: Server }] },
+    {
+      title: "Jour J",
+      items: [
+        { label: "Run et sessions", href: `${base}/session`, icon: Server },
+        // Story 53.7: the QR code of the registrant space, for the LAN's tables.
+        { label: "QR code de l'espace", href: `${base}/qr-espace`, icon: QrCode },
+      ],
+    },
   ];
 }
 

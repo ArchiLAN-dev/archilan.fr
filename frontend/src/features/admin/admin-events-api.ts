@@ -273,6 +273,9 @@ function isAdminEventFormData(v: unknown): v is AdminEventFormData {
   if (!("registrationOpensAt" in v) || typeof v.registrationOpensAt !== "string") return false;
   if (!("registrationClosesAt" in v) || typeof v.registrationClosesAt !== "string") return false;
   if (!("helloassoFormSlug" in v) || (v.helloassoFormSlug !== null && typeof v.helloassoFormSlug !== "string")) return false;
+  if ("practicalInfo" in v && v.practicalInfo !== null && typeof v.practicalInfo !== "string") return false;
+  if ("eveReminderEnabled" in v && typeof v.eveReminderEnabled !== "boolean") return false;
+  if ("mediaServerHost" in v && v.mediaServerHost !== null && typeof v.mediaServerHost !== "string") return false;
   return "isPublic" in v && typeof v.isPublic === "boolean";
 }
 
@@ -297,4 +300,102 @@ function extractRecapDetails(payload: unknown): Record<string, string> {
     }
   }
   return result;
+}
+
+/** Story 47.6: what the régie agent of an event needs, read by an admin. */
+export type MediaAgentConfig = { eventId: string; secret: string };
+
+export function isMediaAgentConfig(v: unknown): v is MediaAgentConfig {
+  return typeof v === "object" && v !== null && "eventId" in v && typeof v.eventId === "string" && "secret" in v && typeof v.secret === "string";
+}
+
+export async function fetchAdminMediaAgent(eventId: string): Promise<MediaAgentConfig | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${encodeURIComponent(eventId)}/media-agent`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) return null;
+    return isMediaAgentConfig(payload.data) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The lines to paste in `ops/lan-media/.env`: the agent calls the site root, not the `/api/v1` base. */
+export function mediaAgentEnvLines(apiBaseUrl: string, config: MediaAgentConfig): string {
+  const siteRoot = apiBaseUrl.replace(/\/+$/, "").replace(/\/api\/v1$/, "");
+  return [`ARCHILAN_API_URL=${siteRoot}`, `ARCHILAN_EVENT_ID=${config.eventId}`, `ARCHILAN_AGENT_SECRET=${config.secret}`].join("\n");
+}
+
+/** Story 47.9: how the local broadcasting of an event goes on the day, durations computed by the API. */
+export type AdminLocalStream = { registrationId: string; live: boolean; cutMinutesAgo: number | null };
+export type AdminLocalStreams = {
+  mediaServerHost: string | null;
+  agentSeenSecondsAgo: number | null;
+  liveCount: number;
+  streams: AdminLocalStream[];
+};
+
+/** Past this silence, the régie agent counts as stopped (the API's streams expire after 30 s too). */
+export const AGENT_SILENT_AFTER_SECONDS = 30;
+
+/** Story 47.9: the agent reports every 10 s; the admin screens follow it at this pace. */
+export const LOCAL_STREAMS_REFRESH_MS = 15_000;
+
+function isAdminLocalStream(v: unknown): v is AdminLocalStream {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    "registrationId" in v &&
+    typeof v.registrationId === "string" &&
+    "live" in v &&
+    typeof v.live === "boolean" &&
+    "cutMinutesAgo" in v &&
+    (v.cutMinutesAgo === null || typeof v.cutMinutesAgo === "number")
+  );
+}
+
+export function isAdminLocalStreams(v: unknown): v is AdminLocalStreams {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    "mediaServerHost" in v &&
+    (v.mediaServerHost === null || typeof v.mediaServerHost === "string") &&
+    "agentSeenSecondsAgo" in v &&
+    (v.agentSeenSecondsAgo === null || typeof v.agentSeenSecondsAgo === "number") &&
+    "liveCount" in v &&
+    typeof v.liveCount === "number" &&
+    "streams" in v &&
+    Array.isArray(v.streams) &&
+    v.streams.every(isAdminLocalStream)
+  );
+}
+
+export async function fetchAdminLocalStreams(eventId: string): Promise<AdminLocalStreams | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${encodeURIComponent(eventId)}/local-streams`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) return null;
+    return isAdminLocalStreams(payload.data) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Story 47.9: the hub's "Serveur média" line. */
+export function mediaServerHubState(view: AdminLocalStreams | null): string | undefined {
+  if (view === null) return undefined;
+  if (view.mediaServerHost === null) return "Non configuré";
+  const seen = view.agentSeenSecondsAgo;
+  if (seen === null) return "Agent jamais vu";
+  if (seen <= AGENT_SILENT_AFTER_SECONDS) return `Agent vu il y a ${seen} s - ${view.liveCount} en direct`;
+  return `Agent muet depuis ${Math.max(1, Math.floor(seen / 60))} min`;
+}
+
+/** Story 47.9: a registrant's "Diffusion locale" cell, "Jamais" when they never sent anything. */
+export function localStreamLabel(stream: AdminLocalStream | undefined): string {
+  if (stream === undefined) return "Jamais";
+  if (stream.live) return "En direct";
+  return stream.cutMinutesAgo !== null && stream.cutMinutesAgo >= 1 ? `Coupé il y a ${stream.cutMinutesAgo} min` : "Coupé à l'instant";
 }

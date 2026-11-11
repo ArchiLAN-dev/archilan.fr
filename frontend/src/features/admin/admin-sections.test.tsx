@@ -26,10 +26,12 @@ describe("admin menu (story 3.20)", () => {
       "/admin/cadres", "/admin/bannieres", "/admin/titres", "/admin/moderation/signalements",
       "/admin/moderation/contributions", "/admin/catalogue", "/admin/sante-apworlds", "/admin/aide-archipelago",
       "/admin/weekly-runs", "/admin/sessions/config", "/admin/discord",
+      // Story 53.5: the help guides, a tab of Publications.
+      "/admin/aide",
     ]) {
       expect(hrefs).toContain(href);
     }
-    expect(hrefs).toHaveLength(23);
+    expect(hrefs).toHaveLength(24);
   });
 
   it("lights the entry on any of its tabs and their sub-pages", () => {

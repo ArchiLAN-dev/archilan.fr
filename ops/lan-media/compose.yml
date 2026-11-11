@@ -1,0 +1,24 @@
+# Serveur média de la LAN ArchiLAN (stories 47.4 à 47.6).
+# Sur la machine de régie (Linux) : cp .env.example .env, renseigner, puis
+#   docker compose up -d
+# Réseau de l'hôte : WebRTC annonce les vraies IP de la machine, sans NAT Docker.
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.3
+    restart: unless-stopped
+    network_mode: host
+    env_file: .env
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+      - ./certs:/certs:ro
+  # Story 47.6 : envoie au site la liste des flux en ligne, toutes les 10 s.
+  agent:
+    image: python:3.12-alpine
+    restart: unless-stopped
+    network_mode: host
+    env_file: .env
+    volumes:
+      - ./agent.py:/agent.py:ro
+    command: ["python", "-u", "/agent.py"]
+    depends_on:
+      - mediamtx

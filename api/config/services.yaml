@@ -473,6 +473,7 @@ services:
     App\Sessions\Application\Query\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalActiveRegistrationQuery'
 
     App\Streaming\Application\Port\TwitchApiClientInterface: '@App\Streaming\Infrastructure\Http\TwitchApiClient'
+    App\Streaming\Domain\Repository\LocalStreamRepositoryInterface: '@App\Streaming\Infrastructure\Doctrine\DoctrineLocalStreamRepository'
     App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface: '@App\Streaming\Infrastructure\Dbal\DbalParticipantTwitchLinksQuery'
 
     App\Streaming\Infrastructure\Http\TwitchApiClient:
@@ -519,6 +520,7 @@ services:
     App\Content\Domain\Repository\PostRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrinePostRepository'
     App\Content\Domain\Repository\HomeAnnouncementRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrineHomeAnnouncementRepository'
     App\Content\Domain\Repository\PartnerRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrinePartnerRepository'
+    App\Content\Domain\Repository\HelpGuideRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrineHelpGuideRepository'
 
     # Story 46.1: admin notes. The target check lives behind a port, answered by the context owning the target.
     App\Notes\Domain\Repository\AdminNoteRepositoryInterface: '@App\Notes\Infrastructure\Doctrine\DoctrineAdminNoteRepository'
@@ -537,6 +539,8 @@ services:
     App\Surveys\Application\Query\SurveyResultsQueryInterface: '@App\Surveys\Infrastructure\Dbal\DbalSurveyResultsQuery'
     # Story 51.5: the registration asks the surveys whether required questions still wait.
     App\Registrations\Application\Query\PendingRegistrationSurveyQueryInterface: '@App\Surveys\Infrastructure\Dbal\DbalPendingRegistrationSurveyQuery'
+    # Story 53.2: the registrant's checklist asks the surveys what still waits for them.
+    App\Registrations\Application\Query\RegistrantSurveysQueryInterface: '@App\Surveys\Infrastructure\Dbal\DbalRegistrantSurveysQuery'
 
     App\Events\Domain\Repository\EventRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventRepository'
     App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventPrivateAccessLogRepository'

@@ -73,6 +73,56 @@ final readonly class DbalParticipantTwitchLinksQuery implements ParticipantTwitc
         return $this->mapRows($rows);
     }
 
+    public function localBroadcastRegistrants(string $eventId): array
+    {
+        if (!$this->sessionExists('event', $eventId) || $this->columnEquals('event', $eventId, 'status', 'completed')) {
+            return [];
+        }
+
+        // A left join: a player without a community profile still goes on air under their account name.
+        $qb = $this->connection->createQueryBuilder();
+        $rows = $qb
+            ->select(
+                'r.id AS registration_id',
+                'u.id AS user_id',
+                'u.slug AS slug',
+                'u.banned_at AS banned_at',
+                'u.suspended_until AS suspended_until',
+                'COALESCE(cp.display_name, u.display_name) AS display_name',
+            )
+            ->from('registration', 'r')
+            ->join('r', $this->userTable, 'u', $qb->expr()->eq('u.id', 'r.user_id'))
+            ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
+            ->where($qb->expr()->eq('r.event_id', ':id'))
+            ->andWhere($qb->expr()->eq('r.status', ':reserved'))
+            ->andWhere($qb->expr()->eq('r.broadcast_consent', ':consent'))
+            ->andWhere($qb->expr()->isNull('u.deleted_at'))
+            ->setParameter('id', $eventId)
+            ->setParameter('reserved', 'reserved')
+            ->setParameter('consent', true, ParameterType::BOOLEAN)
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $registrationId = $row['registration_id'] ?? null;
+            $userId = $row['user_id'] ?? null;
+            $slug = $row['slug'] ?? null;
+            if (!is_string($registrationId) || !is_string($userId) || !is_string($slug) || $this->isBlocked($row['banned_at'] ?? null, $row['suspended_until'] ?? null)) {
+                continue;
+            }
+            $rawDisplayName = $row['display_name'] ?? null;
+            $out[] = [
+                'registrationId' => $registrationId,
+                'userId' => $userId,
+                'slug' => $slug,
+                'displayName' => is_string($rawDisplayName) && '' !== trim($rawDisplayName) ? $rawDisplayName : null,
+            ];
+        }
+
+        return $out;
+    }
+
     public function forPersonalRun(string $runId): ?array
     {
         if (!$this->sessionExists('run', $runId)) {

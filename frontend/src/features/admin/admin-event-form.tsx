@@ -5,9 +5,11 @@ import type { ChangeEvent, FormEvent } from "react";
 
 import { DateTimePicker } from "@/components/date-time-picker";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
-import { EVENT_DESCRIPTION_MAX } from "@/lib/content-limits";
+import { EVENT_DESCRIPTION_MAX, EVENT_PRACTICAL_INFO_MAX } from "@/lib/content-limits";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+
+import { MediaAgentConfig } from "./media-agent-config";
 
 export type EventFormInput = {
   title: string;
@@ -24,6 +26,12 @@ export type EventFormInput = {
   isPublic: boolean;
   /** Story 4.22: always sent, so a save never wipes the HelloAsso link; empty removes it. */
   helloassoFormSlug: string;
+  /** Story 53.4: always sent, like the slug; empty removes it. */
+  practicalInfo: string;
+  /** Story 53.8: the registrants get a mail the day before. */
+  eveReminderEnabled: boolean;
+  /** Story 47.5: always sent, like the slug; empty switches local broadcasting off. */
+  mediaServerHost: string;
 };
 
 export type EventField =
@@ -37,7 +45,9 @@ export type EventField =
   | "capacity"
   | "registrationOpensAt"
   | "registrationClosesAt"
-  | "helloassoFormSlug";
+  | "helloassoFormSlug"
+  | "practicalInfo"
+  | "mediaServerHost";
 
 export type FieldErrors = Partial<Record<EventField, string>>;
 
@@ -57,7 +67,27 @@ export type AdminEventFormData = {
   registrationClosesAt: string;
   isPublic: boolean;
   helloassoFormSlug: string | null;
+  /** Story 53.4: absent from an older API answer, which reads as none. */
+  practicalInfo?: string | null;
+  /** Story 53.8: absent from an older API answer, which reads as on. */
+  eveReminderEnabled?: boolean;
+  /** Story 47.5: the LAN media server the players publish to; absent from an older API answer, which reads as none. */
+  mediaServerHost?: string | null;
 };
+
+/** Story 53.4: the headings offered on a first click, so the organisers do not start from a blank page. */
+export const PRACTICAL_INFO_TEMPLATE = [
+  "## Accès",
+  "",
+  "## À apporter",
+  "",
+  "## Sur place",
+  "",
+  "## Contacts",
+  "",
+  "## Questions fréquentes",
+  "",
+].join("\n");
 
 export class EventDraftError extends Error {
   constructor(readonly fieldErrors: FieldErrors) {
@@ -81,6 +111,7 @@ export function EventForm({
   const [submitting, setSubmitting] = useState(false);
   const [isPublic, setIsPublic] = useState(event?.isPublic ?? true);
   const [description, setDescription] = useState(event?.description ?? "");
+  const [practicalInfo, setPracticalInfo] = useState(event?.practicalInfo ?? "");
   const [coverMode, setCoverMode] = useState<"url" | "upload">(
     event?.coverImageKey ? "upload" : "url"
   );
@@ -90,6 +121,10 @@ export function EventForm({
     event?.coverImageKey ? (event.coverImageUrl ?? null) : null
   );
   const descriptionErrorId = useId();
+  const practicalInfoErrorId = useId();
+  const practicalInfoHintId = useId();
+  const mediaServerErrorId = useId();
+  const mediaServerHintId = useId();
   const photoGalleryErrorId = useId();
 
   async function submit(formEvent: FormEvent<HTMLFormElement>) {
@@ -116,6 +151,9 @@ export function EventForm({
         registrationClosesAt: localDateTime(String(form.get("registrationClosesAt") ?? "")),
         isPublic: form.get("isPublic") === "on",
         helloassoFormSlug: String(form.get("helloassoFormSlug") ?? "").trim(),
+        practicalInfo: String(form.get("practicalInfo") ?? ""),
+        eveReminderEnabled: form.get("eveReminderEnabled") === "on",
+        mediaServerHost: String(form.get("mediaServerHost") ?? "").trim(),
       });
 
       if (mode === "create") {
@@ -268,6 +306,66 @@ export function EventForm({
         {errors.description ? <span className="text-xs text-danger" id={descriptionErrorId}>{errors.description}</span> : null}
       </label>
 
+      <fieldset className="grid gap-2 rounded-lg border border-border p-4">
+        <legend className="px-1 text-sm font-semibold text-foreground">Infos pratiques (inscrits seulement)</legend>
+        <p className="text-xs text-muted-foreground" id={practicalInfoHintId}>
+          Visibles des seuls inscrits, dans leur espace de l&apos;événement : tu peux y mettre le wifi, un code de porte
+          ou un numéro de téléphone. Jamais affichées sur la page publique.
+        </p>
+        <input name="practicalInfo" type="hidden" value={practicalInfo} />
+        {practicalInfo === "" ? (
+          <button
+            className="w-fit rounded border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-accent"
+            onClick={() => setPracticalInfo(PRACTICAL_INFO_TEMPLATE)}
+            type="button"
+          >
+            Partir du modèle
+          </button>
+        ) : null}
+        <MarkdownEditor
+          maxLength={EVENT_PRACTICAL_INFO_MAX}
+          onChange={setPracticalInfo}
+          rows={8}
+          value={practicalInfo}
+        />
+        {errors.practicalInfo ? <span className="text-xs text-danger" id={practicalInfoErrorId}>{errors.practicalInfo}</span> : null}
+        {/* Story 53.8: the mail of the day before (start, venue, what is left to do), never the practical info. */}
+        <label className="flex items-start gap-2 text-sm text-foreground">
+          <input className="mt-0.5 size-4" defaultChecked={event?.eveReminderEnabled ?? true} name="eveReminderEnabled" type="checkbox" />
+          <span>
+            Envoyer un mail la veille aux inscrits confirmés
+            <span className="block text-xs text-muted-foreground">
+              L&apos;heure, le lieu et ce qu&apos;il leur reste à faire, avec le lien vers leur espace. Les infos pratiques n&apos;y figurent pas.
+            </span>
+          </span>
+        </label>
+      </fieldset>
+
+      {/* Story 47.5: the players send their screen to this server on the LAN (ops/lan-media), each with their own key. */}
+      <fieldset className="grid gap-2 rounded-lg border border-border p-4">
+        <legend className="px-1 text-sm font-semibold text-foreground">Diffusion locale</legend>
+        <label className="grid gap-1 text-sm text-foreground">
+          <span>Serveur média local</span>
+          <input
+            aria-describedby={errors.mediaServerHost ? mediaServerErrorId : mediaServerHintId}
+            aria-invalid={errors.mediaServerHost ? true : undefined}
+            className="rounded border border-border bg-surface px-3 py-2 text-sm text-foreground"
+            defaultValue={event?.mediaServerHost ?? ""}
+            name="mediaServerHost"
+            placeholder="media.lan.archilan.fr"
+            type="text"
+          />
+        </label>
+        <p className="text-xs text-muted-foreground" id={mediaServerHintId}>
+          Le nom du serveur MediaMTX de la LAN, sans https:// ni port. Les inscrits confirmés pourront y envoyer leur
+          écran à la régie, de la veille à la fin de l&apos;événement. Vide : pas de diffusion locale. Installation :
+          ops/lan-media.
+        </p>
+        {errors.mediaServerHost ? <span className="text-xs text-danger" id={mediaServerErrorId}>{errors.mediaServerHost}</span> : null}
+        {/* Story 47.6: once the event is saved with a media server, the régie agent's settings. */}
+        {event?.id && event.mediaServerHost ? <MediaAgentConfig eventId={event.id} /> : null}
+      </fieldset>
+
       <div className="grid gap-2">
         <span className="text-sm font-semibold text-foreground">Galerie photos</span>
         {errors.photoGallery ? <span className="text-xs text-danger" id={photoGalleryErrorId}>{errors.photoGallery}</span> : null}
@@ -349,6 +447,8 @@ export function fieldErrorsFromPayload(payload: unknown): FieldErrors {
     registrationOpensAt: firstDetail(details, "registrationOpensAt"),
     registrationClosesAt: firstDetail(details, "registrationClosesAt"),
     helloassoFormSlug: firstDetail(details, "helloassoFormSlug"),
+    practicalInfo: firstDetail(details, "practicalInfo"),
+    mediaServerHost: firstDetail(details, "mediaServerHost"),
   };
 }
 

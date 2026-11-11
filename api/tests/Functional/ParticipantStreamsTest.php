@@ -13,6 +13,8 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\Registrations\Domain\Entity\Registration;
 use App\Streaming\Application\Port\TwitchApiClientInterface;
+use App\Streaming\Application\Support\MediaPublishCredentials;
+use App\Streaming\Domain\Entity\LocalStream;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use App\WeeklyRuns\Domain\Entity\WeeklyRun;
 
@@ -83,6 +85,55 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
         $this->client->request('GET', '/api/v1/events/unknown/broadcast-streams');
         self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testTheBroadcastPutsTheLanStreamsFirstAndOnlyOnce(): void
+    {
+        $event = $this->createEvent('LAN', $this->now, $this->now->modify('+1 day'), published: true);
+        $event->pointMediaServer('media.lan.archilan.fr', $this->now);
+        $both = $this->createTwitchMember('both@x.test', 'lanboth', 'Alice', 'alice-lan');
+        $twitchOnly = $this->createTwitchMember('twitch@x.test', 'lantwitch', 'Bob', 'bob-lan');
+        $noTwitch = $this->createUser('local@x.test', displayName: 'Carol', slug: 'carol-lan');
+        $refused = $this->createUser('refused@x.test', displayName: 'Dan', slug: 'dan-lan');
+        $cut = $this->createUser('cut@x.test', displayName: 'Eve', slug: 'eve-lan');
+
+        $bothRegistration = $this->createRegistration($event->getId(), $both->getId());
+        $this->createRegistration($event->getId(), $twitchOnly->getId());
+        $localRegistration = $this->createRegistration($event->getId(), $noTwitch->getId());
+        $refusedRegistration = $this->createRegistration($event->getId(), $refused->getId());
+        $refusedRegistration->chooseBroadcastConsent(false, $this->now);
+        $cutRegistration = $this->createRegistration($event->getId(), $cut->getId());
+
+        // What the régie agent last reported (story 47.6): Eve's stream was cut.
+        $now = new \DateTimeImmutable();
+        $credentials = self::getContainer()->get(MediaPublishCredentials::class);
+        self::assertInstanceOf(MediaPublishCredentials::class, $credentials);
+        foreach ([$bothRegistration, $localRegistration, $refusedRegistration, $cutRegistration] as $registration) {
+            $stream = new LocalStream(bin2hex(random_bytes(16)), $event->getId(), $registration->getId(), $credentials->pathFor($registration->getId()), $now);
+            $stream->seenOnline(null, $now);
+            if ($registration === $cutRegistration) {
+                $stream->seenOffline();
+            }
+            $this->entityManager->persist($stream);
+        }
+        $this->entityManager->flush();
+        $this->fakeLive(['lanboth' => 5, 'lantwitch' => 7]);
+
+        $this->client->request('GET', '/api/v1/events/'.$event->getId().'/broadcast-streams');
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->dataList();
+
+        self::assertSame(['local', 'local', 'twitch'], array_column($data, 'kind'));
+        self::assertSame(['alice-lan', 'carol-lan', 'bob-lan'], array_column($data, 'slug'));
+        self::assertSame(
+            sprintf('https://media.lan.archilan.fr:8889/%s/whep', $credentials->pathFor($localRegistration->getId())),
+            $data[1]['whepUrl'] ?? null,
+        );
+
+        // The public lists never carry a LAN stream.
+        $this->client->request('GET', '/api/v1/events/'.$event->getId().'/participant-streams');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['lanboth', 'lantwitch'], array_column($this->dataList(), 'twitchLogin'));
     }
 
     public function testBannedAndSuspendedParticipantsAreExcluded(): void
@@ -399,7 +450,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
     }
 
     /**
-     * @return list<array{userId: string, slug: string, displayName: string|null, twitchLogin: string, avatarUrl: string|null, live: bool, viewerCount: int|null}>
+     * @return list<array<string, mixed>>
      */
     private function dataList(): array
     {
@@ -407,7 +458,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
         self::assertArrayHasKey('data', $body);
         self::assertIsArray($body['data']);
 
-        /** @var list<array{userId: string, slug: string, displayName: string|null, twitchLogin: string, avatarUrl: string|null, live: bool, viewerCount: int|null}> $data */
+        /** @var list<array<string, mixed>> $data */
         $data = $body['data'];
 
         return $data;

@@ -1,0 +1,120 @@
+import { apiFetch } from "@/lib/apiFetch";
+import { env } from "@/lib/env";
+import { hasBooleanProp, hasStringProp } from "@/lib/type-guards";
+
+/**
+ * Story 53.1: who may open the registrant hub of an event. Unlike the event-page CTA, a failure is an `error` and
+ * never a "not registered": a registrant on a flaky LAN must not be bounced off their own hub.
+ */
+export type RegistrantHubAccess =
+  | { kind: "guest" }
+  | { kind: "not_registered" }
+  | { kind: "registered"; registrationId: string; confirmed: boolean }
+  | { kind: "error" };
+
+export async function fetchRegistrantHubAccess(eventId: string): Promise<RegistrantHubAccess> {
+  try {
+    const profile = await apiFetch(`${env.apiBaseUrl}/account/profile`);
+    if (profile.status === 401 || profile.status === 403) return { kind: "guest" };
+    if (!profile.ok) return { kind: "error" };
+
+    const registration = await apiFetch(`${env.apiBaseUrl}/events/${eventId}/my-registration`);
+    if (registration.status === 404) return { kind: "not_registered" };
+    if (!registration.ok) return { kind: "error" };
+
+    return parseRegistrantHubAccess(await registration.json());
+  } catch {
+    return { kind: "error" };
+  }
+}
+
+export function parseRegistrantHubAccess(payload: unknown): RegistrantHubAccess {
+  const data = typeof payload === "object" && payload !== null && "data" in payload ? payload.data : null;
+  if (typeof data !== "object" || data === null || !hasStringProp(data, "registrationId")) return { kind: "error" };
+  // A cancelled registration is no registration (story 4.22).
+  if (hasStringProp(data, "status") && data.status === "cancelled") return { kind: "not_registered" };
+  return { kind: "registered", registrationId: data.registrationId, confirmed: hasBooleanProp(data, "confirmed") && data.confirmed };
+}
+
+/** Where a visitor who may not see the hub goes instead, or null to stay. */
+export function hubRedirect(access: RegistrantHubAccess, eventSlug: string): string | null {
+  if (access.kind === "guest") return `/connexion?returnTo=${encodeURIComponent(registrantHubPath(eventSlug))}`;
+  if (access.kind === "not_registered") return `/evenements/${eventSlug}`;
+  return null;
+}
+
+export function registrantHubPath(eventSlug: string): string {
+  return `/evenements/${eventSlug}/mon-event`;
+}
+
+/** Story 53.2: one line of the registrant's checklist; the front words it from `key`. */
+export type ChecklistItem = {
+  key: string;
+  state: "done" | "todo" | "optional";
+  required: boolean;
+  detail?: Record<string, number | boolean | string>;
+};
+
+export type RegistrantChecklistData = {
+  phase: "before" | "during" | "after";
+  items: ChecklistItem[];
+};
+
+export async function fetchRegistrantChecklist(registrationId: string): Promise<RegistrantChecklistData | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/registrations/${registrationId}/checklist`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    return isRegistrantChecklistPayload(payload) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function isRegistrantChecklistPayload(payload: unknown): payload is { data: RegistrantChecklistData } {
+  if (typeof payload !== "object" || payload === null || !("data" in payload)) return false;
+  const data: unknown = payload.data;
+  if (typeof data !== "object" || data === null) return false;
+  if (!("phase" in data) || (data.phase !== "before" && data.phase !== "during" && data.phase !== "after")) return false;
+  return "items" in data && Array.isArray(data.items) && data.items.every(isChecklistItem);
+}
+
+function isChecklistItem(item: unknown): item is ChecklistItem {
+  if (typeof item !== "object" || item === null) return false;
+  if (!("key" in item) || typeof item.key !== "string") return false;
+  if (!("state" in item) || (item.state !== "done" && item.state !== "todo" && item.state !== "optional")) return false;
+  if (!("required" in item) || typeof item.required !== "boolean") return false;
+  if (!("detail" in item)) return true;
+  const detail: unknown = item.detail;
+  return (
+    typeof detail === "object" &&
+    detail !== null &&
+    !Array.isArray(detail) &&
+    Object.values(detail).every((value) => typeof value === "number" || typeof value === "boolean" || typeof value === "string")
+  );
+}
+
+/** Story 53.4: the organisers' practical information, for the registrants only. */
+export type PracticalInfo = {
+  markdown: string | null;
+  updatedAt: string | null;
+};
+
+export async function fetchPracticalInfo(eventId: string): Promise<PracticalInfo | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/events/${eventId}/practical-info`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    return isPracticalInfoPayload(payload) ? payload.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function isPracticalInfoPayload(payload: unknown): payload is { data: PracticalInfo } {
+  if (typeof payload !== "object" || payload === null || !("data" in payload)) return false;
+  const data: unknown = payload.data;
+  if (typeof data !== "object" || data === null) return false;
+  if (!("markdown" in data) || (data.markdown !== null && typeof data.markdown !== "string")) return false;
+  return "updatedAt" in data && (data.updatedAt === null || typeof data.updatedAt === "string");
+}

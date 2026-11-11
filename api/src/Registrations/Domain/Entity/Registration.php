@@ -50,6 +50,12 @@ final class Registration
         /** Story 5.10: the admin who confirmed on the member's behalf, null when the member confirmed. */
         #[ORM\Column(name: 'confirmed_by_admin_id', type: 'string', length: 32, nullable: true)]
         private ?string $confirmedByAdminId = null,
+        /** Story 53.8: when the mail of the day before went, so it goes once. */
+        #[ORM\Column(name: 'eve_reminder_sent_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $eveReminderSentAt = null,
+        /** Story 47.5: bumped to replace the member's media publishing key (the key itself is derived, never stored). */
+        #[ORM\Column(name: 'media_key_version', type: 'integer', options: ['default' => 0])]
+        private int $mediaKeyVersion = 0,
     ) {
     }
 
@@ -238,6 +244,23 @@ final class Registration
         $this->updatedAt = $now;
     }
 
+    /** Story 53.8: a confirmed registration not yet told the event is tomorrow. */
+    public function needsEveReminder(): bool
+    {
+        return $this->isReserved() && null !== $this->submittedAt && null === $this->eveReminderSentAt;
+    }
+
+    public function markEveReminded(\DateTimeImmutable $now): void
+    {
+        $this->eveReminderSentAt = $now;
+        $this->updatedAt = $now;
+    }
+
+    public function getEveReminderSentAt(): ?\DateTimeImmutable
+    {
+        return $this->eveReminderSentAt;
+    }
+
     public function getReminderSentAt(): ?\DateTimeImmutable
     {
         return $this->reminderSentAt;
@@ -277,6 +300,7 @@ final class Registration
         $this->gameSlots = [];
         $this->submittedAt = null;
         $this->reminderSentAt = null;
+        $this->eveReminderSentAt = null;
         $this->broadcastConsent = true;
         $this->createdAt = $now;
         $this->updatedAt = $now;
@@ -329,5 +353,21 @@ final class Registration
     public function hasBroadcastConsent(): bool
     {
         return $this->broadcastConsent;
+    }
+
+    /** Story 47.5: the member asks for a new key to publish to the LAN media server; the old one stops working. */
+    public function regenerateMediaKey(\DateTimeImmutable $now): void
+    {
+        if (!$this->isReserved()) {
+            throw new \DomainException('Only reserved registrations can get a new media key.');
+        }
+
+        ++$this->mediaKeyVersion;
+        $this->updatedAt = $now;
+    }
+
+    public function getMediaKeyVersion(): int
+    {
+        return $this->mediaKeyVersion;
     }
 }
