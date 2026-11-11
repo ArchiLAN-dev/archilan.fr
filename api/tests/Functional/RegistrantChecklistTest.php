@@ -137,7 +137,7 @@ final class RegistrantChecklistTest extends FunctionalTestCase
     }
 
     /**
-     * @return array{phase: string, items: list<array<string, mixed>>}
+     * @return array{phase: string, items: list<array<mixed>>}
      */
     private function checklist(string $registrationId): array
     {
@@ -148,8 +148,13 @@ final class RegistrantChecklistTest extends FunctionalTestCase
         self::assertIsString($data['phase']);
         self::assertIsList($data['items']);
 
-        /* @var array{phase: string, items: list<array<string, mixed>>} $data */
-        return $data;
+        $items = [];
+        foreach ($data['items'] as $item) {
+            self::assertIsArray($item);
+            $items[] = $item;
+        }
+
+        return ['phase' => $data['phase'], 'items' => $items];
     }
 
     private function publishSurvey(User $admin, string $eventId, string $audience): void
