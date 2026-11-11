@@ -18,6 +18,8 @@ final readonly class EventEveReminderMessage
         public string $venue,
         public array $stepsLeft,
         public string $hubUrl,
+        /** Story 47.7: the registrant can send their screen to the régie (media server, broadcast not refused). */
+        public bool $localBroadcast = false,
     ) {
     }
 }

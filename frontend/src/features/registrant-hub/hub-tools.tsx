@@ -12,6 +12,7 @@ import { EventSurveyBanner } from "@/features/surveys/event-survey-banner";
 import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
 import { RegistrationPresenceCard } from "@/features/presence/presence-editor";
 import { RegistrationBroadcastConsentCard } from "@/features/streaming/broadcast-consent-card";
+import { MediaPublishCard } from "@/features/streaming/media-publish-card";
 import { BlindTestJoinButton } from "@/features/wallet/blind-test-join-button";
 import { MinimapperzCodeCard } from "@/features/wallet/minimapperz-code-card";
 import { fetchMyWallet, type Wallet } from "@/features/wallet/wallet-api";
@@ -87,6 +88,8 @@ export function RegistrantHubTools({ eventId, eventSlug, registrationId, confirm
         <RegistrationPresenceCard registrationId={registrationId} />
       </div>
       <RegistrationBroadcastConsentCard helpHref={help(HELP_GUIDE_SLUGS.broadcast)} registrationId={registrationId} />
+      {/* Story 47.7: the LAN media server, from the day before to the end, for a confirmed registrant who accepts the broadcast. */}
+      {confirmed ? <MediaPublishCard helpHref={help(HELP_GUIDE_SLUGS.broadcast)} registrationId={registrationId} /> : null}
     </div>
   );
 }

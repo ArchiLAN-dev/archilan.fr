@@ -29,6 +29,7 @@ final readonly class EventEveReminderHandler
             $message->stepsLeft,
             $message->hubUrl,
             $this->siteUrl,
+            $message->localBroadcast,
         ));
     }
 }

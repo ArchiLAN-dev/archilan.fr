@@ -193,8 +193,8 @@ final class LocalStreamsReportTest extends FunctionalTestCase
 
     private function state(): LocalStreamsState
     {
-        // Nothing injects it until story 47.7, so the compiled container inlines it away. Cleared: the rows the
-        // requests wrote, not the ones this entity manager loaded before.
+        // A private service, built by hand. Cleared: the rows the requests wrote, not the ones this entity manager
+        // loaded before.
         $this->entityManager->clear();
 
         return new LocalStreamsState(new DoctrineLocalStreamRepository($this->entityManager), new NativeClock());

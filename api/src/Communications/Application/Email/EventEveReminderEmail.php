@@ -10,6 +10,8 @@ namespace App\Communications\Application\Email;
  */
 final class EventEveReminderEmail extends ArchilanEmail
 {
+    public const string LOCAL_BROADCAST_LINE = 'Tu peux envoyer ton écran à la régie : tes réglages de diffusion sont dans ton espace.';
+
     /**
      * @param list<string> $stepsLeft empty when the registrant is ready
      */
@@ -22,6 +24,8 @@ final class EventEveReminderEmail extends ArchilanEmail
         private readonly array $stepsLeft,
         private readonly string $hubUrl,
         private readonly string $siteUrl = '',
+        /** Story 47.7: a line about sending one's screen to the régie; never the key. */
+        private readonly bool $localBroadcast = false,
     ) {
     }
 
@@ -47,6 +51,7 @@ final class EventEveReminderEmail extends ArchilanEmail
         $steps = [] === $this->stepsLeft
             ? 'Tout est prêt de ton côté, il ne reste plus qu\'à venir !'
             : "Il te reste à faire :\n".implode("\n", array_map(static fn (string $step): string => '- '.$step, $this->stepsLeft));
+        $broadcast = $this->localBroadcast ? "\n\n".self::LOCAL_BROADCAST_LINE : '';
 
         return <<<TEXT
         Bonjour {$name},
@@ -55,7 +60,7 @@ final class EventEveReminderEmail extends ArchilanEmail
 
         {$steps}
 
-        Ton espace pour l'événement, avec les infos pratiques et tes outils : {$this->hubUrl}
+        Ton espace pour l'événement, avec les infos pratiques et tes outils : {$this->hubUrl}{$broadcast}
 
         À demain !
         L'équipe ArchiLAN
@@ -77,6 +82,7 @@ final class EventEveReminderEmail extends ArchilanEmail
                 ? self::paragraph('Tout est prêt de ton côté, il ne reste plus qu\'à venir !')
                 : self::bulletList('Il te reste à faire', $this->stepsLeft))
             .self::paragraph('Les infos pratiques et tes outils pour l\'événement t\'attendent dans ton espace.')
+            .($this->localBroadcast ? self::paragraph(self::LOCAL_BROADCAST_LINE) : '')
             .self::button($this->hubUrl, 'Mon espace')
             .self::note('À demain !')
             .self::signature();
