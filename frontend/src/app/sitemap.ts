@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { getHelpGuides, helpGuidePath } from "@/features/content/help-guides-api";
 import { getPublicPosts } from "@/features/content/public-posts-api";
 import { getPublicEvents } from "@/features/events/public-events-api";
 import { getAllPublicGames } from "@/features/games/public-games-api";
@@ -38,6 +39,7 @@ const STATIC_ROUTES = [
   "/joueurs",
   "/boutique",
   "/boutique?onglet=asso",
+  "/aide",
   "/aide/archipelago",
   "/partenaires",
   "/cgu",
@@ -47,12 +49,13 @@ const STATIC_ROUTES = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [events, posts, games, weeklyRuns, publicProfiles] = await Promise.all([
+  const [events, posts, games, weeklyRuns, publicProfiles, helpGuides] = await Promise.all([
     getPublicEvents(),
     getPublicPosts(),
     getAllPublicGames(),
     fetchCurrentWeeklyRuns(),
     getPublicProfileSlugs(),
+    getHelpGuides(),
   ]);
 
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((path) => ({ url: absolute(path) }));
@@ -97,5 +100,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...(profile.updatedAt !== "" ? { lastModified: profile.updatedAt.slice(0, 10) } : {}),
   }));
 
-  return [...staticEntries, ...eventEntries, ...postEntries, ...gameEntries, ...weeklyEntries, ...recapEntries, ...profileEntries];
+  // Story 53.5: the published help guides (a draft is not listed by the API).
+  const guideEntries: MetadataRoute.Sitemap = helpGuides.map((guide) => ({ url: absolute(helpGuidePath(guide.slug)) }));
+
+  return [...staticEntries, ...guideEntries, ...eventEntries, ...postEntries, ...gameEntries, ...weeklyEntries, ...recapEntries, ...profileEntries];
 }

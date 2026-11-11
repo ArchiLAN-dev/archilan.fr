@@ -162,6 +162,11 @@ export function PresenceSummary({ windows }: { windows: PresenceWindow[] }) {
 /** Story 52.2: on the member's own registration (recap, session), when they are at the event. */
 export function PresenceCard({ params }: { params: Promise<{ registrationId: string }> }) {
   const { registrationId } = use(params);
+  return <RegistrationPresenceCard registrationId={registrationId} />;
+}
+
+/** Story 53.3: the same card for a known registration (the registrant hub has no route params to hand over). */
+export function RegistrationPresenceCard({ registrationId }: { registrationId: string }) {
   const queryClient = useQueryClient();
   const { data } = useQuery({
     queryKey: presenceKey(registrationId),

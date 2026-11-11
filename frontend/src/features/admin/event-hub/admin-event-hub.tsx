@@ -8,6 +8,7 @@ import {
   House,
   KeyRound,
   Pencil,
+  QrCode,
   Server,
   ShieldAlert,
   Shovel,
@@ -143,7 +144,8 @@ export function hubSections({ event, onConfigurePrivateAccess, onConfigureRecap,
         { kind: "link", label: "Pelles", href: `${base}/pelles`, icon: Shovel },
       ],
     },
-    { title: "Jour J", entries: [run] },
+    // Story 53.7: the QR code of the registrant space, printed for the LAN's tables.
+    { title: "Jour J", entries: [run, { kind: "link", label: "QR code de l'espace", href: `${base}/qr-espace`, icon: QrCode }] },
     { title: "Après", entries: [recap, featured] },
   ];
 }

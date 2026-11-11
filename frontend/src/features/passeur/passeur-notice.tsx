@@ -7,6 +7,7 @@ import { KeyRound, X } from "lucide-react";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount } from "@/features/wallet/pelle-amount";
 import { dismissPasseurNotice, fetchPasseurNotice, passeurNoticeKey, type PasseurNotice } from "./passeur-api";
+import { HelpLink } from "@/components/help-link";
 
 const WHEN = new Intl.DateTimeFormat("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
@@ -14,7 +15,7 @@ const WHEN = new Intl.DateTimeFormat("fr-FR", { weekday: "short", hour: "2-digit
  * « Le Passeur a ouvert » (story 52.5, title reworded by 52.9): what the Passeur opened in the viewer's world, and what it brought them.
  * Shown until closed; the next opening brings it back. Nothing for a viewer whose world nobody opened.
  */
-export function PasseurNoticeCard({ sessionId }: { sessionId: string }) {
+export function PasseurNoticeCard({ sessionId, helpHref }: { sessionId: string; helpHref?: string | null }) {
   const queryClient = useQueryClient();
   const { data } = useQuery({
     queryKey: passeurNoticeKey(sessionId),
@@ -27,6 +28,7 @@ export function PasseurNoticeCard({ sessionId }: { sessionId: string }) {
 
   return (
     <PasseurNoticeView
+      helpHref={helpHref}
       notice={data}
       onDismiss={async () => {
         const closed = await dismissPasseurNotice(sessionId);
@@ -37,7 +39,16 @@ export function PasseurNoticeCard({ sessionId }: { sessionId: string }) {
   );
 }
 
-export function PasseurNoticeView({ notice, onDismiss }: { notice: PasseurNotice; onDismiss: () => Promise<boolean> }) {
+export function PasseurNoticeView({
+  notice,
+  onDismiss,
+  helpHref,
+}: {
+  notice: PasseurNotice;
+  onDismiss: () => Promise<boolean>;
+  /** Story 53.5: the Passeur's guide, from the registrant space. */
+  helpHref?: string | null;
+}) {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
   const count = notice.openings.length;
@@ -88,6 +99,7 @@ export function PasseurNoticeView({ notice, onDismiss }: { notice: PasseurNotice
         </p>
       ) : null}
       {failed ? <p className="text-xs text-danger">L&apos;encart n&apos;a pas pu être fermé.</p> : null}
+      <HelpLink href={helpHref} />
     </section>
   );
 }

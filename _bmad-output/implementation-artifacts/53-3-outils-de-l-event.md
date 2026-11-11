@@ -1,9 +1,9 @@
 # Story 53.3 - Les outils de l'event
 
-**Status:** ready-for-dev
+**Status:** in-progress (vérification réelle à faire)
 **Epic:** 53 - Mon event, l'espace de l'inscrit (`_bmad-output/planning-artifacts/epics/epic-53-espace-inscrit.md`)
 **Date:** 2026-11-11
-**Branche:** `feature/epic-53-story-3-outils-de-l-event` (depuis `develop`)
+**Branche:** `feature/epic-53-story-3-outils-de-l-event` (empilée sur `feature/epic-53-story-2-checklist-inscrit`, PR #1085)
 **Dépend de:** 53.1.
 
 ## Story
@@ -71,10 +71,10 @@ session de l'inscription.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1, 2) - `HubSessionCard`.
-- [ ] **Task 2** (AC 3) - `HubPellesCard`.
-- [ ] **Task 3** (AC 1, 4, 5) - Section, composition des cartes existantes, ancres.
-- [ ] **Task 4** (AC 6-8) - Tests, gates, vérification réelle.
+- [x] **Task 1** (AC 1, 2) - `HubSessionCard`.
+- [x] **Task 2** (AC 3) - `HubPellesCard`.
+- [x] **Task 3** (AC 1, 4, 5) - Section, composition des cartes existantes, ancres.
+- [ ] **Task 4** (AC 6-8) - Tests, gates, vérification réelle. Tests et gates faits ; vérification réelle à faire.
 
 ## Dev Notes
 
@@ -82,3 +82,35 @@ session de l'inscription.
 - Carte « Diffuser pour la régie » (epic 47, diffusion locale) : hors périmètre, prévoir sa place après la diffusion.
 
 ## Dev Agent Record
+
+### Agent Model Used
+
+Claude Opus 5.5
+
+### Completion Notes List
+
+- `RegistrantHubTools` (`features/registrant-hub/hub-tools.tsx`) compose, dans l'ordre : carte partie, Passeur (session
+  en cours), blind test, Minimapperz, sondages, pelles, présence (ancre `#presence`), diffusion. Les cartes
+  existantes lisent leur endpoint et ne rendent rien quand l'outil est éteint : pas de cadre vide.
+- `HubSessionCard` (inscription confirmée seulement) : pas de partie / en préparation (mêmes statuts que la page
+  session) / en cours avec `ConnectionFields` (copie de l'adresse, du port, du nom de slot) / en pause / terminée /
+  interrompue, lien « Détail de ma partie ». Relue chaque minute.
+- `HubPellesCard` : or et pelles de l'événement depuis `/me/wallet`, lien vers `/compte/pelles`.
+- `PresenceCard` et `BroadcastConsentCard` gardent leur signature (paramètres de route) et délèguent à
+  `RegistrationPresenceCard` / `RegistrationBroadcastConsentCard` (id d'inscription connu), utilisées par l'espace.
+- La vue de l'espace reçoit les outils en `tools` (ReactNode) depuis la garde : elle reste un rendu pur, testable sans
+  client de requêtes.
+- Checklist : la ligne présence mène à `mon-event#presence`.
+- Décision 2 (lien « C'est quoi ? ») : pas de lien tant que la 53.5 n'existe pas.
+- Décision 3 : rien retiré de la page publique (la 53.7 s'en charge).
+- Pas de changement API.
+- Gates front : typecheck, lint, test (253 suites, 1610 tests), build verts.
+
+### File List
+
+- `frontend/src/features/registrant-hub/hub-tools.tsx` (nouveau)
+- `frontend/src/features/registrant-hub/hub-tools.test.tsx` (nouveau)
+- `frontend/src/features/registrant-hub/registrant-hub.tsx` (modifié)
+- `frontend/src/features/registrant-hub/registrant-checklist.tsx` (modifié)
+- `frontend/src/features/presence/presence-editor.tsx` (modifié)
+- `frontend/src/features/streaming/broadcast-consent-card.tsx` (modifié)

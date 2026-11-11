@@ -1,9 +1,9 @@
 # Story 53.4 - Infos pratiques de l'événement
 
-**Status:** ready-for-dev
+**Status:** in-progress (phpunit et vérification réelle à faire)
 **Epic:** 53 - Mon event, l'espace de l'inscrit (`_bmad-output/planning-artifacts/epics/epic-53-espace-inscrit.md`)
 **Date:** 2026-11-11
-**Branche:** `feature/epic-53-story-4-infos-pratiques` (depuis `develop`)
+**Branche:** `feature/epic-53-story-4-infos-pratiques` (empilée sur `feature/epic-53-story-1-socle-espace-inscrit`, PR #1083 ; à recibler sur `develop` après son merge)
 **Dépend de:** 53.1.
 
 ## Story
@@ -54,9 +54,54 @@ afin que les inscrits les trouvent dans leur espace au lieu de nous les demander
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 4, 5) - Champ, migration réversible, validation.
-- [ ] **Task 2** (AC 1, 2, 6) - API admin et endpoint de lecture.
-- [ ] **Task 3** (AC 1, 3, 7) - Formulaire admin, section de l'espace.
+- [x] **Task 1** (AC 4, 5) - Champ, migration réversible, validation.
+- [x] **Task 2** (AC 1, 2, 6) - API admin et endpoint de lecture.
+- [x] **Task 3** (AC 1, 3, 7) - Formulaire admin, section de l'espace.
 - [ ] **Task 4** (AC 8) - Gates, vérification réelle.
 
 ## Dev Agent Record
+
+### Agent Model Used
+
+Claude Opus 5.5
+
+### Completion Notes List
+
+- Domaine : `Event::writePracticalInfo()` (trim, vide = rien, plafond `PRACTICAL_INFO_MAX_LENGTH` 10 000,
+  `event_practical_info_too_long`), colonnes `practical_info` et `practical_info_updated_at`. La date ne bouge que si
+  le texte change : réenregistrer l'événement ne fait pas croire aux inscrits à une nouveauté.
+- Migration `Version20261111100000` (réversible).
+- Admin : `AdminEventDrafts` lit `practicalInfo` comme le slug HelloAsso (absent = conservé, vide = effacé), le valide
+  (erreur 422 sur `practicalInfo`), l'écrit à la création et à la modification ; `AdminEventView` expose
+  `practicalInfo` et `practicalInfoUpdatedAt`.
+- Lecture : `GET /api/v1/events/{eventId}/practical-info` (`EventPracticalInfoController`, `EventPracticalInfoQuery`) :
+  401 visiteur, 404 événement inconnu ou brouillon (sauf admin), 403 `not_registered` sans inscription active (annulée
+  comprise), admin toujours. Le payload public de l'événement n'est pas touché (`PublicEventCatalog` construit ses
+  champs un à un) ; un test fonctionnel le vérifie sur `/events` et `/events/{id}`.
+- Front admin : bloc « Infos pratiques (inscrits seulement) » dans le formulaire d'événement, aide sur la
+  confidentialité, bouton « Partir du modèle » (Accès, À apporter, Sur place, Contacts, Questions fréquentes),
+  limite `EVENT_PRACTICAL_INFO_MAX`.
+- Espace : `fetchPracticalInfo`, lu une fois l'inscription connue ; section pleine largeur « Infos pratiques » sous
+  l'en-tête, avec « Mis à jour le ... », absente sans texte.
+- Gates API : PHPStan, cs-fixer, `app:architecture:ddd`, Rector verts ; tests unitaires verts (6). **Tests fonctionnels non lancés** (Docker et Postgres
+  arrêtés sur le poste) : écrits, la CI les passera.
+- Gates front : typecheck, lint, test (251 suites, 1592 tests), build verts.
+
+### File List
+
+- `api/migrations/Version20261111100000.php` (nouveau)
+- `api/src/Events/Domain/Entity/Event.php` (modifié)
+- `api/src/Events/Application/Service/AdminEventDrafts.php` (modifié)
+- `api/src/Events/Application/Query/AdminEventView.php` (modifié)
+- `api/src/Events/Application/Query/EventPracticalInfoQuery.php` (nouveau)
+- `api/src/Events/Presentation/Controller/EventPracticalInfoController.php` (nouveau)
+- `api/tests/Unit/Events/EventPracticalInfoTest.php` (nouveau)
+- `api/tests/Functional/EventPracticalInfoTest.php` (nouveau)
+- `frontend/src/lib/content-limits.ts` (modifié)
+- `frontend/src/features/admin/admin-event-form.tsx` (modifié)
+- `frontend/src/features/admin/admin-events-api.ts` (modifié)
+- `frontend/src/features/admin/admin-event-form-practical-info.test.tsx` (nouveau)
+- `frontend/src/features/registrant-hub/registrant-hub-api.ts` (modifié)
+- `frontend/src/features/registrant-hub/registrant-hub-api.test.ts` (modifié)
+- `frontend/src/features/registrant-hub/registrant-hub.tsx` (modifié)
+- `frontend/src/features/registrant-hub/registrant-hub.test.tsx` (modifié)

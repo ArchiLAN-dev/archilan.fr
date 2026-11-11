@@ -97,6 +97,10 @@ export type Registration = {
   registrationStatus: RegistrationStatus;
   slotCount: number;
   sessionStatus: SessionStatus | null;
+  /** Story 53.7: ISO dates and status of the event, for the "Mon event" entry of the account menu. */
+  eventStartsAt?: string | null;
+  eventEndsAt?: string | null;
+  eventStatus?: string;
 };
 
 const SESSION_STATUSES: readonly SessionStatus[] = [
@@ -114,6 +118,14 @@ function isSessionStatus(v: unknown): v is SessionStatus {
   return SESSION_STATUSES.some((s) => s === v);
 }
 
+function isOptionalNullableString(v: unknown): boolean {
+  return v === undefined || v === null || typeof v === "string";
+}
+
+function isOptionalString(v: unknown): boolean {
+  return v === undefined || typeof v === "string";
+}
+
 function isRegistration(v: unknown): v is Registration {
   if (typeof v !== "object" || v === null) return false;
   const sessionStatus: unknown = Reflect.get(v, "sessionStatus");
@@ -124,7 +136,10 @@ function isRegistration(v: unknown): v is Registration {
     hasNullableStringProp(v, "eventStartDate") &&
     isRegistrationStatus(Reflect.get(v, "registrationStatus")) &&
     hasNumberProp(v, "slotCount") &&
-    (sessionStatus === null || isSessionStatus(sessionStatus))
+    (sessionStatus === null || isSessionStatus(sessionStatus)) &&
+    isOptionalNullableString(Reflect.get(v, "eventStartsAt")) &&
+    isOptionalNullableString(Reflect.get(v, "eventEndsAt")) &&
+    isOptionalString(Reflect.get(v, "eventStatus"))
   );
 }
 

@@ -41,6 +41,8 @@ export const ADMIN_SECTIONS = {
       // Story 10.14: the announcement opened as a modal on the home page.
       { href: "/admin/actualites", label: "Actualités" },
       { href: "/admin/annonces", label: "Annonces" },
+      // Story 53.5: the help guides of /aide and of the registrant space.
+      { href: "/admin/aide", label: "Guides d'aide" },
     ],
   },
   // Story 45.1: the partners of the association.

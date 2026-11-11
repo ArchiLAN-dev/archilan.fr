@@ -6,12 +6,18 @@ import { Cast } from "lucide-react";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { broadcastConsentKey, fetchBroadcastConsent, saveBroadcastConsent, type BroadcastConsent } from "./broadcast-consent-api";
+import { HelpLink } from "@/components/help-link";
 
 type Props = { params: Promise<{ registrationId: string }> };
 
 /** Story 47.1: on the member's own registration, whether the ArchiLAN broadcast may show their Twitch stream. */
 export function BroadcastConsentCard({ params }: Props) {
   const { registrationId } = use(params);
+  return <RegistrationBroadcastConsentCard registrationId={registrationId} />;
+}
+
+/** Story 53.3: the same card for a known registration (the registrant hub has no route params to hand over). */
+export function RegistrationBroadcastConsentCard({ registrationId, helpHref }: { registrationId: string; helpHref?: string | null }) {
   const { data } = useQuery({
     queryKey: broadcastConsentKey(registrationId),
     queryFn: () => fetchBroadcastConsent(registrationId),
@@ -21,10 +27,10 @@ export function BroadcastConsentCard({ params }: Props) {
 
   // Signed out, someone else's registration, cancelled seat or event over: nothing to choose.
   if (!data?.editable) return null;
-  return <BroadcastConsentForm consent={data.consent} registrationId={registrationId} />;
+  return <BroadcastConsentForm consent={data.consent} helpHref={helpHref} registrationId={registrationId} />;
 }
 
-export function BroadcastConsentForm({ consent, registrationId }: { consent: boolean; registrationId: string }) {
+export function BroadcastConsentForm({ consent, registrationId, helpHref }: { consent: boolean; registrationId: string; helpHref?: string | null }) {
   const queryClient = useQueryClient();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +68,7 @@ export function BroadcastConsentForm({ consent, registrationId }: { consent: boo
         Si ta chaîne Twitch est dans les liens de ton profil, la régie peut montrer ton stream pendant les pauses. Décoche
         si tu préfères ne pas passer à l&apos;antenne, tu peux changer d&apos;avis jusqu&apos;à la fin de l&apos;événement.
       </p>
+      <HelpLink href={helpHref} />
       {error ? (
         <p className="text-sm text-danger" role="alert">
           {error}

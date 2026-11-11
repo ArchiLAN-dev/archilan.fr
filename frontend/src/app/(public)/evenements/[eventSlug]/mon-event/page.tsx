@@ -47,6 +47,9 @@ export default async function RegistrantHubPage({ params }: RegistrantHubPagePro
           startsAt: event.dateIso,
           endsAt: event.endDateIso,
           location: event.location,
+          vodUrl: event.vodUrl ?? null,
+          // The event page shows its gallery from two photos (EventPhotoGallery).
+          hasPhotos: (event.photoGallery ?? []).length >= 2,
         }}
       />
     </div>
