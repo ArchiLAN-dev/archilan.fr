@@ -42,6 +42,9 @@ final readonly class AdminEventView
         public string $createdAt,
         public string $updatedAt,
         public bool $featuredOnHome,
+        /** Story 53.4: shown to the registrants only, never in a public payload. */
+        public ?string $practicalInfo,
+        public ?string $practicalInfoUpdatedAt,
     ) {
     }
 }

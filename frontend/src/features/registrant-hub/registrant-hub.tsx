@@ -4,12 +4,14 @@ import Link from "next/link";
 import { Children, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, CalendarDays, CheckCircle, Gamepad2, ListChecks, MapPin } from "lucide-react";
+import { AlertCircle, AlertTriangle, CalendarDays, CheckCircle, Gamepad2, Info, ListChecks, MapPin } from "lucide-react";
+
+import { Markdown } from "@/components/markdown/markdown";
 
 import type { EventStatus } from "@/features/events/event-types";
 import { eventSchedule } from "@/features/events/event-schedule";
 import { eventPhase, eventPhaseLabel, type EventPhase } from "./event-phase";
-import { fetchRegistrantHubAccess, hubRedirect } from "./registrant-hub-api";
+import { fetchPracticalInfo, fetchRegistrantHubAccess, hubRedirect, type PracticalInfo } from "./registrant-hub-api";
 import { useMinuteClock } from "./use-minute-clock";
 
 /** Story 53.1: the plain, serializable slice of the public event the hub needs. */
@@ -42,6 +44,16 @@ export function RegistrantHub({ event }: Props) {
     retry: false,
   });
 
+  const registered = data?.kind === "registered";
+  // Story 53.4: read once the visitor is known to be a registrant (anyone else gets a 403).
+  const { data: practicalInfo } = useQuery({
+    queryKey: ["registrant-hub-practical-info", event.id],
+    queryFn: () => fetchPracticalInfo(event.id),
+    enabled: registered,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
   const redirect = data === undefined ? null : hubRedirect(data, event.slug);
   useEffect(() => {
     if (redirect !== null) router.replace(redirect);
@@ -65,6 +77,7 @@ export function RegistrantHub({ event }: Props) {
     <RegistrantHubView
       event={event}
       now={now}
+      practicalInfo={practicalInfo ?? null}
       registration={{ registrationId: data.registrationId, confirmed: data.confirmed }}
     />
   );
@@ -74,15 +87,18 @@ type ViewProps = {
   event: RegistrantHubEvent;
   registration: RegistrantHubRegistration;
   now: Date;
+  /** Story 53.4: null while loading, on a failure, or when the organisers wrote nothing. */
+  practicalInfo?: PracticalInfo | null;
 };
 
-export function RegistrantHubView({ event, registration, now }: ViewProps) {
+export function RegistrantHubView({ event, registration, now, practicalInfo = null }: ViewProps) {
   const phase = eventPhase(event, now);
   const registrationPath = `/evenements/${event.slug}/inscription/${registration.registrationId}`;
 
   return (
     <div className="grid gap-8">
       <RegistrantHubHeader event={event} now={now} phase={phase} registration={registration} />
+      <PracticalInfoSection practicalInfo={practicalInfo} />
       <div className="grid gap-6 lg:grid-cols-2">
         <RegistrantHubSection icon={<Gamepad2 aria-hidden="true" className="size-5" />} title="Mon inscription">
           <ul className="grid gap-2 text-sm">
@@ -102,6 +118,23 @@ export function RegistrantHubView({ event, registration, now }: ViewProps) {
         </RegistrantHubSection>
       </div>
     </div>
+  );
+}
+
+const UPDATED_AT = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long" });
+
+/** Story 53.4: the organisers' text, full width (it can be long), absent when they wrote nothing. */
+function PracticalInfoSection({ practicalInfo }: { practicalInfo: PracticalInfo | null }) {
+  const markdown = practicalInfo?.markdown ?? null;
+  if (markdown === null || markdown.trim() === "") return null;
+
+  return (
+    <RegistrantHubSection icon={<Info aria-hidden="true" className="size-5" />} title="Infos pratiques">
+      <Markdown className="text-sm">{markdown}</Markdown>
+      {practicalInfo?.updatedAt ? (
+        <p className="text-xs text-muted-foreground">Mis à jour le {UPDATED_AT.format(new Date(practicalInfo.updatedAt))}</p>
+      ) : null}
+    </RegistrantHubSection>
   );
 }
 

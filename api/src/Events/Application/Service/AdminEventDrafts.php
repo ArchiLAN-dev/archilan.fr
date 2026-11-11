@@ -86,6 +86,7 @@ final readonly class AdminEventDrafts
         );
 
         $event->linkHelloassoForm($parsed['helloassoFormSlug'], $this->clock->now());
+        $event->writePracticalInfo($parsed['practicalInfo'], $this->clock->now());
         $this->eventRepository->save($event);
         $this->publicPages->eventChanged($event->getId());
 
@@ -141,6 +142,9 @@ final readonly class AdminEventDrafts
         }
         if ($parsed['helloassoFormSlugProvided']) {
             $event->linkHelloassoForm($parsed['helloassoFormSlug'], $this->clock->now());
+        }
+        if ($parsed['practicalInfoProvided']) {
+            $event->writePracticalInfo($parsed['practicalInfo'], $this->clock->now());
         }
         $this->eventRepository->save($event);
         $this->publicPages->eventChanged($event->getId());
@@ -211,7 +215,7 @@ final readonly class AdminEventDrafts
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>}
+     * @return array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool}
      */
     private function parse(array $input): array
     {
@@ -233,11 +237,14 @@ final readonly class AdminEventDrafts
             'coverImageUrl' => is_string($input['coverImageUrl'] ?? null) && '' !== trim($input['coverImageUrl']) ? trim($input['coverImageUrl']) : null,
             'coverImageMode' => $coverImageMode,
             'photoGallery' => $this->parsePhotoGallery($input['photoGallery'] ?? []),
+            // Story 53.4: like the HelloAsso slug, a save that does not send it keeps it; blank removes it.
+            'practicalInfo' => is_string($input['practicalInfo'] ?? null) ? trim($input['practicalInfo']) : null,
+            'practicalInfoProvided' => array_key_exists('practicalInfo', $input),
         ];
     }
 
     /**
-     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>} $input
+     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool} $input
      *
      * @return array{title: string, description: string, startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable, venue: string, capacity: int, registrationOpensAt: \DateTimeImmutable, registrationClosesAt: \DateTimeImmutable, isPublic: bool}|null
      */
@@ -267,7 +274,7 @@ final readonly class AdminEventDrafts
     }
 
     /**
-     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>} $input
+     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool} $input
      *
      * @return array<string, list<string>>
      */
@@ -321,6 +328,10 @@ final readonly class AdminEventDrafts
                 // The slug goes as is into the checkout widget's address: anything else breaks the billetterie.
                 $errors->add('helloassoFormSlug', "Le slug ne contient que des minuscules, chiffres et tirets (la fin de l'adresse du formulaire HelloAsso, ex. archilan-4).");
             }
+        }
+
+        if (null !== $input['practicalInfo'] && mb_strlen($input['practicalInfo']) > Event::PRACTICAL_INFO_MAX_LENGTH) {
+            $errors->add('practicalInfo', sprintf('Les infos pratiques ne peuvent pas dépasser %d caractères.', Event::PRACTICAL_INFO_MAX_LENGTH));
         }
 
         if (null !== $input['coverImageUrl']) {
@@ -413,6 +424,8 @@ final readonly class AdminEventDrafts
             $event->getCreatedAt()->format(\DateTimeInterface::ATOM),
             $event->getUpdatedAt()->format(\DateTimeInterface::ATOM),
             $event->isFeaturedOnHome(),
+            $event->getPracticalInfo(),
+            $event->getPracticalInfoUpdatedAt()?->format(\DateTimeInterface::ATOM),
         );
     }
 

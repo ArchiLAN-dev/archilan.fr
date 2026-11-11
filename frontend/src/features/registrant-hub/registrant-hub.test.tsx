@@ -60,6 +60,33 @@ describe("RegistrantHubView", () => {
   });
 });
 
+describe("practical info (story 53.4)", () => {
+  it("shows the organisers' text and when it was written", () => {
+    const html = renderToStaticMarkup(
+      <RegistrantHubView
+        event={event}
+        now={before}
+        practicalInfo={{ markdown: "## Sur place\n\nWifi **ArchiLAN**", updatedAt: "2026-11-10T09:00:00Z" }}
+        registration={{ registrationId: "r1", confirmed: true }}
+      />,
+    );
+
+    expect(html).toContain("Infos pratiques");
+    expect(html).toContain("Sur place");
+    expect(html).toContain("ArchiLAN</strong>");
+    expect(html).toContain("Mis à jour le 10 novembre");
+  });
+
+  it("has no section when nothing was written", () => {
+    for (const practicalInfo of [null, { markdown: null, updatedAt: null }, { markdown: "  ", updatedAt: null }]) {
+      const html = renderToStaticMarkup(
+        <RegistrantHubView event={event} now={before} practicalInfo={practicalInfo} registration={{ registrationId: "r1", confirmed: true }} />,
+      );
+      expect(html).not.toContain("Infos pratiques");
+    }
+  });
+});
+
 describe("RegistrantHubSection", () => {
   it("renders nothing without content", () => {
     expect(renderToStaticMarkup(<RegistrantHubSection title="Vide" />)).toBe("");
