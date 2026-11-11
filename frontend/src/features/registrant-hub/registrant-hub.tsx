@@ -4,13 +4,14 @@ import Link from "next/link";
 import { Children, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, CalendarDays, CheckCircle, Gamepad2, Info, ListChecks, MapPin } from "lucide-react";
+import { AlertCircle, AlertTriangle, CalendarDays, CheckCircle, Gamepad2, Info, ListChecks, MapPin, Wrench } from "lucide-react";
 
 import { Markdown } from "@/components/markdown/markdown";
 
 import type { EventStatus } from "@/features/events/event-types";
 import { eventSchedule } from "@/features/events/event-schedule";
 import { eventPhase, eventPhaseLabel, type EventPhase } from "./event-phase";
+import { RegistrantHubTools } from "./hub-tools";
 import { RegistrantChecklist } from "./registrant-checklist";
 import {
   fetchPracticalInfo,
@@ -96,6 +97,14 @@ export function RegistrantHub({ event }: Props) {
       event={event}
       checklist={checklist?.items ?? null}
       now={now}
+      tools={
+        <RegistrantHubTools
+          confirmed={data.confirmed}
+          eventId={event.id}
+          eventSlug={event.slug}
+          registrationId={data.registrationId}
+        />
+      }
       practicalInfo={practicalInfo ?? null}
       registration={{ registrationId: data.registrationId, confirmed: data.confirmed }}
     />
@@ -110,9 +119,11 @@ type ViewProps = {
   practicalInfo?: PracticalInfo | null;
   /** Story 53.2: null while loading or on a failure (the section then stays out). */
   checklist?: ChecklistItem[] | null;
+  /** Story 53.3: the event's tools, handed in by the gate (they read their own data). */
+  tools?: ReactNode;
 };
 
-export function RegistrantHubView({ event, registration, now, practicalInfo = null, checklist = null }: ViewProps) {
+export function RegistrantHubView({ event, registration, now, practicalInfo = null, checklist = null, tools }: ViewProps) {
   const phase = eventPhase(event, now);
   const registrationPath = `/evenements/${event.slug}/inscription/${registration.registrationId}`;
 
@@ -124,6 +135,9 @@ export function RegistrantHubView({ event, registration, now, practicalInfo = nu
           <RegistrantChecklist eventSlug={event.slug} items={checklist} registrationId={registration.registrationId} />
         </RegistrantHubSection>
       ) : null}
+      <RegistrantHubSection icon={<Wrench aria-hidden="true" className="size-5" />} title="Les outils de l'event">
+        {tools}
+      </RegistrantHubSection>
       <PracticalInfoSection practicalInfo={practicalInfo} />
       <div className="grid gap-6 lg:grid-cols-2">
         <RegistrantHubSection icon={<Gamepad2 aria-hidden="true" className="size-5" />} title="Mon inscription">
