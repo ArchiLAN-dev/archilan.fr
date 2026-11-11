@@ -11,7 +11,15 @@ import { Markdown } from "@/components/markdown/markdown";
 import type { EventStatus } from "@/features/events/event-types";
 import { eventSchedule } from "@/features/events/event-schedule";
 import { eventPhase, eventPhaseLabel, type EventPhase } from "./event-phase";
-import { fetchPracticalInfo, fetchRegistrantHubAccess, hubRedirect, type PracticalInfo } from "./registrant-hub-api";
+import { RegistrantChecklist } from "./registrant-checklist";
+import {
+  fetchPracticalInfo,
+  fetchRegistrantChecklist,
+  fetchRegistrantHubAccess,
+  hubRedirect,
+  type ChecklistItem,
+  type PracticalInfo,
+} from "./registrant-hub-api";
 import { useMinuteClock } from "./use-minute-clock";
 
 /** Story 53.1: the plain, serializable slice of the public event the hub needs. */
@@ -54,6 +62,16 @@ export function RegistrantHub({ event }: Props) {
     retry: false,
   });
 
+  // Story 53.2: refetched on every visit, so a step done elsewhere is ticked on the way back.
+  const registrationId = data?.kind === "registered" ? data.registrationId : null;
+  const { data: checklist } = useQuery({
+    queryKey: ["registrant-hub-checklist", registrationId],
+    queryFn: () => (registrationId === null ? null : fetchRegistrantChecklist(registrationId)),
+    enabled: registrationId !== null,
+    staleTime: 0,
+    retry: false,
+  });
+
   const redirect = data === undefined ? null : hubRedirect(data, event.slug);
   useEffect(() => {
     if (redirect !== null) router.replace(redirect);
@@ -76,6 +94,7 @@ export function RegistrantHub({ event }: Props) {
   return (
     <RegistrantHubView
       event={event}
+      checklist={checklist?.items ?? null}
       now={now}
       practicalInfo={practicalInfo ?? null}
       registration={{ registrationId: data.registrationId, confirmed: data.confirmed }}
@@ -89,15 +108,22 @@ type ViewProps = {
   now: Date;
   /** Story 53.4: null while loading, on a failure, or when the organisers wrote nothing. */
   practicalInfo?: PracticalInfo | null;
+  /** Story 53.2: null while loading or on a failure (the section then stays out). */
+  checklist?: ChecklistItem[] | null;
 };
 
-export function RegistrantHubView({ event, registration, now, practicalInfo = null }: ViewProps) {
+export function RegistrantHubView({ event, registration, now, practicalInfo = null, checklist = null }: ViewProps) {
   const phase = eventPhase(event, now);
   const registrationPath = `/evenements/${event.slug}/inscription/${registration.registrationId}`;
 
   return (
     <div className="grid gap-8">
       <RegistrantHubHeader event={event} now={now} phase={phase} registration={registration} />
+      {checklist !== null ? (
+        <RegistrantHubSection icon={<ListChecks aria-hidden="true" className="size-5" />} title="Ce qu'il me reste à faire">
+          <RegistrantChecklist eventSlug={event.slug} items={checklist} registrationId={registration.registrationId} />
+        </RegistrantHubSection>
+      ) : null}
       <PracticalInfoSection practicalInfo={practicalInfo} />
       <div className="grid gap-6 lg:grid-cols-2">
         <RegistrantHubSection icon={<Gamepad2 aria-hidden="true" className="size-5" />} title="Mon inscription">
