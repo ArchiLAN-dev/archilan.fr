@@ -50,6 +50,9 @@ final class Registration
         /** Story 5.10: the admin who confirmed on the member's behalf, null when the member confirmed. */
         #[ORM\Column(name: 'confirmed_by_admin_id', type: 'string', length: 32, nullable: true)]
         private ?string $confirmedByAdminId = null,
+        /** Story 53.8: when the mail of the day before went, so it goes once. */
+        #[ORM\Column(name: 'eve_reminder_sent_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $eveReminderSentAt = null,
     ) {
     }
 
@@ -238,6 +241,23 @@ final class Registration
         $this->updatedAt = $now;
     }
 
+    /** Story 53.8: a confirmed registration not yet told the event is tomorrow. */
+    public function needsEveReminder(): bool
+    {
+        return $this->isReserved() && null !== $this->submittedAt && null === $this->eveReminderSentAt;
+    }
+
+    public function markEveReminded(\DateTimeImmutable $now): void
+    {
+        $this->eveReminderSentAt = $now;
+        $this->updatedAt = $now;
+    }
+
+    public function getEveReminderSentAt(): ?\DateTimeImmutable
+    {
+        return $this->eveReminderSentAt;
+    }
+
     public function getReminderSentAt(): ?\DateTimeImmutable
     {
         return $this->reminderSentAt;
@@ -277,6 +297,7 @@ final class Registration
         $this->gameSlots = [];
         $this->submittedAt = null;
         $this->reminderSentAt = null;
+        $this->eveReminderSentAt = null;
         $this->broadcastConsent = true;
         $this->createdAt = $now;
         $this->updatedAt = $now;

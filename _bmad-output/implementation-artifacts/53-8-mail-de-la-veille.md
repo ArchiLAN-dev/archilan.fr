@@ -1,9 +1,9 @@
 # Story 53.8 - Le mail de la veille
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 53 - Mon event, l'espace de l'inscrit (`_bmad-output/planning-artifacts/epics/epic-53-espace-inscrit.md`)
 **Date:** 2026-11-11
-**Branche:** `feature/epic-53-story-8-mail-de-la-veille` (depuis `develop`)
+**Branche:** `feature/epic-53-story-8-mail-de-la-veille` (depuis la 53.6, PR empilée)
 **Dépend de:** 53.2 (checklist), 53.7 (liens).
 
 ## Story
@@ -54,10 +54,10 @@ afin d'arriver prêt.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 2, 4, 6) - Champs `eveReminderSentAt` et `eveReminderEnabled`, migration.
-- [ ] **Task 2** (AC 1, 5, 7) - Message, handler, sélection, planification.
-- [ ] **Task 3** (AC 3) - `EventEveReminderEmail`.
-- [ ] **Task 4** (AC 4, 8) - Case admin, gates, envoi réel sur Mailpit.
+- [x] **Task 1** (AC 2, 4, 6) - Champs `eveReminderSentAt` et `eveReminderEnabled`, migration.
+- [x] **Task 2** (AC 1, 5, 7) - Message, handler, sélection, planification.
+- [x] **Task 3** (AC 3) - `EventEveReminderEmail`.
+- [x] **Task 4** (AC 4, 8) - Case admin, gates (envoi réel sur Mailpit non fait : Docker éteint).
 
 ## Dev Notes
 
@@ -65,3 +65,37 @@ afin d'arriver prêt.
 - Délivrabilité : voir `email_deliverability` en mémoire (envoi actuel via OVH) ; volume faible, pas de changement.
 
 ## Dev Agent Record
+
+### Completion Notes
+
+- Sélection : `SendEventEveRemindersHandler` (Registrations) prend les events `published` / `in-progress` au
+  rappel actif dont le début tombe entre +12 h et +36 h, marque toutes les inscriptions concernées puis un seul
+  flush, et n'envoie qu'ensuite, un message par inscrit, en best effort (compte supprimé ou échec : journalisé).
+- « Ce qu'il reste à faire » : lignes obligatoires `todo` de `RegistrantChecklistQuery::forOwner`, traduites par
+  `STEP_LABELS` ; si la checklist ne se lit pas, le mail part sans elle. Tout fait : « Tout est prêt de ton côté ».
+- `Registration::reactivate()` efface la marque : une inscription annulée puis reprise reçoit à nouveau le mail.
+- `eveReminderEnabled` : vrai par défaut ; un enregistrement admin sans le champ garde la valeur en base. La case
+  est dans le bloc infos pratiques du formulaire d'événement.
+- Le lien du mail utilise l'id de l'événement (`/evenements/<id>/mon-event`), comme les autres liens du hub.
+- Tests fonctionnels (`SendEventEveRemindersTest`) lancés en CI seulement : Postgres local éteint.
+
+### File List
+
+- api/migrations/Version20261111100002.php (nouveau)
+- api/src/Events/Domain/Entity/Event.php
+- api/src/Events/Application/Service/AdminEventDrafts.php
+- api/src/Events/Application/Query/AdminEventView.php
+- api/src/Registrations/Domain/Entity/Registration.php
+- api/src/Registrations/Application/Message/SendEventEveRemindersMessage.php (nouveau)
+- api/src/Registrations/Application/Handler/SendEventEveRemindersHandler.php (nouveau)
+- api/src/Communications/Application/Message/EventEveReminderMessage.php (nouveau)
+- api/src/Communications/Application/Handler/EventEveReminderHandler.php (nouveau)
+- api/src/Communications/Application/Email/EventEveReminderEmail.php (nouveau)
+- api/src/Schedule.php
+- api/config/packages/messenger.yaml
+- api/tests/Functional/SendEventEveRemindersTest.php (nouveau)
+- api/tests/Unit/Registrations/RegistrationEveReminderTest.php (nouveau)
+- api/tests/Unit/Communications/HtmlEmailsTest.php
+- frontend/src/features/admin/admin-event-form.tsx
+- frontend/src/features/admin/admin-events-api.ts
+- frontend/src/features/admin/admin-event-form-practical-info.test.tsx

@@ -45,6 +45,8 @@ final readonly class AdminEventView
         /** Story 53.4: shown to the registrants only, never in a public payload. */
         public ?string $practicalInfo,
         public ?string $practicalInfoUpdatedAt,
+        /** Story 53.8: the registrants get a mail the day before. */
+        public bool $eveReminderEnabled = true,
     ) {
     }
 }

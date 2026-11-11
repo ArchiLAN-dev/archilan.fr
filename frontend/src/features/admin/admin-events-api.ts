@@ -274,6 +274,7 @@ function isAdminEventFormData(v: unknown): v is AdminEventFormData {
   if (!("registrationClosesAt" in v) || typeof v.registrationClosesAt !== "string") return false;
   if (!("helloassoFormSlug" in v) || (v.helloassoFormSlug !== null && typeof v.helloassoFormSlug !== "string")) return false;
   if ("practicalInfo" in v && v.practicalInfo !== null && typeof v.practicalInfo !== "string") return false;
+  if ("eveReminderEnabled" in v && typeof v.eveReminderEnabled !== "boolean") return false;
   return "isPublic" in v && typeof v.isPublic === "boolean";
 }
 
