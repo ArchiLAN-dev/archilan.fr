@@ -19,6 +19,8 @@ export type BroadcastScreenParams = {
   seconds: number;
   /** 6-hex chroma key without '#', or null for a transparent document. */
   bg: string | null;
+  /** v0.66.1: the event's régie token, which opens the LAN screens; null shows the Twitch lives only. */
+  regie: string | null;
 };
 
 /**
@@ -31,6 +33,13 @@ export const BROADCAST_SCREEN_REFRESH_MS = 15 * 1000;
 const ROTATION_THUMBNAILS = 3;
 
 const EVENT_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+const REGIE_TOKEN_PATTERN = /^[0-9a-f]{32}$/;
+
+/** v0.66.1: the régie token of an OBS source URL (`&regie=`), or null. */
+export function parseRegieToken(sp: URLSearchParams): string | null {
+  const raw = sp.get("regie");
+  return raw !== null && REGIE_TOKEN_PATTERN.test(raw) ? raw : null;
+}
 
 function boundedInteger(raw: string | null, min: number, max: number, fallback: number): number {
   const n = Number(raw);
@@ -47,13 +56,15 @@ export function parseBroadcastScreenParams(sp: URLSearchParams): BroadcastScreen
     max: boundedInteger(sp.get("max"), 1, 9, 4),
     seconds: boundedInteger(sp.get("duree"), 5, 600, 30),
     bg: parseOverlayParams(sp).bg,
+    regie: parseRegieToken(sp),
   };
 }
 
-/** The link to paste in OBS. */
-export function broadcastScreenUrl(appUrl: string, eventId: string, mode: BroadcastScreenMode = "mosaique"): string {
+/** The link to paste in OBS; with the régie token when the event has a LAN media server. */
+export function broadcastScreenUrl(appUrl: string, eventId: string, mode: BroadcastScreenMode = "mosaique", regie: string | null = null): string {
   const params = new URLSearchParams({ event: eventId });
   if (mode === "rotation") params.set("mode", "rotation");
+  if (regie !== null) params.set("regie", regie);
   return `${appUrl}/o/streams?${params.toString()}`;
 }
 
@@ -92,10 +103,10 @@ function useTick(active: boolean, seconds: number): number {
 
 /** Story 47.2: the players live on the event, for an OBS browser source. Nothing at all when nobody is live. */
 export function BroadcastScreen({ params }: { params: BroadcastScreenParams }) {
-  const { eventId } = params;
+  const { eventId, regie } = params;
   const { data } = useQuery({
-    queryKey: ["broadcast-streams", eventId],
-    queryFn: async () => (eventId === null ? [] : ((await fetchBroadcastStreams(eventId)) ?? Promise.reject(new Error("broadcast read failed")))),
+    queryKey: ["broadcast-streams", eventId, regie],
+    queryFn: async () => (eventId === null ? [] : ((await fetchBroadcastStreams(eventId, regie)) ?? Promise.reject(new Error("broadcast read failed")))),
     staleTime: BROADCAST_SCREEN_REFRESH_MS,
     refetchInterval: BROADCAST_SCREEN_REFRESH_MS,
     // A failed read keeps the players on air; the next interval tries again.
@@ -119,36 +130,38 @@ export function BroadcastScreen({ params }: { params: BroadcastScreenParams }) {
   }, [background]);
 
   if (params.mode === "rotation") {
-    return <BroadcastRotation {...rotationSlots(streams, params.max, tick)} />;
+    return <BroadcastRotation regie={regie} {...rotationSlots(streams, params.max, tick)} />;
   }
-  return <BroadcastMosaic streams={mosaicGroup(streams, params.max, tick)} />;
+  return <BroadcastMosaic regie={regie} streams={mosaicGroup(streams, params.max, tick)} />;
 }
 
 const COLUMN_CLASSES: Record<1 | 2 | 3, string> = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3" };
 
-export function BroadcastMosaic({ streams }: { streams: BroadcastStream[] }) {
+export function BroadcastMosaic({ streams, regie = null }: { streams: BroadcastStream[]; regie?: string | null }) {
   if (streams.length === 0) return null;
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden">
       <div className={cn("grid w-full", COLUMN_CLASSES[mosaicColumns(streams.length)])}>
         {streams.map((stream) => (
-          <BroadcastCell key={broadcastStreamKey(stream)} stream={stream} />
+          <BroadcastCell key={broadcastStreamKey(stream)} regie={regie} stream={stream} />
         ))}
       </div>
     </div>
   );
 }
 
-export function BroadcastRotation({ featured, thumbnails }: { featured: BroadcastStream | null; thumbnails: BroadcastStream[] }) {
+type RotationProps = { featured: BroadcastStream | null; thumbnails: BroadcastStream[]; regie?: string | null };
+
+export function BroadcastRotation({ featured, thumbnails, regie = null }: RotationProps) {
   if (featured === null) return null;
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden">
       <div className={cn("grid w-full items-start", thumbnails.length > 0 ? "grid-cols-[3fr_1fr]" : "grid-cols-1")}>
-        <BroadcastCell key={broadcastStreamKey(featured)} stream={featured} />
+        <BroadcastCell key={broadcastStreamKey(featured)} regie={regie} stream={featured} />
         {thumbnails.length > 0 ? (
           <div className="grid">
             {thumbnails.map((stream) => (
-              <BroadcastCell compact key={broadcastStreamKey(stream)} stream={stream} />
+              <BroadcastCell compact key={broadcastStreamKey(stream)} regie={regie} stream={stream} />
             ))}
           </div>
         ) : null}
@@ -161,14 +174,16 @@ export function BroadcastRotation({ featured, thumbnails }: { featured: Broadcas
  * One muted, autoplaying player with the member's name: OBS mixes the scene's sound, not this page. A Twitch iframe,
  * or (story 47.8) the WebRTC player of a LAN screen, which reconnects by itself.
  */
-export function BroadcastCell({ stream, compact = false }: { stream: BroadcastStream; compact?: boolean }) {
+type CellProps = { stream: BroadcastStream; compact?: boolean; regie?: string | null };
+
+export function BroadcastCell({ stream, compact = false, regie = null }: CellProps) {
   // The Twitch player wants the embedding hostname as `parent`; cells only mount client-side, once the list is read.
   const [parent] = useState(() => (typeof window === "undefined" ? "" : window.location.hostname));
   const name = stream.displayName ?? stream.slug;
   return (
     <figure className="relative aspect-video overflow-hidden bg-black">
       {stream.kind === "local" ? (
-        <WhepPlayer bare whepUrl={stream.whepUrl} />
+        <WhepPlayer bare token={regie} whepUrl={stream.whepUrl} />
       ) : parent !== "" ? (
         <iframe
           allow="autoplay"

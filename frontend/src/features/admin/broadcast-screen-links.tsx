@@ -14,9 +14,9 @@ const SCREENS: readonly { mode: BroadcastScreenMode; label: string; hint: string
 
 /**
  * Story 47.2: the régie screen's links, ready to paste in OBS. No preview here: it would start Twitch players in the
- * admin page.
+ * admin page. v0.66.1: with a LAN media server, they carry the event's régie token: keep them for the régie.
  */
-export function BroadcastScreenLinks({ eventId }: { eventId: string }) {
+export function BroadcastScreenLinks({ eventId, regieToken = null }: { eventId: string; regieToken?: string | null }) {
   const [copied, setCopied] = useState<BroadcastScreenMode | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +41,11 @@ export function BroadcastScreenLinks({ eventId }: { eventId: string }) {
         Les inscrits en live, sauf ceux qui ont refusé la diffusion. Source « Navigateur » 1920 × 1080 dans OBS, liste
         relue chaque minute ; les lecteurs sont muets, le son se règle dans OBS.
       </p>
+      {regieToken !== null ? (
+        <p className="text-sm text-muted-foreground">
+          Ces liens portent le jeton régie qui ouvre les écrans reçus sur la LAN : ne les donne qu&apos;à la régie.
+        </p>
+      ) : null}
       {error !== null ? (
         <p className="text-sm text-danger" role="alert">
           {error}
@@ -48,7 +53,7 @@ export function BroadcastScreenLinks({ eventId }: { eventId: string }) {
       ) : null}
       <ul className="grid gap-4 md:grid-cols-2">
         {SCREENS.map((screen) => {
-          const url = broadcastScreenUrl(env.appUrl, eventId, screen.mode);
+          const url = broadcastScreenUrl(env.appUrl, eventId, screen.mode, regieToken);
           return (
             <li className="grid min-w-0 gap-2" key={screen.mode}>
               <p className="text-sm font-semibold text-foreground">{screen.label}</p>

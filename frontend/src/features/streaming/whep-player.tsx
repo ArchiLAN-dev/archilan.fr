@@ -65,8 +65,16 @@ type PeerLike = {
   removeEventListener(type: "icegatheringstatechange", listener: () => void): void;
 };
 
+/** v0.66.1: MediaMTX asks the site for each read; the régie token goes as WHEP Bearer token. */
+export function whepHeaders(token: string | null, contentType?: string): Record<string, string> {
+  return {
+    ...(contentType ? { "Content-Type": contentType } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 /** Offers to receive audio and video, posts the offer, applies the answer. Returns the session URL to DELETE, if any. */
-export async function negotiateWhep(peer: PeerLike, whepUrl: string, fetcher: typeof fetch = fetch): Promise<string | null> {
+export async function negotiateWhep(peer: PeerLike, whepUrl: string, fetcher: typeof fetch = fetch, token: string | null = null): Promise<string | null> {
   peer.addTransceiver("video", { direction: "recvonly" });
   peer.addTransceiver("audio", { direction: "recvonly" });
   await peer.setLocalDescription(await peer.createOffer());
@@ -77,7 +85,7 @@ export async function negotiateWhep(peer: PeerLike, whepUrl: string, fetcher: ty
     throw new Error("whep_no_offer");
   }
 
-  const response = await fetcher(whepUrl, { method: "POST", headers: { "Content-Type": "application/sdp" }, body: offer });
+  const response = await fetcher(whepUrl, { method: "POST", headers: whepHeaders(token, "application/sdp"), body: offer });
   if (response.status !== 201 && response.status !== 200) {
     throw new Error(`whep_status_${response.status}`);
   }
@@ -107,7 +115,7 @@ function waitForGathering(peer: PeerLike): Promise<void> {
   });
 }
 
-function useWhep(whepUrl: string): { videoRef: React.RefObject<HTMLVideoElement | null>; state: WhepState; stats: WhepStats | null } {
+function useWhep(whepUrl: string, token: string | null): { videoRef: React.RefObject<HTMLVideoElement | null>; state: WhepState; stats: WhepStats | null } {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [state, setState] = useState<WhepState>("connecting");
   const [stats, setStats] = useState<WhepStats | null>(null);
@@ -128,7 +136,7 @@ function useWhep(whepUrl: string): { videoRef: React.RefObject<HTMLVideoElement 
         videoRef.current.srcObject = null;
       }
       if (sessionUrl) {
-        void fetch(sessionUrl, { method: "DELETE" }).catch(() => undefined);
+        void fetch(sessionUrl, { method: "DELETE", headers: whepHeaders(token) }).catch(() => undefined);
         sessionUrl = null;
       }
     };
@@ -184,7 +192,7 @@ function useWhep(whepUrl: string): { videoRef: React.RefObject<HTMLVideoElement 
           }
         });
       }, STATS_MS);
-      negotiateWhep(current, whepUrl)
+      negotiateWhep(current, whepUrl, fetch, token)
         .then((url) => {
           sessionUrl = url;
         })
@@ -197,7 +205,7 @@ function useWhep(whepUrl: string): { videoRef: React.RefObject<HTMLVideoElement 
       clearTimeout(retry);
       close();
     };
-  }, [whepUrl]);
+  }, [whepUrl, token]);
 
   return { videoRef, state, stats };
 }
@@ -221,8 +229,10 @@ function readInboundVideo(report: RTCStatsReport): WhepStats | null {
 
 const STATE_LABELS: Record<WhepState, string> = { connecting: "Connexion...", playing: "En direct", failed: "Coupé, nouvel essai..." };
 
-export function WhepPlayer({ whepUrl, showStats = false, bare = false }: { whepUrl: string; showStats?: boolean; bare?: boolean }) {
-  const { videoRef, state, stats } = useWhep(whepUrl);
+type WhepPlayerProps = { whepUrl: string; showStats?: boolean; bare?: boolean; token?: string | null };
+
+export function WhepPlayer({ whepUrl, showStats = false, bare = false, token = null }: WhepPlayerProps) {
+  const { videoRef, state, stats } = useWhep(whepUrl, token);
 
   // Story 47.8: on the régie screen, the picture alone; the cell draws the player's name.
   if (bare) {
@@ -244,7 +254,7 @@ export function WhepPlayer({ whepUrl, showStats = false, bare = false }: { whepU
 }
 
 /** Story 47.4 (spike): `/o/whep-essai?url=<whep>&url=<whep>...`, a grid of WHEP players with their stats. */
-export function WhepTestScreen({ urls }: { urls: string[] }) {
+export function WhepTestScreen({ urls, token = null }: { urls: string[]; token?: string | null }) {
   if (urls.length === 0) {
     return <p className="p-6 text-white">Ajoute un ou plusieurs paramètres `url` (adresse WHEP d&apos;un chemin MediaMTX).</p>;
   }
@@ -252,7 +262,7 @@ export function WhepTestScreen({ urls }: { urls: string[] }) {
   return (
     <div className="grid h-screen w-screen gap-1 bg-black" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
       {urls.map((url) => (
-        <WhepPlayer key={url} whepUrl={url} showStats />
+        <WhepPlayer key={url} whepUrl={url} showStats token={token} />
       ))}
     </div>
   );

@@ -42,7 +42,8 @@ final readonly class MediaPublishAccess
     }
 
     /**
-     * The old key stops working at once (the media server asks at each publication).
+     * The old key opens no new publication (the media server asks at each one), and a session started with it is
+     * cut at the régie agent's next report, about 10 s later (v0.66.1).
      *
      * @return MediaPublishView
      */

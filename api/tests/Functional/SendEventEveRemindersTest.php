@@ -28,15 +28,18 @@ final class SendEventEveRemindersTest extends FunctionalTestCase
     /** @var list<object> */
     private array $dispatched = [];
 
-    public function testTheConfirmedRegistrantIsToldOnceAboutADayAhead(): void
+    public function testTheConfirmedRegistrantIsToldOnceTheDayBefore(): void
     {
         [, , $confirmed] = $this->eventWithRegistrations();
 
-        // 40 hours ahead: too early; 23 hours ahead: in the window; an hour later: already sent.
-        $this->runPassAt('2026-11-19T17:00:00+00:00');
+        // Thursday 22:00 in Paris, 36 hours ahead of a Saturday 10:00 start: not "demain" yet (v0.66.1).
+        $this->runPassAt('2026-11-19T21:00:00+00:00');
+        // Friday 09:00 in Paris: the day before, but too early in the morning.
+        $this->runPassAt('2026-11-20T08:00:00+00:00');
         self::assertSame([], $this->dispatched);
+        // Friday 10:00 in Paris: sent; an hour later: already sent.
+        $this->runPassAt('2026-11-20T09:00:00+00:00');
         $this->runPassAt('2026-11-20T10:00:00+00:00');
-        $this->runPassAt('2026-11-20T11:00:00+00:00');
 
         self::assertCount(1, $this->dispatched);
         $mail = $this->dispatched[0];
@@ -121,14 +124,25 @@ final class SendEventEveRemindersTest extends FunctionalTestCase
         self::assertSame([], $this->dispatched);
     }
 
-    public function testTooCloseToTheStartNothingGoes(): void
+    public function testOnTheDayItselfNothingGoes(): void
     {
         $this->eventWithRegistrations();
 
-        // 8 hours ahead: past the window, a registration confirmed this late gets no mail.
+        // Saturday 02:00 and 09:00 in Paris: the event is today, a registration confirmed this late gets no mail.
         $this->runPassAt('2026-11-21T01:00:00+00:00');
+        $this->runPassAt('2026-11-21T08:00:00+00:00');
 
         self::assertSame([], $this->dispatched);
+    }
+
+    public function testAnEveningStartIsToldTheDayBeforeToo(): void
+    {
+        $this->eventWithRegistrations(startsAt: '2026-11-21T17:00:00+00:00');
+
+        // Friday 23:00 in Paris, 19 hours ahead: the day before, mailed even though it is late.
+        $this->runPassAt('2026-11-20T22:00:00+00:00');
+
+        self::assertCount(1, $this->dispatched);
     }
 
     public function testTheAdminSwitchesTheReminderOffAndASaveWithoutItKeepsIt(): void
@@ -172,12 +186,12 @@ final class SendEventEveRemindersTest extends FunctionalTestCase
     /**
      * @return array{0: Event, 1: Registration, 2: Registration}
      */
-    private function eventWithRegistrations(string $status = Event::STATUS_PUBLISHED): array
+    private function eventWithRegistrations(string $status = Event::STATUS_PUBLISHED, string $startsAt = self::STARTS_AT): array
     {
         $created = new \DateTimeImmutable('2026-10-19T08:00:00+00:00');
         $event = $this->createEvent(
             'ArchiLAN 4',
-            new \DateTimeImmutable(self::STARTS_AT),
+            new \DateTimeImmutable($startsAt),
             new \DateTimeImmutable('2026-11-22T17:00:00+00:00'),
             capacity: 48,
             isPublic: false,

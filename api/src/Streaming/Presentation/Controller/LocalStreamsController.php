@@ -37,7 +37,7 @@ final readonly class LocalStreamsController
             $request->getContent(),
         );
 
-        return new JsonResponse(['data' => ['live' => $result->live, 'ignored' => $result->ignored]]);
+        return new JsonResponse(['data' => ['live' => $result->live, 'ignored' => $result->ignored, 'kick' => $result->kick]]);
     }
 
     #[Route('/api/v1/admin/events/{eventId}/media-agent', name: 'api_admin_events_media_agent', methods: ['GET'])]

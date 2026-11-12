@@ -7,22 +7,24 @@ namespace App\Streaming\Application\Service;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Shared\Application\Exception\NotFoundException;
-use App\Streaming\Domain\Repository\LocalStreamRepositoryInterface;
-use Psr\Clock\ClockInterface;
+use App\Streaming\Application\Support\MediaPublishCredentials;
 
 /**
  * Story 47.9: the local broadcasting of an event, as the admin follows it on the day: is the régie agent running,
- * who is on air, who was cut and when. The durations come from the API clock, so the screens need none.
+ * who is on air, who was cut and when (read from LocalStreamsState).
  *
- * @phpstan-type AdminLocalStream array{registrationId: string, live: bool, cutMinutesAgo: int|null}
- * @phpstan-type AdminLocalStreamsView array{mediaServerHost: string|null, agentSeenSecondsAgo: int|null, liveCount: int, streams: list<AdminLocalStream>}
+ * v0.66.1: with a media server, the régie token goes with it: the links of the régie screen carry it.
+ *
+ * @phpstan-import-type LocalStreamFollowUp from LocalStreamsState
+ *
+ * @phpstan-type AdminLocalStreamsView array{mediaServerHost: string|null, regieToken: string|null, agentSeenSecondsAgo: int|null, liveCount: int, streams: list<LocalStreamFollowUp>}
  */
 final readonly class AdminLocalStreams
 {
     public function __construct(
         private EventRepositoryInterface $events,
-        private LocalStreamRepositoryInterface $streams,
-        private ClockInterface $clock,
+        private LocalStreamsState $state,
+        private MediaPublishCredentials $credentials,
     ) {
     }
 
@@ -37,26 +39,12 @@ final readonly class AdminLocalStreams
         if (!$event instanceof Event) {
             throw new NotFoundException('Événement introuvable.', 'event_not_found');
         }
-
-        $now = $this->clock->now();
-        $views = [];
-        $liveCount = 0;
-        foreach ($this->streams->streamsOf($eventId) as $stream) {
-            $live = $stream->isLiveAt($now);
-            $liveCount += $live ? 1 : 0;
-            $views[] = [
-                'registrationId' => $stream->getRegistrationId(),
-                'live' => $live,
-                'cutMinutesAgo' => $live ? null : intdiv(max(0, $now->getTimestamp() - $stream->getLastSeenAt()->getTimestamp()), 60),
-            ];
-        }
-        $reportedAt = $this->streams->serverOf($eventId)?->getReportedAt();
+        $host = $event->getMediaServerHost();
 
         return [
-            'mediaServerHost' => $event->getMediaServerHost(),
-            'agentSeenSecondsAgo' => null === $reportedAt ? null : max(0, $now->getTimestamp() - $reportedAt->getTimestamp()),
-            'liveCount' => $liveCount,
-            'streams' => $views,
+            'mediaServerHost' => $host,
+            'regieToken' => null === $host ? null : $this->credentials->readTokenFor($eventId),
+            ...$this->state->followUp($eventId),
         ];
     }
 }

@@ -34,6 +34,7 @@ final class MediaPublishTest extends FunctionalTestCase
             ['token' => 'wrong', 'path' => $this->path($registration)],
             ['token' => '', 'path' => $this->path($registration)],
             ['token' => $key, 'path' => $this->path($registration), 'action' => 'read'],
+            ['token' => $key, 'path' => $this->path($registration), 'action' => 'playback'],
             ['token' => $key, 'path' => 'p-0123456789abcdef0123'],
             ['token' => $key, 'path' => 'regie'],
         ] as $overrides) {
@@ -43,6 +44,25 @@ final class MediaPublishTest extends FunctionalTestCase
 
         $this->client->request('POST', '/api/v1/media-auth', server: ['CONTENT_TYPE' => 'application/json'], content: 'not json');
         self::assertResponseStatusCodeSame(401);
+    }
+
+    /** v0.66.1: a stream is read with the event's régie token only, never with a player's key. */
+    public function testOnlyTheRegieTokenReadsAStream(): void
+    {
+        [$event, $registration] = $this->scenario();
+        [$other] = $this->scenario(email: 'other@example.org');
+        $token = $this->credentials()->readTokenFor($event->getId());
+
+        $this->auth(['action' => 'read', 'token' => $token, 'path' => $this->path($registration)]);
+        self::assertResponseStatusCodeSame(200);
+        // The built-in player of MediaMTX logs in with a password.
+        $this->auth(['action' => 'read', 'user' => 'regie', 'password' => $token, 'path' => $this->path($registration), 'protocol' => 'webrtc']);
+        self::assertResponseStatusCodeSame(200);
+
+        foreach (['', 'wrong', $this->credentials()->readTokenFor($other->getId())] as $wrong) {
+            $this->auth(['action' => 'read', 'token' => $wrong, 'path' => $this->path($registration)]);
+            self::assertResponseStatusCodeSame(401);
+        }
     }
 
     public function testTheRegistrantWhoRefusedTheBroadcastOrIsNotConfirmedIsRefused(): void

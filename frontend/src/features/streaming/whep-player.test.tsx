@@ -1,4 +1,4 @@
-import { negotiateWhep, parseWhepTestUrls, STALL_TICKS, watchStall, whepPathName } from "./whep-player";
+import { negotiateWhep, parseWhepTestUrls, STALL_TICKS, watchStall, whepHeaders, whepPathName } from "./whep-player";
 
 describe("story 47.4 - WHEP player", () => {
   it("keeps up to nine http(s) WHEP URLs", () => {
@@ -53,6 +53,19 @@ describe("story 47.4 - WHEP player", () => {
     expect(fetcher).toHaveBeenCalledWith("https://media.lan.archilan.fr:8889/p-abc/whep", expect.objectContaining({ method: "POST", body: "v=0 offer" }));
     expect(remote()).toEqual({ type: "answer", sdp: "v=0 answer" });
     expect(session).toBe("https://media.lan.archilan.fr:8889/p-abc/whep/session-1");
+  });
+
+  it("sends the régie token as Bearer token (v0.66.1)", async () => {
+    const { peer } = fakePeer();
+    const fetcher = jest.fn(async () => new Response("v=0 answer", { status: 201 }));
+
+    await negotiateWhep(peer, "https://media.lan.archilan.fr:8889/p-abc/whep", fetcher as unknown as typeof fetch, "d".repeat(32));
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "https://media.lan.archilan.fr:8889/p-abc/whep",
+      expect.objectContaining({ headers: { "Content-Type": "application/sdp", Authorization: `Bearer ${"d".repeat(32)}` } }),
+    );
+    expect(whepHeaders(null)).toEqual({});
   });
 
   it("fails on a refused or missing path", async () => {

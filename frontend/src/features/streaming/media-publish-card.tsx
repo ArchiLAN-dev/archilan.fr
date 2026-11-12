@@ -22,7 +22,8 @@ export function MediaPublishCard({ registrationId, helpHref = null }: { registra
     queryKey: mediaPublishKey(registrationId),
     queryFn: () => fetchMediaPublish(registrationId),
     staleTime: REFRESH_MS,
-    refetchInterval: REFRESH_MS,
+    // v0.66.1: only while the registrant has access (the "La régie te reçoit" line); otherwise one read is enough.
+    refetchInterval: (query) => (query.state.data?.available ? REFRESH_MS : false),
     retry: false,
   });
 

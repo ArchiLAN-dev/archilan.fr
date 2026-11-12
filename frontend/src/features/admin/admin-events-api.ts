@@ -331,6 +331,8 @@ export function mediaAgentEnvLines(apiBaseUrl: string, config: MediaAgentConfig)
 export type AdminLocalStream = { registrationId: string; live: boolean; cutMinutesAgo: number | null };
 export type AdminLocalStreams = {
   mediaServerHost: string | null;
+  /** v0.66.1: opens the LAN screens of the régie screen; null without a media server. */
+  regieToken: string | null;
   agentSeenSecondsAgo: number | null;
   liveCount: number;
   streams: AdminLocalStream[];
@@ -341,6 +343,14 @@ export const AGENT_SILENT_AFTER_SECONDS = 30;
 
 /** Story 47.9: the agent reports every 10 s; the admin screens follow it at this pace. */
 export const LOCAL_STREAMS_REFRESH_MS = 15_000;
+
+/**
+ * v0.66.1: refetched only for an event with a media server; for the others (nearly all), one read is enough. Takes the
+ * last data TanStack Query holds.
+ */
+export function localStreamsRefetchInterval(view: AdminLocalStreams | null | undefined): number | false {
+  return view?.mediaServerHost ? LOCAL_STREAMS_REFRESH_MS : false;
+}
 
 function isAdminLocalStream(v: unknown): v is AdminLocalStream {
   return (
@@ -361,6 +371,8 @@ export function isAdminLocalStreams(v: unknown): v is AdminLocalStreams {
     v !== null &&
     "mediaServerHost" in v &&
     (v.mediaServerHost === null || typeof v.mediaServerHost === "string") &&
+    "regieToken" in v &&
+    (v.regieToken === null || typeof v.regieToken === "string") &&
     "agentSeenSecondsAgo" in v &&
     (v.agentSeenSecondsAgo === null || typeof v.agentSeenSecondsAgo === "number") &&
     "liveCount" in v &&

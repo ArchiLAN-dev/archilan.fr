@@ -16,10 +16,14 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Story 47.5: answers the LAN media server (MediaMTX `authHTTPAddress`) for each publication. Only a confirmed
- * registrant of an event open for local broadcasting, with their current key, gets through; reads never come here
- * (excluded in ops/lan-media/mediamtx.yml). Each decision is logged with its reason, never with a key.
+ * registrant of an event open for local broadcasting, with their current key, gets through. Each decision is logged
+ * with its reason, never with a key.
  *
- * MediaMTX 1.21 sends the key in `token` (OBS WHIP "Bearer Token") or `password` (SRT stream id), spike 47.4.
+ * v0.66.1: reads come here too. A stream of the event is read with the event's régie token only (the régie screen
+ * sends it as WHEP Bearer token), so a player on the LAN cannot watch another's screen.
+ *
+ * MediaMTX 1.21 sends the key in `token` (OBS WHIP "Bearer Token", WHEP too) or `password` (SRT stream id, the
+ * built-in player's login), spike 47.4.
  */
 final readonly class MediaPublishAuthorization
 {
@@ -56,8 +60,8 @@ final readonly class MediaPublishAuthorization
 
     private function refusal(string $action, string $path, string $token, string $password): ?string
     {
-        if ('publish' !== $action) {
-            return 'not_publish';
+        if ('publish' !== $action && 'read' !== $action) {
+            return 'action_not_allowed';
         }
         if (1 !== preg_match(MediaPublishCredentials::PATH_PATTERN, $path)) {
             return 'bad_path';
@@ -67,6 +71,12 @@ final readonly class MediaPublishAuthorization
         [$event, $registration] = $this->findPublisher($path, $now);
         if (!$event instanceof Event || !$registration instanceof Registration) {
             return 'unknown_path';
+        }
+
+        if ('read' === $action) {
+            $readToken = '' !== $token ? $token : $password;
+
+            return $this->credentials->isReadToken($event->getId(), $readToken) ? null : 'bad_read_token';
         }
 
         $refusal = MediaPublishEligibility::refusal($event, $registration, $this->users->findById($registration->getUserId()), $now);

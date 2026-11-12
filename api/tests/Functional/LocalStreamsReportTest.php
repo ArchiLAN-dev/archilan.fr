@@ -26,7 +26,7 @@ final class LocalStreamsReportTest extends FunctionalTestCase
             ['path' => 'regie'],
         ]]);
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['live' => 2, 'ignored' => 2], $this->data());
+        self::assertSame(['live' => 2, 'ignored' => 2, 'kick' => []], $this->data());
 
         $state = $this->state()->forEvent($event->getId());
         self::assertNotNull($state['agentReportedAt']);
@@ -69,6 +69,46 @@ final class LocalStreamsReportTest extends FunctionalTestCase
         $now = (string) time();
         $this->send($url, $body, $now, $this->sign($other, $now, $body));
         self::assertResponseStatusCodeSame(401);
+
+        // v0.66.1: an unsigned call cannot tell an unknown event from a known one.
+        $this->send('/api/v1/events/unknown/local-streams', $body, $now, str_repeat('0', 64));
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    /** v0.66.1: a registrant no longer allowed to publish is cut on MediaMTX and never counted live. */
+    public function testTheAgentCutsWhoMayNoLongerPublish(): void
+    {
+        [$event, $alice, $bob] = $this->scenario();
+        $now = new \DateTimeImmutable();
+        $bob->cancel($now);
+        $this->entityManager->flush();
+
+        $this->report($event, ['streams' => [['path' => $this->path($alice)], ['path' => $this->path($bob)]]]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['live' => 1, 'ignored' => 0, 'kick' => [$this->path($bob)]], $this->data());
+        self::assertSame([$alice->getId()], array_column(array_filter($this->state()->forEvent($event->getId())['streams'], static fn (array $s): bool => $s['live']), 'registrationId'));
+    }
+
+    /** v0.66.1: a session started before the registrant's new key is cut; the next one, with the new key, stays. */
+    public function testASessionStartedWithAReplacedKeyIsCut(): void
+    {
+        [$event, $alice] = $this->scenario();
+        $path = $this->path($alice);
+
+        $this->report($event, ['streams' => [['path' => $path, 'session' => 'session-1']]]);
+        self::assertSame(['live' => 1, 'ignored' => 0, 'kick' => []], $this->data());
+
+        $this->entityManager->clear();
+        $fresh = $this->entityManager->getRepository(Registration::class)->find($alice->getId());
+        self::assertInstanceOf(Registration::class, $fresh);
+        $fresh->regenerateMediaKey(new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        $this->report($event, ['streams' => [['path' => $path, 'session' => 'session-1']]]);
+        self::assertSame(['live' => 0, 'ignored' => 0, 'kick' => [$path]], $this->data());
+
+        $this->report($event, ['streams' => [['path' => $path, 'session' => 'session-2']]]);
+        self::assertSame(['live' => 1, 'ignored' => 0, 'kick' => []], $this->data());
     }
 
     public function testAnUnknownEventOrOneWithoutMediaServerOrABadBodyIsRefused(): void
@@ -79,7 +119,10 @@ final class LocalStreamsReportTest extends FunctionalTestCase
         $withoutServer->pointMediaServer(null, new \DateTimeImmutable());
         $this->entityManager->flush();
 
-        $this->send('/api/v1/events/unknown/local-streams', '{"streams":[]}', (string) time(), str_repeat('0', 64));
+        // Signed with the secret of that id: the signature holds, the event does not exist.
+        $timestamp = (string) time();
+        $body = '{"streams":[]}';
+        $this->send('/api/v1/events/unknown/local-streams', $body, $timestamp, hash_hmac('sha256', $timestamp.'.'.$body, $this->credentials()->agentSecretFor('unknown')));
         self::assertResponseStatusCodeSame(404);
 
         $this->report($event, ['streams' => 'p-0123456789abcdef0123']);
@@ -144,6 +187,8 @@ final class LocalStreamsReportTest extends FunctionalTestCase
         self::assertNull($view['agentSeenSecondsAgo']);
         self::assertSame(0, $view['liveCount']);
 
+        self::assertSame($this->credentials()->readTokenFor($event->getId()), $view['regieToken']);
+
         $this->report($event, ['streams' => [['path' => $this->path($alice)]]]);
         self::assertResponseStatusCodeSame(200);
         $this->client->request('GET', $url);
@@ -161,6 +206,7 @@ final class LocalStreamsReportTest extends FunctionalTestCase
         $this->client->request('GET', sprintf('/api/v1/admin/events/%s/local-streams', $withoutServer->getId()));
         self::assertResponseStatusCodeSame(200);
         self::assertNull($this->data()['mediaServerHost']);
+        self::assertNull($this->data()['regieToken']);
 
         $this->client->request('GET', '/api/v1/admin/events/unknown/local-streams');
         self::assertResponseStatusCodeSame(404);

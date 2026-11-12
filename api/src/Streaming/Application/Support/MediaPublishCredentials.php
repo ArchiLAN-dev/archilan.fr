@@ -37,6 +37,21 @@ final readonly class MediaPublishCredentials
         return hash_hmac('sha256', 'archilan-media-agent|'.$eventId, $this->appSecret);
     }
 
+    /**
+     * v0.66.1: the token the régie screen reads the LAN streams with, one per event. The public list of the broadcast
+     * gives the LAN addresses only to who holds it, and MediaMTX asks the site for each read (WHEP Bearer token).
+     * Hexadecimal, like a key: never a ":".
+     */
+    public function readTokenFor(string $eventId): string
+    {
+        return substr(hash_hmac('sha256', 'archilan-media-read|'.$eventId, $this->appSecret), 0, 32);
+    }
+
+    public function isReadToken(string $eventId, string $token): bool
+    {
+        return '' !== $token && hash_equals($this->readTokenFor($eventId), $token);
+    }
+
     /** Story 47.6: a report the agent signed, `{timestamp}.{body}` under the event's secret, sent within 2 minutes. */
     public function verifyAgentRequest(string $eventId, string $timestamp, string $signature, string $body, \DateTimeImmutable $now): bool
     {
