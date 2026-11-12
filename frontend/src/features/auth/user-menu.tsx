@@ -41,7 +41,6 @@ export function UserMenu({ user }: { user: AuthUser }) {
     retry: false,
   });
   const avatarUrl = profile?.avatarUrl ?? null;
-  const hubEntry = useHubEntry(true);
 
   useEffect(() => {
     if (!open) return;
@@ -116,7 +115,7 @@ export function UserMenu({ user }: { user: AuthUser }) {
               <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             </div>
           </div>
-          <AccountMenuLinks hubEntry={hubEntry} onNavigate={() => setOpen(false)} user={user} />
+          <OpenAccountMenuLinks onNavigate={() => setOpen(false)} user={user} />
           <div className="border-t border-border py-1">
             <button
               className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
@@ -183,3 +182,12 @@ function MenuLink({
 }
 
 /** Up to two letters for the avatar fallback: initials of the two first words, else two first chars. */
+
+/**
+ * v0.66.1: the open panel's links. The "Mon event" entry is read here, once the menu opens, not on every page for every
+ * signed-in member (the registrations and a minute clock).
+ */
+function OpenAccountMenuLinks({ user, onNavigate }: { user: AuthUser; onNavigate: () => void }) {
+  const hubEntry = useHubEntry(true);
+  return <AccountMenuLinks hubEntry={hubEntry} onNavigate={onNavigate} user={user} />;
+}

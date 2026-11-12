@@ -119,7 +119,17 @@ final class ParticipantStreamsTest extends FunctionalTestCase
         $this->entityManager->flush();
         $this->fakeLive(['lanboth' => 5, 'lantwitch' => 7]);
 
+        // v0.66.1: without the régie token, or with another event's, nothing about the LAN. Several requests: the
+        // kernel stays up so the Twitch fake does too.
+        $this->client->disableReboot();
         $this->client->request('GET', '/api/v1/events/'.$event->getId().'/broadcast-streams');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['twitch', 'twitch'], array_column($this->dataList(), 'kind'));
+        $this->client->request('GET', '/api/v1/events/'.$event->getId().'/broadcast-streams?regie='.$credentials->readTokenFor('another-event'));
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['twitch', 'twitch'], array_column($this->dataList(), 'kind'));
+
+        $this->client->request('GET', '/api/v1/events/'.$event->getId().'/broadcast-streams?regie='.$credentials->readTokenFor($event->getId()));
         self::assertResponseStatusCodeSame(200);
         $data = $this->dataList();
 

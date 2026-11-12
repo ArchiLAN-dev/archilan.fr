@@ -72,9 +72,11 @@ export function isBroadcastStream(v: unknown): v is BroadcastStream {
  * Story 47.2: the lives the ArchiLAN broadcast may show (47.1 opt-outs left out). null when the read failed, so the
  * OBS screen keeps its last list on air instead of going blank. Story 47.8: the LAN screens come first.
  */
-export async function fetchBroadcastStreams(eventId: string): Promise<BroadcastStream[] | null> {
+export async function fetchBroadcastStreams(eventId: string, regie: string | null = null): Promise<BroadcastStream[] | null> {
   try {
-    const response = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/broadcast-streams`);
+    // v0.66.1: the LAN screens come only with the event's régie token.
+    const query = regie !== null ? `?regie=${encodeURIComponent(regie)}` : "";
+    const response = await apiFetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/broadcast-streams${query}`);
     if (!response.ok) {
       return null;
     }

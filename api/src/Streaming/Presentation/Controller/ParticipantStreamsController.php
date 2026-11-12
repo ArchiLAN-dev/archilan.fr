@@ -34,11 +34,15 @@ final readonly class ParticipantStreamsController
         return new JsonResponse(['data' => $streams]);
     }
 
-    /** Story 47.1: public like the list above, an OBS source has no session. Only the live members who agreed. */
+    /**
+     * Story 47.1: public like the list above, an OBS source has no session. Only the live members who agreed. The LAN
+     * screens need the event's régie token, `?regie=` (v0.66.1).
+     */
     #[Route('/api/v1/events/{eventId}/broadcast-streams', name: 'api_event_broadcast_streams', methods: ['GET'])]
-    public function eventBroadcast(string $eventId): JsonResponse
+    public function eventBroadcast(Request $request, string $eventId): JsonResponse
     {
-        $streams = $this->view->forEventBroadcast($eventId);
+        $token = $request->query->get('regie');
+        $streams = $this->view->forEventBroadcast($eventId, is_string($token) ? $token : '');
         if (null === $streams) {
             return $this->apiAccessGuard->errorResponse('event_not_found', 'Événement introuvable.', 404);
         }

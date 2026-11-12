@@ -22,7 +22,7 @@ import { notFound } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import { fetchAdminEvents, fetchAdminLocalStreams, LOCAL_STREAMS_REFRESH_MS, mediaServerHubState, type AdminEvent, type AdminLocalStreams } from "../admin-events-api";
+import { fetchAdminEvents, fetchAdminLocalStreams, LOCAL_STREAMS_REFRESH_MS, localStreamsRefetchInterval, mediaServerHubState, type AdminEvent, type AdminLocalStreams } from "../admin-events-api";
 import {
   ActionIcon,
   EventActionDialogs,
@@ -48,7 +48,7 @@ export function AdminEventHub({ eventId }: { eventId: string }) {
     queryKey: ["admin-local-streams", eventId],
     queryFn: () => fetchAdminLocalStreams(eventId),
     staleTime: LOCAL_STREAMS_REFRESH_MS,
-    refetchInterval: LOCAL_STREAMS_REFRESH_MS,
+    refetchInterval: (query) => localStreamsRefetchInterval(query.state.data),
     retry: false,
   });
 

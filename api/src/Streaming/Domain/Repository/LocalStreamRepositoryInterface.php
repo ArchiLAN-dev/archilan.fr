@@ -13,6 +13,9 @@ interface LocalStreamRepositoryInterface
     /** @return list<LocalStream> */
     public function streamsOf(string $eventId): array;
 
+    /** v0.66.1: one registrant's stream, without loading the whole event's. */
+    public function streamOf(string $eventId, string $registrationId): ?LocalStream;
+
     public function serverOf(string $eventId): ?LocalMediaServer;
 
     /**

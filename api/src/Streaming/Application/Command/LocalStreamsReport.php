@@ -12,6 +12,13 @@ final readonly class LocalStreamsReport
         public int $live,
         /** Paths the agent listed that belong to no registrant of the event. */
         public int $ignored,
+        /**
+         * v0.66.1: paths the agent must cut on MediaMTX: a registrant no longer allowed to publish (cancelled,
+         * broadcast refused, banned, window over), or a session started with a key replaced since.
+         *
+         * @var list<string>
+         */
+        public array $kick = [],
     ) {
     }
 }

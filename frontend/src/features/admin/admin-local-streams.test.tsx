@@ -2,10 +2,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { RegistrationList } from "./admin-registration-dashboard";
 import type { AdminRegistration } from "./admin-registration-api";
-import { isAdminLocalStreams, localStreamLabel, mediaServerHubState, type AdminLocalStreams } from "./admin-events-api";
+import { isAdminLocalStreams, LOCAL_STREAMS_REFRESH_MS, localStreamLabel, localStreamsRefetchInterval, mediaServerHubState, type AdminLocalStreams } from "./admin-events-api";
 
 function view(overrides: Partial<AdminLocalStreams> = {}): AdminLocalStreams {
-  return { mediaServerHost: "media.lan.archilan.fr", agentSeenSecondsAgo: 4, liveCount: 2, streams: [], ...overrides };
+  return { mediaServerHost: "media.lan.archilan.fr", regieToken: "0123456789abcdef0123456789abcdef", agentSeenSecondsAgo: 4, liveCount: 2, streams: [], ...overrides };
 }
 
 function registration(id: string, displayName: string): AdminRegistration {
@@ -31,7 +31,14 @@ describe("admin local streams", () => {
     expect(isAdminLocalStreams(view({ streams: [{ registrationId: "r1", live: false, cutMinutesAgo: 3 }] }))).toBe(true);
     expect(isAdminLocalStreams(view({ mediaServerHost: null, agentSeenSecondsAgo: null }))).toBe(true);
     expect(isAdminLocalStreams({ ...view(), liveCount: "2" })).toBe(false);
+    expect(isAdminLocalStreams({ ...view(), regieToken: 3 })).toBe(false);
     expect(isAdminLocalStreams({ ...view(), streams: [{ registrationId: "r1", live: "yes", cutMinutesAgo: null }] })).toBe(false);
+  });
+
+  it("follows the agent only for an event with a media server (v0.66.1)", () => {
+    expect(localStreamsRefetchInterval(view())).toBe(LOCAL_STREAMS_REFRESH_MS);
+    expect(localStreamsRefetchInterval(view({ mediaServerHost: null, regieToken: null }))).toBe(false);
+    expect(localStreamsRefetchInterval(undefined)).toBe(false);
   });
 
   it("states the media server line of the hub", () => {

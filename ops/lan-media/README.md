@@ -18,13 +18,18 @@ a sa propre clé.
   locale.
 - **Chaque inscrit** trouve son chemin `p-...`, sa clé et les adresses à coller dans OBS dans son espace de
   l'événement (story 47.7). La clé est calculée à partir d'`APP_SECRET`, jamais stockée : changer `APP_SECRET`
-  invalide toutes les clés. Le joueur peut régénérer la sienne, l'ancienne cesse aussitôt de marcher.
-- **La régie lit les flux en WHEP (WebRTC)**, uniquement sur la LAN. Cette lecture ne demande rien au site : si
-  Internet tombe, les flux déjà ouverts restent lisibles.
+  invalide toutes les clés. Le joueur peut régénérer la sienne : l'ancienne n'ouvre plus aucune publication, et un
+  flux déjà ouvert avec elle est coupé par l'agent à son rapport suivant (environ 10 s).
+- **La régie lit les flux en WHEP (WebRTC)**, uniquement sur la LAN, avec le **jeton régie** de l'événement (v0.66.1).
+  MediaMTX demande aussi au site l'autorisation de chaque lecture : sans ce jeton, un joueur de la LAN ne peut pas
+  regarder l'écran d'un autre. Le jeton est déjà dans les liens de l'écran régie de l'admin (`&regie=...`). Si
+  Internet tombe, les flux et les lecteurs déjà ouverts continuent ; une nouvelle lecture est refusée.
 - **Les chemins** ont la forme `p-<identifiant>`. Tout autre chemin est refusé par MediaMTX lui-même.
 - **L'agent de la régie** (`agent.py`, story 47.6) lit toutes les 10 s les flux en ligne sur l'API locale de
   MediaMTX et en envoie la liste au site, signée avec le secret de l'agent de l'événement. Le site sait ainsi qui
-  diffuse. Sans nouvelles de l'agent pendant 30 s, le site ne compte plus aucun flux comme en direct.
+  diffuse. Sans nouvelles de l'agent pendant 30 s, le site ne compte plus aucun flux comme en direct. En retour, le
+  site lui dit quels flux couper (inscription annulée, diffusion refusée, compte banni, clé régénérée) : l'agent les
+  coupe par l'API de MediaMTX.
 
 ## Installation sur la machine de régie (Linux)
 
@@ -94,10 +99,11 @@ OBS envoie alors de l'H264 sans B-frames et du son Opus : l'écran régie le lit
 
 - Flux en cours : `curl -s http://127.0.0.1:9997/v3/paths/list` sur la machine. Un flux publié a `"online": true`.
 - Lecture dans un navigateur de la LAN : `https://media.lan.archilan.fr:8889/p-<identifiant>`, la page de lecture
-  intégrée à MediaMTX.
-- Lecture depuis le site : `https://archilan.fr/o/whep-essai?url=https://media.lan.archilan.fr:8889/p-<identifiant>/whep`
+  intégrée à MediaMTX. Elle demande un identifiant : n'importe quel nom, et le jeton régie comme mot de passe.
+- Lecture depuis le site : `https://archilan.fr/o/whep-essai?regie=<jeton>&url=https://media.lan.archilan.fr:8889/p-<identifiant>/whep`
   (plusieurs `url=` possibles, jusqu'à 9). La page affiche la résolution, les images par seconde, la gigue et les
   paquets perdus de chaque lecteur.
+- Le jeton régie se lit dans les liens de l'écran régie (page des inscriptions de l'événement), paramètre `regie`.
 
 ## Essai local (poste de dev, Docker Desktop)
 
@@ -119,7 +125,7 @@ ffmpeg -re -f lavfi -i testsrc2=size=1280x720:rate=30 -c:v libx264 -preset veryf
   -g 60 -b:v 2500k -f mpegts "srt://localhost:8890?streamid=publish:<chemin>:archilan:<clé>&pkt_size=1316"
 ```
 
-Puis ouvrir `http://127.0.0.1:3000/o/whep-essai?url=http://localhost:8889/<chemin>/whep`.
+Puis ouvrir `http://localhost:3000/o/whep-essai?regie=<jeton régie>&url=http://localhost:8889/<chemin>/whep`.
 
 L'agent se lance à côté, sans Docker, avec les lignes de « Configuration de l'agent » :
 
@@ -135,4 +141,4 @@ l'essayer sur un poste de dev, `media.localtest.me` pointe vers 127.0.0.1 dans l
 2. le `docker run` plus haut sans `-e MTX_WEBRTCENCRYPTION=no`, avec `-v "<chemin>/certs:/certs:ro"` et
    `-e MTX_WEBRTCADDITIONALHOSTS=127.0.0.1` ;
 3. « Serveur média local » de l'événement : `media.localtest.me` ; l'agent lancé comme ci-dessus ;
-4. ouvrir `http://localhost:3000/o/streams?event=<id>`.
+4. ouvrir `http://localhost:3000/o/streams?event=<id>&regie=<jeton régie>`.
