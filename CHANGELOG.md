@@ -5,6 +5,31 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.66.1] - 2026-11-12
+
+Correctifs de la revue de la v0.66.0 (story 47.10). Une migration (Version20261112100000), aucune variable. À la LAN,
+recopier `ops/lan-media/` (agent et `mediamtx.yml` changent) et reprendre les liens de l'écran régie dans l'admin : ils
+portent maintenant le jeton régie.
+
+### Corrigé
+
+- Mail de la veille : il part la veille du jour de début (heure de Paris), à partir de 10 h. Un événement qui commence
+  le samedi matin n'annonce plus « C'est demain ! » dès le jeudi soir.
+- Diffusion locale : seule la régie peut lire les écrans des joueurs. MediaMTX demande au site l'autorisation de chaque
+  lecture, accordée avec le jeton régie de l'événement ; la liste publique de l'écran régie ne donne les écrans de la
+  LAN qu'avec ce jeton. Un joueur de la LAN ne peut plus regarder l'écran d'un autre.
+- Diffusion locale : régénérer sa clé coupe aussi le flux déjà ouvert avec l'ancienne, au passage suivant de l'agent
+  de régie (environ 10 s). Le flux d'un inscrit qui n'a plus le droit de diffuser (inscription annulée, diffusion
+  refusée, compte banni, événement terminé) est coupé et n'apparaît plus « En direct ».
+- Guides d'aide : réordonner une partie des guides ne donne plus deux guides à la même position.
+
+### Modifié
+
+- L'agent de régie envoie la session de chaque flux et coupe sur MediaMTX ceux que le site lui désigne.
+- Moins d'appels : la carte « Diffuser pour la régie », le hub admin et la liste des inscriptions ne se rafraîchissent
+  toutes les 15 s que pour un événement avec un serveur média ; le menu du compte ne lit l'entrée « Mon event » qu'à
+  son ouverture.
+
 ## [0.66.0] - 2026-11-11
 
 « Mon event », l'espace de l'inscrit (epic 53, stories 53.1 à 53.8), et la diffusion locale des écrans des

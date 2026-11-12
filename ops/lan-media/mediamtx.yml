@@ -6,20 +6,22 @@
 logLevel: info
 
 ###############################################
-# Autorisation : le site décide qui publie.
-# À chaque publication, MediaMTX envoie en POST à authHTTPAddress un JSON
+# Autorisation : le site décide qui publie et qui lit.
+# À chaque publication et à chaque lecture, MediaMTX envoie en POST à authHTTPAddress un JSON
 # {ip, user, password, token, action, path, protocol, id, query, userAgent}.
 # Réponse 2xx = accepté, sinon refusé. La clé arrive :
 #  - dans `token` pour OBS en WHIP (champ « Jeton Bearer » sans « : ») ;
 #  - dans `password` pour SRT (streamid=publish:<chemin>:<pseudo>:<clé>).
-# Si l'API ne répond pas (Internet coupé), la publication est refusée ;
-# un flux déjà ouvert continue.
+# Une lecture (WHEP de l'écran régie) se fait avec le jeton régie de l'événement,
+# dans `token` (ou `password` pour la page de lecture intégrée) : un joueur de la
+# LAN ne peut pas regarder l'écran d'un autre (v0.66.1).
+# Si l'API ne répond pas (Internet coupé), publication et lecture nouvelles sont
+# refusées ; un flux déjà ouvert continue, et ses lecteurs aussi.
 authMethod: http
 authHTTPAddress: https://archilan.fr/api/v1/media-auth
-# Actions jamais envoyées au site : la lecture est libre sur la LAN (la régie
-# lit sans dépendre d'Internet), l'API de contrôle n'écoute que la machine.
+# Actions jamais envoyées au site : l'API de contrôle n'écoute que la machine
+# (l'agent de la régie la lit et y coupe les flux refusés).
 authHTTPExclude:
-  - action: read
   - action: playback
   - action: api
   - action: metrics

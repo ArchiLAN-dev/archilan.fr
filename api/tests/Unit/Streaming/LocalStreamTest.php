@@ -68,4 +68,21 @@ final class LocalStreamTest extends TestCase
         $stream->seenOnline($now, $back);
         self::assertEquals($now, $stream->getOnlineSince());
     }
+
+    /** v0.66.1: a session is stamped with the key version of when it was first seen. */
+    public function testASessionStartedBeforeANewKeyIsFlagged(): void
+    {
+        $stream = new LocalStream('id', 'event', 'reg', 'p-0123456789abcdef0123', new \DateTimeImmutable());
+        $stream->trackSession(null, 0);
+        self::assertFalse($stream->startedWithAnOldKey(5));
+
+        $stream->trackSession('session-1', 0);
+        self::assertFalse($stream->startedWithAnOldKey(0));
+        // The same session, after a new key: still stamped with the old one.
+        $stream->trackSession('session-1', 1);
+        self::assertTrue($stream->startedWithAnOldKey(1));
+
+        $stream->trackSession('session-2', 1);
+        self::assertFalse($stream->startedWithAnOldKey(1));
+    }
 }

@@ -21,19 +21,22 @@ use Symfony\Component\Messenger\MessageBusInterface;
 /**
  * Story 53.8: the day before, each confirmed registrant of a published event gets one mail with the start, the venue
  * and what is left to do. The registrations are marked first, in one flush; the mails go after, best effort, so a
- * failing one never undoes the others' mark and a second pass sends nothing again. A registration confirmed once its
- * event starts in less than 12 hours gets no mail.
+ * failing one never undoes the others' mark and a second pass sends nothing again.
+ *
+ * "The day before" is a Paris calendar day: the mail goes from 10:00 on the day before the start's date, whatever the
+ * hour of the start (v0.66.1: a window of 12 to 36 hours ahead sent "C'est demain !" two days ahead of a morning
+ * start). A registration confirmed on the day itself gets no mail.
  */
 #[AsMessageHandler]
 final readonly class SendEventEveRemindersHandler
 {
-    /** The window of an event's start, from now: an hourly pass catches each event about a day ahead. */
-    private const string WINDOW_FROM = '+12 hours';
-    private const string WINDOW_TO = '+36 hours';
+    private const string TIMEZONE = 'Europe/Paris';
+
+    /** The hourly pass sends from this hour (Paris) on the day before: not in the middle of the night. */
+    private const int SEND_FROM_HOUR = 10;
 
     /** What the mail says for each required step still to do (the keys of RegistrantChecklist). */
     private const array STEP_LABELS = [
-        'confirm' => 'Confirmer ton inscription',
         'games' => 'Choisir tes jeux',
         'yaml' => 'Régler les options de tes jeux',
         'registration_questions' => "Répondre aux questions de l'orga",
@@ -55,12 +58,15 @@ final readonly class SendEventEveRemindersHandler
     public function __invoke(SendEventEveRemindersMessage $message): void
     {
         $now = $this->clock->now();
-        $from = $now->modify(self::WINDOW_FROM);
-        $to = $now->modify(self::WINDOW_TO);
+        $timezone = new \DateTimeZone(self::TIMEZONE);
+        $local = $now->setTimezone($timezone);
+        if ((int) $local->format('G') < self::SEND_FROM_HOUR) {
+            return;
+        }
+        $tomorrow = $local->modify('+1 day')->format('Y-m-d');
 
         foreach ($this->events->findByStatuses([Event::STATUS_PUBLISHED, Event::STATUS_IN_PROGRESS]) as $event) {
-            $startsAt = $event->getStartsAt();
-            if ($event->isEveReminderEnabled() && $startsAt >= $from && $startsAt <= $to) {
+            if ($event->isEveReminderEnabled() && $event->getStartsAt()->setTimezone($timezone)->format('Y-m-d') === $tomorrow) {
                 $this->remind($event, $now);
             }
         }
@@ -81,7 +87,7 @@ final readonly class SendEventEveRemindersHandler
         }
         $this->registrations->flush();
 
-        $startsAt = $event->getStartsAt()->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m/Y \à H\hi');
+        $startsAt = $event->getStartsAt()->setTimezone(new \DateTimeZone(self::TIMEZONE))->format('d/m/Y \à H\hi');
         $hubUrl = sprintf('%s/evenements/%s/mon-event', rtrim($this->siteUrl, '/'), $event->getId());
         foreach ($due as $registration) {
             $this->notify($registration, $event, $startsAt, $hubUrl);

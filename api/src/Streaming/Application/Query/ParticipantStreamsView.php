@@ -64,16 +64,19 @@ final readonly class ParticipantStreamsView
      * screens the régie receives on the LAN media server (`local`), then the Twitch lives (`twitch`); a member on
      * both shows once, from the LAN (its latency, and no need for Internet).
      *
+     * v0.66.1: the LAN screens go only to who holds the event's régie token (the list is public, for OBS); without
+     * it, nothing about the LAN is read.
+     *
      * @return list<BroadcastLocalStream|BroadcastTwitchStream>|null
      */
-    public function forEventBroadcast(string $eventId): ?array
+    public function forEventBroadcast(string $eventId, string $regieToken = ''): ?array
     {
         $streams = $this->present($this->query->forEventBroadcast($eventId));
         if (null === $streams) {
             return null;
         }
 
-        $local = $this->localBroadcast($eventId);
+        $local = $this->credentials->isReadToken($eventId, $regieToken) ? $this->localBroadcast($eventId) : [];
         $onLan = array_flip(array_map(static fn (array $stream): string => $stream['userId'], $local));
         $twitch = [];
         foreach ($streams as $stream) {

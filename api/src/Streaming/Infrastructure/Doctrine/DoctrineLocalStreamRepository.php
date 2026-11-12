@@ -23,6 +23,11 @@ final readonly class DoctrineLocalStreamRepository implements LocalStreamReposit
         return $result;
     }
 
+    public function streamOf(string $eventId, string $registrationId): ?LocalStream
+    {
+        return $this->entityManager->getRepository(LocalStream::class)->findOneBy(['eventId' => $eventId, 'registrationId' => $registrationId]);
+    }
+
     public function serverOf(string $eventId): ?LocalMediaServer
     {
         return $this->entityManager->find(LocalMediaServer::class, $eventId);

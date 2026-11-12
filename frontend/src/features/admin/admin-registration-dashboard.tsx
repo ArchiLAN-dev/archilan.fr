@@ -18,7 +18,7 @@ import {
 } from "./admin-registration-api";
 import { AdminRegisterMember } from "./admin-register-member";
 import { BroadcastScreenLinks } from "./broadcast-screen-links";
-import { fetchAdminLocalStreams, LOCAL_STREAMS_REFRESH_MS, localStreamLabel, type AdminLocalStream } from "./admin-events-api";
+import { fetchAdminLocalStreams, LOCAL_STREAMS_REFRESH_MS, localStreamLabel, localStreamsRefetchInterval, type AdminLocalStream } from "./admin-events-api";
 
 // ─── Page state ──────────────────────────────────────────────────────────────
 
@@ -71,7 +71,7 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
     queryKey: ["admin-local-streams", eventId],
     queryFn: () => fetchAdminLocalStreams(eventId),
     staleTime: LOCAL_STREAMS_REFRESH_MS,
-    refetchInterval: LOCAL_STREAMS_REFRESH_MS,
+    refetchInterval: (query) => localStreamsRefetchInterval(query.state.data),
     retry: false,
   });
   const localStreamsByRegistration =
@@ -312,7 +312,7 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
         state={state}
       />
 
-      {state.kind === "ready" ? <BroadcastScreenLinks eventId={eventId} /> : null}
+      {state.kind === "ready" ? <BroadcastScreenLinks eventId={eventId} regieToken={localStreams?.regieToken ?? null} /> : null}
     </section>
   );
 }

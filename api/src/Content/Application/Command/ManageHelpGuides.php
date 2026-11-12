@@ -92,7 +92,9 @@ final readonly class ManageHelpGuides
     }
 
     /**
-     * Each listed guide takes its rank as position; unknown ids are skipped, unlisted guides keep theirs.
+     * The listed guides come first, in the given order; the unlisted ones follow in their current order. Every guide is
+     * renumbered from 0, so no two share a position (v0.66.1: a partial list used to leave duplicates). Unknown ids
+     * are skipped.
      *
      * @param list<string> $orderedIds
      */
@@ -102,18 +104,23 @@ final readonly class ManageHelpGuides
         foreach ($this->guides->all() as $guide) {
             $byId[$guide->getId()] = $guide;
         }
-        $now = $this->clock->now();
-        $moved = [];
-        $position = 0;
+        $ordered = [];
         foreach ($orderedIds as $id) {
-            $guide = $byId[$id] ?? null;
-            if ($guide instanceof HelpGuide && !in_array($guide, $moved, true)) {
-                $guide->moveTo($position, $now);
-                $moved[] = $guide;
-                ++$position;
+            if (isset($byId[$id])) {
+                $ordered[$id] = $byId[$id];
             }
         }
-        $this->guides->saveAll($moved);
+        foreach ($byId as $id => $guide) {
+            $ordered[$id] ??= $guide;
+        }
+
+        $now = $this->clock->now();
+        $position = 0;
+        foreach ($ordered as $guide) {
+            $guide->moveTo($position, $now);
+            ++$position;
+        }
+        $this->guides->saveAll(array_values($ordered));
         $this->revalidation->helpGuidesChanged();
     }
 

@@ -4,6 +4,10 @@ Toutes les AGENT_INTERVAL secondes, lit les flux en ligne sur l'API locale de Me
 signée avec le secret de l'agent de l'événement (admin du site, bloc « Diffusion locale »). Le site considère un flux
 coupé s'il ne le voit plus pendant 30 s : l'agent doit donc tourner tant que dure la LAN.
 
+Depuis la v0.66.1, l'agent envoie aussi la session de chaque flux, et coupe sur MediaMTX les chemins que le site lui
+renvoie dans `kick` : un inscrit qui n'a plus le droit de publier (inscription annulée, diffusion refusée, compte
+banni, événement terminé), ou une session ouverte avec une clé que le joueur a régénérée depuis.
+
 Bibliothèque standard seule. Variables d'environnement (voir .env.example) :
   ARCHILAN_API_URL       ex. https://archilan.fr
   ARCHILAN_EVENT_ID      l'identifiant de l'événement
@@ -24,14 +28,26 @@ import urllib.request
 
 PATH_PATTERN = re.compile(r"^p-[0-9a-f]{20}$")
 
+# Type de source MediaMTX -> collection de l'API qui sait la couper (POST /v3/<collection>/kick/<id>).
+KICK_COLLECTIONS = {
+    "webRTCSession": "webrtcsessions",
+    "srtConn": "srtconns",
+    "rtmpConn": "rtmpconns",
+    "rtmpsConn": "rtmpsconns",
+    "rtspSession": "rtspsessions",
+    "rtspsSession": "rtspssessions",
+}
+
 
 def log(message):
     print(time.strftime("%Y-%m-%d %H:%M:%S"), message, flush=True)
 
 
 def online_streams(mtx_api_url):
-    """The p-* paths MediaMTX has online, with when they went online (spike 47.4: `online`, not `ready`)."""
+    """The p-* paths MediaMTX has online, with when they went online (spike 47.4: `online`, not `ready`) and their
+    publishing source, {"type": ..., "id": ...}, kept apart: only its id goes to the site."""
     streams = []
+    sources = {}
     page = 0
     while True:
         url = "%s/v3/paths/list?page=%d&itemsPerPage=100" % (mtx_api_url.rstrip("/"), page)
@@ -43,10 +59,32 @@ def online_streams(mtx_api_url):
                 stream = {"path": name}
                 if item.get("onlineTime"):
                     stream["onlineSince"] = item["onlineTime"]
+                source = item.get("source") or {}
+                if source.get("id"):
+                    stream["session"] = source["id"]
+                    sources[name] = source
                 streams.append(stream)
         page += 1
         if page >= int(data.get("pageCount") or 1):
-            return streams
+            return streams, sources
+
+
+def kick(mtx_api_url, path, sources):
+    """Cuts the publishing session of a path the site no longer allows. The next report sees it gone."""
+    source = sources.get(path) or {}
+    collection = KICK_COLLECTIONS.get(source.get("type"))
+    if collection is None:
+        log("impossible de couper %s : source %s inconnue" % (path, source.get("type")))
+        return
+    request = urllib.request.Request(
+        "%s/v3/%s/kick/%s" % (mtx_api_url.rstrip("/"), collection, source["id"]), data=b"", method="POST"
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=5):
+            pass
+        log("flux coupé : %s" % path)
+    except Exception as error:  # noqa: BLE001 - réessayé au prochain rapport
+        log("échec de la coupure de %s : %s" % (path, error))
 
 
 def report(api_url, event_id, secret, streams):
@@ -84,10 +122,12 @@ def main():
     while True:
         try:
             try:
-                streams = online_streams(mtx_api_url)
+                streams, sources = online_streams(mtx_api_url)
             except Exception as error:  # noqa: BLE001
                 raise RuntimeError("MediaMTX injoignable (%s) : %s" % (mtx_api_url, error)) from error
             result = report(api_url, event_id, secret, streams)
+            for path in result.get("kick") or []:
+                kick(mtx_api_url, path, sources)
             summary = "%s en direct, %s ignorés" % (result.get("live"), result.get("ignored"))
             if summary != last:
                 log(summary)

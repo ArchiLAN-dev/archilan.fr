@@ -28,20 +28,25 @@ function onLan(slug: string, displayName: string | null = null): BroadcastStream
 /** Story 47.2: the régie screen for OBS. */
 describe("broadcast screen", () => {
   it("reads its settings with defaults and bounds", () => {
-    expect(parseBroadcastScreenParams(new URLSearchParams("event=demo423"))).toEqual({ eventId: "demo423", mode: "mosaique", max: 4, seconds: 30, bg: null });
+    expect(parseBroadcastScreenParams(new URLSearchParams("event=demo423"))).toEqual({ eventId: "demo423", mode: "mosaique", max: 4, seconds: 30, bg: null, regie: null });
     expect(parseBroadcastScreenParams(new URLSearchParams("event=a/b&mode=rotation&max=20&duree=2&bg=00ff00"))).toEqual({
       eventId: null,
       mode: "rotation",
       max: 9,
       seconds: 5,
       bg: "00ff00",
+      regie: null,
     });
     expect(parseBroadcastScreenParams(new URLSearchParams("max=abc&duree=1.5")).max).toBe(4);
+    // v0.66.1: the régie token, 32 hex, or nothing.
+    expect(parseBroadcastScreenParams(new URLSearchParams(`event=e1&regie=${"a".repeat(32)}`)).regie).toBe("a".repeat(32));
+    expect(parseBroadcastScreenParams(new URLSearchParams("event=e1&regie=nope")).regie).toBeNull();
   });
 
   it("builds the OBS links", () => {
     expect(broadcastScreenUrl("https://archilan.fr", "demo423")).toBe("https://archilan.fr/o/streams?event=demo423");
     expect(broadcastScreenUrl("https://archilan.fr", "demo423", "rotation")).toBe("https://archilan.fr/o/streams?event=demo423&mode=rotation");
+    expect(broadcastScreenUrl("https://archilan.fr", "demo423", "mosaique", "b".repeat(32))).toBe(`https://archilan.fr/o/streams?event=demo423&regie=${"b".repeat(32)}`);
   });
 
   it("sizes the mosaic and rotates groups over the cap", () => {
@@ -68,6 +73,17 @@ describe("broadcast screen", () => {
 
     server.use(http.get(`${BASE}/events/e2/broadcast-streams`, () => new HttpResponse(null, { status: 404 })));
     expect(await fetchBroadcastStreams("e2")).toBeNull();
+
+    // v0.66.1: the régie token goes along, for the LAN screens.
+    let asked: string | null = null;
+    server.use(
+      http.get(`${BASE}/events/e3/broadcast-streams`, ({ request }) => {
+        asked = new URL(request.url).searchParams.get("regie");
+        return HttpResponse.json({ data: [onLan("carol")], meta: [] });
+      }),
+    );
+    expect(await fetchBroadcastStreams("e3", "c".repeat(32))).toEqual([onLan("carol")]);
+    expect(asked).toBe("c".repeat(32));
   });
 
   it("shows each player's name, and nothing when nobody is live", () => {
