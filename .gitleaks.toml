@@ -10,6 +10,8 @@ paths = [
     '''api/tests/Functional/PushSubscriptionControllerTest\.php$''',
     # Story 47.7: a made-up 32-hex publishing key (0123...cdef), the shape of a real one.
     '''frontend/src/features/streaming/media-publish\.test\.tsx$''',
+    # v0.66.1: a made-up 32-hex régie token (0123...cdef), the shape of a real one.
+    '''frontend/src/features/admin/admin-local-streams\.test\.tsx$''',
     '''packages/[^/]+/vendor/''',
     '''bridge/BRIDGE_API\.md$''',
     '''bridge/tests/''',
