@@ -5,6 +5,25 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.66.2] - 2026-11-13
+
+Suivi des grandes parties et page de session (story 17.36). Aucune migration, aucune variable. Le correctif du suivi est
+dans l'image `archipelago` (dépôt archipelago, publiée en `latest` au merge) : `docker pull
+ghcr.io/archilan-dev/archipelago:latest`, puis relancer les parties en cours pour qu'elles la prennent.
+
+### Corrigé
+
+- Suivi « faisable » : un jeu que le serveur de la partie ne connaît pas (un monde présent à la génération mais pas
+  dans le conteneur AP) ne casse plus le suivi de tous les slots. Seul son slot affiche « Le suivi de ce jeu n'est pas
+  disponible », les autres sont suivis. Constaté sur une partie de 110 slots où un YAML « Pokemon Red » renvoyait une
+  erreur 500 pour chaque slot.
+- Suivi « faisable » : un slot dont le fichier YAML ne porte pas son nom est retrouvé par le nom du joueur dans le
+  YAML ; il ne prend plus le YAML d'un autre joueur.
+
+### Modifié
+
+- Page de session d'un inscrit : ses slots viennent en tête de « Progression des joueurs », marqués « Toi ».
+
 ## [0.66.1] - 2026-11-12
 
 Correctifs de la revue de la v0.66.0 (story 47.10). Une migration (Version20261112100000), aucune variable. À la LAN,
