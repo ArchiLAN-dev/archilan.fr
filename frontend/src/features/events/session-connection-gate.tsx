@@ -251,6 +251,7 @@ function ConnectionView({
       {/* Story 41.9: the player's own slots open their slot page (checks, items, hints); the others stay cards. */}
       {session ? (
         <PlayerProgressGrid
+          ownSlotNames={data.slots.map((slot) => slot.slotName)}
           runId={session.id}
           slotHref={(slotIndex, slotName) =>
             data.slots.some((slot) => slot.slotName === slotName)
