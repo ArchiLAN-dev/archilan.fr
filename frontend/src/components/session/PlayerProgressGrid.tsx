@@ -58,6 +58,19 @@ function sortedEntries(slots: SlotsMap): [string, PlayersSlot][] {
   });
 }
 
+/** Story 17.36 (v0.66.2): the member's own slots first, each group keeping its order. */
+export function ownSlotsFirst(
+  entries: [string, PlayersSlot][],
+  ownSlotNames: readonly string[] | undefined,
+): [string, PlayersSlot][] {
+  if (!ownSlotNames || ownSlotNames.length === 0) return entries;
+  const own = new Set(ownSlotNames);
+  return [
+    ...entries.filter(([, slot]) => own.has(slot.slot_name)),
+    ...entries.filter(([, slot]) => !own.has(slot.slot_name)),
+  ];
+}
+
 function goalReachedTime(value: string | null): number {
   if (!value) return Infinity;
 
@@ -76,12 +89,15 @@ export function PlayerProgressGrid({
   eventId,
   personalRunId,
   slotHref,
+  ownSlotNames,
 }: {
   runId: string;
   eventId?: string;
   personalRunId?: string;
   /** Story 41.9: a link per slot, chosen by the caller (an event player links only their own slots). */
   slotHref?: (slotIndex: string, slotName: string) => string | undefined;
+  /** The member's own slots: shown first and marked (a 110-slot game is long to scroll). */
+  ownSlotNames?: readonly string[];
 }) {
   const [state, setState] = useState<GridState>({ kind: "loading" });
   const [showReconnect, setShowReconnect] = useState(false);
@@ -220,7 +236,8 @@ export function PlayerProgressGrid({
   }
 
   const { slots } = state;
-  const entries = sortedEntries(slots);
+  const entries = ownSlotsFirst(sortedEntries(slots), ownSlotNames);
+  const own = new Set(ownSlotNames ?? []);
   const goalCount = entries.filter(([, s]) => s.client_status === 30).length;
   const total = entries.length;
   const globalPct = total > 0 ? clampPercent(Math.round((goalCount / total) * 100)) : 0;
@@ -271,6 +288,7 @@ export function PlayerProgressGrid({
                     ? `/runs/${personalRunId}/progression/${slotIndex}`
                     : undefined
               }
+              own={own.has(slot.slot_name)}
               slot={slot}
             />
           ))}
@@ -321,7 +339,7 @@ export function DeathLinkBadge({ slot }: { slot: PlayersSlot }) {
 
 // ─── SlotCard ────────────────────────────────────────────────────────────────
 
-function SlotCard({ slot, href }: { slot: PlayersSlot; href?: string }) {
+function SlotCard({ slot, href, own = false }: { slot: PlayersSlot; href?: string; own?: boolean }) {
   const isGoal = slot.client_status === 30;
   const isPlaying = slot.client_status === 20;
   const isBK =
@@ -354,8 +372,13 @@ function SlotCard({ slot, href }: { slot: PlayersSlot; href?: string }) {
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-mono text-sm font-semibold text-foreground">
-            {slot.slot_name}
+          <p className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-mono text-sm font-semibold text-foreground">{slot.slot_name}</span>
+            {own ? (
+              <span className="shrink-0 rounded bg-accent-text/15 px-1.5 py-0.5 text-xs font-semibold text-accent-text">
+                Toi
+              </span>
+            ) : null}
           </p>
           {goalTime ? (
             <time className="mt-0.5 block text-xs text-muted-foreground">{goalTime}</time>
