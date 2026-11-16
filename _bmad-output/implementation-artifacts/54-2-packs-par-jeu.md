@@ -77,7 +77,7 @@ afin de m'en servir pendant ma partie.
 - [x] **Task 2** (AC 1, 4, 5, 8) - PATCH admin, lecture publique, archive (présignée ou flux).
 - [x] **Task 3** (AC 9) - Liste admin enrichie.
 - [x] **Task 4** (AC 6) - Bloc de la fiche publique.
-- [ ] **Task 5** (AC 10) - Gates, vérification réelle (téléchargement depuis le navigateur, CORS).
+- [x] **Task 5** (AC 10) - Gates, vérification réelle (téléchargement depuis le navigateur, CORS).
 
 ## Dev Agent Record
 
@@ -116,8 +116,12 @@ afin de m'en servir pendant ma partie.
 - `./scripts/gates.sh` : api vert (ParaTest) ; front typecheck, lint, 1689 tests et build verts (le build s'arrête une
   fois sur l'avertissement de sécurité de Next.js, sans lien avec la story, et passe au second lancement).
 
-### Reste à faire
+### Vérification réelle (2026-11-17, local)
 
-- Task 5, vérification réelle : activer le pack MM en local, voir le bloc sur la fiche, télécharger l'archive depuis
-  le navigateur.
-
+- Import du pack MM v0.9.5.3 depuis GitHub par l'API locale (MinIO local) : créé, 3 variantes, licence MIT.
+- Avant activation : liste publique vide, archive 404 pour un visiteur, 200 pour un admin (7,2 Mo).
+- Variante inconnue : 422 `tracker_pack_variant_unknown`. Activation : 204, le pack devient le défaut.
+- Après activation : liste publique complète (rootPath `Majoras-Mask-AP-PopTracker-Pack-0.9.5.3`), archive 200 avec
+  `Access-Control-Allow-Origin` pour l'origine du site, sha256 du zip égal à l'ETag, 367 fichiers.
+- Fiche `/jeux/the-legend-of-zelda-majora-s-mask` : bloc « Tracker disponible » avec nom, version, auteurs, licence MIT
+  et lien vers la source.
