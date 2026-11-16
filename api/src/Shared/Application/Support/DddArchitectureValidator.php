@@ -34,6 +34,7 @@ final readonly class DddArchitectureValidator
         'Wallet',
         'Notes',
         'Surveys',
+        'Trackers',
     ];
 
     /**
