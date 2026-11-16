@@ -21,6 +21,7 @@ final readonly class DbalAdminTrackerPackQuery implements AdminTrackerPackQueryI
         $rows = $qb
             ->select(
                 'p.id', 'p.name', 'p.author', 'p.package_uid', 'p.game_name', 'p.source_url', 'p.license_spdx',
+                'p.enabled', 'p.is_default', 'p.default_variant_uid', 'p.license_acknowledged',
                 'v.id AS version_id', 'v.package_version', 'v.git_tag', 'v.size_bytes', 'v.variants',
                 'v.min_poptracker_version', 'v.imported_at',
             )
@@ -35,7 +36,7 @@ final readonly class DbalAdminTrackerPackQuery implements AdminTrackerPackQueryI
 
         $views = [];
         foreach ($rows as $row) {
-            $variants = self::variants($row['variants']);
+            $variants = TrackerPackVariantRows::decode($row['variants']);
             $views[] = new AdminTrackerPackView(
                 self::text($row['id']),
                 self::text($row['name']),
@@ -52,29 +53,14 @@ final readonly class DbalAdminTrackerPackQuery implements AdminTrackerPackQueryI
                 $variants,
                 self::nullableText($row['min_poptracker_version']),
                 new \DateTimeImmutable(self::text($row['imported_at']))->format(\DATE_ATOM),
+                true === $row['enabled'],
+                true === $row['is_default'],
+                self::nullableText($row['default_variant_uid']),
+                true === $row['license_acknowledged'],
             );
         }
 
         return $views;
-    }
-
-    /** @return list<array{uid: string, displayName: string, flags: list<string>}> */
-    private static function variants(mixed $raw): array
-    {
-        $decoded = is_string($raw) ? json_decode($raw, true) : null;
-        if (!is_array($decoded)) {
-            return [];
-        }
-        $variants = [];
-        foreach ($decoded as $variant) {
-            if (!is_array($variant) || !is_string($variant['uid'] ?? null) || !is_string($variant['displayName'] ?? null)) {
-                continue;
-            }
-            $flags = is_array($variant['flags'] ?? null) ? array_values(array_filter($variant['flags'], is_string(...))) : [];
-            $variants[] = ['uid' => $variant['uid'], 'displayName' => $variant['displayName'], 'flags' => $flags];
-        }
-
-        return $variants;
     }
 
     private static function text(mixed $value): string

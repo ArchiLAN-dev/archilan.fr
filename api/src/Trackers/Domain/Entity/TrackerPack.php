@@ -10,6 +10,10 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * A PopTracker pack attached to a game (story 54.1): one pack per `package_uid` and game. Its versions are separate
  * immutable rows; the pack points at the one it serves.
+ *
+ * Story 54.2: a pack is offered to players once enabled. A pack without a detected licence can only be enabled once
+ * an admin vouched that it may be shared. Which pack of a game opens by default is settled across the game's packs
+ * by {@see \App\Trackers\Domain\Service\TrackerPackShelf}.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'tracker_pack')]
@@ -42,6 +46,14 @@ final class TrackerPack
         private string $createdBy,
         #[ORM\Column(name: 'created_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $createdAt,
+        #[ORM\Column(type: 'boolean', options: ['default' => false])]
+        private bool $enabled = false,
+        #[ORM\Column(name: 'is_default', type: 'boolean', options: ['default' => false])]
+        private bool $isDefault = false,
+        #[ORM\Column(name: 'default_variant_uid', type: 'string', length: 120, nullable: true)]
+        private ?string $defaultVariantUid = null,
+        #[ORM\Column(name: 'license_acknowledged', type: 'boolean', options: ['default' => false])]
+        private bool $licenseAcknowledged = false,
     ) {
     }
 
@@ -99,5 +111,72 @@ final class TrackerPack
     public function getLicenseSpdx(): ?string
     {
         return $this->licenseSpdx;
+    }
+
+    public function getCreatedAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function isEnabled(): bool
+    {
+        return $this->enabled;
+    }
+
+    public function isDefault(): bool
+    {
+        return $this->isDefault;
+    }
+
+    public function getDefaultVariantUid(): ?string
+    {
+        return $this->defaultVariantUid;
+    }
+
+    public function isLicenseAcknowledged(): bool
+    {
+        return $this->licenseAcknowledged;
+    }
+
+    /** A detected licence, or an admin who vouched for the pack. */
+    public function maySharePack(): bool
+    {
+        return null !== $this->licenseSpdx || $this->licenseAcknowledged;
+    }
+
+    /** @throws \DomainException tracker_pack_license_unacknowledged when withdrawn from an enabled pack without licence */
+    public function acknowledgeLicense(bool $acknowledged): void
+    {
+        if (!$acknowledged && $this->enabled && null === $this->licenseSpdx) {
+            throw new \DomainException('tracker_pack_license_unacknowledged');
+        }
+        $this->licenseAcknowledged = $acknowledged;
+    }
+
+    /**
+     * Null goes back to the first variant of the manifest.
+     *
+     * @param list<string> $knownUids the variants of the version the pack serves
+     *
+     * @throws \DomainException tracker_pack_variant_unknown
+     */
+    public function chooseDefaultVariant(?string $uid, array $knownUids): void
+    {
+        if (null !== $uid && !in_array($uid, $knownUids, true)) {
+            throw new \DomainException('tracker_pack_variant_unknown');
+        }
+        $this->defaultVariantUid = $uid;
+    }
+
+    /** Only through {@see \App\Trackers\Domain\Service\TrackerPackShelf}, which keeps one default per game. */
+    public function markEnabled(bool $enabled): void
+    {
+        $this->enabled = $enabled;
+    }
+
+    /** Only through {@see \App\Trackers\Domain\Service\TrackerPackShelf}, which keeps one default per game. */
+    public function markDefault(bool $isDefault): void
+    {
+        $this->isDefault = $isDefault;
     }
 }

@@ -12,8 +12,19 @@ import { InstallStepsView } from "./install-steps-view";
 import type { GameApworld, PublicGameDetail } from "./public-games-api";
 import { Markdown } from "@/components/markdown/markdown";
 import { InfoHint } from "@/components/ui/info-hint";
+import { GameTrackerCredits } from "@/features/trackers/game-tracker-credits";
+import type { GameTrackerPack } from "@/features/trackers/tracker-packs-api";
 
-export function GameDetail({ game, client }: { game: PublicGameDetail; client: ArchipelagoClient | null }) {
+export function GameDetail({
+  game,
+  client,
+  trackerPacks = [],
+}: {
+  game: PublicGameDetail;
+  client: ArchipelagoClient | null;
+  /** Story 54.2: the packs offered for this game, its default first. */
+  trackerPacks?: GameTrackerPack[];
+}) {
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
   const steamUrl = game.steamAppId !== null ? `https://store.steampowered.com/app/${game.steamAppId}` : null;
 
@@ -234,6 +245,8 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
           ) : null}
         </section>
       ) : null}
+
+      <GameTrackerCredits packs={trackerPacks} />
     </article>
   );
 }

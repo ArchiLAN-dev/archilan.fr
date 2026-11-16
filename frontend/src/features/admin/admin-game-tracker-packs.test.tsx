@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { AdminGameTrackerPacks, TrackerPackList } from "./admin-game-tracker-packs";
@@ -23,15 +24,23 @@ const pack: AdminTrackerPack = {
   ],
   minPopTrackerVersion: "0.32.0",
   importedAt: "2026-11-16T10:00:00+00:00",
+  enabled: false,
+  isDefault: false,
+  defaultVariantUid: null,
+  licenseAcknowledged: false,
 };
+
+function render(node: ReactNode): string {
+  return renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}>{node}</QueryClientProvider>);
+}
+
+function list(packs: AdminTrackerPack[] | null | undefined, loading = false): string {
+  return render(<TrackerPackList gameId="g1" loading={loading} packs={packs} />);
+}
 
 describe("AdminGameTrackerPacks (story 54.1)", () => {
   it("offers to import a pack from a GitHub link", () => {
-    const html = renderToStaticMarkup(
-      <QueryClientProvider client={new QueryClient()}>
-        <AdminGameTrackerPacks gameId="g1" />
-      </QueryClientProvider>,
-    );
+    const html = render(<AdminGameTrackerPacks gameId="g1" />);
     expect(html).toContain("Trackers");
     expect(html).toContain("Lien GitHub du pack");
     // Nothing typed yet: the button waits for a link.
@@ -41,7 +50,7 @@ describe("AdminGameTrackerPacks (story 54.1)", () => {
 
 describe("TrackerPackList", () => {
   it("shows each pack with its version, variants, licence and source", () => {
-    const html = renderToStaticMarkup(<TrackerPackList loading={false} packs={[pack]} />);
+    const html = list([pack]);
     expect(html).toContain("Majora&#x27;s Mask: Recompiled");
     expect(html).toContain("v0.9.5.3");
     expect(html).toContain("Archipelago");
@@ -53,14 +62,49 @@ describe("TrackerPackList", () => {
   });
 
   it("flags a pack without autotracking or licence", () => {
-    const html = renderToStaticMarkup(<TrackerPackList loading={false} packs={[{ ...pack, hasApVariant: false, licenseSpdx: null }]} />);
+    const html = list([{ ...pack, hasApVariant: false, licenseSpdx: null }]);
     expect(html).toContain("Sans autotracking");
     expect(html).toContain("Non détectée, à vérifier avant de le proposer aux joueurs");
   });
 
   it("says when there is nothing, and when the list failed", () => {
-    expect(renderToStaticMarkup(<TrackerPackList loading={false} packs={[]} />)).toContain("Aucun pack importé pour ce jeu.");
-    expect(renderToStaticMarkup(<TrackerPackList loading={false} packs={null} />)).toContain("Impossible de charger les packs de ce jeu.");
-    expect(renderToStaticMarkup(<TrackerPackList loading packs={undefined} />)).toContain("Chargement des packs…");
+    expect(list([])).toContain("Aucun pack importé pour ce jeu.");
+    expect(list(null)).toContain("Impossible de charger les packs de ce jeu.");
+    expect(list(undefined, true)).toContain("Chargement des packs…");
+  });
+});
+
+describe("TrackerPackList sharing controls (story 54.2)", () => {
+  it("offers to enable a licensed pack, without the licence box", () => {
+    const html = list([pack]);
+    expect(html).toContain("Proposé aux joueurs");
+    expect(html).not.toContain("La diffusion de ce pack est autorisée");
+    expect(html).not.toMatch(/<input[^>]*disabled=""[^>]*type="checkbox"/);
+    expect(html).not.toContain("Par défaut");
+    expect(html).not.toContain("Ouvrir ce pack par défaut");
+  });
+
+  it("locks the switch of a pack without licence until an admin vouches for it", () => {
+    const locked = list([{ ...pack, licenseSpdx: null }]);
+    expect(locked).toContain("La diffusion de ce pack est autorisée");
+    expect(locked).toMatch(/<input[^>]*disabled=""[^>]*type="checkbox"/);
+
+    const vouched = list([{ ...pack, licenseSpdx: null, licenseAcknowledged: true }]);
+    expect(vouched).not.toMatch(/<input[^>]*disabled=""[^>]*type="checkbox"/);
+  });
+
+  it("marks the default pack and offers the star on the other enabled ones", () => {
+    const html = list([
+      { ...pack, enabled: true, isDefault: true },
+      { ...pack, id: "p2", enabled: true },
+    ]);
+    expect(html).toContain("Par défaut");
+    expect(html.match(/Ouvrir ce pack par défaut/g)).toHaveLength(1);
+  });
+
+  it("lists the variants to open first, the first one by default", () => {
+    const html = list([{ ...pack, defaultVariantUid: "itemsonly" }]);
+    expect(html).toContain("La première (Maps and items)");
+    expect(html).toMatch(/<option value="itemsonly" selected="">Items only<\/option>/);
   });
 });
