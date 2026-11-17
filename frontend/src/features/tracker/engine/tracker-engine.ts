@@ -249,7 +249,11 @@ export class TrackerEngine {
           this.log("error", `${file} : un fichier de layouts est un objet.`);
           return false;
         }
-        Object.assign(this.layouts, json);
+        // A file may wrap its layouts in a `layouts` key (`tracker.jsonc` of Majora's Mask), as PopTracker accepts.
+        for (const [name, layout] of Object.entries(json)) {
+          if (name === "layouts" && isJsonObject(layout)) Object.assign(this.layouts, layout);
+          else this.layouts[name] = layout;
+        }
         return true;
       default:
         return false;

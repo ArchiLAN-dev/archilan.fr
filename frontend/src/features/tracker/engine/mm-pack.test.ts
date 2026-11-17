@@ -40,6 +40,9 @@ run("Majora's Mask pack", () => {
     expect(errors).toContain("Script introuvable : scripts/inverse_rules.lua");
     expect(errors.filter((message) => !message.includes("inverse_rules") && !message.includes("small_key_sanity_off"))).toEqual([]);
     expect(engine.archipelagoHandlerCount("Item")).toBe(1);
+    // tracker.jsonc wraps its layouts in a `layouts` key (story 54.5): the screen needs them unwrapped.
+    expect(engine.pack().layouts).toHaveProperty("tracker_default");
+    expect(engine.pack().layouts).not.toHaveProperty("layouts");
     expect(elapsed).toBeLessThan(3000);
     engine.dispose();
   });
