@@ -17,6 +17,7 @@ import { BlindTestJoinButton } from "@/features/wallet/blind-test-join-button";
 import { MinimapperzCodeCard } from "@/features/wallet/minimapperz-code-card";
 import { fetchMyWallet, type Wallet } from "@/features/wallet/wallet-api";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { slotTracker } from "@/features/tracker/slot-ref";
 import type { EventPhase } from "./event-phase";
 import { FINISHED_SESSION_STATUSES, reliveLinks, type ReliveLink } from "./hub-sections";
 
@@ -77,7 +78,12 @@ export function RegistrantHubTools({ eventId, eventSlug, registrationId, confirm
 
   return (
     <div className="grid gap-4">
-      {confirmed ? <HubSessionCard helpHref={help(HELP_GUIDE_SLUGS.firstGame)} result={connection ?? null} sessionPath={sessionPath} /> : null}
+      {confirmed ? <HubSessionCard
+          helpHref={help(HELP_GUIDE_SLUGS.firstGame)}
+          registrationId={registrationId}
+          result={connection ?? null}
+          sessionPath={sessionPath}
+        /> : null}
       {/* Story 52.5: what the Passeur opened while the member was away, during their game. */}
       {runningSessionId !== null ? <PasseurNoticeCard helpHref={help(HELP_GUIDE_SLUGS.passeur)} sessionId={runningSessionId} /> : null}
       <BlindTestJoinButton eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.blindTest)} />
@@ -156,8 +162,11 @@ export function HubSessionCard({
   result,
   sessionPath,
   helpHref = null,
+  registrationId = null,
 }: {
   result: SessionConnectionResult | null;
+  /** Story 54.7: the registration, for the tracker of each slot. */
+  registrationId?: string | null;
   sessionPath: string;
   /** Story 53.5: the guide of a first game. */
   helpHref?: string | null;
@@ -174,7 +183,14 @@ export function HubSessionCard({
         host={session.host}
         password={session.password}
         port={session.port}
-        slots={slots.map((slot) => ({ name: slot.slotName, game: slot.gameName }))}
+        slots={slots.map((slot) => ({
+          name: slot.slotName,
+          game: slot.gameName,
+          tracker:
+            registrationId === null
+              ? undefined
+              : slotTracker(slot.gameId, slot.gameSlug, { kind: "event", registrationId, slotName: slot.slotName }),
+        }))}
         uri={session.connectionUri}
       />
     );

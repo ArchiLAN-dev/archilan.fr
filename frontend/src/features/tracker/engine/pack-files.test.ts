@@ -32,6 +32,13 @@ describe("PackFiles", () => {
     expect(PackFiles.fromEntries({ "layouts/a.json": "root" }, "standard").text("layouts/a.json")).toBe("root");
   });
 
+  it("finds a file whose case differs, as Windows does, after an exact match (story 54.8)", () => {
+    const files = PackFiles.fromEntries({ "locations/08Spidertown.json": "town", "Images/a.png": "upper", "images/a.png": "lower" }, "standard");
+    expect(files.text("locations/08SpiderTown.json")).toBe("town");
+    expect(files.text("images/a.png")).toBe("lower");
+    expect(files.text("locations/missing.json")).toBeNull();
+  });
+
   it("never leaves the pack", () => {
     const files = PackFiles.fromEntries({ "a.lua": "a" }, "");
     expect(files.text("../a.lua")).toBeNull();

@@ -93,6 +93,8 @@ function WidgetBody({ node, inherited, type }: Props & { type: string }): ReactN
       return <LayoutReference inherited={inherited} node={node} />;
     case "map":
       return <MapWidget node={node} />;
+    case "canvas":
+      return <Canvas inherited={inherited} node={node} />;
     case "text": {
       const text = readText(node, "text");
       return text === null ? null : <p className="text-sm text-foreground">{text}</p>;
@@ -148,6 +150,38 @@ function ArrayWidget({ node, inherited }: Props) {
   return (
     <div className={`flex gap-1 ${horizontal ? "flex-row flex-wrap items-start" : "flex-col"}`}>
       <Children inherited={{ ...inherited, cross: horizontal ? "vertical" : "horizontal" }} nodes={readChildren(node)} />
+    </div>
+  );
+}
+
+function pixels(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+/**
+ * Story 54.8: `canvas` (PopTracker 0.21.1) places its children at `canvas_left`/`canvas_top`, each with its own width
+ * and height (Celeste draws its checkpoints this way). An item child takes that size.
+ */
+function Canvas({ node, inherited }: Props) {
+  const width = pixels(node.width);
+  const height = pixels(node.height);
+  return (
+    <div className="relative shrink-0" style={{ width: width ?? undefined, height: height ?? undefined }}>
+      {readChildren(node).map((child, index) => {
+        const childWidth = pixels(child.width);
+        const childHeight = pixels(child.height);
+        const size = childWidth !== null && childHeight !== null ? { width: childWidth, height: childHeight } : inherited.itemSize;
+        return (
+          // Layout widgets have no id, and a pack's layout never reorders: the position is the identity.
+          <div
+            className="absolute"
+            key={index}
+            style={{ left: pixels(child.canvas_left) ?? 0, top: pixels(child.canvas_top) ?? 0, width: childWidth ?? undefined, height: childHeight ?? undefined }}
+          >
+            <LayoutWidget inherited={{ ...inherited, itemSize: size }} node={child} />
+          </div>
+        );
+      })}
     </div>
   );
 }

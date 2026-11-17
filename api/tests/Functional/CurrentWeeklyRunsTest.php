@@ -72,6 +72,8 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
         self::assertIsString($item['yamlConfig']);
         self::assertStringContainsString('Archipelago', $item['yamlConfig']);
         self::assertSame('Archipelago', $item['gameName']);
+        self::assertSame($this->game->getId(), $item['gameId']);
+        self::assertSame('archipelago', $item['gameSlug']);
         self::assertNull($item['coverImageUrl']);
         self::assertSame(20, $item['weekNumber']);
         self::assertSame(2026, $item['weekYear']);

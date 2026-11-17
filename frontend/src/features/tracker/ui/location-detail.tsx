@@ -7,7 +7,7 @@ import type { LoadedLocation, LoadedSection } from "../engine/protocol";
 import { DEFAULT_ITEM_SIZE } from "./layout-attributes";
 import { PackImage, useTracker } from "./tracker-context";
 import { TrackerItem, usePress } from "./tracker-item";
-import { displayLevel, LEVEL_STYLES, sectionStateOf } from "./tracker-view";
+import { displayLevel, HINT_LABELS, LEVEL_STYLES, sectionStateOf } from "./tracker-view";
 
 type Props = { location: LoadedLocation; onClose: () => void };
 
@@ -65,11 +65,12 @@ function SectionRow({ section }: { section: LoadedSection }) {
   const style = LEVEL_STYLES[level];
   const opened = section.itemCount > 0 ? state.available === 0 : done;
   const chest = opened ? section.images.opened : section.images.unopened;
+  const hint = done ? null : HINT_LABELS[state.highlight];
 
   return (
     <div className="flex items-center gap-2">
       <button
-        aria-label={`${section.name} : ${done ? "fait" : style.label}`}
+        aria-label={`${section.name} : ${done ? "fait" : style.label}${hint === null ? "" : `, ${hint}`}`}
         className={`flex min-h-11 flex-1 touch-manipulation select-none items-center gap-2 rounded-md border border-border px-2 py-1 text-left text-sm hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
           done ? "text-muted-foreground" : "text-foreground"
         }`}
@@ -86,6 +87,11 @@ function SectionRow({ section }: { section: LoadedSection }) {
           <Package aria-hidden="true" className="size-5 shrink-0" />
         )}
         <span className={`min-w-0 flex-1 ${done ? "line-through" : ""}`}>{section.name}</span>
+        {hint === null ? null : (
+          <span aria-hidden="true" className="shrink-0 rounded-full border border-border px-1.5 text-xs text-muted-foreground">
+            {hint}
+          </span>
+        )}
         {section.itemCount > 1 ? (
           <span className="shrink-0 font-mono text-xs text-muted-foreground">
             {state.available}/{section.itemCount}

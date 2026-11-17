@@ -8,7 +8,7 @@ import { AccessibilityLevel } from "../engine/levels";
 import type { MapLocation } from "../engine/locations";
 import { LocationDetail } from "./location-detail";
 import { usePackImage, useTracker } from "./tracker-context";
-import { displayLevel, LEVEL_STYLES, locationLevel } from "./tracker-view";
+import { displayLevel, HINT_LABELS, LEVEL_STYLES, locationHighlight, locationLevel } from "./tracker-view";
 
 /**
  * A pack map with its pins (story 54.5, decision 5): the image at its own pixel size, pins at the pack's
@@ -288,9 +288,10 @@ export function MapPin({ pin, map, minHit, selected, onSelect }: PinProps) {
   const hit = Math.max(0, (minHit - size) / 2);
   const border = pin.spot.borderThickness ?? map.locationBorderThickness ?? DEFAULT_BORDER;
   const diamond = (pin.spot.shape ?? map.locationShape) === "diamond";
+  const hint = HINT_LABELS[locationHighlight(pin.location, view)];
   return (
     <button
-      aria-label={`${pin.location.name} : ${style.label}`}
+      aria-label={`${pin.location.name} : ${style.label}${hint === null ? "" : `, ${hint}`}`}
       className={`absolute border-background before:absolute before:inset-[calc(-1*var(--pin-hit))] before:content-[''] ${style.className} ${diamond ? "rotate-45" : ""} ${
         selected ? "outline outline-2 outline-foreground" : ""
       } focus-visible:outline focus-visible:outline-2 focus-visible:outline-foreground`}
@@ -311,7 +312,15 @@ export function MapPin({ pin, map, minHit, selected, onSelect }: PinProps) {
       }}
       title={pin.location.name}
       type="button"
-    />
+    >
+      {hint === null ? null : (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-1 -top-1 size-2.5 rounded-full border border-background bg-foreground"
+          data-hint=""
+        />
+      )}
+    </button>
   );
 }
 

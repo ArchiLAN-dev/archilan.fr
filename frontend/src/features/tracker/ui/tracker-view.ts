@@ -1,5 +1,5 @@
 import type { ItemDefinition, ItemState } from "../engine/items";
-import { AccessibilityLevel } from "../engine/levels";
+import { AccessibilityLevel, Highlight } from "../engine/levels";
 import type { LoadedLocation, LoadedPack, LoadedSection, SectionState, StateUpdate } from "../engine/protocol";
 
 /**
@@ -64,6 +64,29 @@ export function locationLevel(location: LoadedLocation, view: TrackerView): Acce
   const visible = location.sections.some((section) => sectionStateOf(section, view)?.visible !== false);
   if (!visible) return null;
   return view.locations[location.id] ?? null;
+}
+
+/** Story 54.6: a hint marked by the pack (from the room's hints), as a short label. `None` shows nothing. */
+export const HINT_LABELS: Record<Highlight, string | null> = {
+  [Highlight.Priority]: "indice : important",
+  [Highlight.Unspecified]: "indice",
+  [Highlight.NoPriority]: "indice : sans importance",
+  [Highlight.Avoid]: "indice : à éviter",
+  [Highlight.None]: null,
+};
+
+const HINT_ORDER: readonly Highlight[] = [Highlight.Priority, Highlight.Unspecified, Highlight.NoPriority, Highlight.Avoid];
+
+/** The strongest hint among the sections still to do of a location, or `None`. */
+export function locationHighlight(location: LoadedLocation, view: TrackerView): Highlight {
+  let best: Highlight = Highlight.None;
+  for (const section of location.sections) {
+    const state = sectionStateOf(section, view);
+    if (state === undefined || !state.visible || state.level === AccessibilityLevel.Cleared) continue;
+    const rank = HINT_ORDER.indexOf(state.highlight);
+    if (rank !== -1 && (best === Highlight.None || rank < HINT_ORDER.indexOf(best))) best = state.highlight;
+  }
+  return best;
 }
 
 /**
