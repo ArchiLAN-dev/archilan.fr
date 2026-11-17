@@ -17,11 +17,11 @@ const pack: GameTrackerPack = {
 
 describe("GameTrackerCredits (story 54.2)", () => {
   it("renders nothing when the game has no tracker", () => {
-    expect(renderToStaticMarkup(<GameTrackerCredits packs={[]} />)).toBe("");
+    expect(renderToStaticMarkup(<GameTrackerCredits gameSlug="majoras-mask" packs={[]} />)).toBe("");
   });
 
   it("credits the default pack: name, author, licence and source", () => {
-    const html = renderToStaticMarkup(<GameTrackerCredits packs={[pack]} />);
+    const html = renderToStaticMarkup(<GameTrackerCredits gameSlug="majoras-mask" packs={[pack]} />);
     expect(html).toContain("Tracker disponible");
     expect(html).toContain("Majora&#x27;s Mask: Recompiled");
     expect(html).toContain("v0.9.5.3");
@@ -31,9 +31,15 @@ describe("GameTrackerCredits (story 54.2)", () => {
     expect(html).not.toContain("Autres packs proposés");
   });
 
+  it("opens the tracker of the game (story 54.5)", () => {
+    const html = renderToStaticMarkup(<GameTrackerCredits gameSlug="majoras-mask" packs={[pack]} />);
+    expect(html).toContain('href="/jeux/majoras-mask/tracker"');
+    expect(html).toContain("Ouvrir le tracker");
+  });
+
   it("names the other packs offered after the default one", () => {
     const html = renderToStaticMarkup(
-      <GameTrackerCredits packs={[pack, { ...pack, id: "p2", name: "MM N64", author: null, licenseSpdx: null, isDefault: false }]} />,
+      <GameTrackerCredits gameSlug="majoras-mask" packs={[pack, { ...pack, id: "p2", name: "MM N64", author: null, licenseSpdx: null, isDefault: false }]} />,
     );
     expect(html).toContain("Autres packs proposés");
     expect(html).toContain("MM N64");

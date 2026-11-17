@@ -28,6 +28,9 @@ const pack: AdminTrackerPack = {
   lastCheckedAt: null,
   lastCheckError: null,
   versions: [],
+  rootPath: "",
+  sha256: "abc",
+  compatibility: [],
 };
 
 function render(p: AdminTrackerPack): string {
@@ -76,8 +79,8 @@ describe("TrackerPackUpdates (story 54.3)", () => {
     const html = render({
       ...pack,
       versions: [
-        { id: "v2", packageVersion: "0.9.5.3", gitTag: "v0.9.5.3", sizeBytes: 2048, importedAt: "2026-11-16T10:00:00+00:00", current: true },
-        { id: "v1", packageVersion: "0.9.5.2", gitTag: "v0.9.5.2", sizeBytes: 2048, importedAt: "2026-11-01T10:00:00+00:00", current: false },
+        { id: "v2", packageVersion: "0.9.5.3", gitTag: "v0.9.5.3", sizeBytes: 2048, importedAt: "2026-11-16T10:00:00+00:00", rootPath: "", sha256: "abc", variants: [], current: true },
+        { id: "v1", packageVersion: "0.9.5.2", gitTag: "v0.9.5.2", sizeBytes: 2048, importedAt: "2026-11-01T10:00:00+00:00", rootPath: "", sha256: "abc", variants: [], current: false },
       ],
     });
     expect(html).toContain("Versions gardées");

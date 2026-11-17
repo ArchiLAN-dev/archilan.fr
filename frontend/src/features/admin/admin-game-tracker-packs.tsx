@@ -15,15 +15,16 @@ import {
   type AdminTrackerPack,
   type TrackerPackChanges,
 } from "./admin-tracker-packs-api";
+import { hasFailedVariant, TrackerPackCompatibilityPanel } from "./admin-tracker-pack-compatibility";
 import { TrackerPackUpdates } from "./admin-tracker-pack-updates";
 
-type Props = { gameId: string };
+type Props = { gameId: string; gameSlug: string };
 
 /**
  * Story 54.1: the PopTracker packs of a game. The admin pastes a GitHub link (a release, the repository or a zip),
  * the API downloads and checks the pack, and it joins the list. It stays hidden from players until enabled (54.2).
  */
-export function AdminGameTrackerPacks({ gameId }: Props) {
+export function AdminGameTrackerPacks({ gameId, gameSlug }: Props) {
   const queryClient = useQueryClient();
   const packsQuery = useQuery({
     queryKey: trackerPacksQueryKey(gameId),
@@ -111,7 +112,7 @@ export function AdminGameTrackerPacks({ gameId }: Props) {
       ) : null}
 
       <div className="mt-6">
-        <TrackerPackList gameId={gameId} packs={packsQuery.data} loading={packsQuery.isPending} />
+        <TrackerPackList gameId={gameId} gameSlug={gameSlug} packs={packsQuery.data} loading={packsQuery.isPending} />
       </div>
     </section>
   );
@@ -119,10 +120,12 @@ export function AdminGameTrackerPacks({ gameId }: Props) {
 
 export function TrackerPackList({
   gameId,
+  gameSlug,
   packs,
   loading,
 }: {
   gameId: string;
+  gameSlug: string;
   packs: AdminTrackerPack[] | null | undefined;
   loading: boolean;
 }) {
@@ -143,7 +146,7 @@ export function TrackerPackList({
   return (
     <ul className="grid gap-3">
       {packs.map((pack) => (
-        <TrackerPackRow gameId={gameId} key={pack.id} pack={pack} />
+        <TrackerPackRow gameId={gameId} gameSlug={gameSlug} key={pack.id} pack={pack} />
       ))}
     </ul>
   );
@@ -153,10 +156,12 @@ export function TrackerPackList({
  * One pack, with what decides how players are offered it (story 54.2): offered or not, default pack of the game,
  * variant opened first, and the licence an admin vouches for when none was detected.
  */
-export function TrackerPackRow({ gameId, pack }: { gameId: string; pack: AdminTrackerPack }) {
+export function TrackerPackRow({ gameId, gameSlug, pack }: { gameId: string; gameSlug: string; pack: AdminTrackerPack }) {
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Story 54.8: offering a pack with a variant that does not load waits for an explicit yes. */
+  const [confirmEnable, setConfirmEnable] = useState(false);
   const needsLicense = pack.licenseSpdx === null;
   const canEnable = !needsLicense || pack.licenseAcknowledged;
 
@@ -245,11 +250,44 @@ export function TrackerPackRow({ gameId, pack }: { gameId: string; pack: AdminTr
             checked={pack.enabled}
             className="size-4 accent-accent"
             disabled={saving || (!pack.enabled && !canEnable)}
-            onChange={(e) => void change({ enabled: e.target.checked })}
+            onChange={(e) => {
+              if (e.target.checked && hasFailedVariant(pack)) {
+                setConfirmEnable(true);
+                return;
+              }
+              void change({ enabled: e.target.checked });
+            }}
             type="checkbox"
           />
           Proposé aux joueurs
         </label>
+        {confirmEnable && !pack.enabled ? (
+          <div className="grid gap-2 rounded border border-warning/50 bg-warning/10 p-3" role="alert">
+            <p className="text-sm text-foreground">
+              Une variante de ce pack ne se charge pas sur le site. Les joueurs qui l&apos;ouvriront verront une erreur.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="min-h-9 rounded bg-accent px-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                disabled={saving}
+                onClick={() => {
+                  setConfirmEnable(false);
+                  void change({ enabled: true });
+                }}
+                type="button"
+              >
+                Proposer quand même
+              </button>
+              <button
+                className="min-h-9 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+                onClick={() => setConfirmEnable(false)}
+                type="button"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-wrap items-center gap-3">
           <label className="text-sm text-foreground" htmlFor={`variant-${pack.id}`}>
             Variante ouverte par défaut
@@ -287,6 +325,7 @@ export function TrackerPackRow({ gameId, pack }: { gameId: string; pack: AdminTr
         ) : null}
       </div>
 
+      <TrackerPackCompatibilityPanel gameSlug={gameSlug} pack={pack} />
       <TrackerPackUpdates gameId={gameId} pack={pack} />
     </li>
   );

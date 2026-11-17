@@ -1,6 +1,6 @@
 # Story 54.7 - Le tracker depuis mes parties
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 54 - Trackers de jeu, les packs PopTracker sur le site (`_bmad-output/planning-artifacts/epics/epic-54-trackers-poptracker.md`)
 **Date:** 2026-11-16
 **Branche:** `feature/epic-54-story-7-tracker-depuis-mes-parties`
@@ -58,8 +58,56 @@ afin de ne pas recopier adresse, nom de slot et mot de passe.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** - Recenser les écrans qui affichent `ConnectionFields` et les endpoints de connexion.
-- [ ] **Task 2** (AC 1, 2, 3) - Bouton, packs du jeu du slot.
-- [ ] **Task 3** (AC 1, 4, 6) - `slotRef`, résolution côté tracker, éventuel endpoint.
-- [ ] **Task 4** (AC 5) - Partie pas encore lancée, connexion au lancement.
+- [x] **Task 1** - Recenser les écrans qui affichent `ConnectionFields` et les endpoints de connexion.
+- [x] **Task 2** (AC 1, 2, 3) - Bouton, packs du jeu du slot.
+- [x] **Task 3** (AC 1, 4, 6) - `slotRef`, résolution côté tracker, éventuel endpoint.
+- [x] **Task 4** (AC 5) - Partie pas encore lancée, connexion au lancement.
 - [ ] **Task 5** (AC 10, 11) - Gates et vérification réelle.
+  - [x] Gates.
+  - [ ] Vérification réelle sur une partie d'event locale : à faire (voir « Vérifications »).
+
+## Dev Agent Record
+
+### Écrans recensés (Task 1)
+
+`ConnectionFields` est affiché par 6 écrans, tous branchés :
+
+| Écran | Contexte du slot | Lecture de la connexion |
+|---|---|---|
+| `events/session-connection-gate.tsx` (page session d'un inscrit) | `event` | `GET /registrations/{id}/session-connection` |
+| `registrant-hub/hub-tools.tsx` (carte « Ta partie » de Mon event) | `event` | idem |
+| `personal-runs/personal-run-detail-page.tsx` (2 blocs) | `run` | `GET /runs/{id}` (`mySlots`) |
+| `weekly-runs/weekly-run-card.tsx`, `weekly-run-game-client.tsx`, `weekly-run-slot-page.tsx` | `weekly` | `GET /weekly-runs/current` (`myEntry`) |
+
+### Fichiers
+
+- API (lecture seule, aucun endpoint ajouté) :
+  - `Sessions/Application/Query/PlayerSessionConnection.php` : chaque slot porte `gameSlug` ;
+  - `PersonalRuns` (`MyRunSlotsQueryInterface`, `DbalMyRunSlotsQuery`, `PersonalRunDrafts`) : `mySlots` porte `gameId` et `gameSlug` (null pour une seed importée) ;
+  - `WeeklyRuns/Infrastructure/Dbal/DbalCurrentWeeklyRunsQuery.php` : chaque run porte `gameId` et `gameSlug` ;
+  - tests fonctionnels étendus : `PlayerSessionConnectionTest`, `PersonalRunMySlotsTest`, `CurrentWeeklyRunsTest`.
+- Front :
+  - `features/tracker/slot-ref.ts` : `formatSlotRef`, `parseSlotRef`, `trackerSlotHref`, `slotTracker` ;
+  - `features/tracker/tracker-slot-api.ts` : `fetchSlotConnection(ref)` compose les fetchers existants (`ready`, `waiting`, `denied`, `error`) ;
+  - `features/tracker/tracker-slot-link.tsx` : le bouton, affiché seulement si le jeu a un pack (`fetchGameTrackerPacks`, TanStack, 5 min) ;
+  - `components/slot-name-field.tsx` (`ConnectionSlot.tracker`), `components/connection-fields.tsx` (bouton à côté du nom de slot) ;
+  - `personal-runs/run-connection-slots.ts`, `weekly-runs/weekly-connection-slots.ts` : les slots de chaque contexte avec leur tracker ;
+  - `features/tracker/ui/slot-connection.tsx` : `useSlotConnection` (relecture toutes les 15 s tant que la partie n'est pas lancée, toutes les 60 s une fois lancée), `useAutoConnect`, `SlotBanner` ;
+  - `tracker-screen.tsx`, `use-tracker-session.ts`, `tracker-storage.ts` : `?slot=`, état et choix de variante par slot ;
+  - page `jeux/[slug]/tracker` : lit `?slot=`.
+
+### Décisions prises en cours de route
+
+- **Le slot est désigné par son nom, pas par un id** : `event:{registrationId}:{nom}`, `run:{runId}:{nom}`, `weekly:{weeklyRunId}`. Le nom est unique dans un multiworld (Archipelago refuse deux slots du même nom), il est déjà renvoyé par les trois endpoints, et il n'a rien de secret. Un id de slot aurait demandé de l'ajouter à `mySlots` et au hebdo pour rien. Une partie hebdo n'a qu'un slot par joueur.
+- **Pas de nouvel endpoint** : les trois endpoints existants ne répondent qu'à qui joue le slot (inscription du joueur, participant de la partie privée, entrée hebdo du joueur). Un slot d'un autre donne `denied` et le tracker reste en manuel (AC 6). L'API n'a gagné que le jeu des slots (id et slug), nécessaire au bouton.
+- **Le bouton est dans `ConnectionFields`** : un seul endroit pour les 6 écrans. Un slot sans jeu du catalogue (seed importée) n'a pas de bouton.
+- **Connexion automatique une fois par adresse et slot** : un joueur qui se déconnecte reste déconnecté. Une relance sur un autre port (nouvelle adresse) reconnecte.
+- **Jeu vérifié** : un slot d'un autre jeu que celui de la page n'est pas connecté.
+- **Variante par slot** : `tracker:choice:{slotRef}` ; l'adresse (`?variant=`) l'emporte.
+- **État par slot** : `tracker:{pack}:{version}:{variante}:{slotRef}`.
+
+### Vérifications
+
+- **Gates** : `composer gates:fast` vert (3998 tests). Front : typecheck, lint et tests verts (1847 tests, dont 6 sur les références de slot, 4 sur la résolution par contexte, 1 sur le bouton, 5 sur l'écran ouvert sur un slot). `next build` compile seul ; lancé par `pnpm gates`, il s'arrête sur `SecurityFatalError` (faille de la version de Next installée, corrigée par le hotfix #1105/#1106 pas encore mergé).
+- **Vérification réelle : pas faite.** Elle demande une partie d'event lancée en local (orchestrateur, room Archipelago) sur un jeu qui a un pack. L'essai réel de 54.6 (room MM) n'a pas pu être fait non plus ; les deux se font ensemble.
+

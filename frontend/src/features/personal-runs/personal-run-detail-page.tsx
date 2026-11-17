@@ -35,6 +35,7 @@ import { ImportedSeedPanel } from "./imported-seed-panel";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
+import { runConnectionSlots } from "./run-connection-slots";
 import { ConnectionDetails } from "./connection-details";
 import { RunInvitationsList } from "./run-invitations";
 import { RunRecruitPanel } from "./run-recruit-panel";
@@ -1056,7 +1057,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     host={run.connectionHost}
                     password={run.connectionPassword}
                     port={run.connectionPort}
-                    slots={run.mySlots ?? []}
+                    slots={runConnectionSlots(run)}
                     uri={run.connectionUri ?? null}
                   />
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -1231,7 +1232,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               host={run.connectionHost}
               password={run.connectionPassword}
               port={run.connectionPort}
-              slots={run.mySlots ?? []}
+              slots={runConnectionSlots(run)}
               uri={run.connectionUri ?? null}
             />
           )}

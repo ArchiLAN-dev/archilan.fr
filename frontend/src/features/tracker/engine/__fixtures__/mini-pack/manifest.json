@@ -1,0 +1,14 @@
+﻿{
+  // A pack written for the engine tests of story 54.4.
+  "name": "Mini pack",
+  "game_name": "Mini Game",
+  "package_uid": "mini_pack",
+  "package_version": "1.0.0",
+  "platform": "pc",
+  "variants": {
+    "standard": { "display_name": "Standard", "flags": ["ap"] },
+    "compact": { "display_name": "Compact", "flags": [] },
+  },
+  "min_poptracker_version": "0.25.0",
+  "target_poptracker_version": "0.34.0",
+}

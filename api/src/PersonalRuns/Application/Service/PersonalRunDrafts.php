@@ -628,14 +628,19 @@ final readonly class PersonalRunDrafts
      * The caller's slots in the run's session, each with its game. A slot of an imported seed has no
      * catalogue game: its name comes from the archive, which the run keeps (story 16.18).
      *
-     * @return list<array{name: string, game: string|null}>
+     * @return list<array{name: string, game: string|null, gameId: string|null, gameSlug: string|null}>
      */
     private function mySlots(Run $run, string $sessionId, string $callerId): array
     {
         $importedGames = array_column($run->playableImportedSlots(), 'game', 'name');
 
         return array_map(
-            static fn (array $slot): array => ['name' => $slot['name'], 'game' => $slot['game'] ?? $importedGames[$slot['name']] ?? null],
+            static fn (array $slot): array => [
+                'name' => $slot['name'],
+                'game' => $slot['game'] ?? $importedGames[$slot['name']] ?? null,
+                'gameId' => $slot['gameId'],
+                'gameSlug' => $slot['gameSlug'],
+            ],
             $this->mySlots->forMember($sessionId, $callerId),
         );
     }
