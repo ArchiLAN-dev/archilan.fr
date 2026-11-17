@@ -41,6 +41,20 @@ export function readSize(value: unknown): Size | null {
   return { width, height: height !== undefined && height > 0 ? height : width };
 }
 
+/**
+ * The item size a widget sets for its items: `item_size`, then `item_width` / `item_height` (PopTracker's way to draw
+ * items that are not square, such as a pack's settings drawn as 320x64 labels), each falling back on `base`.
+ */
+export function readItemSize(node: LayoutNode, base: Size): Size {
+  const size = readSize(node.item_size) ?? base;
+  const [width] = numbers(node.item_width);
+  const [height] = numbers(node.item_height);
+  return {
+    width: width !== undefined && width > 0 ? width : size.width,
+    height: height !== undefined && height > 0 ? height : size.height,
+  };
+}
+
 export type Spacing = { x: number; y: number };
 
 /** `item_margin`: `4` or `"4,0"` (horizontal, vertical). */

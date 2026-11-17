@@ -5,6 +5,19 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.68.2] - 2026-11-17
+
+Correctif du tracker (story 54.9), frontend seul : aucune migration, aucune variable d'environnement.
+
+### Corrigé
+
+- **Réglages d'un pack** : l'onglet « Settings » d'un pack placé à côté de ses cartes (pack Minish Cap de deoxis9001)
+  était serré dans le panneau des objets, illisible. Il s'ouvre désormais dans la zone centrale, par un bouton à côté
+  de la liste des cartes, avec ses onglets qui passent à la ligne.
+- Les cases d'objets qui ne sont pas carrées (`item_width` / `item_height`, comme les étiquettes de réglages en
+  320x64) gardent leurs proportions au lieu d'être écrasées.
+- Un nom de pack ou de variante très long ne fait plus déborder la page sur téléphone.
+
 ## [0.68.1] - 2026-11-17
 
 Stories 54.9 et 54.10 : le tracker dans la progression et habillé aux couleurs du site. Frontend seul : aucune

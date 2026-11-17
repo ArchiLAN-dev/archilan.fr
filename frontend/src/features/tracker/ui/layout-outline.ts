@@ -1,4 +1,4 @@
-import { isLayoutNode, readChildren, readText, type LayoutNode } from "./layout-attributes";
+import { DEFAULT_ITEM_SIZE, isLayoutNode, readChildren, readItemSize, readText, type LayoutNode, type Size } from "./layout-attributes";
 
 /**
  * Story 54.9: what the site takes out of a pack's layout to lay it out its own way. The pack's tree of docks,
@@ -7,10 +7,15 @@ import { isLayoutNode, readChildren, readText, type LayoutNode } from "./layout-
  * tab titles.
  */
 export type OutlineMap = {
-  /** The pack map (`maps.json` name). */
+  /** The pack map (`maps.json` name); for a page, a key of its own. */
   name: string;
   /** The tab titles from the root down to the map; empty when no tab led to it. */
   path: string[];
+  /**
+   * A page rather than a map: a tab beside the maps too big for the side panel (a pack's settings, with tabs of their
+   * own or wide labels). The map area draws it in place of a map.
+   */
+  page?: LayoutNode;
 };
 
 export type OutlineSection = { title: string | null; nodes: LayoutNode[] };
@@ -22,6 +27,9 @@ const MAX_DEPTH = 32;
 
 /** The widgets that show items: what makes a block worth a place in the side panel. */
 const ITEM_TYPES = new Set(["item", "itemgrid", "canvas"]);
+
+/** The room inside the side panel (about 20rem less its padding): a block of items wider than this is a page. */
+const PANEL_WIDTH = 300;
 
 type Layouts = Readonly<Record<string, unknown>>;
 
@@ -59,6 +67,21 @@ function contains(node: LayoutNode, layouts: Layouts, test: (type: string) => bo
   const type = typeof node.type === "string" ? node.type : "";
   if (test(type)) return true;
   return subNodes(node, layouts).some((child) => contains(child, layouts, test, depth + 1));
+}
+
+/**
+ * Whether a tab beside the maps is better as a page of the map area than as a section of the side panel: it has tabs
+ * of its own, or a row of items wider than the panel.
+ */
+function isPage(node: LayoutNode, layouts: Layouts, itemSize: Size = DEFAULT_ITEM_SIZE, depth = 0): boolean {
+  if (depth > MAX_DEPTH) return false;
+  if (node.type === "tabbed") return true;
+  const size = readItemSize(node, itemSize);
+  if (node.type === "itemgrid" && Array.isArray(node.rows)) {
+    const widest = Math.max(0, ...node.rows.map((row) => (Array.isArray(row) ? row.length : 0)));
+    if (widest * size.width > PANEL_WIDTH) return true;
+  }
+  return subNodes(node, layouts).some((child) => isPage(child, layouts, size, depth + 1));
 }
 
 function mapNames(node: LayoutNode): string[] {
@@ -101,7 +124,18 @@ function walk(node: LayoutNode, path: string[], tabTitle: string | null, state: 
   if (resolved.type === "tabbed") {
     for (const tab of readTabs(resolved)) {
       const title = tab.title ?? null;
-      walk(tab.content, title === null ? path : [...path, title], title, state, depth + 1);
+      const tabPath = title === null ? path : [...path, title];
+      const content = resolve(tab.content, state.layouts);
+      if (
+        content !== null &&
+        !contains(content, state.layouts, (type) => type === "map") &&
+        contains(content, state.layouts, (type) => ITEM_TYPES.has(type)) &&
+        isPage(content, state.layouts)
+      ) {
+        state.maps.push({ name: `page:${tabPath.join("/")}:${state.maps.length}`, path: tabPath, page: content });
+        continue;
+      }
+      walk(tab.content, tabPath, title, state, depth + 1);
     }
     return;
   }

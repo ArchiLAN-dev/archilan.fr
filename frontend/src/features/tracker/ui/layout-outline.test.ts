@@ -84,6 +84,49 @@ describe("outlineLayout", () => {
     expect(outlineLayout({ type: "something_new", content: [{ type: "text", text: "?" }] }, {})).toEqual({ maps: [], sections: [] });
   });
 
+  it("makes a settings tab beside the maps a page of the map area, not a section of the side panel", () => {
+    // The shape of the Minish Cap pack (deoxis9001): a « Settings » tab next to the map tabs, with tabs of its own and
+    // 320x64 labels.
+    const layouts: Record<string, LayoutNode> = {
+      settings: {
+        type: "dock",
+        content: [
+          {
+            type: "tabbed",
+            style: "wrap",
+            tabs: [{ title: "Shuffle", content: { type: "itemgrid", item_width: 320, item_height: 64, rows: [["a", "b", "c"]] } }],
+          },
+        ],
+      },
+    };
+    const root: LayoutNode = {
+      type: "tabbed",
+      tabs: [
+        { title: "Overworld", content: { type: "map", maps: ["map"] } },
+        { title: "Settings", content: { type: "layout", key: "settings" } },
+        { title: "Gear", content: { type: "itemgrid", rows: [["sword", "shield"]] } },
+      ],
+    };
+    const outline = outlineLayout(root, layouts);
+    expect(outline.maps.map((entry) => [mapLabel(entry), entry.page !== undefined])).toEqual([
+      ["Overworld", false],
+      ["Settings", true],
+    ]);
+    expect(outline.maps[1]?.page?.type).toBe("dock");
+    // A small block of items stays in the side panel.
+    expect(outline.sections.map((section) => section.title)).toEqual(["Gear"]);
+
+    // A grid of wide labels is a page even without tabs of its own.
+    const wide: LayoutNode = {
+      type: "tabbed",
+      tabs: [
+        { title: "Map", content: { type: "map", maps: ["map"] } },
+        { title: "Options", content: { type: "itemgrid", item_width: 320, item_height: 64, rows: [["a"]] } },
+      ],
+    };
+    expect(outlineLayout(wide, {}).maps.map(mapLabel)).toEqual(["Map", "Options"]);
+  });
+
   it("stops on a layout that references itself", () => {
     const loop: Record<string, LayoutNode> = { a: { type: "layout", key: "a" } };
     expect(outlineLayout({ type: "layout", key: "a" }, loop)).toEqual({ maps: [], sections: [] });
