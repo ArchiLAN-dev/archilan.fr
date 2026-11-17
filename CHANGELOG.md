@@ -5,6 +5,33 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.67.0] - 2026-11-17
+
+Epic 54 : trackers PopTracker intégrés au site. Quatre migrations (`Version20261116100000`, `Version20261117100000`,
+`Version20261117110000`, `Version20261117120000`), aucune variable d'environnement, aucune tâche planifiée.
+
+### Ajouté
+
+- **Packs de tracker par jeu** (54.1, 54.2) : un admin rattache un pack PopTracker à un jeu en collant le lien de son
+  dépôt GitHub. L'archive est vérifiée puis stockée sur MinIO. Les packs proposés sont visibles des joueurs, avec un
+  pack par défaut.
+- **Mises à jour des packs** (54.3) : détection des nouvelles versions (`versions.json` et releases GitHub), mise à
+  jour par un admin, 3 versions conservées.
+- **Tracker dans le navigateur** (54.4, 54.5) : `/jeux/[slug]/tracker`. Moteur de pack réécrit (Lua via wasmoon dans
+  un Web Worker), écran avec items, cartes, emplacements et réglages, état gardé dans le navigateur.
+- **Autotracking Archipelago** (54.6) : le navigateur se connecte à la room avec le tag `Tracker` et suit les objets
+  reçus et les emplacements vérifiés.
+- **Le tracker depuis mes parties** (54.7) : bouton « Ouvrir le tracker » sur les écrans de connexion (events,
+  parties privées, hebdos), qui préremplit la connexion du slot.
+- **Banc d'essai et compatibilité** (54.8) : un admin essaie un pack non proposé (`?essai=1`). Le rapport de
+  compatibilité de chaque variante s'affiche sur la fiche du jeu, et proposer un pack en échec demande une
+  confirmation. Campagne sur 10 jeux : 7 packs se chargent, les 3 autres ont des fichiers manquants dans leur release.
+
+### Sécurité
+
+- CSP : `script-src` autorise `'wasm-unsafe-eval'` (WebAssembly seulement, pas `eval` JavaScript) et
+  `worker-src 'self' blob:`, nécessaires au moteur Lua du tracker.
+
 ## [0.66.4] - 2026-11-17
 
 Image `api-worker` reconstruite. Aucune migration, aucune variable, aucun changement de code.
