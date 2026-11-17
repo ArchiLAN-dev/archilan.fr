@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, Loader2, RotateCcw } from "lucide-react";
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -10,7 +10,6 @@ import { PackCredits } from "@/features/trackers/game-tracker-credits";
 import { fetchTrackerArchive, type GameTrackerPack } from "@/features/trackers/tracker-packs-api";
 
 import { createTrackerWorker } from "../engine/create-tracker-worker";
-import { AccessibilityLevel } from "../engine/levels";
 import { TrackerClient } from "../engine/tracker-client";
 import { fetchSlotConnection } from "../tracker-slot-api";
 import type { CompatibilityReport } from "@/features/admin/admin-tracker-packs-api";
@@ -20,7 +19,9 @@ import { useLoadReport } from "./compatibility-report";
 import { RoomPanel } from "./room-panel";
 import { SlotBanner, useAutoConnect, useSlotConnection } from "./slot-connection";
 import { TrackerContextProvider, type TrackerScreenContext } from "./tracker-context";
-import { TrackerLayout } from "./tracker-layout";
+import { groupMessages } from "./layout-outline";
+import { TrackerBoard } from "./tracker-board";
+import { FullscreenButton, OptionsMenu } from "./tracker-toolbar";
 import {
   parseSettings,
   parseSlotChoice,
@@ -34,8 +35,6 @@ import {
 import {
   DEFAULT_SETTINGS,
   indexItemsByCode,
-  LEGEND_ORDER,
-  LEVEL_STYLES,
   rootLayoutName,
   type TrackerSettings,
 } from "./tracker-view";
@@ -63,6 +62,8 @@ type Props = {
   onLoadReport?: (report: CompatibilityReport) => void;
   /** Tests pass a fake engine and archive. */
   deps?: TrackerSessionDeps;
+  /** Story 54.10: inside a slot's progression page, which already titles the game: no heading of its own. */
+  embedded?: boolean;
 };
 
 const BROWSER_DEPS: TrackerSessionDeps = {
@@ -108,6 +109,7 @@ export function TrackerScreen({
   slotRef = null,
   onLoadReport,
   deps = BROWSER_DEPS,
+  embedded = false,
 }: Props) {
   // Story 54.7: a slot remembers its pack and variant; the address wins over it.
   const storedChoice = useSyncExternalStore(
@@ -162,6 +164,7 @@ export function TrackerScreen({
   return (
     <TrackerSession
       deps={deps}
+      embedded={embedded}
       gameName={gameName}
       gameSlug={gameSlug}
       key={`${pack.version.id}:${variantUid}:${generation}`}
@@ -181,6 +184,7 @@ export function TrackerScreen({
 
 type SessionProps = {
   gameName: string;
+  embedded: boolean;
   gameSlug: string | null;
   slotRef: string | null;
   pack: GameTrackerPack;
@@ -197,6 +201,7 @@ type SessionProps = {
 
 function TrackerSession({
   gameName,
+  embedded,
   gameSlug,
   slotRef,
   pack,
@@ -221,13 +226,21 @@ function TrackerSession({
   useAutoConnect(slot, phase.kind === "ready", session);
   useLoadReport(onLoadReport, variantUid, phase, session.messages);
 
+  // Story 54.9: the element shown full screen, the tracker alone.
+  const screen = useRef<HTMLDivElement>(null);
+
   return (
-    <div className="grid gap-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">Tracker</p>
-          <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">{gameName}</h1>
-        </div>
+    <div
+      className="grid min-w-0 max-w-full gap-3 bg-background [&:fullscreen]:content-start [&:fullscreen]:overflow-auto [&:fullscreen]:p-4"
+      ref={screen}
+    >
+      <header className="flex min-w-0 flex-wrap items-end justify-between gap-3">
+        {embedded ? null : (
+          <div>
+            <p className="text-sm text-muted-foreground">Tracker</p>
+            <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">{gameName}</h1>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           {packs.length > 1 ? (
             <SelectField
@@ -245,39 +258,16 @@ function TrackerSession({
               value={variantUid}
             />
           ) : null}
-          <button
-            className={buttonVariants({ variant: "secondary" })}
-            disabled={phase.kind !== "ready"}
-            onClick={() => setConfirmReset(true)}
-            type="button"
-          >
-            <RotateCcw aria-hidden="true" className="size-4" />
-            Remettre à zéro
-          </button>
+          <OptionsMenu
+            canReset={phase.kind === "ready"}
+            onReset={() => setConfirmReset(true)}
+            onSettings={onSettings}
+            settings={settings}
+          />
+          <FullscreenButton target={screen} />
         </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-        <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 text-foreground">
-          <input
-            checked={settings.showSequenceBreaks}
-            className="size-4 accent-accent-text"
-            onChange={(event) => onSettings({ ...settings, showSequenceBreaks: event.target.checked })}
-            type="checkbox"
-          />
-          Afficher les séquences breaks
-        </label>
-        <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 text-foreground">
-          <input
-            checked={settings.hideCleared}
-            className="size-4 accent-accent-text"
-            onChange={(event) => onSettings({ ...settings, hideCleared: event.target.checked })}
-            type="checkbox"
-          />
-          Masquer ce qui est fait
-        </label>
-        <Legend settings={settings} />
-      </div>
 
       {slot !== null ? <SlotBanner slot={slot} /> : null}
 
@@ -315,32 +305,24 @@ function TrackerSession({
   );
 }
 
-function Legend({ settings }: { settings: TrackerSettings }) {
-  const levels = LEGEND_ORDER.filter((level) => settings.showSequenceBreaks || level !== AccessibilityLevel.SequenceBreak);
-  return (
-    <ul aria-label="Légende" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-      {levels.map((level) => (
-        <li className="inline-flex items-center gap-1.5" key={level}>
-          <span aria-hidden="true" className={`size-3 rounded-sm ${LEVEL_STYLES[level].className}`} />
-          {LEVEL_STYLES[level].label}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function PackMessages({ messages }: { messages: PackMessage[] }) {
   if (messages.length === 0) return null;
+  const grouped = groupMessages(messages);
   return (
     <details className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
       <summary className="flex cursor-pointer items-center gap-2 font-semibold text-foreground">
         <AlertTriangle aria-hidden="true" className="size-4 text-warning" />
         Le pack a signalé des erreurs ({messages.length})
       </summary>
-      <ul className="mt-2 grid max-h-60 gap-1 overflow-auto font-mono text-xs text-body-foreground">
-        {messages.map((message, index) => (
-          // Messages only grow, in arrival order: the position is stable.
-          <li key={index}>{message.message}</li>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Ces erreurs viennent du pack (ses fichiers ou ses scripts), pas du site : le reste du tracker fonctionne.
+      </p>
+      <ul className="mt-2 grid max-h-60 gap-1 overflow-auto break-words font-mono text-xs text-body-foreground">
+        {grouped.map(({ message, count }) => (
+          <li key={message}>
+            {message}
+            {count > 1 ? <span className="ml-1 font-sans font-semibold text-muted-foreground">×{count}</span> : null}
+          </li>
         ))}
       </ul>
     </details>
@@ -420,11 +402,11 @@ function ReadyTracker({ phase, session, settings }: ReadyProps) {
   return (
     <TrackerContextProvider value={context}>
       <div
-        className="flex min-h-[70dvh] flex-col lg:h-[calc(100dvh-7rem)] lg:min-h-[32rem]"
+        className="flex flex-col lg:h-[calc(100dvh-7rem)] lg:min-h-[32rem]"
         data-testid="tracker-layout"
         onContextMenu={noContextMenu}
       >
-        <TrackerLayout name={root} />
+        <TrackerBoard root={root} />
       </div>
     </TrackerContextProvider>
   );

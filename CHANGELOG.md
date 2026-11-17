@@ -5,6 +5,30 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.68.1] - 2026-11-17
+
+Stories 54.9 et 54.10 : le tracker dans la progression et habillé aux couleurs du site. Frontend seul : aucune
+migration, aucune variable d'environnement, aucune tâche planifiée.
+
+### Ajouté
+
+- **Onglet Tracker de la progression** (54.10) : la page de progression d'un slot (partie privée, slot d'event, run
+  hebdo) gagne un onglet « Tracker » qui ouvre le tracker du jeu déjà relié au slot, sans clic de plus. Il reste
+  ouvert d'un onglet à l'autre.
+- **Plein écran** (54.9) : le tracker s'affiche seul en plein écran, pour un second écran à côté du jeu.
+
+### Modifié
+
+- **Habillage ArchiLAN du tracker** (54.9) : les cartes au centre, les objets dans un panneau qui se replie (deux
+  onglets Cartes / Objets sur téléphone), couleurs du site, plus aucun défilement horizontal. Les réglages et la remise
+  à zéro passent dans un menu « Options » ; les erreurs répétées d'un pack sont regroupées.
+- **Cases de la carte comme PopTracker** (54.9) : chaque lieu affiche l'état de chacun de ses checks, et une case aux
+  états mêlés se partage en triangles (vert et rouge par exemple) aux couleurs de PopTracker, au lieu d'une couleur
+  « en partie accessible ». Le dézoom s'arrête à la carte entière.
+- **Légende en compteurs** (54.9) : au-dessus de la carte, en mots simples (« 18 faisables », « 11 en partie »,
+  « 73 pas encore ») ; un clic sur un compteur ne garde que ces lieux sur la carte, le « ? » explique chaque couleur.
+- Sur téléphone, la carte prend la taille de son image, sans bande vide autour.
+
 ## [0.68.0] - 2026-11-17
 
 Epic 55 : liens suivis. Deux migrations (`Version20261117130000`, `Version20261117140000`, la seconde crée un lien pour

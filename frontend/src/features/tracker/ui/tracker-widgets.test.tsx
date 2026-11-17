@@ -9,6 +9,7 @@ import type { EngineAction, StateUpdate } from "../engine/protocol";
 import { PackImages } from "./pack-images";
 import { INITIAL_STATE, section, TEST_PACK } from "./test-pack";
 import { TrackerContextProvider, type TrackerScreenContext } from "./tracker-context";
+import { TrackerBoard } from "./tracker-board";
 import { TrackerLayout } from "./tracker-layout";
 import { DEFAULT_SETTINGS, EMPTY_VIEW, indexItemsByCode, mergeView, type TrackerSettings } from "./tracker-view";
 
@@ -47,7 +48,12 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-async function render(update: Partial<StateUpdate> = {}, settings: TrackerSettings = DEFAULT_SETTINGS, layout = "tracker_default") {
+async function render(
+  update: Partial<StateUpdate> = {},
+  settings: TrackerSettings = DEFAULT_SETTINGS,
+  layout = "tracker_default",
+  board = false,
+) {
   const view = mergeView(mergeView(EMPTY_VIEW, INITIAL_STATE), { items: {}, sections: {}, locations: {}, ...update });
   const images = new PackImages(
     async (path) => new Blob([path]),
@@ -67,7 +73,7 @@ async function render(update: Partial<StateUpdate> = {}, settings: TrackerSettin
   await act(async () => {
     root.render(
       <TrackerContextProvider value={context}>
-        <TrackerLayout name={layout} />
+        {board ? <TrackerBoard root={layout} /> : <TrackerLayout name={layout} />}
       </TrackerContextProvider>,
     );
   });
@@ -131,7 +137,10 @@ describe("tracker layout widgets (story 54.5)", () => {
 
   it("places the children of a canvas at their position and size (story 54.8)", async () => {
     await render({}, DEFAULT_SETTINGS, "canvas_board");
-    const board = container.querySelector<HTMLElement>('[data-widget="canvas"] > div');
+    // Story 54.9: the board sits in a frame that shrinks it to the room it has (full size here).
+    const frame = container.querySelector<HTMLElement>('[data-widget="canvas"] > div');
+    expect(frame?.style.height).toBe("100px");
+    const board = frame?.querySelector<HTMLElement>(".relative") ?? null;
     expect(board?.style.width).toBe("200px");
     const placed = board?.firstElementChild as HTMLElement | null;
     expect(placed?.style.left).toBe("120px");
@@ -145,12 +154,85 @@ describe("tracker layout widgets (story 54.5)", () => {
     expect(container.querySelector('[aria-label="Evolve Pikachu"]')).not.toBeNull();
   });
 
-  it("honours item_size and the alpha-first background", async () => {
+  it("honours item_size and draws the site's colours, not the pack's background (story 54.9)", async () => {
     await render();
     expect(byLabel("Sword").style.getPropertyValue("--item-w")).toBe("24px");
     expect(byLabel("Crystal").style.getPropertyValue("--item-w")).toBe("32px");
     const background = container.querySelector<HTMLElement>('[data-widget="container"]')?.style.background ?? "";
-    expect(background.replaceAll(" ", "")).toMatch(/rgba\(0,0,0,0\.5\d*\)|#00000080/);
+    expect(background).toBe("");
+  });
+});
+
+describe("the ArchiLAN layout of a pack (story 54.9)", () => {
+  function click(target: Element) {
+    fire(target, new MouseEvent("click", { bubbles: true }));
+  }
+
+  function button(text: string): HTMLButtonElement {
+    const found = Array.from(container.querySelectorAll("button")).find((candidate) => candidate.textContent?.trim() === text);
+    if (found === undefined) throw new Error(`no button ${text}`);
+    return found;
+  }
+
+  it("puts the items in a side panel by section and the map apart, without the pack's tabs of text", async () => {
+    await render({}, DEFAULT_SETTINGS, "tracker_default", true);
+    const panel = byLabel("Objets");
+    expect(panel.querySelector("h3")?.textContent).toBe("Items");
+    expect(panel.querySelector('[aria-label="Sword"]')).not.toBeNull();
+    expect(byLabel("Cartes").querySelector('[aria-label="Carte world"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("Hello");
+    // On a phone, two tabs; the map one first.
+    expect(button("Cartes").getAttribute("aria-selected")).toBe("true");
+    click(button("Objets"));
+    expect(panel.className).toContain("flex");
+    expect(byLabel("Cartes").className).toMatch(/(^| )hidden( |$)/);
+  });
+
+  it("folds the items away on a wide screen and brings them back", async () => {
+    await render({}, DEFAULT_SETTINGS, "tracker_default", true);
+    click(button("Replier"));
+    expect(byLabel("Objets").className).toContain("lg:hidden");
+    click(byLabel("Afficher les objets"));
+    expect(byLabel("Objets").className).toContain("lg:flex");
+  });
+
+  it("gives the whole width to the items of a pack without map", async () => {
+    await render({}, DEFAULT_SETTINGS, "items", true);
+    expect(byLabel("Objets").className).toContain("w-full");
+    expect(container.querySelector('[aria-label="Cartes"]')).toBeNull();
+    expect(container.querySelector('[role="tablist"]')).toBeNull();
+  });
+
+  it("counts the pins of the map by colour, and a counter narrows the map to them (story 54.9)", async () => {
+    await render({}, DEFAULT_SETTINGS, "tracker_default", true);
+    const legend = byLabel("Légende de la carte");
+    expect(byLabel("Cartes").contains(legend)).toBe(true);
+    expect(legend.textContent).toContain("1 faisable");
+    expect(legend.textContent).toContain("1 pas encore");
+    // Nothing of a colour absent from the map.
+    expect(legend.textContent).not.toContain("hors logique");
+
+    const reachable = Array.from(legend.querySelectorAll("button")).find((candidate) => candidate.textContent === "1 faisable");
+    if (reachable === undefined) throw new Error("no counter");
+    click(reachable);
+    expect(reachable.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector('[aria-label^="Swamp"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label^="Woodfall"]')).toBeNull();
+    click(button("Tout afficher"));
+    expect(container.querySelector('[aria-label^="Woodfall"]')).not.toBeNull();
+  });
+
+  it("explains the colours in plain words on demand (story 54.9)", async () => {
+    await render({}, DEFAULT_SETTINGS, "tracker_default", true);
+    expect(container.textContent).not.toContain("Il te manque encore quelque chose.");
+    click(byLabel("Que veulent dire les couleurs ?"));
+    expect(container.textContent).toContain("Il te manque encore quelque chose.");
+    expect(container.textContent).toContain("Hors logique");
+  });
+
+  it("draws a layout it cannot read the way the pack writes it", async () => {
+    await render({}, DEFAULT_SETTINGS, "no_such_layout", true);
+    expect(container.querySelector('[data-board="pack"]')).not.toBeNull();
   });
 });
 
@@ -205,11 +287,19 @@ describe("tracker items", () => {
 });
 
 describe("map pins and the location popover", () => {
-  it("colours each pin by its level", async () => {
+  it("colours each pin by its level, with PopTracker's colours", async () => {
     await render();
-    expect(byLabel("Woodfall : Inaccessible").className).toContain("bg-tracker-none");
-    expect(byLabel("Swamp : Accessible").className).toContain("bg-tracker-normal");
-    expect(byLabel("Swamp : Accessible").className).toContain("rotate-45");
+    expect(byLabel("Woodfall : Pas encore").style.background).toBe("var(--color-tracker-none)");
+    expect(byLabel("Swamp : Faisable").style.background).toBe("var(--color-tracker-normal)");
+    expect(byLabel("Swamp : Faisable").className).toContain("rotate-45");
+  });
+
+  it("splits the pin of a location whose sections differ, as PopTracker does (story 54.9)", async () => {
+    await render({ sections: { 10: section(AccessibilityLevel.Normal, 1) } });
+    const pin = byLabel("Woodfall : En partie : faisable, pas encore");
+    expect(pin.getAttribute("data-marks")).toBe("3");
+    // Top and left red, bottom and right green: no colour of its own for a mixed location.
+    expect(pin.style.background).toContain("conic-gradient");
   });
 
   it("follows the settings: sequence breaks and what is done", async () => {
@@ -220,7 +310,7 @@ describe("map pins and the location popover", () => {
       },
       { showSequenceBreaks: false, hideCleared: true },
     );
-    expect(byLabel("Woodfall : Inaccessible")).not.toBeNull();
+    expect(byLabel("Woodfall : Pas encore")).not.toBeNull();
     expect(container.querySelector('[aria-label^="Swamp"]')).toBeNull();
   });
 
@@ -231,12 +321,12 @@ describe("map pins and the location popover", () => {
         20: { ...section(AccessibilityLevel.Cleared, 0), highlight: Highlight.Priority },
       },
     });
-    const pin = byLabel("Woodfall : Inaccessible, indice : important");
+    const pin = byLabel("Woodfall : En partie : faisable, pas encore, indice : important");
     expect(pin.querySelector("[data-hint]")).not.toBeNull();
-    expect(byLabel("Swamp : Accessible").querySelector("[data-hint]")).toBeNull();
+    expect(byLabel("Swamp : Fait").querySelector("[data-hint]")).toBeNull();
     fire(pin, new MouseEvent("click", { bubbles: true }));
-    expect(byLabel("Entrance : Accessible, indice : important")).not.toBeNull();
-    expect(byLabel("Pots : Inaccessible")).not.toBeNull();
+    expect(byLabel("Entrance : Faisable, indice : important")).not.toBeNull();
+    expect(byLabel("Pots : Pas encore")).not.toBeNull();
   });
 
   it("lists the sections of a location; a click does one, a right click undoes it", async () => {
@@ -247,8 +337,8 @@ describe("map pins and the location popover", () => {
     const dialog = container.querySelector('[role="dialog"]');
     expect(dialog?.textContent).toContain("Entrance");
     expect(dialog?.textContent).toContain("2/3");
-    fire(byLabel("Entrance : Accessible"), new MouseEvent("click", { bubbles: true }));
-    fire(byLabel("Pots : Accessible"), new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    fire(byLabel("Entrance : Faisable"), new MouseEvent("click", { bubbles: true }));
+    fire(byLabel("Pots : Faisable"), new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
     expect(acted).toEqual([
       { type: "sectionClear", sectionId: 10 },
       { type: "sectionUnclear", sectionId: 11 },
