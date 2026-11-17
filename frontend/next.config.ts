@@ -110,6 +110,11 @@ const nextConfig: NextConfig = {
       module: { browser: "./src/features/tracker/engine/empty-node-module.ts" },
     },
   },
+  // The same for webpack, which the bundle analysis build (`next build --webpack`, CI) still uses.
+  webpack: (config: { resolve?: { fallback?: Record<string, string | false> } }, { isServer }: { isServer: boolean }) => {
+    if (!isServer) config.resolve = { ...config.resolve, fallback: { ...config.resolve?.fallback, module: false } };
+    return config;
+  },
 };
 
 export default withBundleAnalyzer(nextConfig);
