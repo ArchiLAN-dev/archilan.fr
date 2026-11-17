@@ -59,6 +59,9 @@ const TRANSFORMED_PACKAGES = [
   "zwitch",
   "bail",
   "ccount",
+  // The Lua engine of the trackers (story 54.4): its Node branch does `await import("module")`, which Jest's CJS
+  // runtime refuses; transforming it turns that into a require.
+  "wasmoon",
 ];
 
 /** @type {import('jest').Config} */
