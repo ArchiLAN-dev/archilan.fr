@@ -2,7 +2,7 @@ import { AccessibilityLevel } from "../engine/levels";
 import { readColor, readItemSize, readMargin, readSize, readSpacing } from "./layout-attributes";
 import { PackImages, parseImageMods } from "./pack-images";
 import { INITIAL_STATE, section, TEST_PACK } from "./test-pack";
-import { fitTransform, zoomAt } from "./tracker-map";
+import { fitTransform, placePopover, zoomAt } from "./tracker-map";
 import {
   clearSaved,
   isSavedTracker,
@@ -284,5 +284,31 @@ describe("the legend's counters (story 54.9)", () => {
       done: 0,
     });
     expect(countPins(TEST_PACK.locations, "elsewhere", view, DEFAULT_SETTINGS).reachable).toBe(0);
+  });
+});
+
+/** Story 54.9: the checks of a pin open over the page, inside the window. */
+describe("placePopover", () => {
+  const screen = { width: 1280, height: 800 };
+
+  it("opens below and beside the pin when it fits", () => {
+    expect(placePopover({ x: 100, y: 100 }, 200, screen)).toEqual({ left: 112, top: 112, width: 288, maxHeight: 784 });
+  });
+
+  it("opens above a pin near the bottom", () => {
+    expect(placePopover({ x: 100, y: 700 }, 200, screen).top).toBe(488);
+  });
+
+  it("stays inside the window on the right", () => {
+    expect(placePopover({ x: 1250, y: 100 }, 200, screen).left).toBe(1280 - 288 - 8);
+  });
+
+  it("holds against the bottom edge when it fits neither below nor above", () => {
+    const place = placePopover({ x: 100, y: 300 }, 600, screen);
+    expect(place.top).toBe(800 - 8 - 600);
+  });
+
+  it("narrows and scrolls on a small screen", () => {
+    expect(placePopover({ x: 10, y: 10 }, 2000, { width: 300, height: 600 })).toEqual({ left: 8, top: 8, width: 284, maxHeight: 584 });
   });
 });
