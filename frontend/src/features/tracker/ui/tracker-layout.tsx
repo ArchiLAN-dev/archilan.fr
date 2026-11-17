@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
-import { TAB_LIST_CLASS, tabClassName } from "@/components/ui/tabs";
+import { tabClassName } from "@/components/ui/tabs";
 
 import {
   alignmentClass,
@@ -11,7 +11,7 @@ import {
   marginStyle,
   readChildren,
   readMargin,
-  readSize,
+  readItemSize,
   readSpacing,
   readText,
   type LayoutNode,
@@ -52,7 +52,7 @@ export function LayoutWidget({ node, inherited }: Props) {
   const next: Inherited = {
     ...inherited,
     depth: inherited.depth + 1,
-    itemSize: readSize(node.item_size) ?? inherited.itemSize,
+    itemSize: readItemSize(node, inherited.itemSize),
     itemMargin: readSpacing(node.item_margin) ?? inherited.itemMargin,
   };
   // Story 54.9: the site's colours, always - a pack's `background` is not drawn.
@@ -246,7 +246,9 @@ function Tabbed({ node, inherited }: Props) {
   if (shown === undefined) return null;
   return (
     <div className={GROW}>
-      <div className={TAB_LIST_CLASS} role="tablist">
+      {/* Story 54.9: a pack's tab bar wraps rather than scrolling sideways (its own `style: "wrap"`, and the rule of
+          the site: no horizontal scroll). */}
+      <div className="flex flex-wrap gap-x-1 border-b border-border" role="tablist">
         {tabs.map((tab, index) => (
           <button
             aria-selected={tab === shown}

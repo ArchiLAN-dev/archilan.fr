@@ -1,5 +1,5 @@
 import { AccessibilityLevel } from "../engine/levels";
-import { readColor, readMargin, readSize, readSpacing } from "./layout-attributes";
+import { readColor, readItemSize, readMargin, readSize, readSpacing } from "./layout-attributes";
 import { PackImages, parseImageMods } from "./pack-images";
 import { INITIAL_STATE, section, TEST_PACK } from "./test-pack";
 import { fitTransform, zoomAt } from "./tracker-map";
@@ -83,6 +83,11 @@ describe("layout attributes", () => {
     expect(readSize(24)).toEqual({ width: 24, height: 24 });
     expect(readSize("32,24")).toEqual({ width: 32, height: 24 });
     expect(readSize("nope")).toBeNull();
+    // Story 54.9: PopTracker's item_width / item_height, for items that are not square.
+    const base = { width: 32, height: 32 };
+    expect(readItemSize({ item_width: 320, item_height: 64 }, base)).toEqual({ width: 320, height: 64 });
+    expect(readItemSize({ item_size: 24, item_height: 12 }, base)).toEqual({ width: 24, height: 12 });
+    expect(readItemSize({}, base)).toEqual(base);
     expect(readSpacing("4,0")).toEqual({ x: 4, y: 0 });
     expect(readSpacing(3)).toEqual({ x: 3, y: 3 });
     expect(readMargin("3,1")).toEqual({ left: 3, top: 1, right: 3, bottom: 1 });

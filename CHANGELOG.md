@@ -5,6 +5,40 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.68.2] - 2026-11-17
+
+Correctifs du tracker (story 54.9), des informations de connexion d'un event et du temps réel des sessions : aucune
+migration, aucune variable d'environnement.
+
+### Corrigé
+
+- **Réglages d'un pack** : l'onglet « Settings » d'un pack placé à côté de ses cartes (pack Minish Cap de deoxis9001)
+  était serré dans le panneau des objets, illisible. Il s'ouvre désormais dans la zone centrale, par un bouton à côté
+  de la liste des cartes, avec ses onglets qui passent à la ligne.
+- Les cases d'objets qui ne sont pas carrées (`item_width` / `item_height`, comme les étiquettes de réglages en
+  320x64) gardent leurs proportions au lieu d'être écrasées.
+- Un nom de pack ou de variante très long ne fait plus déborder la page sur téléphone.
+- **Onglet Tracker d'un slot d'event** : il annonçait « La partie n'est pas lancée » alors qu'elle tournait. Les
+  informations de connexion d'une inscription (`GET /registrations/{id}/session-connection`) ne donnaient pas
+  l'adresse client (`connectionUri`), seulement l'hôte et le port ; elles la donnent désormais, comme les autres vues
+  de connexion. La carte de connexion de l'event retrouve aussi sa ligne « Adresse (client Archipelago) ».
+
+### Sécurité
+
+- Ces mêmes informations de connexion renvoyaient au joueur toute la session, mots de passe admin et serveur
+  d'Archipelago, journaux et chemins d'archives compris. Elles se limitent maintenant à ce qu'il faut pour se
+  connecter : statut, adresse (seulement pendant la partie), adresse client et mot de passe du slot.
+- **Temps réel d'une session** : chaque changement d'une session publiait toute la session (mot de passe admin
+  d'Archipelago compris) sur le canal Mercure public `/sessions/{id}`, lisible par quiconque connaissait l'id de la
+  session. Le canal ne dit plus que « la session a changé » (id et statut) ; la page admin et la page session d'un
+  inscrit relisent alors la session sur leur propre route authentifiée. Après la mise en prod, changer les mots de
+  passe admin des parties en cours n'est pas nécessaire pour les nouvelles parties, mais reste prudent pour celles
+  lancées avant.
+- **Audit des dépendances du front** : l'avis `picomatch` GHSA-fc5q-39xc-vjpf (ReDoS), publié sans version
+  corrigée (toutes jusqu'à 4.0.7), faisait échouer `pnpm audit` et la CI frontend de toutes les PR. picomatch
+  n'arrive que par des outils de développement (jest, eslint, shadcn) et n'est pas servi aux visiteurs : l'avis est
+  ignoré (`pnpm.auditConfig.ignoreGhsas`), à retirer dès qu'une version corrigée sort.
+
 ## [0.68.1] - 2026-11-17
 
 Stories 54.9 et 54.10 : le tracker dans la progression et habillé aux couleurs du site. Frontend seul : aucune

@@ -1,8 +1,9 @@
 "use client";
 
-import { Map as MapIcon, PanelLeftClose, PanelLeftOpen, Package } from "lucide-react";
+import { Map as MapIcon, PanelLeftClose, PanelLeftOpen, Package, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { buttonVariants } from "@/components/ui/button";
 import { SelectField } from "@/components/ui/select-field";
 import { TAB_LIST_CLASS, tabClassName } from "@/components/ui/tabs";
 
@@ -33,14 +34,16 @@ export function TrackerBoard({ root }: { root: string }) {
   }, [pack.layouts, root]);
   // Only the maps the pack defines: a layout may name one its maps.json lacks.
   const maps = useMemo(
-    () => outline.maps.filter((entry) => pack.maps.some((map) => map.name === entry.name)),
+    () => outline.maps.filter((entry) => entry.page !== undefined || pack.maps.some((map) => map.name === entry.name)),
     [outline.maps, pack.maps],
   );
   const [chosenMap, setChosenMap] = useState<string | null>(null);
   // Story 54.9: the legend's counters narrow the map to some pins; a new map starts with all of them.
   const [only, setOnly] = useState<ReadonlySet<PinCategory>>(() => new Set());
+  const [lastMapName, setLastMapName] = useState<string | null>(null);
   const chooseMap = (name: string) => {
     setChosenMap(name);
+    if (!name.startsWith("page:")) setLastMapName(name);
     setOnly(new Set());
   };
   const [folded, setFolded] = useState(false);
@@ -57,6 +60,10 @@ export function TrackerBoard({ root }: { root: string }) {
   }
 
   const shownMap = maps.find((entry) => entry.name === chosenMap) ?? maps[0];
+  // Story 54.9: the pack's pages (a settings tab beside its maps) stand apart from the maps in a long list.
+  const onlyMaps = maps.filter((entry) => entry.page === undefined);
+  const pages = maps.filter((entry) => entry.page !== undefined);
+  const lastMap = onlyMaps.find((entry) => entry.name === lastMapName) ?? onlyMaps[0] ?? maps[0];
   const both = hasItems && hasMaps;
   const view: MobileView = both ? mobileView : hasMaps ? "maps" : "items";
 
@@ -91,16 +98,31 @@ export function TrackerBoard({ root }: { root: string }) {
             aria-label="Cartes"
             className={`${view === "maps" ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 flex-col gap-2 lg:flex`}
           >
-            {maps.length > 1 ? (
-              maps.length > MAX_MAP_TABS ? (
+            {maps.length > MAX_MAP_TABS ? (
+              // A long list: the maps in a list, the pack's pages (its settings) as buttons beside it, not lost at the
+              // end of a list of dungeon floors.
+              <div className="flex flex-wrap items-center gap-2">
                 <SelectField
                   className="w-full sm:w-auto sm:max-w-md"
                   label="Carte"
                   onChange={chooseMap}
-                  options={maps.map((entry) => ({ value: entry.name, label: mapPathLabel(entry) }))}
-                  value={shownMap.name}
+                  options={onlyMaps.map((entry) => ({ value: entry.name, label: mapPathLabel(entry) }))}
+                  value={(shownMap.page === undefined ? shownMap : lastMap).name}
                 />
-              ) : (
+                {pages.map((entry) => (
+                  <button
+                    aria-pressed={entry === shownMap}
+                    className={`${buttonVariants({ variant: entry === shownMap ? "primary" : "secondary" })} gap-2`}
+                    key={entry.name}
+                    onClick={() => chooseMap(entry === shownMap ? lastMap.name : entry.name)}
+                    type="button"
+                  >
+                    <Settings2 aria-hidden="true" className="size-4" />
+                    {mapLabel(entry)}
+                  </button>
+                ))}
+              </div>
+            ) : maps.length > 1 ? (
                 <div className={TAB_LIST_CLASS} role="tablist">
                   {maps.map((entry) => (
                     <button
@@ -115,11 +137,19 @@ export function TrackerBoard({ root }: { root: string }) {
                     </button>
                   ))}
                 </div>
-              )
             ) : null}
-            <MapLegend counts={countPins(pack.locations, shownMap.name, trackerView, settings)} only={only} onOnly={setOnly} />
-            {/* A new map is a new view: its zoom starts on the whole image. */}
-            <TrackerMap key={shownMap.name} name={shownMap.name} only={only} />
+            {shownMap.page !== undefined ? (
+              // A page of the pack (its settings): drawn as the pack lays it out, shrunk to the width if need be.
+              <div className="min-w-0 rounded-md border border-border bg-surface p-2" data-page={mapLabel(shownMap)} key={shownMap.name}>
+                <LayoutWidget inherited={ROOT} node={shownMap.page} />
+              </div>
+            ) : (
+              <>
+                <MapLegend counts={countPins(pack.locations, shownMap.name, trackerView, settings)} only={only} onOnly={setOnly} />
+                {/* A new map is a new view: its zoom starts on the whole image. */}
+                <TrackerMap key={shownMap.name} name={shownMap.name} only={only} />
+              </>
+            )}
           </section>
         ) : null}
       </div>

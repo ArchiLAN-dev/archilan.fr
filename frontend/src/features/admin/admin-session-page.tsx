@@ -35,7 +35,7 @@ import { DEFAULT_STALE_TIME, REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useSSE } from "@/hooks/use-sse";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { isFeedEvent } from "@/features/overlay/overlay-api";
-import { fetchSubscribeToken, isSessionStatusFrame, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
+import { fetchSubscribeToken, isSessionStatusFrame, reconnectWithFreshToken, type SessionStatusFrame } from "@/features/realtime/realtime-api";
 import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { clearOverride, fetchSessionConfig, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
@@ -80,9 +80,8 @@ import {
 // Guard for `/sessions/{id}` Mercure frames (story 33.19): structural check delegated to the
 // shared session-frame guard; the refinement to the full Session shape is a documented trust
 // decision - the api is the single publisher of this topic and publishes the complete payload.
-function isSessionPayload(v: unknown): v is Session {
-  return isSessionStatusFrame(v);
-}
+/** v0.68.2: the public `/sessions/{id}` frame only carries the id and the status; the page reads the rest. */
+const isSessionChangedFrame = isSessionStatusFrame;
 
 type BuilderOption = {
   key: string;
@@ -821,10 +820,6 @@ function SessionDetail({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- runChainedAction/clearPendingChainSoon are recreated each render but only close over stable setters; the chain must fire on status/chain/pending transitions only
   }, [session.status, pendingChain, actionPending]);
 
-  const handleSSEMessage = useCallback((data: Session) => {
-    onSessionUpdateRef.current(data);
-  }, []);
-
   const fallbackPoll = useCallback(async () => {
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${session.id}`);
@@ -836,10 +831,15 @@ function SessionDetail({
     }
   }, [session.id]);
 
-  useSSE<Session>(
+  // v0.68.2: a frame says the session changed; the admin endpoint gives the full session (passwords, logs).
+  const handleSSEMessage = useCallback(() => {
+    void fallbackPoll();
+  }, [fallbackPoll]);
+
+  useSSE<SessionStatusFrame>(
     `/sessions/${session.id}`,
     env.mercurePublicUrl || null,
-    isSessionPayload,
+    isSessionChangedFrame,
     handleSSEMessage,
     fallbackPoll,
   );

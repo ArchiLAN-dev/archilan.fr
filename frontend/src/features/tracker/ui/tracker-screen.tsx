@@ -241,9 +241,11 @@ function TrackerSession({
             <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">{gameName}</h1>
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           {packs.length > 1 ? (
             <SelectField
+              // A pack's names can be long (« [AP] Map Tracker - Broadcast (F2) Vertical »): cut, never wider than the screen.
+              className="max-w-full"
               label="Pack"
               onChange={onChoosePack}
               options={packs.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
@@ -252,6 +254,8 @@ function TrackerSession({
           ) : null}
           {pack.version.variants.length > 1 ? (
             <SelectField
+              // A pack's names can be long (« [AP] Map Tracker - Broadcast (F2) Vertical »): cut, never wider than the screen.
+              className="max-w-full"
               label="Variante"
               onChange={onChooseVariant}
               options={pack.version.variants.map((variant) => ({ value: variant.uid, label: variant.displayName }))}
