@@ -17,4 +17,12 @@ interface TrackerPackFetcherInterface
      * @throws ServiceUnavailableException github_rate_limited, tracker_pack_download_failed
      */
     public function fetch(TrackerPackSource $source): FetchedTrackerPack;
+
+    /**
+     * Story 54.3: the zip at a link an update check found, with the same host and size rules.
+     *
+     * @throws ValidationException         tracker_pack_url_invalid, tracker_pack_release_not_found, tracker_pack_too_large
+     * @throws ServiceUnavailableException github_rate_limited, tracker_pack_download_failed
+     */
+    public function fetchZip(string $url): string;
 }

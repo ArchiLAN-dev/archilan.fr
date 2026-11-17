@@ -37,8 +37,8 @@ final class PersonalRunMySlotsTest extends FunctionalTestCase
         $data = $this->decodedJsonResponse()['data'] ?? null;
         self::assertIsArray($data);
         self::assertSame([
-            ['name' => 'Alice_PE', 'game' => 'Pokemon Emerald'],
-            ['name' => 'Carol_HK', 'game' => 'Hollow Knight'],
+            ['name' => 'Alice_PE', 'game' => 'Pokemon Emerald', 'gameId' => $emerald->getId(), 'gameSlug' => 'pokemon-emerald'],
+            ['name' => 'Carol_HK', 'game' => 'Hollow Knight', 'gameId' => $hollow->getId(), 'gameSlug' => 'hollow-knight'],
         ], $data['mySlots']);
     }
 

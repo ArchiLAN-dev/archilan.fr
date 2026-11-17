@@ -18,7 +18,7 @@ final readonly class DbalMyRunSlotsQuery implements MyRunSlotsQueryInterface
     {
         $qb = $this->connection->createQueryBuilder();
         $rows = $qb
-            ->select('ss.slot_name AS slot_name', 'g.name AS game_name')
+            ->select('ss.slot_name AS slot_name', 'g.name AS game_name', 'g.id AS game_id', 'g.slug AS game_slug')
             ->from('session_slot', 'ss')
             // Owner and co-players alike: one row per (slot, member) - the shared expression for "who plays".
             ->join('ss', DbalSlotPlayerSource::expression('session_slot', 'registration'), 'sp', $qb->expr()->eq('sp.'.DbalSlotPlayerSource::SLOT_COLUMN, 'ss.id'))
@@ -39,6 +39,9 @@ final readonly class DbalMyRunSlotsQuery implements MyRunSlotsQueryInterface
             $slots[] = [
                 'name' => $row['slot_name'],
                 'game' => is_string($row['game_name']) ? $row['game_name'] : null,
+                // Story 54.7: the tracker of the slot's game.
+                'gameId' => is_string($row['game_id']) ? $row['game_id'] : null,
+                'gameSlug' => is_string($row['game_slug']) ? $row['game_slug'] : null,
             ];
         }
 

@@ -7,10 +7,14 @@ namespace App\Trackers\Infrastructure\Http;
 use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Application\Exception\ValidationException;
 use App\Trackers\Application\Port\TrackerPackFetcherInterface;
+use App\Trackers\Application\Port\TrackerPackUpdateSourceInterface;
 use App\Trackers\Application\Support\FetchedTrackerPack;
 use App\Trackers\Domain\Entity\TrackerPackVersion;
 use App\Trackers\Domain\Enum\TrackerPackSourceKind;
+use App\Trackers\Domain\Service\TolerantJson;
+use App\Trackers\Domain\Service\TrackerPackVersions;
 use App\Trackers\Domain\ValueObject\TrackerPackSource;
+use App\Trackers\Domain\ValueObject\TrackerPackUpdate;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -20,8 +24,10 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * Downloads a PopTracker pack from GitHub (story 54.1). Redirects are followed by hand so that only GitHub hosts are
  * ever contacted, and the download stops as soon as it passes the size cap. The GitHub token, when configured, is
  * only sent to the API host: release asset redirects land on signed storage URLs that refuse extra credentials.
+ *
+ * Story 54.3: the same rules read a pack's `versions.json` and its latest release, for the update check.
  */
-final readonly class GithubTrackerPackFetcher implements TrackerPackFetcherInterface
+final readonly class GithubTrackerPackFetcher implements TrackerPackFetcherInterface, TrackerPackUpdateSourceInterface
 {
     private const string API = 'https://api.github.com';
 
@@ -35,6 +41,7 @@ final readonly class GithubTrackerPackFetcher implements TrackerPackFetcherInter
     ];
 
     private const int MAX_REDIRECTS = 5;
+    private const int MAX_VERSIONS_FILE_BYTES = 1024 * 1024;
     private const float MAX_DURATION = 60.0;
     private const string TOO_LARGE = 'Le pack dépasse la taille autorisée (50 Mo compressé, 200 Mo décompressé, 5000 fichiers).';
 
@@ -55,6 +62,39 @@ final readonly class GithubTrackerPackFetcher implements TrackerPackFetcherInter
         }
 
         return new FetchedTrackerPack($this->download($downloadUrl), $downloadUrl, $tag, $this->license($source));
+    }
+
+    public function fetchZip(string $url): string
+    {
+        return $this->download($url);
+    }
+
+    public function fromVersionsFile(string $versionsUrl): ?TrackerPackUpdate
+    {
+        $body = $this->download($versionsUrl, self::MAX_VERSIONS_FILE_BYTES);
+        try {
+            return TrackerPackVersions::fromVersionsFile(TolerantJson::decode($body));
+        } catch (\DomainException) {
+            throw self::refused('tracker_pack_versions_file_invalid', 'Le fichier versions.json du pack est illisible.');
+        }
+    }
+
+    public function fromLatestRelease(TrackerPackSource $source): ?TrackerPackUpdate
+    {
+        $release = $this->api(sprintf('/repos/%s/%s/releases/latest', $source->owner, $source->repo));
+        $tag = $release['tag_name'] ?? null;
+        if (null === $release || !is_string($tag) || '' === $tag) {
+            return null;
+        }
+        $body = $release['body'] ?? null;
+
+        return new TrackerPackUpdate(
+            TrackerPackVersions::fromTag($tag),
+            self::pickZipAsset($release['assets'] ?? []) ?? TrackerPackSource::tagArchiveUrl($source->owner, $source->repo, $tag),
+            null,
+            is_string($body) ? TrackerPackUpdate::changelogFromText($body) : [],
+            mb_substr($tag, 0, 120),
+        );
     }
 
     /** @return array{0: string, 1: string} the zip to download and the release tag */
@@ -177,7 +217,7 @@ final readonly class GithubTrackerPackFetcher implements TrackerPackFetcherInter
      * @throws ValidationException         tracker_pack_too_large, tracker_pack_release_not_found
      * @throws ServiceUnavailableException
      */
-    private function download(string $url): string
+    private function download(string $url, int $cap = TrackerPackVersion::MAX_ARCHIVE_BYTES): string
     {
         for ($hop = 0; $hop <= self::MAX_REDIRECTS; ++$hop) {
             if (!self::isAllowed($url)) {
@@ -208,7 +248,7 @@ final readonly class GithubTrackerPackFetcher implements TrackerPackFetcherInter
                     throw self::unavailable();
                 }
 
-                return $this->readCapped($response);
+                return $this->readCapped($response, $cap);
             } catch (ExceptionInterface $e) {
                 $this->logger->warning('tracker_pack.download_failed', ['url' => $url, 'error' => $e->getMessage()]);
                 throw self::unavailable();
@@ -220,17 +260,17 @@ final readonly class GithubTrackerPackFetcher implements TrackerPackFetcherInter
     }
 
     /** @throws ExceptionInterface */
-    private function readCapped(ResponseInterface $response): string
+    private function readCapped(ResponseInterface $response, int $cap): string
     {
         $declared = $response->getHeaders(false)['content-length'][0] ?? null;
-        if (is_numeric($declared) && (int) $declared > TrackerPackVersion::MAX_ARCHIVE_BYTES) {
+        if (is_numeric($declared) && (int) $declared > $cap) {
             $response->cancel();
             throw self::refused('tracker_pack_too_large', self::TOO_LARGE);
         }
         $body = '';
         foreach ($this->httpClient->stream($response) as $chunk) {
             $body .= $chunk->getContent();
-            if (strlen($body) > TrackerPackVersion::MAX_ARCHIVE_BYTES) {
+            if (strlen($body) > $cap) {
                 $response->cancel();
                 throw self::refused('tracker_pack_too_large', self::TOO_LARGE);
             }

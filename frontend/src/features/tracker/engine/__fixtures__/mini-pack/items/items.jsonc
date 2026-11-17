@@ -1,0 +1,15 @@
+[
+  { "name": "Sword", "type": "toggle", "img": "images/sword.png", "codes": "sword, blade" },
+  {
+    "name": "Bow",
+    "type": "progressive",
+    "stages": [
+      { "img": "images/sword.png", "codes": "bow" },
+      { "img": "images/sword.png", "codes": "silver_arrows" },
+      { "img": "images/sword.png", "codes": "fire_arrows", "inherit_codes": false },
+    ],
+  },
+  { "name": "Bombs", "type": "consumable", "img": "images/sword.png", "codes": "bombs", "max_quantity": 3 },
+  { "name": "Watch counter", "type": "consumable", "img": "images/sword.png", "codes": "watch_counter", "max_quantity": 99 },
+  { "name": "Crystal", "type": "toggle", "img": "images/sword.png", "codes": "crystal" },
+]

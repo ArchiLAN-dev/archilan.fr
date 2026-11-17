@@ -1,6 +1,6 @@
 # Story 54.2 - Les packs d'un jeu
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 54 - Trackers de jeu, les packs PopTracker sur le site (`_bmad-output/planning-artifacts/epics/epic-54-trackers-poptracker.md`)
 **Date:** 2026-11-16
 **Branche:** `feature/epic-54-story-2-packs-par-jeu`
@@ -73,8 +73,55 @@ afin de m'en servir pendant ma partie.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 2, 3, 7) - Champs, migration, règles de domaine.
-- [ ] **Task 2** (AC 1, 4, 5, 8) - PATCH admin, lecture publique, archive (présignée ou flux).
-- [ ] **Task 3** (AC 9) - Liste admin enrichie.
-- [ ] **Task 4** (AC 6) - Bloc de la fiche publique.
-- [ ] **Task 5** (AC 10) - Gates, vérification réelle (téléchargement depuis le navigateur, CORS).
+- [x] **Task 1** (AC 2, 3, 7) - Champs, migration, règles de domaine.
+- [x] **Task 2** (AC 1, 4, 5, 8) - PATCH admin, lecture publique, archive (présignée ou flux).
+- [x] **Task 3** (AC 9) - Liste admin enrichie.
+- [x] **Task 4** (AC 6) - Bloc de la fiche publique.
+- [x] **Task 5** (AC 10) - Gates, vérification réelle (téléchargement depuis le navigateur, CORS).
+
+## Dev Agent Record
+
+**Date:** 2026-11-17
+
+### Décisions
+
+- **Archive servie en flux par l'API**, pas en 302 vers une URL présignée : le tracker lit le zip avec `fetch`, l'API
+  répond déjà à l'origine du site, et on ne dépend pas des règles CORS de MinIO. Précédent :
+  `PublicPatchDownloadController`. En-têtes : `Content-Type: application/zip`, `ETag` = sha256 de la version,
+  `Cache-Control: private, max-age=86400, immutable` (une version ne change jamais ; `private` pour qu'un pack
+  désactivé ne traîne pas dans un cache partagé).
+- **Règle du défaut** dans `Domain/Service/TrackerPackShelf` (enable, disable, makeDefault sur la liste des packs du
+  jeu). Erreur supplémentaire `tracker_pack_not_enabled` (422) quand on met par défaut un pack inactif.
+- `isDefault: false` est refusé (400) : le défaut se déplace en choisissant un autre pack ou en désactivant celui-ci.
+- Retirer la case licence d'un pack actif sans licence détectée est refusé (`tracker_pack_license_unacknowledged`).
+- `defaultVariantUid: null` revient à la première variante.
+- La vue publique expose aussi `version.sha256` (vérification d'intégrité et cache côté tracker).
+- Fiche publique : le bloc « Tracker disponible » crédite le pack par défaut et liste les autres packs actifs. Une API
+  injoignable masque le bloc sans casser la page.
+
+### Fichiers
+
+- API : `TrackerPack` (4 champs + méthodes), `TrackerPackShelf`, `UpdateTrackerPack` + `TrackerPackChanges`,
+  `PublicTrackerPackQuery(+Interface, View)`, `TrackerPackArchiveQuery` + `TrackerPackArchive`,
+  `DbalPublicTrackerPackQuery`, `TrackerPackVariantRows` (décodage partagé), repository (`find`, `findByGame`,
+  `findVersion`, `flush`), `TrackerPackController` (public), route PATCH dans `AdminTrackerPackController`,
+  migration `Version20261117100000`.
+- Tests API : `tests/Unit/Trackers/TrackerPackShelfTest.php` (9), `tests/Functional/TrackerPackSharingTest.php` (8).
+- Front : `admin-tracker-packs-api.ts` (`updateTrackerPack`, champs 54.2), `admin-game-tracker-packs.tsx`
+  (`TrackerPackRow` : interrupteur, étoile, variante, case licence), `features/trackers/tracker-packs-api.ts`,
+  `features/trackers/game-tracker-credits.tsx`, `game-detail.tsx`, `app/(public)/jeux/[slug]/page.tsx`, et leurs tests.
+
+### Gates
+
+- `./scripts/gates.sh` : api vert (ParaTest) ; front typecheck, lint, 1689 tests et build verts (le build s'arrête une
+  fois sur l'avertissement de sécurité de Next.js, sans lien avec la story, et passe au second lancement).
+
+### Vérification réelle (2026-11-17, local)
+
+- Import du pack MM v0.9.5.3 depuis GitHub par l'API locale (MinIO local) : créé, 3 variantes, licence MIT.
+- Avant activation : liste publique vide, archive 404 pour un visiteur, 200 pour un admin (7,2 Mo).
+- Variante inconnue : 422 `tracker_pack_variant_unknown`. Activation : 204, le pack devient le défaut.
+- Après activation : liste publique complète (rootPath `Majoras-Mask-AP-PopTracker-Pack-0.9.5.3`), archive 200 avec
+  `Access-Control-Allow-Origin` pour l'origine du site, sha256 du zip égal à l'ETag, 367 fichiers.
+- Fiche `/jeux/the-legend-of-zelda-majora-s-mask` : bloc « Tracker disponible » avec nom, version, auteurs, licence MIT
+  et lien vers la source.

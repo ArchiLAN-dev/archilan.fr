@@ -117,6 +117,48 @@ final class GithubTrackerPackFetcherTest extends TestCase
         }
     }
 
+    public function testLatestReleaseIsAnUpdateCandidate(): void
+    {
+        $fetcher = $this->fetcher([
+            'https://api.github.com/repos/o/r/releases/latest' => self::json(['tag_name' => 'v0.9.5.4', 'assets' => [], 'body' => "## Changes\r\n\r\n- Fixed the Great Bay logic"]),
+        ]);
+
+        $update = $fetcher->fromLatestRelease(TrackerPackSource::parse('https://github.com/o/r'));
+
+        self::assertNotNull($update);
+        self::assertSame('0.9.5.4', $update->packageVersion);
+        self::assertSame('v0.9.5.4', $update->gitTag);
+        self::assertSame('https://github.com/o/r/archive/refs/tags/v0.9.5.4.zip', $update->downloadUrl);
+        self::assertNull($update->sha256);
+        self::assertSame(['## Changes', '- Fixed the Great Bay logic'], $update->changelog);
+    }
+
+    public function testRepositoryWithoutReleaseHasNoCandidate(): void
+    {
+        $fetcher = $this->fetcher(['https://api.github.com/repos/o/r/releases/latest' => new MockResponse('{}', ['http_code' => 404])]);
+
+        self::assertNull($fetcher->fromLatestRelease(TrackerPackSource::parse('https://github.com/o/r')));
+    }
+
+    public function testVersionsFileIsReadTolerantly(): void
+    {
+        $fetcher = $this->fetcher([
+            'https://raw.githubusercontent.com/o/r/refs/heads/main/versions.json' => new MockResponse("{\"versions\": [{\"package_version\": \"1.2\", \"download_url\": \"https://github.com/o/r/releases/download/v1.2/pack.zip\",},], // last\n}"),
+        ]);
+
+        $update = $fetcher->fromVersionsFile('https://raw.githubusercontent.com/o/r/refs/heads/main/versions.json');
+
+        self::assertSame('1.2', $update?->packageVersion);
+    }
+
+    public function testVersionsFileOutsideGithubOrUnreadableIsRefused(): void
+    {
+        $fetcher = $this->fetcher(['https://raw.githubusercontent.com/o/r/main/versions.json' => new MockResponse('not json')]);
+
+        $this->expectFailure('tracker_pack_url_invalid', static fn (): mixed => $fetcher->fromVersionsFile('https://evil.test/versions.json'));
+        $this->expectFailure('tracker_pack_versions_file_invalid', static fn (): mixed => $fetcher->fromVersionsFile('https://raw.githubusercontent.com/o/r/main/versions.json'));
+    }
+
     /** @param array<string, MockResponse> $responses by URL; an unexpected URL answers 500 */
     private function fetcher(array $responses, string $token = ''): GithubTrackerPackFetcher
     {

@@ -31,7 +31,7 @@ final readonly class PlayerSessionConnection
      *   - the registration exists and belongs to the given user
      *   - the registration is confirmed (reserved + submittedAt set)
      *
-     * @return array{eventId: string, session: SessionView|null, slots: list<array{slotName: string, slotOrder: int, gameId: string, gameName: string, slotId: string|null, coPlayed: bool}>}|null
+     * @return array{eventId: string, session: SessionView|null, slots: list<array{slotName: string, slotOrder: int, gameId: string, gameName: string, gameSlug: string|null, slotId: string|null, coPlayed: bool}>}|null
      */
     public function getConnection(string $registrationId, string $userId): ?array
     {
@@ -70,8 +70,11 @@ final readonly class PlayerSessionConnection
 
         /** @var array<string, string> $nameById */
         $nameById = [];
+        /** @var array<string, string> $slugById */
+        $slugById = [];
         foreach ($foundGames as $game) {
             $nameById[$game->getId()] = $game->getName();
+            $slugById[$game->getId()] = $game->getSlug();
         }
 
         $slots = array_map(
@@ -80,6 +83,8 @@ final readonly class PlayerSessionConnection
                 'slotOrder' => $s->getSlotOrder(),
                 'gameId' => $s->getGameId(),
                 'gameName' => $nameById[$s->getGameId()] ?? $s->getGameId(),
+                // Story 54.7: the game's page, for its tracker.
+                'gameSlug' => $slugById[$s->getGameId()] ?? null,
                 // Story 11.10: the game slot id (for its co-players) and whether the member plays it on someone
                 // else's registration.
                 'slotId' => $s->getSlotId(),

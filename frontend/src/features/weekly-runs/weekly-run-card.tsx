@@ -18,6 +18,7 @@ import type { CurrentWeeklyRun } from "./weekly-runs-api";
 import { WeeklyRunLeaderboard } from "./weekly-run-leaderboard";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { env } from "@/lib/env";
+import { weeklyConnectionSlots } from "./weekly-connection-slots";
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
 
@@ -249,7 +250,7 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
                   host={myEntry.connectionInfo.host}
                   password={myEntry.connectionInfo.password}
                   port={myEntry.connectionInfo.port}
-                  slots={myEntry.slotName ? [{ name: myEntry.slotName, game: null }] : []}
+                  slots={weeklyConnectionSlots(run, myEntry)}
                   uri={myEntry.connectionInfo.uri ?? null}
                 />
               </div>

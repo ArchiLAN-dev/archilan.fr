@@ -1,0 +1,41 @@
+[
+  {
+    "name": "Forest",
+    "chest_unopened_img": "images/sword.png",
+    "access_rules": ["blade"],
+    "children": [
+      {
+        "name": "Hut",
+        "map_locations": [{ "map": "world", "x": 10, "y": 20 }],
+        "sections": [
+          { "name": "Chest", "access_rules": ["$can_cut"] },
+          { "name": "Shelf", "access_rules": ["bombs:2"] },
+          { "name": "Pots", "item_count": 3, "clear_as_group": false },
+          { "name": "Ledge", "access_rules": ["[bow]"] },
+          { "name": "Peek", "access_rules": ["silver_arrows", "{bow}"] },
+          { "name": "Crystal", "hosted_item": "crystal" },
+          { "name": "Bombs counted", "access_rules": ["$count_bombs:3"] },
+          { "name": "Arrows", "access_rules": ["^$bow_level"] },
+          { "name": "Broken", "access_rules": ["$broken_rule"] },
+          { "name": "Comma", "access_rules": [["$has|bombs|2", "blade"]] },
+          { "name": "Hidden", "visibility_rules": ["crystal"] },
+        ],
+      },
+    ],
+  },
+  {
+    "name": "Cave",
+    "children": [
+      {
+        "name": "Mouth",
+        "sections": [
+          { "ref": "Forest/Hut/Chest" },
+          { "name": "Loop A", "access_rules": ["@Cave/Mouth/Loop B"] },
+          { "name": "Loop B", "access_rules": ["@Cave/Mouth/Loop A"] },
+          { "name": "Via Hut", "access_rules": ["@Hut/Chest"] },
+        ],
+      },
+    ],
+  },
+  { "name": "Glade", "parent": "Forest", "sections": [{ "name": "Flower" }] },
+]

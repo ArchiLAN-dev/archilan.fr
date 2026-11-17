@@ -11,8 +11,9 @@ namespace App\PersonalRuns\Application\Query;
 interface MyRunSlotsQueryInterface
 {
     /**
-     * @return list<array{name: string, game: string|null}> in slot order; `game` is null for a slot of
-     *                                                      an imported seed (no catalogue game)
+     * In slot order. The game is null for a slot of an imported seed (no catalogue game).
+     *
+     * @return list<array{name: string, game: string|null, gameId: string|null, gameSlug: string|null}>
      */
     public function forMember(string $sessionId, string $userId): array;
 }

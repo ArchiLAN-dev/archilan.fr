@@ -546,8 +546,10 @@ services:
     # Story 54.1: PopTracker packs, imported from GitHub. The games are read behind a port.
     App\Trackers\Domain\Repository\TrackerPackRepositoryInterface: '@App\Trackers\Infrastructure\Doctrine\DoctrineTrackerPackRepository'
     App\Trackers\Application\Query\AdminTrackerPackQueryInterface: '@App\Trackers\Infrastructure\Dbal\DbalAdminTrackerPackQuery'
+    App\Trackers\Application\Query\PublicTrackerPackQueryInterface: '@App\Trackers\Infrastructure\Dbal\DbalPublicTrackerPackQuery'
     App\Trackers\Application\Port\TrackerGameInterface: '@App\Trackers\Infrastructure\Adapter\RepositoryTrackerGame'
     App\Trackers\Application\Port\TrackerPackFetcherInterface: '@App\Trackers\Infrastructure\Http\GithubTrackerPackFetcher'
+    App\Trackers\Application\Port\TrackerPackUpdateSourceInterface: '@App\Trackers\Infrastructure\Http\GithubTrackerPackFetcher'
     App\Trackers\Application\Port\TrackerPackArchiveInspectorInterface: '@App\Trackers\Infrastructure\Adapter\ZipTrackerPackArchiveInspector'
 
     App\Events\Domain\Repository\EventRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventRepository'
