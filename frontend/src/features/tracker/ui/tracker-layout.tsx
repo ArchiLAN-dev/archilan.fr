@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { TAB_LIST_CLASS, tabClassName } from "@/components/ui/tabs";
 
@@ -10,7 +10,6 @@ import {
   isLayoutNode,
   marginStyle,
   readChildren,
-  readColor,
   readMargin,
   readSize,
   readSpacing,
@@ -34,7 +33,7 @@ const DEFAULT_ITEM_MARGIN: Spacing = { x: 2, y: 2 };
 /** What a widget passes down: item sizes inherit, and the parent's axis decides which alignment applies. */
 type Inherited = { itemSize: Size; itemMargin: Spacing; depth: number; cross: "horizontal" | "vertical" };
 
-const ROOT: Inherited = { itemSize: DEFAULT_ITEM_SIZE, itemMargin: DEFAULT_ITEM_MARGIN, depth: 0, cross: "horizontal" };
+export const ROOT: Inherited = { itemSize: DEFAULT_ITEM_SIZE, itemMargin: DEFAULT_ITEM_MARGIN, depth: 0, cross: "horizontal" };
 
 export function TrackerLayout({ name }: { name: string }) {
   const { pack } = useTracker();
@@ -43,7 +42,7 @@ export function TrackerLayout({ name }: { name: string }) {
   return <LayoutWidget inherited={ROOT} node={node} />;
 }
 
-type Props = { node: LayoutNode; inherited: Inherited };
+export type Props = { node: LayoutNode; inherited: Inherited };
 
 /** Fills its parent: the widgets that hold maps need the room. */
 const GROW = "flex min-h-0 min-w-0 flex-1 flex-col";
@@ -56,8 +55,8 @@ export function LayoutWidget({ node, inherited }: Props) {
     itemSize: readSize(node.item_size) ?? inherited.itemSize,
     itemMargin: readSpacing(node.item_margin) ?? inherited.itemMargin,
   };
-  const background = readColor(node.background);
-  const style: CSSProperties = { ...marginStyle(readMargin(node.margin)), ...(background === null ? {} : { background }) };
+  // Story 54.9: the site's colours, always - a pack's `background` is not drawn.
+  const style: CSSProperties = marginStyle(readMargin(node.margin)) ?? {};
   const align = alignmentClass(node, inherited.cross);
   const type = typeof node.type === "string" ? node.type : "";
   const grows = GROWING.has(type);
@@ -165,7 +164,7 @@ function pixels(value: unknown): number | null {
 function Canvas({ node, inherited }: Props) {
   const width = pixels(node.width);
   const height = pixels(node.height);
-  return (
+  const board = (
     <div className="relative shrink-0" style={{ width: width ?? undefined, height: height ?? undefined }}>
       {readChildren(node).map((child, index) => {
         const childWidth = pixels(child.width);
@@ -182,6 +181,33 @@ function Canvas({ node, inherited }: Props) {
           </div>
         );
       })}
+    </div>
+  );
+  return width === null ? board : <FitWidth height={height} width={width}>{board}</FitWidth>;
+}
+
+/**
+ * Story 54.9: a widget of a fixed pixel width (a canvas) shrinks to the room it has, never wider than the screen; it
+ * is never enlarged.
+ */
+function FitWidth({ width, height, children }: { width: number; height: number | null; children: ReactNode }) {
+  const outer = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const element = outer.current;
+    if (element === null || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      const room = element.clientWidth;
+      setScale(room > 0 && width > 0 ? Math.min(1, room / width) : 1);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [width]);
+  return (
+    <div className="w-full max-w-full overflow-hidden" ref={outer} style={{ height: height === null ? undefined : height * scale }}>
+      <div className="origin-top-left" style={{ transform: scale === 1 ? undefined : `scale(${scale})`, width }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -264,7 +290,8 @@ function ItemGrid({ node, inherited }: Props) {
     <div className="flex flex-col" style={{ rowGap: inherited.itemMargin.y }}>
       {rows.map((row, rowIndex) => (
         // Grid rows and cells are positions: a pack never reorders them.
-        <div className="flex flex-row" key={rowIndex} style={gap}>
+        // Story 54.9: a row wider than the room goes on to the next line instead of widening the page.
+        <div className="flex flex-row flex-wrap" key={rowIndex} style={gap}>
           {row.map((code, cellIndex) =>
             code === null ? (
               <span

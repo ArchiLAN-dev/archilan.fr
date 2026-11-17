@@ -9,6 +9,7 @@ import type { EngineAction, StateUpdate } from "../engine/protocol";
 import { PackImages } from "./pack-images";
 import { INITIAL_STATE, section, TEST_PACK } from "./test-pack";
 import { TrackerContextProvider, type TrackerScreenContext } from "./tracker-context";
+import { TrackerBoard } from "./tracker-board";
 import { TrackerLayout } from "./tracker-layout";
 import { DEFAULT_SETTINGS, EMPTY_VIEW, indexItemsByCode, mergeView, type TrackerSettings } from "./tracker-view";
 
@@ -47,7 +48,12 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-async function render(update: Partial<StateUpdate> = {}, settings: TrackerSettings = DEFAULT_SETTINGS, layout = "tracker_default") {
+async function render(
+  update: Partial<StateUpdate> = {},
+  settings: TrackerSettings = DEFAULT_SETTINGS,
+  layout = "tracker_default",
+  board = false,
+) {
   const view = mergeView(mergeView(EMPTY_VIEW, INITIAL_STATE), { items: {}, sections: {}, locations: {}, ...update });
   const images = new PackImages(
     async (path) => new Blob([path]),
@@ -67,7 +73,7 @@ async function render(update: Partial<StateUpdate> = {}, settings: TrackerSettin
   await act(async () => {
     root.render(
       <TrackerContextProvider value={context}>
-        <TrackerLayout name={layout} />
+        {board ? <TrackerBoard root={layout} /> : <TrackerLayout name={layout} />}
       </TrackerContextProvider>,
     );
   });
@@ -131,7 +137,10 @@ describe("tracker layout widgets (story 54.5)", () => {
 
   it("places the children of a canvas at their position and size (story 54.8)", async () => {
     await render({}, DEFAULT_SETTINGS, "canvas_board");
-    const board = container.querySelector<HTMLElement>('[data-widget="canvas"] > div');
+    // Story 54.9: the board sits in a frame that shrinks it to the room it has (full size here).
+    const frame = container.querySelector<HTMLElement>('[data-widget="canvas"] > div');
+    expect(frame?.style.height).toBe("100px");
+    const board = frame?.querySelector<HTMLElement>(".relative") ?? null;
     expect(board?.style.width).toBe("200px");
     const placed = board?.firstElementChild as HTMLElement | null;
     expect(placed?.style.left).toBe("120px");
@@ -145,12 +154,58 @@ describe("tracker layout widgets (story 54.5)", () => {
     expect(container.querySelector('[aria-label="Evolve Pikachu"]')).not.toBeNull();
   });
 
-  it("honours item_size and the alpha-first background", async () => {
+  it("honours item_size and draws the site's colours, not the pack's background (story 54.9)", async () => {
     await render();
     expect(byLabel("Sword").style.getPropertyValue("--item-w")).toBe("24px");
     expect(byLabel("Crystal").style.getPropertyValue("--item-w")).toBe("32px");
     const background = container.querySelector<HTMLElement>('[data-widget="container"]')?.style.background ?? "";
-    expect(background.replaceAll(" ", "")).toMatch(/rgba\(0,0,0,0\.5\d*\)|#00000080/);
+    expect(background).toBe("");
+  });
+});
+
+describe("the ArchiLAN layout of a pack (story 54.9)", () => {
+  function click(target: Element) {
+    fire(target, new MouseEvent("click", { bubbles: true }));
+  }
+
+  function button(text: string): HTMLButtonElement {
+    const found = Array.from(container.querySelectorAll("button")).find((candidate) => candidate.textContent?.trim() === text);
+    if (found === undefined) throw new Error(`no button ${text}`);
+    return found;
+  }
+
+  it("puts the items in a side panel by section and the map apart, without the pack's tabs of text", async () => {
+    await render({}, DEFAULT_SETTINGS, "tracker_default", true);
+    const panel = byLabel("Objets");
+    expect(panel.querySelector("h3")?.textContent).toBe("Items");
+    expect(panel.querySelector('[aria-label="Sword"]')).not.toBeNull();
+    expect(byLabel("Cartes").querySelector('[aria-label="Carte world"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("Hello");
+    // On a phone, two tabs; the map one first.
+    expect(button("Cartes").getAttribute("aria-selected")).toBe("true");
+    click(button("Objets"));
+    expect(panel.className).toContain("flex");
+    expect(byLabel("Cartes").className).toMatch(/(^| )hidden( |$)/);
+  });
+
+  it("folds the items away on a wide screen and brings them back", async () => {
+    await render({}, DEFAULT_SETTINGS, "tracker_default", true);
+    click(button("Replier"));
+    expect(byLabel("Objets").className).toContain("lg:hidden");
+    click(byLabel("Afficher les objets"));
+    expect(byLabel("Objets").className).toContain("lg:flex");
+  });
+
+  it("gives the whole width to the items of a pack without map", async () => {
+    await render({}, DEFAULT_SETTINGS, "items", true);
+    expect(byLabel("Objets").className).toContain("w-full");
+    expect(container.querySelector('[aria-label="Cartes"]')).toBeNull();
+    expect(container.querySelector('[role="tablist"]')).toBeNull();
+  });
+
+  it("draws a layout it cannot read the way the pack writes it", async () => {
+    await render({}, DEFAULT_SETTINGS, "no_such_layout", true);
+    expect(container.querySelector('[data-board="pack"]')).not.toBeNull();
   });
 });
 

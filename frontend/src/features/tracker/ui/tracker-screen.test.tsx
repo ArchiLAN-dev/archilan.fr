@@ -258,7 +258,14 @@ describe("the tracker screen (story 54.5)", () => {
     expect(byLabel("Sword").tagName).toBe("BUTTON");
     expect(byLabel("Variante : Maps and items")).not.toBeNull();
     expect(container.textContent).toContain("par Seto10987, G4M3R L1F3");
+    // Story 54.9: the settings sit in the Options menu; the layout is the site's (maps and items apart).
+    expect(container.querySelector('[data-board="archilan"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("Afficher les séquences breaks");
+    await act(async () => {
+      buttonNamed("Options").click();
+    });
     expect(container.textContent).toContain("Afficher les séquences breaks");
+    expect(container.textContent).toContain("Masquer ce qui est fait");
   });
 
   it("opens the variant asked in the address, and falls back on the default for an unknown one", async () => {
@@ -277,6 +284,35 @@ describe("the tracker screen (story 54.5)", () => {
     expect(container.textContent).toContain("inverse_rules.lua");
     expect(container.textContent).toContain("Élément d'affichage non géré : recentpins");
     expect(byLabel("Sword")).not.toBeNull();
+  });
+
+  it("groups the same error repeated and says it comes from the pack (story 54.9)", async () => {
+    await open(fakeDeps({ logs: ["handler boom", "handler boom", "handler boom"] }));
+    expect(container.textContent).toContain("Le pack a signalé des erreurs (4)");
+    const repeated = Array.from(container.querySelectorAll("details li")).find((item) => item.textContent?.startsWith("handler boom"));
+    expect(repeated?.textContent).toBe("handler boom×3");
+    expect(container.querySelectorAll("details li")).toHaveLength(2);
+    expect(container.textContent).toContain("viennent du pack");
+  });
+
+  it("shows the tracker alone full screen, without the site around it (story 54.9)", async () => {
+    await open(fakeDeps());
+    const shown: Element[] = [];
+    const original = Element.prototype.requestFullscreen;
+    Element.prototype.requestFullscreen = function (this: Element) {
+      shown.push(this);
+      return Promise.resolve();
+    };
+    try {
+      await act(async () => {
+        byLabel("Plein écran").click();
+      });
+    } finally {
+      Element.prototype.requestFullscreen = original;
+    }
+    expect(shown).toHaveLength(1);
+    expect(shown[0]?.querySelector('[data-board="archilan"]')).not.toBeNull();
+    expect(container.firstElementChild).toBe(shown[0]);
   });
 
   it("explains a pack that cannot load and offers to try again", async () => {
@@ -308,6 +344,9 @@ describe("the tracker screen (story 54.5)", () => {
     });
     expect(byLabel("Sword").getAttribute("aria-pressed")).toBe("true");
 
+    await act(async () => {
+      buttonNamed("Options").click();
+    });
     await act(async () => {
       buttonNamed("Remettre à zéro").click();
     });
