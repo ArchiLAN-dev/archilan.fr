@@ -7,6 +7,7 @@ import { breadcrumbJsonLd } from "@/lib/structured-data";
 import { getArchipelagoClient } from "@/features/games/archipelago-client-api";
 import { GameDetail } from "@/features/games/game-detail";
 import { getPublicGame } from "@/features/games/public-games-api";
+import { getGameTrackerPacks } from "@/features/trackers/tracker-packs-api";
 import { markdownToPlainText } from "@/components/markdown/markdown-to-plain-text";
 
 export const revalidate = 300; // ISR (story 34.4)
@@ -60,7 +61,7 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
     notFound();
   }
 
-  const client = await getArchipelagoClient();
+  const [client, trackerPacks] = await Promise.all([getArchipelagoClient(), getGameTrackerPacks(game.id)]);
 
   return (
     <>
@@ -71,7 +72,7 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
           { name: game.name, path: `/jeux/${game.slug}` },
         ])}
       />
-      <GameDetail client={client} game={game} />
+      <GameDetail client={client} game={game} trackerPacks={trackerPacks} />
     </>
   );
 }

@@ -80,6 +80,8 @@ framework:
             # Story 38.5 review: the nightly GitHub pass runs on the async worker, not in the scheduler,
             # so the two-minute stuck-run reconciliation is never held up behind it.
             'App\CatalogSync\Application\Message\CheckApworldUpdatesMessage': async
+            # Story 54.3: the nightly pack update check calls GitHub, on the async worker too.
+            'App\Trackers\Application\Message\CheckTrackerPackUpdatesMessage': async
             'App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage': async
             # Story 38.9: the nightly sweep queues its tests from the async worker, not the scheduler.
             'App\GameSelection\Application\Message\SweepApworldCatalogMessage': async

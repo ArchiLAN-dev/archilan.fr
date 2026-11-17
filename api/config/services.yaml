@@ -87,6 +87,7 @@ services:
             - '../src/Wallet/Domain/'
             - '../src/Notes/Domain/'
             - '../src/Surveys/Domain/'
+            - '../src/Trackers/Domain/'
 
     App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigProfileRepository'
     App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigOverrideRepository'
@@ -541,6 +542,15 @@ services:
     App\Registrations\Application\Query\PendingRegistrationSurveyQueryInterface: '@App\Surveys\Infrastructure\Dbal\DbalPendingRegistrationSurveyQuery'
     # Story 53.2: the registrant's checklist asks the surveys what still waits for them.
     App\Registrations\Application\Query\RegistrantSurveysQueryInterface: '@App\Surveys\Infrastructure\Dbal\DbalRegistrantSurveysQuery'
+
+    # Story 54.1: PopTracker packs, imported from GitHub. The games are read behind a port.
+    App\Trackers\Domain\Repository\TrackerPackRepositoryInterface: '@App\Trackers\Infrastructure\Doctrine\DoctrineTrackerPackRepository'
+    App\Trackers\Application\Query\AdminTrackerPackQueryInterface: '@App\Trackers\Infrastructure\Dbal\DbalAdminTrackerPackQuery'
+    App\Trackers\Application\Query\PublicTrackerPackQueryInterface: '@App\Trackers\Infrastructure\Dbal\DbalPublicTrackerPackQuery'
+    App\Trackers\Application\Port\TrackerGameInterface: '@App\Trackers\Infrastructure\Adapter\RepositoryTrackerGame'
+    App\Trackers\Application\Port\TrackerPackFetcherInterface: '@App\Trackers\Infrastructure\Http\GithubTrackerPackFetcher'
+    App\Trackers\Application\Port\TrackerPackUpdateSourceInterface: '@App\Trackers\Infrastructure\Http\GithubTrackerPackFetcher'
+    App\Trackers\Application\Port\TrackerPackArchiveInspectorInterface: '@App\Trackers\Infrastructure\Adapter\ZipTrackerPackArchiveInspector'
 
     App\Events\Domain\Repository\EventRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventRepository'
     App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventPrivateAccessLogRepository'

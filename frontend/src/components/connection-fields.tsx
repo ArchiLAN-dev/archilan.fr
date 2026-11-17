@@ -3,6 +3,7 @@
 import { SecretField } from "@/components/secret-field";
 import { SlotNameField, type ConnectionSlot } from "@/components/slot-name-field";
 import { InfoHint } from "@/components/ui/info-hint";
+import { TrackerSlotLink } from "@/features/tracker/tracker-slot-link";
 
 /**
  * Les champs de connexion d'une run, dans la seule forme qui marche partout : il n'y en a pas une.
@@ -40,7 +41,12 @@ export function ConnectionFields({
       {slots.length > 0 ? (
         <div className="grid grid-cols-1 gap-2">
           {slots.map((slot) => (
-            <SlotNameField key={slot.name} showGame={slots.length > 1} slot={slot} />
+            <div className="flex min-w-0 flex-wrap items-center gap-2" key={slot.name}>
+              <div className="min-w-0 flex-1">
+                <SlotNameField showGame={slots.length > 1} slot={slot} />
+              </div>
+              {slot.tracker !== undefined ? <TrackerSlotLink slotName={slot.name} tracker={slot.tracker} /> : null}
+            </div>
           ))}
         </div>
       ) : null}

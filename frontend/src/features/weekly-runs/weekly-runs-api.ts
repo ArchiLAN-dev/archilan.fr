@@ -42,6 +42,9 @@ export type CurrentWeeklyRun = {
   templateName: string | null;
   yamlConfig: string | null;
   gameName: string;
+  // Story 54.7: the run's game, for its tracker. Absent on older payloads.
+  gameId?: string | null;
+  gameSlug?: string | null;
   coverImageUrl: string | null;
   weekNumber: number;
   weekYear: number;

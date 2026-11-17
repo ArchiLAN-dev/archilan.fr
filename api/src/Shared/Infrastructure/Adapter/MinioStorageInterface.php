@@ -12,6 +12,9 @@ interface MinioStorageInterface
 
     public function exists(string $bucket, string $key): bool;
 
+    /** Removes an object; an object already gone is not an error (story 54.3). */
+    public function delete(string $bucket, string $key): void;
+
     /** @return string pre-signed URL valid for $ttlSeconds seconds */
     public function presignedUrl(string $bucket, string $key, int $ttlSeconds): string;
 }

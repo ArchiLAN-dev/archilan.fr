@@ -26,6 +26,7 @@ import {DEFAULT_CONTRIBUTION_FILTERS, fetchContributionQueue, type ContributionI
 import {contributionFiltersToParams} from "./moderation-filters";
 import {ApworldIncidentBanner} from "./apworld-incident-banner";
 import {ApworldTab} from "./admin-game-apworld-tab";
+import {AdminGameTrackerPacks} from "./admin-game-tracker-packs";
 import {updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone} from "./apworld-update-status";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ const EDITOR_TABS = [
     {id: "catalogue", label: "Catalogue"},
     {id: "apworld", label: "APWorld"},
     {id: "tutoriel", label: "Tutoriel"},
+    {id: "trackers", label: "Trackers"},
     {id: "notes", label: "Notes"},
 ] as const;
 
@@ -82,6 +84,7 @@ export function editorTabFlags(
                 count: pendingContributions,
             }
             : null,
+        trackers: null,
         notes: hasAdminNote(game.adminNotes) ? {icon: StickyNote, hint: "une note interne existe"} : null,
     };
 }
@@ -289,6 +292,9 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
             <div aria-labelledby="tab-tutoriel" hidden={activeTab !== "tutoriel"} id="panel-tutoriel" role="tabpanel">
                 <PendingTutorialProposals gameName={game.name} proposals={pendingContributions}/>
                 <InstallTutorialSection game={game} onUpdate={refreshGame}/>
+            </div>
+            <div aria-labelledby="tab-trackers" hidden={activeTab !== "trackers"} id="panel-trackers" role="tabpanel">
+                <AdminGameTrackerPacks gameId={game.id} gameSlug={game.slug}/>
             </div>
             <div aria-labelledby="tab-notes" hidden={activeTab !== "notes"} id="panel-notes" role="tabpanel">
                 <NotesSection game={game} onUpdate={refreshGame}/>

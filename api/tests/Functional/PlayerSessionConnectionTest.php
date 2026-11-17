@@ -110,6 +110,7 @@ final class PlayerSessionConnectionTest extends FunctionalTestCase
         self::assertSame(0, $firstSlot['slotOrder']);
         self::assertSame($game->getId(), $firstSlot['gameId']);
         self::assertSame('Hollow Knight', $firstSlot['gameName']);
+        self::assertSame($game->getSlug(), $firstSlot['gameSlug']);
     }
 
     public function testPlayerOnlySeesOwnSlots(): void
