@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDownLeft, ArrowUpRight, Check, Copy, Link2, Pencil, Plus } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, BarChart3, Check, Copy, Link2, Pencil, Plus } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
+import { AdminLinkStats, VISITS_NOTE } from "@/features/admin/admin-link-stats";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { fetchAdminLinks, saveLink, type TrackedLink } from "@/features/links/links-api";
 import { env } from "@/lib/env";
@@ -13,7 +14,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Story 55.1: the tracked links `/l/{code}`. A path makes an inbound link (Discord, socials, posters lead to the
- * site), an https address an outbound one (the site sends a visitor elsewhere). Their counts come with story 55.2.
+ * site), an https address an outbound one (the site sends a visitor elsewhere). Story 55.2: their counts, the most
+ * visited over 30 days first, and the detail of one link.
  */
 export const ADMIN_LINKS_KEY = ["admin-links"] as const;
 
@@ -26,10 +28,27 @@ export function linkUrl(code: string): string {
   return `${env.appUrl}/l/${code}`;
 }
 
+export type DirectionFilter = "all" | TrackedLink["direction"];
+
+const FILTERS: { value: DirectionFilter; label: string }[] = [
+  { value: "all", label: "Tous" },
+  { value: "inbound", label: "Entrants" },
+  { value: "outbound", label: "Sortants" },
+];
+
+/** The links of the chosen direction, the most visited over 30 days first, then over all time, then the newest. */
+export function shownLinks(links: readonly TrackedLink[], filter: DirectionFilter): TrackedLink[] {
+  return links
+    .filter((link) => filter === "all" || link.direction === filter)
+    .sort((a, b) => b.visits.last30 - a.visits.last30 || b.visits.total - a.visits.total || b.createdAt.localeCompare(a.createdAt));
+}
+
 export function AdminLinks() {
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ADMIN_LINKS_KEY, queryFn: fetchAdminLinks, staleTime: DEFAULT_STALE_TIME, retry: false });
   const [editing, setEditing] = useState<TrackedLink | "new" | null>(null);
+  const [viewing, setViewing] = useState<TrackedLink | null>(null);
+  const [filter, setFilter] = useState<DirectionFilter>("all");
 
   async function refresh(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: ADMIN_LINKS_KEY });
@@ -60,11 +79,27 @@ export function AdminLinks() {
         </p>
       ) : null}
       {data !== undefined && data !== null && data.length > 0 ? (
-        <ul className="grid gap-3">
-          {data.map((link) => (
-            <LinkRow key={link.id} link={link} onEdit={() => setEditing(link)} />
-          ))}
-        </ul>
+        <>
+          <div aria-label="Sens des liens" className="flex flex-wrap gap-2" role="group">
+            {FILTERS.map((option) => (
+              <button
+                aria-pressed={filter === option.value}
+                className={buttonVariants({ variant: filter === option.value ? "primary" : "secondary" })}
+                key={option.value}
+                onClick={() => setFilter(option.value)}
+                type="button"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <ul className="grid gap-3">
+            {shownLinks(data, filter).map((link) => (
+              <LinkRow key={link.id} link={link} onEdit={() => setEditing(link)} onStats={() => setViewing(link)} />
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">{VISITS_NOTE}</p>
+        </>
       ) : null}
 
       <Dialog
@@ -86,11 +121,27 @@ export function AdminLinks() {
           />
         ) : null}
       </Dialog>
+
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) setViewing(null);
+        }}
+        open={viewing !== null}
+        size="wide"
+        title={viewing !== null ? `Statistiques : ${viewing.label}` : "Statistiques"}
+        variant="side"
+      >
+        {viewing !== null ? (
+          <DialogBody>
+            <AdminLinkStats link={viewing} />
+          </DialogBody>
+        ) : null}
+      </Dialog>
     </section>
   );
 }
 
-function LinkRow({ link, onEdit }: { link: TrackedLink; onEdit: () => void }) {
+function LinkRow({ link, onEdit, onStats }: { link: TrackedLink; onEdit: () => void; onStats: () => void }) {
   const [copied, setCopied] = useState(false);
   const outbound = link.direction === "outbound";
   const Direction = outbound ? ArrowUpRight : ArrowDownLeft;
@@ -117,8 +168,19 @@ function LinkRow({ link, onEdit }: { link: TrackedLink; onEdit: () => void }) {
         </div>
         <p className="truncate font-mono text-sm text-foreground">{linkUrl(link.code)}</p>
         <p className="truncate text-xs text-muted-foreground">vers {link.target}</p>
+        <p className="text-sm text-foreground">
+          <span className="font-semibold tabular-nums">{link.visits.last30}</span> sur 30 jours
+          <span className="text-muted-foreground">
+            {" "}
+            · {link.visits.last7} sur 7 jours · {link.visits.total} au total
+          </span>
+        </p>
       </div>
       <div className="flex flex-wrap gap-2">
+        <button className={buttonVariants({ variant: "secondary" })} onClick={onStats} type="button">
+          <BarChart3 aria-hidden className="size-4" />
+          Statistiques
+        </button>
         <button aria-label={`Copier le lien ${link.code}`} className={buttonVariants({ variant: "secondary" })} onClick={() => void copy()} type="button">
           {copied ? <Check aria-hidden className="size-4" /> : <Copy aria-hidden className="size-4" />}
           {copied ? "Copié" : "Copier"}
