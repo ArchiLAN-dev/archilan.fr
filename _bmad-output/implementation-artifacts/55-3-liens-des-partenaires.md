@@ -66,3 +66,6 @@ afin de pouvoir leur dire ce qu'on leur apporte.
   rattrapage de migration avec un code déjà pris et un nom sans lettre, deux passes) ; `PartnerLinkCodeTest`.
 - Jest : `partnerHref`, garde de type, carte, compteurs admin, lien de partenaire non modifiable.
 - Migration jouée sur la base de dev : 4 partenaires, 4 liens.
+- Cartes sans `noreferrer` (`sponsored noopener`) : le passage est compté avec l'origine `archilan.fr` et le
+  partenaire voit la visite venir d'ArchiLAN dans ses propres statistiques. La politique du site
+  (`strict-origin-when-cross-origin`) n'envoie que l'origine, jamais la page. Vérifié en réel : origine enregistrée.

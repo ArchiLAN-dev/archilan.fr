@@ -119,7 +119,7 @@ describe("partners", () => {
   it("links a partner out as a partnership, in a new tab", () => {
     const html = renderToStaticMarkup(<PartnerCard partner={visible} />);
     expect(html).toContain('href="https://ludo.example"');
-    expect(html).toContain('rel="sponsored noopener noreferrer"');
+    expect(html).toContain('rel="sponsored noopener"');
     expect(html).toContain('target="_blank"');
     expect(html).toContain("Logo de Ludothèque");
     expect(html).toContain("Des jeux à prêter.");

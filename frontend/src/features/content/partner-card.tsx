@@ -21,14 +21,15 @@ export function logoChipBackground(partner: Pick<Partner, "logoOnDark">): string
  * partner's logo is almost always drawn for a light background, and a dark one vanished on the dark theme (45.1).
  * The chip color is fixed on purpose, not a theme token. The link says it comes from a partnership (`sponsored`).
  * Story 55.3: it goes through the partner's tracked link, as a plain `<a>`: `next/link` could prefetch the route and
- * count a visit nobody made.
+ * count a visit nobody made. No `noreferrer`: the partner sees the visit come from archilan.fr in its own analytics
+ * (the site's `strict-origin-when-cross-origin` policy sends the origin only, never the page).
  */
 export function PartnerCard({ partner }: Props) {
   return (
     <a
       className="group grid h-full content-start gap-4 rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-accent"
       href={partnerHref(partner)}
-      rel="sponsored noopener noreferrer"
+      rel="sponsored noopener"
       target="_blank"
     >
       {/* Proportional (5:2) so the logo uses the card's width instead of a flat strip, with room around it (45.5). */}
@@ -108,7 +109,7 @@ export function EventPartners({ partners, variant }: EventPartnersProps) {
               <a
                 className="flex items-center gap-3 rounded-xl border border-border bg-surface py-2 pl-2 pr-4 text-sm text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
                 href={partnerHref(partner)}
-                rel="sponsored noopener noreferrer"
+                rel="sponsored noopener"
                 target="_blank"
               >
                 <SmallLogoChip partner={partner} />
