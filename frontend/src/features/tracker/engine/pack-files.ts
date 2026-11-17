@@ -11,12 +11,18 @@ import { parseJsonc } from "./jsonc";
 export class PackFiles {
   private readonly files: Map<string, Uint8Array>;
   private readonly decoder = new TextDecoder("utf-8");
+  /** Lower-cased path to the first stored path that matches it (story 54.8). */
+  private readonly folded = new Map<string, string>();
 
   private constructor(
     files: Map<string, Uint8Array>,
     private readonly variantUid: string,
   ) {
     this.files = files;
+    for (const path of files.keys()) {
+      const key = path.toLowerCase();
+      if (!this.folded.has(key)) this.folded.set(key, path);
+    }
   }
 
   /** @throws PackError archive_invalid */
@@ -48,15 +54,21 @@ export class PackFiles {
     return new PackFiles(files, variantUid);
   }
 
-  /** The path the file resolves to, variant folder first, or null. */
+  /**
+   * The path the file resolves to, variant folder first, or null. Packs are mostly written and tried on Windows, where
+   * a path ignores case: an exact match wins, then one that differs only by case (Spyro 3 asks for `08SpiderTown.json`
+   * and ships `08Spidertown.json`, story 54.8).
+   */
   resolve(path: string): string | null {
     const clean = normalizePath(path);
     if (clean === null) return null;
-    if (this.variantUid !== "") {
-      const inVariant = `${this.variantUid}/${clean}`;
-      if (this.files.has(inVariant)) return inVariant;
+    const candidates = this.variantUid === "" ? [clean] : [`${this.variantUid}/${clean}`, clean];
+    for (const candidate of candidates) if (this.files.has(candidate)) return candidate;
+    for (const candidate of candidates) {
+      const found = this.folded.get(candidate.toLowerCase());
+      if (found !== undefined) return found;
     }
-    return this.files.has(clean) ? clean : null;
+    return null;
   }
 
   bytes(path: string): Uint8Array | null {

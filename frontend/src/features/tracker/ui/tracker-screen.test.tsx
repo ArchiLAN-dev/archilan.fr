@@ -14,7 +14,11 @@ import { TrackerClient, type WorkerLike } from "../engine/tracker-client";
 import type { SlotConnection } from "../tracker-slot-api";
 import type { ApClientLike, ApSocketHandlers } from "./ap-link";
 import { INITIAL_STATE, TEST_PACK } from "./test-pack";
+import type { AdminTrackerPack, CompatibilityReport } from "@/features/admin/admin-tracker-packs-api";
+
+import { REPORT_DELAY_MS } from "./compatibility-report";
 import { TrackerScreen } from "./tracker-screen";
+import { TrackerTrial } from "./tracker-trial";
 import type { TrackerSessionDeps } from "./use-tracker-session";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -455,5 +459,92 @@ describe("the tracker opened on a slot (story 54.7)", () => {
     requests = [];
     await open(fakeDeps(), null, SLOT);
     expect(requests[0]).toMatchObject({ type: "load", variantUid: "itemsonly" });
+  });
+});
+
+describe("an admin's trial of a pack (story 54.8)", () => {
+  const adminPack = {
+    id: "p1",
+    name: "Majora's Mask: Recompiled",
+    author: "Seto10987",
+    licenseSpdx: "MIT",
+    sourceUrl: "https://github.com/o/r",
+    enabled: false,
+    defaultVariantUid: null,
+    versions: [
+      {
+        id: "v-old",
+        packageVersion: "0.9.5.2",
+        gitTag: null,
+        sizeBytes: 10,
+        importedAt: "2026-11-01T10:00:00+00:00",
+        rootPath: "pack-0.9.5.2",
+        sha256: "x",
+        variants: [{ uid: "standard", displayName: "Maps and items", flags: ["ap"] }],
+        current: false,
+      },
+    ],
+  } as unknown as AdminTrackerPack;
+
+  async function trial(fetchPacks: () => Promise<AdminTrackerPack[] | null>, deps: TrackerSessionDeps, reports: [string, CompatibilityReport][]) {
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <TrackerTrial
+            deps={deps}
+            fetchPacks={fetchPacks}
+            gameId="g1"
+            gameName="Majora's Mask"
+            gameSlug="majoras-mask"
+            initialVariantUid={null}
+            packId="p1"
+            sendReport={async (versionId, report) => {
+              reports.push([versionId, report]);
+              return true;
+            }}
+            versionId="v-old"
+          />
+        </QueryClientProvider>,
+      );
+    });
+    await settle();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, REPORT_DELAY_MS + 50));
+    });
+    await settle();
+  }
+
+  it("opens a version not offered to players and reports what its load found", async () => {
+    const reports: [string, CompatibilityReport][] = [];
+    await trial(async () => [adminPack], fakeDeps({ logs: ["Fonction non prise en charge : ScriptHost:AddOnFrameHandler", "boom"] }), reports);
+    expect(requests[0]).toMatchObject({ type: "load", rootPath: "pack-0.9.5.2", variantUid: "standard" });
+    expect(container.textContent).toContain("pas encore proposé aux joueurs");
+    expect(reports).toHaveLength(1);
+    const [versionId, report] = reports[0] ?? [];
+    expect(versionId).toBe("v-old");
+    expect(report).toMatchObject({ variantUid: "standard", status: "warnings", errors: [{ kind: "error", message: "boom" }] });
+    expect(report?.unsupportedApis).toEqual(["ScriptHost:AddOnFrameHandler", "widget:recentpins"]);
+    expect(container.textContent).toContain("État de cette variante enregistré");
+  });
+
+  it("reports a variant that does not load", async () => {
+    const reports: [string, CompatibilityReport][] = [];
+    await trial(
+      async () => [adminPack],
+      fakeDeps({ load: (request) => ({ type: "error", requestId: request.requestId, kind: "lua_error", message: "init.lua a planté" }) }),
+      reports,
+    );
+    expect(reports.map(([, report]) => report.status)).toEqual(["failed"]);
+  });
+
+  it("gives nothing to someone who is not an admin", async () => {
+    await trial(async () => null, fakeDeps(), []);
+    expect(container.textContent).toContain("réservé aux admins");
+    expect(requests).toEqual([]);
+  });
+
+  it("says when the pack no longer keeps the version", async () => {
+    await trial(async () => [{ ...adminPack, versions: [] }], fakeDeps(), []);
+    expect(container.textContent).toContain("n'existe plus");
   });
 });

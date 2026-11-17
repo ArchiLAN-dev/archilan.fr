@@ -59,3 +59,14 @@ Nothing remains deferred from story 7.7.
   **À faire après la bascule, pas avant** : c'est elle qui prouvera empiriquement que le routage par
   nom de conteneur fonctionne sur cette machine - l'hypothèse centrale de ce travail. Story à
   rédiger alors, sous le nom « 37.7 - fermer l'exposition publique du bridge ».
+
+## Deferred from: story 54.8, campagne de compatibilité des trackers (2026-11-17)
+
+- **Sauvegarde des items Lua** : `SaveFunc`/`LoadFunc` ne sont pas lus. L'état d'un item créé par
+  `ScriptHost:CreateLuaItem` repart de zéro au rechargement de la page (l'autotracking le reconstruit).
+- **Progression des scripts asynchrones** : `AsyncProgress` est accepté sans effet ; un script asynchrone tourne
+  d'un bloc avant l'affichage, pas en arrière-plan.
+- **Packs cassés en amont** : A Link Between Worlds (`floors.json`), Luigi's Mansion (`scripts/utils.lua`,
+  `ghost_rando_table.lua`), Majora's Mask (`scripts/inverse_rules.lua`). À signaler aux auteurs ou attendre une
+  release corrigée ; rien à faire côté site.
+

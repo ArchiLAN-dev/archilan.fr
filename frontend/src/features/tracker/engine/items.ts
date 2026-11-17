@@ -47,6 +47,11 @@ export type ItemDefinition = {
   compositeImages: CompositeImage[];
   overlayBackground: string | null;
   overlayFontSize: number | null;
+  /**
+   * Story 54.8: `progressive` codes set on the item itself, next to its stages. PopTracker provides them in every
+   * stage while the item is active (Inscryption keeps its options this way).
+   */
+  itemCodes?: string[];
 };
 
 /** What changes during a session. */
@@ -55,6 +60,9 @@ export type ItemState = {
   stage: number;
   count: number;
   overlay: string;
+  /** Story 54.8: a Lua item draws the icon and name its Lua table holds now. */
+  icon?: { img: string; imgMods: string };
+  name?: string;
 };
 
 export class TrackerItem {
@@ -83,11 +91,16 @@ export class TrackerItem {
     this.active = options.initialActive;
     this.stage = clamp(options.initialStage, 0, Math.max(0, definition.stages.length - 1));
     this.count = options.initialCount;
-    this.allCodes = new Set(definition.stages.flatMap((stage) => stage.codes));
+    this.allCodes = new Set([...definition.stages.flatMap((stage) => stage.codes), ...(definition.itemCodes ?? [])]);
   }
 
   get type(): ItemType {
     return this.definition.type;
+  }
+
+  /** Every code the item can provide, in any stage. */
+  codes(): string[] {
+    return [...this.allCodes];
   }
 
   canProvide(code: string): boolean {
@@ -113,6 +126,7 @@ export class TrackerItem {
       case "progressive":
       case "progressive_toggle": {
         if (!this.active) return 0;
+        if (this.definition.itemCodes?.includes(code) === true) return 1;
         return this.definition.stages[this.stage]?.codes.includes(code) === true ? 1 : 0;
       }
     }
@@ -308,6 +322,7 @@ function parseItem(
       ? stagesFromJson
       : [{ ...readImage(raw), name: null, codes: ownCodes }];
   if (type === "composite_toggle" && ownCodes.length > 0) stages[0] = { ...stages[0], codes: ownCodes };
+  const itemCodes = stages === stagesFromJson ? ownCodes.filter((code) => !stages.some((stage) => stage.codes.includes(code))) : [];
 
   const minQuantity = readNumber(raw, "min_quantity") ?? 0;
   const maxQuantity = readNumber(raw, "max_quantity") ?? 0;
@@ -331,6 +346,7 @@ function parseItem(
       right: readBoolean(image, "right") ?? false,
     })),
     overlayBackground: readString(raw, "overlay_background"),
+    ...(itemCodes.length > 0 ? { itemCodes } : {}),
     overlayFontSize: readNumber(raw, "overlay_font_size") ?? readNumber(raw, "badge_font_size"),
   };
 

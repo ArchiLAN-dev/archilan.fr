@@ -1,7 +1,7 @@
 import { LuaFactory, type LuaEngine } from "wasmoon";
 
 import { PackError } from "./errors";
-import { parseItems, type ItemParseIssue, type TrackerItem } from "./items";
+import { parseItems, type ItemDefinition, type ItemParseIssue, type TrackerItem } from "./items";
 import { isJsonObject, readNumber, readString } from "./json-read";
 import { AccessibilityLevel, EMULATED_POPTRACKER_VERSION, Highlight } from "./levels";
 import { LocationRegistry, type TrackerLocation, type TrackerSection } from "./locations";
@@ -56,11 +56,29 @@ type LuaApi = {
   archipelagoHandlerCount(kind: string): unknown;
   ap(json: string): unknown;
   run(source: string): unknown;
+  luaProvides(code: string): unknown;
+  luaItemView(id: number): unknown;
+  luaItemClick(id: number, button: string): unknown;
+  runAsync(): unknown;
+  pendingAsync(): unknown;
 };
 
 function isLuaApi(value: unknown): value is LuaApi {
   if (!isJsonObject(value)) return false;
-  return ["loadScript", "callRule", "itemChanged", "sectionChanged", "archipelagoHandlerCount", "ap", "run"].every(
+  return [
+    "loadScript",
+    "callRule",
+    "itemChanged",
+    "sectionChanged",
+    "archipelagoHandlerCount",
+    "ap",
+    "run",
+    "luaProvides",
+    "luaItemView",
+    "luaItemClick",
+    "runAsync",
+    "pendingAsync",
+  ].every(
     (key) => typeof value[key] === "function",
   );
 }
@@ -69,6 +87,33 @@ type Flag = "BulkUpdate" | "AllowDeferredLogicUpdate";
 
 const MAX_WATCH_ROUNDS = 100;
 const MAX_LOGS = 500;
+
+/** Passes allowed for rules that need each other to settle; PopTracker has no bound, a broken pack would hang it. */
+const MAX_LOGIC_PASSES = 20;
+
+/** Rounds of async scripts whose callbacks queue more of them (story 54.8). */
+const MAX_ASYNC_ROUNDS = 10;
+
+/** What the screen draws of a Lua item, read from its Lua table. */
+type LuaItemView = { name: string; icon: string; badge: string; overlay: string; codes: string[] };
+
+function parseLuaItemView(raw: unknown): LuaItemView | null {
+  if (typeof raw !== "string") return null;
+  const [name = "", icon = "", badge = "", overlay = "", codes = ""] = raw.split("\u001f");
+  return { name, icon, badge, overlay, codes: codes === "" ? [] : codes.split(",") };
+}
+
+/** An icon is `path` or `path` and its mods after a line break (`ImageReference:FromImageReference`). */
+function splitIcon(icon: string): { img: string; imgMods: string } {
+  const [img = "", imgMods = ""] = icon.split("\n");
+  return { img, imgMods };
+}
+
+function sameLevels(a: Map<string, AccessibilityLevel>, b: Map<string, AccessibilityLevel>): boolean {
+  if (a.size !== b.size) return false;
+  for (const [key, level] of a) if (b.get(key) !== level) return false;
+  return true;
+}
 
 export class TrackerEngine {
   readonly logs: EngineLog[] = [];
@@ -88,6 +133,16 @@ export class TrackerEngine {
   private readonly levelCache = new Map<string, AccessibilityLevel>();
   private readonly callCache = new Map<string, number | boolean | null>();
   private readonly evaluating = new Set<string>();
+  /**
+   * Story 54.8: the levels of the previous pass while rules that need each other settle (Cuphead: an isle opens with
+   * its bosses, a boss needs its isle). A rule met again while it is being evaluated reads this value, as PopTracker
+   * reads its cache, and passes repeat until nothing changes.
+   */
+  private seed = new Map<string, AccessibilityLevel>();
+  private loopHit = false;
+  /** Story 54.8: items created by `ScriptHost:CreateLuaItem`, by id; their state lives in Lua. */
+  private readonly luaItemIds: number[] = [];
+  private readonly luaCounts = new Map<string, number>();
   private readonly reported = new Set<string>();
   private readonly pendingItems = new Set<TrackerItem>();
   private readonly pendingSections = new Set<TrackerSection>();
@@ -130,7 +185,7 @@ export class TrackerEngine {
     return {
       manifest: this.manifest,
       variantUid: this.variantUid,
-      items: this.items.map((item) => item.definition),
+      items: [...this.items.map((item) => item.definition), ...this.luaItemDefinitions()],
       maps: this.maps,
       layouts: this.layouts,
       locations: this.locations.allLocations().map((location) => this.describeLocation(location)),
@@ -139,6 +194,8 @@ export class TrackerEngine {
 
   /** Everything, and the reference for the next diffs. */
   initialState(): StateUpdate {
+    this.resolveLevels();
+    this.drainAsync();
     this.previous = this.fullState();
     return this.previous;
   }
@@ -231,7 +288,12 @@ export class TrackerEngine {
     try {
       api.loadScript("scripts/init.lua");
     } catch (error) {
-      throw this.luaFailure(error);
+      // PopTracker logs an error of init.lua and keeps what was loaded before it (story 54.8): Spyro 3 calls a
+      // function that does not exist after declaring all of its items and maps.
+      const failure = this.luaFailure(error);
+      if (this.items.length === 0 && Object.keys(this.layouts).length === 0) throw failure;
+      const where = failure.file === undefined ? "" : ` (${failure.file}${failure.line === undefined ? "" : `:${failure.line}`})`;
+      this.log("error", `${failure.message}${where}`);
     }
     this.settleWatchers();
   }
@@ -271,6 +333,12 @@ export class TrackerEngine {
         if (player === undefined) return undefined;
         return field === "alias" ? player.alias : field === "game" ? player.game : undefined;
       },
+      luaItemCreate: () => {
+        const id = this.nextItemId++;
+        this.luaItemIds.push(id);
+        return id;
+      },
+      luaItemChanged: () => undefined,
       ruleError: (name, message) => this.logOnce(`rule:${String(name)}`, "error", `Règle $${String(name)} : ${String(message)}`),
     };
   }
@@ -325,7 +393,7 @@ export class TrackerEngine {
     for (const item of added) {
       this.items.push(item);
       this.itemsById.set(item.definition.id, item);
-      for (const code of new Set(item.definition.stages.flatMap((stage) => stage.codes))) {
+      for (const code of item.codes()) {
         const list = this.itemsByCode.get(code) ?? [];
         list.push(item);
         this.itemsByCode.set(code, list);
@@ -441,11 +509,20 @@ export class TrackerEngine {
   private applyOne(action: EngineAction): void {
     switch (action.type) {
       case "itemClick": {
+        if (this.luaItemIds.includes(action.itemId)) {
+          const api = this.luaApi();
+          api.luaItemClick(action.itemId, action.button);
+          this.invalidate();
+          api.itemChanged((this.luaItemView(action.itemId)?.codes ?? []).join(","));
+          return;
+        }
         const item = this.requireItem(action.itemId);
         for (const changed of item.click(action.button, (id) => this.itemsById.get(id))) this.markItemChanged(changed);
         return;
       }
       case "itemSet": {
+        // A Lua item keeps its own state (its SaveFunc is not read yet): nothing to put back.
+        if (this.luaItemIds.includes(action.itemId)) return;
         const item = this.requireItem(action.itemId);
         if (action.state.active !== undefined) item.setActive(action.state.active);
         if (action.state.stage !== undefined) item.setStage(action.state.stage);
@@ -510,11 +587,81 @@ export class TrackerEngine {
   private invalidate(): void {
     this.levelCache.clear();
     this.callCache.clear();
+    this.luaCounts.clear();
+    this.seed = new Map();
+  }
+
+  /** Evaluates every rule, again while some rule met itself, until the levels stop changing. */
+  private resolveLevels(): void {
+    for (let pass = 0; pass < MAX_LOGIC_PASSES; pass += 1) {
+      this.loopHit = false;
+      for (const location of this.locations.allLocations()) {
+        this.locationAccess(location);
+        this.locationVisible(location);
+      }
+      for (const section of this.locations.allSections()) {
+        this.sectionLogicLevel(section);
+        this.sectionVisible(section);
+      }
+      if (!this.loopHit) return;
+      const levels = new Map(this.levelCache);
+      if (pass > 0 && sameLevels(levels, this.seed)) return;
+      this.seed = levels;
+      this.levelCache.clear();
+      this.callCache.clear();
+    }
+    this.logOnce("logic-passes", "warn", "La logique du pack ne se stabilise pas : certains lieux peuvent être faux.");
   }
 
   private settle(): StateUpdate {
     this.settleWatchers();
+    this.resolveLevels();
+    this.drainAsync();
     return this.diff();
+  }
+
+  /**
+   * Story 54.8: the async scripts the last logic pass queued run now, as PopTracker runs them on the next frame; what
+   * their callbacks change is settled before the screen hears of it.
+   */
+  private drainAsync(): void {
+    const api = this.luaApi();
+    for (let round = 0; round < MAX_ASYNC_ROUNDS; round += 1) {
+      if (api.pendingAsync() === 0) return;
+      api.runAsync();
+      this.invalidate();
+      this.settleWatchers();
+      this.resolveLevels();
+    }
+    this.logOnce("async-rounds", "warn", "Les scripts asynchrones du pack se relancent sans fin : arrêt.");
+  }
+
+  private luaItemView(id: number): LuaItemView | null {
+    return parseLuaItemView(this.luaApi().luaItemView(id));
+  }
+
+  /** Lua items as the screen draws them: a static item whose image, name and badge come with its state. */
+  private luaItemDefinitions(): ItemDefinition[] {
+    return this.luaItemIds.flatMap((id) => {
+      const view = this.luaItemView(id);
+      if (view === null) return [];
+      const { img, imgMods } = splitIcon(view.icon);
+      const definition: ItemDefinition = {
+        id,
+        name: view.name,
+        type: "static",
+        stages: [{ img: img === "" ? null : img, imgMods, disabledImg: null, disabledImgMods: null, name: null, codes: view.codes }],
+        minQuantity: 0,
+        maxQuantity: 0,
+        baseItemId: null,
+        leftItemId: null,
+        rightItemId: null,
+        compositeImages: [],
+        overlayBackground: null,
+        overlayFontSize: null,
+      };
+      return [definition];
+    });
   }
 
   /** Watchers run after the change, outside `BulkUpdate`; what they change triggers the next round. */
@@ -543,12 +690,23 @@ export class TrackerEngine {
 
   // Logic -------------------------------------------------------------------
 
+  /** Story 54.8: what the Lua items provide of a code, once per logic pass. */
+  private luaProvidedCount(code: string): number {
+    if (this.luaItemIds.length === 0) return 0;
+    const cached = this.luaCounts.get(code);
+    if (cached !== undefined) return cached;
+    const raw = this.luaApi().luaProvides(code);
+    const count = typeof raw === "number" ? raw : 0;
+    this.luaCounts.set(code, count);
+    return count;
+  }
+
   private providerCount(code: string): number {
     const items = this.itemsByCode.get(code);
-    if (items === undefined) return 0;
+    if (items === undefined) return this.luaProvidedCount(code);
     let total = 0;
     for (const item of items) total += item.providedCount(code, (id) => this.itemsById.get(id));
-    return total;
+    return total + this.luaProvidedCount(code);
   }
 
   private callFunction(name: string, args: string[]): number | boolean | null {
@@ -576,12 +734,13 @@ export class TrackerEngine {
   }
 
   /** Memoized, with loop detection: a rule that needs itself is not accessible. */
-  private cached(key: string, compute: () => AccessibilityLevel): AccessibilityLevel {
+  private cached(key: string, label: string, compute: () => AccessibilityLevel): AccessibilityLevel {
     const hit = this.levelCache.get(key);
     if (hit !== undefined) return hit;
     if (this.evaluating.has(key)) {
-      this.logOnce(`loop:${key}`, "error", `Boucle de règles sur ${key.slice(2)}`);
-      return AccessibilityLevel.None;
+      this.loopHit = true;
+      this.logOnce(`loop:${key}`, "info", `Règles circulaires autour de ${label}`);
+      return this.seed.get(key) ?? AccessibilityLevel.None;
     }
     this.evaluating.add(key);
     try {
@@ -595,7 +754,7 @@ export class TrackerEngine {
 
   /** The access rules of a location and of all its ancestors (AND). */
   private locationAccess(location: TrackerLocation): AccessibilityLevel {
-    return this.cached(`a:${location.id}`, () => {
+    return this.cached(`a:${location.id}`, location.name, () => {
       const own = evaluateRules(location.accessRules, this.ruleContext);
       if (location.parent === null || own === AccessibilityLevel.None) return own;
       return Math.min(own, this.locationAccess(location.parent)) as AccessibilityLevel;
@@ -603,7 +762,7 @@ export class TrackerEngine {
   }
 
   private locationVisible(location: TrackerLocation): boolean {
-    const level = this.cached(`v:${location.id}`, () => {
+    const level = this.cached(`v:${location.id}`, location.name, () => {
       const own = evaluateRules(location.visibilityRules, this.ruleContext);
       if (location.parent === null || own === AccessibilityLevel.None) return own;
       return this.locationVisible(location.parent) ? own : AccessibilityLevel.None;
@@ -615,7 +774,7 @@ export class TrackerEngine {
   private sectionLogicLevel(section: TrackerSection): AccessibilityLevel {
     const target = this.locations.resolveRef(section);
     if (target === undefined) return AccessibilityLevel.None;
-    return this.cached(`s:${target.id}`, () => {
+    return this.cached(`s:${target.id}`, `${target.location.name}/${target.name}`, () => {
       const own = evaluateRules(target.accessRules, this.ruleContext);
       if (own === AccessibilityLevel.None) return own;
       return Math.min(own, this.locationAccess(target.location)) as AccessibilityLevel;
@@ -625,7 +784,7 @@ export class TrackerEngine {
   private sectionVisible(section: TrackerSection): boolean {
     const target = this.locations.resolveRef(section);
     if (target === undefined) return false;
-    const level = this.cached(`w:${target.id}`, () =>
+    const level = this.cached(`w:${target.id}`, `${target.location.name}/${target.name}`, () =>
       this.locationVisible(target.location) ? evaluateRules(target.visibilityRules, this.ruleContext) : AccessibilityLevel.None,
     );
     return level !== AccessibilityLevel.None;
@@ -667,8 +826,22 @@ export class TrackerEngine {
   // State -------------------------------------------------------------------
 
   private fullState(): StateUpdate {
+    this.resolveLevels();
     const state: StateUpdate = { items: {}, sections: {}, locations: {} };
     for (const item of this.items) state.items[item.definition.id] = item.state();
+    for (const id of this.luaItemIds) {
+      const view = this.luaItemView(id);
+      if (view === null) continue;
+      const icon = splitIcon(view.icon);
+      state.items[id] = {
+        active: true,
+        stage: 0,
+        count: 0,
+        overlay: view.overlay !== "" ? view.overlay : view.badge.trim(),
+        ...(icon.img === "" ? {} : { icon }),
+        ...(view.name === "" ? {} : { name: view.name }),
+      };
+    }
     for (const section of this.locations.allSections()) {
       if (section.ref !== null) continue;
       state.sections[section.id] = this.sectionState(section);
