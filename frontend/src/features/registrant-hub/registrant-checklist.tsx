@@ -38,7 +38,7 @@ export function checklistLine(item: ChecklistItem, { eventSlug, registrationId }
     case "surveys": {
       const count = typeof detail.count === "number" ? detail.count : 1;
       // Story 53.7: the survey banner moved from the public page to the hub's tools.
-      return { label: count > 1 ? `${count} sondages t'attendent` : "Un sondage t'attend", href: `/evenements/${eventSlug}/mon-event#outils` };
+      return { label: count > 1 ? `${count} sondages t'attendent` : "Un sondage t'attend", href: `/evenements/${eventSlug}/mon-event#sondages` };
     }
     case "payment":
       return {
@@ -57,6 +57,14 @@ export function checklistLine(item: ChecklistItem, { eventSlug, registrationId }
     default:
       return null;
   }
+}
+
+/**
+ * Story 53.10: whether every required step is done (the hub then moves the list out of its "À faire maintenant"
+ * banner). A list with no line it can show counts as ready.
+ */
+export function checklistReady(items: ChecklistItem[], context: Context): boolean {
+  return items.every((item) => !item.required || item.state === "done" || checklistLine(item, context) === null);
 }
 
 type Props = Context & {
