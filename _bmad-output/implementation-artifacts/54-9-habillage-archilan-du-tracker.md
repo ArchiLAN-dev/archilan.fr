@@ -117,5 +117,8 @@ vu sur un autre jeu que Majora's Mask), et leurs couleurs de fond ne vont pas av
     garde que ces lieux sur la carte (plusieurs à la fois, « Tout afficher » pour revenir, remis à zéro au changement
     de carte) ; le sens de chaque couleur au survol, et le « ? » déplie toutes les explications (`countPins`,
     `pinCategory`).
+  - **Carte sur téléphone** : la zone prend les proportions de l'image (au plus 75 % de l'écran) au lieu de 60 % de
+    la hauteur d'écran, et le bloc du tracker n'impose plus 70 % de hauteur : plus de bande vide autour d'une carte
+    large. Grand écran inchangé.
 - Tests : `layout-outline.test.ts` (7), disposition ArchiLAN dans `tracker-widgets.test.tsx` (4), erreurs regroupées
   et plein écran dans `tracker-screen.test.tsx`. `pnpm gates` vert (1901 tests).

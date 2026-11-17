@@ -402,7 +402,7 @@ function ReadyTracker({ phase, session, settings }: ReadyProps) {
   return (
     <TrackerContextProvider value={context}>
       <div
-        className="flex min-h-[70dvh] flex-col lg:h-[calc(100dvh-7rem)] lg:min-h-[32rem]"
+        className="flex flex-col lg:h-[calc(100dvh-7rem)] lg:min-h-[32rem]"
         data-testid="tracker-layout"
         onContextMenu={noContextMenu}
       >

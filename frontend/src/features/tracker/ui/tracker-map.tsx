@@ -1,7 +1,7 @@
 "use client";
 
 import { Maximize, Minus, Plus } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent, type CSSProperties } from "react";
 
 import type { LoadedLocation, LoadedMap } from "../engine/protocol";
 import type { MapLocation } from "../engine/locations";
@@ -188,7 +188,14 @@ function MapCanvas({ map, url, only }: { map: LoadedMap; url: string; only: Read
   }
 
   return (
-    <div className="relative flex min-h-[60dvh] min-w-0 flex-1 flex-col lg:min-h-80">
+    // Story 54.9: on a phone the map area takes the image's proportions (no empty band above and below a wide map),
+    // within bounds; on a wide screen it fills the space beside the items.
+    <div
+      className={`relative flex min-w-0 flex-col lg:min-h-80 lg:flex-1 ${
+        natural === null ? "min-h-64" : "aspect-[var(--map-ratio)] max-h-[75dvh] w-full lg:aspect-auto lg:max-h-none lg:w-auto"
+      }`}
+      style={natural === null ? undefined : ({ "--map-ratio": `${natural.width} / ${natural.height}` } as CSSProperties)}
+    >
       <div
         aria-label={`Carte ${map.name}`}
         className="relative min-h-0 flex-1 cursor-grab touch-none select-none overflow-hidden rounded-md border border-border bg-background active:cursor-grabbing"
