@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { hasBooleanProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 /** Story 55.1: a tracked link `/l/{code}`, as the admin sees it. */
 export type TrackedLink = {
@@ -12,6 +12,17 @@ export type TrackedLink = {
   direction: "inbound" | "outbound";
   active: boolean;
   createdAt: string;
+  /** Story 55.2: passes counted, the last 7 and 30 days counting today (Paris). */
+  visits: LinkVisits;
+};
+
+export type LinkVisits = { total: number; last7: number; last30: number };
+
+/** Story 55.2: one link over 90 days, one entry per day (zero included), and where its visitors came from. */
+export type LinkStats = {
+  days: { day: string; visits: number }[];
+  /** An empty host is a visitor whose browser did not say where it came from. */
+  origins: { host: string; visits: number }[];
 };
 
 export type TrackedLinkFields = { code: string; label: string; target: string; active: boolean };
@@ -29,7 +40,34 @@ export function isTrackedLink(v: unknown): v is TrackedLink {
     hasStringProp(v, "createdAt") &&
     hasBooleanProp(v, "active") &&
     "direction" in v &&
-    (v.direction === "inbound" || v.direction === "outbound")
+    (v.direction === "inbound" || v.direction === "outbound") &&
+    "visits" in v &&
+    isLinkVisits(v.visits)
+  );
+}
+
+function isLinkVisits(v: unknown): v is LinkVisits {
+  return typeof v === "object" && v !== null && hasNumberProp(v, "total") && hasNumberProp(v, "last7") && hasNumberProp(v, "last30");
+}
+
+function isDayCount(v: unknown): v is { day: string; visits: number } {
+  return typeof v === "object" && v !== null && hasStringProp(v, "day") && hasNumberProp(v, "visits");
+}
+
+function isOriginCount(v: unknown): v is { host: string; visits: number } {
+  return typeof v === "object" && v !== null && hasStringProp(v, "host") && hasNumberProp(v, "visits");
+}
+
+export function isLinkStats(v: unknown): v is LinkStats {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    "days" in v &&
+    Array.isArray(v.days) &&
+    v.days.every(isDayCount) &&
+    "origins" in v &&
+    Array.isArray(v.origins) &&
+    v.origins.every(isOriginCount)
   );
 }
 
@@ -51,6 +89,18 @@ export async function fetchAdminLinks(): Promise<TrackedLink[] | null> {
     if (!res.ok) return null;
     const data = dataOf(await res.json());
     return Array.isArray(data) ? data.filter(isTrackedLink) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Story 55.2: the visits of one link over 90 days; null when the read failed. */
+export async function fetchLinkStats(id: string): Promise<LinkStats | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/links/${id}/stats`);
+    if (!res.ok) return null;
+    const data = dataOf(await res.json());
+    return isLinkStats(data) ? { days: data.days, origins: data.origins } : null;
   } catch {
     return null;
   }

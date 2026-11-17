@@ -56,6 +56,18 @@ final readonly class TrackedLinkController
         return new JsonResponse(['data' => $this->query->forAdmin(), 'meta' => []]);
     }
 
+    /** Story 55.2: one link, its visits day by day over 90 days and where they came from. */
+    #[Route('/api/v1/admin/links/{id}/stats', name: 'api_admin_links_stats', methods: ['GET'])]
+    public function stats(Request $request, string $id): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return new JsonResponse(['data' => $this->query->detail($id), 'meta' => []]);
+    }
+
     #[Route('/api/v1/admin/links', name: 'api_admin_links_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
