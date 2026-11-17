@@ -7,8 +7,54 @@ import type { TrackerView } from "./tracker-view";
  * names the pack version and the variant: item and section ids are stable for one of them, since the engine numbers
  * them in load order. Story 54.7 adds the slot to the key.
  */
-export function trackerStorageKey(pack: LoadedPack): string {
-  return `tracker:${pack.manifest.packageUid}:${pack.manifest.packageVersion}:${pack.variantUid}`;
+/** Story 54.7: a tracker opened on a slot keeps its own state, suffixed by the slot. */
+export function trackerStorageKey(pack: LoadedPack, slotRef: string | null = null): string {
+  const key = `tracker:${pack.manifest.packageUid}:${pack.manifest.packageVersion}:${pack.variantUid}`;
+  return slotRef === null ? key : `${key}:${slotRef}`;
+}
+
+/** Story 54.7: the pack and variant chosen for a slot. */
+export type SlotChoice = { packId: string; variantUid: string };
+
+const SLOT_CHOICE_EVENT = "tracker-slot-choice";
+
+function slotChoiceKey(slotRef: string): string {
+  return `tracker:choice:${slotRef}`;
+}
+
+export function subscribeSlotChoice(onChange: () => void): () => void {
+  window.addEventListener(SLOT_CHOICE_EVENT, onChange);
+  return () => window.removeEventListener(SLOT_CHOICE_EVENT, onChange);
+}
+
+/** The raw stored value: a stable string for `useSyncExternalStore`. */
+export function readSlotChoiceRaw(slotRef: string): string | null {
+  try {
+    return window.localStorage.getItem(slotChoiceKey(slotRef));
+  } catch {
+    return null;
+  }
+}
+
+export function parseSlotChoice(raw: string | null): SlotChoice | null {
+  if (raw === null) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== "object" || value === null || !("packId" in value) || !("variantUid" in value)) return null;
+    const { packId, variantUid } = value;
+    return typeof packId === "string" && typeof variantUid === "string" ? { packId, variantUid } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSlotChoice(slotRef: string, choice: SlotChoice): void {
+  try {
+    window.localStorage.setItem(slotChoiceKey(slotRef), JSON.stringify(choice));
+    window.dispatchEvent(new Event(SLOT_CHOICE_EVENT));
+  } catch {
+    // Not remembered: the default variant opens next time.
+  }
 }
 
 type SavedItem = { active: boolean; stage: number; count: number };

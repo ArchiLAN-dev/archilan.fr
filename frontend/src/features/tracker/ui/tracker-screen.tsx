@@ -12,11 +12,22 @@ import { fetchTrackerArchive, type GameTrackerPack } from "@/features/trackers/t
 import { createTrackerWorker } from "../engine/create-tracker-worker";
 import { AccessibilityLevel } from "../engine/levels";
 import { TrackerClient } from "../engine/tracker-client";
+import { fetchSlotConnection } from "../tracker-slot-api";
 import { createArchipelagoClient } from "./ap-client";
 import { RoomPanel } from "./room-panel";
+import { SlotBanner, useAutoConnect, useSlotConnection } from "./slot-connection";
 import { TrackerContextProvider, type TrackerScreenContext } from "./tracker-context";
 import { TrackerLayout } from "./tracker-layout";
-import { parseSettings, readSettingsRaw, subscribeSettings, writeSettings } from "./tracker-storage";
+import {
+  parseSettings,
+  parseSlotChoice,
+  readSettingsRaw,
+  readSlotChoiceRaw,
+  subscribeSettings,
+  subscribeSlotChoice,
+  writeSettings,
+  writeSlotChoice,
+} from "./tracker-storage";
 import {
   DEFAULT_SETTINGS,
   indexItemsByCode,
@@ -38,9 +49,13 @@ import {
  */
 type Props = {
   gameName: string;
+  /** Story 54.7: the game of the page, checked against the slot's. */
+  gameSlug?: string | null;
   packs: GameTrackerPack[];
   initialPackId: string | null;
   initialVariantUid: string | null;
+  /** Story 54.7: the slot the tracker was opened on (`?slot=`), connected without typing anything. */
+  slotRef?: string | null;
   /** Tests pass a fake engine and archive. */
   deps?: TrackerSessionDeps;
 };
@@ -49,6 +64,7 @@ const BROWSER_DEPS: TrackerSessionDeps = {
   fetchArchive: fetchTrackerArchive,
   createClient: ({ onLog, onApSend }) => new TrackerClient({ createWorker: createTrackerWorker, onLog, onApSend }),
   createApClient: createArchipelagoClient,
+  fetchSlotConnection,
 };
 
 function isSettings(value: unknown): value is TrackerSettings {
@@ -78,11 +94,29 @@ function remember(packId: string, variantUid: string) {
   window.history.replaceState(window.history.state, "", url);
 }
 
-export function TrackerScreen({ gameName, packs, initialPackId, initialVariantUid, deps = BROWSER_DEPS }: Props) {
-  const firstPack = packs.find((pack) => pack.id === initialPackId) ?? packs.find((pack) => pack.isDefault) ?? packs[0];
-  const [packId, setPackId] = useState(firstPack?.id ?? "");
-  const pack = packs.find((candidate) => candidate.id === packId) ?? firstPack;
-  const [variantUid, setVariantUid] = useState(firstPack === undefined ? "" : variantOf(firstPack, initialVariantUid));
+export function TrackerScreen({
+  gameName,
+  gameSlug = null,
+  packs,
+  initialPackId,
+  initialVariantUid,
+  slotRef = null,
+  deps = BROWSER_DEPS,
+}: Props) {
+  // Story 54.7: a slot remembers its pack and variant; the address wins over it.
+  const storedChoice = useSyncExternalStore(
+    subscribeSlotChoice,
+    () => (slotRef === null ? null : readSlotChoiceRaw(slotRef)),
+    () => null,
+  );
+  const remembered = slotRef === null ? null : parseSlotChoice(storedChoice);
+  const wantedPackId = initialPackId ?? remembered?.packId ?? null;
+  const firstPack = packs.find((pack) => pack.id === wantedPackId) ?? packs.find((pack) => pack.isDefault) ?? packs[0];
+  const [chosenPackId, setChosenPackId] = useState<string | null>(null);
+  const pack = packs.find((candidate) => candidate.id === chosenPackId) ?? firstPack;
+  const [chosenVariant, setChosenVariant] = useState<string | null>(null);
+  const wantedVariant = chosenVariant ?? (pack?.id === firstPack?.id ? (initialVariantUid ?? remembered?.variantUid ?? null) : null);
+  const variantUid = pack === undefined ? "" : variantOf(pack, wantedVariant);
   const [generation, setGeneration] = useState(0);
 
   const storedSettings = useSyncExternalStore(subscribeSettings, readSettingsRaw, () => null);
@@ -98,25 +132,32 @@ export function TrackerScreen({ gameName, packs, initialPackId, initialVariantUi
     writeSettings(next);
   }
 
+  function choose(packId: string, uid: string) {
+    remember(packId, uid);
+    if (slotRef !== null) writeSlotChoice(slotRef, { packId, variantUid: uid });
+  }
+
   function choosePack(id: string) {
     const next = packs.find((candidate) => candidate.id === id);
     if (next === undefined) return;
     const variant = variantOf(next, null);
-    setPackId(id);
-    setVariantUid(variant);
-    remember(id, variant);
+    setChosenPackId(id);
+    setChosenVariant(variant);
+    choose(id, variant);
   }
 
   function chooseVariant(uid: string) {
     if (pack === undefined) return;
-    setVariantUid(uid);
-    remember(pack.id, uid);
+    setChosenPackId(pack.id);
+    setChosenVariant(uid);
+    choose(pack.id, uid);
   }
 
   return (
     <TrackerSession
       deps={deps}
       gameName={gameName}
+      gameSlug={gameSlug}
       key={`${pack.version.id}:${variantUid}:${generation}`}
       onChoosePack={choosePack}
       onChooseVariant={chooseVariant}
@@ -125,6 +166,7 @@ export function TrackerScreen({ gameName, packs, initialPackId, initialVariantUi
       pack={pack}
       packs={packs}
       settings={settings}
+      slotRef={slotRef}
       variantUid={variantUid}
     />
   );
@@ -132,6 +174,8 @@ export function TrackerScreen({ gameName, packs, initialPackId, initialVariantUi
 
 type SessionProps = {
   gameName: string;
+  gameSlug: string | null;
+  slotRef: string | null;
   pack: GameTrackerPack;
   packs: GameTrackerPack[];
   variantUid: string;
@@ -145,6 +189,8 @@ type SessionProps = {
 
 function TrackerSession({
   gameName,
+  gameSlug,
+  slotRef,
   pack,
   packs,
   variantUid,
@@ -156,12 +202,14 @@ function TrackerSession({
   onRestart,
 }: SessionProps) {
   const source = useMemo(
-    () => ({ versionId: pack.version.id, rootPath: pack.version.rootPath, variantUid }),
-    [pack.version.id, pack.version.rootPath, variantUid],
+    () => ({ versionId: pack.version.id, rootPath: pack.version.rootPath, variantUid, slotRef }),
+    [pack.version.id, pack.version.rootPath, variantUid, slotRef],
   );
   const session = useTrackerSession(source, deps);
   const [confirmReset, setConfirmReset] = useState(false);
   const { phase } = session;
+  const slot = useSlotConnection(slotRef, gameSlug, deps.fetchSlotConnection);
+  useAutoConnect(slot, phase.kind === "ready", session);
 
   return (
     <div className="grid gap-4">
@@ -220,6 +268,8 @@ function TrackerSession({
         </label>
         <Legend settings={settings} />
       </div>
+
+      {slot !== null ? <SlotBanner slot={slot} /> : null}
 
       <RoomPanel
         disabled={phase.kind !== "ready"}

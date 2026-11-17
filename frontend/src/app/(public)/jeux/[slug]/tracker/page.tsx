@@ -13,7 +13,7 @@ export const revalidate = 300;
 
 type Props = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ pack?: string | string[]; variant?: string | string[] }>;
+  searchParams: Promise<{ pack?: string | string[]; variant?: string | string[]; slot?: string | string[] }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -46,9 +46,11 @@ export default async function GameTrackerPage({ params, searchParams }: Props) {
   return (
     <TrackerScreen
       gameName={game.name}
+      gameSlug={game.slug}
       initialPackId={single(query.pack)}
       initialVariantUid={single(query.variant)}
       packs={packs}
+      slotRef={single(query.slot)}
     />
   );
 }

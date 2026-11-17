@@ -136,7 +136,8 @@ export type PersonalRun = {
   connectionHost: string | null;
   connectionPort: number | null;
   // Story 17.29: the caller's slot name(s) while the run is active. Absent on older API payloads.
-  mySlots?: { name: string; game: string | null }[];
+  // Story 54.7: the slot's game, for its tracker (null for an imported seed, absent on older payloads).
+  mySlots?: { name: string; game: string | null; gameId?: string | null; gameSlug?: string | null }[];
   // Adresse chiffrée complète, dérivée par l'API (story 37.4). Absente d'une charge utile antérieure.
   connectionUri?: string | null;
   connectionPassword: string | null;

@@ -1,6 +1,7 @@
 /**
  * @jest-environment ./src/tests/jsdom-environment.mjs
  */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
@@ -10,6 +11,7 @@ import type { ApOutgoing } from "../engine/ap-events";
 import { Highlight } from "../engine/levels";
 import type { TrackerRequest, TrackerResponse } from "../engine/protocol";
 import { TrackerClient, type WorkerLike } from "../engine/tracker-client";
+import type { SlotConnection } from "../tracker-slot-api";
 import type { ApClientLike, ApSocketHandlers } from "./ap-link";
 import { INITIAL_STATE, TEST_PACK } from "./test-pack";
 import { TrackerScreen } from "./tracker-screen";
@@ -56,6 +58,10 @@ let requests: TrackerRequest[];
 /** Story 54.6: the room the fake Archipelago client talks to. */
 type FakeRoom = { handlers: ApSocketHandlers | null; sent: ApOutgoing[]; logins: string[][] };
 let room: FakeRoom;
+/** Story 54.7: what the API says of the slot the tracker was opened on. */
+let slotAnswer: SlotConnection;
+let slotRequests: unknown[];
+let queryClient: QueryClient;
 
 function fakeApClient(): ApClientLike {
   return {
@@ -92,6 +98,10 @@ function fakeDeps(script: Script = {}): TrackerSessionDeps {
       return new ArrayBuffer(10);
     },
     createApClient: fakeApClient,
+    fetchSlotConnection: async (ref) => {
+      slotRequests.push(ref);
+      return slotAnswer;
+    },
     createClient: ({ onLog, onApSend }) =>
       new TrackerClient({
         onLog,
@@ -183,6 +193,9 @@ beforeAll(() => {
 beforeEach(() => {
   requests = [];
   room = { handlers: null, sent: [], logins: [] };
+  slotAnswer = { kind: "denied" };
+  slotRequests = [];
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   window.localStorage.clear();
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -202,10 +215,20 @@ async function settle() {
   }
 }
 
-async function open(deps: TrackerSessionDeps, initialVariantUid: string | null = null) {
+async function open(deps: TrackerSessionDeps, initialVariantUid: string | null = null, slotRef: string | null = null) {
   await act(async () => {
     root.render(
-      <TrackerScreen deps={deps} gameName="Majora's Mask" initialPackId={null} initialVariantUid={initialVariantUid} packs={[pack]} />,
+      <QueryClientProvider client={queryClient}>
+        <TrackerScreen
+          deps={deps}
+          gameName="Majora's Mask"
+          gameSlug="majoras-mask"
+          initialPackId={null}
+          initialVariantUid={initialVariantUid}
+          packs={[pack]}
+          slotRef={slotRef}
+        />
+      </QueryClientProvider>,
     );
   });
   await settle();
@@ -362,5 +385,75 @@ describe("autotracking from an Archipelago room (story 54.6)", () => {
       buttonNamed("Déconnecter").click();
     });
     expect(container.textContent).toContain("Suivi manuel.");
+  });
+});
+
+describe("the tracker opened on a slot (story 54.7)", () => {
+  const SLOT = "event:reg-1:Jean%20MM";
+  const READY: SlotConnection = {
+    kind: "ready",
+    gameSlug: "majoras-mask",
+    credentials: { address: "wss://archilan.fr:35012", slot: "Jean MM", password: "pw-secret" },
+  };
+
+  it("reads the slot's connection and connects without typing anything", async () => {
+    slotAnswer = READY;
+    await open(fakeDeps(), null, SLOT);
+    await settle();
+    expect(slotRequests).toEqual([{ kind: "event", registrationId: "reg-1", slotName: "Jean MM" }]);
+    expect(room.logins).toEqual([["wss://archilan.fr:35012", "Jean MM", "pw-secret"]]);
+    expect(container.textContent).toContain("Relié à la room, slot Jean MM.");
+    expect(window.location.href).not.toContain("pw-secret");
+  });
+
+  it("waits for a party not launched yet, then connects once it runs", async () => {
+    slotAnswer = { kind: "waiting", gameSlug: "majoras-mask" };
+    await open(fakeDeps(), null, SLOT);
+    expect(container.textContent).toContain("La partie n'est pas lancée");
+    expect(room.logins).toEqual([]);
+
+    slotAnswer = READY;
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ["tracker-slot", SLOT] });
+    });
+    await settle();
+    expect(room.logins).toHaveLength(1);
+    expect(container.textContent).not.toContain("La partie n'est pas lancée");
+  });
+
+  it("tells a slot that is not the player's, and keeps its state apart from the other slots", async () => {
+    await open(fakeDeps(), null, SLOT);
+    expect(container.textContent).toContain("Ce slot n'est pas le vôtre");
+    expect(room.logins).toEqual([]);
+    await act(async () => {
+      byLabel("Sword").click();
+    });
+    await settle();
+    expect(window.localStorage.getItem(`tracker:test_pack:1.0.0:standard:${SLOT}`)).toContain('"1":{"active":true');
+    expect(window.localStorage.getItem("tracker:test_pack:1.0.0:standard")).toBeNull();
+  });
+
+  it("refuses a slot of another game, and a broken link", async () => {
+    slotAnswer = { ...READY, gameSlug: "ocarina-of-time" };
+    await open(fakeDeps(), null, SLOT);
+    expect(container.textContent).toContain("un autre jeu");
+    expect(room.logins).toEqual([]);
+
+    act(() => root.unmount());
+    root = createRoot(container);
+    await open(fakeDeps(), null, "nope:1");
+    expect(container.textContent).toContain("Le lien vers votre slot n'est pas valide");
+  });
+
+  it("remembers the variant chosen for the slot", async () => {
+    await open(fakeDeps(), null, SLOT);
+    const select = byLabel("Variante : Maps and items");
+    expect(select).not.toBeNull();
+    window.localStorage.setItem(`tracker:choice:${SLOT}`, JSON.stringify({ packId: "p1", variantUid: "itemsonly" }));
+    act(() => root.unmount());
+    root = createRoot(container);
+    requests = [];
+    await open(fakeDeps(), null, SLOT);
+    expect(requests[0]).toMatchObject({ type: "load", variantUid: "itemsonly" });
   });
 });
