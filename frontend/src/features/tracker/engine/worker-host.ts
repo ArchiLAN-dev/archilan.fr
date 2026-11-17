@@ -45,6 +45,7 @@ export function createWorkerHost(post: (response: TrackerResponse) => void, opti
       const loaded = await TrackerEngine.load(files, request.variantUid, {
         ...options,
         onLog: (log) => post({ type: "log", ...log }),
+        onApSend: (packets) => post({ type: "apSend", packets }),
       });
       engine = loaded;
       post({ type: "loaded", requestId: request.requestId, pack: loaded.pack(), state: loaded.initialState() });
@@ -59,6 +60,9 @@ export function createWorkerHost(post: (response: TrackerResponse) => void, opti
         post({ type: "image", requestId: request.requestId, path: request.path, blob });
         return;
       }
+      case "ap":
+        post({ type: "state", requestId: request.requestId, state: engine.applyAp(request.events) });
+        return;
       case "bulk":
         post({ type: "state", requestId: request.requestId, state: engine.applyBulk(request.actions) });
         return;

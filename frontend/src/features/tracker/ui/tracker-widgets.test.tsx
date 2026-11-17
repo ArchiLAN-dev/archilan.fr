@@ -4,7 +4,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-import { AccessibilityLevel } from "../engine/levels";
+import { AccessibilityLevel, Highlight } from "../engine/levels";
 import type { EngineAction, StateUpdate } from "../engine/protocol";
 import { PackImages } from "./pack-images";
 import { INITIAL_STATE, section, TEST_PACK } from "./test-pack";
@@ -206,6 +206,21 @@ describe("map pins and the location popover", () => {
     );
     expect(byLabel("Woodfall : Inaccessible")).not.toBeNull();
     expect(container.querySelector('[aria-label^="Swamp"]')).toBeNull();
+  });
+
+  it("marks the hinted locations and sections, but not what is done (story 54.6)", async () => {
+    await render({
+      sections: {
+        10: { ...section(AccessibilityLevel.Normal, 1), highlight: Highlight.Priority },
+        20: { ...section(AccessibilityLevel.Cleared, 0), highlight: Highlight.Priority },
+      },
+    });
+    const pin = byLabel("Woodfall : Inaccessible, indice : important");
+    expect(pin.querySelector("[data-hint]")).not.toBeNull();
+    expect(byLabel("Swamp : Accessible").querySelector("[data-hint]")).toBeNull();
+    fire(pin, new MouseEvent("click", { bubbles: true }));
+    expect(byLabel("Entrance : Accessible, indice : important")).not.toBeNull();
+    expect(byLabel("Pots : Inaccessible")).not.toBeNull();
   });
 
   it("lists the sections of a location; a click does one, a right click undoes it", async () => {

@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ArchiveProgress } from "@/features/trackers/tracker-packs-api";
 
+import type { ApEvent, ApOutgoing } from "../engine/ap-events";
 import type { EngineAction, LoadedPack, LogLevel } from "../engine/protocol";
 import type { TrackerClient } from "../engine/tracker-client";
 import { TrackerClientError } from "../engine/tracker-client";
+import { ApLink, type ApClientLike, type ApCredentials, type ApLinkStatus } from "./ap-link";
 import { PackImages } from "./pack-images";
 import { clearSaved, readSaved, restoreActions, snapshot, trackerStorageKey, writeSaved } from "./tracker-storage";
 import { EMPTY_VIEW, mergeView, type TrackerView } from "./tracker-view";
@@ -24,7 +26,12 @@ export type TrackerSessionSource = {
 
 export type TrackerSessionDeps = {
   fetchArchive: (versionId: string, onProgress: ArchiveProgress) => Promise<ArrayBuffer | null>;
-  createClient: (onLog: (log: { level: LogLevel; message: string }) => void) => TrackerClient;
+  createClient: (callbacks: {
+    onLog: (log: { level: LogLevel; message: string }) => void;
+    onApSend: (packets: ApOutgoing[]) => void;
+  }) => TrackerClient;
+  /** Story 54.6: one Archipelago connection attempt. */
+  createApClient: () => ApClientLike;
 };
 
 export type PackMessage = { level: LogLevel; message: string };
@@ -44,6 +51,12 @@ export type TrackerSession = {
   reportUnsupported: (type: string) => void;
   /** Forgets the saved state; the caller then starts a new session (a new `key`). */
   forget: () => void;
+  /** Story 54.6: autotracking from an Archipelago room. */
+  room: ApLinkStatus;
+  /** Said once the room overwrote manual clicks (decision 6). */
+  roomNotice: string | null;
+  connectRoom: (credentials: ApCredentials) => void;
+  disconnectRoom: () => void;
 };
 
 const MAX_MESSAGES = 200;
@@ -64,7 +77,12 @@ export function useTrackerSession(source: TrackerSessionSource, deps: TrackerSes
   /** The state right after the pack loaded: only what differs from it is saved. */
   const initial = useRef<TrackerView>(EMPTY_VIEW);
   const storageKey = useRef<string | null>(null);
-  const { fetchArchive, createClient } = deps;
+  const { fetchArchive, createClient, createApClient } = deps;
+  const [room, setRoom] = useState<ApLinkStatus>({ kind: "idle" });
+  const [roomNotice, setRoomNotice] = useState<string | null>(null);
+  const link = useRef<ApLink | null>(null);
+  /** A manual click since the room last set the state: the next Clear overwrites it, and the screen says so. */
+  const manualSinceClear = useRef(false);
 
   const addMessage = useCallback((message: PackMessage) => {
     setMessages((current) => (current.length >= MAX_MESSAGES ? current : [...current, message]));
@@ -85,8 +103,13 @@ export function useTrackerSession(source: TrackerSessionSource, deps: TrackerSes
         return;
       }
       setPhase({ kind: "prepare" });
-      started = createClient((log) => {
-        if (!cancelled && log.level === "error") addMessage(log);
+      started = createClient({
+        onLog: (log) => {
+          if (!cancelled && log.level === "error") addMessage(log);
+        },
+        onApSend: (packets) => {
+          if (!cancelled) link.current?.send(packets);
+        },
       });
       const loaded = await started.load(archive, source.rootPath, source.variantUid);
       if (cancelled) return;
@@ -113,6 +136,8 @@ export function useTrackerSession(source: TrackerSessionSource, deps: TrackerSes
 
     return () => {
       cancelled = true;
+      link.current?.disconnect();
+      link.current = null;
       client.current = null;
       storageKey.current = null;
       started?.dispose();
@@ -122,34 +147,44 @@ export function useTrackerSession(source: TrackerSessionSource, deps: TrackerSes
 
   const pack = phase.kind === "ready" ? phase.pack : null;
 
+  // While a room drives the tracker, the room holds the state (decision 7): nothing goes to the browser.
+  const roomActive = room.kind === "connecting" || room.kind === "connected" || room.kind === "reconnecting";
+
   // Saved after every change, once the restored state is on screen.
   useEffect(() => {
     const key = storageKey.current;
-    if (pack === null || key === null) return;
+    if (pack === null || key === null || roomActive) return;
     writeSaved(key, snapshot(pack, initial.current, view));
-  }, [pack, view]);
+  }, [pack, view, roomActive]);
+
+  // A stuck pack kills the Worker: the screen cannot go on.
+  const fail = useCallback(
+    (engine: TrackerClient, error: unknown) => {
+      if (client.current !== engine) return;
+      if (error instanceof TrackerClientError && (error.kind === "timeout" || error.kind === "worker_failed")) {
+        client.current = null;
+        link.current?.disconnect();
+        setPhase({ kind: "failed", message: error.message });
+        return;
+      }
+      addMessage({ level: "error", message: failureMessage(error) });
+    },
+    [addMessage],
+  );
 
   const act = useCallback(
     (action: EngineAction) => {
       const engine = client.current;
       if (engine === null) return;
+      if (link.current !== null) manualSinceClear.current = true;
       engine
         .apply(action)
         .then((update) => {
           if (client.current === engine) setView((current) => mergeView(current, update));
         })
-        .catch((error: unknown) => {
-          if (client.current !== engine) return;
-          // A stuck pack kills the Worker: the screen cannot go on.
-          if (error instanceof TrackerClientError && (error.kind === "timeout" || error.kind === "worker_failed")) {
-            client.current = null;
-            setPhase({ kind: "failed", message: error.message });
-            return;
-          }
-          addMessage({ level: "error", message: failureMessage(error) });
-        });
+        .catch((error: unknown) => fail(engine, error));
     },
-    [addMessage],
+    [fail],
   );
 
   const reported = useRef(new Set<string>());
@@ -162,7 +197,51 @@ export function useTrackerSession(source: TrackerSessionSource, deps: TrackerSes
     [addMessage],
   );
 
+  const applyRoom = useCallback(
+    (events: ApEvent[]) => {
+      const engine = client.current;
+      if (engine === null) return;
+      if (manualSinceClear.current && events.some((event) => event.kind === "clear")) {
+        manualSinceClear.current = false;
+        setRoomNotice("La room a remis le tracker à jour : vos clics manuels ont été remplacés.");
+      }
+      engine
+        .ap(events)
+        .then((update) => {
+          if (client.current === engine) setView((current) => mergeView(current, update));
+        })
+        .catch((error: unknown) => fail(engine, error));
+    },
+    [fail],
+  );
+
+  const connectRoom = useCallback(
+    (credentials: ApCredentials) => {
+      if (client.current === null) return;
+      link.current?.disconnect();
+      const created = new ApLink({
+        createClient: createApClient,
+        onEvents: applyRoom,
+        onStatus: setRoom,
+        secure: window.location.protocol === "https:",
+      });
+      link.current = created;
+      manualSinceClear.current = false;
+      setRoomNotice(null);
+      created.connect(credentials);
+    },
+    [applyRoom, createApClient],
+  );
+
+  const disconnectRoom = useCallback(() => {
+    link.current?.disconnect();
+    link.current = null;
+    setRoom({ kind: "idle" });
+  }, []);
+
   const forget = useCallback(() => {
+    link.current?.disconnect();
+    link.current = null;
     if (storageKey.current !== null) clearSaved(storageKey.current);
     // No save may follow: the old session is about to unmount.
     storageKey.current = null;
@@ -170,7 +249,7 @@ export function useTrackerSession(source: TrackerSessionSource, deps: TrackerSes
   }, []);
 
   return useMemo(
-    () => ({ phase, view, messages, act, reportUnsupported, forget }),
-    [phase, view, messages, act, reportUnsupported, forget],
+    () => ({ phase, view, messages, act, reportUnsupported, forget, room, roomNotice, connectRoom, disconnectRoom }),
+    [phase, view, messages, act, reportUnsupported, forget, room, roomNotice, connectRoom, disconnectRoom],
   );
 }

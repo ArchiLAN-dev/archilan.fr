@@ -16,6 +16,8 @@ local rawload = load
 local select, type, tostring, pairs, ipairs, error, pcall, setmetatable, rawset =
   select, type, tostring, pairs, ipairs, error, pcall, setmetatable, rawset
 local concat = table.concat
+local find, sub = string.find, string.sub
+local tointeger, utf8char, tonumber = math.tointeger, utf8.char, tonumber
 local os_time, os_clock, os_date = os.time, os.clock, os.date
 local gc = collectgarbage
 
@@ -216,8 +218,15 @@ ScriptHost = setmetatable(scriptHost, { __index = function(_, key) return unsupp
 
 -- AutoTracker, Archipelago --------------------------------------------------------
 local autoTracker = {}
-function autoTracker:GetConnectionState(name) return 0 end
 AutoTracker = setmetatable(autoTracker, { __index = function(_, key) return memoryOnly("AutoTracker", key) end })
+
+-- Archipelago (story 54.6): the page holds the connection, the engine forwards its events here. PopTracker's
+-- connection states as packs test them: 0 disconnected, 3 connected.
+local apConnection = 0
+autoTracker.GetConnectionState = function(self, name)
+  if name == "AP" then return apConnection end
+  return 0
+end
 
 local apHandlers = {}
 local archipelago = { PlayerNumber = -1, TeamNumber = -1, CheckedLocations = {}, MissingLocations = {} }
@@ -229,12 +238,167 @@ for _, kind in ipairs({ "Clear", "Item", "Location", "Scout", "Bounced", "Retrie
     return true
   end
 end
-function archipelago:Get(keys) return false end
-function archipelago:SetNotify(keys) return false end
-function archipelago:LocationChecks(locations) return false end
-function archipelago:LocationScouts(locations, sendAsHint) return false end
-function archipelago:StatusUpdate(status) return false end
+local function apRequest(cmd, keys)
+  if apConnection ~= 3 or type(keys) ~= "table" then return false end
+  for _, key in ipairs(keys) do B.apSend(cmd, tostring(key)) end
+  return true
+end
+function archipelago:Get(keys) return apRequest("Get", keys) end
+function archipelago:SetNotify(keys) return apRequest("SetNotify", keys) end
+function archipelago:GetPlayerAlias(slot) return B.apPlayer("alias", slot) end
+function archipelago:GetPlayerGame(slot) return B.apPlayer("game", slot) end
+function archipelago:GetItemName(id, game) return B.apName("item", id, game or "") end
+function archipelago:GetLocationName(id, game) return B.apName("location", id, game or "") end
+-- LocationChecks, LocationScouts and StatusUpdate write to the room: the site's tracker never does (apmanual packs).
 Archipelago = setmetatable(archipelago, { __index = function(_, key) return unsupported("Archipelago", key) end })
+ClientStatus = { UNKNOWN = 0, CONNECTED = 5, READY = 10, PLAYING = 20, GOAL = 30 }
+
+-- JSON, for the events the engine forwards (slot data, data storage values). null becomes nil.
+local escapes = { b = "\b", f = "\f", n = "\n", r = "\r", t = "\t", ['"'] = '"', ["\\"] = "\\", ["/"] = "/" }
+local function decodeJson(text)
+  local pos = 1
+  local function fail(what) error("JSON : " .. what .. " (position " .. pos .. ")", 0) end
+  local function skip() pos = find(text, "[^ \t\r\n]", pos) or (#text + 1) end
+  local function str()
+    pos = pos + 1
+    local parts = {}
+    while true do
+      local at = find(text, '["\\]', pos)
+      if not at then fail("chaîne non terminée") end
+      parts[#parts + 1] = sub(text, pos, at - 1)
+      if sub(text, at, at) == '"' then
+        pos = at + 1
+        return concat(parts)
+      end
+      local c = sub(text, at + 1, at + 1)
+      if c == "u" then
+        local code = tonumber(sub(text, at + 2, at + 5), 16) or fail("échappement invalide")
+        local after = at + 6
+        if code >= 0xD800 and code <= 0xDBFF and sub(text, after, after + 1) == "\\u" then
+          local low = tonumber(sub(text, after + 2, after + 5), 16)
+          if low and low >= 0xDC00 and low <= 0xDFFF then
+            code = 0x10000 + (code - 0xD800) * 0x400 + (low - 0xDC00)
+            after = after + 6
+          end
+        end
+        parts[#parts + 1] = utf8char(code)
+        pos = after
+      else
+        parts[#parts + 1] = escapes[c] or fail("échappement invalide")
+        pos = at + 2
+      end
+    end
+  end
+  local value
+  value = function()
+    skip()
+    local c = sub(text, pos, pos)
+    if c == "{" then
+      local object = {}
+      pos = pos + 1
+      skip()
+      if sub(text, pos, pos) == "}" then
+        pos = pos + 1
+        return object
+      end
+      while true do
+        skip()
+        if sub(text, pos, pos) ~= '"' then fail("clé attendue") end
+        local key = str()
+        skip()
+        if sub(text, pos, pos) ~= ":" then fail("« : » attendu") end
+        pos = pos + 1
+        object[key] = value()
+        skip()
+        local d = sub(text, pos, pos)
+        pos = pos + 1
+        if d == "}" then return object end
+        if d ~= "," then fail("« , » attendue") end
+      end
+    elseif c == "[" then
+      local list, n = {}, 0
+      pos = pos + 1
+      skip()
+      if sub(text, pos, pos) == "]" then
+        pos = pos + 1
+        return list
+      end
+      while true do
+        n = n + 1
+        list[n] = value()
+        skip()
+        local d = sub(text, pos, pos)
+        pos = pos + 1
+        if d == "]" then return list end
+        if d ~= "," then fail("« , » attendue") end
+      end
+    elseif c == '"' then
+      return str()
+    elseif sub(text, pos, pos + 3) == "true" then
+      pos = pos + 4
+      return true
+    elseif sub(text, pos, pos + 4) == "false" then
+      pos = pos + 5
+      return false
+    elseif sub(text, pos, pos + 3) == "null" then
+      pos = pos + 4
+      return nil
+    end
+    local from, to = find(text, "^-?%d+%.?%d*[eE]?[-+]?%d*", pos)
+    if not from then fail("caractère inattendu") end
+    local number = tonumber(sub(text, from, to)) or fail("nombre invalide")
+    pos = to + 1
+    return tointeger(number) or number
+  end
+  return value()
+end
+
+local function callAll(kind, ...)
+  for _, handler in ipairs(apHandlers[kind]) do
+    local ok, message = pcall(handler.callback, ...)
+    if not ok then
+      B.log("error", "handler Archipelago " .. kind .. " « " .. tostring(handler.name) .. " » : " .. tostring(message))
+    end
+  end
+end
+
+local function applyApEvent(event)
+  local kind = event.kind
+  if kind == "connected" then
+    archipelago.PlayerNumber = event.playerNumber
+    archipelago.TeamNumber = event.teamNumber
+    archipelago.Seed = event.seed
+    archipelago.CheckedLocations = event.checked or {}
+    archipelago.MissingLocations = event.missing or {}
+    apConnection = 3
+  elseif kind == "disconnected" then
+    apConnection = 0
+  elseif kind == "clear" then
+    callAll("Clear", event.slotData or {})
+  elseif kind == "items" then
+    for _, item in ipairs(event.items or {}) do
+      callAll("Item", item.index, item.item, B.apName("item", item.item, ""), item.player)
+    end
+  elseif kind == "locations" then
+    local checked = archipelago.CheckedLocations
+    for _, id in ipairs(event.locations or {}) do
+      checked[#checked + 1] = id
+      callAll("Location", id, B.apName("location", id, ""))
+    end
+  elseif kind == "scouted" then
+    for _, info in ipairs(event.locations or {}) do
+      local game = B.apPlayer("game", info.player) or ""
+      callAll("Scout", info.location, B.apName("location", info.location, ""), info.item,
+        B.apName("item", info.item, game), info.player)
+    end
+  elseif kind == "bounced" then
+    callAll("Bounced", event.data or {})
+  elseif kind == "retrieved" then
+    callAll("Retrieved", event.key, event.value)
+  elseif kind == "setReply" then
+    callAll("SetReply", event.key, event.value, event.originalValue)
+  end
+end
 
 ImageReference = {}
 function ImageReference:FromPackRelativePath(path) return path end
@@ -289,6 +453,11 @@ function api.sectionChanged(ref)
       if not ok then B.log("error", "handler " .. tostring(name) .. " : " .. tostring(message)) end
     end
   end
+end
+
+-- One Archipelago event, as JSON (story 54.6).
+function api.ap(text)
+  applyApEvent(decodeJson(text))
 end
 
 function api.archipelagoHandlerCount(kind)

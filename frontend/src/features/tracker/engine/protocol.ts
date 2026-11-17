@@ -1,3 +1,4 @@
+import { isApEvent, type ApEvent, type ApOutgoing } from "./ap-events";
 import type { ItemDefinition, ItemState, MouseButton } from "./items";
 import type { AccessibilityLevel, Highlight } from "./levels";
 import type { ChestImages, MapLocation } from "./locations";
@@ -91,7 +92,9 @@ export type TrackerRequest =
   | { type: "load"; requestId: number; archive: ArrayBuffer; rootPath: string; variantUid: string }
   | (EngineAction & { requestId: number })
   | { type: "bulk"; requestId: number; actions: EngineAction[] }
-  | { type: "image"; requestId: number; path: string };
+  | { type: "image"; requestId: number; path: string }
+  /** Story 54.6: Archipelago events, applied together with one logic pass at the end. */
+  | { type: "ap"; requestId: number; events: ApEvent[] };
 
 export type TrackerErrorKind =
   | "archive_invalid"
@@ -120,7 +123,9 @@ export type TrackerResponse =
   | { type: "state"; requestId: number; state: StateUpdate }
   | { type: "image"; requestId: number; path: string; blob: Blob | null }
   | ({ type: "error"; requestId: number | null } & TrackerError)
-  | { type: "log"; level: LogLevel; message: string };
+  | { type: "log"; level: LogLevel; message: string }
+  /** Story 54.6: what the pack asks the Archipelago server for (`Get`, `SetNotify`), sent by the page. */
+  | { type: "apSend"; packets: ApOutgoing[] };
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -170,6 +175,8 @@ export function isTrackerRequest(value: unknown): value is TrackerRequest {
       return Array.isArray(value.actions) && value.actions.every(isEngineAction);
     case "image":
       return typeof value.path === "string";
+    case "ap":
+      return Array.isArray(value.events) && value.events.every(isApEvent);
     default:
       return isEngineAction(value);
   }
@@ -193,6 +200,8 @@ export function isTrackerResponse(value: unknown): value is TrackerResponse {
       );
     case "log":
       return typeof value.level === "string" && typeof value.message === "string";
+    case "apSend":
+      return Array.isArray(value.packets);
     default:
       return false;
   }

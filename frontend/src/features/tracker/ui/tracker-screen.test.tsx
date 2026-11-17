@@ -6,8 +6,11 @@ import { createRoot, type Root } from "react-dom/client";
 
 import type { GameTrackerPack } from "@/features/trackers/tracker-packs-api";
 
+import type { ApOutgoing } from "../engine/ap-events";
+import { Highlight } from "../engine/levels";
 import type { TrackerRequest, TrackerResponse } from "../engine/protocol";
 import { TrackerClient, type WorkerLike } from "../engine/tracker-client";
+import type { ApClientLike, ApSocketHandlers } from "./ap-link";
 import { INITIAL_STATE, TEST_PACK } from "./test-pack";
 import { TrackerScreen } from "./tracker-screen";
 import type { TrackerSessionDeps } from "./use-tracker-session";
@@ -50,6 +53,37 @@ type Script = {
 
 let requests: TrackerRequest[];
 
+/** Story 54.6: the room the fake Archipelago client talks to. */
+type FakeRoom = { handlers: ApSocketHandlers | null; sent: ApOutgoing[]; logins: string[][] };
+let room: FakeRoom;
+
+function fakeApClient(): ApClientLike {
+  return {
+    listen(handlers) {
+      room.handlers = handlers;
+    },
+    async login(url, slot, password) {
+      room.logins.push([url, slot, password]);
+      room.handlers?.connected({
+        team: 0,
+        slot: 1,
+        players: [{ team: 0, slot: 1, alias: slot, name: slot }],
+        missing_locations: [],
+        checked_locations: [],
+        slot_data: {},
+        slot_info: { "1": { name: slot, game: "MM" } },
+      });
+      room.handlers?.receivedItems({ index: 0, items: [{ item: 1, location: 0, player: 1, flags: 1 }] });
+    },
+    send(packets) {
+      for (const packet of packets) if (packet.cmd !== "Sync") room.sent.push(packet);
+    },
+    disconnect() {},
+    names: () => ({}),
+    seed: () => "s",
+  };
+}
+
 /** A Worker that answers like the engine would, without Lua. */
 function fakeDeps(script: Script = {}): TrackerSessionDeps {
   return {
@@ -57,9 +91,11 @@ function fakeDeps(script: Script = {}): TrackerSessionDeps {
       onProgress(5, 10);
       return new ArrayBuffer(10);
     },
-    createClient: (onLog) =>
+    createApClient: fakeApClient,
+    createClient: ({ onLog, onApSend }) =>
       new TrackerClient({
         onLog,
+        onApSend,
         createWorker: (): WorkerLike => {
           let listener: (data: unknown) => void = () => undefined;
           return {
@@ -103,6 +139,21 @@ function fakeDeps(script: Script = {}): TrackerSessionDeps {
                   answer(items);
                   return;
                 }
+                case "ap": {
+                  // The engine would run the pack's handlers: the sword arrives, the hut chest is hinted.
+                  const kinds = request.events.map((event) => event.kind);
+                  if (kinds.includes("clear")) answer({ type: "apSend", packets: [{ cmd: "Get", keys: ["_read_hints_0_1"] }] });
+                  answer({
+                    type: "state",
+                    requestId: request.requestId,
+                    state: {
+                      items: kinds.includes("items") ? { 1: { active: true, stage: 0, count: 0, overlay: "" } } : {},
+                      sections: { 10: { available: 1, level: 6, visible: true, highlight: Highlight.Priority } },
+                      locations: {},
+                    },
+                  });
+                  return;
+                }
                 default:
                   answer({ type: "state", requestId: request.requestId, state: { items: {}, sections: {}, locations: {} } });
               }
@@ -131,6 +182,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   requests = [];
+  room = { handlers: null, sent: [], logins: [] };
   window.localStorage.clear();
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -243,5 +295,72 @@ describe("the tracker screen (story 54.5)", () => {
     expect(window.localStorage.getItem("tracker:test_pack:1.0.0:standard")).toBeNull();
     expect(requests.filter((request) => request.type === "load")).toHaveLength(2);
     expect(byLabel("Sword").getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
+function type(label: string, value: string) {
+  const input = Array.from(document.querySelectorAll("label")).find((candidate) => candidate.textContent?.startsWith(label))?.querySelector("input");
+  if (input === undefined || input === null) throw new Error(`no input ${label}`);
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  act(() => {
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+describe("autotracking from an Archipelago room (story 54.6)", () => {
+  it("connects with the form, fills the tracker from the room and saves nothing in the browser", async () => {
+    await open(fakeDeps());
+    await act(async () => {
+      buttonNamed("Connecter à Archipelago").click();
+    });
+    type("Adresse de la room", "localhost:38281");
+    type("Nom du slot", "Jean");
+    type("Mot de passe", "secret");
+    await act(async () => {
+      buttonNamed("Connecter").click();
+    });
+    await settle();
+
+    expect(room.logins).toEqual([["localhost:38281", "Jean", "secret"]]);
+    expect(container.textContent).toContain("Relié à la room, slot Jean.");
+    const ap = requests.find((request) => request.type === "ap");
+    expect(ap?.type === "ap" ? ap.events.map((event) => event.kind) : []).toEqual(["connected", "clear", "locations", "items"]);
+    expect(byLabel("Sword").getAttribute("aria-pressed")).toBe("true");
+    // The pack asked for its hints key through the page.
+    expect(room.sent).toEqual([{ cmd: "Get", keys: ["_read_hints_0_1"] }]);
+    // The room holds the state: nothing saved, and the password is never remembered.
+    expect(window.localStorage.getItem("tracker:test_pack:1.0.0:standard")).toBeNull();
+    expect(window.localStorage.getItem("tracker:room")).toBe(JSON.stringify({ address: "localhost:38281", slot: "Jean" }));
+  });
+
+  it("says when the room overwrites manual clicks", async () => {
+    await open(fakeDeps());
+    await act(async () => {
+      buttonNamed("Connecter à Archipelago").click();
+    });
+    type("Adresse de la room", "localhost:38281");
+    type("Nom du slot", "Jean");
+    await act(async () => {
+      buttonNamed("Connecter").click();
+    });
+    await settle();
+    await act(async () => {
+      byLabel("Sword").click();
+    });
+    await settle();
+    expect(container.textContent).not.toContain("clics manuels");
+
+    // The server starts over (a Sync): the pack clears and replays.
+    await act(async () => {
+      room.handlers?.receivedItems({ index: 0, items: [{ item: 1, location: 0, player: 1, flags: 1 }] });
+    });
+    await settle();
+    expect(container.textContent).toContain("vos clics manuels ont été remplacés");
+
+    await act(async () => {
+      buttonNamed("Déconnecter").click();
+    });
+    expect(container.textContent).toContain("Suivi manuel.");
   });
 });

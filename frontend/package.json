@@ -23,6 +23,7 @@
     "@tiptap/pm": "^3.32.1",
     "@tiptap/react": "^3.32.1",
     "@tiptap/starter-kit": "^3.32.1",
+    "archipelago.js": "2.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fflate": "0.8.2",

@@ -66,6 +66,82 @@ run("Majora's Mask pack", () => {
     engine.dispose();
   });
 
+  it("fills itself from an Archipelago room: items, done locations, shop prices and hints (story 54.6)", async () => {
+    const sent: unknown[] = [];
+    const engine = await TrackerEngine.load(packFromFolder(folder, "standard"), "standard", {
+      onApSend: (packets) => sent.push(...packets),
+    });
+    engine.initialState();
+    const prices = Array.from({ length: 40 }, () => 10);
+    prices[26] = 77; // SHOP_NAMES[27] in Lua, the bomb shop's first item: Lua lists start at 1
+    const BOMB_SHOP = "Clock Town/Bomb Shop/Item 1";
+    const started = performance.now();
+    const state = engine.applyAp([
+      {
+        kind: "connected",
+        playerNumber: 1,
+        teamNumber: 0,
+        seed: "1",
+        game: "Majora's Mask Recompiled",
+        checked: [0x3469420061b18],
+        missing: [],
+        players: [{ slot: 1, team: 0, alias: "Jean", name: "Jean", game: "Majora's Mask Recompiled" }],
+        names: {},
+      },
+      { kind: "clear", slotData: { shopsanity: 1, shop_prices_ints: prices, logic_difficulty: 0 } },
+      { kind: "locations", locations: [0x3469420061b18] },
+      {
+        kind: "items",
+        items: [0x3469420000078, 0x3469420040061, 0x346942000005a].map((item, index) => ({
+          index,
+          item,
+          player: 1,
+          location: 0,
+          flags: 1,
+        })),
+      },
+    ]);
+    const elapsed = performance.now() - started;
+
+    expect(engine.findItem("deku")?.state().active).toBe(true);
+    expect(engine.findItem("sonata")?.state().active).toBe(true);
+    expect(engine.sectionLevel(ENTRANCE)).toBe(AccessibilityLevel.Cleared);
+    expect(engine.sectionLevel(SWITCH)).toBe(AccessibilityLevel.None);
+    const shop = engine.pack().locations.flatMap((location) => location.sections).find((section) => section.path === BOMB_SHOP);
+    if (shop === undefined) throw new Error("no bomb shop section");
+    expect(state.sections[shop.id]?.available).toBe(77);
+    expect(sent).toEqual([
+      { cmd: "SetNotify", keys: ["_read_hints_0_1"] },
+      { cmd: "Get", keys: ["_read_hints_0_1"] },
+    ]);
+    expect(engine.logs.filter((log) => log.level === "error" && !/inverse_rules|small_key_sanity_off/.test(log.message))).toEqual([]);
+    expect(elapsed).toBeLessThan(1000);
+    engine.dispose();
+  });
+
+  it("goes through more than 500 received items in one batch (story 54.6, AC 6)", async () => {
+    const engine = await load("standard");
+    engine.initialState();
+    const connected = {
+      kind: "connected" as const,
+      playerNumber: 1,
+      teamNumber: 0,
+      seed: "1",
+      game: "Majora's Mask Recompiled",
+      checked: [],
+      missing: [],
+      players: [],
+      names: {},
+    };
+    const items = Array.from({ length: 600 }, (_, index) => ({ index, item: 0x346942000005a, player: 1, location: 0, flags: 0 }));
+    const started = performance.now();
+    engine.applyAp([connected, { kind: "clear", slotData: { shopsanity: 0 } }, { kind: "items", items }]);
+    const elapsed = performance.now() - started;
+    expect(engine.findItem("empty_bottle")?.state().count).toBeGreaterThan(0);
+    expect(elapsed).toBeLessThan(1000);
+    engine.dispose();
+  });
+
   /**
    * AC 3. Ten sections under four inventories (normal logic, the pack's default). Expected values were written by
    * reading the pack's rules and Lua by hand before running the engine (6 = Normal, 0 = None). The PopTracker 0.34

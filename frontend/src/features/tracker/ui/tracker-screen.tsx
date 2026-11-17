@@ -11,8 +11,9 @@ import { fetchTrackerArchive, type GameTrackerPack } from "@/features/trackers/t
 
 import { createTrackerWorker } from "../engine/create-tracker-worker";
 import { AccessibilityLevel } from "../engine/levels";
-import type { LogLevel } from "../engine/protocol";
 import { TrackerClient } from "../engine/tracker-client";
+import { createArchipelagoClient } from "./ap-client";
+import { RoomPanel } from "./room-panel";
 import { TrackerContextProvider, type TrackerScreenContext } from "./tracker-context";
 import { TrackerLayout } from "./tracker-layout";
 import { parseSettings, readSettingsRaw, subscribeSettings, writeSettings } from "./tracker-storage";
@@ -46,8 +47,8 @@ type Props = {
 
 const BROWSER_DEPS: TrackerSessionDeps = {
   fetchArchive: fetchTrackerArchive,
-  createClient: (onLog: (log: { level: LogLevel; message: string }) => void) =>
-    new TrackerClient({ createWorker: createTrackerWorker, onLog }),
+  createClient: ({ onLog, onApSend }) => new TrackerClient({ createWorker: createTrackerWorker, onLog, onApSend }),
+  createApClient: createArchipelagoClient,
 };
 
 function isSettings(value: unknown): value is TrackerSettings {
@@ -220,6 +221,14 @@ function TrackerSession({
         <Legend settings={settings} />
       </div>
 
+      <RoomPanel
+        disabled={phase.kind !== "ready"}
+        notice={session.roomNotice}
+        onConnect={session.connectRoom}
+        onDisconnect={session.disconnectRoom}
+        status={session.room}
+      />
+
       <PackMessages messages={session.messages} />
 
       <TrackerBody onRetry={onRestart} phase={phase} session={session} settings={settings} />
@@ -230,7 +239,7 @@ function TrackerSession({
 
       <ConfirmDialog
         confirmLabel="Remettre à zéro"
-        description="Les objets cochés et les lieux faits de ce tracker seront effacés de ce navigateur."
+        description="Les objets cochés et les lieux faits de ce tracker seront effacés de ce navigateur. Une room reliée est déconnectée."
         icon={RotateCcw}
         onConfirm={() => {
           setConfirmReset(false);

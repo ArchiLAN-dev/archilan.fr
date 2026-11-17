@@ -19,6 +19,7 @@ import type {
   TrackerErrorKind,
 } from "./protocol";
 import { evaluateRules, type RuleContext } from "./rules";
+import type { ApEvent, ApGameNames, ApOutgoing, ApPlayer } from "./ap-events";
 
 /**
  * The PopTracker pack engine (story 54.4): runs a pack's Lua in a sandbox, holds its items and locations, and
@@ -30,6 +31,8 @@ export type EngineOptions = {
   /** Where the Lua WASM is served (the Worker); Node finds it in `node_modules` by itself. */
   wasmUri?: string;
   onLog?: (log: EngineLog) => void;
+  /** Story 54.6: what the pack asks the Archipelago server for, after each batch of events. */
+  onApSend?: (packets: ApOutgoing[]) => void;
 };
 
 /** A failure that stops the pack, with what the Worker sends to the page. */
@@ -51,12 +54,13 @@ type LuaApi = {
   itemChanged(codes: string): unknown;
   sectionChanged(ref: string): unknown;
   archipelagoHandlerCount(kind: string): unknown;
+  ap(json: string): unknown;
   run(source: string): unknown;
 };
 
 function isLuaApi(value: unknown): value is LuaApi {
   if (!isJsonObject(value)) return false;
-  return ["loadScript", "callRule", "itemChanged", "sectionChanged", "archipelagoHandlerCount", "run"].every(
+  return ["loadScript", "callRule", "itemChanged", "sectionChanged", "archipelagoHandlerCount", "ap", "run"].every(
     (key) => typeof value[key] === "function",
   );
 }
@@ -89,6 +93,11 @@ export class TrackerEngine {
   private readonly pendingSections = new Set<TrackerSection>();
   private previous: StateUpdate = { items: {}, sections: {}, locations: {} };
   private nextItemId = 1;
+  /** Story 54.6: the room as the last `connected` event described it. */
+  private apGame = "";
+  private apPlayers = new Map<number, ApPlayer>();
+  private apNames: Record<string, ApGameNames> = {};
+  private apOutbox: ApOutgoing[] = [];
   private nextRef = 1;
   private lua: LuaEngine | null = null;
   private api: LuaApi | null = null;
@@ -138,6 +147,36 @@ export class TrackerEngine {
   apply(action: EngineAction): StateUpdate {
     this.applyOne(action);
     return this.settle();
+  }
+
+  /**
+   * Archipelago events (story 54.6), in order, with one logic pass and one round of watchers at the end: the
+   * `connected` of an advanced game brings hundreds of items and locations at once.
+   */
+  applyAp(events: readonly ApEvent[]): StateUpdate {
+    const api = this.luaApi();
+    for (const event of events) {
+      if (event.kind === "connected") {
+        this.apGame = event.game;
+        this.apPlayers = new Map(event.players.map((player) => [player.slot, player]));
+        this.apNames = event.names;
+        // The name tables stay on this side: the pack reads them through `GetItemName` and the like.
+        api.ap(JSON.stringify({ ...event, players: [], names: {} }));
+        continue;
+      }
+      try {
+        api.ap(JSON.stringify(event));
+      } catch (error) {
+        this.log("error", `Événement Archipelago ${event.kind} : ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    const state = this.settle();
+    if (this.apOutbox.length > 0) {
+      const packets = this.apOutbox;
+      this.apOutbox = [];
+      this.options.onApSend?.(packets);
+    }
+    return state;
   }
 
   /** Several actions, with one logic pass and one round of watchers at the end. */
@@ -220,8 +259,27 @@ export class TrackerEngine {
       setFlag: (name, value) => {
         if (name === "BulkUpdate" || name === "AllowDeferredLogicUpdate") this.flags[name] = value === true;
       },
+      apSend: (cmd, key) => {
+        if ((cmd !== "Get" && cmd !== "SetNotify") || typeof key !== "string") return;
+        const last = this.apOutbox.at(-1);
+        if (last !== undefined && last.cmd === cmd) last.keys.push(key);
+        else this.apOutbox.push({ cmd, keys: [key] });
+      },
+      apName: (kind, id, game) => this.apName(kind, id, game),
+      apPlayer: (field, slot) => {
+        const player = typeof slot === "number" ? this.apPlayers.get(slot) : undefined;
+        if (player === undefined) return undefined;
+        return field === "alias" ? player.alias : field === "game" ? player.game : undefined;
+      },
       ruleError: (name, message) => this.logOnce(`rule:${String(name)}`, "error", `Règle $${String(name)} : ${String(message)}`),
     };
+  }
+
+  private apName(kind: unknown, id: unknown, game: unknown): string | undefined {
+    if (typeof id !== "number") return undefined;
+    const names = this.apNames[typeof game === "string" && game !== "" ? game : this.apGame];
+    if (names === undefined) return undefined;
+    return kind === "item" ? names.items[id] : kind === "location" ? names.locations[id] : undefined;
   }
 
   private addFile(kind: string, file: string): boolean {
