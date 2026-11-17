@@ -13,17 +13,21 @@ final class TrackedLinkTest extends FunctionalTestCase
         $inbound = $this->createLink('discord-nov', 'Discord novembre', '/evenements/archilan-4');
         $outbound = $this->createLink('ludo', 'Ludothèque', 'https://ludo.example');
 
-        $links = $this->adminLinks();
-        self::assertSame([$inbound, $outbound], array_column($links, 'id'));
-        self::assertSame(['inbound', 'outbound'], array_column($links, 'direction'));
-        self::assertSame([true, true], array_column($links, 'active'));
+        // Read by id: newest first, and the two may be created in two different seconds.
+        $links = array_column($this->adminLinks(), null, 'id');
+        self::assertEqualsCanonicalizing([$inbound, $outbound], array_keys($links));
+        self::assertSame('inbound', $links[$inbound]['direction']);
+        self::assertSame('outbound', $links[$outbound]['direction']);
+        self::assertTrue($links[$inbound]['active']);
+        self::assertTrue($links[$outbound]['active']);
 
         $this->client->jsonRequest('PUT', '/api/v1/admin/links/'.$inbound, ['code' => 'ignored', 'label' => 'Discord', 'target' => '/evenements', 'active' => false]);
         self::assertResponseStatusCodeSame(204);
-        $links = $this->adminLinks();
-        self::assertSame('discord-nov', $links[0]['code']);
-        self::assertSame('/evenements', $links[0]['target']);
-        self::assertFalse($links[0]['active']);
+        $link = array_column($this->adminLinks(), null, 'id')[$inbound] ?? null;
+        self::assertIsArray($link);
+        self::assertSame('discord-nov', $link['code']);
+        self::assertSame('/evenements', $link['target']);
+        self::assertFalse($link['active']);
     }
 
     public function testInvalidOrTakenCodesAndTargetsAreRefused(): void
