@@ -107,5 +107,10 @@ vu sur un autre jeu que Majora's Mask), et leurs couleurs de fond ne vont pas av
     lieu d'une couleur « en partie accessible ». Couleurs reprises de `StateColors` (MapWidget) : #20ff20, #cf1010,
     #ffff20, #3040ff, #3f3f3f. Légende sans « En partie accessible », avec un exemple de case partagée. Vérifié sur
     MM : 11 lieux en case partagée vert/rouge.
+  - **Légende en mots simples** (`ui/tracker-legend.tsx`) : Faisable, Hors logique, À regarder, Pas encore, Fait,
+    Plusieurs couleurs ; placée au-dessus de la carte (et non plus dans la barre), pastilles dessinées comme sur la
+    carte, et « Que veulent dire les couleurs ? » déplie une phrase par couleur. Mêmes mots dans les pastilles
+    (« En partie : faisable, pas encore ») et le détail d'un lieu ; option « Montrer ce qui est faisable hors
+    logique ».
 - Tests : `layout-outline.test.ts` (7), disposition ArchiLAN dans `tracker-widgets.test.tsx` (4), erreurs regroupées
   et plein écran dans `tracker-screen.test.tsx`. `pnpm gates` vert (1901 tests).

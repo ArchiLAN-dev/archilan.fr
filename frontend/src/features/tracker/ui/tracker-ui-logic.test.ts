@@ -237,7 +237,8 @@ describe("PopTracker's pins (story 54.9)", () => {
   it("gathers one state per section still to do", () => {
     const marks = locationMarks(location, view({ 10: section(AccessibilityLevel.Normal, 1), 11: section(AccessibilityLevel.None, 1), 12: section(AccessibilityLevel.Cleared, 0) }), DEFAULT_SETTINGS);
     expect(marks).toBe(PinMark.Reachable | PinMark.Unreachable);
-    expect(pinLabel(marks ?? -1)).toBe("Accessible et Inaccessible");
+    expect(pinLabel(marks ?? -1)).toBe("En partie : faisable, pas encore");
+    expect(pinLabel(PinMark.Inspect)).toBe("À regarder");
   });
 
   it("is done when every visible section is, hidden when none is visible", () => {

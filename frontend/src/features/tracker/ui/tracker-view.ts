@@ -36,11 +36,12 @@ export type LevelStyle = { label: string; className: string };
 
 /** The legend, worst to best: one color per level, from the site tokens. */
 export const LEVEL_STYLES: Record<AccessibilityLevel, LevelStyle> = {
-  [AccessibilityLevel.None]: { label: "Inaccessible", className: "bg-tracker-none" },
-  [AccessibilityLevel.Partial]: { label: "En partie accessible", className: "bg-tracker-partial" },
-  [AccessibilityLevel.Inspect]: { label: "À inspecter", className: "bg-tracker-inspect" },
-  [AccessibilityLevel.SequenceBreak]: { label: "Séquence break", className: "bg-tracker-sequence" },
-  [AccessibilityLevel.Normal]: { label: "Accessible", className: "bg-tracker-normal" },
+  // Story 54.9: plain words rather than PopTracker's jargon (« sequence break », « inspect »).
+  [AccessibilityLevel.None]: { label: "Pas encore", className: "bg-tracker-none" },
+  [AccessibilityLevel.Partial]: { label: "En partie faisable", className: "bg-tracker-partial" },
+  [AccessibilityLevel.Inspect]: { label: "À regarder", className: "bg-tracker-inspect" },
+  [AccessibilityLevel.SequenceBreak]: { label: "Hors logique", className: "bg-tracker-sequence" },
+  [AccessibilityLevel.Normal]: { label: "Faisable", className: "bg-tracker-normal" },
   [AccessibilityLevel.Cleared]: { label: "Fait", className: "bg-tracker-cleared" },
 };
 
@@ -116,10 +117,10 @@ const MARK_COLORS: Record<number, string> = {
 };
 
 const MARK_LABELS: [number, string][] = [
-  [PinMark.Reachable, "Accessible"],
-  [PinMark.SequenceBreak, "Séquence break"],
-  [PinMark.Inspect, "À inspecter"],
-  [PinMark.Unreachable, "Inaccessible"],
+  [PinMark.Reachable, "faisable"],
+  [PinMark.SequenceBreak, "hors logique"],
+  [PinMark.Inspect, "à regarder"],
+  [PinMark.Unreachable, "pas encore"],
 ];
 
 /** The background of a pin: one colour, or its quarters cut along the diagonals. */
@@ -129,11 +130,15 @@ export function pinBackground(marks: number): string {
   return `conic-gradient(from -45deg, ${top} 0 25%, ${right} 0 50%, ${bottom} 0 75%, ${left} 0 100%)`;
 }
 
-/** What the pin says: « Accessible et Inaccessible », « Fait ». */
+/** What the pin says: « Faisable », « En partie : faisable, pas encore », « Fait ». */
 export function pinLabel(marks: number): string {
   if (marks === 0) return "Fait";
   const names = MARK_LABELS.filter(([mark]) => (marks & mark) !== 0).map(([, name]) => name);
-  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} et ${names.at(-1) ?? ""}`;
+  if (names.length <= 1) {
+    const name = names[0] ?? "";
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+  return `En partie : ${names.join(", ")}`;
 }
 
 /** A `ref` section shows the state of the section it points to. */

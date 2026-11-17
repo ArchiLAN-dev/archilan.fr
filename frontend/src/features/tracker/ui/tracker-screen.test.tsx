@@ -260,11 +260,11 @@ describe("the tracker screen (story 54.5)", () => {
     expect(container.textContent).toContain("par Seto10987, G4M3R L1F3");
     // Story 54.9: the settings sit in the Options menu; the layout is the site's (maps and items apart).
     expect(container.querySelector('[data-board="archilan"]')).not.toBeNull();
-    expect(container.textContent).not.toContain("Afficher les séquences breaks");
+    expect(container.textContent).not.toContain("Montrer ce qui est faisable hors logique");
     await act(async () => {
       buttonNamed("Options").click();
     });
-    expect(container.textContent).toContain("Afficher les séquences breaks");
+    expect(container.textContent).toContain("Montrer ce qui est faisable hors logique");
     expect(container.textContent).toContain("Masquer ce qui est fait");
   });
 

@@ -65,7 +65,7 @@ export function OptionsMenu({ settings, onSettings, canReset, onReset }: Options
               onChange={(event) => onSettings({ ...settings, showSequenceBreaks: event.target.checked })}
               type="checkbox"
             />
-            Afficher les séquences breaks
+            Montrer ce qui est faisable hors logique
           </label>
           <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 text-foreground">
             <input

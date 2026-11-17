@@ -203,6 +203,18 @@ describe("the ArchiLAN layout of a pack (story 54.9)", () => {
     expect(container.querySelector('[role="tablist"]')).toBeNull();
   });
 
+  it("explains the colours of the map in plain words, next to the map (story 54.9)", async () => {
+    await render({}, DEFAULT_SETTINGS, "tracker_default", true);
+    const legend = byLabel("Légende de la carte");
+    expect(byLabel("Cartes").contains(legend)).toBe(true);
+    expect(legend.textContent).toContain("Faisable");
+    expect(legend.textContent).toContain("Hors logique");
+    expect(legend.textContent).toContain("Plusieurs couleurs");
+    expect(container.textContent).not.toContain("Il te manque encore quelque chose.");
+    click(button("Que veulent dire les couleurs ?"));
+    expect(container.textContent).toContain("Il te manque encore quelque chose.");
+  });
+
   it("draws a layout it cannot read the way the pack writes it", async () => {
     await render({}, DEFAULT_SETTINGS, "no_such_layout", true);
     expect(container.querySelector('[data-board="pack"]')).not.toBeNull();
@@ -262,14 +274,14 @@ describe("tracker items", () => {
 describe("map pins and the location popover", () => {
   it("colours each pin by its level, with PopTracker's colours", async () => {
     await render();
-    expect(byLabel("Woodfall : Inaccessible").style.background).toBe("var(--color-tracker-none)");
-    expect(byLabel("Swamp : Accessible").style.background).toBe("var(--color-tracker-normal)");
-    expect(byLabel("Swamp : Accessible").className).toContain("rotate-45");
+    expect(byLabel("Woodfall : Pas encore").style.background).toBe("var(--color-tracker-none)");
+    expect(byLabel("Swamp : Faisable").style.background).toBe("var(--color-tracker-normal)");
+    expect(byLabel("Swamp : Faisable").className).toContain("rotate-45");
   });
 
   it("splits the pin of a location whose sections differ, as PopTracker does (story 54.9)", async () => {
     await render({ sections: { 10: section(AccessibilityLevel.Normal, 1) } });
-    const pin = byLabel("Woodfall : Accessible et Inaccessible");
+    const pin = byLabel("Woodfall : En partie : faisable, pas encore");
     expect(pin.getAttribute("data-marks")).toBe("3");
     // Top and left red, bottom and right green: no colour of its own for a mixed location.
     expect(pin.style.background).toContain("conic-gradient");
@@ -283,7 +295,7 @@ describe("map pins and the location popover", () => {
       },
       { showSequenceBreaks: false, hideCleared: true },
     );
-    expect(byLabel("Woodfall : Inaccessible")).not.toBeNull();
+    expect(byLabel("Woodfall : Pas encore")).not.toBeNull();
     expect(container.querySelector('[aria-label^="Swamp"]')).toBeNull();
   });
 
@@ -294,12 +306,12 @@ describe("map pins and the location popover", () => {
         20: { ...section(AccessibilityLevel.Cleared, 0), highlight: Highlight.Priority },
       },
     });
-    const pin = byLabel("Woodfall : Accessible et Inaccessible, indice : important");
+    const pin = byLabel("Woodfall : En partie : faisable, pas encore, indice : important");
     expect(pin.querySelector("[data-hint]")).not.toBeNull();
     expect(byLabel("Swamp : Fait").querySelector("[data-hint]")).toBeNull();
     fire(pin, new MouseEvent("click", { bubbles: true }));
-    expect(byLabel("Entrance : Accessible, indice : important")).not.toBeNull();
-    expect(byLabel("Pots : Inaccessible")).not.toBeNull();
+    expect(byLabel("Entrance : Faisable, indice : important")).not.toBeNull();
+    expect(byLabel("Pots : Pas encore")).not.toBeNull();
   });
 
   it("lists the sections of a location; a click does one, a right click undoes it", async () => {
@@ -310,8 +322,8 @@ describe("map pins and the location popover", () => {
     const dialog = container.querySelector('[role="dialog"]');
     expect(dialog?.textContent).toContain("Entrance");
     expect(dialog?.textContent).toContain("2/3");
-    fire(byLabel("Entrance : Accessible"), new MouseEvent("click", { bubbles: true }));
-    fire(byLabel("Pots : Accessible"), new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    fire(byLabel("Entrance : Faisable"), new MouseEvent("click", { bubbles: true }));
+    fire(byLabel("Pots : Faisable"), new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
     expect(acted).toEqual([
       { type: "sectionClear", sectionId: 10 },
       { type: "sectionUnclear", sectionId: 11 },

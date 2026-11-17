@@ -9,6 +9,7 @@ import { TAB_LIST_CLASS, tabClassName } from "@/components/ui/tabs";
 import { isLayoutNode } from "./layout-attributes";
 import { mapLabel, mapPathLabel, outlineLayout, type OutlineSection } from "./layout-outline";
 import { useTracker } from "./tracker-context";
+import { MapLegend } from "./tracker-legend";
 import { LayoutWidget, ROOT, TrackerLayout } from "./tracker-layout";
 import { TrackerMap } from "./tracker-map";
 
@@ -24,7 +25,7 @@ const MAX_MAP_TABS = 6;
 type MobileView = "items" | "maps";
 
 export function TrackerBoard({ root }: { root: string }) {
-  const { pack } = useTracker();
+  const { pack, settings } = useTracker();
   const outline = useMemo(() => {
     const node = pack.layouts[root];
     return isLayoutNode(node) ? outlineLayout(node, pack.layouts) : { maps: [], sections: [] };
@@ -109,6 +110,7 @@ export function TrackerBoard({ root }: { root: string }) {
                 </div>
               )
             ) : null}
+            <MapLegend settings={settings} />
             {/* A new map is a new view: its zoom starts on the whole image. */}
             <TrackerMap key={shownMap.name} name={shownMap.name} />
           </section>
