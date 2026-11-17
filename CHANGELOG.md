@@ -7,8 +7,8 @@ projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [0.68.2] - 2026-11-17
 
-Correctifs du tracker (story 54.9) et des informations de connexion d'un event : aucune migration, aucune variable
-d'environnement.
+Correctifs du tracker (story 54.9), des informations de connexion d'un event et du temps réel des sessions : aucune
+migration, aucune variable d'environnement.
 
 ### Corrigé
 
@@ -28,6 +28,12 @@ d'environnement.
 - Ces mêmes informations de connexion renvoyaient au joueur toute la session, mots de passe admin et serveur
   d'Archipelago, journaux et chemins d'archives compris. Elles se limitent maintenant à ce qu'il faut pour se
   connecter : statut, adresse (seulement pendant la partie), adresse client et mot de passe du slot.
+- **Temps réel d'une session** : chaque changement d'une session publiait toute la session (mot de passe admin
+  d'Archipelago compris) sur le canal Mercure public `/sessions/{id}`, lisible par quiconque connaissait l'id de la
+  session. Le canal ne dit plus que « la session a changé » (id et statut) ; la page admin et la page session d'un
+  inscrit relisent alors la session sur leur propre route authentifiée. Après la mise en prod, changer les mots de
+  passe admin des parties en cours n'est pas nécessaire pour les nouvelles parties, mais reste prudent pour celles
+  lancées avant.
 
 ## [0.68.1] - 2026-11-17
 
