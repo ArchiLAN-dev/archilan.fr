@@ -246,7 +246,7 @@ export function GameDetail({
         </section>
       ) : null}
 
-      <GameTrackerCredits packs={trackerPacks} />
+      <GameTrackerCredits gameSlug={game.slug} packs={trackerPacks} />
     </article>
   );
 }

@@ -28,6 +28,13 @@ const pack: AdminTrackerPack = {
   isDefault: false,
   defaultVariantUid: null,
   licenseAcknowledged: false,
+  availableUpdate: null,
+  lastCheckedAt: null,
+  lastCheckError: null,
+  versions: [],
+  rootPath: "",
+  sha256: "abc",
+  compatibility: [],
 };
 
 function render(node: ReactNode): string {
@@ -35,12 +42,12 @@ function render(node: ReactNode): string {
 }
 
 function list(packs: AdminTrackerPack[] | null | undefined, loading = false): string {
-  return render(<TrackerPackList gameId="g1" loading={loading} packs={packs} />);
+  return render(<TrackerPackList gameId="g1" gameSlug="majora" loading={loading} packs={packs} />);
 }
 
 describe("AdminGameTrackerPacks (story 54.1)", () => {
   it("offers to import a pack from a GitHub link", () => {
-    const html = render(<AdminGameTrackerPacks gameId="g1" />);
+    const html = render(<AdminGameTrackerPacks gameId="g1" gameSlug="majora" />);
     expect(html).toContain("Trackers");
     expect(html).toContain("Lien GitHub du pack");
     // Nothing typed yet: the button waits for a link.

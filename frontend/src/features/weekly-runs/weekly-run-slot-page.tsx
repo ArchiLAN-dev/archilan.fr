@@ -37,6 +37,7 @@ import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtim
 import { fetchCurrentWeeklyRuns, fetchWeeklyEntryPlayerSlots, relaunchWeeklyEntry } from "./weekly-runs-api";
 import { ReachabilityComputingNote } from "@/features/reachability/reachability-notes";
 import { ServerPausedNote } from "@/components/run-notes";
+import { weeklyConnectionSlots } from "./weekly-connection-slots";
 
 type PageState =
   | { kind: "idle" }
@@ -716,7 +717,7 @@ export function WeeklyRunSlotPage({
                 host={myEntry.connectionInfo.host}
                 password={myEntry.connectionInfo.password}
                 port={myEntry.connectionInfo.port}
-                slots={myEntry.slotName ? [{ name: myEntry.slotName, game: null }] : []}
+                slots={weeklyConnectionSlots(run, myEntry)}
                 uri={myEntry.connectionInfo.uri ?? null}
               />
             </div>

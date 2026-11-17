@@ -10,7 +10,7 @@ const sessionPath = "/evenements/archilan-4/inscription/r1/session";
 function connection(session: SessionPayload | null): SessionConnectionResult {
   return {
     kind: "success",
-    data: { eventId: "e1", session, slots: [{ slotName: "Jean_OoT", slotOrder: 1, gameId: "g1", gameName: "Ocarina of Time", slotId: "s1", coPlayed: false }] },
+    data: { eventId: "e1", session, slots: [{ slotName: "Jean_OoT", slotOrder: 1, gameId: "g1", gameName: "Ocarina of Time", gameSlug: null, slotId: "s1", coPlayed: false }] },
   };
 }
 

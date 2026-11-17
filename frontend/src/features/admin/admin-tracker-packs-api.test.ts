@@ -1,5 +1,14 @@
 import { apiFetch } from "../../lib/apiFetch";
-import { fetchTrackerPacks, formatPackSize, importTrackerPack, isAdminTrackerPack, updateTrackerPack } from "./admin-tracker-packs-api";
+import {
+  checkTrackerPackUpdate,
+  fetchTrackerPacks,
+  formatPackSize,
+  importTrackerPack,
+  isAdminTrackerPack,
+  rollbackTrackerPack,
+  updateTrackerPack,
+  upgradeTrackerPack,
+} from "./admin-tracker-packs-api";
 
 jest.mock("../../lib/apiFetch");
 
@@ -25,6 +34,13 @@ const pack = {
   isDefault: false,
   defaultVariantUid: null,
   licenseAcknowledged: false,
+  availableUpdate: null,
+  lastCheckedAt: null,
+  lastCheckError: null,
+  versions: [],
+  rootPath: "",
+  sha256: "abc",
+  compatibility: [],
 };
 
 describe("isAdminTrackerPack (story 54.1)", () => {
@@ -121,5 +137,42 @@ describe("updateTrackerPack (story 54.2)", () => {
     mockApiFetch.mockRejectedValue(new Error("offline"));
     const result = await updateTrackerPack("p1", { isDefault: true });
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("pack updates (story 54.3)", () => {
+  it("accepts a pack with an update and kept versions, and refuses a malformed one", () => {
+    const withUpdate = {
+      ...pack,
+      availableUpdate: { packageVersion: "0.9.5.4", downloadUrl: "https://x", sha256: null, changelog: ["a"], gitTag: null },
+      versions: [{ id: "v1", packageVersion: "0.9.5.3", gitTag: null, sizeBytes: 1, importedAt: "2026-11-16T10:00:00+00:00", rootPath: "", sha256: "abc", variants: [], current: true }],
+    };
+    expect(isAdminTrackerPack(withUpdate)).toBe(true);
+    expect(isAdminTrackerPack({ ...withUpdate, availableUpdate: { packageVersion: 3 } })).toBe(false);
+    expect(isAdminTrackerPack({ ...withUpdate, versions: [{ id: "v1" }] })).toBe(false);
+  });
+
+  it("checks a pack now", async () => {
+    mockApiFetch.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(checkTrackerPackUpdate("p1")).resolves.toEqual({ ok: true });
+    expect(mockApiFetch.mock.lastCall?.[0]).toContain("/admin/tracker-packs/p1/check-update");
+  });
+
+  it("installs the update, or a link, and reports a reset default variant", async () => {
+    mockApiFetch.mockResolvedValue(new Response(JSON.stringify({ data: { versionId: "v3", packageVersion: "0.9.5.4", defaultVariantReset: true } }), { status: 200 }));
+    await expect(upgradeTrackerPack("p1")).resolves.toEqual({ ok: true, packageVersion: "0.9.5.4", defaultVariantReset: true });
+    expect(mockApiFetch.mock.lastCall?.[1]).toMatchObject({ body: "{}", method: "POST" });
+
+    await upgradeTrackerPack("p1", "https://github.com/o/r/releases/tag/v2");
+    expect(mockApiFetch.mock.lastCall?.[1]).toMatchObject({ body: '{"url":"https://github.com/o/r/releases/tag/v2"}' });
+  });
+
+  it("relays why an update or a way back was refused", async () => {
+    mockApiFetch.mockResolvedValue(new Response(JSON.stringify({ error: { code: "tracker_pack_checksum_mismatch", message: "Empreinte fausse." } }), { status: 422 }));
+    await expect(upgradeTrackerPack("p1")).resolves.toEqual({ ok: false, message: "Empreinte fausse." });
+
+    mockApiFetch.mockResolvedValue(new Response(JSON.stringify({ error: { code: "tracker_pack_version_not_found", message: "Plus conservée." } }), { status: 404 }));
+    await expect(rollbackTrackerPack("p1", "v0")).resolves.toEqual({ ok: false, message: "Plus conservée." });
+    expect(mockApiFetch.mock.lastCall?.[0]).toContain("/admin/tracker-packs/p1/rollback");
   });
 });

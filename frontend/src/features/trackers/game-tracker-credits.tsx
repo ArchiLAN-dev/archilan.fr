@@ -1,14 +1,17 @@
+import Link from "next/link";
 import { ExternalLink, MapIcon } from "lucide-react";
+
+import { buttonVariants } from "@/components/ui/button";
 
 import type { GameTrackerPack } from "./tracker-packs-api";
 
-type Props = { packs: GameTrackerPack[] };
+type Props = { packs: GameTrackerPack[]; gameSlug: string };
 
 /**
  * Story 54.2: the "Tracker disponible" block of a game page. It credits the authors of the pack that opens by default,
- * and names the other packs offered. Opening the tracker comes with story 54.5.
+ * and names the other packs offered. Story 54.5: it opens the tracker.
  */
-export function GameTrackerCredits({ packs }: Props) {
+export function GameTrackerCredits({ packs, gameSlug }: Props) {
   const [main, ...others] = packs;
   if (main === undefined) return null;
 
@@ -19,6 +22,10 @@ export function GameTrackerCredits({ packs }: Props) {
         Tracker disponible
       </h2>
       <PackCredits pack={main} />
+      <Link className={`${buttonVariants({ variant: "primary" })} w-fit`} href={`/jeux/${gameSlug}/tracker`}>
+        <MapIcon aria-hidden="true" className="size-4" />
+        Ouvrir le tracker
+      </Link>
       {others.length > 0 ? (
         <div className="grid gap-2 border-t border-border pt-3">
           <p className="text-sm text-muted-foreground">Autres packs proposés</p>
@@ -35,7 +42,7 @@ export function GameTrackerCredits({ packs }: Props) {
   );
 }
 
-function PackCredits({ pack }: { pack: GameTrackerPack }) {
+export function PackCredits({ pack }: { pack: GameTrackerPack }) {
   return (
     <div className="grid gap-1 text-sm">
       <p className="font-semibold text-foreground">

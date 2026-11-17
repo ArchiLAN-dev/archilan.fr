@@ -28,6 +28,7 @@ use App\Sessions\Application\Message\RefundEndedSessionBountiesMessage;
 use App\Sessions\Application\Message\RequestDeclaredDeparturesMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\Surveys\Application\Message\NotifySurveysMessage;
+use App\Trackers\Application\Message\CheckTrackerPackUpdatesMessage;
 use App\Wallet\Application\Message\AwardWeeklyQuestsMessage;
 use App\Wallet\Application\Message\CollectMinimapperzGamesMessage;
 use App\Wallet\Application\Message\ExpireEventPellesMessage;
@@ -138,6 +139,9 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Story 38.9: the rolling catalogue test, a small batch a night. After the version check
                 // of 04:00, so a game about to be updated is not retested for nothing.
                 RecurringMessage::cron('0 5 * * *', new SweepApworldCatalogMessage(), new \DateTimeZone('Europe/Paris')),
+                // Story 54.3: newer versions of the PopTracker packs offered to players, after the apworlds of 04:00.
+                // Only noted for an admin to apply: a pack runs code in the players' browsers.
+                RecurringMessage::cron('40 4 * * *', new CheckTrackerPackUpdatesMessage(), new \DateTimeZone('Europe/Paris')),
                 // Story 44.3: the files each world declares (a ROM...), so the launcher can be asked for one.
                 // Nightly after the catalogue test; a new Archipelago image is picked up the next night.
                 RecurringMessage::cron('30 5 * * *', new SyncGameDeclaredFilesMessage(), new \DateTimeZone('Europe/Paris')),

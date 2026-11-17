@@ -36,6 +36,11 @@ final class SpyMinioStorage implements MinioStorageInterface
         return \array_key_exists($bucket.'/'.$key, $this->objects);
     }
 
+    public function delete(string $bucket, string $key): void
+    {
+        unset($this->objects[$bucket.'/'.$key]);
+    }
+
     public function presignedUrl(string $bucket, string $key, int $ttlSeconds): string
     {
         return 'https://minio.test/'.$bucket.'/'.$key;

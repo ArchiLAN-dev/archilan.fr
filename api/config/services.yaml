@@ -549,6 +549,7 @@ services:
     App\Trackers\Application\Query\PublicTrackerPackQueryInterface: '@App\Trackers\Infrastructure\Dbal\DbalPublicTrackerPackQuery'
     App\Trackers\Application\Port\TrackerGameInterface: '@App\Trackers\Infrastructure\Adapter\RepositoryTrackerGame'
     App\Trackers\Application\Port\TrackerPackFetcherInterface: '@App\Trackers\Infrastructure\Http\GithubTrackerPackFetcher'
+    App\Trackers\Application\Port\TrackerPackUpdateSourceInterface: '@App\Trackers\Infrastructure\Http\GithubTrackerPackFetcher'
     App\Trackers\Application\Port\TrackerPackArchiveInspectorInterface: '@App\Trackers\Infrastructure\Adapter\ZipTrackerPackArchiveInspector'
 
     App\Events\Domain\Repository\EventRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventRepository'

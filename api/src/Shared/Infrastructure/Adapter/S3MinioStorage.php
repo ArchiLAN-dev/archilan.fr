@@ -75,6 +75,19 @@ final readonly class S3MinioStorage implements MinioStorageInterface
         }
     }
 
+    public function delete(string $bucket, string $key): void
+    {
+        try {
+            // S3 answers 204 for a key that does not exist: deleting twice is harmless.
+            $this->client->deleteObject([
+                'Bucket' => $bucket,
+                'Key' => $key,
+            ]);
+        } catch (AwsException $e) {
+            throw new \RuntimeException('MinIO delete failed: '.$e->getMessage(), 0, $e);
+        }
+    }
+
     public function presignedUrl(string $bucket, string $key, int $ttlSeconds): string
     {
         $cmd = $this->presignClient->getCommand('GetObject', [
