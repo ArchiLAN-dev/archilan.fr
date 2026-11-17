@@ -5,6 +5,15 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.66.4] - 2026-11-17
+
+Image `api-worker` reconstruite. Aucune migration, aucune variable, aucun changement de code.
+
+### Sécurité
+
+- `api-worker` : `git` 2.54.0-r0 -> 2.54.1-r0 (CVE-2026-105437, HIGH). Trivy bloquait la publication de l'image
+  depuis le 2026-11-13 ; le marqueur `# rebuild` de `api/Dockerfile` force la nouvelle couche `apk upgrade`.
+
 ## [0.66.3] - 2026-11-17
 
 Mise à jour de sécurité de Next.js. Aucune migration, aucune variable.
