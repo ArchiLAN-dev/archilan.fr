@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 /** Story 55.1: a tracked link `/l/{code}`, as the admin sees it. */
 export type TrackedLink = {
@@ -14,6 +14,8 @@ export type TrackedLink = {
   createdAt: string;
   /** Story 55.2: passes counted, the last 7 and 30 days counting today (Paris). */
   visits: LinkVisits;
+  /** Story 55.3: the partner this link follows; such a link is changed through its partner only. */
+  partnerId: string | null;
 };
 
 export type LinkVisits = { total: number; last7: number; last30: number };
@@ -42,7 +44,8 @@ export function isTrackedLink(v: unknown): v is TrackedLink {
     "direction" in v &&
     (v.direction === "inbound" || v.direction === "outbound") &&
     "visits" in v &&
-    isLinkVisits(v.visits)
+    isLinkVisits(v.visits) &&
+    hasNullableStringProp(v, "partnerId")
   );
 }
 

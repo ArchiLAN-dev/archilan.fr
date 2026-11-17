@@ -1,6 +1,6 @@
 # Story 55.3 - Liens des partenaires
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 55 - Liens suivis (`_bmad-output/planning-artifacts/epics/epic-55-liens-suivis.md`)
 **Date:** 2026-11-17
 **Dépend de:** 55.1 (55.2 pour afficher les chiffres).
@@ -35,6 +35,34 @@ afin de pouvoir leur dire ce qu'on leur apporte.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** - Lien du partenaire (domaine, commande, migration de rattrapage).
-- [ ] **Task 2** - Cartes partenaires via `/l/{code}`, chiffres sur la fiche admin.
-- [ ] **Task 3** - Gates.
+- [x] **Task 1** - Lien du partenaire (domaine, commande, migration de rattrapage).
+- [x] **Task 2** - Cartes partenaires via `/l/{code}`, chiffres sur la fiche admin.
+- [x] **Task 3** - Gates.
+
+## Dev Agent Record
+
+### Implémentation
+
+- Domaine : `TrackedLink` porte `partner_id` (unique, nullable, sans clé étrangère : le lien survit au partenaire),
+  `forPartner()` et `followPartner()` ; libellé « Partenaire : {nom} ». `findByPartner()` sur le dépôt des liens ;
+  `PartnerRepositoryInterface::save()` et `remove()` prennent le lien en option, enregistré dans le même flush.
+- `ManagePartners` : création et modification font suivre le lien (nom, adresse, état « affiché ») ; un partenaire
+  sans lien en reçoit un ; la suppression désactive le lien, les compteurs restent. Code par
+  `Application/Support/PartnerLinkCode` (`partenaire-{nom}` en ASCII, `-2`, `-3`... si pris, 40 caractères au plus,
+  `partenaire` seul pour un nom sans lettre).
+- `ManageTrackedLinks::edit()` refuse un lien de partenaire (409 `tracked_link_follows_partner`) ; la liste admin des
+  liens porte `partnerId`.
+- `PartnerCatalogQuery` : `linkPath` (`/l/{code}`, null si le lien est éteint) côté visiteurs et admin, `visits` côté
+  admin (via `TrackedLinkCatalogQuery::visitsByLink()`).
+- Migration `Version20261117140000` : colonne, index unique, rattrapage en `postUp` (règle de code réécrite dans la
+  migration, idempotente). PHPStan scanne `migrations/` pour que le test puisse la charger.
+- Front : `partnerHref()` (lien suivi, sinon l'URL : anciens payloads et lien éteint), cartes de l'accueil, de
+  `/partenaires`, de la fiche d'event et du récap en `<a>` simple ; l'écran OBS n'a pas de lien. Fiche admin du
+  partenaire : passages sur 30 jours et au total. `/admin/liens` : pastille « Partenaire », pas de bouton Modifier.
+
+### Vérifications
+
+- `PartnerLinkTest` (création, homonymes, modification, masquage, passage compté, refus d'édition, suppression,
+  rattrapage de migration avec un code déjà pris et un nom sans lettre, deux passes) ; `PartnerLinkCodeTest`.
+- Jest : `partnerHref`, garde de type, carte, compteurs admin, lien de partenaire non modifiable.
+- Migration jouée sur la base de dev : 4 partenaires, 4 liens.

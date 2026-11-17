@@ -24,6 +24,11 @@ final readonly class DoctrineTrackedLinkRepository implements TrackedLinkReposit
         return $this->entityManager->getRepository(TrackedLink::class)->findOneBy(['code' => $code]);
     }
 
+    public function findByPartner(string $partnerId): ?TrackedLink
+    {
+        return $this->entityManager->getRepository(TrackedLink::class)->findOneBy(['partnerId' => $partnerId]);
+    }
+
     public function all(): array
     {
         return $this->entityManager->getRepository(TrackedLink::class)->findBy([], ['createdAt' => 'DESC', 'code' => 'ASC']);

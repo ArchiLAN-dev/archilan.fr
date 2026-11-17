@@ -8,7 +8,7 @@ import PartenairesPage from "@/app/(public)/partenaires/page";
 import { logoChipBackground, PartnerCard, PartnersFooterLink } from "./partner-card";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { getPartners, isAdminPartner, isPartner, reorderPartners, savePartner, uploadPartnerLogo, type AdminPartner, type Partner } from "./partners-api";
+import { getPartners, isAdminPartner, isPartner, partnerHref, reorderPartners, savePartner, uploadPartnerLogo, type AdminPartner, type Partner } from "./partners-api";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -168,5 +168,22 @@ describe("partner logo chip", () => {
     expect(html).toContain("aspect-[5/2]");
     expect(html).toContain("bg-neutral-900");
     expect(html).not.toContain("bg-white");
+  });
+
+  it("leads through the partner's tracked link when it has one (story 55.3)", () => {
+    const visible: Partner = { id: "p1", name: "Ludothèque", description: "", url: "https://ludo.example", logoUrl: null };
+    const tracked = { ...visible, linkPath: "/l/partenaire-ludotheque" };
+    expect(partnerHref(tracked)).toBe("/l/partenaire-ludotheque");
+    expect(partnerHref({ ...visible, linkPath: null })).toBe("https://ludo.example");
+    expect(renderToStaticMarkup(<PartnerCard partner={tracked} />)).toContain('href="/l/partenaire-ludotheque"');
+    expect(isPartner(tracked)).toBe(true);
+    expect(isPartner({ ...visible, linkPath: "https://evil.example" })).toBe(false);
+  });
+
+  it("shows the admin what a partner was sent (story 55.3)", () => {
+    const html = renderAdmin([{ ...partner, visits: { total: 40, last7: 3, last30: 12 } }]);
+    expect(html).toContain("passages envoyés sur 30 jours");
+    expect(html).toContain("· 40 au total");
+    expect(isAdminPartner({ ...partner, visits: { total: "x" } })).toBe(false);
   });
 });

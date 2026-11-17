@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { EventPartner, Partner } from "./partners-api";
+import { partnerHref, type EventPartner, type Partner } from "./partners-api";
 
 type Props = { partner: Partner };
 
@@ -20,12 +20,14 @@ export function logoChipBackground(partner: Pick<Partner, "logoOnDark">): string
  * Story 45.2: a partner on the home page and on `/partenaires`. The logo sits on a white chip whatever the theme: a
  * partner's logo is almost always drawn for a light background, and a dark one vanished on the dark theme (45.1).
  * The chip color is fixed on purpose, not a theme token. The link says it comes from a partnership (`sponsored`).
+ * Story 55.3: it goes through the partner's tracked link, as a plain `<a>`: `next/link` could prefetch the route and
+ * count a visit nobody made.
  */
 export function PartnerCard({ partner }: Props) {
   return (
     <a
       className="group grid h-full content-start gap-4 rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-accent"
-      href={partner.url}
+      href={partnerHref(partner)}
       rel="sponsored noopener noreferrer"
       target="_blank"
     >
@@ -105,7 +107,7 @@ export function EventPartners({ partners, variant }: EventPartnersProps) {
             <li key={partner.id}>
               <a
                 className="flex items-center gap-3 rounded-xl border border-border bg-surface py-2 pl-2 pr-4 text-sm text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-                href={partner.url}
+                href={partnerHref(partner)}
                 rel="sponsored noopener noreferrer"
                 target="_blank"
               >

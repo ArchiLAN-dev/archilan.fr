@@ -18,6 +18,7 @@ final readonly class TrackedLinkCatalogQuery
     private const string TIMEZONE = 'Europe/Paris';
     public const int DETAIL_DAYS = 90;
     private const int MAX_ORIGINS = 10;
+    public const array NO_VISITS = ['total' => 0, 'last7' => 0, 'last30' => 0];
 
     public function __construct(
         private TrackedLinkRepositoryInterface $links,
@@ -26,23 +27,34 @@ final readonly class TrackedLinkCatalogQuery
     ) {
     }
 
-    /** @return list<array{id: string, code: string, label: string, target: string, direction: 'inbound'|'outbound', active: bool, createdAt: string, visits: array{total: int, last7: int, last30: int}}> */
+    /** @return list<array{id: string, code: string, label: string, target: string, direction: 'inbound'|'outbound', active: bool, createdAt: string, partnerId: string|null, visits: array{total: int, last7: int, last30: int}}> */
     public function forAdmin(): array
     {
-        $today = $this->today();
-        $totals = $this->stats->totals(self::since($today, 7), self::since($today, 30));
+        $totals = $this->visitsByLink();
 
         return array_map(fn (TrackedLink $link): array => [
             ...$this->view($link),
-            'visits' => $totals[$link->getId()] ?? ['total' => 0, 'last7' => 0, 'last30' => 0],
+            'visits' => $totals[$link->getId()] ?? self::NO_VISITS,
         ], $this->links->all());
+    }
+
+    /**
+     * Story 55.3: the counts of every link that was visited, by link id (a missing link has none).
+     *
+     * @return array<string, array{total: int, last7: int, last30: int}>
+     */
+    public function visitsByLink(): array
+    {
+        $today = $this->today();
+
+        return $this->stats->totals(self::since($today, 7), self::since($today, 30));
     }
 
     /**
      * One link and its last 90 days: one entry per day, zero included, and the hosts its visitors came from (empty is
      * « direct »).
      *
-     * @return array{link: array{id: string, code: string, label: string, target: string, direction: 'inbound'|'outbound', active: bool, createdAt: string}, days: list<array{day: string, visits: int}>, origins: list<array{host: string, visits: int}>}
+     * @return array{link: array{id: string, code: string, label: string, target: string, direction: 'inbound'|'outbound', active: bool, createdAt: string, partnerId: string|null}, days: list<array{day: string, visits: int}>, origins: list<array{host: string, visits: int}>}
      *
      * @throws NotFoundException when the link does not exist
      */
@@ -64,7 +76,7 @@ final readonly class TrackedLinkCatalogQuery
         return ['link' => $this->view($link), 'days' => $days, 'origins' => $this->stats->origins($id, $since, self::MAX_ORIGINS)];
     }
 
-    /** @return array{id: string, code: string, label: string, target: string, direction: 'inbound'|'outbound', active: bool, createdAt: string} */
+    /** @return array{id: string, code: string, label: string, target: string, direction: 'inbound'|'outbound', active: bool, createdAt: string, partnerId: string|null} */
     private function view(TrackedLink $link): array
     {
         return [
@@ -75,6 +87,8 @@ final readonly class TrackedLinkCatalogQuery
             'direction' => $link->isOutbound() ? 'outbound' : 'inbound',
             'active' => $link->isActive(),
             'createdAt' => $link->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            // Story 55.3: a partner's link is changed through its partner only.
+            'partnerId' => $link->getPartnerId(),
         ];
     }
 

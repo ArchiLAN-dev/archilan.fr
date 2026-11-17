@@ -13,7 +13,7 @@ use Psr\Clock\ClockInterface;
 
 /**
  * Creates and edits the tracked links (story 55.1). No deletion: a link may be printed or posted already, so it is
- * turned off instead, and its counts stay.
+ * turned off instead, and its counts stay. Story 55.3: a partner's link is changed only through its partner.
  */
 final readonly class ManageTrackedLinks
 {
@@ -56,6 +56,7 @@ final readonly class ManageTrackedLinks
 
     /**
      * @throws NotFoundException   when the link does not exist
+     * @throws ConflictException   when the link is a partner's
      * @throws ValidationException when a field is invalid
      */
     public function edit(string $id, TrackedLinkDraft $draft): void
@@ -63,6 +64,9 @@ final readonly class ManageTrackedLinks
         $link = $this->links->find($id);
         if (!$link instanceof TrackedLink) {
             throw new NotFoundException('Lien introuvable.', 'tracked_link_not_found');
+        }
+        if ($link->isPartnerLink()) {
+            throw new ConflictException('Ce lien suit son partenaire : modifie le partenaire.', 'tracked_link_follows_partner');
         }
         try {
             $link->edit($draft->label, $draft->target, $draft->active, $this->clock->now());

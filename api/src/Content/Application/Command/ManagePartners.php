@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Content\Application\Command;
 
+use App\Content\Application\Support\PartnerLinkCode;
 use App\Content\Domain\Entity\Partner;
+use App\Content\Domain\Entity\TrackedLink;
 use App\Content\Domain\Repository\PartnerRepositoryInterface;
+use App\Content\Domain\Repository\TrackedLinkRepositoryInterface;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Application\Exception\ValidationException;
@@ -18,7 +21,8 @@ use Psr\Log\LoggerInterface;
 /**
  * Creates, edits, orders and deletes the partners of the association, and their logo (story 45.1). A deleted
  * partner's logo stays in the bucket, as an announcement's image does. Every saved write drops the cache of the
- * public pages showing partners (story 45.2); a refused one changes nothing.
+ * public pages showing partners (story 45.2); a refused one changes nothing. Story 55.3: each partner has a tracked
+ * link, saved with it, that follows its name, address and state; deleting the partner turns its link off.
  */
 final readonly class ManagePartners
 {
@@ -36,6 +40,7 @@ final readonly class ManagePartners
         private ClockInterface $clock,
         private LoggerInterface $logger,
         private PublicPagesRevalidation $revalidation,
+        private TrackedLinkRepositoryInterface $links,
     ) {
     }
 
@@ -54,7 +59,7 @@ final readonly class ManagePartners
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
-        $this->partners->save($partner);
+        $this->partners->save($partner, $this->linkOf($partner));
         $this->revalidation->partnersChanged();
 
         return $partner->getId();
@@ -72,14 +77,17 @@ final readonly class ManagePartners
         } catch (\DomainException $e) {
             throw $this->invalid($e);
         }
-        $this->partners->save($partner);
+        $this->partners->save($partner, $this->linkOf($partner));
         $this->revalidation->partnersChanged();
     }
 
     /** @throws NotFoundException when the partner does not exist */
     public function delete(string $id): void
     {
-        $this->partners->remove($this->get($id));
+        $partner = $this->get($id);
+        $link = $this->links->findByPartner($id);
+        $link?->followPartner($partner->getName(), $partner->getUrl(), false, $this->clock->now());
+        $this->partners->remove($partner, $link);
         $this->revalidation->partnersChanged();
     }
 
@@ -142,6 +150,27 @@ final readonly class ManagePartners
         $partner->removeLogo($this->clock->now());
         $this->partners->save($partner);
         $this->revalidation->partnersChanged();
+    }
+
+    /**
+     * The partner's link, made to follow it; a new one, with a free code, for a partner that has none yet. A partner's
+     * name and https address always make a valid link.
+     */
+    private function linkOf(Partner $partner): TrackedLink
+    {
+        $now = $this->clock->now();
+        $link = $this->links->findByPartner($partner->getId());
+        if ($link instanceof TrackedLink) {
+            $link->followPartner($partner->getName(), $partner->getUrl(), $partner->isActive(), $now);
+
+            return $link;
+        }
+        $attempt = 1;
+        while ($this->links->findByCode(PartnerLinkCode::candidate($partner->getName(), $attempt)) instanceof TrackedLink) {
+            ++$attempt;
+        }
+
+        return TrackedLink::forPartner(bin2hex(random_bytes(16)), PartnerLinkCode::candidate($partner->getName(), $attempt), $partner->getId(), $partner->getName(), $partner->getUrl(), $partner->isActive(), $now);
     }
 
     private function get(string $id): Partner

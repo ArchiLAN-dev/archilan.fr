@@ -12,6 +12,9 @@ interface TrackedLinkRepositoryInterface
 
     public function findByCode(string $code): ?TrackedLink;
 
+    /** Story 55.3: the link of that partner, if it has one. */
+    public function findByPartner(string $partnerId): ?TrackedLink;
+
     /** @return list<TrackedLink> newest first */
     public function all(): array;
 

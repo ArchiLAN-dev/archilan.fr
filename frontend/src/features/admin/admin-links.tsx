@@ -164,6 +164,9 @@ function LinkRow({ link, onEdit, onStats }: { link: TrackedLink; onEdit: () => v
             <Direction aria-hidden className="size-3" />
             {outbound ? "Sortant" : "Entrant"}
           </span>
+          {link.partnerId !== null ? (
+            <span className="rounded-full border border-border px-2 py-0.5 text-xs font-semibold text-muted-foreground">Partenaire</span>
+          ) : null}
           {link.active ? null : <span className="rounded-full border border-border px-2 py-0.5 text-xs font-semibold text-muted-foreground">Désactivé</span>}
         </div>
         <p className="truncate font-mono text-sm text-foreground">{linkUrl(link.code)}</p>
@@ -185,9 +188,12 @@ function LinkRow({ link, onEdit, onStats }: { link: TrackedLink; onEdit: () => v
           {copied ? <Check aria-hidden className="size-4" /> : <Copy aria-hidden className="size-4" />}
           {copied ? "Copié" : "Copier"}
         </button>
-        <button aria-label={`Modifier ${link.label}`} className={buttonVariants({ variant: "ghost" })} onClick={onEdit} type="button">
-          <Pencil aria-hidden className="size-4" />
-        </button>
+        {/* Story 55.3: a partner's link follows its partner (address, name, shown or hidden): it is edited there. */}
+        {link.partnerId === null ? (
+          <button aria-label={`Modifier ${link.label}`} className={buttonVariants({ variant: "ghost" })} onClick={onEdit} type="button">
+            <Pencil aria-hidden className="size-4" />
+          </button>
+        ) : null}
       </div>
     </li>
   );
