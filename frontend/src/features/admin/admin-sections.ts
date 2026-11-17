@@ -29,6 +29,8 @@ export const ADMIN_SECTIONS = {
     tabs: [
       { href: "/admin", label: "Vue d'ensemble", exact: true },
       { href: "/admin/statistiques", label: "Statistiques" },
+      // Story 55.1: tracked links /l/{code}, inbound and outbound.
+      { href: "/admin/liens", label: "Liens suivis" },
     ],
   },
   events: { key: "events", label: "Événements", icon: Calendar, href: "/admin/evenements" },

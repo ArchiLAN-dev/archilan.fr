@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { hasBooleanProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 /** Story 45.1: a partner of the association, as visitors see it. */
 export type Partner = {
@@ -11,10 +11,25 @@ export type Partner = {
   logoUrl: string | null;
   /** Story 45.5: the logo is drawn for a dark background, so its chip is dark (absent from older payloads: light). */
   logoOnDark?: boolean;
+  /**
+   * Story 55.3: the partner's tracked link `/l/{code}`, which counts the visit then sends to `url`. Null when the link
+   * is off, absent from older payloads: the card then leads straight to `url`.
+   */
+  linkPath?: string | null;
 };
 
+/** Story 55.3: where a partner's card leads, through its tracked link when it has one. */
+export function partnerHref(partner: Pick<Partner, "url" | "linkPath">): string {
+  return partner.linkPath ?? partner.url;
+}
+
 /** `visible` = shown by the admin and with a logo: what the public list keeps. */
-export type AdminPartner = Partner & { active: boolean; visible: boolean };
+export type AdminPartner = Partner & {
+  active: boolean;
+  visible: boolean;
+  /** Story 55.3: the visits of its tracked link (absent from older payloads). */
+  visits?: { total: number; last7: number; last30: number };
+};
 
 export type PartnerFields = Pick<AdminPartner, "name" | "description" | "url" | "active"> & { logoOnDark: boolean };
 
@@ -36,12 +51,17 @@ export function isPartner(v: unknown): v is Partner {
     hasStringProp(v, "description") &&
     hasStringProp(v, "url") &&
     hasNullableStringProp(v, "logoUrl") &&
-    (!("logoOnDark" in v) || typeof v.logoOnDark === "boolean")
+    (!("logoOnDark" in v) || typeof v.logoOnDark === "boolean") &&
+    (!("linkPath" in v) || v.linkPath === null || (typeof v.linkPath === "string" && v.linkPath.startsWith("/l/")))
   );
 }
 
+function isVisits(v: unknown): v is NonNullable<AdminPartner["visits"]> {
+  return typeof v === "object" && v !== null && hasNumberProp(v, "total") && hasNumberProp(v, "last7") && hasNumberProp(v, "last30");
+}
+
 export function isAdminPartner(v: unknown): v is AdminPartner {
-  return isPartner(v) && hasBooleanProp(v, "active") && hasBooleanProp(v, "visible");
+  return isPartner(v) && hasBooleanProp(v, "active") && hasBooleanProp(v, "visible") && (!("visits" in v) || isVisits(v.visits));
 }
 
 export function isEventPartnerRef(v: unknown): v is EventPartnerRef {

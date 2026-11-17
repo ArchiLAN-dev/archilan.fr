@@ -102,7 +102,7 @@ describe("event partners", () => {
     expect(html).toContain("Lots offerts");
     expect(html).not.toContain("Boutique, la description.");
     expect(html).toContain("Ludothèque, la description.");
-    expect(html).toContain('rel="sponsored noopener noreferrer"');
+    expect(html).toContain('rel="sponsored noopener"');
     expect(html.indexOf("Boutique")).toBeLessThan(html.indexOf("Ludothèque"));
   });
 
