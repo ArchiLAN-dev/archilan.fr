@@ -24,7 +24,34 @@ export type TrackerPackKeptVersion = {
   gitTag: string | null;
   sizeBytes: number;
   importedAt: string;
+  /** Story 54.8: what the trial needs to open this version. */
+  rootPath: string;
+  sha256: string;
+  variants: TrackerPackVariant[];
   current: boolean;
+};
+
+export type CompatibilityStatus = "ok" | "warnings" | "failed";
+
+export type CompatibilityError = { kind: string; message: string; file: string | null; line: number | null };
+
+/** Story 54.8: the last admin try of one variant of the served version. */
+export type TrackerPackCompatibility = {
+  variantUid: string;
+  status: CompatibilityStatus;
+  errors: CompatibilityError[];
+  unsupportedApis: string[];
+  engineVersion: number;
+  reportedAt: string;
+};
+
+/** Story 54.8: what the site's tracker sends after an admin's try of a variant. */
+export type CompatibilityReport = {
+  variantUid: string;
+  status: CompatibilityStatus;
+  errors: { kind: string; message: string; file?: string; line?: number }[];
+  unsupportedApis: string[];
+  engineVersion: number;
 };
 
 export type AdminTrackerPack = {
@@ -53,6 +80,9 @@ export type AdminTrackerPack = {
   lastCheckedAt: string | null;
   lastCheckError: string | null;
   versions: TrackerPackKeptVersion[];
+  rootPath: string;
+  sha256: string;
+  compatibility: TrackerPackCompatibility[];
 };
 
 /** Story 54.2: what an admin changes on a pack. Absent fields are left as they are. */
@@ -111,7 +141,42 @@ function isKeptVersion(v: unknown): v is TrackerPackKeptVersion {
     hasNullableStringProp(v, "gitTag") &&
     hasNumberProp(v, "sizeBytes") &&
     hasStringProp(v, "importedAt") &&
+    hasStringProp(v, "rootPath") &&
+    hasStringProp(v, "sha256") &&
+    "variants" in v &&
+    Array.isArray(v.variants) &&
+    v.variants.every(isVariant) &&
     hasBooleanProp(v, "current")
+  );
+}
+
+function isCompatibilityError(v: unknown): v is CompatibilityError {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "kind") &&
+    hasStringProp(v, "message") &&
+    hasNullableStringProp(v, "file") &&
+    "line" in v &&
+    (v.line === null || typeof v.line === "number")
+  );
+}
+
+function isCompatibility(v: unknown): v is TrackerPackCompatibility {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "variantUid") &&
+    "status" in v &&
+    (v.status === "ok" || v.status === "warnings" || v.status === "failed") &&
+    "errors" in v &&
+    Array.isArray(v.errors) &&
+    v.errors.every(isCompatibilityError) &&
+    "unsupportedApis" in v &&
+    Array.isArray(v.unsupportedApis) &&
+    v.unsupportedApis.every((api) => typeof api === "string") &&
+    hasNumberProp(v, "engineVersion") &&
+    hasStringProp(v, "reportedAt")
   );
 }
 
@@ -131,6 +196,8 @@ export function isAdminTrackerPack(v: unknown): v is AdminTrackerPack {
   if (!hasNullableStringProp(v, "lastCheckedAt") || !hasNullableStringProp(v, "lastCheckError")) return false;
   if (!("availableUpdate" in v) || (v.availableUpdate !== null && !isTrackerPackUpdate(v.availableUpdate))) return false;
   if (!("versions" in v) || !Array.isArray(v.versions) || !v.versions.every(isKeptVersion)) return false;
+  if (!hasStringProp(v, "rootPath") || !hasStringProp(v, "sha256")) return false;
+  if (!("compatibility" in v) || !Array.isArray(v.compatibility) || !v.compatibility.every(isCompatibility)) return false;
   return "variants" in v && Array.isArray(v.variants) && v.variants.every(isVariant);
 }
 
@@ -240,6 +307,20 @@ export function upgradeTrackerPack(packId: string, url?: string): Promise<Served
 /** Story 54.3: serves again a version the pack kept. */
 export function rollbackTrackerPack(packId: string, versionId: string): Promise<ServedVersionResult> {
   return serveVersion(`${env.apiBaseUrl}/admin/tracker-packs/${encodeURIComponent(packId)}/rollback`, { versionId });
+}
+
+/** Story 54.8: keeps what an admin's try of a variant found. Never throws; false when it was not kept. */
+export async function reportTrackerCompatibility(versionId: string, report: CompatibilityReport): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/tracker-pack-versions/${encodeURIComponent(versionId)}/compatibility`, {
+      body: JSON.stringify(report),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** A size in the unit an admin reads at a glance. */

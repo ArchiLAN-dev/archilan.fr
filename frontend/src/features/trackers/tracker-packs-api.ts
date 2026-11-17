@@ -161,7 +161,8 @@ export async function fetchTrackerArchive(versionId: string, onProgress: Archive
     // Fall back to the network.
   }
   try {
-    const response = await fetch(url);
+    // Story 54.8: with the session, so an admin trying a pack not yet offered gets its zip.
+    const response = await fetch(url, { credentials: "include" });
     if (!response.ok) return null;
     const bytes = await readWithProgress(response, onProgress);
     // The buffer goes to the Worker and comes back detached: the cache keeps its own copy.

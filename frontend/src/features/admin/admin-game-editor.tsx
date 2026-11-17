@@ -294,7 +294,7 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
                 <InstallTutorialSection game={game} onUpdate={refreshGame}/>
             </div>
             <div aria-labelledby="tab-trackers" hidden={activeTab !== "trackers"} id="panel-trackers" role="tabpanel">
-                <AdminGameTrackerPacks gameId={game.id}/>
+                <AdminGameTrackerPacks gameId={game.id} gameSlug={game.slug}/>
             </div>
             <div aria-labelledby="tab-notes" hidden={activeTab !== "notes"} id="panel-notes" role="tabpanel">
                 <NotesSection game={game} onUpdate={refreshGame}/>

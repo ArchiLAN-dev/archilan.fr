@@ -13,7 +13,10 @@ import { createTrackerWorker } from "../engine/create-tracker-worker";
 import { AccessibilityLevel } from "../engine/levels";
 import { TrackerClient } from "../engine/tracker-client";
 import { fetchSlotConnection } from "../tracker-slot-api";
+import type { CompatibilityReport } from "@/features/admin/admin-tracker-packs-api";
+
 import { createArchipelagoClient } from "./ap-client";
+import { useLoadReport } from "./compatibility-report";
 import { RoomPanel } from "./room-panel";
 import { SlotBanner, useAutoConnect, useSlotConnection } from "./slot-connection";
 import { TrackerContextProvider, type TrackerScreenContext } from "./tracker-context";
@@ -56,6 +59,8 @@ type Props = {
   initialVariantUid: string | null;
   /** Story 54.7: the slot the tracker was opened on (`?slot=`), connected without typing anything. */
   slotRef?: string | null;
+  /** Story 54.8: set when an admin tries the pack; receives what the load of each variant found. */
+  onLoadReport?: (report: CompatibilityReport) => void;
   /** Tests pass a fake engine and archive. */
   deps?: TrackerSessionDeps;
 };
@@ -101,6 +106,7 @@ export function TrackerScreen({
   initialPackId,
   initialVariantUid,
   slotRef = null,
+  onLoadReport,
   deps = BROWSER_DEPS,
 }: Props) {
   // Story 54.7: a slot remembers its pack and variant; the address wins over it.
@@ -160,6 +166,7 @@ export function TrackerScreen({
       gameSlug={gameSlug}
       key={`${pack.version.id}:${variantUid}:${generation}`}
       onChoosePack={choosePack}
+      onLoadReport={onLoadReport}
       onChooseVariant={chooseVariant}
       onRestart={() => setGeneration((current) => current + 1)}
       onSettings={changeSettings}
@@ -185,6 +192,7 @@ type SessionProps = {
   onChooseVariant: (uid: string) => void;
   onSettings: (settings: TrackerSettings) => void;
   onRestart: () => void;
+  onLoadReport: ((report: CompatibilityReport) => void) | undefined;
 };
 
 function TrackerSession({
@@ -200,6 +208,7 @@ function TrackerSession({
   onChooseVariant,
   onSettings,
   onRestart,
+  onLoadReport,
 }: SessionProps) {
   const source = useMemo(
     () => ({ versionId: pack.version.id, rootPath: pack.version.rootPath, variantUid, slotRef }),
@@ -210,6 +219,7 @@ function TrackerSession({
   const { phase } = session;
   const slot = useSlotConnection(slotRef, gameSlug, deps.fetchSlotConnection);
   useAutoConnect(slot, phase.kind === "ready", session);
+  useLoadReport(onLoadReport, variantUid, phase, session.messages);
 
   return (
     <div className="grid gap-4">

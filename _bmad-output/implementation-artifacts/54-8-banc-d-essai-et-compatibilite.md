@@ -1,6 +1,6 @@
 # Story 54.8 - Banc d'essai et compatibilité
 
-**Status:** ready-for-dev
+**Status:** in-progress
 **Epic:** 54 - Trackers de jeu, les packs PopTracker sur le site (`_bmad-output/planning-artifacts/epics/epic-54-trackers-poptracker.md`)
 **Date:** 2026-11-16
 **Branche:** `feature/epic-54-story-8-banc-d-essai-et-compatibilite`
@@ -56,7 +56,38 @@ afin de ne pas activer un tracker qui plante ou qui ment.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1) - Mode essai du tracker, accès admin aux versions non servies.
-- [ ] **Task 2** (AC 2, 3) - Endpoint de rapport, stockage, pastilles, confirmation.
+- [x] **Task 1** (AC 1) - Mode essai du tracker, accès admin aux versions non servies.
+- [x] **Task 2** (AC 2, 3) - Endpoint de rapport, stockage, pastilles, confirmation.
 - [ ] **Task 3** (AC 4) - Campagne sur 10 jeux, compléments du shim, `deferred-work.md`.
-- [ ] **Task 4** (AC 8) - Gates.
+- [x] **Task 4** (AC 8, pour les tâches 1 et 2) - Gates.
+
+## Dev Agent Record
+
+### Livré (tâches 1, 2, 4)
+
+- **Essai** : `/jeux/[slug]/tracker?pack=&version=&essai=1` rend `TrackerTrial` (client). Le rendu serveur est anonyme,
+  donc le pack est lu dans le navigateur via l'API admin (`GET /admin/games/{id}/tracker-packs`). Un joueur n'obtient
+  rien (« réservé aux admins »). Les versions conservées exposent maintenant `rootPath`, `sha256` et `variants`,
+  ce qui permet d'essayer n'importe quelle version gardée. L'archive est téléchargée avec `credentials: "include"` :
+  l'API la sert déjà aux admins pour un pack non proposé (54.2).
+- **Rapport** : `useLoadReport` envoie un rapport par variante, 1,5 s après la fin du chargement (pour inclure les
+  erreurs du premier rendu). Il reprend les messages du panneau d'erreurs : « Fonction non prise en charge : X »
+  devient une API manquante, « Élément d'affichage non géré : t » devient `widget:t`, le reste devient des erreurs.
+  Un chargement en échec donne `failed`. `ENGINE_VERSION` = 1 (`engine/engine-version.ts`).
+- **API** : `POST /api/v1/admin/tracker-pack-versions/{versionId}/compatibility`, table `tracker_pack_compatibility`
+  (clé version + variante, le dernier rapport remplace le précédent). Textes tronqués, listes au-delà de 50 erreurs ou
+  100 API refusées (422), forme invalide en 400, variante inconnue en 404. Les rapports d'une version expirée
+  partent avec elle.
+- **Admin** : pastille globale (« Compatible », « Avec avertissements », « Ne se charge pas », « Pas encore
+  essayé ») et détail dépliable par variante (erreurs, API manquantes, « à refaire » si le moteur a changé depuis),
+  plus un bouton « Essayer ». Proposer un pack dont une variante est en échec affiche une confirmation dans la page
+  (« Proposer quand même » / « Annuler »).
+- **Tests** : `TrackerPackCompatibilityTest` (3 tests), `admin-tracker-pack-compatibility.test.tsx` (pastilles,
+  lien, confirmation), 4 tests d'essai dans `tracker-screen.test.tsx`.
+
+### Reste à faire (tâche 3, AC 4)
+
+La campagne demande (1) la liste des 10 jeux les plus joués, qui vient d'une requête sur la base de prod, et (2) le
+téléchargement puis l'exécution de packs PopTracker tiers. Elle attend l'accord de Jean sur ces deux points, ou
+qu'il passe lui-même les essais depuis la fiche admin (le banc d'essai est fait pour ça).
+

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { TrackerScreen } from "@/features/tracker/ui/tracker-screen";
+import { TrackerTrial } from "@/features/tracker/ui/tracker-trial";
 import { getPublicGame } from "@/features/games/public-games-api";
 import { getGameTrackerPacks } from "@/features/trackers/tracker-packs-api";
 
@@ -13,7 +14,13 @@ export const revalidate = 300;
 
 type Props = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ pack?: string | string[]; variant?: string | string[]; slot?: string | string[] }>;
+  searchParams: Promise<{
+    pack?: string | string[];
+    variant?: string | string[];
+    slot?: string | string[];
+    version?: string | string[];
+    essai?: string | string[];
+  }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -39,9 +46,22 @@ export default async function GameTrackerPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const game = await getPublicGame(slug);
   if (!game) notFound();
+  const query = await searchParams;
+  // Story 54.8: an admin's trial reads the pack from the admin API in the browser (the server render is anonymous).
+  if (single(query.essai) === "1") {
+    return (
+      <TrackerTrial
+        gameId={game.id}
+        gameName={game.name}
+        gameSlug={game.slug}
+        initialVariantUid={single(query.variant)}
+        packId={single(query.pack)}
+        versionId={single(query.version)}
+      />
+    );
+  }
   const packs = await getGameTrackerPacks(game.id);
   if (packs.length === 0) notFound();
-  const query = await searchParams;
 
   return (
     <TrackerScreen
