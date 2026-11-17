@@ -63,6 +63,8 @@ type Props = {
   onLoadReport?: (report: CompatibilityReport) => void;
   /** Tests pass a fake engine and archive. */
   deps?: TrackerSessionDeps;
+  /** Story 54.10: inside a slot's progression page, which already titles the game: no heading of its own. */
+  embedded?: boolean;
 };
 
 const BROWSER_DEPS: TrackerSessionDeps = {
@@ -108,6 +110,7 @@ export function TrackerScreen({
   slotRef = null,
   onLoadReport,
   deps = BROWSER_DEPS,
+  embedded = false,
 }: Props) {
   // Story 54.7: a slot remembers its pack and variant; the address wins over it.
   const storedChoice = useSyncExternalStore(
@@ -162,6 +165,7 @@ export function TrackerScreen({
   return (
     <TrackerSession
       deps={deps}
+      embedded={embedded}
       gameName={gameName}
       gameSlug={gameSlug}
       key={`${pack.version.id}:${variantUid}:${generation}`}
@@ -181,6 +185,7 @@ export function TrackerScreen({
 
 type SessionProps = {
   gameName: string;
+  embedded: boolean;
   gameSlug: string | null;
   slotRef: string | null;
   pack: GameTrackerPack;
@@ -197,6 +202,7 @@ type SessionProps = {
 
 function TrackerSession({
   gameName,
+  embedded,
   gameSlug,
   slotRef,
   pack,
@@ -224,10 +230,12 @@ function TrackerSession({
   return (
     <div className="grid gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">Tracker</p>
-          <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">{gameName}</h1>
-        </div>
+        {embedded ? null : (
+          <div>
+            <p className="text-sm text-muted-foreground">Tracker</p>
+            <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">{gameName}</h1>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           {packs.length > 1 ? (
             <SelectField

@@ -7,6 +7,7 @@ import {
   Lightbulb,
   ListChecks,
   Loader2,
+  Map as MapIcon,
   Package,
   RefreshCw,
   Route,
@@ -22,6 +23,7 @@ import { env } from "@/lib/env";
 import { ConnectionFields } from "@/components/connection-fields";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { ownSlotTracker, SlotTrackerPanel, useSlotTrackerPacks } from "@/features/tracker/slot-tracker-tab";
 import { isPlayersState } from "@/features/overlay/overlay-api";
 import { CheckListPanel, ItemListPanel } from "@/features/reachability/check-panels";
 import { usePelleHintOffers } from "@/features/wallet/pelle-hints";
@@ -91,19 +93,29 @@ export function WeeklyRunSlotPage({
   // Story 27.12: the weekly template's setting, as the API answered it.
   const [spheresVisible, setSpheresVisible] = useState(false);
 
-  type TabId = "checks" | "items" | "spheres" | "indices";
+  // Story 54.10: the Tracker tab, on the viewer's own slot only (the switcher also shows the other players').
+  const [slotName, setSlotName] = useState<string | null>(null);
+  const tracker = ownSlotTracker(run !== null && myEntry !== null ? weeklyConnectionSlots(run, myEntry) : undefined, slotName);
+  const trackerPacks = useSlotTrackerPacks(tracker);
+  const hasTracker = tracker !== undefined && trackerPacks.length > 0;
+  const [trackerOpened, setTrackerOpened] = useState(false);
+
+  type TabId = "checks" | "items" | "spheres" | "indices" | "tracker";
   const ALL_TABS: { id: TabId; label: string; icon: ElementType }[] = [
     { id: "checks",  label: "Checks",  icon: ListChecks },
     { id: "items",   label: "Items",   icon: Package },
     { id: "spheres", label: "Sphères", icon: Route },
     { id: "indices", label: "Indices", icon: Lightbulb },
+    { id: "tracker", label: "Tracker", icon: MapIcon },
   ];
-  const TABS = ALL_TABS.filter((t) => t.id !== "spheres" || spheresVisible);
+  const TABS = ALL_TABS.filter((t) => (t.id !== "spheres" || spheresVisible) && (t.id !== "tracker" || hasTracker));
   const VALID_TABS = new Set<string>(TABS.map((t) => t.id));
   const rawTab = searchParams.get("tab");
   const activeTab: TabId = VALID_TABS.has(rawTab ?? "") ? (rawTab as TabId) : "checks";
 
   function switchTab(tab: TabId) {
+    // Story 54.10: once opened, the tracker stays mounted (pack loaded, connection kept) behind the other tabs.
+    if (tab === "tracker" || activeTab === "tracker") setTrackerOpened(true);
     const p = new URLSearchParams(searchParams.toString());
     if (tab === "checks") {
       p.delete("tab");
@@ -196,6 +208,7 @@ export function WeeklyRunSlotPage({
       setSpheresVisible(answer.spheresVisible);
       setComputingTick((tick) => (answer.computing ? tick + 1 : 0));
       setState({ kind: "data", data });
+      setSlotName(data.player);
       if (prevItemsRef.current.size === 0) {
         prevItemsRef.current = new Map(data.items_received.map((i) => [i.id, i.count]));
       }
@@ -954,6 +967,11 @@ export function WeeklyRunSlotPage({
               )
             ) : null}
           </div>
+        ) : null}
+
+        {/* Story 54.10: the slot's tracker, connected by itself; mounted on first opening, then kept. */}
+        {hasTracker && tracker !== undefined && (trackerOpened || activeTab === "tracker") ? (
+          <SlotTrackerPanel gameName={run?.gameName ?? ""} packs={trackerPacks} tracker={tracker} visible={activeTab === "tracker"} />
         ) : null}
       </section>
     </>
