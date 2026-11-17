@@ -26,7 +26,7 @@ final readonly class DbalAdminTrackerPackQuery implements AdminTrackerPackQueryI
                 'p.enabled', 'p.is_default', 'p.default_variant_uid', 'p.license_acknowledged',
                 'p.available_update', 'p.last_checked_at', 'p.last_check_error',
                 'v.id AS version_id', 'v.package_version', 'v.git_tag', 'v.size_bytes', 'v.variants',
-                'v.min_poptracker_version', 'v.imported_at',
+                'v.min_poptracker_version', 'v.imported_at', 'v.root_path', 'v.sha256',
             )
             ->from('tracker_pack', 'p')
             ->innerJoin('p', 'tracker_pack_version', 'v', $qb->expr()->eq('v.id', 'p.current_version_id'))
@@ -38,6 +38,7 @@ final readonly class DbalAdminTrackerPackQuery implements AdminTrackerPackQueryI
             ->fetchAllAssociative();
 
         $versions = $this->versions(array_map(static fn (array $row): string => self::text($row['id']), $rows));
+        $tries = $this->compatibility(array_map(static fn (array $row): string => self::text($row['version_id']), $rows));
         $views = [];
         foreach ($rows as $row) {
             $packId = self::text($row['id']);
@@ -69,6 +70,9 @@ final readonly class DbalAdminTrackerPackQuery implements AdminTrackerPackQueryI
                     static fn (array $v): array => [...$v, 'current' => $v['id'] === self::text($row['version_id'])],
                     $versions[$packId] ?? [],
                 ),
+                self::text($row['root_path']),
+                self::text($row['sha256']),
+                $tries[self::text($row['version_id'])] ?? [],
             );
         }
 
@@ -78,7 +82,7 @@ final readonly class DbalAdminTrackerPackQuery implements AdminTrackerPackQueryI
     /**
      * @param list<string> $packIds
      *
-     * @return array<string, list<array{id: string, packageVersion: ?string, gitTag: ?string, sizeBytes: int, importedAt: string}>>
+     * @return array<string, list<array{id: string, packageVersion: ?string, gitTag: ?string, sizeBytes: int, importedAt: string, rootPath: string, sha256: string, variants: list<array{uid: string, displayName: string, flags: list<string>}>}>>
      */
     private function versions(array $packIds): array
     {
@@ -87,7 +91,7 @@ final readonly class DbalAdminTrackerPackQuery implements AdminTrackerPackQueryI
         }
         $qb = $this->connection->createQueryBuilder();
         $rows = $qb
-            ->select('v.id', 'v.pack_id', 'v.package_version', 'v.git_tag', 'v.size_bytes', 'v.imported_at')
+            ->select('v.id', 'v.pack_id', 'v.package_version', 'v.git_tag', 'v.size_bytes', 'v.imported_at', 'v.root_path', 'v.sha256', 'v.variants')
             ->from('tracker_pack_version', 'v')
             ->where($qb->expr()->in('v.pack_id', ':packIds'))
             ->setParameter('packIds', $packIds, ArrayParameterType::STRING)
@@ -104,10 +108,78 @@ final readonly class DbalAdminTrackerPackQuery implements AdminTrackerPackQueryI
                 'gitTag' => self::nullableText($row['git_tag']),
                 'sizeBytes' => is_numeric($row['size_bytes']) ? (int) $row['size_bytes'] : 0,
                 'importedAt' => self::date($row['imported_at']) ?? '',
+                'rootPath' => self::text($row['root_path']),
+                'sha256' => self::text($row['sha256']),
+                'variants' => TrackerPackVariantRows::decode($row['variants']),
             ];
         }
 
         return $byPack;
+    }
+
+    /**
+     * Story 54.8: the last try of each variant, by version.
+     *
+     * @param list<string> $versionIds
+     *
+     * @return array<string, list<array{variantUid: string, status: string, errors: list<array{kind: string, message: string, file: ?string, line: ?int}>, unsupportedApis: list<string>, engineVersion: int, reportedAt: string}>>
+     */
+    private function compatibility(array $versionIds): array
+    {
+        if ([] === $versionIds) {
+            return [];
+        }
+        $qb = $this->connection->createQueryBuilder();
+        $rows = $qb
+            ->select('c.version_id', 'c.variant_uid', 'c.status', 'c.errors', 'c.unsupported_apis', 'c.engine_version', 'c.reported_at')
+            ->from('tracker_pack_compatibility', 'c')
+            ->where($qb->expr()->in('c.version_id', ':versionIds'))
+            ->setParameter('versionIds', $versionIds, ArrayParameterType::STRING)
+            ->orderBy('c.variant_uid', 'ASC')
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $byVersion = [];
+        foreach ($rows as $row) {
+            $byVersion[self::text($row['version_id'])][] = [
+                'variantUid' => self::text($row['variant_uid']),
+                'status' => self::text($row['status']),
+                'errors' => self::errors($row['errors']),
+                'unsupportedApis' => self::strings($row['unsupported_apis']),
+                'engineVersion' => is_numeric($row['engine_version']) ? (int) $row['engine_version'] : 0,
+                'reportedAt' => self::date($row['reported_at']) ?? '',
+            ];
+        }
+
+        return $byVersion;
+    }
+
+    /** @return list<array{kind: string, message: string, file: ?string, line: ?int}> */
+    private static function errors(mixed $raw): array
+    {
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        $errors = [];
+        foreach (is_array($decoded) ? $decoded : [] as $error) {
+            if (!is_array($error)) {
+                continue;
+            }
+            $errors[] = [
+                'kind' => self::text($error['kind'] ?? null),
+                'message' => self::text($error['message'] ?? null),
+                'file' => self::nullableText($error['file'] ?? null),
+                'line' => is_int($error['line'] ?? null) ? $error['line'] : null,
+            ];
+        }
+
+        return $errors;
+    }
+
+    /** @return list<string> */
+    private static function strings(mixed $raw): array
+    {
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+
+        return array_values(array_filter(is_array($decoded) ? $decoded : [], is_string(...)));
     }
 
     /** @return array{packageVersion: string, downloadUrl: string, sha256: ?string, changelog: list<string>, gitTag: ?string}|null */

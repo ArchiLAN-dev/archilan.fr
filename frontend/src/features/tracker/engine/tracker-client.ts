@@ -1,3 +1,4 @@
+import type { ApEvent, ApOutgoing } from "./ap-events";
 import type {
   EngineAction,
   LoadedPack,
@@ -28,6 +29,8 @@ export type TrackerClientOptions = {
   createWorker: () => WorkerLike;
   timeoutMs?: number;
   onLog?: (log: { level: LogLevel; message: string }) => void;
+  /** Story 54.6: the pack asks the Archipelago server for data storage keys. */
+  onApSend?: (packets: ApOutgoing[]) => void;
 };
 
 export const TRACKER_TIMEOUT_MS = 10_000;
@@ -85,6 +88,11 @@ export class TrackerClient {
     return this.expectState(await this.send({ type: "bulk", actions }));
   }
 
+  /** Story 54.6: Archipelago events, applied in one batch. */
+  async ap(events: ApEvent[]): Promise<StateUpdate> {
+    return this.expectState(await this.send({ type: "ap", events }));
+  }
+
   async image(path: string): Promise<Blob | null> {
     const response = await this.send({ type: "image", path });
     if (response.type !== "image") throw unexpected(response);
@@ -117,6 +125,10 @@ export class TrackerClient {
     if (!isTrackerResponse(data)) return;
     if (data.type === "log") {
       this.options.onLog?.({ level: data.level, message: data.message });
+      return;
+    }
+    if (data.type === "apSend") {
+      this.options.onApSend?.(data.packets);
       return;
     }
     if (data.requestId === null) return;

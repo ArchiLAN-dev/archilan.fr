@@ -16,6 +16,8 @@ local rawload = load
 local select, type, tostring, pairs, ipairs, error, pcall, setmetatable, rawset =
   select, type, tostring, pairs, ipairs, error, pcall, setmetatable, rawset
 local concat = table.concat
+local find, sub = string.find, string.sub
+local tointeger, utf8char, tonumber = math.tointeger, utf8.char, tonumber
 local os_time, os_clock, os_date = os.time, os.clock, os.date
 local gc = collectgarbage
 
@@ -48,6 +50,28 @@ local function unsupported(owner, name)
     B.unsupported(owner .. ":" .. name)
     error("unsupported_api: " .. owner .. ":" .. name, 2)
   end
+end
+
+-- Story 54.8: PopTracker's own API (src/core/tracker.cpp, scripthost.cpp, doc/PACKS.md). A name in it that the site
+-- lacks is reported as unsupported; any other name is nil, as in PopTracker, so the pack's own mistake (Spyro 3 calls
+-- Tracker:AddMemoryWatch) fails the way it fails there instead of being blamed on the site.
+local POPTRACKER_API = {
+  Tracker = { AddItems = true, AddLocations = true, AddMaps = true, AddLayouts = true, AddClasses = true,
+    ProviderCountForCode = true, FindObjectForCode = true, UiHint = true, OpenLink = true },
+  ScriptHost = { LoadScript = true, AddMemoryWatch = true, RemoveMemoryWatch = true, AddWatchForCode = true,
+    RemoveWatchForCode = true, CreateLuaItem = true, AddVariableWatch = true, RemoveVariableWatch = true,
+    AddOnFrameHandler = true, RemoveOnFrameHandler = true, AddOnLocationSectionChangedHandler = true,
+    RemoveOnLocationSectionChangedHandler = true, RemoveOnLocationSectionHandler = true, RunScriptAsync = true,
+    RunStringAsync = true, AsyncProgress = true },
+  Archipelago = { AddClearHandler = true, AddItemHandler = true, AddLocationHandler = true, AddScoutHandler = true,
+    AddBouncedHandler = true, AddRetrievedHandler = true, AddSetReplyHandler = true, SetNotify = true, Get = true,
+    LocationChecks = true, LocationScouts = true, StatusUpdate = true, GetPlayerAlias = true, GetPlayerGame = true,
+    GetItemName = true, GetLocationName = true },
+}
+
+local function missing(owner, name)
+  if POPTRACKER_API[owner][name] then return unsupported(owner, name) end
+  return nil
 end
 
 local memoryWarned = {}
@@ -107,6 +131,8 @@ local function proxy(ref)
 end
 
 -- Tracker -------------------------------------------------------------------
+-- Lua items are defined with ScriptHost below; Tracker:FindObjectForCode needs them.
+local findLuaItem
 local tracker = {}
 rawset(tracker, "ActiveVariantUID", B.variant())
 function tracker:AddItems(file) return B.add("items", file) end
@@ -123,15 +149,18 @@ function tracker:ProviderCountForCode(code)
 end
 function tracker:FindObjectForCode(code)
   if type(code) ~= "string" then return nil end
-  return proxy(B.find(code))
+  local ref = B.find(code)
+  if ref ~= nil then return proxy(ref) end
+  return findLuaItem(code)
 end
+function tracker:OpenLink() end
 function tracker:UiHint(name, value)
   B.log("info", "Tracker:UiHint ignoré (" .. tostring(name) .. ")")
 end
 Tracker = setmetatable(tracker, {
   __index = function(_, key)
     if key == "BulkUpdate" or key == "AllowDeferredLogicUpdate" then return B.flag(key) end
-    return unsupported("Tracker", key)
+    return missing("Tracker", key)
   end,
   __newindex = function(t, key, value)
     if key == "BulkUpdate" or key == "AllowDeferredLogicUpdate" then
@@ -208,16 +237,150 @@ function scriptHost:RemoveOnLocationSectionChangedHandler(name)
   return true
 end
 scriptHost.RemoveOnLocationSectionHandler = scriptHost.RemoveOnLocationSectionChangedHandler
+
+-- Lua items (story 54.8): items whose state and behaviour the pack writes in Lua. Their state stays here; the engine
+-- reads what to draw (name, icon, badge, overlay) and asks which codes they provide.
+local luaItems = {}
+local luaItemOrder = {}
+local luaItemMethods = {}
+local LUA_ITEM_DRAWN = { Name = true, Icon = true, BadgeText = true, PotentialCodes = true }
+
+local function luaItemData(item) return rawget(item, "__data") end
+function luaItemMethods:SetOverlay(text)
+  luaItemData(self).__overlay = text == nil and "" or tostring(text)
+  B.luaItemChanged(rawget(self, "__id"))
+end
+function luaItemMethods:SetOverlayBackground() end
+function luaItemMethods:SetOverlayColor() end
+function luaItemMethods:SetOverlayFontSize() end
+function luaItemMethods:SetOverlayAlign() end
+function luaItemMethods:Get(key) return luaItemData(self).__props[key] end
+function luaItemMethods:Set(key, value)
+  local data = luaItemData(self)
+  local before = data.__props[key]
+  data.__props[key] = value
+  if before ~= value and type(data.PropertyChangedFunc) == "function" then
+    local ok, message = pcall(data.PropertyChangedFunc, self, key, value)
+    if not ok then B.log("error", "LuaItem PropertyChangedFunc : " .. tostring(message)) end
+  end
+end
+
+function scriptHost:CreateLuaItem()
+  local id = B.luaItemCreate()
+  local data = { Type = "custom", Name = "", __props = {}, __overlay = "" }
+  local item = setmetatable({ __id = id, __data = data }, {
+    __index = function(_, key)
+      local method = luaItemMethods[key]
+      if method ~= nil then return method end
+      return data[key]
+    end,
+    __newindex = function(_, key, value)
+      data[key] = value
+      if LUA_ITEM_DRAWN[key] then B.luaItemChanged(id) end
+    end,
+  })
+  luaItems[id] = item
+  luaItemOrder[#luaItemOrder + 1] = id
+  return item
+end
+
+-- PotentialCodes, when set, is the list of codes the item can provide; otherwise CanProvideCodeFunc decides.
+local function luaItemCanProvide(item, code)
+  local data = luaItemData(item)
+  local codes = data.PotentialCodes
+  if codes ~= nil then
+    for _, candidate in pairs(codes) do
+      if candidate == code then return true end
+    end
+    return false
+  end
+  if type(data.CanProvideCodeFunc) ~= "function" then return false end
+  local ok, value = pcall(data.CanProvideCodeFunc, item, code)
+  return ok and value == true
+end
+
+function findLuaItem(code)
+  for _, id in ipairs(luaItemOrder) do
+    local item = luaItems[id]
+    if luaItemCanProvide(item, code) then return item end
+  end
+  return nil
+end
+
+-- Async scripts (story 54.8): PopTracker runs them in another thread with only arg and return; here they wait for
+-- the end of the current logic pass, run in their own environment, and their callback follows.
+local asyncQueue = {}
+local function queueAsync(name, source, arg, complete)
+  asyncQueue[#asyncQueue + 1] = { name = name, source = source, arg = arg, complete = complete }
+  return {}
+end
+function scriptHost:RunScriptAsync(file, arg, complete)
+  local source = type(file) == "string" and B.readScript(file) or nil
+  if source == nil then error("Could not load script!", 2) end
+  return queueAsync(file, source, arg, complete)
+end
+function scriptHost:RunStringAsync(source, arg, complete)
+  if type(source) ~= "string" then error("RunStringAsync: script invalide", 2) end
+  return queueAsync("string", source, arg, complete)
+end
+function scriptHost:AsyncProgress() end
+
+local function deepCopy(value)
+  if type(value) ~= "table" then return value end
+  local copy = {}
+  for key, inner in pairs(value) do copy[deepCopy(key)] = deepCopy(inner) end
+  return copy
+end
+
+local function asyncEnvironment(arg)
+  local env = {
+    string = string, table = table, math = math, utf8 = utf8, os = os,
+    pairs = pairs, ipairs = ipairs, next = next, type = type, tostring = tostring, tonumber = tonumber,
+    select = select, error = error, pcall = pcall, xpcall = xpcall, assert = assert,
+    setmetatable = setmetatable, getmetatable = getmetatable,
+    rawget = rawget, rawset = rawset, rawequal = rawequal, rawlen = rawlen,
+    print = print, load = load,
+    ScriptHost = { AsyncProgress = function() end },
+    arg = deepCopy(arg),
+  }
+  env._G = env
+  local modules = {}
+  env.require = function(name)
+    if type(name) ~= "string" then error("require: nom invalide", 2) end
+    if modules[name] ~= nil then return modules[name] end
+    local path = name:gsub("%.", "/")
+    for _, candidate in ipairs({ "scripts/" .. path .. ".lua", "scripts/" .. path .. "/init.lua", path .. ".lua", path .. "/init.lua" }) do
+      local source = B.readScript(candidate)
+      if source ~= nil then
+        local chunk, message = rawload(source, "@" .. candidate, "t", env)
+        if not chunk then error(message, 0) end
+        local result = chunk(name, candidate)
+        if result == nil then result = true end
+        modules[name] = result
+        return result
+      end
+    end
+    error("module '" .. name .. "' introuvable dans le pack", 2)
+  end
+  return env
+end
 for _, name in ipairs({ "AddMemoryWatch", "RemoveMemoryWatch", "AddVariableWatch", "RemoveVariableWatch",
   "AddOnFrameHandler", "RemoveOnFrameHandler" }) do
   scriptHost[name] = memoryOnly("ScriptHost", name)
 end
-ScriptHost = setmetatable(scriptHost, { __index = function(_, key) return unsupported("ScriptHost", key) end })
+ScriptHost = setmetatable(scriptHost, { __index = function(_, key) return missing("ScriptHost", key) end })
 
 -- AutoTracker, Archipelago --------------------------------------------------------
 local autoTracker = {}
-function autoTracker:GetConnectionState(name) return 0 end
 AutoTracker = setmetatable(autoTracker, { __index = function(_, key) return memoryOnly("AutoTracker", key) end })
+
+-- Archipelago (story 54.6): the page holds the connection, the engine forwards its events here. PopTracker's
+-- connection states as packs test them: 0 disconnected, 3 connected.
+local apConnection = 0
+autoTracker.GetConnectionState = function(self, name)
+  if name == "AP" then return apConnection end
+  return 0
+end
 
 local apHandlers = {}
 local archipelago = { PlayerNumber = -1, TeamNumber = -1, CheckedLocations = {}, MissingLocations = {} }
@@ -229,16 +392,177 @@ for _, kind in ipairs({ "Clear", "Item", "Location", "Scout", "Bounced", "Retrie
     return true
   end
 end
-function archipelago:Get(keys) return false end
-function archipelago:SetNotify(keys) return false end
-function archipelago:LocationChecks(locations) return false end
-function archipelago:LocationScouts(locations, sendAsHint) return false end
-function archipelago:StatusUpdate(status) return false end
-Archipelago = setmetatable(archipelago, { __index = function(_, key) return unsupported("Archipelago", key) end })
+local function apRequest(cmd, keys)
+  if apConnection ~= 3 or type(keys) ~= "table" then return false end
+  for _, key in ipairs(keys) do B.apSend(cmd, tostring(key)) end
+  return true
+end
+function archipelago:Get(keys) return apRequest("Get", keys) end
+function archipelago:SetNotify(keys) return apRequest("SetNotify", keys) end
+function archipelago:GetPlayerAlias(slot) return B.apPlayer("alias", slot) end
+function archipelago:GetPlayerGame(slot) return B.apPlayer("game", slot) end
+function archipelago:GetItemName(id, game) return B.apName("item", id, game or "") end
+function archipelago:GetLocationName(id, game) return B.apName("location", id, game or "") end
+-- LocationChecks, LocationScouts and StatusUpdate write to the room: the site's tracker never does (apmanual packs).
+Archipelago = setmetatable(archipelago, { __index = function(_, key) return missing("Archipelago", key) end })
+ClientStatus = { UNKNOWN = 0, CONNECTED = 5, READY = 10, PLAYING = 20, GOAL = 30 }
+
+-- JSON, for the events the engine forwards (slot data, data storage values). null becomes nil.
+local escapes = { b = "\b", f = "\f", n = "\n", r = "\r", t = "\t", ['"'] = '"', ["\\"] = "\\", ["/"] = "/" }
+local function decodeJson(text)
+  local pos = 1
+  local function fail(what) error("JSON : " .. what .. " (position " .. pos .. ")", 0) end
+  local function skip() pos = find(text, "[^ \t\r\n]", pos) or (#text + 1) end
+  local function str()
+    pos = pos + 1
+    local parts = {}
+    while true do
+      local at = find(text, '["\\]', pos)
+      if not at then fail("chaîne non terminée") end
+      parts[#parts + 1] = sub(text, pos, at - 1)
+      if sub(text, at, at) == '"' then
+        pos = at + 1
+        return concat(parts)
+      end
+      local c = sub(text, at + 1, at + 1)
+      if c == "u" then
+        local code = tonumber(sub(text, at + 2, at + 5), 16) or fail("échappement invalide")
+        local after = at + 6
+        if code >= 0xD800 and code <= 0xDBFF and sub(text, after, after + 1) == "\\u" then
+          local low = tonumber(sub(text, after + 2, after + 5), 16)
+          if low and low >= 0xDC00 and low <= 0xDFFF then
+            code = 0x10000 + (code - 0xD800) * 0x400 + (low - 0xDC00)
+            after = after + 6
+          end
+        end
+        parts[#parts + 1] = utf8char(code)
+        pos = after
+      else
+        parts[#parts + 1] = escapes[c] or fail("échappement invalide")
+        pos = at + 2
+      end
+    end
+  end
+  local value
+  value = function()
+    skip()
+    local c = sub(text, pos, pos)
+    if c == "{" then
+      local object = {}
+      pos = pos + 1
+      skip()
+      if sub(text, pos, pos) == "}" then
+        pos = pos + 1
+        return object
+      end
+      while true do
+        skip()
+        if sub(text, pos, pos) ~= '"' then fail("clé attendue") end
+        local key = str()
+        skip()
+        if sub(text, pos, pos) ~= ":" then fail("« : » attendu") end
+        pos = pos + 1
+        object[key] = value()
+        skip()
+        local d = sub(text, pos, pos)
+        pos = pos + 1
+        if d == "}" then return object end
+        if d ~= "," then fail("« , » attendue") end
+      end
+    elseif c == "[" then
+      local list, n = {}, 0
+      pos = pos + 1
+      skip()
+      if sub(text, pos, pos) == "]" then
+        pos = pos + 1
+        return list
+      end
+      while true do
+        n = n + 1
+        list[n] = value()
+        skip()
+        local d = sub(text, pos, pos)
+        pos = pos + 1
+        if d == "]" then return list end
+        if d ~= "," then fail("« , » attendue") end
+      end
+    elseif c == '"' then
+      return str()
+    elseif sub(text, pos, pos + 3) == "true" then
+      pos = pos + 4
+      return true
+    elseif sub(text, pos, pos + 4) == "false" then
+      pos = pos + 5
+      return false
+    elseif sub(text, pos, pos + 3) == "null" then
+      pos = pos + 4
+      return nil
+    end
+    local from, to = find(text, "^-?%d+%.?%d*[eE]?[-+]?%d*", pos)
+    if not from then fail("caractère inattendu") end
+    local number = tonumber(sub(text, from, to)) or fail("nombre invalide")
+    pos = to + 1
+    return tointeger(number) or number
+  end
+  return value()
+end
+
+local function callAll(kind, ...)
+  for _, handler in ipairs(apHandlers[kind]) do
+    local ok, message = pcall(handler.callback, ...)
+    if not ok then
+      B.log("error", "handler Archipelago " .. kind .. " « " .. tostring(handler.name) .. " » : " .. tostring(message))
+    end
+  end
+end
+
+local function applyApEvent(event)
+  local kind = event.kind
+  if kind == "connected" then
+    archipelago.PlayerNumber = event.playerNumber
+    archipelago.TeamNumber = event.teamNumber
+    archipelago.Seed = event.seed
+    archipelago.CheckedLocations = event.checked or {}
+    archipelago.MissingLocations = event.missing or {}
+    apConnection = 3
+  elseif kind == "disconnected" then
+    apConnection = 0
+  elseif kind == "clear" then
+    callAll("Clear", event.slotData or {})
+  elseif kind == "items" then
+    for _, item in ipairs(event.items or {}) do
+      callAll("Item", item.index, item.item, B.apName("item", item.item, ""), item.player)
+    end
+  elseif kind == "locations" then
+    local checked = archipelago.CheckedLocations
+    for _, id in ipairs(event.locations or {}) do
+      checked[#checked + 1] = id
+      callAll("Location", id, B.apName("location", id, ""))
+    end
+  elseif kind == "scouted" then
+    for _, info in ipairs(event.locations or {}) do
+      local game = B.apPlayer("game", info.player) or ""
+      callAll("Scout", info.location, B.apName("location", info.location, ""), info.item,
+        B.apName("item", info.item, game), info.player)
+    end
+  elseif kind == "bounced" then
+    callAll("Bounced", event.data or {})
+  elseif kind == "retrieved" then
+    callAll("Retrieved", event.key, event.value)
+  elseif kind == "setReply" then
+    callAll("SetReply", event.key, event.value, event.originalValue)
+  end
+end
 
 ImageReference = {}
 function ImageReference:FromPackRelativePath(path) return path end
-function ImageReference:FromImageReference(original, mod) return tostring(original) .. tostring(mod or "") end
+-- An image and its mods travel as one string, path and mods separated by a line break (story 54.8).
+function ImageReference:FromImageReference(original, mod)
+  local path, mods = tostring(original):match("^([^\n]*)\n?(.*)$")
+  if mod == nil or mod == "" then return tostring(original) end
+  if mods == "" then return path .. "\n" .. tostring(mod) end
+  return path .. "\n" .. mods .. "," .. tostring(mod)
+end
 
 AccessibilityLevel = { None = 0, Partial = 1, Inspect = 3, SequenceBreak = 5, Normal = 6, Cleared = 7 }
 Highlight = { Avoid = -1, None = 0, NoPriority = 1, Unspecified = 2, Priority = 3 }
@@ -289,6 +613,87 @@ function api.sectionChanged(ref)
       if not ok then B.log("error", "handler " .. tostring(name) .. " : " .. tostring(message)) end
     end
   end
+end
+
+-- One Archipelago event, as JSON (story 54.6).
+function api.ap(text)
+  applyApEvent(decodeJson(text))
+end
+
+-- Lua items (story 54.8) -------------------------------------------------------
+local function asText(value)
+  if value == nil then return "" end
+  return tostring(value)
+end
+
+-- What a Lua item provides of a code: the sum over the Lua items that can provide it.
+function api.luaProvides(code)
+  local total = 0
+  for _, id in ipairs(luaItemOrder) do
+    local item = luaItems[id]
+    if luaItemCanProvide(item, code) then
+      local provides = luaItemData(item).ProvidesCodeFunc
+      if type(provides) == "function" then
+        local ok, value = pcall(provides, item, code)
+        if not ok then
+          B.log("error", "LuaItem ProvidesCodeFunc : " .. tostring(value))
+        elseif type(value) == "number" then
+          total = total + value
+        elseif value == true then
+          total = total + 1
+        end
+      end
+    end
+  end
+  return total
+end
+
+-- name, icon, badge, overlay and the codes (comma list), separated by \31.
+function api.luaItemView(id)
+  local item = luaItems[id]
+  if item == nil then return nil end
+  local data = luaItemData(item)
+  local codes = {}
+  if type(data.PotentialCodes) == "table" then
+    for _, code in pairs(data.PotentialCodes) do codes[#codes + 1] = tostring(code) end
+  end
+  return concat({ asText(data.Name), asText(data.Icon), asText(data.BadgeText), data.__overlay, concat(codes, ",") }, "\31")
+end
+
+function api.luaItemClick(id, button)
+  local item = luaItems[id]
+  if item == nil then return false end
+  local key = button == "right" and "OnRightClickFunc" or button == "middle" and "OnMiddleClickFunc" or "OnLeftClickFunc"
+  local callback = luaItemData(item)[key]
+  if type(callback) ~= "function" then return false end
+  local ok, message = pcall(callback, item)
+  if not ok then B.log("error", "LuaItem " .. key .. " : " .. tostring(message)) end
+  return true
+end
+
+-- Runs the async scripts queued so far, then their callbacks; returns how many ran.
+function api.runAsync()
+  local queue = asyncQueue
+  asyncQueue = {}
+  for _, task in ipairs(queue) do
+    local chunk, message = rawload(task.source, "@" .. task.name, "t", asyncEnvironment(task.arg))
+    if not chunk then
+      B.log("error", "RunScriptAsync " .. task.name .. " : " .. tostring(message))
+    else
+      local ok, result = pcall(chunk)
+      if not ok then
+        B.log("error", "RunScriptAsync " .. task.name .. " : " .. tostring(result))
+      elseif type(task.complete) == "function" then
+        local done, failure = pcall(task.complete, result)
+        if not done then B.log("error", "RunScriptAsync " .. task.name .. " (callback) : " .. tostring(failure)) end
+      end
+    end
+  end
+  return #queue
+end
+
+function api.pendingAsync()
+  return #asyncQueue
 end
 
 function api.archipelagoHandlerCount(kind)

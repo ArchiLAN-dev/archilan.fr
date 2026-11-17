@@ -28,6 +28,7 @@ import { YamlOptionsView, parseGameOptions } from "@/components/yaml/yaml-option
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import { ServerPausedNote } from "@/components/run-notes";
 import { ConnectionFields } from "@/components/connection-fields";
+import { weeklyConnectionSlots } from "./weekly-connection-slots";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -458,7 +459,7 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
                       host={myEntry.connectionInfo.host}
                       password={myEntry.connectionInfo.password}
                       port={myEntry.connectionInfo.port}
-                      slots={myEntry.slotName ? [{ name: myEntry.slotName, game: null }] : []}
+                      slots={weeklyConnectionSlots(run, myEntry)}
                       uri={myEntry.connectionInfo.uri ?? null}
                     />
                   </div>
