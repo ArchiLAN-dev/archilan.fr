@@ -39,6 +39,11 @@ final class NullMinioStorage implements MinioStorageInterface
         return array_key_exists("{$bucket}/{$key}", self::$store);
     }
 
+    public function delete(string $bucket, string $key): void
+    {
+        unset(self::$store["{$bucket}/{$key}"]);
+    }
+
     public function presignedUrl(string $bucket, string $key, int $ttlSeconds): string
     {
         // Mimic real S3/MinIO presigning: the signature changes on every call,

@@ -27,6 +27,7 @@ import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { useRouter } from "next/navigation";
 import { StreamMaskedNote } from "@/components/run-notes";
 import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
+import { slotTracker } from "@/features/tracker/slot-ref";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -229,7 +230,11 @@ function ConnectionView({
       {session?.status === "running" && session.host ? (
         <RunningConnectionCard
           session={session}
-          slots={data.slots.map((slot) => ({ name: slot.slotName, game: slot.gameName }))}
+          slots={data.slots.map((slot) => ({
+            name: slot.slotName,
+            game: slot.gameName,
+            tracker: slotTracker(slot.gameId, slot.gameSlug, { kind: "event", registrationId, slotName: slot.slotName }),
+          }))}
         />
       ) : null}
 

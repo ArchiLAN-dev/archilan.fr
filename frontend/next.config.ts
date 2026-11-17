@@ -63,7 +63,9 @@ const nextConfig: NextConfig = {
     // header once the console stays quiet.
     const contentSecurityPolicy = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://embed.twitch.tv",
+      // Story 54.4: the tracker runs Lua compiled to WASM, which needs 'wasm-unsafe-eval' (WASM only, not JS eval).
+      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://embed.twitch.tv",
+      "worker-src 'self' blob:",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob: https:",
@@ -103,6 +105,15 @@ const nextConfig: NextConfig = {
     // Prevents Next 16 from walking up past frontend/ to a user-level package-lock.json
     // on Windows (observed when C:\Users\<user>\package-lock.json exists).
     root: path.resolve(__dirname),
+    resolveAlias: {
+      // Story 54.4: wasmoon (the trackers' Lua) imports Node's `module` on a branch the browser never takes.
+      module: { browser: "./src/features/tracker/engine/empty-node-module.ts" },
+    },
+  },
+  // The same for webpack, which the bundle analysis build (`next build --webpack`, CI) still uses.
+  webpack: (config: { resolve?: { fallback?: Record<string, string | false> } }, { isServer }: { isServer: boolean }) => {
+    if (!isServer) config.resolve = { ...config.resolve, fallback: { ...config.resolve?.fallback, module: false } };
+    return config;
   },
 };
 
