@@ -1,6 +1,6 @@
 # Story 54.10 - Onglet Tracker de la progression
 
-**Status:** review
+**Status:** done
 **Epic:** 54 - Trackers PopTracker
 **Date:** 2026-11-17
 **Dépend de:** 54.5 (écran du tracker), 54.7 (connexion d'un slot par sa référence, sans mot de passe dans l'adresse).

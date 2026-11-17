@@ -1,6 +1,6 @@
 # Story 54.9 - Habillage ArchiLAN du tracker
 
-**Status:** review
+**Status:** done
 **Epic:** 54 - Trackers PopTracker
 **Date:** 2026-11-17
 **Dépend de:** 54.5 (écran du tracker), 54.8 (rendu `canvas`, rapport d'erreurs), 54.10 (PR empilée).
