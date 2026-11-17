@@ -12,6 +12,7 @@ import {
   Lightbulb,
   ListChecks,
   Loader2,
+  Map as MapIcon,
   MapPin,
   Package,
   RefreshCw,
@@ -31,6 +32,10 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasStringProp } from "@/lib/type-guards";
 import { useAuth } from "@/features/auth/auth-context";
+import type { ConnectionSlot } from "@/components/slot-name-field";
+import { slotTracker } from "@/features/tracker/slot-ref";
+import { ownSlotTracker, SlotTrackerPanel, useSlotTrackerPacks } from "@/features/tracker/slot-tracker-tab";
+import { runConnectionSlots } from "./run-connection-slots";
 import { isPlayersState } from "@/features/overlay/overlay-api";
 import { CheckListPanel, ItemListPanel } from "@/features/reachability/check-panels";
 import { countItems, receivedItemsPercent } from "@/features/reachability/item-progress";
@@ -189,6 +194,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [ownSlotNames, setOwnSlotNames] = useState<string[] | undefined>(undefined);
+  // Story 54.10: the slots the viewer may connect (the ones the connection screens give them), for the Tracker tab.
+  const [ownSlots, setOwnSlots] = useState<ConnectionSlot[] | undefined>(undefined);
   const [sessionFetchError, setSessionFetchError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -200,6 +207,13 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
             return;
           }
           setOwnSlotNames(result.data.slots.map((slot) => slot.slotName));
+          setOwnSlots(
+            result.data.slots.map((slot) => ({
+              name: slot.slotName,
+              game: slot.gameName,
+              tracker: slotTracker(slot.gameId, slot.gameSlug, { kind: "event", registrationId: source.registrationId, slotName: slot.slotName }),
+            })),
+          );
           setSessionId(result.data.session.id);
         })
         .catch(() => { setSessionFetchError("Impossible de charger la session."); });
@@ -216,6 +230,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
           return;
         }
         setIsOwner(json.data.isOwner);
+        setOwnSlots(runConnectionSlots(json.data));
         setSessionId(json.data.sessionId);
       })
       .catch(() => { setSessionFetchError("Impossible de charger la partie."); });
@@ -231,17 +246,26 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
   // Story 27.12: the run's setting, as the API answered it (always on for an admin or the run's owner).
   const [spheresVisible, setSpheresVisible] = useState(false);
 
-  type TabId = "checks" | "spheres" | "indices" | "items" | "action";
+  // Story 54.10: the slot's name, kept once known so a refresh of the progression does not unmount the tracker.
+  const [slotName, setSlotName] = useState<string | null>(null);
+  const tracker = ownSlotTracker(ownSlots, slotName);
+  const trackerPacks = useSlotTrackerPacks(tracker);
+  const hasTracker = tracker !== undefined && trackerPacks.length > 0;
+  const [trackerOpened, setTrackerOpened] = useState(false);
+
+  type TabId = "checks" | "spheres" | "indices" | "items" | "tracker" | "action";
   const ALL_TABS: { id: TabId; label: string; icon: ElementType }[] = [
     { id: "checks",  label: "Checks",  icon: ListChecks },
     { id: "items",   label: "Items",   icon: Package },
     { id: "spheres", label: "Sphères", icon: Route },
     { id: "indices", label: "Indices", icon: Lightbulb },
+    { id: "tracker", label: "Tracker", icon: MapIcon },
     { id: "action",  label: "Actions", icon: Zap },
   ];
   const TABS = ALL_TABS.filter((t) => {
     if (t.id === "action" && !isAdminUser) return false;
     if (t.id === "spheres" && !spheresVisible) return false;
+    if (t.id === "tracker" && !hasTracker) return false;
     return true;
   });
   const VALID_TABS = new Set<string>(TABS.map((t) => t.id));
@@ -249,6 +273,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
   const activeTab: TabId = VALID_TABS.has(rawTab ?? "") ? (rawTab as TabId) : "checks";
 
   function switchTab(tab: TabId) {
+    // Story 54.10: once opened, the tracker stays mounted (pack loaded, connection kept) behind the other tabs.
+    if (tab === "tracker" || activeTab === "tracker") setTrackerOpened(true);
     const p = new URLSearchParams(searchParams.toString());
     if (tab === "checks") {
       p.delete("tab");
@@ -342,6 +368,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
       setSpheresVisible(answer.spheresVisible);
       setComputingTick((tick) => (answer.computing ? tick + 1 : 0));
       setState({ kind: "data", data });
+      setSlotName(data.player);
       if (prevItemsRef.current.size === 0) {
         prevItemsRef.current = new Map(data.items_received.map((i) => [i.id, i.count]));
       }
@@ -1323,6 +1350,16 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
               </div>
             ) : null}
           </div>
+        ) : null}
+
+        {/* Story 54.10: the slot's tracker, connected by itself; mounted on first opening, then kept. */}
+        {hasTracker && tracker !== undefined && (trackerOpened || activeTab === "tracker") ? (
+          <SlotTrackerPanel
+            gameName={ownSlots?.find((slot) => slot.name === slotName)?.game ?? ""}
+            packs={trackerPacks}
+            tracker={tracker}
+            visible={activeTab === "tracker"}
+          />
         ) : null}
       </section>
     </>

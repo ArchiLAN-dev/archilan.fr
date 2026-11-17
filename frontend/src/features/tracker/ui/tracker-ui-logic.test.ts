@@ -18,7 +18,13 @@ import {
   EMPTY_VIEW,
   indexItemsByCode,
   locationLevel,
+  locationMarks,
+  countPins,
+  pinCategory,
   mergeView,
+  PinMark,
+  pinBackground,
+  pinLabel,
   rootLayoutName,
 } from "./tracker-view";
 
@@ -107,6 +113,10 @@ describe("map transform", () => {
     const zoomed = zoomAt({ scale: 1, x: 0, y: 0 }, 2, { x: 50, y: 50 });
     expect(zoomed).toEqual({ scale: 2, x: -50, y: -50 });
     expect(zoomAt({ scale: 8, x: 0, y: 0 }, 2, { x: 0, y: 0 }).scale).toBe(8);
+    // Story 54.9: never below the whole map, which comes back centred.
+    const bounds = { image: { width: 200, height: 100 }, viewport: { width: 400, height: 400 } };
+    expect(zoomAt({ scale: 3, x: -50, y: 20 }, 0.5, { x: 0, y: 0 }, bounds)).toEqual({ scale: 2, x: 0, y: 100 });
+    expect(zoomAt({ scale: 3, x: 0, y: 0 }, 1.2, { x: 0, y: 0 }, bounds).scale).toBeCloseTo(3.6);
   });
 });
 
@@ -219,5 +229,55 @@ describe("tracker storage", () => {
     } finally {
       Reflect.deleteProperty(globalThis, "window");
     }
+  });
+});
+
+describe("PopTracker's pins (story 54.9)", () => {
+  const location = TEST_PACK.locations[0]!;
+  const view = (sections: Record<number, ReturnType<typeof section>>) => mergeView(EMPTY_VIEW, { items: {}, sections, locations: {} });
+
+  it("gathers one state per section still to do", () => {
+    const marks = locationMarks(location, view({ 10: section(AccessibilityLevel.Normal, 1), 11: section(AccessibilityLevel.None, 1), 12: section(AccessibilityLevel.Cleared, 0) }), DEFAULT_SETTINGS);
+    expect(marks).toBe(PinMark.Reachable | PinMark.Unreachable);
+    expect(pinLabel(marks ?? -1)).toBe("En partie : faisable, pas encore");
+    expect(pinLabel(PinMark.Inspect)).toBe("À regarder");
+  });
+
+  it("is done when every visible section is, hidden when none is visible", () => {
+    expect(locationMarks(location, view({ 10: section(AccessibilityLevel.Cleared, 0) }), DEFAULT_SETTINGS)).toBe(0);
+    expect(pinLabel(0)).toBe("Fait");
+    expect(locationMarks(location, view({ 10: section(AccessibilityLevel.Normal, 1, false) }), DEFAULT_SETTINGS)).toBeNull();
+  });
+
+  it("counts a partial section as a glitch, and a sequence break as out of reach when they are hidden", () => {
+    expect(locationMarks(location, view({ 10: section(AccessibilityLevel.Partial, 1) }), DEFAULT_SETTINGS)).toBe(PinMark.SequenceBreak);
+    expect(
+      locationMarks(location, view({ 10: section(AccessibilityLevel.SequenceBreak, 1) }), { showSequenceBreaks: false, hideCleared: false }),
+    ).toBe(PinMark.Unreachable);
+  });
+
+  it("draws one colour, or the quarters PopTracker gives the combination", () => {
+    expect(pinBackground(PinMark.Reachable)).toBe("var(--color-tracker-normal)");
+    expect(pinBackground(PinMark.Reachable | PinMark.Unreachable)).toBe(
+      "conic-gradient(from -45deg, var(--color-tracker-none) 0 25%, var(--color-tracker-normal) 0 50%, var(--color-tracker-normal) 0 75%, var(--color-tracker-none) 0 100%)",
+    );
+  });
+});
+
+describe("the legend's counters (story 54.9)", () => {
+  it("files a pin by its states, and counts the pins of one map", () => {
+    expect(pinCategory(0)).toBe("done");
+    expect(pinCategory(PinMark.Inspect)).toBe("inspect");
+    expect(pinCategory(PinMark.Reachable | PinMark.Unreachable)).toBe("mixed");
+    const view = mergeView(EMPTY_VIEW, INITIAL_STATE);
+    expect(countPins(TEST_PACK.locations, "world", view, DEFAULT_SETTINGS)).toEqual({
+      reachable: 1,
+      sequence: 0,
+      inspect: 0,
+      unreachable: 1,
+      mixed: 0,
+      done: 0,
+    });
+    expect(countPins(TEST_PACK.locations, "elsewhere", view, DEFAULT_SETTINGS).reachable).toBe(0);
   });
 });
