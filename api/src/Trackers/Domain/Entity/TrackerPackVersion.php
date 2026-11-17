@@ -107,6 +107,21 @@ final class TrackerPackVersion
         return $this->packageVersion;
     }
 
+    public function getGitTag(): ?string
+    {
+        return $this->gitTag;
+    }
+
+    public function getSizeBytes(): int
+    {
+        return $this->sizeBytes;
+    }
+
+    public function getImportedAt(): \DateTimeImmutable
+    {
+        return $this->importedAt;
+    }
+
     public function getSha256(): string
     {
         return $this->sha256;

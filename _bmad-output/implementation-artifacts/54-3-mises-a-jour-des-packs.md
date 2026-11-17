@@ -1,6 +1,6 @@
 # Story 54.3 - Mises à jour des packs
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 54 - Trackers de jeu, les packs PopTracker sur le site (`_bmad-output/planning-artifacts/epics/epic-54-trackers-poptracker.md`)
 **Date:** 2026-11-16
 **Branche:** `feature/epic-54-story-3-mises-a-jour-des-packs`
@@ -81,8 +81,57 @@ afin que les joueurs aient un tracker à jour sans que je surveille chaque dép�
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1, 6, 7) - Vérificateur (`versions.json` puis releases), champs et migration.
-- [ ] **Task 2** (AC 1) - Message planifié, handler async, gestion du quota.
-- [ ] **Task 3** (AC 2, 3, 4, 5) - Commandes de mise à jour et de rollback, rétention post-commit.
-- [ ] **Task 4** (AC 9) - Interface admin.
-- [ ] **Task 5** (AC 10) - Gates, essai réel sur le pack MM (import de v0.9.5.2 puis mise à jour).
+- [x] **Task 1** (AC 1, 6, 7) - Vérificateur (`versions.json` puis releases), champs et migration.
+- [x] **Task 2** (AC 1) - Message planifié, handler async, gestion du quota.
+- [x] **Task 3** (AC 2, 3, 4, 5) - Commandes de mise à jour et de rollback, rétention post-commit.
+- [x] **Task 4** (AC 9) - Interface admin.
+- [x] **Task 5** (AC 10) - Gates, essai réel sur le pack MM (import de v0.9.5.2 puis mise à jour).
+
+## Dev Agent Record
+
+**Date:** 2026-11-17
+
+### Écarts et décisions
+
+- **Noms** : `UpdateTrackerPack` existait déjà (PATCH de la 54.2). La commande d'installation s'appelle
+  `UpgradeTrackerPack` ; route `POST .../update` inchangée. `CheckTrackerPackUpdates` (`checkOne`, `checkAll`),
+  `RollbackTrackerPack`, résultat commun `ServedTrackerPackVersion {versionId, packageVersion, defaultVariantReset}`.
+- **Les deux sources sont toujours lues** (pas « release seulement si le fichier échoue ») : la plus haute version des
+  deux gagne. C'est ce qu'exige l'AC 6 (MM : `versions.json` en 0.9.5.2, release en 0.9.5.3).
+- Échec d'une seule des deux sources : la vérification compte comme réussie avec l'autre. `lastCheckError` n'est posé
+  que si aucune source n'a répondu.
+- Port MinIO : ajout de `delete()` (S3, double de test, espion des tests unitaires). Suppression des zips expirés
+  après le flush, un échec est seulement journalisé.
+- Une mise à jour reste proposée après un retour en arrière (`serve()` ne vide `availableUpdate` que pour une version
+  au moins égale).
+- **Zip déjà gardé** (trouvé à l'essai réel) : installer un zip identique à une version conservée remet cette version
+  en service au lieu d'en créer une copie ; si c'est déjà la version servie, 409
+  `tracker_pack_version_already_served`.
+- Erreur supplémentaire : `tracker_pack_no_update` (422) quand on met à jour sans mise à jour connue.
+- Planification : `40 4 * * *` Europe/Paris, message `CheckTrackerPackUpdatesMessage` routé sur `async`.
+
+### Fichiers
+
+- API : `TrackerPackUpdate` (VO), `TrackerPackVersions` (comparaison, choix, `versions.json`, rétention),
+  `TrackerPack` (`recordCheck`, `recordCheckFailure`, `serve`), getters de `TrackerPackVersion`, repository
+  (`findEnabled`, `findVersions`, `save` avec versions expirées), port `TrackerPackUpdateSourceInterface` implémenté
+  par `GithubTrackerPackFetcher` (+ `fetchZip`), commandes, message et handler, `Schedule.php`, `messenger.yaml`,
+  vue et requête admin, 3 routes admin, migration `Version20261117110000`.
+- Tests : `TrackerPackVersionsTest` (7), `TrackerPackTest` (5), 4 tests de plus dans `GithubTrackerPackFetcherTest`,
+  `tests/Functional/TrackerPackUpdatesTest.php` (10).
+- Front : `admin-tracker-packs-api.ts` (types, `checkTrackerPackUpdate`, `upgradeTrackerPack`, `rollbackTrackerPack`),
+  `admin-tracker-pack-updates.tsx` (badge, changelog dépliable, boutons, lien, versions gardées), et leurs tests.
+
+### Gates
+
+- `./scripts/gates.sh --api` vert. Front : typecheck, lint, 1697 tests verts, build vert au second lancement
+  (avertissement de sécurité de Next.js 16.4.3, corrigé par le hotfix #1105).
+- Deux échecs isolés pendant les runs, sans lien : `YamlTemplateTest` instable sous ParaTest (vert seul 3 fois), puis
+  épuisement des ports TCP locaux de Windows après des runs enchaînés. Le cache `var/cache/test` périmé a aussi dû
+  être vidé une fois (nouvelle colonne absente du schéma de test).
+
+### Essai réel (2026-11-17, local, vrai GitHub)
+
+- Pack MM : installation de v0.9.5.2 par lien, puis « Vérifier » trouve 0.9.5.3 par la release alors que le
+  `versions.json` annonce 0.9.5.2, avec le vrai changelog. « Mettre à jour » sert 0.9.5.3.
+

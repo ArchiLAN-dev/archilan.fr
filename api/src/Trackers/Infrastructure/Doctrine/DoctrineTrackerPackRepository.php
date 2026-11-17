@@ -30,15 +30,28 @@ final readonly class DoctrineTrackerPackRepository implements TrackerPackReposit
         return $this->entityManager->getRepository(TrackerPack::class)->findOneBy(['gameId' => $gameId, 'packageUid' => $packageUid]);
     }
 
+    public function findEnabled(): array
+    {
+        return $this->entityManager->getRepository(TrackerPack::class)->findBy(['enabled' => true], ['createdAt' => 'ASC', 'id' => 'ASC']);
+    }
+
     public function findVersion(string $versionId): ?TrackerPackVersion
     {
         return $this->entityManager->find(TrackerPackVersion::class, $versionId);
     }
 
-    public function save(TrackerPack $pack, TrackerPackVersion $version): void
+    public function findVersions(string $packId): array
+    {
+        return $this->entityManager->getRepository(TrackerPackVersion::class)->findBy(['packId' => $packId], ['importedAt' => 'DESC', 'id' => 'DESC']);
+    }
+
+    public function save(TrackerPack $pack, TrackerPackVersion $version, array $expired = []): void
     {
         $this->entityManager->persist($version);
         $this->entityManager->persist($pack);
+        foreach ($expired as $old) {
+            $this->entityManager->remove($old);
+        }
         $this->entityManager->flush();
     }
 

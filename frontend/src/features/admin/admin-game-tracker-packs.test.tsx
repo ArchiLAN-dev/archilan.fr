@@ -28,6 +28,10 @@ const pack: AdminTrackerPack = {
   isDefault: false,
   defaultVariantUid: null,
   licenseAcknowledged: false,
+  availableUpdate: null,
+  lastCheckedAt: null,
+  lastCheckError: null,
+  versions: [],
 };
 
 function render(node: ReactNode): string {

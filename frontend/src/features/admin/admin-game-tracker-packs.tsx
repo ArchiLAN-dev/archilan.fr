@@ -15,6 +15,7 @@ import {
   type AdminTrackerPack,
   type TrackerPackChanges,
 } from "./admin-tracker-packs-api";
+import { TrackerPackUpdates } from "./admin-tracker-pack-updates";
 
 type Props = { gameId: string };
 
@@ -285,6 +286,8 @@ export function TrackerPackRow({ gameId, pack }: { gameId: string; pack: AdminTr
           </p>
         ) : null}
       </div>
+
+      <TrackerPackUpdates gameId={gameId} pack={pack} />
     </li>
   );
 }

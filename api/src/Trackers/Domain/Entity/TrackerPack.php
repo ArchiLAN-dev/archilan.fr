@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Trackers\Domain\Entity;
 
+use App\Trackers\Domain\Service\TrackerPackVersions;
 use App\Trackers\Domain\ValueObject\TrackerPackManifest;
+use App\Trackers\Domain\ValueObject\TrackerPackUpdate;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -14,6 +16,9 @@ use Doctrine\ORM\Mapping as ORM;
  * Story 54.2: a pack is offered to players once enabled. A pack without a detected licence can only be enabled once
  * an admin vouched that it may be shared. Which pack of a game opens by default is settled across the game's packs
  * by {@see \App\Trackers\Domain\Service\TrackerPackShelf}.
+ *
+ * Story 54.3: the nightly check keeps the newer version it found, if any, until an admin applies it. Serving another
+ * version (an update, or a way back) only moves `currentVersionId`: versions themselves never change.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'tracker_pack')]
@@ -54,6 +59,13 @@ final class TrackerPack
         private ?string $defaultVariantUid = null,
         #[ORM\Column(name: 'license_acknowledged', type: 'boolean', options: ['default' => false])]
         private bool $licenseAcknowledged = false,
+        /** @var array<mixed>|null {@see TrackerPackUpdate::toArray()} */
+        #[ORM\Column(name: 'available_update', type: 'json', nullable: true)]
+        private ?array $availableUpdate = null,
+        #[ORM\Column(name: 'last_checked_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $lastCheckedAt = null,
+        #[ORM\Column(name: 'last_check_error', type: 'string', length: 64, nullable: true)]
+        private ?string $lastCheckError = null,
     ) {
     }
 
@@ -178,5 +190,66 @@ final class TrackerPack
     public function markDefault(bool $isDefault): void
     {
         $this->isDefault = $isDefault;
+    }
+
+    public function getSourceUrl(): string
+    {
+        return $this->sourceUrl;
+    }
+
+    public function getVersionsUrl(): ?string
+    {
+        return $this->versionsUrl;
+    }
+
+    public function getAvailableUpdate(): ?TrackerPackUpdate
+    {
+        return null === $this->availableUpdate ? null : TrackerPackUpdate::fromArray($this->availableUpdate);
+    }
+
+    /** A check that went through: the newer version found, or none. */
+    public function recordCheck(?TrackerPackUpdate $update, \DateTimeImmutable $at): void
+    {
+        $this->availableUpdate = $update?->toArray();
+        $this->lastCheckedAt = $at;
+        $this->lastCheckError = null;
+    }
+
+    /** A check that failed: what was found before stays offered. */
+    public function recordCheckFailure(string $code, \DateTimeImmutable $at): void
+    {
+        $this->lastCheckedAt = $at;
+        $this->lastCheckError = mb_substr($code, 0, 64);
+    }
+
+    /**
+     * Serves another version of this pack, newer or older. An offered update at or below it is dropped. A default
+     * variant the version no longer has goes back to the first one.
+     *
+     * @return bool whether the default variant was reset
+     *
+     * @throws \DomainException tracker_pack_version_not_found when the version is not one of this pack
+     */
+    public function serve(TrackerPackVersion $version): bool
+    {
+        if ($version->getPackId() !== $this->id) {
+            throw new \DomainException('tracker_pack_version_not_found');
+        }
+        $this->currentVersionId = $version->getId();
+
+        $update = $this->getAvailableUpdate();
+        $served = $version->getPackageVersion();
+        if (null !== $update && null !== $served && TrackerPackVersions::compare($update->packageVersion, $served) <= 0) {
+            $this->availableUpdate = null;
+        }
+
+        $uids = array_column($version->getVariants(), 'uid');
+        if (null !== $this->defaultVariantUid && !in_array($this->defaultVariantUid, $uids, true)) {
+            $this->defaultVariantUid = null;
+
+            return true;
+        }
+
+        return false;
     }
 }
