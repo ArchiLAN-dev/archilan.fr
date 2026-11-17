@@ -7,7 +7,8 @@ projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [0.68.2] - 2026-11-17
 
-Correctif du tracker (story 54.9), frontend seul : aucune migration, aucune variable d'environnement.
+Correctifs du tracker (story 54.9) et des informations de connexion d'un event : aucune migration, aucune variable
+d'environnement.
 
 ### Corrigé
 
@@ -17,6 +18,16 @@ Correctif du tracker (story 54.9), frontend seul : aucune migration, aucune vari
 - Les cases d'objets qui ne sont pas carrées (`item_width` / `item_height`, comme les étiquettes de réglages en
   320x64) gardent leurs proportions au lieu d'être écrasées.
 - Un nom de pack ou de variante très long ne fait plus déborder la page sur téléphone.
+- **Onglet Tracker d'un slot d'event** : il annonçait « La partie n'est pas lancée » alors qu'elle tournait. Les
+  informations de connexion d'une inscription (`GET /registrations/{id}/session-connection`) ne donnaient pas
+  l'adresse client (`connectionUri`), seulement l'hôte et le port ; elles la donnent désormais, comme les autres vues
+  de connexion. La carte de connexion de l'event retrouve aussi sa ligne « Adresse (client Archipelago) ».
+
+### Sécurité
+
+- Ces mêmes informations de connexion renvoyaient au joueur toute la session, mots de passe admin et serveur
+  d'Archipelago, journaux et chemins d'archives compris. Elles se limitent maintenant à ce qu'il faut pour se
+  connecter : statut, adresse (seulement pendant la partie), adresse client et mot de passe du slot.
 
 ## [0.68.1] - 2026-11-17
 

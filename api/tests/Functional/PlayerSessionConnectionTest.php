@@ -100,6 +100,10 @@ final class PlayerSessionConnectionTest extends FunctionalTestCase
         self::assertSame('10.0.0.1', $session['host']);
         self::assertSame(38281, $session['port']);
         self::assertSame('archipelago', $session['password']);
+        // The address a client (and the site's tracker) connects to, as on the other connection views.
+        self::assertSame('wss://10.0.0.1:38281', $session['connectionUri']);
+        // Only what a player needs: none of the session's admin side.
+        self::assertSame(['id', 'eventId', 'status', 'host', 'port', 'connectionUri', 'password'], array_keys($session));
 
         $slots = $data['slots'];
         self::assertIsArray($slots);
@@ -199,6 +203,7 @@ final class PlayerSessionConnectionTest extends FunctionalTestCase
         // it to another session since - the last address is no longer this session's to give out.
         self::assertNull($session['host']);
         self::assertNull($session['port']);
+        self::assertNull($session['connectionUri']);
         self::assertSame('archipelago', $session['password']);
     }
 
