@@ -34,6 +34,10 @@ migration, aucune variable d'environnement.
   inscrit relisent alors la session sur leur propre route authentifiée. Après la mise en prod, changer les mots de
   passe admin des parties en cours n'est pas nécessaire pour les nouvelles parties, mais reste prudent pour celles
   lancées avant.
+- **Audit des dépendances du front** : l'avis `picomatch` GHSA-fc5q-39xc-vjpf (ReDoS), publié sans version
+  corrigée (toutes jusqu'à 4.0.7), faisait échouer `pnpm audit` et la CI frontend de toutes les PR. picomatch
+  n'arrive que par des outils de développement (jest, eslint, shadcn) et n'est pas servi aux visiteurs : l'avis est
+  ignoré (`pnpm.auditConfig.ignoreGhsas`), à retirer dès qu'une version corrigée sort.
 
 ## [0.68.1] - 2026-11-17
 
