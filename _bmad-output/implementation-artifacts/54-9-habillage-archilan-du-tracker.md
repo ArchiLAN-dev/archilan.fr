@@ -112,5 +112,10 @@ vu sur un autre jeu que Majora's Mask), et leurs couleurs de fond ne vont pas av
     carte, et « Que veulent dire les couleurs ? » déplie une phrase par couleur. Mêmes mots dans les pastilles
     (« En partie : faisable, pas encore ») et le détail d'un lieu ; option « Montrer ce qui est faisable hors
     logique ».
+  - **Légende en compteurs cliquables** (choix de Jean) : la légende devient les compteurs de la carte affichée
+    (« 18 faisables », « 11 en partie », « 73 pas encore »), seules les couleurs présentes apparaissent ; un clic ne
+    garde que ces lieux sur la carte (plusieurs à la fois, « Tout afficher » pour revenir, remis à zéro au changement
+    de carte) ; le sens de chaque couleur au survol, et le « ? » déplie toutes les explications (`countPins`,
+    `pinCategory`).
 - Tests : `layout-outline.test.ts` (7), disposition ArchiLAN dans `tracker-widgets.test.tsx` (4), erreurs regroupées
   et plein écran dans `tracker-screen.test.tsx`. `pnpm gates` vert (1901 tests).

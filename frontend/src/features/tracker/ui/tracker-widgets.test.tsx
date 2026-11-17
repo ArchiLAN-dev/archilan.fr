@@ -203,16 +203,31 @@ describe("the ArchiLAN layout of a pack (story 54.9)", () => {
     expect(container.querySelector('[role="tablist"]')).toBeNull();
   });
 
-  it("explains the colours of the map in plain words, next to the map (story 54.9)", async () => {
+  it("counts the pins of the map by colour, and a counter narrows the map to them (story 54.9)", async () => {
     await render({}, DEFAULT_SETTINGS, "tracker_default", true);
     const legend = byLabel("Légende de la carte");
     expect(byLabel("Cartes").contains(legend)).toBe(true);
-    expect(legend.textContent).toContain("Faisable");
-    expect(legend.textContent).toContain("Hors logique");
-    expect(legend.textContent).toContain("Plusieurs couleurs");
+    expect(legend.textContent).toContain("1 faisable");
+    expect(legend.textContent).toContain("1 pas encore");
+    // Nothing of a colour absent from the map.
+    expect(legend.textContent).not.toContain("hors logique");
+
+    const reachable = Array.from(legend.querySelectorAll("button")).find((candidate) => candidate.textContent === "1 faisable");
+    if (reachable === undefined) throw new Error("no counter");
+    click(reachable);
+    expect(reachable.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector('[aria-label^="Swamp"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label^="Woodfall"]')).toBeNull();
+    click(button("Tout afficher"));
+    expect(container.querySelector('[aria-label^="Woodfall"]')).not.toBeNull();
+  });
+
+  it("explains the colours in plain words on demand (story 54.9)", async () => {
+    await render({}, DEFAULT_SETTINGS, "tracker_default", true);
     expect(container.textContent).not.toContain("Il te manque encore quelque chose.");
-    click(button("Que veulent dire les couleurs ?"));
+    click(byLabel("Que veulent dire les couleurs ?"));
     expect(container.textContent).toContain("Il te manque encore quelque chose.");
+    expect(container.textContent).toContain("Hors logique");
   });
 
   it("draws a layout it cannot read the way the pack writes it", async () => {

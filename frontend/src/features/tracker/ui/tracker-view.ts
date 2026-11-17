@@ -200,3 +200,47 @@ export function rootLayoutName(pack: LoadedPack): string | null {
   }
   return null;
 }
+
+/**
+ * Story 54.9: what a pin counts as in the legend's counters. One state gives its own category, several give « mixed »
+ * (the split pin), none left to do gives « done ».
+ */
+export type PinCategory = "reachable" | "sequence" | "inspect" | "unreachable" | "mixed" | "done";
+
+export const PIN_CATEGORIES: readonly PinCategory[] = ["reachable", "sequence", "inspect", "mixed", "unreachable", "done"];
+
+export function pinCategory(marks: number): PinCategory {
+  switch (marks) {
+    case 0:
+      return "done";
+    case PinMark.Reachable:
+      return "reachable";
+    case PinMark.SequenceBreak:
+      return "sequence";
+    case PinMark.Inspect:
+      return "inspect";
+    case PinMark.Unreachable:
+      return "unreachable";
+    default:
+      return "mixed";
+  }
+}
+
+/** The pins of a map, by category, as the map draws them (hidden ones left out). */
+export function countPins(
+  locations: readonly LoadedLocation[],
+  map: string,
+  view: TrackerView,
+  settings: TrackerSettings,
+): Record<PinCategory, number> {
+  const counts: Record<PinCategory, number> = { reachable: 0, sequence: 0, inspect: 0, unreachable: 0, mixed: 0, done: 0 };
+  for (const location of locations) {
+    const spots = location.mapLocations.filter((spot) => spot.map === map).length;
+    if (spots === 0) continue;
+    const marks = locationMarks(location, view, settings);
+    if (marks === null) continue;
+    if (settings.hideCleared && marks === 0) continue;
+    counts[pinCategory(marks)] += spots;
+  }
+  return counts;
+}

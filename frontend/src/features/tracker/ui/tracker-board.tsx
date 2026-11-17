@@ -12,6 +12,7 @@ import { useTracker } from "./tracker-context";
 import { MapLegend } from "./tracker-legend";
 import { LayoutWidget, ROOT, TrackerLayout } from "./tracker-layout";
 import { TrackerMap } from "./tracker-map";
+import { countPins, type PinCategory } from "./tracker-view";
 
 /**
  * Story 54.9: the site's layout of a pack. The maps the pack's layout holds are shown one at a time in the middle,
@@ -25,7 +26,7 @@ const MAX_MAP_TABS = 6;
 type MobileView = "items" | "maps";
 
 export function TrackerBoard({ root }: { root: string }) {
-  const { pack, settings } = useTracker();
+  const { pack, view: trackerView, settings } = useTracker();
   const outline = useMemo(() => {
     const node = pack.layouts[root];
     return isLayoutNode(node) ? outlineLayout(node, pack.layouts) : { maps: [], sections: [] };
@@ -36,6 +37,12 @@ export function TrackerBoard({ root }: { root: string }) {
     [outline.maps, pack.maps],
   );
   const [chosenMap, setChosenMap] = useState<string | null>(null);
+  // Story 54.9: the legend's counters narrow the map to some pins; a new map starts with all of them.
+  const [only, setOnly] = useState<ReadonlySet<PinCategory>>(() => new Set());
+  const chooseMap = (name: string) => {
+    setChosenMap(name);
+    setOnly(new Set());
+  };
   const [folded, setFolded] = useState(false);
   const [mobileView, setMobileView] = useState<MobileView>("maps");
 
@@ -89,7 +96,7 @@ export function TrackerBoard({ root }: { root: string }) {
                 <SelectField
                   className="w-full sm:w-auto sm:max-w-md"
                   label="Carte"
-                  onChange={setChosenMap}
+                  onChange={chooseMap}
                   options={maps.map((entry) => ({ value: entry.name, label: mapPathLabel(entry) }))}
                   value={shownMap.name}
                 />
@@ -100,7 +107,7 @@ export function TrackerBoard({ root }: { root: string }) {
                       aria-selected={entry === shownMap}
                       className={tabClassName(entry === shownMap)}
                       key={entry.name}
-                      onClick={() => setChosenMap(entry.name)}
+                      onClick={() => chooseMap(entry.name)}
                       role="tab"
                       type="button"
                     >
@@ -110,9 +117,9 @@ export function TrackerBoard({ root }: { root: string }) {
                 </div>
               )
             ) : null}
-            <MapLegend settings={settings} />
+            <MapLegend counts={countPins(pack.locations, shownMap.name, trackerView, settings)} only={only} onOnly={setOnly} />
             {/* A new map is a new view: its zoom starts on the whole image. */}
-            <TrackerMap key={shownMap.name} name={shownMap.name} />
+            <TrackerMap key={shownMap.name} name={shownMap.name} only={only} />
           </section>
         ) : null}
       </div>

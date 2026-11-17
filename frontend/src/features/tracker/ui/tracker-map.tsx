@@ -7,7 +7,7 @@ import type { LoadedLocation, LoadedMap } from "../engine/protocol";
 import type { MapLocation } from "../engine/locations";
 import { LocationDetail } from "./location-detail";
 import { usePackImage, useTracker } from "./tracker-context";
-import { HINT_LABELS, locationHighlight, locationMarks, pinBackground, pinLabel } from "./tracker-view";
+import { HINT_LABELS, locationHighlight, locationMarks, pinBackground, pinCategory, pinLabel, type PinCategory } from "./tracker-view";
 
 /**
  * A pack map with its pins (story 54.5, decision 5): the image at its own pixel size, pins at the pack's
@@ -76,17 +76,21 @@ function pinsOf(locations: readonly LoadedLocation[], map: string): Pin[] {
   return pins;
 }
 
-export function TrackerMap({ name }: { name: string }) {
+/** No filter: every pin shows. */
+const ALL_PINS: ReadonlySet<PinCategory> = new Set();
+
+/** `only`: story 54.9, the legend's counters narrow the map to some pins; empty, every pin shows. */
+export function TrackerMap({ name, only = ALL_PINS }: { name: string; only?: ReadonlySet<PinCategory> }) {
   const { pack, images } = useTracker();
   const map = pack.maps.find((candidate) => candidate.name === name);
   const url = usePackImage(images, map?.img ?? null);
   if (map === undefined) return null;
   if (url === null) return <p className="text-sm text-muted-foreground">Image de la carte « {name} » absente du pack.</p>;
   if (url === undefined) return <div aria-busy="true" className="min-h-64 flex-1 animate-pulse rounded-md bg-surface" />;
-  return <MapCanvas map={map} url={url} />;
+  return <MapCanvas map={map} only={only} url={url} />;
 }
 
-function MapCanvas({ map, url }: { map: LoadedMap; url: string }) {
+function MapCanvas({ map, url, only }: { map: LoadedMap; url: string; only: ReadonlySet<PinCategory> }) {
   const { pack } = useTracker();
   const viewport = useRef<HTMLDivElement>(null);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
@@ -226,6 +230,7 @@ function MapCanvas({ map, url }: { map: LoadedMap; url: string }) {
           />
           {pins.map((pin) => (
             <MapPin
+              only={only}
               key={pin.key}
               map={map}
               minHit={coarse ? COARSE_PIN_PX / transform.scale : 0}
@@ -292,14 +297,15 @@ function MapButton({ label, onClick, children }: { label: string; onClick: () =>
   );
 }
 
-type PinProps = { pin: Pin; map: LoadedMap; minHit: number; selected: boolean; onSelect: () => void };
+type PinProps = { pin: Pin; map: LoadedMap; minHit: number; selected: boolean; onSelect: () => void; only: ReadonlySet<PinCategory> };
 
-export function MapPin({ pin, map, minHit, selected, onSelect }: PinProps) {
+export function MapPin({ pin, map, minHit, selected, onSelect, only }: PinProps) {
   const { view, settings } = useTracker();
   // Story 54.9: the states of the sections still to do, each in its part of the pin, as in PopTracker.
   const marks = locationMarks(pin.location, view, settings);
   if (marks === null) return null;
   if (settings.hideCleared && marks === 0) return null;
+  if (only.size > 0 && !only.has(pinCategory(marks))) return null;
   const size = pin.spot.size ?? map.locationSize ?? DEFAULT_PIN_SIZE;
   // Enlarged with an invisible frame, so that pins do not cover each other when the map is zoomed out.
   const hit = Math.max(0, (minHit - size) / 2);

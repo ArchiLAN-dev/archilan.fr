@@ -19,6 +19,8 @@ import {
   indexItemsByCode,
   locationLevel,
   locationMarks,
+  countPins,
+  pinCategory,
   mergeView,
   PinMark,
   pinBackground,
@@ -259,5 +261,23 @@ describe("PopTracker's pins (story 54.9)", () => {
     expect(pinBackground(PinMark.Reachable | PinMark.Unreachable)).toBe(
       "conic-gradient(from -45deg, var(--color-tracker-none) 0 25%, var(--color-tracker-normal) 0 50%, var(--color-tracker-normal) 0 75%, var(--color-tracker-none) 0 100%)",
     );
+  });
+});
+
+describe("the legend's counters (story 54.9)", () => {
+  it("files a pin by its states, and counts the pins of one map", () => {
+    expect(pinCategory(0)).toBe("done");
+    expect(pinCategory(PinMark.Inspect)).toBe("inspect");
+    expect(pinCategory(PinMark.Reachable | PinMark.Unreachable)).toBe("mixed");
+    const view = mergeView(EMPTY_VIEW, INITIAL_STATE);
+    expect(countPins(TEST_PACK.locations, "world", view, DEFAULT_SETTINGS)).toEqual({
+      reachable: 1,
+      sequence: 0,
+      inspect: 0,
+      unreachable: 1,
+      mixed: 0,
+      done: 0,
+    });
+    expect(countPins(TEST_PACK.locations, "elsewhere", view, DEFAULT_SETTINGS).reachable).toBe(0);
   });
 });
