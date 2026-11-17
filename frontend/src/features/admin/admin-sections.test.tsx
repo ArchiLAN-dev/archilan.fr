@@ -31,7 +31,7 @@ describe("admin menu (story 3.20)", () => {
     ]) {
       expect(hrefs).toContain(href);
     }
-    expect(hrefs).toHaveLength(24);
+    expect(hrefs).toHaveLength(25);
   });
 
   it("lights the entry on any of its tabs and their sub-pages", () => {
