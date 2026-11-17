@@ -5,6 +5,29 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.68.0] - 2026-11-17
+
+Epic 55 : liens suivis. Deux migrations (`Version20261117130000`, `Version20261117140000`, la seconde crée un lien pour
+chaque partenaire existant), aucune variable d'environnement, aucune tâche planifiée.
+
+### Ajouté
+
+- **Liens suivis** (55.1) : un lien court `/l/{code}` compte chaque passage puis redirige (302), vers une page du site
+  (lien entrant : Discord, réseaux, affiches) ou vers un autre site en `https://` (lien sortant). Compteur maison par
+  jour et par domaine d'origine, sans cookie, sans IP ni donnée personnelle. Les robots et aperçus (Discordbot...) et
+  les requêtes HEAD sont redirigés sans être comptés ; un code inconnu ou désactivé mène à l'accueil. Gestion dans
+  l'admin, onglet « Liens suivis » du Dashboard (`/admin/liens`).
+- **Statistiques des liens** (55.2) : passages sur 7 jours, 30 jours et au total (jour de Paris), filtre par sens,
+  tri sur 30 jours ; détail d'un lien avec les passages par jour sur 90 jours et les origines principales.
+- **Liens des partenaires** (55.3) : chaque partenaire a son lien `/l/partenaire-{nom}`, tenu à jour avec lui et
+  désactivé à sa suppression (les compteurs restent). Les cartes partenaires (accueil, `/partenaires`, fiche d'event,
+  récap) passent par ce lien ; la fiche admin d'un partenaire affiche les passages envoyés.
+
+### Modifié
+
+- Les cartes partenaires ne portent plus `noreferrer` (`rel="sponsored noopener"`) : le partenaire voit la visite venir
+  d'archilan.fr. La politique `strict-origin-when-cross-origin` du site n'envoie que l'origine, jamais la page.
+
 ## [0.67.0] - 2026-11-17
 
 Epic 54 : trackers PopTracker intégrés au site. Quatre migrations (`Version20261116100000`, `Version20261117100000`,
