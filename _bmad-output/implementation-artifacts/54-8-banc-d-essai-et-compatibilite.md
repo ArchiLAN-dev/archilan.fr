@@ -1,6 +1,6 @@
 # Story 54.8 - Banc d'essai et compatibilité
 
-**Status:** in-progress
+**Status:** review
 **Epic:** 54 - Trackers de jeu, les packs PopTracker sur le site (`_bmad-output/planning-artifacts/epics/epic-54-trackers-poptracker.md`)
 **Date:** 2026-11-16
 **Branche:** `feature/epic-54-story-8-banc-d-essai-et-compatibilite`
@@ -58,7 +58,7 @@ afin de ne pas activer un tracker qui plante ou qui ment.
 
 - [x] **Task 1** (AC 1) - Mode essai du tracker, accès admin aux versions non servies.
 - [x] **Task 2** (AC 2, 3) - Endpoint de rapport, stockage, pastilles, confirmation.
-- [ ] **Task 3** (AC 4) - Campagne sur 10 jeux, compléments du shim, `deferred-work.md`.
+- [x] **Task 3** (AC 4) - Campagne sur 10 jeux, compléments du shim, `deferred-work.md`.
 - [x] **Task 4** (AC 8, pour les tâches 1 et 2) - Gates.
 
 ## Dev Agent Record
@@ -85,9 +85,37 @@ afin de ne pas activer un tracker qui plante ou qui ment.
 - **Tests** : `TrackerPackCompatibilityTest` (3 tests), `admin-tracker-pack-compatibility.test.tsx` (pastilles,
   lien, confirmation), 4 tests d'essai dans `tracker-screen.test.tsx`.
 
-### Reste à faire (tâche 3, AC 4)
+### Campagne (tâche 3, AC 4, AC 7)
 
-La campagne demande (1) la liste des 10 jeux les plus joués, qui vient d'une requête sur la base de prod, et (2) le
-téléchargement puis l'exécution de packs PopTracker tiers. Elle attend l'accord de Jean sur ces deux points, ou
-qu'il passe lui-même les essais depuis la fiche admin (le banc d'essai est fait pour ça).
+Jeux retenus d'après l'historique public des 293 joueurs du sitemap depuis le 2026-05-17 (pas d'accès direct à la
+base de prod), parmi ceux qui ont un pack PopTracker publié. A Link Between Worlds s'ajoute pour l'ArchiWAN #2. Les
+packs sont essayés hors navigateur par `engine/pack-campaign.test.ts` (ignoré sans `TRACKER_CAMPAIGN_DIR`), avec le
+même moteur que l'écran, toutes variantes comprises.
 
+| Jeu | Pack | État final | Ce qui manquait au site |
+|---|---|---|---|
+| Celeste (Open World) | Zeeveez v2.1.2 | OK (2 variantes) | `ScriptHost:RunScriptAsync`, widget `canvas` |
+| Cuphead | TheArcticFox42 v1.2.2 | OK (2 variantes) | règles circulaires résolues par point fixe |
+| Hollow Knight | master-cheaf117 2.1 | OK | `ScriptHost:CreateLuaItem` |
+| Inscryption | DrBibop 1.0.2 | OK (2 variantes) | codes d'un item progressif portés à côté de ses étapes |
+| Kirby Squeak Squad | Talcerase v0.2.1 | OK | rien |
+| Pokémon Platinum | palex00 2.2.1 | OK (2 variantes) | `ScriptHost:CreateLuaItem`, `ImageReference:FromImageReference` avec mods |
+| Spyro 3 | 19techguy91 (main) | Se charge, 1 erreur du pack | chemin à la casse près (Windows) ; le pack appelle `Tracker:AddMemoryWatch`, qui n'existe pas dans PopTracker non plus |
+| A Link Between Worlds | Legendgreat v1.4.2 | Erreur du pack | `floors.json` absent de la release |
+| Luigi's Mansion | DevinLB v0.1.1 | Erreur du pack | `scripts/utils.lua` et `ghost_rando_table.lua` absents |
+| Majora's Mask | G4M3RL1F3 v0.9.5.3 | Erreur du pack | `scripts/inverse_rules.lua` absent |
+
+7 packs sur 10 se chargent ; les 3 restants échouent sur des fichiers que leur release ne contient pas (PopTracker
+échoue de la même façon). Ajouts au moteur (`ENGINE_VERSION` = 2), un test chacun dans
+`tracker-engine-shim.test.ts`, `pack-files.test.ts` et `tracker-widgets.test.tsx` :
+
+- items Lua (`ScriptHost:CreateLuaItem`) : codes, dessin (icône, nom, badge), clics, `FindObjectForCode` ;
+- scripts asynchrones (`RunScriptAsync`, `RunStringAsync`) dans leur propre environnement, exécutés après la passe
+  de logique, puis leur callback ;
+- codes d'un item progressif portés au niveau de l'item ;
+- règles circulaires : point fixe en 20 passes au plus, comme PopTracker, au lieu d'une erreur ;
+- une erreur de `init.lua` est journalisée et le pack garde ce qui a été chargé avant ; une fonction absente de
+  PopTracker lui-même est une erreur du pack, plus une « fonction non prise en charge » ;
+- `Tracker:OpenLink` (sans effet), chemin de fichier à la casse près, widget `canvas`.
+
+Reportés : voir `deferred-work.md`, section epic 54.

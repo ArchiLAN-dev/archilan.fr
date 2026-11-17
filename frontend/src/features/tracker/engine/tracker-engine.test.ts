@@ -126,9 +126,10 @@ describe("TrackerEngine with the mini pack", () => {
     expect(errors[0].message).toContain("broken on purpose");
   });
 
-  it("stops an @ loop instead of recursing", () => {
+  it("settles an @ loop as PopTracker does, without recursing nor reporting an error", () => {
     expect(engine.sectionLevel("Cave/Mouth/Loop A")).toBe(AccessibilityLevel.None);
-    expect(engine.logs.some((log) => log.message.startsWith("Boucle de règles"))).toBe(true);
+    expect(engine.logs.some((log) => log.level === "info" && log.message.startsWith("Règles circulaires"))).toBe(true);
+    expect(engine.logs.filter((log) => log.message.includes("Boucle") || log.message.includes("circulaires"))).toHaveLength(1);
   });
 
   it("sends only what changed, by id, and shares the state of a ref section", () => {
@@ -270,8 +271,8 @@ describe("TrackerEngine sandbox", () => {
 
 describe("TrackerEngine failures", () => {
   it("stops on an unsupported API with its name", async () => {
-    const failure = TrackerEngine.load(packWithInit("Tracker:OpenLink('https://example.org')"), "standard");
-    await expect(failure).rejects.toMatchObject({ kind: "unsupported_api", message: expect.stringContaining("Tracker:OpenLink") });
+    const failure = TrackerEngine.load(packWithInit("Archipelago:LocationChecks({ 1 })"), "standard");
+    await expect(failure).rejects.toMatchObject({ kind: "unsupported_api", message: expect.stringContaining("Archipelago:LocationChecks") });
   });
 
   it("reports a Lua error with its file and line", async () => {

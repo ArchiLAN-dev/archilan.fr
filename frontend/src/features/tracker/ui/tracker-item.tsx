@@ -73,7 +73,12 @@ function imageOf(definition: ItemDefinition, state: ItemState | undefined, view:
     const image = definition.compositeImages.find((candidate) => candidate.left === left && candidate.right === right);
     return { image: image ?? stage ?? empty, active: true, name };
   }
-  return { image: stage ?? empty, active: definition.type === "static" || state?.active === true, name };
+  // Story 54.8: a Lua item draws the icon and name its Lua table holds now.
+  if (state?.icon !== undefined) {
+    const image: ItemImage = { img: state.icon.img, imgMods: state.icon.imgMods, disabledImg: null, disabledImgMods: null };
+    return { image, active: true, name: state.name ?? name };
+  }
+  return { image: stage ?? empty, active: definition.type === "static" || state?.active === true, name: state?.name ?? name };
 }
 
 /** PopTracker greys an inactive item unless the pack gives its own image or mods for that. */

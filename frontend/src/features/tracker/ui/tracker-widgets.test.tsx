@@ -47,7 +47,7 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-async function render(update: Partial<StateUpdate> = {}, settings: TrackerSettings = DEFAULT_SETTINGS) {
+async function render(update: Partial<StateUpdate> = {}, settings: TrackerSettings = DEFAULT_SETTINGS, layout = "tracker_default") {
   const view = mergeView(mergeView(EMPTY_VIEW, INITIAL_STATE), { items: {}, sections: {}, locations: {}, ...update });
   const images = new PackImages(
     async (path) => new Blob([path]),
@@ -67,7 +67,7 @@ async function render(update: Partial<StateUpdate> = {}, settings: TrackerSettin
   await act(async () => {
     root.render(
       <TrackerContextProvider value={context}>
-        <TrackerLayout name="tracker_default" />
+        <TrackerLayout name={layout} />
       </TrackerContextProvider>,
     );
   });
@@ -127,6 +127,22 @@ describe("tracker layout widgets (story 54.5)", () => {
   it("reports the widgets it does not draw, once", async () => {
     await render();
     expect(unsupported).toEqual(["recentpins"]);
+  });
+
+  it("places the children of a canvas at their position and size (story 54.8)", async () => {
+    await render({}, DEFAULT_SETTINGS, "canvas_board");
+    const board = container.querySelector<HTMLElement>('[data-widget="canvas"] > div');
+    expect(board?.style.width).toBe("200px");
+    const placed = board?.firstElementChild as HTMLElement | null;
+    expect(placed?.style.left).toBe("120px");
+    expect(placed?.style.top).toBe("50px");
+    expect(byLabel("Bow").style.getPropertyValue("--item-w")).toBe("40px");
+    expect(unsupported).toEqual([]);
+  });
+
+  it("draws a Lua item with the icon and name its state carries (story 54.8)", async () => {
+    await render({ items: { 3: { active: true, stage: 0, count: 0, overlay: "", icon: { img: "images/pokemon/25.png", imgMods: "" }, name: "Evolve Pikachu" } } });
+    expect(container.querySelector('[aria-label="Evolve Pikachu"]')).not.toBeNull();
   });
 
   it("honours item_size and the alpha-first background", async () => {
