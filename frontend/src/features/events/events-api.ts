@@ -501,6 +501,8 @@ export type SessionSlotInfo = {
   slotOrder: number;
   gameId: string;
   gameName: string;
+  /** Story 54.7: the game's page, for its tracker. Null on older payloads. */
+  gameSlug: string | null;
   /** Story 11.10: the game slot id (its co-players), null on older payloads. */
   slotId: string | null;
   /** Story 11.10: played on someone else's registration, as a co-player. */
@@ -549,6 +551,7 @@ function parseSessionSlot(v: unknown): SessionSlotInfo | null {
     slotOrder: v.slotOrder,
     gameId: v.gameId,
     gameName: v.gameName,
+    gameSlug: hasStringProp(v, "gameSlug") ? v.gameSlug : null,
     slotId: hasStringProp(v, "slotId") ? v.slotId : null,
     coPlayed: hasBooleanProp(v, "coPlayed") ? v.coPlayed : false,
   };

@@ -72,6 +72,19 @@ export async function getGameTrackerPacks(gameId: string): Promise<GameTrackerPa
   }
 }
 
+/** Story 54.7: the same list from the browser, for the « Ouvrir le tracker » button of a slot. */
+export async function fetchGameTrackerPacks(gameId: string): Promise<GameTrackerPack[]> {
+  try {
+    const response = await fetch(`${env.apiBaseUrl}/games/${encodeURIComponent(gameId)}/tracker-packs`);
+    if (!response.ok) return [];
+    const payload: unknown = await response.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload) || !Array.isArray(payload.data)) return [];
+    return payload.data.filter(isGameTrackerPack);
+  } catch {
+    return [];
+  }
+}
+
 /** Story 54.5: archives already downloaded, by version (a version's zip never changes). */
 const ARCHIVE_CACHE = "tracker-packs";
 /** Past this many versions in the cache, the ones unused for the longest go. */
@@ -148,7 +161,8 @@ export async function fetchTrackerArchive(versionId: string, onProgress: Archive
     // Fall back to the network.
   }
   try {
-    const response = await fetch(url);
+    // Story 54.8: with the session, so an admin trying a pack not yet offered gets its zip.
+    const response = await fetch(url, { credentials: "include" });
     if (!response.ok) return null;
     const bytes = await readWithProgress(response, onProgress);
     // The buffer goes to the Worker and comes back detached: the cache keeps its own copy.

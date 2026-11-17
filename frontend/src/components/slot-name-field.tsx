@@ -3,8 +3,13 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 
-/** A slot the player connects with: its Archipelago name, and its game when they play several. */
-export type ConnectionSlot = { name: string; game: string | null };
+import type { SlotTracker } from "@/features/tracker/tracker-slot-link";
+
+/**
+ * A slot the player connects with: its Archipelago name, and its game when they play several. Story 54.7: where its
+ * tracker opens, when the screen knows the slot's game and context.
+ */
+export type ConnectionSlot = { name: string; game: string | null; tracker?: SlotTracker };
 
 /**
  * The slot name, first thing a client asks for (story 17.29). Shown in clear and large, unlike the

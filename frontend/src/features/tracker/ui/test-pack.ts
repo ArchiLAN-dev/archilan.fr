@@ -63,6 +63,12 @@ export const TEST_PACK: LoadedPack = {
         ],
       },
     },
+    canvas_board: {
+      type: "canvas",
+      width: 200,
+      height: 100,
+      content: [{ type: "item", item: "bow", width: 40, height: 30, canvas_left: 120, canvas_top: 50 }],
+    },
     items: {
       type: "array",
       orientation: "vertical",

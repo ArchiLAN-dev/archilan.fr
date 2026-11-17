@@ -9,6 +9,8 @@ import type { EngineAction, LoadedPack, LogLevel } from "../engine/protocol";
 import type { TrackerClient } from "../engine/tracker-client";
 import { TrackerClientError } from "../engine/tracker-client";
 import { ApLink, type ApClientLike, type ApCredentials, type ApLinkStatus } from "./ap-link";
+import type { SlotRef } from "../slot-ref";
+import type { SlotConnection } from "../tracker-slot-api";
 import { PackImages } from "./pack-images";
 import { clearSaved, readSaved, restoreActions, snapshot, trackerStorageKey, writeSaved } from "./tracker-storage";
 import { EMPTY_VIEW, mergeView, type TrackerView } from "./tracker-view";
@@ -22,6 +24,8 @@ export type TrackerSessionSource = {
   versionId: string;
   rootPath: string;
   variantUid: string;
+  /** Story 54.7: the slot the tracker follows; its state is kept apart from the other slots'. */
+  slotRef?: string | null;
 };
 
 export type TrackerSessionDeps = {
@@ -32,6 +36,8 @@ export type TrackerSessionDeps = {
   }) => TrackerClient;
   /** Story 54.6: one Archipelago connection attempt. */
   createApClient: () => ApClientLike;
+  /** Story 54.7: the connection of the slot the tracker was opened on. */
+  fetchSlotConnection: (ref: SlotRef) => Promise<SlotConnection>;
 };
 
 export type PackMessage = { level: LogLevel; message: string };
@@ -115,7 +121,7 @@ export function useTrackerSession(source: TrackerSessionSource, deps: TrackerSes
       if (cancelled) return;
       let current = mergeView(EMPTY_VIEW, loaded.state);
       initial.current = current;
-      const key = trackerStorageKey(loaded.pack);
+      const key = trackerStorageKey(loaded.pack, source.slotRef ?? null);
       storageKey.current = key;
       const saved = readSaved(key);
       if (saved !== null) {
@@ -143,7 +149,7 @@ export function useTrackerSession(source: TrackerSessionSource, deps: TrackerSes
       started?.dispose();
       images?.dispose();
     };
-  }, [source.versionId, source.rootPath, source.variantUid, fetchArchive, createClient, addMessage]);
+  }, [source.versionId, source.rootPath, source.variantUid, source.slotRef, fetchArchive, createClient, addMessage]);
 
   const pack = phase.kind === "ready" ? phase.pack : null;
 

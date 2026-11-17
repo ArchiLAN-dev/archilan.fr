@@ -38,6 +38,9 @@ const pack = {
   lastCheckedAt: null,
   lastCheckError: null,
   versions: [],
+  rootPath: "",
+  sha256: "abc",
+  compatibility: [],
 };
 
 describe("isAdminTrackerPack (story 54.1)", () => {
@@ -142,7 +145,7 @@ describe("pack updates (story 54.3)", () => {
     const withUpdate = {
       ...pack,
       availableUpdate: { packageVersion: "0.9.5.4", downloadUrl: "https://x", sha256: null, changelog: ["a"], gitTag: null },
-      versions: [{ id: "v1", packageVersion: "0.9.5.3", gitTag: null, sizeBytes: 1, importedAt: "2026-11-16T10:00:00+00:00", current: true }],
+      versions: [{ id: "v1", packageVersion: "0.9.5.3", gitTag: null, sizeBytes: 1, importedAt: "2026-11-16T10:00:00+00:00", rootPath: "", sha256: "abc", variants: [], current: true }],
     };
     expect(isAdminTrackerPack(withUpdate)).toBe(true);
     expect(isAdminTrackerPack({ ...withUpdate, availableUpdate: { packageVersion: 3 } })).toBe(false);
