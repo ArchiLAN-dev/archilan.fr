@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Check, Clock, Copy, Download, XCircle } from "lucide-react";
 
 import { env } from "@/lib/env";
@@ -15,7 +15,6 @@ import {
   fetchAuthProbe,
   fetchRegistrationPatches,
   fetchSessionConnection,
-  parseSession,
   type ConnectionData,
   type SessionConnectionResult,
   type SessionPayload,
@@ -50,7 +49,6 @@ export function SessionConnectionGate({
 }) {
   const router = useRouter();
   const { eventSlug, registrationId } = use(params);
-  const queryClient = useQueryClient();
 
   // Fresh session probe on every gate entry (staleTime 0), like the pre-TanStack effect.
   const authQuery = useQuery({
@@ -149,16 +147,6 @@ export function SessionConnectionGate({
       onRefetch={refetchConnection}
       eventSlug={eventSlug}
       registrationId={registrationId}
-      onSessionUpdate={(session) => {
-        // SSE frames patch the session into the cached connection data in place.
-        queryClient.setQueryData<SessionConnectionQueryData>(
-          ["session-connection", registrationId],
-          (prev) =>
-            prev?.kind === "success"
-              ? { kind: "success", data: { ...prev.data, session } }
-              : prev,
-        );
-      }}
     />
   );
 }
@@ -169,13 +157,11 @@ function ConnectionView({
   eventSlug,
   data,
   registrationId,
-  onSessionUpdate,
   onRefetch,
 }: {
   data: ConnectionData;
   eventSlug: string;
   registrationId: string;
-  onSessionUpdate: (session: SessionPayload) => void;
   onRefetch: () => Promise<void>;
 }) {
   const sessionId = data.session?.id ?? null;
@@ -185,13 +171,11 @@ function ConnectionView({
   const topicUrl = sessionId ? `/sessions/${sessionId}` : "";
   const mercureUrl = isLive && env.mercurePublicUrl ? env.mercurePublicUrl : null;
 
-  const onMessage = useCallback(
-    (incoming: SessionFrame) => {
-      const session = parseSession(incoming);
-      if (session) onSessionUpdate(session);
-    },
-    [onSessionUpdate],
-  );
+  // v0.68.2: the public topic only says the session changed (id, status); the address and the password come
+  // from the registrant's own connection endpoint, read again on each frame.
+  const onMessage = useCallback(() => {
+    void onRefetch();
+  }, [onRefetch]);
 
   // When SSE is unavailable, the fallback poll refetches the connection query instead of
   // patching the session by hand: the cache stays the single source of truth.

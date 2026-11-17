@@ -64,6 +64,9 @@ final class SessionLifecycleTest extends FunctionalTestCase
             sprintf('/sessions/%s', $sessionId),
             $hub->published[0]->getTopics()[0],
         );
+        // The topic is public: it says the session changed, nothing more (no password, no logs).
+        self::assertFalse($hub->published[0]->isPrivate());
+        self::assertSame(['id' => $sessionId, 'status' => 'draft'], json_decode($hub->published[0]->getData(), true, 512, JSON_THROW_ON_ERROR));
     }
 
     public function testAdminCanGetSession(): void

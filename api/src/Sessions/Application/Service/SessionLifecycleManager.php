@@ -1071,11 +1071,16 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         return ['found' => true];
     }
 
+    /**
+     * The `/sessions/{id}` topic is public: anyone holding a session id may read it. It only says that the session
+     * changed (its id and status); each page then reads the session from its own authenticated endpoint (admin, or
+     * the registrant's connection). The full payload carries the admin and server passwords and the logs.
+     */
     private function publish(Session $session): void
     {
         $update = new Update(
             sprintf('/sessions/%s', $session->getId()),
-            json_encode($session->payload(), JSON_THROW_ON_ERROR),
+            json_encode(['id' => $session->getId(), 'status' => $session->getStatus()], JSON_THROW_ON_ERROR),
         );
         try {
             $this->mercureHub->publish($update);

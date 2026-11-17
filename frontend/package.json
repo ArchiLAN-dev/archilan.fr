@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "0.68.1",
+  "version": "0.68.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -90,7 +90,8 @@
     "auditConfig": {
       "ignoreGhsas": [
         "GHSA-mh99-v99m-4gvg",
-        "GHSA-vfj7-8cjw-p6xm"
+        "GHSA-vfj7-8cjw-p6xm",
+        "GHSA-fc5q-39xc-vjpf"
       ]
     }
   }

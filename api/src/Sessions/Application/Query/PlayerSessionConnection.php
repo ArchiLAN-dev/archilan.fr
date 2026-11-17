@@ -11,7 +11,7 @@ use App\Sessions\Application\Support\SlotsPlayedBy;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
-use App\Sessions\Domain\ValueObject\SessionView;
+use App\Shared\Application\Support\ArchipelagoConnectionUri;
 
 final readonly class PlayerSessionConnection
 {
@@ -31,7 +31,11 @@ final readonly class PlayerSessionConnection
      *   - the registration exists and belongs to the given user
      *   - the registration is confirmed (reserved + submittedAt set)
      *
-     * @return array{eventId: string, session: SessionView|null, slots: list<array{slotName: string, slotOrder: int, gameId: string, gameName: string, gameSlug: string|null, slotId: string|null, coPlayed: bool}>}|null
+     * The session is reduced to what a player needs to connect: its address only while it runs (story 17.26), the
+     * client address built like the other connection views (`connectionUri`, story 37.4), and the slot password. The
+     * admin and server passwords, logs, runner and archive paths stay on the admin side.
+     *
+     * @return array{eventId: string, session: array{id: string, eventId: string, status: string, host: string|null, port: int|null, connectionUri: string|null, password: string|null}|null, slots: list<array{slotName: string, slotOrder: int, gameId: string, gameName: string, gameSlug: string|null, slotId: string|null, coPlayed: bool}>}|null
      */
     public function getConnection(string $registrationId, string $userId): ?array
     {
@@ -96,8 +100,26 @@ final readonly class PlayerSessionConnection
         return [
             // Story 11.10: the event, for the co-players of each slot.
             'eventId' => $registration->getEventId(),
-            'session' => $session->payload(),
+            'session' => $this->playerView($session),
             'slots' => $slots,
+        ];
+    }
+
+    /**
+     * @return array{id: string, eventId: string, status: string, host: string|null, port: int|null, connectionUri: string|null, password: string|null}
+     */
+    private function playerView(Session $session): array
+    {
+        $endpoint = $session->liveEndpoint();
+
+        return [
+            'id' => $session->getId(),
+            'eventId' => $session->getEventId(),
+            'status' => $session->getStatus(),
+            'host' => $endpoint['host'] ?? null,
+            'port' => $endpoint['port'] ?? null,
+            'connectionUri' => ArchipelagoConnectionUri::tryBuild($endpoint['host'] ?? null, $endpoint['port'] ?? null),
+            'password' => $session->getPassword(),
         ];
     }
 }

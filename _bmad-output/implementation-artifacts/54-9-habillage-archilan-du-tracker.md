@@ -120,5 +120,11 @@ vu sur un autre jeu que Majora's Mask), et leurs couleurs de fond ne vont pas av
   - **Carte sur téléphone** : la zone prend les proportions de l'image (au plus 75 % de l'écran) au lieu de 60 % de
     la hauteur d'écran, et le bloc du tracker n'impose plus 70 % de hauteur : plus de bande vide autour d'une carte
     large. Grand écran inchangé.
+  - **Correctif v0.68.2, pack Minish Cap (deoxis9001)** : son onglet « Settings », à côté des cartes, était serré
+    dans le panneau Objets (deux rangées d'onglets imbriqués qui débordaient, étiquettes 320x64 écrasées en 32x32).
+    Un onglet voisin des cartes qui a ses propres onglets ou une rangée plus large que le panneau devient une page de
+    la zone centrale (`OutlineMap.page`), ouverte par un bouton à côté de la liste des cartes ; `item_width` /
+    `item_height` sont lus (`readItemSize`) ; les onglets d'un pack passent à la ligne ; les sélecteurs Pack /
+    Variante ne dépassent plus la largeur de l'écran.
 - Tests : `layout-outline.test.ts` (7), disposition ArchiLAN dans `tracker-widgets.test.tsx` (4), erreurs regroupées
   et plein écran dans `tracker-screen.test.tsx`. `pnpm gates` vert (1901 tests).
