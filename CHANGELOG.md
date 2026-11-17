@@ -5,6 +5,16 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.66.3] - 2026-11-17
+
+Mise à jour de sécurité de Next.js. Aucune migration, aucune variable.
+
+### Sécurité
+
+- Next.js 16.4.3 -> 16.4.6 (avec `eslint-config-next` et `@next/bundle-analyzer`) : corrige GHSA-mfr8-8qww-v76h
+  (divulgation d'informations entre root params quand une fonction `use cache` passe par `unstable_cache()`,
+  versions 16.3.0 à 16.4.4). Le build ne s'arrête plus sur l'avertissement de sécurité de Next.js.
+
 ## [0.66.2] - 2026-11-13
 
 Suivi des grandes parties et page de session (story 17.36). Aucune migration, aucune variable. Le correctif du suivi est
