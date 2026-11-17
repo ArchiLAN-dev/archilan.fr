@@ -98,5 +98,14 @@ vu sur un autre jeu que Majora's Mask), et leurs couleurs de fond ne vont pas av
   fond du site. Plein écran : l'appel vise bien le bloc du tracker sans l'en-tête du site, mais le navigateur piloté
   le refuse (« not granted ») : à confirmer dans un vrai navigateur. Le jeu au scroll horizontal signalé par Jean
   reste à vérifier (seul MM en local).
+- Retour de Jean (2026-11-17), ajouté à la story :
+  - **Zoom plancher** : on ne dézoome plus au-delà de la carte entière ; atteint, la carte revient centrée
+    (`zoomAt` borné par `fitTransform`, molette, pincement et bouton).
+  - **Pastilles comme PopTracker** : chaque section encore à faire apporte un état (vert accessible, rouge
+    inaccessible, jaune séquence break ou partiel, bleu à inspecter ; gris si tout est fait), et la case est coupée
+    selon ses diagonales avec la table `triangleValues` de PopTracker (`PIN_PARTS`, haut / gauche / bas / droite) au
+    lieu d'une couleur « en partie accessible ». Couleurs reprises de `StateColors` (MapWidget) : #20ff20, #cf1010,
+    #ffff20, #3040ff, #3f3f3f. Légende sans « En partie accessible », avec un exemple de case partagée. Vérifié sur
+    MM : 11 lieux en case partagée vert/rouge.
 - Tests : `layout-outline.test.ts` (7), disposition ArchiLAN dans `tracker-widgets.test.tsx` (4), erreurs regroupées
   et plein écran dans `tracker-screen.test.tsx`. `pnpm gates` vert (1901 tests).

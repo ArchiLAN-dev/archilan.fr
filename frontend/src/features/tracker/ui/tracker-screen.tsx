@@ -38,6 +38,8 @@ import {
   indexItemsByCode,
   LEGEND_ORDER,
   LEVEL_STYLES,
+  PinMark,
+  pinBackground,
   rootLayoutName,
   type TrackerSettings,
 } from "./tracker-view";
@@ -319,6 +321,15 @@ function Legend({ settings }: { settings: TrackerSettings }) {
           {LEVEL_STYLES[level].label}
         </li>
       ))}
+      {/* Story 54.9: as in PopTracker, a location whose sections differ shows each state in a part of its pin. */}
+      <li className="inline-flex items-center gap-1.5">
+        <span
+          aria-hidden="true"
+          className="size-3 rounded-sm"
+          style={{ background: pinBackground(PinMark.Reachable | PinMark.Unreachable) }}
+        />
+        Plusieurs états : la case est partagée
+      </li>
     </ul>
   );
 }

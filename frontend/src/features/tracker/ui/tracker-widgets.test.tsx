@@ -260,11 +260,19 @@ describe("tracker items", () => {
 });
 
 describe("map pins and the location popover", () => {
-  it("colours each pin by its level", async () => {
+  it("colours each pin by its level, with PopTracker's colours", async () => {
     await render();
-    expect(byLabel("Woodfall : Inaccessible").className).toContain("bg-tracker-none");
-    expect(byLabel("Swamp : Accessible").className).toContain("bg-tracker-normal");
+    expect(byLabel("Woodfall : Inaccessible").style.background).toBe("var(--color-tracker-none)");
+    expect(byLabel("Swamp : Accessible").style.background).toBe("var(--color-tracker-normal)");
     expect(byLabel("Swamp : Accessible").className).toContain("rotate-45");
+  });
+
+  it("splits the pin of a location whose sections differ, as PopTracker does (story 54.9)", async () => {
+    await render({ sections: { 10: section(AccessibilityLevel.Normal, 1) } });
+    const pin = byLabel("Woodfall : Accessible et Inaccessible");
+    expect(pin.getAttribute("data-marks")).toBe("3");
+    // Top and left red, bottom and right green: no colour of its own for a mixed location.
+    expect(pin.style.background).toContain("conic-gradient");
   });
 
   it("follows the settings: sequence breaks and what is done", async () => {
@@ -286,9 +294,9 @@ describe("map pins and the location popover", () => {
         20: { ...section(AccessibilityLevel.Cleared, 0), highlight: Highlight.Priority },
       },
     });
-    const pin = byLabel("Woodfall : Inaccessible, indice : important");
+    const pin = byLabel("Woodfall : Accessible et Inaccessible, indice : important");
     expect(pin.querySelector("[data-hint]")).not.toBeNull();
-    expect(byLabel("Swamp : Accessible").querySelector("[data-hint]")).toBeNull();
+    expect(byLabel("Swamp : Fait").querySelector("[data-hint]")).toBeNull();
     fire(pin, new MouseEvent("click", { bubbles: true }));
     expect(byLabel("Entrance : Accessible, indice : important")).not.toBeNull();
     expect(byLabel("Pots : Inaccessible")).not.toBeNull();

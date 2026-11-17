@@ -4,11 +4,10 @@ import { Maximize, Minus, Plus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
 
 import type { LoadedLocation, LoadedMap } from "../engine/protocol";
-import { AccessibilityLevel } from "../engine/levels";
 import type { MapLocation } from "../engine/locations";
 import { LocationDetail } from "./location-detail";
 import { usePackImage, useTracker } from "./tracker-context";
-import { displayLevel, HINT_LABELS, LEVEL_STYLES, locationHighlight, locationLevel } from "./tracker-view";
+import { HINT_LABELS, locationHighlight, locationMarks, pinBackground, pinLabel } from "./tracker-view";
 
 /**
  * A pack map with its pins (story 54.5, decision 5): the image at its own pixel size, pins at the pack's
@@ -40,13 +39,20 @@ function useCoarsePointer(): boolean {
   );
 }
 
-function clampScale(scale: number): number {
-  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+function clampScale(scale: number, min = MIN_SCALE): number {
+  return Math.min(MAX_SCALE, Math.max(min, scale));
 }
 
-/** Zoom by `factor` keeping the screen point `at` still. */
-export function zoomAt(transform: Transform, factor: number, at: Point): Transform {
-  const scale = clampScale(transform.scale * factor);
+type Size = { width: number; height: number };
+
+/**
+ * Zoom by `factor` keeping the screen point `at` still. Story 54.9: given the image and the viewport, it never goes
+ * below the whole map; reaching it, the map is centred again.
+ */
+export function zoomAt(transform: Transform, factor: number, at: Point, bounds?: { image: Size; viewport: Size }): Transform {
+  const whole = bounds === undefined ? null : fitTransform(bounds.image, bounds.viewport);
+  const scale = clampScale(transform.scale * factor, whole?.scale ?? MIN_SCALE);
+  if (whole !== null && scale <= whole.scale) return whole;
   const ratio = scale / transform.scale;
   return { scale, x: at.x - (at.x - transform.x) * ratio, y: at.y - (at.y - transform.y) * ratio };
 }
@@ -84,6 +90,11 @@ function MapCanvas({ map, url }: { map: LoadedMap; url: string }) {
   const { pack } = useTracker();
   const viewport = useRef<HTMLDivElement>(null);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
+  // The wheel listener is set once: it reads the image size from here.
+  const naturalRef = useRef<Size | null>(null);
+  useEffect(() => {
+    naturalRef.current = natural;
+  }, [natural]);
   const [transform, setTransform] = useState<Transform>({ scale: 1, x: 0, y: 0 });
   const [selected, setSelected] = useState<Pin | null>(null);
   /** Once the player moved the map, a resize no longer refits it. */
@@ -119,7 +130,7 @@ function MapCanvas({ map, url }: { map: LoadedMap; url: string }) {
       touched.current = true;
       const box = target.getBoundingClientRect();
       const at = { x: event.clientX - box.left, y: event.clientY - box.top };
-      setTransform((current) => zoomAt(current, event.deltaY < 0 ? 1.2 : 1 / 1.2, at));
+      setTransform((current) => zoomAt(current, event.deltaY < 0 ? 1.2 : 1 / 1.2, at, boundsOf(target, naturalRef.current)));
     }
     element.addEventListener("wheel", onWheel, { passive: false });
     return () => element.removeEventListener("wheel", onWheel);
@@ -153,7 +164,8 @@ function MapCanvas({ map, url }: { map: LoadedMap; url: string }) {
       gesture.current.pinch = distance;
       if (before === null || before === 0) return;
       const center = middle(pointers.current);
-      setTransform((current) => zoomAt(current, distance / before, center));
+      const bounds = boundsOf(event.currentTarget, natural);
+      setTransform((current) => zoomAt(current, distance / before, center, bounds));
       return;
     }
     setTransform((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
@@ -168,7 +180,7 @@ function MapCanvas({ map, url }: { map: LoadedMap; url: string }) {
     const element = viewport.current;
     if (element === null) return;
     touched.current = true;
-    setTransform((current) => zoomAt(current, factor, { x: element.clientWidth / 2, y: element.clientHeight / 2 }));
+    setTransform((current) => zoomAt(current, factor, { x: element.clientWidth / 2, y: element.clientHeight / 2 }, boundsOf(element, natural)));
   }
 
   return (
@@ -248,6 +260,12 @@ function MapCanvas({ map, url }: { map: LoadedMap; url: string }) {
   );
 }
 
+/** The zoom's floor: the whole image in the viewport, once the image size is known. */
+function boundsOf(element: HTMLElement, image: Size | null): { image: Size; viewport: Size } | undefined {
+  if (image === null) return undefined;
+  return { image, viewport: { width: element.clientWidth, height: element.clientHeight } };
+}
+
 function spread(points: Map<number, Point>): number {
   const [a, b] = [...points.values()];
   if (a === undefined || b === undefined) return 0;
@@ -278,11 +296,10 @@ type PinProps = { pin: Pin; map: LoadedMap; minHit: number; selected: boolean; o
 
 export function MapPin({ pin, map, minHit, selected, onSelect }: PinProps) {
   const { view, settings } = useTracker();
-  const level = locationLevel(pin.location, view);
-  if (level === null) return null;
-  if (settings.hideCleared && level === AccessibilityLevel.Cleared) return null;
-  const shown = displayLevel(level, settings);
-  const style = LEVEL_STYLES[shown];
+  // Story 54.9: the states of the sections still to do, each in its part of the pin, as in PopTracker.
+  const marks = locationMarks(pin.location, view, settings);
+  if (marks === null) return null;
+  if (settings.hideCleared && marks === 0) return null;
   const size = pin.spot.size ?? map.locationSize ?? DEFAULT_PIN_SIZE;
   // Enlarged with an invisible frame, so that pins do not cover each other when the map is zoomed out.
   const hit = Math.max(0, (minHit - size) / 2);
@@ -291,11 +308,11 @@ export function MapPin({ pin, map, minHit, selected, onSelect }: PinProps) {
   const hint = HINT_LABELS[locationHighlight(pin.location, view)];
   return (
     <button
-      aria-label={`${pin.location.name} : ${style.label}${hint === null ? "" : `, ${hint}`}`}
-      className={`absolute border-background before:absolute before:inset-[calc(-1*var(--pin-hit))] before:content-[''] ${style.className} ${diamond ? "rotate-45" : ""} ${
+      aria-label={`${pin.location.name} : ${pinLabel(marks)}${hint === null ? "" : `, ${hint}`}`}
+      className={`absolute border-background before:absolute before:inset-[calc(-1*var(--pin-hit))] before:content-[''] ${diamond ? "rotate-45" : ""} ${
         selected ? "outline outline-2 outline-foreground" : ""
       } focus-visible:outline focus-visible:outline-2 focus-visible:outline-foreground`}
-      data-level={shown}
+      data-marks={marks}
       onClick={(event) => {
         event.stopPropagation();
         onSelect();
@@ -308,6 +325,7 @@ export function MapPin({ pin, map, minHit, selected, onSelect }: PinProps) {
         height: diamond ? size / Math.SQRT2 : size,
         margin: diamond ? (size - size / Math.SQRT2) / 2 : 0,
         borderWidth: border,
+        background: pinBackground(marks),
         ["--pin-hit" as string]: `${hit}px`,
       }}
       title={pin.location.name}
