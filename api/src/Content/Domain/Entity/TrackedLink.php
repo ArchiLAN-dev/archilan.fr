@@ -9,10 +9,12 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * A tracked link (story 55.1): `/l/{code}` counts a visit, then sends to the target. A target on the site (a path)
  * makes an inbound link, one elsewhere (`https://`) an outbound one. The code never changes: it may be printed already.
+ * Story 55.3: a partner's link follows its partner (label, target, state) and is changed only through it.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'tracked_link')]
 #[ORM\UniqueConstraint(name: 'uniq_tracked_link_code', columns: ['code'])]
+#[ORM\UniqueConstraint(name: 'uniq_tracked_link_partner', columns: ['partner_id'])]
 final class TrackedLink
 {
     public const int MAX_LABEL = 120;
@@ -35,6 +37,9 @@ final class TrackedLink
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'updated_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $updatedAt,
+        /** Story 55.3: the partner this link leads to; it stays once the partner is deleted (the link is off then). */
+        #[ORM\Column(name: 'partner_id', type: 'string', length: 32, nullable: true)]
+        private ?string $partnerId = null,
     ) {
     }
 
@@ -48,6 +53,35 @@ final class TrackedLink
         $link->edit($label, $target, true, $now);
 
         return $link;
+    }
+
+    /**
+     * Story 55.3: the link of a partner, on and off with it.
+     *
+     * @throws \DomainException with the code of the first invalid field
+     */
+    public static function forPartner(string $id, string $code, string $partnerId, string $partnerName, string $partnerUrl, bool $active, \DateTimeImmutable $now): self
+    {
+        $link = self::create($id, $code, self::partnerLabel($partnerName), $partnerUrl, $now);
+        $link->partnerId = $partnerId;
+        $link->edit($link->label, $partnerUrl, $active, $now);
+
+        return $link;
+    }
+
+    /**
+     * Story 55.3: the partner changed (name, address, shown or hidden) or was deleted (`$active` false).
+     *
+     * @throws \DomainException with the code of the first invalid field
+     */
+    public function followPartner(string $partnerName, string $partnerUrl, bool $active, \DateTimeImmutable $now): void
+    {
+        $this->edit(self::partnerLabel($partnerName), $partnerUrl, $active, $now);
+    }
+
+    public static function partnerLabel(string $partnerName): string
+    {
+        return 'Partenaire : '.trim($partnerName);
     }
 
     /** @throws \DomainException with the code of the first invalid field */
@@ -95,6 +129,16 @@ final class TrackedLink
     public function isOutbound(): bool
     {
         return !str_starts_with($this->target, '/');
+    }
+
+    public function getPartnerId(): ?string
+    {
+        return $this->partnerId;
+    }
+
+    public function isPartnerLink(): bool
+    {
+        return null !== $this->partnerId;
     }
 
     public function getId(): string

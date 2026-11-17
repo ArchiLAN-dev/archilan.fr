@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Content\Infrastructure\Doctrine;
 
 use App\Content\Domain\Entity\Partner;
+use App\Content\Domain\Entity\TrackedLink;
 use App\Content\Domain\Repository\PartnerRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -24,9 +25,12 @@ final readonly class DoctrinePartnerRepository implements PartnerRepositoryInter
         return $this->entityManager->getRepository(Partner::class)->findBy([], ['position' => 'ASC', 'createdAt' => 'ASC']);
     }
 
-    public function save(Partner $partner): void
+    public function save(Partner $partner, ?TrackedLink $link = null): void
     {
         $this->entityManager->persist($partner);
+        if ($link instanceof TrackedLink) {
+            $this->entityManager->persist($link);
+        }
         $this->entityManager->flush();
     }
 
@@ -38,9 +42,12 @@ final readonly class DoctrinePartnerRepository implements PartnerRepositoryInter
         $this->entityManager->flush();
     }
 
-    public function remove(Partner $partner): void
+    public function remove(Partner $partner, ?TrackedLink $link = null): void
     {
         $this->entityManager->remove($partner);
+        if ($link instanceof TrackedLink) {
+            $this->entityManager->persist($link);
+        }
         $this->entityManager->flush();
     }
 }

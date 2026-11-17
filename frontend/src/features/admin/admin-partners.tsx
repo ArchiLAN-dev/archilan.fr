@@ -229,6 +229,13 @@ function PartnerRow({ partner, isFirst, isLast, pending, onEdit, onMove, onDelet
         </div>
         {partner.description !== "" ? <p className="text-sm text-muted-foreground">{partner.description}</p> : null}
         <p className="truncate text-xs text-muted-foreground">{displayHost(partner.url)}</p>
+        {partner.visits !== undefined ? (
+          <p className="text-xs text-muted-foreground">
+            {/* Story 55.3: what the site sent to the partner, through its tracked link. */}
+            <span className="font-semibold tabular-nums text-foreground">{partner.visits.last30}</span> passages envoyés sur 30 jours ·{" "}
+            {partner.visits.total} au total
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-wrap gap-2">
         <button aria-label={`Monter ${partner.name}`} className={buttonVariants({ variant: "ghost" })} disabled={isFirst || pending} onClick={() => onMove(-1)} type="button">

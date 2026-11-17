@@ -33,6 +33,7 @@ const DISCORD: TrackedLink = {
   active: true,
   createdAt: "2026-11-17T10:00:00+00:00",
   visits: { total: 12, last7: 2, last30: 5 },
+  partnerId: null,
 };
 const LUDO: TrackedLink = {
   ...DISCORD,
@@ -197,5 +198,12 @@ describe("link statistics (story 55.2)", () => {
     expect(dayLabel("2026-11-17")).toBe("17 nov.");
     expect(originLabel("")).toBe("Direct ou inconnu");
     expect(originLabel("t.co")).toBe("t.co");
+  });
+
+  it("does not offer to edit a partner's link (story 55.3)", async () => {
+    fetchLinks.mockResolvedValue([{ ...LUDO, partnerId: "p1", label: "Partenaire : Ludothèque" }]);
+    await render(<AdminLinks />);
+    expect(container.textContent).toContain("Partenaire");
+    expect(container.querySelector('button[aria-label="Modifier Partenaire : Ludothèque"]')).toBeNull();
   });
 });

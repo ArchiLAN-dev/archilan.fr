@@ -5,6 +5,9 @@ parameters:
         - tests
     excludePaths:
         - tests/bootstrap.php
+    # Story 55.3: a functional test runs a migration's backfill; migrations are not autoloaded, only scanned here.
+    scanDirectories:
+        - migrations
     # phpstan-doctrine and phpstan-symfony are auto-registered via phpstan/extension-installer
     # (story 33.6). They run without containerXmlPath / objectManagerLoader on purpose: those
     # bindings need a booted kernel or a warmed cache, which CI's fresh checkout does not have.
