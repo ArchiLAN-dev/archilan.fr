@@ -126,5 +126,14 @@ vu sur un autre jeu que Majora's Mask), et leurs couleurs de fond ne vont pas av
     la zone centrale (`OutlineMap.page`), ouverte par un bouton à côté de la liste des cartes ; `item_width` /
     `item_height` sont lus (`readItemSize`) ; les onglets d'un pack passent à la ligne ; les sélecteurs Pack /
     Variante ne dépassent plus la largeur de l'écran.
+  - **Checks d'une zone par-dessus le cadre** (retour de Jean, 2026-11-17) : la fenêtre des checks d'une zone était
+    dessinée dans la carte (`overflow-hidden`) et coupée dès qu'elle dépassait le cadre. Elle s'ouvre maintenant
+    au-dessus de la page (portail, `position: fixed`, dans l'élément plein écran en plein écran), placée par
+    `placePopover` : à côté de la zone, en dessous si elle tient, au-dessus sinon, toujours dans la fenêtre, et suit
+    le défilement. Vérifié sur Minish Cap : une zone en bas à droite ouvre ses checks au-dessus, 72 px hors du cadre.
+  - **Pack Twilight Princess (Kizugaya/TPRAP_poptracker)** : la carte ne s'affichait pas. Le pack écrit le contenu de
+    ses onglets en liste (`"content": [{ "type": "map" }]`), que l'outline et le rendu des onglets ignoraient : aucune
+    carte trouvée, retour au rendu brut du pack, où la zone des cartes n'avait pas de largeur. `readTabContent` lit
+    une liste comme un conteneur (son widget s'il est seul). Vérifié : 74 cartes, la carte principale et ses 28 zones.
 - Tests : `layout-outline.test.ts` (7), disposition ArchiLAN dans `tracker-widgets.test.tsx` (4), erreurs regroupées
   et plein écran dans `tracker-screen.test.tsx`. `pnpm gates` vert (1901 tests).

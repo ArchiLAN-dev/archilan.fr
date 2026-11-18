@@ -13,6 +13,7 @@ import {
   readMargin,
   readItemSize,
   readSpacing,
+  readTabContent,
   readText,
   type LayoutNode,
   type Size,
@@ -235,7 +236,7 @@ function readTabs(node: LayoutNode): Tab[] {
   if (!Array.isArray(tabs)) return [];
   return tabs.filter(isLayoutNode).map((tab, index) => ({
     title: readText(tab, "title") ?? `Onglet ${index + 1}`,
-    content: isLayoutNode(tab.content) ? tab.content : null,
+    content: readTabContent(tab),
   }));
 }
 

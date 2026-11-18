@@ -20,6 +20,19 @@ export function readChildren(node: LayoutNode): LayoutNode[] {
   return isLayoutNode(content) ? [content] : [];
 }
 
+/**
+ * Story 54.9: the content of a tab. PopTracker takes one widget or a list of them (the Twilight Princess pack writes
+ * `"content": [{ "type": "map", ... }]`); a list is read as a container of its widgets, a list of one as that widget.
+ */
+export function readTabContent(tab: LayoutNode): LayoutNode | null {
+  const content = tab.content;
+  if (isLayoutNode(content)) return content;
+  if (!Array.isArray(content)) return null;
+  const widgets = content.filter(isLayoutNode);
+  if (widgets.length === 0) return null;
+  return widgets.length === 1 ? widgets[0] : { type: "container", content: widgets };
+}
+
 function numbers(value: unknown): number[] {
   if (typeof value === "number" && Number.isFinite(value)) return [value];
   if (typeof value !== "string") return [];
