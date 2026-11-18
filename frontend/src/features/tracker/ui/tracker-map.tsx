@@ -8,7 +8,7 @@ import type { LoadedLocation, LoadedMap } from "../engine/protocol";
 import type { MapLocation } from "../engine/locations";
 import { LocationDetail } from "./location-detail";
 import { usePackImage, useTracker } from "./tracker-context";
-import { HINT_LABELS, locationHighlight, locationMarks, pinBackground, pinCategory, pinLabel, type PinCategory } from "./tracker-view";
+import { HINT_LABELS, locationHighlight, locationMarks, pinBackground, pinCategory, pinLabel, pinShown, type PinCategory, type TrackerView } from "./tracker-view";
 
 /**
  * A pack map with its pins (story 54.5, decision 5): the image at its own pixel size, pins at the pack's
@@ -67,11 +67,11 @@ export function fitTransform(image: { width: number; height: number }, viewport:
 
 type Pin = { location: LoadedLocation; spot: MapLocation; key: string };
 
-function pinsOf(locations: readonly LoadedLocation[], map: string): Pin[] {
+function pinsOf(locations: readonly LoadedLocation[], map: string, view: TrackerView): Pin[] {
   const pins: Pin[] = [];
   for (const location of locations) {
     location.mapLocations.forEach((spot, index) => {
-      if (spot.map === map) pins.push({ location, spot, key: `${location.id}-${index}` });
+      if (spot.map === map && pinShown(view, location.id, index)) pins.push({ location, spot, key: `${location.id}-${index}` });
     });
   }
   return pins;
@@ -92,7 +92,7 @@ export function TrackerMap({ name, only = ALL_PINS }: { name: string; only?: Rea
 }
 
 function MapCanvas({ map, url, only }: { map: LoadedMap; url: string; only: ReadonlySet<PinCategory> }) {
-  const { pack } = useTracker();
+  const { pack, view } = useTracker();
   const viewport = useRef<HTMLDivElement>(null);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   // The wheel listener is set once: it reads the image size from here.
@@ -107,7 +107,7 @@ function MapCanvas({ map, url, only }: { map: LoadedMap; url: string; only: Read
   const pointers = useRef(new Map<number, Point>());
   const gesture = useRef<{ moved: number; pinch: number | null }>({ moved: 0, pinch: null });
   const coarse = useCoarsePointer();
-  const pins = pinsOf(pack.locations, map.name);
+  const pins = pinsOf(pack.locations, map.name, view);
 
   const fit = useCallback(() => {
     const element = viewport.current;

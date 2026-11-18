@@ -26,6 +26,8 @@ export class TrackerSection {
   /** Interface state: how many checks are left. */
   available: number;
   highlight: Highlight = Highlight.None;
+  /** Story 54.11: `inspectable_sequence_break`, from the location when the section does not say. */
+  inspectableSequenceBreak = false;
 
   constructor(
     readonly id: number,
@@ -50,6 +52,8 @@ export class TrackerSection {
 
 export class TrackerLocation {
   parent: TrackerLocation | null;
+  /** Story 54.11: `inspectable_sequence_break`, from the parent when the location does not say. */
+  inspectableSequenceBreak = false;
   readonly children: TrackerLocation[] = [];
   readonly sections: TrackerSection[] = [];
 
@@ -164,6 +168,7 @@ export class LocationRegistry {
       },
       readString(raw, "overlay_background") ?? parent?.overlayBackground ?? null,
     );
+    location.inspectableSequenceBreak = readBoolean(raw, "inspectable_sequence_break") ?? parent?.inspectableSequenceBreak ?? false;
     if (parent === null) this.roots.push(location);
     else parent.children.push(location);
     this.locationList.push(location);
@@ -177,6 +182,7 @@ export class LocationRegistry {
 
     for (const section of readObjects(raw, "sections")) {
       const parsed = readSection(this.nextId++, section, location);
+      parsed.inspectableSequenceBreak = readBoolean(section, "inspectable_sequence_break") ?? location.inspectableSequenceBreak;
       location.sections.push(parsed);
       this.sectionList.push(parsed);
       this.sectionsById.set(parsed.id, parsed);

@@ -39,5 +39,20 @@ export function toAccessibilityLevel(value: number): AccessibilityLevel {
   return best;
 }
 
-/** The PopTracker version the engine stands for: packs compare `PopVersion` as a string. */
-export const EMULATED_POPTRACKER_VERSION = "0.34.0";
+/**
+ * The PopTracker version the engine stands for: packs compare `PopVersion` as a string. Story 54.11: 0.35.4, the
+ * last version whose additions the engine covers whole (0.36.0 adds pin shapes not drawn yet), so a pack that tests
+ * for 0.36 falls back on what an older PopTracker draws.
+ */
+export const EMULATED_POPTRACKER_VERSION = "0.35.4";
+
+/** Story 54.11: compares two dotted versions (`0.25.9` < `0.26.0`), numerically part by part. */
+export function compareVersions(a: string, b: string): number {
+  const left = a.split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const right = b.split(".").map((part) => Number.parseInt(part, 10) || 0);
+  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+    const diff = (left[index] ?? 0) - (right[index] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}

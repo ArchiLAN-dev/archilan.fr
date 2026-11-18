@@ -19,6 +19,7 @@ import {
   type Size,
   type Spacing,
 } from "./layout-attributes";
+import { mapNames } from "./layout-outline";
 import { useTracker } from "./tracker-context";
 import { TrackerItem } from "./tracker-item";
 import { TrackerMap } from "./tracker-map";
@@ -321,7 +322,8 @@ function LayoutReference({ node, inherited }: Props) {
 }
 
 function MapWidget({ node }: { node: LayoutNode }) {
-  const names = Array.isArray(node.maps) ? node.maps.filter((name): name is string => typeof name === "string") : [];
+  const { pack } = useTracker();
+  const names = mapNames(node, pack.maps.map((map) => map.name));
   return (
     <div className={`${GROW} gap-2`}>
       {names.map((name) => (

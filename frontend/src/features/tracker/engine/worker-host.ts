@@ -19,8 +19,37 @@ const IMAGE_TYPES: Record<string, string> = {
   webp: "image/webp",
 };
 
+/** Story 54.11: how often the frame handlers of a pack run (PopTracker: every frame; here, enough for timers). */
+export const FRAME_INTERVAL_MS = 100;
+
 export function createWorkerHost(post: (response: TrackerResponse) => void, options: EngineOptions = {}): WorkerHost {
   let engine: TrackerEngine | null = null;
+  let clock: ReturnType<typeof setInterval> | null = null;
+  let lastFrame = 0;
+
+  /** The clock runs while the loaded pack has frame handlers. */
+  const syncClock = (): void => {
+    const wanted = engine !== null && engine.hasFrameHandlers();
+    if (wanted && clock === null) {
+      lastFrame = performance.now();
+      clock = setInterval(() => {
+        if (engine === null) return;
+        const now = performance.now();
+        const elapsed = (now - lastFrame) / 1000;
+        lastFrame = now;
+        try {
+          const state = engine.frame(elapsed);
+          if (state !== null) post({ type: "frame", state });
+        } catch (error) {
+          fail(null, error);
+        }
+        syncClock();
+      }, FRAME_INTERVAL_MS);
+    } else if (!wanted && clock !== null) {
+      clearInterval(clock);
+      clock = null;
+    }
+  };
 
   const fail = (requestId: number | null, error: unknown): void => {
     if (error instanceof EngineError || error instanceof PackError) {
@@ -41,6 +70,7 @@ export function createWorkerHost(post: (response: TrackerResponse) => void, opti
     if (request.type === "load") {
       engine?.dispose();
       engine = null;
+      syncClock();
       const files = PackFiles.fromZip(new Uint8Array(request.archive), request.rootPath, request.variantUid);
       const loaded = await TrackerEngine.load(files, request.variantUid, {
         ...options,
@@ -49,6 +79,7 @@ export function createWorkerHost(post: (response: TrackerResponse) => void, opti
       });
       engine = loaded;
       post({ type: "loaded", requestId: request.requestId, pack: loaded.pack(), state: loaded.initialState() });
+      syncClock();
       return;
     }
     if (engine === null) throw new EngineError("not_loaded", "Aucun pack n'est chargé.");
@@ -82,6 +113,8 @@ export function createWorkerHost(post: (response: TrackerResponse) => void, opti
       } catch (error) {
         fail(message.requestId, error);
       }
+      // A handler may be added or removed by any call into the pack.
+      syncClock();
     },
   };
 }

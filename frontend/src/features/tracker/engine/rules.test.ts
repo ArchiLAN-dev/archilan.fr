@@ -1,5 +1,5 @@
 import { AccessibilityLevel } from "./levels";
-import { evaluateRules, parseRules, type RuleContext } from "./rules";
+import { evaluateRules, parseRules, type RuleContext, type RuleOptions } from "./rules";
 
 const { None, Inspect, SequenceBreak, Normal, Cleared, Partial } = AccessibilityLevel;
 
@@ -7,16 +7,18 @@ function context(
   items: Record<string, number>,
   functions: Record<string, (...args: string[]) => number | boolean | null> = {},
   references: Record<string, AccessibilityLevel> = {},
+  visible: Record<string, boolean> = {},
 ): RuleContext {
   return {
     providerCount: (code) => items[code] ?? 0,
     callFunction: (name, args) => functions[name]?.(...args) ?? null,
     referenceLevel: (path) => references[path] ?? None,
+    referenceVisible: (path) => visible[path] ?? false,
   };
 }
 
-function level(rules: unknown, ctx: RuleContext): AccessibilityLevel {
-  return evaluateRules(parseRules(rules), ctx);
+function level(rules: unknown, ctx: RuleContext, options: RuleOptions = {}): AccessibilityLevel {
+  return evaluateRules(parseRules(rules), ctx, options);
 }
 
 describe("parseRules", () => {
@@ -95,7 +97,10 @@ describe("evaluateRules", () => {
 
   it("follows @ references, a cleared one counting as open", () => {
     const ctx = context({}, {}, { "A/B": Inspect, "A/C": Cleared });
-    expect(level(["@A/B"], ctx)).toBe(Inspect);
+    // Story 54.11, as PopTracker: a target only inspectable does not hold back a rule outside {} (ignored there),
+    // and makes an inspect rule inspectable.
+    expect(level(["@A/B"], ctx)).toBe(Normal);
+    expect(level(["{@A/B}"], ctx)).toBe(Inspect);
     expect(level(["@A/C"], ctx)).toBe(Normal);
     expect(level(["@A/D"], ctx)).toBe(None);
   });
@@ -113,7 +118,21 @@ describe("evaluateRules", () => {
   });
 
   it("keeps the best entry", () => {
-    expect(level(["[a]", "{b}"], context({ b: 1 }))).toBe(SequenceBreak);
-    expect(level(["@P"], context({}, {}, { P: Partial }))).toBe(Partial);
+    expect(level(["[a]", "b"], context({}))).toBe(SequenceBreak);
+    // Story 54.11, as PopTracker: a partial target is not « none », the rule holds.
+    expect(level(["@P"], context({}, {}, { P: Partial }))).toBe(Normal);
+  });
+
+  it("combines sequence break and inspect across entries as PopTracker (story 54.11)", () => {
+    expect(level(["[a]", "{b}"], context({ b: 1 }))).toBe(Inspect);
+    expect(level(["[a]", "{b}"], context({ b: 1 }), { inspectableSequenceBreak: true })).toBe(SequenceBreak);
+    expect(level(["{[a]}"], context({}))).toBe(Inspect);
+  });
+
+  it("asks an @ in visibility rules for the target's visibility (story 54.11)", () => {
+    const ctx = context({}, {}, { Shown: None }, { Shown: true });
+    expect(level(["@Shown"], ctx, { visibility: true })).toBe(Normal);
+    expect(level(["@Hidden"], ctx, { visibility: true })).toBe(None);
+    expect(level(["@Shown"], ctx)).toBe(None);
   });
 });

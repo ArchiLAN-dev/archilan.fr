@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ArchiveProgress } from "@/features/trackers/tracker-packs-api";
 
 import type { ApEvent, ApOutgoing } from "../engine/ap-events";
-import type { EngineAction, LoadedPack, LogLevel } from "../engine/protocol";
+import type { EngineAction, LoadedPack, LogLevel, StateUpdate } from "../engine/protocol";
 import type { TrackerClient } from "../engine/tracker-client";
 import { TrackerClientError } from "../engine/tracker-client";
 import { ApLink, type ApClientLike, type ApCredentials, type ApLinkStatus } from "./ap-link";
@@ -33,6 +33,8 @@ export type TrackerSessionDeps = {
   createClient: (callbacks: {
     onLog: (log: { level: LogLevel; message: string }) => void;
     onApSend: (packets: ApOutgoing[]) => void;
+    /** Story 54.11: what the pack's frame handlers change, unasked. */
+    onFrame: (update: StateUpdate) => void;
   }) => TrackerClient;
   /** Story 54.6: one Archipelago connection attempt. */
   createApClient: () => ApClientLike;
@@ -115,6 +117,10 @@ export function useTrackerSession(source: TrackerSessionSource, deps: TrackerSes
         },
         onApSend: (packets) => {
           if (!cancelled) link.current?.send(packets);
+        },
+        // Story 54.11: what the pack's frame handlers change arrives on its own.
+        onFrame: (update) => {
+          if (!cancelled && client.current === started) setView((current) => mergeView(current, update));
         },
       });
       const loaded = await started.load(archive, source.rootPath, source.variantUid);

@@ -78,7 +78,20 @@ export type StateUpdate = {
   sections: Record<number, SectionState>;
   /** Locations that have sections. */
   locations: Record<number, AccessibilityLevel>;
+  /**
+   * Story 54.11: whether a pin with its own rules (`restrict_visibility_rules`, `force_invisibility_rules`) shows, by
+   * `pinKey(locationId, index in mapLocations)`. A pin without such rules is absent and shows.
+   */
+  pins?: Record<string, boolean>;
+  /** Story 54.11: `Tracker:UiHint(name, value)` calls since the last update, in order. */
+  hints?: UiHint[];
 };
+
+export type UiHint = { name: string; value: string };
+
+export function pinKey(locationId: number, index: number): string {
+  return `${locationId}:${index}`;
+}
 
 export type ItemStatePatch = { active?: boolean; stage?: number; count?: number };
 
@@ -125,7 +138,9 @@ export type TrackerResponse =
   | ({ type: "error"; requestId: number | null } & TrackerError)
   | { type: "log"; level: LogLevel; message: string }
   /** Story 54.6: what the pack asks the Archipelago server for (`Get`, `SetNotify`), sent by the page. */
-  | { type: "apSend"; packets: ApOutgoing[] };
+  | { type: "apSend"; packets: ApOutgoing[] }
+  /** Story 54.11: what the pack's frame handlers changed, unasked. */
+  | { type: "frame"; state: StateUpdate };
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -202,6 +217,8 @@ export function isTrackerResponse(value: unknown): value is TrackerResponse {
       return typeof value.level === "string" && typeof value.message === "string";
     case "apSend":
       return Array.isArray(value.packets);
+    case "frame":
+      return isObject(value.state);
     default:
       return false;
   }

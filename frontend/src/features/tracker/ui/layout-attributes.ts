@@ -46,12 +46,20 @@ export type Size = { width: number; height: number };
 
 export const DEFAULT_ITEM_SIZE: Size = { width: 32, height: 32 };
 
-/** `32` or `"32,24"`; a missing or broken value means the inherited one. */
+/**
+ * `32` or `"32,24"`; a missing or broken value means the inherited one. Story 54.11, as PopTracker: below 10 a value
+ * is a size code, 3 for 32 px and 4 for 48 px (the others are not defined and keep the inherited size).
+ */
 export function readSize(value: unknown): Size | null {
-  const parts = numbers(value);
+  const parts = numbers(value).map(sizeCode);
   const [width, height] = parts;
-  if (width === undefined || width <= 0) return null;
-  return { width, height: height !== undefined && height > 0 ? height : width };
+  if (width === undefined || width === null || width <= 0) return null;
+  return { width, height: height !== undefined && height !== null && height > 0 ? height : width };
+}
+
+function sizeCode(value: number): number | null {
+  if (value >= 10) return value;
+  return value === 3 ? 32 : value === 4 ? 48 : null;
 }
 
 /**

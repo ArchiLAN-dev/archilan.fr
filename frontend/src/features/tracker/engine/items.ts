@@ -71,6 +71,7 @@ export class TrackerItem {
   stage: number;
   count: number;
   overlay = "";
+  private iconOverride: { icon: { img: string; imgMods: string }; until: string } | null = null;
   increment: number;
   decrement: number;
   minCount: number;
@@ -121,7 +122,8 @@ export class TrackerItem {
       case "composite_toggle": {
         const left = this.definition.leftItemId === null ? undefined : lookup(this.definition.leftItemId);
         const right = this.definition.rightItemId === null ? undefined : lookup(this.definition.rightItemId);
-        return left?.active === true || right?.active === true ? 1 : 0;
+        // Story 54.11, as PopTracker: one per part that is on (0, 1 or 2); the parts' own codes are not repeated.
+        return (left?.active === true ? 1 : 0) + (right?.active === true ? 1 : 0);
       }
       case "progressive":
       case "progressive_toggle": {
@@ -196,7 +198,21 @@ export class TrackerItem {
   }
 
   state(): ItemState {
-    return { active: this.isActive(), stage: this.stage, count: this.count, overlay: this.overlay };
+    const state: ItemState = { active: this.isActive(), stage: this.stage, count: this.count, overlay: this.overlay };
+    if (this.iconOverride !== null && this.iconOverride.until === this.stateKey()) state.icon = this.iconOverride.icon;
+    return state;
+  }
+
+  /**
+   * Story 54.11: `.Icon` set from Lua, as PopTracker: drawn instead of the stage's image until the item's state
+   * changes. `null` drops it.
+   */
+  overrideIcon(icon: { img: string; imgMods: string } | null): void {
+    this.iconOverride = icon === null ? null : { icon, until: this.stateKey() };
+  }
+
+  private stateKey(): string {
+    return `${String(this.isActive())}:${this.stage}:${this.count}`;
   }
 
   private clickProgressive(button: MouseButton): void {
@@ -208,15 +224,19 @@ export class TrackerItem {
       this.stepStage(1);
       return;
     }
+    // Story 54.11, as PopTracker: with allow_disabled, "off" is a stage before the first one; going back from it loops
+    // to the last stage, switched on.
+    if (this.allowDisabled && this.active && this.stage === 0) {
+      this.active = false;
+      return;
+    }
     if (this.stage > 0) {
       this.stage -= 1;
       return;
     }
-    if (this.allowDisabled) {
-      this.active = false;
-      return;
-    }
-    if (this.loop) this.stage = this.definition.stages.length - 1;
+    if (!this.loop || this.definition.stages.length === 0) return;
+    this.stage = this.definition.stages.length - 1;
+    this.active = true;
   }
 
   private stepStage(direction: 1 | -1): void {
@@ -325,7 +345,8 @@ function parseItem(
   const itemCodes = stages === stagesFromJson ? ownCodes.filter((code) => !stages.some((stage) => stage.codes.includes(code))) : [];
 
   const minQuantity = readNumber(raw, "min_quantity") ?? 0;
-  const maxQuantity = readNumber(raw, "max_quantity") ?? 0;
+  // Story 54.11, as PopTracker: no max_quantity means no ceiling (a max below the min is read as infinite).
+  const maxQuantity = readNumber(raw, "max_quantity") ?? Math.min(-1, minQuantity - 1);
   const baseCode = readString(raw, "base_item");
   const leftCode = readString(raw, "item_left");
   const rightCode = readString(raw, "item_right");
@@ -353,11 +374,13 @@ function parseItem(
   const allowDisabled = type === "progressive" ? (readBoolean(raw, "allow_disabled") ?? true) : false;
   const initialActive =
     type === "static" || (type === "progressive" && !allowDisabled) || (readBoolean(raw, "initial_active_state") ?? false);
+  const increment = readNumber(raw, "increment") ?? 1;
   const item = new TrackerItem(definition, {
     allowDisabled,
-    loop: readBoolean(raw, "loop") ?? false,
-    increment: readNumber(raw, "increment") ?? 1,
-    decrement: readNumber(raw, "decrement") ?? 1,
+    // Story 54.11, as PopTracker: a progressive_toggle always loops; decrement defaults to the increment.
+    loop: type === "progressive_toggle" || (readBoolean(raw, "loop") ?? false),
+    increment,
+    decrement: readNumber(raw, "decrement") ?? increment,
     initialActive,
     initialStage: readNumber(raw, "initial_stage_idx") ?? 0,
     initialCount: 0,
