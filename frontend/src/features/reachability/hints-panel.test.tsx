@@ -101,3 +101,36 @@ describe("HintsPanel filters", () => {
     expect(html).toContain("Trouvé");
   });
 });
+
+/**
+ * Hotfix: a location id is unique within one game only, and Archipelago lets only the player who receives the item
+ * rank a hint. The picker appears on those hints alone, each one its own row.
+ */
+describe("HintsPanel priority picker", () => {
+  const onSetStatus = () => undefined;
+
+  test("appears on a hint the slot receives, not on another player's item found in its world", () => {
+    const mine = render(<HintsPanel data={data([hint()])} onSetStatus={onSetStatus} />);
+    expect(mine).toContain("<select");
+
+    const theirs = render(
+      <HintsPanel data={data([hint({ receivingPlayer: 3, findingPlayer: MY_SLOT })])} onSetStatus={onSetStatus} />,
+    );
+    expect(theirs).not.toContain("<select");
+  });
+
+  test("keeps two hints at the same location id in two worlds apart", () => {
+    const html = render(
+      <HintsPanel
+        data={data([
+          hint({ findingPlayer: 3, statusName: "priority", status: 30 }),
+          hint({ findingPlayer: 5, statusName: "avoid", status: 20 }),
+        ])}
+        onSetStatus={onSetStatus}
+      />,
+    );
+    expect(html.match(/<select/g)).toHaveLength(2);
+    expect(html).toContain('value="30" selected');
+    expect(html).toContain('value="20" selected');
+  });
+});

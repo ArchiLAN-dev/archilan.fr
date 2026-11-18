@@ -429,6 +429,17 @@ final class PlayerStateTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    public function testUpdateHintStatusRejectsAWorldThatIsNotANumber(): void
+    {
+        $session = $this->createRunningSession('run-hint-world-bad', 'evt-001');
+        [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'hintworldbad');
+        $this->loginAs($alice);
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/2/hints/123', $session->getId()), ['status' => 30, 'findingPlayer' => '3']);
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
     public function testUpdateHintStatusAllowsOwnSlot(): void
     {
         // Slot owner reaches validation (status 40 is bridge-managed -> 422), proving the ownership gate passed.

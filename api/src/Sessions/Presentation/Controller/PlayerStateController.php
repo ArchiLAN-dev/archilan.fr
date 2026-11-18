@@ -442,9 +442,16 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('validation_error', 'status invalide (0, 10, 20 ou 30 attendu).', 422);
         }
 
+        // The world the location belongs to: a location id is unique within one game only, so two worlds of the
+        // same game share them, and Archipelago finds a hint by (finding player, location).
+        $findingRaw = $body['findingPlayer'] ?? null;
+        if (null !== $findingRaw && !is_int($findingRaw)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'findingPlayer doit être un entier.', 422);
+        }
+
         try {
             $bridge = $this->bridgeClientPool->get($sessionId, BridgeEndpoint::baseUrl($sessionId));
-            $response = $bridge->slots()->updateHint($slotIndex, $locationId, $status);
+            $response = $bridge->slots()->updateHint($slotIndex, $locationId, $status, $findingRaw);
 
             return new JsonResponse(['data' => [
                 'ok' => true,

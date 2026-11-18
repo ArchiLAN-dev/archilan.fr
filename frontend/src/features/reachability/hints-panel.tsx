@@ -48,14 +48,17 @@ function itemFlagClass(flags: number): string {
 
 function HintRow({
   hint,
+  slot,
   onSetStatus,
 }: {
   hint: HintEntry;
-  onSetStatus?: (locationId: number, status: number) => void;
+  slot: number;
+  onSetStatus?: (hint: HintEntry, status: number) => void;
 }) {
   const status = STATUS_STYLES[hint.statusName] ?? STATUS_STYLES.unspecified;
-  // A found hint is terminal; otherwise the owner may set its priority.
-  const canEdit = onSetStatus !== undefined && !hint.found;
+  // A found hint is terminal; otherwise the player who receives the item may set its priority (Archipelago refuses
+  // anyone else: an item of another player found in this world is ranked by that player).
+  const canEdit = onSetStatus !== undefined && !hint.found && hint.receivingPlayer === slot;
 
   return (
     <div className="card-glow grid gap-3 rounded border border-border bg-surface p-4 transition-colors hover:border-accent/40">
@@ -75,7 +78,7 @@ function HintRow({
             <span aria-hidden="true" className={`size-1.5 rounded-full ${status.dot}`} />
             <select
               className="rounded border border-border bg-surface-2 px-2 py-0.5 text-xs font-medium text-foreground outline-none focus:border-accent"
-              onChange={(e) => onSetStatus(hint.locationId, Number(e.target.value))}
+              onChange={(e) => onSetStatus(hint, Number(e.target.value))}
               value={hint.status}
             >
               {SETTABLE_HINT_STATUSES.map((s) => (
@@ -156,8 +159,8 @@ export function HintsPanel({
   data: HintsData;
   hintFree?: boolean;
   onToggleFree?: () => void;
-  /** When provided, each pending hint shows a priority picker (AP hint status). */
-  onSetStatus?: (locationId: number, status: number) => void;
+  /** When provided, each pending hint the slot receives shows a priority picker (AP hint status). */
+  onSetStatus?: (hint: HintEntry, status: number) => void;
 }) {
   // Story 9.50: the player could already rank a hint (stories 9.34/9.35) but everything landed back
   // in the same list. These axes are what finally make that ranking readable.
@@ -269,7 +272,7 @@ export function HintsPanel({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {filtered.map((hint) => (
-            <HintRow hint={hint} key={`${hint.locationId}-${hint.itemId}`} onSetStatus={onSetStatus} />
+            <HintRow hint={hint} key={`${hint.findingPlayer}-${hint.locationId}-${hint.itemId}`} onSetStatus={onSetStatus} slot={data.slot} />
           ))}
         </div>
       )}
