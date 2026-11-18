@@ -30,7 +30,7 @@ final class AdminRunArchivalTest extends FunctionalTestCase
 
         /** @var InMemoryTransport $transport */
         $transport = self::getContainer()->get('messenger.transport.run_server');
-        $enveloped = iterator_to_array($transport->get());
+        $enveloped = $transport->getSent();
 
         $archiveJobs = array_filter(
             array_map(static fn ($e) => $e->getMessage(), $enveloped),

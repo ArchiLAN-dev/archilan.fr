@@ -102,8 +102,9 @@ final class PasseurJournalTest extends FunctionalTestCase
         $this->loginAs($this->admin);
         $this->client->request('GET', $sessionUrl);
         self::assertResponseStatusCodeSame(200);
-        self::assertIsArray($this->decodedJsonResponse()['data']);
-        self::assertCount(2, $this->decodedJsonResponse()['data']);
+        $all = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($all);
+        self::assertCount(2, $all);
         $this->client->request('GET', '/api/v1/admin/sessions/nope/passeur-openings');
         self::assertResponseStatusCodeSame(404);
     }

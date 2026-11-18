@@ -109,7 +109,7 @@ final class AdminDiscordBotDashboardTest extends FunctionalTestCase
 
         $messages = array_map(
             static fn ($envelope) => $envelope->getMessage(),
-            iterator_to_array($this->asyncTransport()->get()),
+            $this->asyncTransport()->getSent(),
         );
         $syncMessages = array_values(array_filter(
             $messages,

@@ -78,8 +78,6 @@ final class PasswordResetToken
 
     public function markUsed(\DateTimeImmutable $at): void
     {
-        if (null === $this->usedAt) {
-            $this->usedAt = $at;
-        }
+        $this->usedAt ??= $at;
     }
 }

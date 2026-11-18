@@ -158,7 +158,7 @@ final class CommunityImageFramingTest extends FunctionalTestCase
     private function upload(): UploadedFile
     {
         $tmp = (string) tempnam(sys_get_temp_dir(), 'img_');
-        file_put_contents($tmp, (string) base64_decode(self::PNG_BASE64, true));
+        file_put_contents($tmp, base64_decode(self::PNG_BASE64, true));
 
         return new UploadedFile($tmp, 'i.png', null, null, true);
     }

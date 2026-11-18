@@ -22,6 +22,6 @@ final readonly class SessionConfigOverrideQuery
     {
         $override = $this->overrides->find($scopeKey);
 
-        return null === $override ? [] : $override->toArray();
+        return $override?->toArray() ?? [];
     }
 }

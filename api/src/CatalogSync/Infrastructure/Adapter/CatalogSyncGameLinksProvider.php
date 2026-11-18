@@ -27,7 +27,7 @@ final readonly class CatalogSyncGameLinksProvider implements GameCatalogLinksPro
         try {
             $entry = $this->catalogSyncService->findEntryForNames($catalogSheetName, $archipelagoGameName, $name);
 
-            return null === $entry ? [] : $entry->links;
+            return $entry->links ?? [];
         } catch (\Throwable $exception) {
             $this->logger->warning('catalog_sync.links_provider_failed', [
                 'name' => $name,

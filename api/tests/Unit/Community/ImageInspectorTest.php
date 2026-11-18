@@ -26,7 +26,7 @@ final class ImageInspectorTest extends TestCase
 
     public function testAStillPngJpegAndWebpAreRecognised(): void
     {
-        $png = ImageInspector::inspect((string) base64_decode(self::PNG_1X1, true));
+        $png = ImageInspector::inspect(base64_decode(self::PNG_1X1, true));
         self::assertSame(ImageFormat::Png, $png?->format);
         self::assertFalse($png->animated);
 

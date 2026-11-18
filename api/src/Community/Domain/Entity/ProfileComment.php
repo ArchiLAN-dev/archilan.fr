@@ -40,9 +40,7 @@ final class ProfileComment
 
     public function hide(\DateTimeImmutable $now): void
     {
-        if (null === $this->hiddenAt) {
-            $this->hiddenAt = $now;
-        }
+        $this->hiddenAt ??= $now;
     }
 
     /** Un-hide a previously soft-hidden comment (admin restore, story 30.13). */

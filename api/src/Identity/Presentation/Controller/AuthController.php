@@ -258,7 +258,7 @@ final readonly class AuthController
 
         $message = $banned
             ? 'Ton compte a été banni.'
-            : sprintf('Ton compte est suspendu jusqu\'au %s.', null !== $until ? $until->format('d/m/Y') : 'une date ultérieure');
+            : sprintf('Ton compte est suspendu jusqu\'au %s.', $until?->format('d/m/Y') ?? 'une date ultérieure');
         if (null !== $reason && '' !== $reason) {
             $message .= ' Motif : '.$reason;
         }

@@ -48,7 +48,8 @@ final class SlotBlockTrackerTest extends TestCase
 
         $tracker->track('session-1', $this->payload(reachableNow: 0));
         self::assertCount(1, $this->episodes->all);
-        self::assertSame([], $this->bus->messages);
+        // assertCount, not assertSame([]): PHPStan would keep `array{}` past the track() calls below.
+        self::assertCount(0, $this->bus->messages);
 
         $this->clock->sleep(60);
         $tracker->track('session-1', $this->payload(reachableNow: 0));

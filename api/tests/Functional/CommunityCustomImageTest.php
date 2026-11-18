@@ -194,7 +194,7 @@ final class CommunityCustomImageTest extends FunctionalTestCase
 
     private function png(): string
     {
-        return (string) base64_decode(self::PNG_BASE64, true);
+        return base64_decode(self::PNG_BASE64, true);
     }
 
     /** A real GIF, encoded by GD, so the first-frame extraction reads a genuine file. */

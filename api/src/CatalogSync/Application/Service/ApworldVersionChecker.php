@@ -302,9 +302,7 @@ final readonly class ApworldVersionChecker
 
                     $hash = hash('sha256', $this->downloadAsset($downloadUrl));
 
-                    if (!isset($map[$hash])) {
-                        $map[$hash] = $tag;
-                    }
+                    $map[$hash] ??= $tag;
                 }
             }
 
