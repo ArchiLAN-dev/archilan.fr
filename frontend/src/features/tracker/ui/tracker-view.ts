@@ -11,6 +11,8 @@ export type TrackerView = {
   locations: Record<number, AccessibilityLevel>;
   /** Story 54.11: pins with their own visibility rules (`pinKey`). */
   pins?: Record<string, boolean>;
+  /** Story 54.11: the last tab the pack asked for (`Tracker:UiHint("ActivateTab", name)`), numbered to tell repeats. */
+  activeTab?: { name: string; seq: number };
 };
 
 /** Story 54.11: whether the `index`-th pin of a location shows, as far as its own rules go. */
@@ -26,7 +28,14 @@ export function mergeView(view: TrackerView, update: StateUpdate): TrackerView {
     sections: { ...view.sections, ...update.sections },
     locations: { ...view.locations, ...update.locations },
     ...(view.pins === undefined && update.pins === undefined ? {} : { pins: { ...view.pins, ...update.pins } }),
+    ...activeTabAfter(view, update),
   };
+}
+
+function activeTabAfter(view: TrackerView, update: StateUpdate): Pick<TrackerView, "activeTab"> {
+  const asked = (update.hints ?? []).filter((hint) => hint.name === "ActivateTab").at(-1);
+  if (asked === undefined) return view.activeTab === undefined ? {} : { activeTab: view.activeTab };
+  return { activeTab: { name: asked.value, seq: (view.activeTab?.seq ?? 0) + 1 } };
 }
 
 /** Screen settings (decision 7). */

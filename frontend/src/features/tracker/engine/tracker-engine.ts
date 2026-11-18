@@ -3,7 +3,7 @@ import { LuaFactory, type LuaEngine } from "wasmoon";
 import { PackError } from "./errors";
 import { parseItems, type ItemDefinition, type ItemParseIssue, type TrackerItem } from "./items";
 import { isJsonObject, readNumber, readString } from "./json-read";
-import { AccessibilityLevel, EMULATED_POPTRACKER_VERSION, Highlight } from "./levels";
+import { AccessibilityLevel, compareVersions, EMULATED_POPTRACKER_VERSION, Highlight } from "./levels";
 import { LocationRegistry, type MapLocation, type TrackerLocation, type TrackerSection } from "./locations";
 import { LUA_BOOTSTRAP } from "./lua-bootstrap";
 import type { PackFiles } from "./pack-files";
@@ -59,6 +59,8 @@ type LuaApi = {
   run(source: string): unknown;
   luaProvides(code: string): unknown;
   resetCounts(): unknown;
+  frameHandlerCount(): unknown;
+  frame(elapsed: number): unknown;
   luaItemFor(code: string): unknown;
   luaItemView(id: number): unknown;
   luaItemClick(id: number, button: string): unknown;
@@ -78,6 +80,8 @@ function isLuaApi(value: unknown): value is LuaApi {
     "run",
     "luaProvides",
     "resetCounts",
+    "frameHandlerCount",
+    "frame",
     "luaItemFor",
     "luaItemView",
     "luaItemClick",
@@ -158,6 +162,10 @@ export class TrackerEngine {
   private readonly luaCounts = new Map<string, number>();
   private readonly reported = new Set<string>();
   private readonly pendingItems = new Set<TrackerItem>();
+  /** Story 54.11: whether anything changed since the last frame (a frame that changes nothing sends nothing). */
+  private changedSinceFrame = false;
+  /** Story 54.11: the pack's UI hints, sent with the next state. */
+  private pendingHints: { name: string; value: string }[] = [];
   /** Story 54.11: Lua items changed since the last round of watchers (by a click, an Archipelago handler, a watcher). */
   private readonly pendingLuaItems = new Set<number>();
   private readonly pendingSections = new Set<TrackerSection>();
@@ -193,6 +201,11 @@ export class TrackerEngine {
       throw new EngineError("variant_unknown", `Variante inconnue : ${variantUid}`);
     }
     const engine = new TrackerEngine(files, manifest, variantUid, options);
+    // Story 54.11: a pack written for a newer PopTracker may call what the site does not have yet.
+    const wanted = manifest.minPopTrackerVersion;
+    if (wanted !== null && compareVersions(wanted, EMULATED_POPTRACKER_VERSION) > 0) {
+      engine.log("warn", `Le pack demande PopTracker ${wanted} ; le site fait comme PopTracker ${EMULATED_POPTRACKER_VERSION}, certaines fonctions peuvent manquer.`);
+    }
     await engine.start();
     return engine;
   }
@@ -213,7 +226,10 @@ export class TrackerEngine {
     this.resolveLevels();
     this.drainAsync();
     this.previous = this.fullState();
-    return this.previous;
+    if (this.pendingHints.length === 0) return this.previous;
+    const hints = this.pendingHints;
+    this.pendingHints = [];
+    return { ...this.previous, hints };
   }
 
   /** @throws EngineError bad_request for an unknown item or section */
@@ -250,6 +266,23 @@ export class TrackerEngine {
       this.options.onApSend?.(packets);
     }
     return state;
+  }
+
+  /** Story 54.11: whether the pack has frame handlers (`ScriptHost:AddOnFrameHandler`), for the Worker's clock. */
+  hasFrameHandlers(): boolean {
+    const count = this.luaApi().frameHandlerCount();
+    return typeof count === "number" && count > 0;
+  }
+
+  /**
+   * Story 54.11: one frame, as PopTracker calls its frame handlers; `null` when they changed nothing (most frames),
+   * so the Worker sends nothing.
+   */
+  frame(elapsedSeconds: number): StateUpdate | null {
+    this.changedSinceFrame = false;
+    this.luaApi().frame(elapsedSeconds);
+    if (!this.changedSinceFrame && this.pendingHints.length === 0) return null;
+    return this.settle();
   }
 
   /** Several actions, with one logic pass and one round of watchers at the end. */
@@ -348,6 +381,11 @@ export class TrackerEngine {
         const player = typeof slot === "number" ? this.apPlayers.get(slot) : undefined;
         if (player === undefined) return undefined;
         return field === "alias" ? player.alias : field === "game" ? player.game : undefined;
+      },
+      uiHint: (name, value) => {
+        if (typeof name !== "string") return;
+        this.pendingHints.push({ name, value: typeof value === "string" ? value : "" });
+        if (name !== "ActivateTab") this.logOnce(`hint:${name.split(" ")[0]}`, "info", `Tracker:UiHint « ${name} » ignoré`);
       },
       luaItemCreate: () => {
         const id = this.nextItemId++;
@@ -608,6 +646,7 @@ export class TrackerEngine {
   }
 
   private invalidate(): void {
+    this.changedSinceFrame = true;
     this.levelCache.clear();
     this.callCache.clear();
     this.failedCalls.clear();
@@ -952,6 +991,10 @@ export class TrackerEngine {
     }
     for (const [key, visible] of Object.entries(next.pins ?? {})) {
       if (this.previous.pins?.[key] !== visible) changes.pins = { ...changes.pins, [key]: visible };
+    }
+    if (this.pendingHints.length > 0) {
+      changes.hints = this.pendingHints;
+      this.pendingHints = [];
     }
     this.previous = next;
     return changes;

@@ -1,6 +1,6 @@
 import type { ApEvent } from "./ap-events";
 import { parseItems, type TrackerItem } from "./items";
-import { AccessibilityLevel } from "./levels";
+import { AccessibilityLevel, compareVersions } from "./levels";
 import { PackFiles } from "./pack-files";
 import { pinKey } from "./protocol";
 import { TrackerEngine } from "./tracker-engine";
@@ -263,6 +263,66 @@ describe("the engine's guards against slow packs (story 54.11)", () => {
     if (sword === undefined) throw new Error("no sword");
     engine.apply({ type: "itemClick", itemId: sword.definition.id, button: "left" });
     expect(engine.sectionLevel("Cave/x")).toBe(AccessibilityLevel.Normal);
+    engine.dispose();
+  });
+});
+
+describe("UI hints, as PopTracker (story 54.11, lot 4)", () => {
+  it("sends Tracker:UiHint calls to the screen with the next state, once", async () => {
+    const engine = await load(
+      `Tracker:AddItems("items.json")
+      ScriptHost:AddWatchForCode("go", "boots", function() Tracker:UiHint("ActivateTab", "Lanayru") end)`,
+      { "items.json": [{ name: "Boots", type: "toggle", codes: "boots" }] },
+    );
+    const boots = engine.findItem("boots");
+    if (boots === undefined) throw new Error("no boots");
+    const update = engine.apply({ type: "itemClick", itemId: boots.definition.id, button: "left" });
+    expect(update.hints).toEqual([{ name: "ActivateTab", value: "Lanayru" }]);
+    expect(engine.apply({ type: "itemClick", itemId: boots.definition.id, button: "left" }).hints).toEqual([{ name: "ActivateTab", value: "Lanayru" }]);
+    engine.dispose();
+  });
+});
+
+describe("frame handlers, as PopTracker (story 54.11, lot 4)", () => {
+  it("calls them with the elapsed seconds and sends only what they change", async () => {
+    const engine = await load(
+      `Tracker:AddItems("items.json")
+      local waited = 0
+      ScriptHost:AddOnFrameHandler("timer", function(elapsed)
+        waited = waited + elapsed
+        if waited >= 1 then
+          Tracker:FindObjectForCode("lamp").Active = true
+          ScriptHost:RemoveOnFrameHandler("timer")
+        end
+      end)`,
+      { "items.json": [{ name: "Lamp", type: "toggle", codes: "lamp" }] },
+    );
+    const lamp = engine.findItem("lamp");
+    if (lamp === undefined) throw new Error("no lamp");
+    expect(engine.hasFrameHandlers()).toBe(true);
+    expect(engine.frame(0.5)).toBeNull();
+    expect(engine.frame(0.6)?.items[lamp.definition.id]).toMatchObject({ active: true });
+    expect(engine.hasFrameHandlers()).toBe(false);
+    engine.dispose();
+  });
+});
+
+describe("the PopTracker version, as packs test it (story 54.11, lot 4)", () => {
+  it("compares versions part by part", () => {
+    expect(compareVersions("0.25.9", "0.26.0")).toBeLessThan(0);
+    expect(compareVersions("0.35.10", "0.35.4")).toBeGreaterThan(0);
+    expect(compareVersions("1.0", "1.0.0")).toBe(0);
+  });
+
+  it("warns when a pack wants a newer PopTracker, and answers OpenLink as PopTracker validates", async () => {
+    const entries = {
+      "manifest.json": JSON.stringify({ name: "t", package_uid: "t", min_poptracker_version: "0.40.0", variants: { standard: {} } }),
+      "scripts/init.lua": "",
+    };
+    const engine = await TrackerEngine.load(PackFiles.fromEntries(entries, "standard"), "standard");
+    expect(engine.logs.some((log) => log.level === "warn" && log.message.includes("0.40.0"))).toBe(true);
+    expect(engine.runLua(`return Tracker:OpenLink("https://archilan.fr", "site")`)).toBe(true);
+    expect(engine.runLua(`return Tracker:OpenLink("javascript:alert(1)")`)).toBe(false);
     engine.dispose();
   });
 });

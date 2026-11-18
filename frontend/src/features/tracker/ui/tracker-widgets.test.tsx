@@ -188,6 +188,28 @@ describe("the ArchiLAN layout of a pack (story 54.9)", () => {
     expect(byLabel("Cartes").className).toMatch(/(^| )hidden( |$)/);
   });
 
+  it("shows the pack's settings_popup as a page of the map area (story 54.11)", async () => {
+    TEST_PACK.layouts.settings_popup = { type: "itemgrid", rows: [["ocarina"]] };
+    try {
+      await render({}, DEFAULT_SETTINGS, "tracker_default", true);
+      click(button("Réglages du pack"));
+      const page = container.querySelector('[data-page="Réglages du pack"]');
+      expect(page?.querySelector('[aria-label="Ocarina"]')).not.toBeNull();
+    } finally {
+      delete TEST_PACK.layouts.settings_popup;
+    }
+  });
+
+  it("opens the tab a pack asks for through Tracker:UiHint ActivateTab (story 54.11)", async () => {
+    TEST_PACK.layouts.settings_popup = { type: "itemgrid", rows: [["ocarina"]] };
+    try {
+      await render({ hints: [{ name: "ActivateTab", value: "Réglages du pack" }] }, DEFAULT_SETTINGS, "tracker_default", true);
+      expect(container.querySelector('[data-page="Réglages du pack"]')).not.toBeNull();
+    } finally {
+      delete TEST_PACK.layouts.settings_popup;
+    }
+  });
+
   it("folds the items away on a wide screen and brings them back", async () => {
     await render({}, DEFAULT_SETTINGS, "tracker_default", true);
     click(button("Replier"));

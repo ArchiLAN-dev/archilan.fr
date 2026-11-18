@@ -177,9 +177,13 @@ function tracker:FindObjectForCode(code)
   if ref ~= nil then return proxy(ref) end
   return findLuaItem(code)
 end
-function tracker:OpenLink() end
+-- Story 54.11: the site opens no link from a pack; PopTracker returns whether the address is valid.
+function tracker:OpenLink(url)
+  return type(url) == "string" and url:match("^https?://[^%s]+$") ~= nil
+end
+-- Story 54.11: the hints go to the screen with the next state; it follows ActivateTab (see TrackerView.activeTab).
 function tracker:UiHint(name, value)
-  B.log("info", "Tracker:UiHint ignoré (" .. tostring(name) .. ")")
+  B.uiHint(tostring(name), value == nil and "" or tostring(value))
 end
 Tracker = setmetatable(tracker, {
   __index = function(_, key)
@@ -404,8 +408,24 @@ local function asyncEnvironment(arg)
   end
   return env
 end
-for _, name in ipairs({ "AddMemoryWatch", "RemoveMemoryWatch", "AddVariableWatch", "RemoveVariableWatch",
-  "AddOnFrameHandler", "RemoveOnFrameHandler" }) do
+-- Story 54.11: frame handlers, called by the engine on a clock (api.frame) with the seconds since the last call.
+local frameHandlers = {}
+local frameOrder = {}
+function scriptHost:AddOnFrameHandler(name, callback)
+  if type(callback) ~= "function" then return "" end
+  if frameHandlers[name] == nil then frameOrder[#frameOrder + 1] = name end
+  frameHandlers[name] = callback
+  return name
+end
+function scriptHost:RemoveOnFrameHandler(name)
+  if frameHandlers[name] == nil then return false end
+  frameHandlers[name] = nil
+  for index, existing in ipairs(frameOrder) do
+    if existing == name then table.remove(frameOrder, index) break end
+  end
+  return true
+end
+for _, name in ipairs({ "AddMemoryWatch", "RemoveMemoryWatch", "AddVariableWatch", "RemoveVariableWatch" }) do
   scriptHost[name] = memoryOnly("ScriptHost", name)
 end
 ScriptHost = setmetatable(scriptHost, { __index = function(_, key) return missing("ScriptHost", key) end })
@@ -696,6 +716,20 @@ function api.luaItemFor(code)
   local item = findLuaItem(code)
   if item == nil then return nil end
   return rawget(item, "__id")
+end
+
+function api.frameHandlerCount()
+  return #frameOrder
+end
+
+function api.frame(elapsed)
+  for _, name in ipairs({ table.unpack(frameOrder) }) do
+    local callback = frameHandlers[name]
+    if callback ~= nil then
+      local ok, message = pcall(callback, elapsed)
+      if not ok then B.log("error", "frame handler " .. tostring(name) .. " : " .. tostring(message)) end
+    end
+  end
 end
 
 function api.resetCounts()

@@ -26,6 +26,9 @@ const MAX_MAP_TABS = 6;
 
 type MobileView = "items" | "maps";
 
+const SETTINGS_POPUP = "settings_popup";
+const SETTINGS_LABEL = "Réglages du pack";
+
 export function TrackerBoard({ root }: { root: string }) {
   const { pack, view: trackerView, settings } = useTracker();
   const outline = useMemo(() => {
@@ -33,10 +36,12 @@ export function TrackerBoard({ root }: { root: string }) {
     return isLayoutNode(node) ? outlineLayout(node, pack.layouts, pack.maps.map((map) => map.name)) : { maps: [], sections: [] };
   }, [pack.layouts, pack.maps, root]);
   // Only the maps the pack defines: a layout may name one its maps.json lacks.
-  const maps = useMemo(
-    () => outline.maps.filter((entry) => entry.page !== undefined || pack.maps.some((map) => map.name === entry.name)),
-    [outline.maps, pack.maps],
-  );
+  const maps = useMemo(() => {
+    const shown = outline.maps.filter((entry) => entry.page !== undefined || pack.maps.some((map) => map.name === entry.name));
+    // Story 54.11: PopTracker opens the `settings_popup` layout from a settings button; here it is one more page.
+    const settings = pack.layouts[SETTINGS_POPUP];
+    return isLayoutNode(settings) ? [...shown, { name: `page:${SETTINGS_POPUP}`, path: [SETTINGS_LABEL], page: settings }] : shown;
+  }, [outline.maps, pack.maps, pack.layouts]);
   const [chosenMap, setChosenMap] = useState<string | null>(null);
   // Story 54.9: the legend's counters narrow the map to some pins; a new map starts with all of them.
   const [only, setOnly] = useState<ReadonlySet<PinCategory>>(() => new Set());
@@ -46,6 +51,14 @@ export function TrackerBoard({ root }: { root: string }) {
     if (!name.startsWith("page:")) setLastMapName(name);
     setOnly(new Set());
   };
+  // Story 54.11: the pack asks for a tab (`ActivateTab`): the map or page whose way goes through that tab name.
+  const [appliedTab, setAppliedTab] = useState(0);
+  const askedTab = trackerView.activeTab;
+  if (askedTab !== undefined && askedTab.seq !== appliedTab) {
+    setAppliedTab(askedTab.seq);
+    const target = maps.find((entry) => entry.path.includes(askedTab.name));
+    if (target !== undefined) chooseMap(target.name);
+  }
   const [folded, setFolded] = useState(false);
   const [mobileView, setMobileView] = useState<MobileView>("maps");
 

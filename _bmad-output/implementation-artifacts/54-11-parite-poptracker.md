@@ -1,6 +1,6 @@
 # Story 54.11 - Parité avec PopTracker
 
-**Status:** in-progress
+**Status:** review
 **Epic:** 54 - Trackers de jeu, les packs PopTracker sur le site (`_bmad-output/planning-artifacts/epics/epic-54-trackers-poptracker.md`)
 **Date:** 2026-11-18
 **Branche:** `feature/epic-54-story-11-parite-poptracker`
@@ -48,10 +48,10 @@ afin de ne pas découvrir en pleine partie une carte vide ou une règle fausse.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1) - Inventaire : tableau des écarts, lots proposés.
-- [ ] **Task 2** (AC 2, 3, 5) - Implémentation par lots (détail dans le Dev Agent Record).
-- [ ] **Task 3** (AC 4) - Campagne rejouée.
-- [ ] **Task 4** (AC 6) - Gates.
+- [x] **Task 1** (AC 1) - Inventaire : tableau des écarts, lots proposés.
+- [x] **Task 2** (AC 2, 3, 5) - Implémentation par lots (détail dans le Dev Agent Record).
+- [x] **Task 3** (AC 4) - Campagne rejouée.
+- [x] **Task 4** (AC 6) - Gates.
 
 ## Dev Agent Record
 
@@ -117,7 +117,28 @@ Le calcul initial de la logique ne se terminait pas (déjà avant cette story). 
 
 Résultat : environ 22 s par variante au lieu d'un calcul sans fin, 16 erreurs du pack. À signaler à l'auteur du pack.
 
+### Lot 4 - Interface pilotée par le pack
+
+- `settings_popup` : la page « Réglages du pack », à côté des cartes (comme les pages de réglages déjà repérées).
+- `Tracker:UiHint` : les hints partent avec l'état suivant ; `ActivateTab` ouvre la carte ou la page dont le chemin
+  passe par cet onglet. `Zoom` / `Pan` sont journalisés et ignorés.
+- `ScriptHost:AddOnFrameHandler` / `RemoveOnFrameHandler` : une horloge dans le Worker (toutes les 100 ms, tant que le
+  pack a des handlers) les appelle avec les secondes écoulées ; une image qui ne change rien n'envoie rien.
+- `PopVersion` passe à 0.35.4 (dernière version dont les ajouts sont tous couverts) ; un `min_poptracker_version`
+  plus récent est signalé dans le journal. `Tracker:OpenLink` répond comme PopTracker (adresse http(s) valide), sans
+  ouvrir de lien.
+- `ENGINE_VERSION` : 3.
+
+Le reste (formes de pin 0.36, `max_width`/`max_height`, styles du pack, clic du milieu, `recentpins`, réglages des
+badges, `SaveFunc`/`LoadFunc`) est reporté dans `deferred-work.md`, avec la raison.
+
 ### Campagne rejouée (après les lots 1 et 2)
 
 Les 10 packs de la 54.8 : mêmes résultats, mêmes erreurs (toutes dues aux packs). Twilight Princess (4 variantes) se
 charge.
+
+### Campagne finale (après le lot 4)
+
+Les 20 variantes des 10 packs de la 54.8 : mêmes résultats et mêmes nombres d'erreurs qu'en 54.8 (toutes dues aux
+packs). Twilight Princess, qui ne se chargeait pas, se charge dans ses 4 variantes (16 erreurs du pack chacune, la
+récursion sans fin). `pnpm gates` vert (1 937 tests).

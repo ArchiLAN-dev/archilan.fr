@@ -1,10 +1,10 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-import { zipSync } from "fflate";
+import { strToU8, zipSync } from "fflate";
 
 import type { TrackerResponse } from "./protocol";
-import { createWorkerHost } from "./worker-host";
+import { createWorkerHost, FRAME_INTERVAL_MS } from "./worker-host";
 
 const MINI_PACK = join(__dirname, "__fixtures__", "mini-pack");
 
@@ -80,5 +80,32 @@ describe("the tracker Worker host", () => {
     expect(answer(5)).toMatchObject({ type: "error", kind: "bad_request" });
 
     expect(responses.some((response) => response.type === "log")).toBe(true);
+  });
+});
+
+describe("the Worker's clock for frame handlers (story 54.11)", () => {
+  afterEach(() => jest.useRealTimers());
+
+  it("runs while the pack has frame handlers and sends what they change", async () => {
+    jest.useFakeTimers();
+    const files: Record<string, Uint8Array> = {
+      "p/manifest.json": strToU8(JSON.stringify({ name: "p", package_uid: "p", variants: { standard: {} } })),
+      "p/items.json": strToU8(JSON.stringify([{ name: "Lamp", type: "toggle", codes: "lamp" }])),
+      "p/scripts/init.lua": strToU8(`Tracker:AddItems("items.json")
+ScriptHost:AddOnFrameHandler("once", function()
+  Tracker:FindObjectForCode("lamp").Active = true
+  ScriptHost:RemoveOnFrameHandler("once")
+end)`),
+    };
+    const zip = zipSync(files);
+    const { worker, responses } = host();
+    await worker.handle({ type: "load", requestId: 1, archive: zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.byteLength) as ArrayBuffer, rootPath: "p", variantUid: "standard" });
+    expect(responses.some((response) => response.type === "frame")).toBe(false);
+    jest.advanceTimersByTime(FRAME_INTERVAL_MS);
+    const frame = responses.find((response) => response.type === "frame");
+    expect(frame?.type === "frame" ? Object.values(frame.state.items) : []).toEqual([expect.objectContaining({ active: true })]);
+    jest.advanceTimersByTime(FRAME_INTERVAL_MS * 3);
+    expect(responses.filter((response) => response.type === "frame")).toHaveLength(1);
+    expect(jest.getTimerCount()).toBe(0);
   });
 });
