@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Infrastructure\Adapter;
 
 use App\GameSelection\Application\Port\YamlTestQuotaInterface;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 /**
@@ -15,7 +16,7 @@ use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
  */
 final readonly class RateLimitedYamlTestQuota implements YamlTestQuotaInterface
 {
-    public function __construct(private RateLimiterFactoryInterface $gameYamlTestLimiter)
+    public function __construct(#[Target('game_yaml_test.limiter')] private RateLimiterFactoryInterface $gameYamlTestLimiter)
     {
     }
 

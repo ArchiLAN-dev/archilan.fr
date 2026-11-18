@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Infrastructure\Http;
 
 use App\Identity\Application\Command\RegisterUser;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,12 +24,12 @@ use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 final readonly class AuthRateLimitListener
 {
     public function __construct(
-        private RateLimiterFactoryInterface $authLoginIpLimiter,
-        private RateLimiterFactoryInterface $authLoginAccountLimiter,
-        private RateLimiterFactoryInterface $authPasswordResetRequestLimiter,
-        private RateLimiterFactoryInterface $authPasswordResetConfirmLimiter,
-        private RateLimiterFactoryInterface $authRegisterLimiter,
-        private RateLimiterFactoryInterface $authResendConfirmationLimiter,
+        #[Target('auth_login_ip.limiter')] private RateLimiterFactoryInterface $authLoginIpLimiter,
+        #[Target('auth_login_account.limiter')] private RateLimiterFactoryInterface $authLoginAccountLimiter,
+        #[Target('auth_password_reset_request.limiter')] private RateLimiterFactoryInterface $authPasswordResetRequestLimiter,
+        #[Target('auth_password_reset_confirm.limiter')] private RateLimiterFactoryInterface $authPasswordResetConfirmLimiter,
+        #[Target('auth_register.limiter')] private RateLimiterFactoryInterface $authRegisterLimiter,
+        #[Target('auth_resend_confirmation.limiter')] private RateLimiterFactoryInterface $authResendConfirmationLimiter,
     ) {
     }
 

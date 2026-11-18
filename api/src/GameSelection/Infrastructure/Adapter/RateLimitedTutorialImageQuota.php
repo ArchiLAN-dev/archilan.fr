@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\GameSelection\Infrastructure\Adapter;
 
 use App\GameSelection\Application\Port\TutorialImageQuotaInterface;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 /** Story 50.3: the tutorial image allowance on Symfony's rate limiter (`tutorial_image_upload`). */
 final readonly class RateLimitedTutorialImageQuota implements TutorialImageQuotaInterface
 {
-    public function __construct(private RateLimiterFactoryInterface $tutorialImageUploadLimiter)
+    public function __construct(#[Target('tutorial_image_upload.limiter')] private RateLimiterFactoryInterface $tutorialImageUploadLimiter)
     {
     }
 

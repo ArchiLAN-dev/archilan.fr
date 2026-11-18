@@ -252,6 +252,8 @@ final class AdminGameContributionModerationTest extends FunctionalTestCase
 
     /**
      * @return list<string>
+     *
+     * @phpstan-impure the last response, which each request changes
      */
     private function ids(): array
     {

@@ -115,7 +115,7 @@ final class AdminAchievementImageTest extends FunctionalTestCase
     private function pngUpload(): UploadedFile
     {
         $tmp = (string) tempnam(sys_get_temp_dir(), 'ach_');
-        file_put_contents($tmp, (string) base64_decode(self::PNG_BASE64, true));
+        file_put_contents($tmp, base64_decode(self::PNG_BASE64, true));
 
         return new UploadedFile($tmp, 'badge.png', 'image/png', null, true);
     }

@@ -61,9 +61,7 @@ final class ModerationCase
     /** One post per member: the first one is kept. */
     public function attachForumThread(string $threadId): void
     {
-        if (null === $this->forumThreadId) {
-            $this->forumThreadId = $threadId;
-        }
+        $this->forumThreadId ??= $threadId;
     }
 
     /**

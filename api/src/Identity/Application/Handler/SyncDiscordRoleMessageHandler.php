@@ -40,7 +40,7 @@ final readonly class SyncDiscordRoleMessageHandler
             return;
         }
 
-        if (!$message->removeAll && $user instanceof User && $user->getDiscordId() !== $message->discordUserId) {
+        if (!$message->removeAll && $user->getDiscordId() !== $message->discordUserId) {
             $this->logger->info('discord_bot.role_sync_skipped_stale_message', [
                 'userId' => $message->userId,
                 'messageDiscordUserId' => $message->discordUserId,
@@ -58,7 +58,7 @@ final readonly class SyncDiscordRoleMessageHandler
                     }
                 }
             } else {
-                $roles = $user instanceof User ? $user->getRoles() : $message->archilanRoles;
+                $roles = $user->getRoles();
 
                 $this->syncRole(
                     $message->discordUserId,

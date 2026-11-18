@@ -37,7 +37,7 @@ final readonly class SurveyAnnouncer
     {
         $recipients = $this->audience->unanswered($survey->getAudience(), $survey->getEventId(), $survey->getId());
         $event = $this->events->period($survey->getEventId());
-        $eventTitle = null === $event ? '' : $event->title;
+        $eventTitle = $event->title ?? '';
         $answerUrl = sprintf('%s/evenements/%s/sondages/%s', rtrim($this->siteUrl, '/'), $survey->getEventId(), $survey->getId());
         $closesAt = $survey->getClosesAt()->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m/Y \à H\hi');
         $payload = [

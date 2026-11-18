@@ -93,7 +93,11 @@ abstract class FunctionalTestCase extends WebTestCase
         );
     }
 
-    /** @return array<mixed> */
+    /**
+     * @return array<mixed>
+     *
+     * @phpstan-impure the last response, which each request changes
+     */
     protected function decodedJsonResponse(): array
     {
         $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);

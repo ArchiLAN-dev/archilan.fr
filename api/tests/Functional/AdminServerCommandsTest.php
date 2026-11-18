@@ -173,7 +173,7 @@ final class AdminServerCommandsTest extends FunctionalTestCase
 
         /** @var InMemoryTransport $transport */
         $transport = self::getContainer()->get('messenger.transport.run_server');
-        $enveloped = iterator_to_array($transport->get(), false);
+        $enveloped = $transport->getSent();
         self::assertCount(1, $enveloped);
 
         $messages = array_map(static fn ($e) => $e->getMessage(), $enveloped);

@@ -17,6 +17,7 @@ final readonly class TwitchStatusChecker
     ) {
     }
 
+    /** @phpstan-impure a cache miss calls Twitch: two calls may differ */
     public function check(): StreamStatus
     {
         return $this->cache->get('streaming.twitch_status', function (ItemInterface $item): StreamStatus {
