@@ -104,6 +104,43 @@ services:
             - "traefik.http.routers.mercure-web-http.middlewares=redirect-https"
             - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
 
+    # Story 33.32 : remontée des erreurs (protocole Sentry). Un seul conteneur, sa base dans notre Postgres
+    # (`bugsink`, à créer : docs/remontee-erreurs.md). Il rejoint aussi `callbacks`, où les bridges, sans accès à
+    # Internet, lui envoient leurs erreurs par `http://bugsink:8000`.
+    bugsink:
+        image: bugsink/bugsink:2.6.3
+        container_name: archilan-bugsink
+        restart: always
+        depends_on:
+            postgres:
+                condition: service_healthy
+        env_file: envs/bugsink.env
+        environment:
+            PORT: "8000"
+            BASE_URL: https://${BUGSINK_DOMAIN}
+            BEHIND_HTTPS_PROXY: "true"
+        mem_limit: 768m
+        cpus: 1.0
+        networks:
+            - default
+            - traefik
+            - callbacks
+        healthcheck:
+            test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health/ready\")'" ]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+        labels:
+            - "traefik.enable=true"
+            - "traefik.docker.network=traefik"
+            - "traefik.http.routers.bugsink.rule=Host(`${BUGSINK_DOMAIN}`)"
+            - "traefik.http.routers.bugsink.entrypoints=websecure"
+            - "traefik.http.routers.bugsink.tls.certresolver=https"
+            - "traefik.http.services.bugsink.loadbalancer.server.port=8000"
+            - "traefik.http.routers.bugsink-http.rule=Host(`${BUGSINK_DOMAIN}`)"
+            - "traefik.http.routers.bugsink-http.entrypoints=web"
+            - "traefik.http.routers.bugsink-http.middlewares=redirect-https"
+
     # ─── Application ──────────────────────────────────────────────────────────
 
     api-web:
@@ -116,6 +153,8 @@ services:
             rabbitmq:
                 condition: service_healthy
         env_file: envs/api.env
+        environment:
+            SENTRY_RELEASE: ${ARCHILAN_VERSION}
         networks:
             - default
             - traefik
@@ -162,6 +201,8 @@ services:
             rabbitmq:
                 condition: service_healthy
         env_file: envs/api.env
+        environment:
+            SENTRY_RELEASE: ${ARCHILAN_VERSION}
         volumes:
             - api-workspace:/var/archilan/workspace
             - api-archives:/var/archilan/archives
