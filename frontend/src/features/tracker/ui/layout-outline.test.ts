@@ -133,6 +133,38 @@ describe("outlineLayout", () => {
     expect(outlineLayout(wide, {}).maps.map(mapLabel)).toEqual(["Map", "Options"]);
   });
 
+  it("reads a tab whose content is a list of widgets (Twilight Princess pack)", () => {
+    const layouts: Record<string, LayoutNode> = {
+      layout_maps: {
+        type: "tabbed",
+        tabs: [
+          {
+            title: "Overworld",
+            content: {
+              type: "tabbed",
+              tabs: [
+                { title: "Main Map", content: [{ type: "map", maps: ["overworld"] }] },
+                {
+                  title: "Faron",
+                  content: [{ type: "tabbed", tabs: [{ title: "Coro's House", content: [{ type: "map", maps: ["ch"] }] }] }],
+                },
+              ],
+            },
+          },
+          { title: "Forest Temple", content: [{ type: "map", maps: ["ft1"] }, { type: "map", maps: ["ft2"] }] },
+        ],
+      },
+    };
+    const root: LayoutNode = {
+      type: "dock",
+      content: [
+        { type: "dock", dock: "left", content: [{ type: "itemgrid", rows: [["a"]] }] },
+        { type: "container", content: [{ type: "layout", key: "layout_maps" }] },
+      ],
+    };
+    expect(outlineLayout(root, layouts).maps.map((map) => map.name)).toEqual(["overworld", "ch", "ft1", "ft2"]);
+  });
+
   it("stops on a layout that references itself", () => {
     const loop: Record<string, LayoutNode> = { a: { type: "layout", key: "a" } };
     expect(outlineLayout({ type: "layout", key: "a" }, loop)).toEqual({ maps: [], sections: [] });

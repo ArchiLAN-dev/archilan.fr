@@ -1,4 +1,4 @@
-import { DEFAULT_ITEM_SIZE, isLayoutNode, readChildren, readItemSize, readText, type LayoutNode, type Size } from "./layout-attributes";
+import { DEFAULT_ITEM_SIZE, isLayoutNode, readChildren, readItemSize, readTabContent, readText, type LayoutNode, type Size } from "./layout-attributes";
 
 /**
  * Story 54.9: what the site takes out of a pack's layout to lay it out its own way. The pack's tree of docks,
@@ -48,9 +48,10 @@ type Tab = { title: string | null; content: LayoutNode };
 
 function readTabs(node: LayoutNode): Tab[] {
   if (!Array.isArray(node.tabs)) return [];
-  return node.tabs.filter(isLayoutNode).flatMap((tab) =>
-    isLayoutNode(tab.content) ? [{ title: readText(tab, "title"), content: tab.content }] : [],
-  );
+  return node.tabs.filter(isLayoutNode).flatMap((tab) => {
+    const content = readTabContent(tab);
+    return content === null ? [] : [{ title: readText(tab, "title"), content }];
+  });
 }
 
 /** The direct sub-widgets of a node, tabs included, references followed. */

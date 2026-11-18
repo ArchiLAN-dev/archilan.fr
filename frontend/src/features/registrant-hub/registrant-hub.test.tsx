@@ -26,7 +26,7 @@ describe("RegistrantHubView", () => {
     expect(html).toContain("Du samedi 21 novembre à 10h00 au dimanche 22 novembre 2026 à 18h00");
     expect(html).toContain("Salle des fêtes, Clermont-Ferrand");
     expect(html).toContain("Inscription confirmée");
-    expect(html).toContain('href="/evenements/archilan-4/inscription/r1/session"');
+    expect(html).toContain('href="/evenements/archilan-4/inscription/r1/recap"');
     expect(html).toContain('href="/evenements/archilan-4"');
   });
 

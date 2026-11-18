@@ -1,22 +1,16 @@
 import type { EventPhase } from "./event-phase";
 
-/** The sections of the registrant space; `links` is the pair "Mon inscription" and "Les guides". */
-export type HubSectionKey = "checklist" | "practicalInfo" | "tools" | "relive" | "links";
+/** Story 53.10: the blocks of the main column of the registrant space; the side column holds the small tools. */
+export type HubMainKey = "game" | "participation" | "practicalInfo" | "relive";
 
 /**
- * Story 53.6: what comes first at each moment. Before, getting ready; during, playing (the checklist is still there,
- * folded); after, living it again: the checklist and the practical info are gone, the tools keep the surveys and the
- * pelles only.
+ * Story 53.6, laid out as a dashboard by story 53.10: what the main column shows at each moment. Before the event,
+ * the game, what the member tells the organisers (presence, stream), then the practical info; during it, the
+ * practical info (where, wifi) comes before the forms. After, living it again.
  */
-export function hubSectionOrder(phase: EventPhase): HubSectionKey[] {
-  switch (phase) {
-    case "before":
-      return ["checklist", "practicalInfo", "tools", "links"];
-    case "during":
-      return ["tools", "practicalInfo", "checklist", "links"];
-    case "after":
-      return ["relive", "tools", "links"];
-  }
+export function hubMainSections(phase: EventPhase): HubMainKey[] {
+  if (phase === "after") return ["relive"];
+  return phase === "during" ? ["game", "practicalInfo", "participation"] : ["game", "participation", "practicalInfo"];
 }
 
 export type ReliveLink = {
