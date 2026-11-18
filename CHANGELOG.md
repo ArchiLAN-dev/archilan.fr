@@ -5,6 +5,22 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.70.1] - 2026-11-18
+
+Correctif de la priorité des indices. Aucune migration, aucune variable d'environnement. À déployer avec le bridge
+v0.17.1 (l'ordre est libre).
+
+### Corrigé
+
+- **Priorité d'un indice** (Prioritaire, Pas prioritaire, Éviter) : un numéro d'emplacement n'est unique que dans
+  un jeu, et Archipelago retrouve un indice par le monde de l'emplacement et son numéro. Le site n'envoyait que le
+  numéro, et le bridge le joueur qui reçoit l'objet : pour un objet dans le monde d'un autre joueur, le changement
+  s'affichait sur le site mais n'arrivait jamais à Archipelago ; avec deux mondes du même jeu, un autre indice
+  pouvait changer. Le monde de l'emplacement suit désormais toute la chaîne (fiche de slot, admin, runs hebdo ;
+  `archilan/bridge-client` 1.2.0, bridge v0.17.1).
+- Le menu de priorité n'apparaît plus que sur les indices dont le slot reçoit l'objet : Archipelago refuse les
+  autres (un objet d'un autre joueur trouvé dans son monde se classe par ce joueur).
+
 ## [0.70.0] - 2026-11-18
 
 Toute la partie consultable par les inscrits d'un événement (story 53.9). Aucune migration, aucune variable
