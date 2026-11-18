@@ -48,6 +48,7 @@ import { SphereLine } from "@/features/reachability/sphere-line";
 import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { HINT_STATUS_NAMES, REACHABILITY_INVALID_MESSAGE, REACHABILITY_RETRY_MS, isHintsUpdate, isReachabilityData, reachableAnswerOf } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
+import { isReadOnlySlot, switcherSlots, type SwitcherSlot } from "@/features/personal-runs/slot-access";
 import { ItemBountiesPanel } from "@/features/wallet/item-bounties";
 import { PasseurPanel } from "@/features/passeur/passeur-panel";
 import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
@@ -94,30 +95,26 @@ function RunSlotSwitcher({
   source,
   sessionId,
   currentSlot,
-  onlySlotNames,
+  ownSlotNames,
 }: {
   source: SlotSource;
   sessionId: string;
   currentSlot: string;
-  /** When set, only these slots are offered (an event player's own). */
-  onlySlotNames?: readonly string[];
+  /** Story 53.9: an event player's own slots, offered first and marked; every other slot of the game follows. */
+  ownSlotNames?: readonly string[];
 }) {
   const router = useRouter();
-  const [slots, setSlots] = useState<{ index: string; name: string }[]>([]);
+  const [slots, setSlots] = useState<SwitcherSlot[]>([]);
   const [filter, setFilter] = useState("");
 
   useEffect(() => {
     apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/players`)
       .then((r) => r.json())
       .then((json: { data?: { slots?: Record<string, { slot_name: string }> } }) => {
-        const entries = Object.entries(json.data?.slots ?? {})
-          .filter(([, s]) => s.slot_name !== "Bridge" && (onlySlotNames === undefined || onlySlotNames.includes(s.slot_name)))
-          .map(([index, s]) => ({ index, name: s.slot_name }))
-          .sort((a, b) => Number(a.index) - Number(b.index));
-        setSlots(entries);
+        setSlots(switcherSlots(json.data?.slots ?? {}, ownSlotNames));
       })
       .catch(() => undefined);
-  }, [sessionId, onlySlotNames]);
+  }, [sessionId, ownSlotNames]);
 
   const filtered = filter.trim()
     ? slots.filter((s) => s.name.toLowerCase().includes(filter.trim().toLowerCase()))
@@ -150,6 +147,7 @@ function RunSlotSwitcher({
           {filtered.map((s) => (
             <option key={s.index} value={s.index}>
               #{s.index} - {s.name}
+              {s.own ? " (toi)" : ""}
             </option>
           ))}
           {filtered.length === 0 ? (
@@ -249,6 +247,9 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
   // Story 54.10: the slot's name, kept once known so a refresh of the progression does not unmount the tracker.
   const [slotName, setSlotName] = useState<string | null>(null);
   const tracker = ownSlotTracker(ownSlots, slotName);
+  // Story 53.9: on an event, any slot of the game opens; another player's opens read-only (no purchase, priority,
+  // bounty, Passeur or departure). Until the slot is known to be the viewer's, nothing that writes is shown.
+  const readOnly = isReadOnlySlot(source.kind, isAdminUser, ownSlotNames, slotName);
   const trackerPacks = useSlotTrackerPacks(tracker);
   const hasTracker = tracker !== undefined && trackerPacks.length > 0;
   const [trackerOpened, setTrackerOpened] = useState(false);
@@ -297,7 +298,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
   const [hints, setHints] = useState<HintsData | null>(null);
   const [hintFree, setHintFree] = useState(false);
   // Story 41.3: hints bought with pelles, when the party sells them.
-  const pelleHints = usePelleHintOffers(sessionId === null ? null : sessionSlotUrl(sessionId, slotIndex));
+  const pelleHints = usePelleHintOffers(sessionId === null || readOnly ? null : sessionSlotUrl(sessionId, slotIndex));
   const [itemSearch, setItemSearch] = useState("");
   const [itemSuggestOpen, setItemSuggestOpen] = useState(false);
   const [itemQty, setItemQty] = useState(1);
@@ -323,6 +324,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
   // Slot name -> pseudo of the member it belongs to. A ref so the long-lived SSE callback reads the
   // latest map without re-subscribing, mirroring stateRef above.
   const slotOwnersRef = useRef<SlotOwners>({});
+  // Story 53.9: who the slot belongs to, for the read-only banner.
+  const [slotOwnerLabels, setSlotOwnerLabels] = useState<SlotOwners>({});
 
   // ─── Reachability fetch ────────────────────────────────────────────────────
 
@@ -378,7 +381,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
       refreshingRef.current = false;
       setRefreshing(false);
     }
-  }, [sessionId, slotIndex]);
+    // The setters are stable; named because the compiler infers them once `slotName` decides the read-only mode.
+  }, [sessionId, slotIndex, setSlotName, setSpheresVisible]);
 
   useLayoutEffect(() => {
     fetchReachabilityRef.current = fetchReachability;
@@ -401,7 +405,9 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
     if (!sessionId) return;
     let cancelled = false;
     void fetchSlotOwners(sessionId).then((owners) => {
-      if (!cancelled) slotOwnersRef.current = owners;
+      if (cancelled) return;
+      slotOwnersRef.current = owners;
+      setSlotOwnerLabels(owners);
     });
     return () => { cancelled = true; };
   }, [sessionId]);
@@ -830,7 +836,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
       <section className="grid w-full gap-8 px-4 py-10">
         <header className="grid gap-3">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
-            Ma partie · Slot {slotIndex}
+            {readOnly ? "Partie" : "Ma partie"} · Slot {slotIndex}
           </p>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -854,7 +860,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
                 <p className="mt-1 font-mono text-sm text-muted-foreground">{state.data.game}</p>
               ) : null}
             </div>
-            <RunSlotSwitcher currentSlot={slotIndex} onlySlotNames={ownSlotNames} sessionId={sessionId} source={source} />
+            <RunSlotSwitcher currentSlot={slotIndex} ownSlotNames={ownSlotNames} sessionId={sessionId} source={source} />
           </div>
           <nav className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
             <Link className="inline-flex items-center gap-1 hover:text-foreground" href={backHref}>
@@ -939,12 +945,20 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
           </div>
         ) : null}
 
+        {/* Story 53.9: another player's slot, read-only. */}
+        {readOnly && slotName !== null ? (
+          <p className="flex items-center gap-2 rounded border border-border bg-surface px-4 py-2.5 text-sm text-muted-foreground" data-read-only="">
+            <Eye aria-hidden="true" className="size-4 shrink-0 text-accent-text" />
+            Slot de {slotOwnerLabels[slotName] ?? slotName} - lecture seule
+          </p>
+        ) : null}
+
         {/* Story 52.4: the Passeur, only while this slot is in BK and another world holds what it waits for. */}
         {/* Story 52.5: what the Passeur opened in this player's world while they were away. */}
-        {sessionId ? <PasseurNoticeCard sessionId={sessionId} /> : null}
-        {sessionId ? <PasseurPanel sessionId={sessionId} slotIndex={slotIndex} /> : null}
+        {sessionId && !readOnly ? <PasseurNoticeCard sessionId={sessionId} /> : null}
+        {sessionId && !readOnly ? <PasseurPanel sessionId={sessionId} slotIndex={slotIndex} /> : null}
         {/* Story 52.6: « Je pars » - the staff (the owner) is told and may release the world. */}
-        {sessionId ? <LeaveButton sessionId={sessionId} slotIndex={slotIndex} /> : null}
+        {sessionId && !readOnly ? <LeaveButton sessionId={sessionId} slotIndex={slotIndex} /> : null}
 
         {/* Tab bar */}
         <div className={`-mx-4 flex items-stretch gap-0 overflow-x-auto border-b border-border bg-surface px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden${state.kind === "paused" || state.kind === "imported" ? " hidden" : ""}`}>
@@ -1048,8 +1062,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
                     hideSpoilers={hideSpoilers}
                     hintCost={hints?.hintCost ?? 0}
                     hintFree={isAdminUser ? hintFree : false}
-                    onHintRequest={handleHintLocation}
-                    pelleHint={pelleHints.location}
+                    onHintRequest={readOnly ? undefined : handleHintLocation}
+                    pelleHint={readOnly ? undefined : pelleHints.location}
                     title="Checks faisables maintenant"
                     variant="reachable"
                   />
@@ -1060,8 +1074,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
                     hideSpoilers={hideSpoilers}
                     hintCost={hints?.hintCost ?? 0}
                     hintFree={isAdminUser ? hintFree : false}
-                    onHintRequest={handleHintLocation}
-                    pelleHint={pelleHints.location}
+                    onHintRequest={readOnly ? undefined : handleHintLocation}
+                    pelleHint={readOnly ? undefined : pelleHints.location}
                     title="Checks non faisables"
                     variant="unreachable"
                   />
@@ -1084,7 +1098,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
                 <HintsPanel
                   data={hints}
                   hintFree={isAdminUser ? hintFree : undefined}
-                  onSetStatus={(loc, st) => { void handleSetHintStatus(loc, st); }}
+                  onSetStatus={readOnly ? undefined : (loc, st) => { void handleSetHintStatus(loc, st); }}
                   onToggleFree={isAdminUser ? () => { setHintFree((f) => !f); } : undefined}
                 />
               ) : (
@@ -1318,7 +1332,7 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
             {activeTab === "items" ? (
               <div className="grid gap-6 lg:grid-cols-2">
                 {/* Story 41.4: bounties in pelles on the items still missing, when the party has them. */}
-                {sessionId ? (
+                {sessionId && !readOnly ? (
                   <div className="lg:col-span-2">
                     <ItemBountiesPanel
                       missingItems={(state.data.items_not_received ?? []).map((item) => item.name)}
@@ -1342,8 +1356,8 @@ function SlotDetailPage({ source, slotIndex }: { source: SlotSource; slotIndex: 
                   hintFree={isAdminUser ? hintFree : false}
                   itemLocations={itemLocations}
                   items={state.data.items_not_received ?? []}
-                  onHintRequest={handleHintItem}
-                  pelleHint={pelleHints.item}
+                  onHintRequest={readOnly ? undefined : handleHintItem}
+                  pelleHint={readOnly ? undefined : pelleHints.item}
                   title="Items non reçus"
                   variant="not-received"
                 />

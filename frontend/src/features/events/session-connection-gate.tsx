@@ -237,16 +237,12 @@ function ConnectionView({
         </section>
       ) : null}
 
-      {/* Story 41.9: the player's own slots open their slot page (checks, items, hints); the others stay cards. */}
+      {/* Story 53.9: every slot of the game opens its page (another player's read-only), the player's own first. */}
       {session ? (
         <PlayerProgressGrid
           ownSlotNames={data.slots.map((slot) => slot.slotName)}
           runId={session.id}
-          slotHref={(slotIndex, slotName) =>
-            data.slots.some((slot) => slot.slotName === slotName)
-              ? `/evenements/${eventSlug}/inscription/${registrationId}/session/slots/${slotIndex}`
-              : undefined
-          }
+          slotHref={(slotIndex) => `/evenements/${eventSlug}/inscription/${registrationId}/session/slots/${slotIndex}`}
         />
       ) : null}
 
