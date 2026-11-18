@@ -2,12 +2,13 @@
 
 import { Maximize, Minus, Plus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 
 import type { LoadedLocation, LoadedMap } from "../engine/protocol";
 import type { MapLocation } from "../engine/locations";
 import { LocationDetail } from "./location-detail";
 import { usePackImage, useTracker } from "./tracker-context";
-import { HINT_LABELS, locationHighlight, locationMarks, pinBackground, pinCategory, pinLabel, type PinCategory } from "./tracker-view";
+import { HINT_LABELS, locationHighlight, locationMarks, pinBackground, pinCategory, pinLabel, pinShown, type PinCategory, type TrackerView } from "./tracker-view";
 
 /**
  * A pack map with its pins (story 54.5, decision 5): the image at its own pixel size, pins at the pack's
@@ -66,11 +67,11 @@ export function fitTransform(image: { width: number; height: number }, viewport:
 
 type Pin = { location: LoadedLocation; spot: MapLocation; key: string };
 
-function pinsOf(locations: readonly LoadedLocation[], map: string): Pin[] {
+function pinsOf(locations: readonly LoadedLocation[], map: string, view: TrackerView): Pin[] {
   const pins: Pin[] = [];
   for (const location of locations) {
     location.mapLocations.forEach((spot, index) => {
-      if (spot.map === map) pins.push({ location, spot, key: `${location.id}-${index}` });
+      if (spot.map === map && pinShown(view, location.id, index)) pins.push({ location, spot, key: `${location.id}-${index}` });
     });
   }
   return pins;
@@ -91,7 +92,7 @@ export function TrackerMap({ name, only = ALL_PINS }: { name: string; only?: Rea
 }
 
 function MapCanvas({ map, url, only }: { map: LoadedMap; url: string; only: ReadonlySet<PinCategory> }) {
-  const { pack } = useTracker();
+  const { pack, view } = useTracker();
   const viewport = useRef<HTMLDivElement>(null);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   // The wheel listener is set once: it reads the image size from here.
@@ -106,7 +107,7 @@ function MapCanvas({ map, url, only }: { map: LoadedMap; url: string; only: Read
   const pointers = useRef(new Map<number, Point>());
   const gesture = useRef<{ moved: number; pinch: number | null }>({ moved: 0, pinch: null });
   const coarse = useCoarsePointer();
-  const pins = pinsOf(pack.locations, map.name);
+  const pins = pinsOf(pack.locations, map.name, view);
 
   const fit = useCallback(() => {
     const element = viewport.current;
@@ -363,9 +364,39 @@ type PopoverProps = {
 };
 
 const POPOVER_WIDTH = 288;
+const POPOVER_GAP = 12;
+const SCREEN_MARGIN = 8;
 
+export type PopoverPlace = { left: number; top: number; width: number; maxHeight: number };
+
+/**
+ * Story 54.9: where the checks of a pin open, in window coordinates. Beside the pin, kept inside the window; below it
+ * when it fits, above it otherwise, and against the window's edge when neither does.
+ */
+export function placePopover(anchor: Point, height: number, screen: Size): PopoverPlace {
+  const width = Math.min(POPOVER_WIDTH, screen.width - 2 * SCREEN_MARGIN);
+  const maxHeight = screen.height - 2 * SCREEN_MARGIN;
+  const shown = Math.min(height, maxHeight);
+  const left = Math.min(Math.max(SCREEN_MARGIN, anchor.x + POPOVER_GAP), screen.width - width - SCREEN_MARGIN);
+
+  const below = anchor.y + POPOVER_GAP;
+  const above = anchor.y - POPOVER_GAP - shown;
+  let top: number;
+  if (below + shown <= screen.height - SCREEN_MARGIN) top = below;
+  else if (above >= SCREEN_MARGIN) top = above;
+  else top = Math.max(SCREEN_MARGIN, screen.height - SCREEN_MARGIN - shown);
+
+  return { left: Math.max(SCREEN_MARGIN, left), top, width, maxHeight };
+}
+
+/**
+ * The checks of a pin. Story 54.9: drawn over the page (a portal, fixed to the window) and not inside the map, whose
+ * frame clipped it; in full screen it goes in the full-screen element, the only part of the page then shown.
+ */
 function PinPopover({ pin, transform, viewport, onClose }: PopoverProps) {
-  const element = viewport.current;
+  const box = useRef<HTMLDivElement>(null);
+  const [placed, setPlaced] = useState<{ place: PopoverPlace; host: Element } | null>(null);
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -374,22 +405,51 @@ function PinPopover({ pin, transform, viewport, onClose }: PopoverProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const width = element?.clientWidth ?? POPOVER_WIDTH;
-  const anchorX = pin.spot.x * transform.scale + transform.x;
-  const anchorY = pin.spot.y * transform.scale + transform.y;
-  const left = Math.min(Math.max(8, anchorX + 12), Math.max(8, width - POPOVER_WIDTH - 8));
-  const top = Math.max(8, anchorY + 12);
+  useEffect(() => {
+    let frame = 0;
+    function update() {
+      const element = viewport.current;
+      if (element === null) return;
+      const rect = element.getBoundingClientRect();
+      const anchor = { x: rect.left + pin.spot.x * transform.scale + transform.x, y: rect.top + pin.spot.y * transform.scale + transform.y };
+      const screen = { width: document.documentElement.clientWidth, height: window.innerHeight };
+      const host = document.fullscreenElement ?? document.body;
+      setPlaced({ place: placePopover(anchor, box.current?.scrollHeight ?? 240, screen), host });
+    }
+    function schedule() {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    }
+    schedule();
+    // Once more after the first paint: the box then has its real height.
+    const settle = window.setTimeout(schedule, 50);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
+    document.addEventListener("fullscreenchange", schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(settle);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      document.removeEventListener("fullscreenchange", schedule);
+    };
+  }, [pin, transform, viewport]);
 
-  return (
+  if (placed === null) return null;
+  const { place, host } = placed;
+
+  return createPortal(
     <div
       aria-label={pin.location.name}
-      className="absolute z-10 max-h-[calc(100%-1rem)] w-72 max-w-[calc(100%-1rem)] cursor-auto overflow-auto rounded-lg border border-border bg-surface p-3 shadow-lg"
+      className="fixed z-50 cursor-auto overflow-auto rounded-lg border border-border bg-surface p-3 shadow-lg"
       onClick={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
+      ref={box}
       role="dialog"
-      style={{ left, top: Math.min(top, Math.max(8, (element?.clientHeight ?? 0) - 240)) }}
+      style={{ left: place.left, top: place.top, width: place.width, maxHeight: place.maxHeight }}
     >
       <LocationDetail location={pin.location} onClose={onClose} />
-    </div>
+    </div>,
+    host,
   );
 }

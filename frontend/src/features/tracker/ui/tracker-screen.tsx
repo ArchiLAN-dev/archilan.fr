@@ -68,7 +68,7 @@ type Props = {
 
 const BROWSER_DEPS: TrackerSessionDeps = {
   fetchArchive: fetchTrackerArchive,
-  createClient: ({ onLog, onApSend }) => new TrackerClient({ createWorker: createTrackerWorker, onLog, onApSend }),
+  createClient: ({ onLog, onApSend, onFrame }) => new TrackerClient({ createWorker: createTrackerWorker, onLog, onApSend, onFrame }),
   createApClient: createArchipelagoClient,
   fetchSlotConnection,
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Gamepad2, Shovel } from "lucide-react";
 
@@ -44,60 +45,125 @@ function useHubSession(registrationId: string, confirmed: boolean) {
 }
 
 /**
- * Story 53.3: every tool of the event in one place. The existing cards read their own endpoint and render nothing while
- * their tool is off (blind test closed, no Minimapperz link, no survey), so the grid never shows an empty frame.
+ * Story 53.10: one card of the dashboard. The tools come from other features and keep their own frame on the pages
+ * they come from; here their outer frame is evened out (same border, background, padding, title size, full width of
+ * the column), so the space never shows a card inside a card. A tool that renders nothing leaves no empty frame.
  */
-export function RegistrantHubTools({ eventId, eventSlug, registrationId, confirmed, phase = "before" }: Props) {
+export const HUB_TILE_CLASS =
+  "min-w-0 scroll-mt-24 empty:hidden [&>*]:m-0! [&>*]:w-full [&>*]:max-w-none! [&>*]:rounded-lg! [&>*]:border! [&>*]:border-border! [&>*]:bg-surface! [&>*]:p-4! [&_h2]:font-heading [&_h2]:text-sm! [&_h2]:font-semibold!";
+
+export function HubTile({ children, id }: { children?: ReactNode; id?: string }) {
+  return (
+    <div className={HUB_TILE_CLASS} id={id}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Story 53.10: the main column's game block - where the member's game stands, and what the Passeur opened while they
+ * were away during it (story 52.5).
+ */
+export function HubGame({ registrationId, eventSlug, confirmed, phase = "before" }: Props) {
   const { data: connection } = useHubSession(registrationId, phase !== "after" && confirmed);
+  const { data: guides } = useHelpGuides();
+  const help = (slug: string) => guideHref(guides ?? null, slug);
+  if (!confirmed || phase === "after") return null;
+
+  const sessionPath = `/evenements/${eventSlug}/inscription/${registrationId}/session`;
+  const runningSessionId = connection?.kind === "success" && connection.data.session?.status === "running" ? connection.data.session.id : null;
+  return (
+    <>
+      <HubTile>
+        <HubSessionCard
+          helpHref={help(HELP_GUIDE_SLUGS.firstGame)}
+          registrationId={registrationId}
+          result={connection ?? null}
+          sessionPath={sessionPath}
+        />
+      </HubTile>
+      {runningSessionId !== null ? <PasseurNoticeCard helpHref={help(HELP_GUIDE_SLUGS.passeur)} sessionId={runningSessionId} /> : null}
+    </>
+  );
+}
+
+/**
+ * Story 53.3, in the side column since story 53.10: the small tools of the event (blind test, Minimapperz code,
+ * pelles). The cards read their own endpoint and render nothing while their tool is off, so no empty frame shows.
+ * After the event, only the pelles stay.
+ */
+export function HubSideTools({ eventId, phase = "before" }: { eventId: string; phase?: EventPhase }) {
   const { data: wallet } = useQuery({
     queryKey: ["registrant-hub-wallet"],
     queryFn: () => fetchMyWallet(1),
     staleTime: DEFAULT_STALE_TIME,
     retry: false,
   });
+  const { data: guides } = useHelpGuides();
+  const help = (slug: string) => guideHref(guides ?? null, slug);
+  const pelles = (
+    <HubTile>
+      <HubPellesCard eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.pelles)} wallet={wallet ?? null} />
+    </HubTile>
+  );
 
-  const { data: guides } = useQuery({
+  if (phase === "after") return pelles;
+
+  return (
+    <>
+      <HubTile>
+        <BlindTestJoinButton eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.blindTest)} />
+      </HubTile>
+      <HubTile>
+        <MinimapperzCodeCard eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.minimapperz)} />
+      </HubTile>
+      {pelles}
+    </>
+  );
+}
+
+/**
+ * Story 53.10: what the member tells the organisers (when they are there, whether their stream may go on air), in
+ * the main column: these are forms, they need the room. Gone after the event.
+ */
+export function HubParticipation({ registrationId, confirmed, phase = "before" }: Omit<Props, "eventId" | "eventSlug">) {
+  const { data: guides } = useHelpGuides();
+  const help = (slug: string) => guideHref(guides ?? null, slug);
+  if (phase === "after") return null;
+
+  return (
+    <>
+      <HubTile id="presence">
+        <RegistrationPresenceCard registrationId={registrationId} />
+      </HubTile>
+      <HubTile>
+        <RegistrationBroadcastConsentCard helpHref={help(HELP_GUIDE_SLUGS.broadcast)} registrationId={registrationId} />
+      </HubTile>
+      {/* Story 47.7: the LAN media server, from the day before to the end, for a confirmed registrant who accepts the broadcast. */}
+      {confirmed ? (
+        <HubTile>
+          <MediaPublishCard helpHref={help(HELP_GUIDE_SLUGS.broadcast)} registrationId={registrationId} />
+        </HubTile>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Story 53.10: the organisers' open surveys, for the "À faire maintenant" banner (the checklist links here,
+ * `#sondages`). Renders nothing without an open survey.
+ */
+export function HubSurveys({ eventId, eventSlug }: { eventId: string; eventSlug: string }) {
+  return <EventSurveyBanner eventId={eventId} eventSlug={eventSlug} />;
+}
+
+function useHelpGuides() {
+  return useQuery({
     queryKey: HELP_GUIDES_QUERY_KEY,
     queryFn: fetchHelpGuides,
     staleTime: DEFAULT_STALE_TIME,
     retry: false,
   });
-  const help = (slug: string) => guideHref(guides ?? null, slug);
-
-  const sessionPath = `/evenements/${eventSlug}/inscription/${registrationId}/session`;
-  const runningSessionId = connection?.kind === "success" && connection.data.session?.status === "running" ? connection.data.session.id : null;
-
-  if (phase === "after") {
-    return (
-      <div className="grid gap-4">
-        <EventSurveyBanner eventId={eventId} eventSlug={eventSlug} />
-        <HubPellesCard eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.pelles)} wallet={wallet ?? null} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid gap-4">
-      {confirmed ? <HubSessionCard
-          helpHref={help(HELP_GUIDE_SLUGS.firstGame)}
-          registrationId={registrationId}
-          result={connection ?? null}
-          sessionPath={sessionPath}
-        /> : null}
-      {/* Story 52.5: what the Passeur opened while the member was away, during their game. */}
-      {runningSessionId !== null ? <PasseurNoticeCard helpHref={help(HELP_GUIDE_SLUGS.passeur)} sessionId={runningSessionId} /> : null}
-      <BlindTestJoinButton eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.blindTest)} />
-      <MinimapperzCodeCard eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.minimapperz)} />
-      <EventSurveyBanner eventId={eventId} eventSlug={eventSlug} />
-      <HubPellesCard eventId={eventId} helpHref={help(HELP_GUIDE_SLUGS.pelles)} wallet={wallet ?? null} />
-      <div className="scroll-mt-24" id="presence">
-        <RegistrationPresenceCard registrationId={registrationId} />
-      </div>
-      <RegistrationBroadcastConsentCard helpHref={help(HELP_GUIDE_SLUGS.broadcast)} registrationId={registrationId} />
-      {/* Story 47.7: the LAN media server, from the day before to the end, for a confirmed registrant who accepts the broadcast. */}
-      {confirmed ? <MediaPublishCard helpHref={help(HELP_GUIDE_SLUGS.broadcast)} registrationId={registrationId} /> : null}
-    </div>
-  );
 }
 
 type ReliveProps = {

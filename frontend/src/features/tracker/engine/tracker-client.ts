@@ -31,6 +31,8 @@ export type TrackerClientOptions = {
   onLog?: (log: { level: LogLevel; message: string }) => void;
   /** Story 54.6: the pack asks the Archipelago server for data storage keys. */
   onApSend?: (packets: ApOutgoing[]) => void;
+  /** Story 54.11: what the pack's frame handlers changed, unasked. */
+  onFrame?: (state: StateUpdate) => void;
 };
 
 export const TRACKER_TIMEOUT_MS = 10_000;
@@ -129,6 +131,10 @@ export class TrackerClient {
     }
     if (data.type === "apSend") {
       this.options.onApSend?.(data.packets);
+      return;
+    }
+    if (data.type === "frame") {
+      this.options.onFrame?.(data.state);
       return;
     }
     if (data.requestId === null) return;

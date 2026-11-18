@@ -70,3 +70,20 @@ Nothing remains deferred from story 7.7.
   `ghost_rando_table.lua`), Majora's Mask (`scripts/inverse_rules.lua`). À signaler aux auteurs ou attendre une
   release corrigée ; rien à faire côté site.
 
+
+## Deferred from: story 54.11, parité PopTracker (2026-11-18)
+
+Reportés après l'inventaire (`54-11-parite-poptracker-ecarts.md`). Raison commune : rares dans les packs Archipelago
+de la campagne, ou purement cosmétiques ; aucun n'empêche un pack de se charger ni ne fausse la logique.
+
+- **Formes de pin 0.36** (`trapezoid`, `triangle`, `concave_kite`, `location_orientation`, `border_strength`) : dessinées
+  en carré. C'est pourquoi `PopVersion` vaut 0.35.4 et pas 0.36.0 : un pack qui teste 0.36 garde ses formes anciennes.
+- **`max_width` / `max_height`** des layouts, **`overlay_background`** et taille de police des badges,
+  `SetOverlayBackground` / `SetOverlayFontSize` : ignorés.
+- **`AddClasses` / `class`** (styles CSS du pack) et **`settings.json`** du pack : ignorés, l'habillage reste celui du site.
+- **Clic du milieu des items Lua** (`OnMiddleClickFunc`) : pas de clic du milieu sur l'écran (téléphone).
+- **`UiHint` `Zoom` / `Pan`** : ignorés (journal info) ; seul `ActivateTab` est suivi.
+- **`recentpins`** : widget non dessiné.
+- **`SaveFunc` / `LoadFunc`, `AsyncProgress`** : déjà reportés par la 54.8, inchangés.
+- **Twilight Princess** : récursion sans fin dans le pack (`scripts/control.lua`, lignes 5-6, `has` → `hasAll` →
+  `has`), arrêtée par le garde-fou ; à signaler à l'auteur du pack.

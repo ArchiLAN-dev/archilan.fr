@@ -27,6 +27,8 @@ export type RuleContext = {
   callFunction(name: string, args: string[]): number | boolean | null;
   /** The accessibility of a section or location by its path, without the leading `@`. */
   referenceLevel(path: string): AccessibilityLevel;
+  /** Story 54.11: whether a section or location is visible, for an `@` in visibility rules. */
+  referenceVisible(path: string): boolean;
 };
 
 /** A single string is one entry with one token list (`"a,b"` = `[["a,b"]]`), as in PopTracker since 0.25.6. */
@@ -90,51 +92,92 @@ function splitCount(text: string): { rule: string; count: number } {
   return { rule: match[1], count: Number(match[2]) };
 }
 
-/** No rule at all means always accessible. */
-export function evaluateRules(entries: readonly RuleEntry[], context: RuleContext): AccessibilityLevel {
+export type RuleOptions = {
+  /** Visibility rules: an `@` reference asks whether the target is visible, not whether it is accessible. */
+  visibility?: boolean;
+  /**
+   * `inspectable_sequence_break` of the location or section: a rule both inspectable and reachable by sequence
+   * break counts as a sequence break, not as inspectable.
+   */
+  inspectableSequenceBreak?: boolean;
+};
+
+/**
+ * No rule at all means always accessible. Story 54.11: the levels combine as PopTracker's `Tracker::resolveRules`
+ * (src/core/tracker.cpp, v0.36.0), entry by entry, then across entries: an entry fully met wins; otherwise one
+ * reachable by sequence break and one inspectable give « inspect » (or « sequence break » with
+ * `inspectable_sequence_break`).
+ */
+export function evaluateRules(entries: readonly RuleEntry[], context: RuleContext, options: RuleOptions = {}): AccessibilityLevel {
   if (entries.length === 0) return AccessibilityLevel.Normal;
-  let best: AccessibilityLevel = AccessibilityLevel.None;
+  let glitched = false;
+  let inspectable = false;
   for (const entry of entries) {
-    const level = evaluateEntry(entry, context);
-    if (level > best) best = level;
-    if (best === AccessibilityLevel.Normal) break;
+    if (entry.length === 0) return AccessibilityLevel.Normal;
+    const { level, inspect } = evaluateEntry(entry, context, options.visibility === true);
+    if (level === AccessibilityLevel.Normal && !inspect) return AccessibilityLevel.Normal;
+    if (level !== AccessibilityLevel.None && inspect) inspectable = true;
+    if (level === AccessibilityLevel.SequenceBreak) glitched = true;
   }
-  return best;
+  if (glitched && inspectable && options.inspectableSequenceBreak !== true) return AccessibilityLevel.Inspect;
+  if (glitched) return AccessibilityLevel.SequenceBreak;
+  return inspectable ? AccessibilityLevel.Inspect : AccessibilityLevel.None;
 }
 
-function evaluateEntry(entry: RuleEntry, context: RuleContext): AccessibilityLevel {
-  let level: AccessibilityLevel = AccessibilityLevel.Normal;
-  let hasInspect = false;
+type EntryResult = { level: AccessibilityLevel; inspect: boolean };
+
+/** One entry (AND), as PopTracker: `level` is None, SequenceBreak or Normal; `inspect` once a `{` token was met. */
+function evaluateEntry(entry: RuleEntry, context: RuleContext, visibility: boolean): EntryResult {
+  let reachable: AccessibilityLevel = AccessibilityLevel.Normal;
+  let inspect = false;
   for (const token of entry) {
-    if (token.inspect) hasInspect = true;
-    let tokenLevel = evaluateToken(token, context);
-    if (token.optional && tokenLevel < AccessibilityLevel.SequenceBreak) tokenLevel = AccessibilityLevel.SequenceBreak;
-    if (tokenLevel < level) level = tokenLevel;
-    if (level === AccessibilityLevel.None) return level;
+    if (token.inspect) inspect = true;
+    const { rule } = token;
+    if (rule === "") continue;
+    if (rule.startsWith("@") || rule.startsWith("^$")) {
+      let sub = levelOf(rule, context, visibility);
+      // A target only inspectable, outside `{}`, does not hold the entry back (PopTracker ignores it); from `^$`, it
+      // makes the entry inspectable.
+      if (!inspect && sub === AccessibilityLevel.Inspect) {
+        if (rule.startsWith("^$")) inspect = true;
+      } else if (token.optional && sub === AccessibilityLevel.None) {
+        sub = AccessibilityLevel.SequenceBreak;
+      } else if (sub === AccessibilityLevel.None) {
+        reachable = AccessibilityLevel.None;
+      }
+      if (sub === AccessibilityLevel.SequenceBreak && reachable !== AccessibilityLevel.None) reachable = AccessibilityLevel.SequenceBreak;
+      if (reachable === AccessibilityLevel.None) break;
+      continue;
+    }
+    if (countOf(rule, context) >= token.count) continue;
+    if (token.optional) {
+      reachable = AccessibilityLevel.SequenceBreak;
+    } else {
+      reachable = AccessibilityLevel.None;
+      break;
+    }
   }
-  if (hasInspect && level > AccessibilityLevel.Inspect) return AccessibilityLevel.Inspect;
-  return level;
+  return { level: reachable, inspect };
 }
 
-function evaluateToken(token: RuleToken, context: RuleContext): AccessibilityLevel {
-  const { rule } = token;
-  if (rule === "") return AccessibilityLevel.Normal;
+function levelOf(rule: string, context: RuleContext, visibility: boolean): AccessibilityLevel {
   if (rule.startsWith("@")) {
-    const level = context.referenceLevel(rule.slice(1));
+    const path = rule.slice(1);
+    if (visibility) return context.referenceVisible(path) ? AccessibilityLevel.Normal : AccessibilityLevel.None;
+    const level = context.referenceLevel(path);
     return level === AccessibilityLevel.Cleared ? AccessibilityLevel.Normal : level;
   }
-  if (rule.startsWith("^$")) {
-    const value = callRule(rule.slice(2), context);
-    if (value === null || value === false) return AccessibilityLevel.None;
-    if (value === true) return AccessibilityLevel.Normal;
-    return toAccessibilityLevel(value);
-  }
-  if (rule.startsWith("$")) {
-    const value = callRule(rule.slice(1), context);
-    const count = value === true ? 1 : typeof value === "number" ? value : 0;
-    return count >= token.count ? AccessibilityLevel.Normal : AccessibilityLevel.None;
-  }
-  return context.providerCount(rule) >= token.count ? AccessibilityLevel.Normal : AccessibilityLevel.None;
+  const value = callRule(rule.slice(2), context);
+  if (value === null || value === false) return AccessibilityLevel.None;
+  if (value === true) return AccessibilityLevel.Normal;
+  const level = toAccessibilityLevel(value);
+  return level === AccessibilityLevel.Cleared ? AccessibilityLevel.Normal : level;
+}
+
+function countOf(rule: string, context: RuleContext): number {
+  if (!rule.startsWith("$")) return context.providerCount(rule);
+  const value = callRule(rule.slice(1), context);
+  return value === true ? 1 : typeof value === "number" ? value : 0;
 }
 
 function callRule(call: string, context: RuleContext): number | boolean | null {

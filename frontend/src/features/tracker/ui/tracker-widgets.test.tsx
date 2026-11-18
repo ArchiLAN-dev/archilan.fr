@@ -92,9 +92,18 @@ async function render(
 }
 
 function byLabel(label: string): HTMLElement {
-  const found = container.querySelector<HTMLElement>(`[aria-label="${label}"]`);
+  // The checks of a pin open in a portal on the page (story 54.9), outside the container.
+  const found = document.querySelector<HTMLElement>(`[aria-label="${label}"]`);
   if (found === null) throw new Error(`nothing labelled ${label}`);
   return found;
+}
+
+/** Story 54.9: the checks of a pin open on the next frame, once placed in the window. */
+async function openPin(pin: Element) {
+  fire(pin, new MouseEvent("click", { bubbles: true }));
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  });
 }
 
 function fire(target: Element, event: Event) {
@@ -186,6 +195,28 @@ describe("the ArchiLAN layout of a pack (story 54.9)", () => {
     click(button("Objets"));
     expect(panel.className).toContain("flex");
     expect(byLabel("Cartes").className).toMatch(/(^| )hidden( |$)/);
+  });
+
+  it("shows the pack's settings_popup as a page of the map area (story 54.11)", async () => {
+    TEST_PACK.layouts.settings_popup = { type: "itemgrid", rows: [["ocarina"]] };
+    try {
+      await render({}, DEFAULT_SETTINGS, "tracker_default", true);
+      click(button("Réglages du pack"));
+      const page = container.querySelector('[data-page="Réglages du pack"]');
+      expect(page?.querySelector('[aria-label="Ocarina"]')).not.toBeNull();
+    } finally {
+      delete TEST_PACK.layouts.settings_popup;
+    }
+  });
+
+  it("opens the tab a pack asks for through Tracker:UiHint ActivateTab (story 54.11)", async () => {
+    TEST_PACK.layouts.settings_popup = { type: "itemgrid", rows: [["ocarina"]] };
+    try {
+      await render({ hints: [{ name: "ActivateTab", value: "Réglages du pack" }] }, DEFAULT_SETTINGS, "tracker_default", true);
+      expect(container.querySelector('[data-page="Réglages du pack"]')).not.toBeNull();
+    } finally {
+      delete TEST_PACK.layouts.settings_popup;
+    }
   });
 
   it("folds the items away on a wide screen and brings them back", async () => {
@@ -280,8 +311,8 @@ describe("tracker items", () => {
     await render({ items: { 1: { active: true, stage: 0, count: 0, overlay: "" } } });
     expect(byLabel("Sword").getAttribute("aria-pressed")).toBe("true");
     expect(byLabel("Bow").getAttribute("aria-pressed")).toBe("false");
-    expect(byLabel("Bow").querySelector("img")?.className).toContain("grayscale");
-    expect(byLabel("Sword").querySelector("img")?.className).not.toContain("grayscale");
+    expect(byLabel("Bow").querySelector<HTMLImageElement>("img")?.style.filter).toContain("grayscale");
+    expect(byLabel("Sword").querySelector<HTMLImageElement>("img")?.style.filter ?? "").not.toContain("grayscale");
     expect(byLabel("Ocarina").hasAttribute("aria-pressed")).toBe(false);
   });
 });
@@ -324,7 +355,7 @@ describe("map pins and the location popover", () => {
     const pin = byLabel("Woodfall : En partie : faisable, pas encore, indice : important");
     expect(pin.querySelector("[data-hint]")).not.toBeNull();
     expect(byLabel("Swamp : Fait").querySelector("[data-hint]")).toBeNull();
-    fire(pin, new MouseEvent("click", { bubbles: true }));
+    await openPin(pin);
     expect(byLabel("Entrance : Faisable, indice : important")).not.toBeNull();
     expect(byLabel("Pots : Pas encore")).not.toBeNull();
   });
@@ -333,8 +364,10 @@ describe("map pins and the location popover", () => {
     await render({ sections: { 10: section(AccessibilityLevel.Normal, 1), 11: section(AccessibilityLevel.Normal, 2) } });
     const pin = container.querySelector('[aria-label^="Woodfall"]');
     if (pin === null) throw new Error("no pin");
-    fire(pin, new MouseEvent("click", { bubbles: true }));
-    const dialog = container.querySelector('[role="dialog"]');
+    await openPin(pin);
+    const dialog = document.querySelector('[role="dialog"]');
+    // Over the page, not inside the map's frame that clipped it.
+    expect(container.contains(dialog)).toBe(false);
     expect(dialog?.textContent).toContain("Entrance");
     expect(dialog?.textContent).toContain("2/3");
     fire(byLabel("Entrance : Faisable"), new MouseEvent("click", { bubbles: true }));
@@ -346,6 +379,6 @@ describe("map pins and the location popover", () => {
     // The hosted item of the boss section is drawn next to it.
     expect(dialog?.querySelector('[aria-label="Crystal"]')).not.toBeNull();
     fire(byLabel("Fermer"), new MouseEvent("click", { bubbles: true }));
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 });

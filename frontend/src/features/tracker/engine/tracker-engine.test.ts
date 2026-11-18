@@ -63,7 +63,7 @@ describe("TrackerEngine with the mini pack", () => {
   it("resolves require inside the pack and exposes the PopTracker globals", () => {
     expect(engine.runLua("return HELPERS_NAME")).toBe("logic.helpers");
     expect(engine.runLua("return VARIANT")).toBe("standard");
-    expect(engine.runLua("return PopVersion")).toBe("0.34.0");
+    expect(engine.runLua("return PopVersion")).toBe("0.35.4");
     expect(engine.runLua("return AccessibilityLevel.SequenceBreak")).toBe(AccessibilityLevel.SequenceBreak);
     expect(engine.runLua("return Highlight.Priority")).toBe(3);
     expect(engine.runLua("return Archipelago.PlayerNumber")).toBe(-1);

@@ -43,6 +43,12 @@ const MM_LIKE: Record<string, LayoutNode> = {
 };
 
 describe("outlineLayout", () => {
+  it("shows every map of the pack for a map widget without maps, as PopTracker (story 54.11)", () => {
+    const root: LayoutNode = { type: "map" };
+    expect(outlineLayout(root, {}, ["overworld", "dungeon"]).maps.map((map) => map.name)).toEqual(["overworld", "dungeon"]);
+    expect(outlineLayout({ type: "map", maps: [] }, {}, ["overworld"]).maps).toEqual([]);
+  });
+
   it("takes the maps out of the nested tabs, named by them, each once", () => {
     const outline = outlineLayout(MM_LIKE.tracker_default as LayoutNode, MM_LIKE);
     expect(outline.maps).toEqual([
@@ -125,6 +131,38 @@ describe("outlineLayout", () => {
       ],
     };
     expect(outlineLayout(wide, {}).maps.map(mapLabel)).toEqual(["Map", "Options"]);
+  });
+
+  it("reads a tab whose content is a list of widgets (Twilight Princess pack)", () => {
+    const layouts: Record<string, LayoutNode> = {
+      layout_maps: {
+        type: "tabbed",
+        tabs: [
+          {
+            title: "Overworld",
+            content: {
+              type: "tabbed",
+              tabs: [
+                { title: "Main Map", content: [{ type: "map", maps: ["overworld"] }] },
+                {
+                  title: "Faron",
+                  content: [{ type: "tabbed", tabs: [{ title: "Coro's House", content: [{ type: "map", maps: ["ch"] }] }] }],
+                },
+              ],
+            },
+          },
+          { title: "Forest Temple", content: [{ type: "map", maps: ["ft1"] }, { type: "map", maps: ["ft2"] }] },
+        ],
+      },
+    };
+    const root: LayoutNode = {
+      type: "dock",
+      content: [
+        { type: "dock", dock: "left", content: [{ type: "itemgrid", rows: [["a"]] }] },
+        { type: "container", content: [{ type: "layout", key: "layout_maps" }] },
+      ],
+    };
+    expect(outlineLayout(root, layouts).maps.map((map) => map.name)).toEqual(["overworld", "ch", "ft1", "ft2"]);
   });
 
   it("stops on a layout that references itself", () => {
