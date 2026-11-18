@@ -73,8 +73,6 @@ final class EmailConfirmationToken
 
     public function markConfirmed(\DateTimeImmutable $at): void
     {
-        if (null === $this->confirmedAt) {
-            $this->confirmedAt = $at;
-        }
+        $this->confirmedAt ??= $at;
     }
 }

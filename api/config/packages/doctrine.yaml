@@ -19,109 +19,91 @@ doctrine:
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Identity/Domain/Entity'
                 prefix: 'App\Identity\Domain\Entity'
-                alias: Identity
             Events:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Events/Domain/Entity'
                 prefix: 'App\Events\Domain\Entity'
-                alias: Events
             GameSelection:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/GameSelection/Domain/Entity'
                 prefix: 'App\GameSelection\Domain\Entity'
-                alias: GameSelection
             Registrations:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Registrations/Domain/Entity'
                 prefix: 'App\Registrations\Domain\Entity'
-                alias: Registrations
             Payments:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Payments/Domain/Entity'
                 prefix: 'App\Payments\Domain\Entity'
-                alias: Payments
             Sessions:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Sessions/Domain/Entity'
                 prefix: 'App\Sessions\Domain\Entity'
-                alias: Sessions
             Content:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Content/Domain/Entity'
                 prefix: 'App\Content\Domain\Entity'
-                alias: Content
             PersonalRuns:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/PersonalRuns/Domain/Entity'
                 prefix: 'App\PersonalRuns\Domain\Entity'
-                alias: PersonalRuns
             Membership:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Membership/Domain/Entity'
                 prefix: 'App\Membership\Domain\Entity'
-                alias: Membership
             WeeklyRuns:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/WeeklyRuns/Domain/Entity'
                 prefix: 'App\WeeklyRuns\Domain\Entity'
-                alias: WeeklyRuns
             SessionConfig:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/SessionConfig/Domain/Entity'
                 prefix: 'App\SessionConfig\Domain\Entity'
-                alias: SessionConfig
             Streaming:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Streaming/Domain/Entity'
                 prefix: 'App\Streaming\Domain\Entity'
-                alias: Streaming
             Community:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Community/Domain/Entity'
                 prefix: 'App\Community\Domain\Entity'
-                alias: Community
             Wallet:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Wallet/Domain/Entity'
                 prefix: 'App\Wallet\Domain\Entity'
-                alias: Wallet
             Notes:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Notes/Domain/Entity'
                 prefix: 'App\Notes\Domain\Entity'
-                alias: Notes
             Surveys:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Surveys/Domain/Entity'
                 prefix: 'App\Surveys\Domain\Entity'
-                alias: Surveys
             Trackers:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Trackers/Domain/Entity'
                 prefix: 'App\Trackers\Domain\Entity'
-                alias: Trackers
             CatalogSync:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/CatalogSync/Domain/Entity'
                 prefix: 'App\CatalogSync\Domain\Entity'
-                alias: CatalogSync
 
 when@test:
     doctrine:

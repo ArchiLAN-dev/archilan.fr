@@ -36,7 +36,7 @@ final class RunBronzeTest extends FunctionalTestCase
         $this->bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob', 'bob');
         $this->run = Run::create($this->owner->getId(), 'Ma run', new \DateTimeImmutable());
         $this->run->attachSession('session-1');
-        $this->setStatus(Run::STATUS_IDLE);
+        $this->setRunStatus(Run::STATUS_IDLE);
         $this->entityManager->persist($this->run);
         $this->entityManager->flush();
     }
@@ -126,7 +126,7 @@ final class RunBronzeTest extends FunctionalTestCase
         $this->reconcile();
         self::assertSame(30, $this->balance($this->bob), 'idle is a pause, not an end');
 
-        $this->setStatus(Run::STATUS_COMPLETED);
+        $this->setRunStatus(Run::STATUS_COMPLETED);
         $this->entityManager->flush();
         $this->reconcile();
         $this->reconcile();
@@ -139,7 +139,7 @@ final class RunBronzeTest extends FunctionalTestCase
     {
         $this->credit($this->bob, 30);
         $this->bob->ban('Triche', new \DateTimeImmutable('-1 day'));
-        $this->setStatus(Run::STATUS_CANCELLED);
+        $this->setRunStatus(Run::STATUS_CANCELLED);
         $this->entityManager->flush();
 
         $this->reconcile();
@@ -215,7 +215,7 @@ final class RunBronzeTest extends FunctionalTestCase
     public function testTheStatisticsKeepBronzeApartFromGold(): void
     {
         $this->credit($this->bob, 30);
-        $this->setStatus(Run::STATUS_COMPLETED);
+        $this->setRunStatus(Run::STATUS_COMPLETED);
         $this->entityManager->flush();
         $this->reconcile();
         $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin', 'admin'));
@@ -228,7 +228,7 @@ final class RunBronzeTest extends FunctionalTestCase
         self::assertSame(['created' => 30, 'spent' => 0, 'burned' => 30], $stats['bronze'] ?? null);
     }
 
-    private function setStatus(string $status): void
+    private function setRunStatus(string $status): void
     {
         new \ReflectionProperty(Run::class, 'status')->setValue($this->run, $status);
     }

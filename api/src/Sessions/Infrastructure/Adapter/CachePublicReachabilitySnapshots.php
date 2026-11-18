@@ -6,6 +6,7 @@ namespace App\Sessions\Infrastructure\Adapter;
 
 use App\Sessions\Application\Port\PublicReachabilitySnapshotsInterface;
 use Psr\Cache\CacheItemPoolInterface;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 
 /**
  * Kept in a cache pool (config/packages/cache.yaml): the next push rewrites it, so losing it to a deployment costs an
@@ -13,7 +14,7 @@ use Psr\Cache\CacheItemPoolInterface;
  */
 final readonly class CachePublicReachabilitySnapshots implements PublicReachabilitySnapshotsInterface
 {
-    public function __construct(private CacheItemPoolInterface $publicReachabilityCache)
+    public function __construct(#[Target('public_reachability.cache')] private CacheItemPoolInterface $publicReachabilityCache)
     {
     }
 

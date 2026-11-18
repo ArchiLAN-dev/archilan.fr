@@ -194,6 +194,8 @@ final class RunParticipant
     /**
      * Records the solo test-generation verdict for a slot (story 9.42). Returns false when
      * the slot no longer exists (selection changed while the check ran).
+     *
+     * @phpstan-impure it writes through a reference into the slot list, which PHPStan 2.3 does not see as a change
      */
     public function recordSlotPreflight(string $slotId, string $status, string $error, string $yamlSha, \DateTimeImmutable $now): bool
     {

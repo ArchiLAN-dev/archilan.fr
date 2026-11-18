@@ -275,6 +275,8 @@ final class CommunityProfileCustomizationTest extends FunctionalTestCase
 
     /**
      * @return array<mixed>
+     *
+     * @phpstan-impure the last response, which each request changes
      */
     private function data(): array
     {

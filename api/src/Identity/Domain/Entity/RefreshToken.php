@@ -110,9 +110,7 @@ final class RefreshToken
 
     public function revoke(\DateTimeImmutable $at): void
     {
-        if (null === $this->revokedAt) {
-            $this->revokedAt = $at;
-        }
+        $this->revokedAt ??= $at;
     }
 
     public function getFamilyId(): ?string
@@ -132,9 +130,7 @@ final class RefreshToken
     public function markRotated(string $successorTokenHash, \DateTimeImmutable $at): void
     {
         $this->replacedByTokenHash = $successorTokenHash;
-        if (null === $this->revokedAt) {
-            $this->revokedAt = $at;
-        }
+        $this->revokedAt ??= $at;
     }
 
     /**

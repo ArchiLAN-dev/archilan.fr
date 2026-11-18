@@ -405,6 +405,8 @@ final class PersonalRunTest extends FunctionalTestCase
 
     /**
      * @return array<string, mixed>
+     *
+     * @phpstan-impure the last response, which each request changes
      */
     private function responseData(): array
     {

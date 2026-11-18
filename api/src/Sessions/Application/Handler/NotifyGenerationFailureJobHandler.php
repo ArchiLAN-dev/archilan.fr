@@ -78,9 +78,7 @@ final readonly class NotifyGenerationFailureJobHandler
             }
 
             $userId = $slotUserIds[$slotName];
-            if (!isset($byUser[$userId])) {
-                $byUser[$userId] = ['slotNames' => [], 'message' => $finding['message']];
-            }
+            $byUser[$userId] ??= ['slotNames' => [], 'message' => $finding['message']];
             if (!in_array($slotName, $byUser[$userId]['slotNames'], true)) {
                 $byUser[$userId]['slotNames'][] = $slotName;
             }
