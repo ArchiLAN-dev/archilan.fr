@@ -55,8 +55,9 @@ final class SessionFeedEvent
         #[ORM\Column(name: 'occurred_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $occurredAt,
 
-        #[ORM\Column(name: 'item_id', type: Types::INTEGER, nullable: true)]
-        private ?int $itemId,
+        // Archipelago ids pass 2^31 in some games (922026936107125): BIGINT, which DBAL may hand back as a string.
+        #[ORM\Column(name: 'item_id', type: Types::BIGINT, nullable: true)]
+        private int|string|null $itemId,
 
         #[ORM\Column(name: 'item_name', type: Types::STRING, length: 255, nullable: true)]
         private ?string $itemName,
@@ -64,8 +65,8 @@ final class SessionFeedEvent
         #[ORM\Column(name: 'item_flags', type: Types::INTEGER, nullable: true)]
         private ?int $itemFlags,
 
-        #[ORM\Column(name: 'location_id', type: Types::INTEGER, nullable: true)]
-        private ?int $locationId,
+        #[ORM\Column(name: 'location_id', type: Types::BIGINT, nullable: true)]
+        private int|string|null $locationId,
 
         #[ORM\Column(name: 'location_name', type: Types::STRING, length: 255, nullable: true)]
         private ?string $locationName,
@@ -126,7 +127,7 @@ final class SessionFeedEvent
 
     public function getItemId(): ?int
     {
-        return $this->itemId;
+        return null === $this->itemId ? null : (int) $this->itemId;
     }
 
     public function getItemName(): ?string
@@ -142,7 +143,7 @@ final class SessionFeedEvent
 
     public function getLocationId(): ?int
     {
-        return $this->locationId;
+        return null === $this->locationId ? null : (int) $this->locationId;
     }
 
     public function getLocationName(): ?string
