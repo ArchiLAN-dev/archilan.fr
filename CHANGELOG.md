@@ -5,6 +5,17 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.70.2] - 2026-11-18
+
+Correctif du fil des sessions. Une migration (`Version20261118180000`), aucune variable d'environnement.
+
+### Corrigé
+
+- **Fil d'une session** : certains jeux numérotent leurs objets et emplacements au-delà de l'entier 32 bits
+  (922026936107125). L'événement n'était pas enregistré (timeline, récap, compteurs de succès), et l'échec
+  emportait la suite du traitement : le crédit de pelles en bronze d'un check et le règlement des primes échouaient
+  avec lui. Les identifiants d'objet et d'emplacement du fil passent en `BIGINT`.
+
 ## [0.70.1] - 2026-11-18
 
 Correctif de la priorité des indices. Aucune migration, aucune variable d'environnement. À déployer avec le bridge
