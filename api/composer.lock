@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2d676197698cd433c6848badca9b3dc9",
+    "content-hash": "f56acb157d756d5268c8f3f43495e420",
     "packages": [
         {
             "name": "archilan/bridge-client",
-            "version": "1.1.0",
+            "version": "1.2.0",
             "source": {
                 "type": "git",
-                "url": "git@github.com:ArchiLAN-dev/archilan-bridge-client.git",
-                "reference": "dc1043c46f7ee3ba14d235fe1add66504839b399"
+                "url": "https://github.com/ArchiLAN-dev/archilan-bridge-client.git",
+                "reference": "aab5cadc91f4f2070a13d55a05397788ff4af38b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-bridge-client/zipball/dc1043c46f7ee3ba14d235fe1add66504839b399",
-                "reference": "dc1043c46f7ee3ba14d235fe1add66504839b399",
+                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-bridge-client/zipball/aab5cadc91f4f2070a13d55a05397788ff4af38b",
+                "reference": "aab5cadc91f4f2070a13d55a05397788ff4af38b",
                 "shasum": ""
             },
             "require": {
@@ -45,7 +45,11 @@
                 "proprietary"
             ],
             "description": "PHP client for the Archilan Bridge REST API.",
-            "time": "2026-06-14T11:33:30+00:00"
+            "support": {
+                "source": "https://github.com/ArchiLAN-dev/archilan-bridge-client/tree/v1.2.0",
+                "issues": "https://github.com/ArchiLAN-dev/archilan-bridge-client/issues"
+            },
+            "time": "2026-11-18T17:35:25+00:00"
         },
         {
             "name": "archilan/bridge-client-bundle",
