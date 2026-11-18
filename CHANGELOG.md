@@ -5,6 +5,33 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.69.0] - 2026-11-18
+
+Tracker : parité avec PopTracker (story 54.11) et correctifs de la carte (story 54.9) ; « Mon event » en tableau de
+bord (story 53.10). Frontend seul : aucune migration, aucune variable d'environnement.
+
+### Ajouté
+
+- **Tracker, parité avec PopTracker 0.35.4** : passe systématique sur la documentation et le code source de
+  PopTracker (inventaire de 263 éléments dans la story 54.11).
+  - Objets : compteurs sans maximum déclaré, objets à étapes aux bornes, objets à deux parties, objets créés par le
+    script du pack qui relancent la logique quand ils changent (autotracking compris).
+  - Affichage : tous les effets d'image des packs, tailles d'objets en code, règles de visibilité propres aux pins.
+  - Règles : niveaux d'accès combinés comme PopTracker (« séquence cassée », « inspectable »).
+  - Pack : écran de réglages (`settings_popup`) en page « Réglages du pack », changement d'onglet demandé par le
+    pack, minuteurs des packs, version annoncée 0.35.4.
+  - Les rapports de compatibilité antérieurs sont marqués « à refaire » (`ENGINE_VERSION` 3).
+- **« Mon event » en tableau de bord** : en-tête compact avec le moment de l'event en grand, bandeau « À faire
+  maintenant » seulement quand quelque chose attend, deux colonnes sur grand écran, une seule épaisseur de cartes.
+
+### Corrigé
+
+- **Pack Twilight Princess** : il n'affichait aucune carte (contenu d'onglet écrit en liste), puis son calcul de
+  logique ne se terminait pas (récursion sans fin dans le pack, désormais arrêtée par un garde-fou, et comptes
+  d'objets gardés côté Lua). Il se charge, avec ses 74 cartes.
+- **Checks d'une zone** : la fenêtre qui les liste s'ouvre par-dessus le cadre de la carte au lieu d'être coupée près
+  d'un bord.
+
 ## [0.68.2] - 2026-11-17
 
 Correctifs du tracker (story 54.9), des informations de connexion d'un event et du temps réel des sessions : aucune
