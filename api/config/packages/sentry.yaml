@@ -2,10 +2,12 @@
 # empty (dev, test, and production until it is set).
 sentry:
     dsn: '%env(default::SENTRY_DSN)%'
-    # Symfony logs an uncaught exception already, and the Monolog handlers (monolog.yaml, prod) report it: the
-    # bundle's own listener would report it a second time. The same goes for a failed Messenger message.
+    # Symfony logs an uncaught exception already - a PHP fatal error too, turned into an exception - and the Monolog
+    # handlers (monolog.yaml, prod) report it: the bundle's own listener and the SDK's PHP error handler would report
+    # it a second time, and the handler would add every warning and notice besides. The same goes for a failed
+    # Messenger message.
     register_error_listener: false
-    register_error_handler: true
+    register_error_handler: false
     messenger:
         enabled: false
     tracing:

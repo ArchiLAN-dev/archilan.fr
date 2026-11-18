@@ -59,8 +59,10 @@ export const env = {
   // with. Build-time, like every NEXT_PUBLIC_ value. Empty = nothing is sent.
   sentryDsn: optionalString(process.env.NEXT_PUBLIC_SENTRY_DSN),
   sentryRelease: optionalString(process.env.NEXT_PUBLIC_SENTRY_RELEASE),
-  // The environment an error report is tagged with (production, development, test).
-  sentryEnvironment: optionalString(process.env.NODE_ENV) || "development",
+  // The environment an error report is tagged with. `next build` always sets NODE_ENV to production, so a built
+  // image says it itself: production for a release tag, staging for a branch build (docker-publish.yml).
+  sentryEnvironment:
+    optionalString(process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT) || optionalString(process.env.NODE_ENV) || "development",
 } as const;
 
 /**
