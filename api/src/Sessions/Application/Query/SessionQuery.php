@@ -105,6 +105,19 @@ final readonly class SessionQuery
     }
 
     /**
+     * Story 53.9: on an event session, every active registrant of the event may read any slot of the game
+     * (hints, item locations, reachable). A personal or weekly run keeps its slot-owner rule: this is false there.
+     */
+    public function isRegistrantOfEventSession(string $userId, string $eventId, string $sessionId): bool
+    {
+        if ($this->runs->findBySessionId($sessionId) instanceof Run) {
+            return false;
+        }
+
+        return $this->hasActiveEventRegistration($userId, $eventId);
+    }
+
+    /**
      * True when the user owns the Archipelago slot numbered $slotIndex in the session. Session-level
      * authorization is NOT enough: a registrant/participant may only read or act on their own slots
      * (issues #252 / #253). Admin bypass is the caller's responsibility.

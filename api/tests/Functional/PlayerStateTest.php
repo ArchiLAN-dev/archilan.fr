@@ -13,6 +13,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Entity\SlotCoPlayer;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -439,29 +440,104 @@ final class PlayerStateTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
-    public function testSlotItemLocationsForbidsForeignSlot(): void
+    /**
+     * Story 53.9: on an event session, a registrant reads any slot of the game (hints, item locations and their
+     * live topic). Each read stops at the running-state check (409) or answers (token), proving the gate passed.
+     *
+     * @return iterable<string, array{string, int}>
+     */
+    public static function eventSlotReads(): iterable
     {
-        // Item locations of another slot are spoilers -> a co-registrant must not read them (#252).
-        $session = $this->createRunningSession('run-own-il', 'evt-001');
-        [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'ilalice');
-        $this->loginAs($alice);
-
-        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/3/item-locations', $session->getId()));
-        self::assertResponseStatusCodeSame(403);
+        yield 'hints' => ['/hints', 409];
+        yield 'item-locations' => ['/item-locations', 409];
+        yield 'hints-token' => ['/hints-token', 200];
     }
 
-    public function testSlotItemLocationsForbidsRegistrantWithoutSlot(): void
+    #[DataProvider('eventSlotReads')]
+    public function testAnEventRegistrantReadsAnotherSlot(string $path, int $expected): void
     {
-        // A confirmed registrant (session-authorized) who owns no slot is still denied - the previous
-        // session-level check let this through, which was the #252 leak.
-        $session = $this->createRunningSession('run-noslot-il', 'evt-001');
-        $this->twoRegistrantsWithSlots($session, 'evt-001', 'ilnoslot');
+        $session = $this->createSession('run-53-9-read', 'evt-001');
+        [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'readother');
+        $this->loginAs($alice);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/3%s', $session->getId(), $path));
+        self::assertResponseStatusCodeSame($expected);
+    }
+
+    #[DataProvider('eventSlotReads')]
+    public function testAnEventRegistrantWithoutSlotReadsTheGameToo(string $path, int $expected): void
+    {
+        $session = $this->createSession('run-53-9-noslot', 'evt-001');
+        $this->twoRegistrantsWithSlots($session, 'evt-001', 'readnoslot');
         $carol = $this->createPlayer('carol-il@example.org', 'Carol');
         $this->makeRegistration($carol->getId(), 'evt-001', confirmed: true);
         $this->loginAs($carol);
 
-        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/item-locations', $session->getId()));
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2%s', $session->getId(), $path));
+        self::assertResponseStatusCodeSame($expected);
+    }
+
+    #[DataProvider('eventSlotReads')]
+    public function testAnotherEventsRegistrantStillCannotRead(string $path, int $expected): void
+    {
+        $session = $this->createSession('run-53-9-other-event', 'evt-001');
+        $this->twoRegistrantsWithSlots($session, 'evt-001', 'readstranger');
+        $dave = $this->createPlayer('dave-il@example.org', 'Dave');
+        $this->makeRegistration($dave->getId(), 'evt-002', confirmed: true);
+        $this->loginAs($dave);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2%s', $session->getId(), $path));
         self::assertResponseStatusCodeSame(403);
+    }
+
+    /**
+     * Story 53.9: reading another slot opens no write. Each route refuses a registrant on someone else's slot.
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function eventSlotWrites(): iterable
+    {
+        yield 'hint request' => ['POST', '/hints/request'];
+        yield 'hint request by item' => ['POST', '/hints/request-item'];
+        yield 'hint status' => ['PATCH', '/hints/123'];
+        yield 'pelle hint offer' => ['GET', '/pelle-hints'];
+        yield 'pelle hint buy' => ['POST', '/pelle-hints'];
+        yield 'bounties' => ['GET', '/bounties'];
+        yield 'bounty post' => ['POST', '/bounties'];
+        yield 'passeur offer' => ['GET', '/passeur'];
+        yield 'passeur call' => ['POST', '/passeur'];
+        yield 'departure' => ['GET', '/departure'];
+        yield 'departure request' => ['POST', '/departure'];
+    }
+
+    #[DataProvider('eventSlotWrites')]
+    public function testAnEventRegistrantCannotActOnAnotherSlot(string $method, string $path): void
+    {
+        $session = $this->createRunningSession('run-53-9-write', 'evt-001');
+        [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'writeother');
+        $this->loginAs($alice);
+
+        $this->client->jsonRequest($method, sprintf('/api/v1/sessions/%s/slots/3%s', $session->getId(), $path), ['status' => 30, 'location_id' => 12]);
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testAPrivateRunParticipantStillCannotReadAnotherSlot(): void
+    {
+        // Story 53.9 opens reading on event sessions only: a private run keeps the owner rule (#252).
+        $owner = $this->createPlayer('run-owner-il@example.org', 'Owner');
+        $guest = $this->createPlayer('run-guest-il@example.org', 'Guest');
+        $run = Run::create($owner->getId(), 'Run de test', new \DateTimeImmutable('2026-10-24T10:00:00+00:00'));
+        $this->entityManager->persist($run);
+        $session = $this->createSession('run-53-9-private', $run->getId());
+        $run->attachSession($session->getId());
+        $this->entityManager->persist(RunParticipant::create($run->getId(), $guest->getId(), new \DateTimeImmutable('2026-10-24T10:00:00+00:00')));
+        $this->entityManager->flush();
+        $this->loginAs($guest);
+
+        foreach (['/hints', '/item-locations', '/hints-token'] as $path) {
+            $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2%s', $session->getId(), $path));
+            self::assertResponseStatusCodeSame(403, $path);
+        }
     }
 
     public function testSlotItemLocationsAllowsOwnSlot(): void
@@ -487,16 +563,17 @@ final class PlayerStateTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(409);
     }
 
-    public function testSlotItemLocationsForbidsTheBridgeSpectatorSlot(): void
+    public function testTheBridgeSpectatorSlotIsOwnedByNoPlayer(): void
     {
         // The regression: a player's only game ranks slot_order 1, and Archipelago slot 1 is the
         // injected `_bridge_observer` spectator. Matching those two numbers is what denied every
-        // non-admin their own hints and item locations - and it would now hand them the bridge's.
-        $session = $this->createSession('run-bridge-il', 'evt-001');
+        // non-admin their own hints and item locations - and it would hand them the bridge's slot to act on.
+        // Since story 53.9 any registrant reads every slot of an event session; the owner check is on writes.
+        $session = $this->createRunningSession('run-bridge-il', 'evt-001');
         [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'ilbridge');
         $this->loginAs($alice);
 
-        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/1/item-locations', $session->getId()));
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/1/hints/123', $session->getId()), ['status' => 30]);
         self::assertResponseStatusCodeSame(403);
     }
 
