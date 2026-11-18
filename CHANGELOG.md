@@ -5,6 +5,24 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.70.0] - 2026-11-18
+
+Toute la partie consultable par les inscrits d'un événement (story 53.9). Aucune migration, aucune variable
+d'environnement.
+
+### Ajouté
+
+- **Tous les slots de la partie** : sur la page session d'un inscrit, chaque carte de « Progression des joueurs »
+  ouvre la fiche du slot, même celui d'un autre joueur : checks, items, sphères (selon le réglage de l'événement),
+  indices et suivi « faisable ». Le sélecteur de la fiche propose tous les slots, les siens en tête.
+
+### Modifié
+
+- La fiche du slot d'un autre joueur est en lecture seule (bandeau « Slot de {joueur} - lecture seule ») : pas
+  d'achat d'indice, de priorité, de primes, de Passeur ni de départ, qui restent au titulaire du slot (et à ses
+  co-joueurs). L'API ouvre la lecture des indices et des emplacements d'items aux inscrits de l'événement ; les runs
+  perso et hebdo gardent leur règle.
+
 ## [0.69.0] - 2026-11-18
 
 Tracker : parité avec PopTracker (story 54.11) et correctifs de la carte (story 54.9) ; « Mon event » en tableau de
