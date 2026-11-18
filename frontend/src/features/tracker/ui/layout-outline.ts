@@ -33,7 +33,7 @@ const PANEL_WIDTH = 300;
 
 type Layouts = Readonly<Record<string, unknown>>;
 
-type Walk = { layouts: Layouts; maps: OutlineMap[]; sections: OutlineSection[]; seenMaps: Set<string> };
+type Walk = { layouts: Layouts; allMaps: readonly string[]; maps: OutlineMap[]; sections: OutlineSection[]; seenMaps: Set<string> };
 
 /** The node a `layout` reference points at, followed through references; the node itself otherwise. */
 function resolve(node: LayoutNode, layouts: Layouts, depth = 0): LayoutNode | null {
@@ -84,8 +84,10 @@ function isPage(node: LayoutNode, layouts: Layouts, itemSize: Size = DEFAULT_ITE
   return subNodes(node, layouts).some((child) => isPage(child, layouts, size, depth + 1));
 }
 
-function mapNames(node: LayoutNode): string[] {
-  return Array.isArray(node.maps) ? node.maps.filter((name): name is string => typeof name === "string" && name !== "") : [];
+/** The maps a `map` widget shows; without `maps`, every map of the pack, as PopTracker does (story 54.11). */
+export function mapNames(node: LayoutNode, allMaps: readonly string[]): string[] {
+  if (!Array.isArray(node.maps)) return [...allMaps];
+  return node.maps.filter((name): name is string => typeof name === "string" && name !== "");
 }
 
 function walk(node: LayoutNode, path: string[], tabTitle: string | null, state: Walk, depth: number): void {
@@ -113,7 +115,7 @@ function walk(node: LayoutNode, path: string[], tabTitle: string | null, state: 
   }
 
   if (resolved.type === "map") {
-    for (const name of mapNames(resolved)) {
+    for (const name of mapNames(resolved, state.allMaps)) {
       if (state.seenMaps.has(name)) continue;
       state.seenMaps.add(name);
       state.maps.push({ name, path });
@@ -143,8 +145,8 @@ function walk(node: LayoutNode, path: string[], tabTitle: string | null, state: 
   for (const child of subNodes(resolved, state.layouts)) walk(child, path, null, state, depth + 1);
 }
 
-export function outlineLayout(root: LayoutNode, layouts: Layouts): LayoutOutline {
-  const state: Walk = { layouts, maps: [], sections: [], seenMaps: new Set() };
+export function outlineLayout(root: LayoutNode, layouts: Layouts, allMaps: readonly string[] = []): LayoutOutline {
+  const state: Walk = { layouts, allMaps, maps: [], sections: [], seenMaps: new Set() };
   walk(root, [], null, state, 0);
   return { maps: state.maps, sections: state.sections };
 }

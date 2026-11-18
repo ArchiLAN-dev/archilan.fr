@@ -78,7 +78,16 @@ export type StateUpdate = {
   sections: Record<number, SectionState>;
   /** Locations that have sections. */
   locations: Record<number, AccessibilityLevel>;
+  /**
+   * Story 54.11: whether a pin with its own rules (`restrict_visibility_rules`, `force_invisibility_rules`) shows, by
+   * `pinKey(locationId, index in mapLocations)`. A pin without such rules is absent and shows.
+   */
+  pins?: Record<string, boolean>;
 };
+
+export function pinKey(locationId: number, index: number): string {
+  return `${locationId}:${index}`;
+}
 
 export type ItemStatePatch = { active?: boolean; stage?: number; count?: number };
 

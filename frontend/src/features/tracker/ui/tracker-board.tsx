@@ -30,8 +30,8 @@ export function TrackerBoard({ root }: { root: string }) {
   const { pack, view: trackerView, settings } = useTracker();
   const outline = useMemo(() => {
     const node = pack.layouts[root];
-    return isLayoutNode(node) ? outlineLayout(node, pack.layouts) : { maps: [], sections: [] };
-  }, [pack.layouts, root]);
+    return isLayoutNode(node) ? outlineLayout(node, pack.layouts, pack.maps.map((map) => map.name)) : { maps: [], sections: [] };
+  }, [pack.layouts, pack.maps, root]);
   // Only the maps the pack defines: a layout may name one its maps.json lacks.
   const maps = useMemo(
     () => outline.maps.filter((entry) => entry.page !== undefined || pack.maps.some((map) => map.name === entry.name)),

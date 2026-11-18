@@ -1,6 +1,6 @@
 import { AccessibilityLevel } from "../engine/levels";
 import { readColor, readItemSize, readMargin, readSize, readSpacing } from "./layout-attributes";
-import { PackImages, parseImageMods } from "./pack-images";
+import { GREY_FILTER, PackImages, parseImageMods } from "./pack-images";
 import { INITIAL_STATE, section, TEST_PACK } from "./test-pack";
 import { fitTransform, zoomAt } from "./tracker-map";
 import {
@@ -71,6 +71,12 @@ describe("tracker view (story 54.5)", () => {
     expect(byCode.get("nothing")).toBeUndefined();
   });
 
+  it("finds a progressive by the codes it carries beside its stages (story 54.11)", () => {
+    const [bow] = TEST_PACK.items.filter((item) => item.name === "Bow");
+    const byCode = indexItemsByCode([{ ...bow, itemCodes: ["bow_any"] }]);
+    expect(byCode.get("bow_any")?.name).toBe("Bow");
+  });
+
   it("picks the root layout as PopTracker does", () => {
     expect(rootLayoutName(TEST_PACK)).toBe("tracker_default");
     expect(rootLayoutName({ ...TEST_PACK, layouts: { tracker_vertical: {}, tracker_horizontal: {} } })).toBe("tracker_horizontal");
@@ -83,6 +89,10 @@ describe("layout attributes", () => {
     expect(readSize(24)).toEqual({ width: 24, height: 24 });
     expect(readSize("32,24")).toEqual({ width: 32, height: 24 });
     expect(readSize("nope")).toBeNull();
+    // Story 54.11: PopTracker's size codes, 3 = 32 px and 4 = 48 px; the other small values keep the inherited size.
+    expect(readSize(3)).toEqual({ width: 32, height: 32 });
+    expect(readSize("4,3")).toEqual({ width: 48, height: 32 });
+    expect(readSize(5)).toBeNull();
     // Story 54.9: PopTracker's item_width / item_height, for items that are not square.
     const base = { width: 32, height: 32 };
     expect(readItemSize({ item_width: 320, item_height: 64 }, base)).toEqual({ width: 320, height: 64 });
@@ -103,9 +113,26 @@ describe("layout attributes", () => {
   });
 
   it("reads image modifiers", () => {
-    expect(parseImageMods("@disabled,overlay|images/o.png")).toEqual({ disabled: true, overlays: ["images/o.png"] });
-    expect(parseImageMods("@enabled")).toEqual({ disabled: false, overlays: [] });
-    expect(parseImageMods(null)).toEqual({ disabled: false, overlays: [] });
+    expect(parseImageMods("@disabled,overlay|images/o.png")).toEqual([
+      { kind: "filter", css: GREY_FILTER },
+      { kind: "overlay", path: "images/o.png", css: "" },
+    ]);
+    expect(parseImageMods("@enabled")).toEqual([]);
+    expect(parseImageMods(null)).toEqual([]);
+  });
+
+  it("reads every PopTracker filter, in order, with the overlay's own filters (story 54.11)", () => {
+    expect(parseImageMods("gray, dim, brightness|1.5, saturation|0.2|bt601, greyscale, nope, brightness|x")).toEqual([
+      { kind: "filter", css: GREY_FILTER },
+      { kind: "filter", css: "brightness(0.5)" },
+      { kind: "filter", css: "brightness(1.5)" },
+      { kind: "filter", css: "saturate(0.2)" },
+      { kind: "filter", css: "grayscale(1)" },
+    ]);
+    expect(parseImageMods("overlay|images/badge.png|dim|grey,@disabled")).toEqual([
+      { kind: "overlay", path: "images/badge.png", css: `brightness(0.5) ${GREY_FILTER}` },
+      { kind: "filter", css: GREY_FILTER },
+    ]);
   });
 });
 

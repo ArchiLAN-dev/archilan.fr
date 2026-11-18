@@ -43,6 +43,12 @@ const MM_LIKE: Record<string, LayoutNode> = {
 };
 
 describe("outlineLayout", () => {
+  it("shows every map of the pack for a map widget without maps, as PopTracker (story 54.11)", () => {
+    const root: LayoutNode = { type: "map" };
+    expect(outlineLayout(root, {}, ["overworld", "dungeon"]).maps.map((map) => map.name)).toEqual(["overworld", "dungeon"]);
+    expect(outlineLayout({ type: "map", maps: [] }, {}, ["overworld"]).maps).toEqual([]);
+  });
+
   it("takes the maps out of the nested tabs, named by them, each once", () => {
     const outline = outlineLayout(MM_LIKE.tracker_default as LayoutNode, MM_LIKE);
     expect(outline.maps).toEqual([

@@ -4,19 +4,20 @@ import { PackError } from "./errors";
 import { parseItems, type ItemDefinition, type ItemParseIssue, type TrackerItem } from "./items";
 import { isJsonObject, readNumber, readString } from "./json-read";
 import { AccessibilityLevel, EMULATED_POPTRACKER_VERSION, Highlight } from "./levels";
-import { LocationRegistry, type TrackerLocation, type TrackerSection } from "./locations";
+import { LocationRegistry, type MapLocation, type TrackerLocation, type TrackerSection } from "./locations";
 import { LUA_BOOTSTRAP } from "./lua-bootstrap";
 import type { PackFiles } from "./pack-files";
-import type {
-  EngineAction,
-  LoadedLocation,
-  LoadedMap,
-  LoadedPack,
-  LogLevel,
-  PackManifest,
-  SectionState,
-  StateUpdate,
-  TrackerErrorKind,
+import {
+  pinKey,
+  type EngineAction,
+  type LoadedLocation,
+  type LoadedMap,
+  type LoadedPack,
+  type LogLevel,
+  type PackManifest,
+  type SectionState,
+  type StateUpdate,
+  type TrackerErrorKind,
 } from "./protocol";
 import { evaluateRules, type RuleContext } from "./rules";
 import type { ApEvent, ApGameNames, ApOutgoing, ApPlayer } from "./ap-events";
@@ -57,6 +58,8 @@ type LuaApi = {
   ap(json: string): unknown;
   run(source: string): unknown;
   luaProvides(code: string): unknown;
+  resetCounts(): unknown;
+  luaItemFor(code: string): unknown;
   luaItemView(id: number): unknown;
   luaItemClick(id: number, button: string): unknown;
   runAsync(): unknown;
@@ -74,6 +77,8 @@ function isLuaApi(value: unknown): value is LuaApi {
     "ap",
     "run",
     "luaProvides",
+    "resetCounts",
+    "luaItemFor",
     "luaItemView",
     "luaItemClick",
     "runAsync",
@@ -90,6 +95,8 @@ const MAX_LOGS = 500;
 
 /** Passes allowed for rules that need each other to settle; PopTracker has no bound, a broken pack would hang it. */
 const MAX_LOGIC_PASSES = 20;
+/** Story 54.11: visibility rules, whose `@` references ask for visibility. */
+const VISIBILITY = { visibility: true } as const;
 
 /** Rounds of async scripts whose callbacks queue more of them (story 54.8). */
 const MAX_ASYNC_ROUNDS = 10;
@@ -132,6 +139,12 @@ export class TrackerEngine {
 
   private readonly levelCache = new Map<string, AccessibilityLevel>();
   private readonly callCache = new Map<string, number | boolean | null>();
+  /**
+   * Story 54.11: the rule calls that failed, kept until the state changes. The fixed point re-runs the rules up to
+   * MAX_LOGIC_PASSES times, and a call that fails (a pack's endless recursion) would fail again at each pass.
+   */
+  private readonly failedCalls = new Set<string>();
+  private currentCallFailed = false;
   private readonly evaluating = new Set<string>();
   /**
    * Story 54.8: the levels of the previous pass while rules that need each other settle (Cuphead: an isle opens with
@@ -145,6 +158,8 @@ export class TrackerEngine {
   private readonly luaCounts = new Map<string, number>();
   private readonly reported = new Set<string>();
   private readonly pendingItems = new Set<TrackerItem>();
+  /** Story 54.11: Lua items changed since the last round of watchers (by a click, an Archipelago handler, a watcher). */
+  private readonly pendingLuaItems = new Set<number>();
   private readonly pendingSections = new Set<TrackerSection>();
   private previous: StateUpdate = { items: {}, sections: {}, locations: {} };
   private nextItemId = 1;
@@ -161,6 +176,7 @@ export class TrackerEngine {
     providerCount: (code) => this.providerCount(code),
     callFunction: (name, args) => this.callFunction(name, args),
     referenceLevel: (path) => this.referenceLevel(path),
+    referenceVisible: (path) => this.referenceVisible(path),
   };
 
   private constructor(
@@ -338,8 +354,16 @@ export class TrackerEngine {
         this.luaItemIds.push(id);
         return id;
       },
-      luaItemChanged: () => undefined,
-      ruleError: (name, message) => this.logOnce(`rule:${String(name)}`, "error", `Règle $${String(name)} : ${String(message)}`),
+      // Story 54.11, as PopTracker: a Lua item that changes, whoever changes it, re-runs the logic and the watchers.
+      luaItemChanged: (id) => {
+        if (typeof id !== "number") return;
+        this.pendingLuaItems.add(id);
+        this.invalidate();
+      },
+      ruleError: (name, message) => {
+        this.currentCallFailed = true;
+        this.logOnce(`rule:${String(name)}`, "error", `Règle $${String(name)} : ${String(message)}`);
+      },
     };
   }
 
@@ -510,10 +534,9 @@ export class TrackerEngine {
     switch (action.type) {
       case "itemClick": {
         if (this.luaItemIds.includes(action.itemId)) {
-          const api = this.luaApi();
-          api.luaItemClick(action.itemId, action.button);
+          this.luaApi().luaItemClick(action.itemId, action.button);
+          this.pendingLuaItems.add(action.itemId);
           this.invalidate();
-          api.itemChanged((this.luaItemView(action.itemId)?.codes ?? []).join(","));
           return;
         }
         const item = this.requireItem(action.itemId);
@@ -587,8 +610,10 @@ export class TrackerEngine {
   private invalidate(): void {
     this.levelCache.clear();
     this.callCache.clear();
+    this.failedCalls.clear();
     this.luaCounts.clear();
     this.seed = new Map();
+    this.api?.resetCounts();
   }
 
   /** Evaluates every rule, again while some rule met itself, until the levels stop changing. */
@@ -642,9 +667,11 @@ export class TrackerEngine {
 
   /** Lua items as the screen draws them: a static item whose image, name and badge come with its state. */
   private luaItemDefinitions(): ItemDefinition[] {
+    const named = this.luaItemsNamedByLayouts();
     return this.luaItemIds.flatMap((id) => {
-      const view = this.luaItemView(id);
-      if (view === null) return [];
+      const found = this.luaItemView(id);
+      if (found === null) return [];
+      const view = { ...found, codes: [...new Set([...found.codes, ...(named.get(id) ?? [])])] };
       const { img, imgMods } = splitIcon(view.icon);
       const definition: ItemDefinition = {
         id,
@@ -664,26 +691,46 @@ export class TrackerEngine {
     });
   }
 
+  /**
+   * Story 54.11: the codes the layouts name that no JSON item gives, by the Lua item that gives them. A Lua item may
+   * answer through CanProvideCodeFunc without PotentialCodes; the screen, which cannot ask Lua, finds it by these.
+   */
+  private luaItemsNamedByLayouts(): Map<number, string[]> {
+    const named = new Map<number, string[]>();
+    if (this.luaItemIds.length === 0) return named;
+    const api = this.luaApi();
+    for (const code of layoutItemCodes(this.layouts)) {
+      if (this.itemsByCode.has(code)) continue;
+      const id = api.luaItemFor(code);
+      if (typeof id !== "number") continue;
+      named.set(id, [...(named.get(id) ?? []), code]);
+    }
+    return named;
+  }
+
   /** Watchers run after the change, outside `BulkUpdate`; what they change triggers the next round. */
   private settleWatchers(): void {
     const api = this.luaApi();
     for (let round = 0; round < MAX_WATCH_ROUNDS; round++) {
       if (this.flags.BulkUpdate) return;
-      if (this.pendingItems.size === 0 && this.pendingSections.size === 0) return;
+      if (this.pendingItems.size === 0 && this.pendingSections.size === 0 && this.pendingLuaItems.size === 0) return;
       const items = [...this.pendingItems];
+      const luaItems = [...this.pendingLuaItems];
       const sections = [...this.pendingSections];
       this.pendingItems.clear();
+      this.pendingLuaItems.clear();
       this.pendingSections.clear();
       try {
-        for (const item of items) {
-          api.itemChanged([...new Set(item.definition.stages.flatMap((stage) => stage.codes))].join(","));
-        }
+        // Story 54.11: every code the item can provide, the item-level codes of a progressive included.
+        for (const item of items) api.itemChanged(item.codes().join(","));
+        for (const id of luaItems) api.itemChanged((this.luaItemView(id)?.codes ?? []).join(","));
         for (const section of sections) api.sectionChanged(this.refFor(section));
       } catch (error) {
         this.log("error", error instanceof Error ? error.message : String(error));
       }
     }
     this.pendingItems.clear();
+    this.pendingLuaItems.clear();
     this.pendingSections.clear();
     this.log("error", "Les watchers du pack se relancent sans fin : arrêt.");
   }
@@ -713,13 +760,17 @@ export class TrackerEngine {
     const key = `${name}\u0000${args.join("\u0001")}`;
     const cached = this.callCache.get(key);
     if (cached !== undefined) return cached;
+    if (this.failedCalls.has(key)) return null;
+    this.currentCallFailed = false;
     let value: number | boolean | null = null;
     try {
       const result = this.luaApi().callRule(name, ...args);
       if (typeof result === "number" || typeof result === "boolean") value = result;
     } catch (error) {
+      this.currentCallFailed = true;
       this.logOnce(`rule:${name}`, "error", `Règle $${name} : ${error instanceof Error ? error.message : String(error)}`);
     }
+    if (this.currentCallFailed) this.failedCalls.add(key);
     this.callCache.set(key, value);
     return value;
   }
@@ -731,6 +782,16 @@ export class TrackerEngine {
     if (location !== undefined) return this.locationAccess(location);
     this.logOnce(`ref:${path}`, "warn", `Référence introuvable : @${path}`);
     return AccessibilityLevel.None;
+  }
+
+  /** Story 54.11: an `@` in visibility rules, as PopTracker: the target's visibility; a missing target is hidden. */
+  private referenceVisible(path: string): boolean {
+    const section = this.locations.findSection(path);
+    if (section !== undefined) return this.sectionVisible(section);
+    const location = this.locations.findLocation(path);
+    if (location !== undefined) return this.locationVisible(location);
+    this.logOnce(`ref:${path}`, "warn", `Référence introuvable : @${path}`);
+    return false;
   }
 
   /** Memoized, with loop detection: a rule that needs itself is not accessible. */
@@ -755,7 +816,7 @@ export class TrackerEngine {
   /** The access rules of a location and of all its ancestors (AND). */
   private locationAccess(location: TrackerLocation): AccessibilityLevel {
     return this.cached(`a:${location.id}`, location.name, () => {
-      const own = evaluateRules(location.accessRules, this.ruleContext);
+      const own = evaluateRules(location.accessRules, this.ruleContext, { inspectableSequenceBreak: location.inspectableSequenceBreak });
       if (location.parent === null || own === AccessibilityLevel.None) return own;
       return Math.min(own, this.locationAccess(location.parent)) as AccessibilityLevel;
     });
@@ -763,7 +824,7 @@ export class TrackerEngine {
 
   private locationVisible(location: TrackerLocation): boolean {
     const level = this.cached(`v:${location.id}`, location.name, () => {
-      const own = evaluateRules(location.visibilityRules, this.ruleContext);
+      const own = evaluateRules(location.visibilityRules, this.ruleContext, VISIBILITY);
       if (location.parent === null || own === AccessibilityLevel.None) return own;
       return this.locationVisible(location.parent) ? own : AccessibilityLevel.None;
     });
@@ -775,7 +836,7 @@ export class TrackerEngine {
     const target = this.locations.resolveRef(section);
     if (target === undefined) return AccessibilityLevel.None;
     return this.cached(`s:${target.id}`, `${target.location.name}/${target.name}`, () => {
-      const own = evaluateRules(target.accessRules, this.ruleContext);
+      const own = evaluateRules(target.accessRules, this.ruleContext, { inspectableSequenceBreak: target.inspectableSequenceBreak });
       if (own === AccessibilityLevel.None) return own;
       return Math.min(own, this.locationAccess(target.location)) as AccessibilityLevel;
     });
@@ -785,7 +846,7 @@ export class TrackerEngine {
     const target = this.locations.resolveRef(section);
     if (target === undefined) return false;
     const level = this.cached(`w:${target.id}`, `${target.location.name}/${target.name}`, () =>
-      this.locationVisible(target.location) ? evaluateRules(target.visibilityRules, this.ruleContext) : AccessibilityLevel.None,
+      this.locationVisible(target.location) ? evaluateRules(target.visibilityRules, this.ruleContext, VISIBILITY) : AccessibilityLevel.None,
     );
     return level !== AccessibilityLevel.None;
   }
@@ -846,10 +907,24 @@ export class TrackerEngine {
       if (section.ref !== null) continue;
       state.sections[section.id] = this.sectionState(section);
     }
+    const pins: Record<string, boolean> = {};
     for (const location of this.locations.allLocations()) {
       if (location.sections.length > 0) state.locations[location.id] = this.locationLevel(location, true);
+      location.mapLocations.forEach((spot, index) => {
+        if (spot.restrictVisibilityRules.length === 0 && spot.forceInvisibilityRules.length === 0) return;
+        pins[pinKey(location.id, index)] = this.pinVisible(spot);
+      });
     }
+    if (Object.keys(pins).length > 0) state.pins = pins;
     return state;
+  }
+
+  /** Story 54.11, as PopTracker's `Tracker::isVisible(MapLocation)`: hidden when a force rule holds, else its own rules. */
+  private pinVisible(spot: MapLocation): boolean {
+    if (spot.forceInvisibilityRules.length > 0 && evaluateRules(spot.forceInvisibilityRules, this.ruleContext, VISIBILITY) !== AccessibilityLevel.None) {
+      return false;
+    }
+    return evaluateRules(spot.restrictVisibilityRules, this.ruleContext, VISIBILITY) !== AccessibilityLevel.None;
   }
 
   private sectionState(section: TrackerSection): SectionState {
@@ -874,6 +949,9 @@ export class TrackerEngine {
     }
     for (const [id, level] of Object.entries(next.locations)) {
       if (this.previous.locations[Number(id)] !== level) changes.locations[Number(id)] = level;
+    }
+    for (const [key, visible] of Object.entries(next.pins ?? {})) {
+      if (this.previous.pins?.[key] !== visible) changes.pins = { ...changes.pins, [key]: visible };
     }
     this.previous = next;
     return changes;
@@ -995,6 +1073,9 @@ function setItemProperty(item: TrackerItem, key: string, value: unknown): void {
     case "BadgeText":
       item.overlay = typeof value === "string" ? value : "";
       return;
+    case "Icon":
+      item.overrideIcon(typeof value === "string" && value !== "" ? splitIcon(value) : null);
+      return;
     default:
       return;
   }
@@ -1034,3 +1115,29 @@ function readManifest(files: PackFiles): PackManifest {
   };
 }
 
+
+/** Story 54.11: every item code a layout names (`item` widgets, `itemgrid` rows), however deep. */
+export function layoutItemCodes(layouts: Record<string, unknown>): Set<string> {
+  const codes = new Set<string>();
+  const seen = new Set<unknown>();
+  const visit = (node: unknown): void => {
+    if (typeof node !== "object" || node === null || seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)) {
+      for (const child of node) visit(child);
+      return;
+    }
+    if (!isJsonObject(node)) return;
+    const record = node;
+    if (record.type === "item" && typeof record.item === "string") codes.add(record.item);
+    if (record.type === "itemgrid" && Array.isArray(record.rows)) {
+      for (const row of record.rows) {
+        if (!Array.isArray(row)) continue;
+        for (const code of row) if (typeof code === "string" && code !== "") codes.add(code);
+      }
+    }
+    for (const value of Object.values(record)) visit(value);
+  };
+  visit(layouts);
+  return codes;
+}

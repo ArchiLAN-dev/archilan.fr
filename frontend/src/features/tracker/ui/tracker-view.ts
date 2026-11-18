@@ -1,6 +1,6 @@
 import type { ItemDefinition, ItemState } from "../engine/items";
 import { AccessibilityLevel, Highlight } from "../engine/levels";
-import type { LoadedLocation, LoadedPack, LoadedSection, SectionState, StateUpdate } from "../engine/protocol";
+import { pinKey, type LoadedLocation, type LoadedPack, type LoadedSection, type SectionState, type StateUpdate } from "../engine/protocol";
 
 /**
  * What the tracker screen draws (story 54.5): the engine sends diffs by id, the screen keeps the whole picture.
@@ -9,7 +9,14 @@ export type TrackerView = {
   items: Record<number, ItemState>;
   sections: Record<number, SectionState>;
   locations: Record<number, AccessibilityLevel>;
+  /** Story 54.11: pins with their own visibility rules (`pinKey`). */
+  pins?: Record<string, boolean>;
 };
+
+/** Story 54.11: whether the `index`-th pin of a location shows, as far as its own rules go. */
+export function pinShown(view: TrackerView, locationId: number, index: number): boolean {
+  return view.pins?.[pinKey(locationId, index)] !== false;
+}
 
 export const EMPTY_VIEW: TrackerView = { items: {}, sections: {}, locations: {} };
 
@@ -18,6 +25,7 @@ export function mergeView(view: TrackerView, update: StateUpdate): TrackerView {
     items: { ...view.items, ...update.items },
     sections: { ...view.sections, ...update.sections },
     locations: { ...view.locations, ...update.locations },
+    ...(view.pins === undefined && update.pins === undefined ? {} : { pins: { ...view.pins, ...update.pins } }),
   };
 }
 
@@ -184,10 +192,9 @@ export function locationHighlight(location: LoadedLocation, view: TrackerView): 
 export function indexItemsByCode(items: readonly ItemDefinition[]): Map<string, ItemDefinition> {
   const byCode = new Map<string, ItemDefinition>();
   for (const item of items) {
-    for (const stage of item.stages) {
-      for (const code of stage.codes) {
-        if (!byCode.has(code)) byCode.set(code, item);
-      }
+    // Story 54.11: with the codes a progressive carries beside its stages.
+    for (const code of [...item.stages.flatMap((stage) => stage.codes), ...(item.itemCodes ?? [])]) {
+      if (!byCode.has(code)) byCode.set(code, item);
     }
   }
   return byCode;
@@ -235,7 +242,7 @@ export function countPins(
 ): Record<PinCategory, number> {
   const counts: Record<PinCategory, number> = { reachable: 0, sequence: 0, inspect: 0, unreachable: 0, mixed: 0, done: 0 };
   for (const location of locations) {
-    const spots = location.mapLocations.filter((spot) => spot.map === map).length;
+    const spots = location.mapLocations.filter((spot, index) => spot.map === map && pinShown(view, location.id, index)).length;
     if (spots === 0) continue;
     const marks = locationMarks(location, view, settings);
     if (marks === null) continue;

@@ -280,8 +280,8 @@ describe("tracker items", () => {
     await render({ items: { 1: { active: true, stage: 0, count: 0, overlay: "" } } });
     expect(byLabel("Sword").getAttribute("aria-pressed")).toBe("true");
     expect(byLabel("Bow").getAttribute("aria-pressed")).toBe("false");
-    expect(byLabel("Bow").querySelector("img")?.className).toContain("grayscale");
-    expect(byLabel("Sword").querySelector("img")?.className).not.toContain("grayscale");
+    expect(byLabel("Bow").querySelector<HTMLImageElement>("img")?.style.filter).toContain("grayscale");
+    expect(byLabel("Sword").querySelector<HTMLImageElement>("img")?.style.filter ?? "").not.toContain("grayscale");
     expect(byLabel("Ocarina").hasAttribute("aria-pressed")).toBe(false);
   });
 });

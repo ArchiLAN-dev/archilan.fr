@@ -141,6 +141,13 @@ Essai d'un pack par l'admin avant activation, rapport d'erreurs Lua et d'API non
 sur les packs des jeux les plus joués.
 Détail : `implementation-artifacts/54-8-banc-d-essai-et-compatibilite.md`.
 
+### 54.11 - Parité avec PopTracker
+
+Inventaire de tout ce que la documentation de PopTracker (v0.36.0) décrit, comparé au moteur du site, puis
+implémentation des écarts par lots, sans attendre qu'un pack casse. Hors champ inchangé (autotracking mémoire,
+apmanual, broadcast).
+Détail : `implementation-artifacts/54-11-parite-poptracker.md`.
+
 ## Ordre et dépendances
 
 ```

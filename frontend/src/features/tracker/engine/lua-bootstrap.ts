@@ -23,6 +23,22 @@ local gc = collectgarbage
 
 -- Sandbox -------------------------------------------------------------------
 io = nil
+-- Story 54.11: a pack function that calls itself without end (Twilight Princess: has("lantern") -> hasAll -> has)
+-- ends in a stack overflow in PopTracker too, but natively in a blink; here, 90 000 levels deep, it takes seconds,
+-- for each rule that meets it. Every 100 000 instructions, a call chain deeper than MAX_CALL_DEPTH fails the same
+-- way, at once. No real rule goes that deep. Hooks belong to a Lua thread and each call from the engine may run in
+-- its own: guardDepth() sets it at every entry (the api functions, wrapped at the end).
+local MAX_CALL_DEPTH = 1000
+local guardDepth
+do
+  local getinfo, sethook = debug.getinfo, debug.sethook
+  local function hook()
+    if getinfo(MAX_CALL_DEPTH, "l") ~= nil then
+      error("récursion sans fin (plus de " .. MAX_CALL_DEPTH .. " appels imbriqués), comme un débordement de pile", 2)
+    end
+  end
+  guardDepth = function() sethook(hook, "", 100000) end
+end
 debug = nil
 package = nil
 dofile = nil
@@ -143,9 +159,17 @@ function tracker:AddClasses(file)
   B.log("info", "Tracker:AddClasses ignoré (" .. tostring(file) .. ")")
   return true
 end
+-- Story 54.11: counts are kept on this side until the engine says the state changed (api.resetCounts). A pack that
+-- walks a graph of regions in Lua (Twilight Princess) asks for the same few hundred codes millions of times, and
+-- each question that crosses to the engine costs far more here than in PopTracker.
+local countCache = {}
 function tracker:ProviderCountForCode(code)
   if type(code) ~= "string" then return 0 end
-  return B.count(code)
+  local cached = countCache[code]
+  if cached ~= nil then return cached end
+  local count = B.count(code)
+  countCache[code] = count
+  return count
 end
 function tracker:FindObjectForCode(code)
   if type(code) ~= "string" then return nil end
@@ -216,8 +240,14 @@ local sectionOrder = {}
 
 local scriptHost = {}
 function scriptHost:LoadScript(path) return loadScript(path) end
+-- Story 54.11, as PopTracker: adding a watch under a name already used replaces it and moves it to the end.
 function scriptHost:AddWatchForCode(name, code, callback)
-  if watches[name] == nil then watchOrder[#watchOrder + 1] = name end
+  for index, existing in ipairs(watchOrder) do
+    if existing == name then table.remove(watchOrder, index) break end
+  end
+  watches[name] = nil
+  if code == nil or code == "" or type(callback) ~= "function" then return "" end
+  watchOrder[#watchOrder + 1] = name
   watches[name] = { code = code, callback = callback }
   return name
 end
@@ -243,7 +273,7 @@ scriptHost.RemoveOnLocationSectionHandler = scriptHost.RemoveOnLocationSectionCh
 local luaItems = {}
 local luaItemOrder = {}
 local luaItemMethods = {}
-local LUA_ITEM_DRAWN = { Name = true, Icon = true, BadgeText = true, PotentialCodes = true }
+local LUA_ITEM_DRAWN = { Name = true, Icon = true, IconMods = true, BadgeText = true, PotentialCodes = true }
 
 local function luaItemData(item) return rawget(item, "__data") end
 function luaItemMethods:SetOverlay(text)
@@ -254,20 +284,30 @@ function luaItemMethods:SetOverlayBackground() end
 function luaItemMethods:SetOverlayColor() end
 function luaItemMethods:SetOverlayFontSize() end
 function luaItemMethods:SetOverlayAlign() end
-function luaItemMethods:Get(key) return luaItemData(self).__props[key] end
+-- Story 54.11, as PopTracker: the property store of Get and Set is .ItemState.
+local function itemStateOf(data)
+  if type(data.ItemState) ~= "table" then data.ItemState = {} end
+  return data.ItemState
+end
+function luaItemMethods:Get(key) return itemStateOf(luaItemData(self))[key] end
 function luaItemMethods:Set(key, value)
   local data = luaItemData(self)
-  local before = data.__props[key]
-  data.__props[key] = value
-  if before ~= value and type(data.PropertyChangedFunc) == "function" then
+  local store = itemStateOf(data)
+  local before = store[key]
+  store[key] = value
+  if before == value then return end
+  if type(data.PropertyChangedFunc) == "function" then
     local ok, message = pcall(data.PropertyChangedFunc, self, key, value)
     if not ok then B.log("error", "LuaItem PropertyChangedFunc : " .. tostring(message)) end
   end
+  -- Story 54.11: as PopTracker, a property set is a change of the item (logic, watchers).
+  B.luaItemChanged(rawget(self, "__id"))
 end
 
 function scriptHost:CreateLuaItem()
   local id = B.luaItemCreate()
-  local data = { Type = "custom", Name = "", __props = {}, __overlay = "" }
+  -- Owner: an empty table, as PopTracker gives for compatibility (story 54.11).
+  local data = { Type = "custom", Name = "", Owner = {}, __overlay = "" }
   local item = setmetatable({ __id = id, __data = data }, {
     __index = function(_, key)
       local method = luaItemMethods[key]
@@ -375,7 +415,7 @@ local autoTracker = {}
 AutoTracker = setmetatable(autoTracker, { __index = function(_, key) return memoryOnly("AutoTracker", key) end })
 
 -- Archipelago (story 54.6): the page holds the connection, the engine forwards its events here. PopTracker's
--- connection states as packs test them: 0 disconnected, 3 connected.
+-- connection states: 0 disabled (manual tracking, never connected), 1 disconnected, 3 connected (story 54.11).
 local apConnection = 0
 autoTracker.GetConnectionState = function(self, name)
   if name == "AP" then return apConnection end
@@ -383,7 +423,10 @@ autoTracker.GetConnectionState = function(self, name)
 end
 
 local apHandlers = {}
-local archipelago = { PlayerNumber = -1, TeamNumber = -1, CheckedLocations = {}, MissingLocations = {} }
+local archipelago = { PlayerNumber = -1, TeamNumber = -1, CheckedLocations = {}, MissingLocations = {},
+  ClientStatus = { UNKNOWN = 0, CONNECTED = 5, READY = 10, PLAYING = 20, GOAL = 30 } }
+-- Story 54.11: the checked ids as a set, so a location the room repeats is listed once and leaves MissingLocations.
+local apChecked = {}
 for _, kind in ipairs({ "Clear", "Item", "Location", "Scout", "Bounced", "Retrieved", "SetReply" }) do
   apHandlers[kind] = {}
   archipelago["Add" .. kind .. "Handler"] = function(self, name, callback)
@@ -405,7 +448,6 @@ function archipelago:GetItemName(id, game) return B.apName("item", id, game or "
 function archipelago:GetLocationName(id, game) return B.apName("location", id, game or "") end
 -- LocationChecks, LocationScouts and StatusUpdate write to the room: the site's tracker never does (apmanual packs).
 Archipelago = setmetatable(archipelago, { __index = function(_, key) return missing("Archipelago", key) end })
-ClientStatus = { UNKNOWN = 0, CONNECTED = 5, READY = 10, PLAYING = 20, GOAL = 30 }
 
 -- JSON, for the events the engine forwards (slot data, data storage values). null becomes nil.
 local escapes = { b = "\b", f = "\f", n = "\n", r = "\r", t = "\t", ['"'] = '"', ["\\"] = "\\", ["/"] = "/" }
@@ -522,11 +564,21 @@ local function applyApEvent(event)
     archipelago.PlayerNumber = event.playerNumber
     archipelago.TeamNumber = event.teamNumber
     archipelago.Seed = event.seed
-    archipelago.CheckedLocations = event.checked or {}
-    archipelago.MissingLocations = event.missing or {}
+    archipelago.CheckedLocations = {}
+    apChecked = {}
+    for _, id in ipairs(event.checked or {}) do
+      if not apChecked[id] then
+        apChecked[id] = true
+        archipelago.CheckedLocations[#archipelago.CheckedLocations + 1] = id
+      end
+    end
+    archipelago.MissingLocations = {}
+    for _, id in ipairs(event.missing or {}) do
+      if not apChecked[id] then archipelago.MissingLocations[#archipelago.MissingLocations + 1] = id end
+    end
     apConnection = 3
   elseif kind == "disconnected" then
-    apConnection = 0
+    apConnection = 1
   elseif kind == "clear" then
     callAll("Clear", event.slotData or {})
   elseif kind == "items" then
@@ -536,7 +588,14 @@ local function applyApEvent(event)
   elseif kind == "locations" then
     local checked = archipelago.CheckedLocations
     for _, id in ipairs(event.locations or {}) do
-      checked[#checked + 1] = id
+      if not apChecked[id] then
+        apChecked[id] = true
+        checked[#checked + 1] = id
+        local missing = archipelago.MissingLocations
+        for index = #missing, 1, -1 do
+          if missing[index] == id then table.remove(missing, index) end
+        end
+      end
       callAll("Location", id, B.apName("location", id, ""))
     end
   elseif kind == "scouted" then
@@ -592,13 +651,18 @@ function api.callRule(name, ...)
 end
 
 -- Watchers of an item that changed: codes is the comma list of the codes it can provide.
+-- Story 54.11, as PopTracker: a "*" watch gets the item's codes (", " between them), another one its own code.
 function api.itemChanged(codes)
-  local provided = {}
-  for code in codes:gmatch("[^,]+") do provided[code] = true end
-  for _, name in ipairs(watchOrder) do
+  local provided, list = {}, {}
+  for code in codes:gmatch("[^,]+") do
+    provided[code] = true
+    list[#list + 1] = code
+  end
+  local all = table.concat(list, ", ")
+  for _, name in ipairs({ table.unpack(watchOrder) }) do
     local watch = watches[name]
     if watch ~= nil and (watch.code == "*" or provided[watch.code]) then
-      local ok, message = pcall(watch.callback, watch.code)
+      local ok, message = pcall(watch.callback, watch.code == "*" and all or watch.code)
       if not ok then B.log("error", "watcher " .. tostring(name) .. " : " .. tostring(message)) end
     end
   end
@@ -627,6 +691,17 @@ local function asText(value)
 end
 
 -- What a Lua item provides of a code: the sum over the Lua items that can provide it.
+-- Story 54.11: the Lua item a layout's code names (FindObjectForCode), for an item known by CanProvideCodeFunc only.
+function api.luaItemFor(code)
+  local item = findLuaItem(code)
+  if item == nil then return nil end
+  return rawget(item, "__id")
+end
+
+function api.resetCounts()
+  countCache = {}
+end
+
 function api.luaProvides(code)
   local total = 0
   for _, id in ipairs(luaItemOrder) do
@@ -657,14 +732,24 @@ function api.luaItemView(id)
   if type(data.PotentialCodes) == "table" then
     for _, code in pairs(data.PotentialCodes) do codes[#codes + 1] = tostring(code) end
   end
-  return concat({ asText(data.Name), asText(data.Icon), asText(data.BadgeText), data.__overlay, concat(codes, ",") }, "\31")
+  -- Story 54.11: IconMods go on top of the mods the Icon carries.
+  local icon = asText(data.Icon)
+  local extra = asText(data.IconMods)
+  if icon ~= "" and extra ~= "" then
+    local path, mods = icon:match("^([^\n]*)\n?(.*)$")
+    icon = path .. "\n" .. (mods == "" and extra or mods .. "," .. extra)
+  end
+  return concat({ asText(data.Name), icon, asText(data.BadgeText), data.__overlay, concat(codes, ",") }, "\31")
 end
 
 function api.luaItemClick(id, button)
   local item = luaItems[id]
   if item == nil then return false end
   local key = button == "right" and "OnRightClickFunc" or button == "middle" and "OnMiddleClickFunc" or "OnLeftClickFunc"
-  local callback = luaItemData(item)[key]
+  local data = luaItemData(item)
+  -- Story 54.11: IgnoreUserInput, as PopTracker, leaves the item as it is on a click.
+  if data.IgnoreUserInput then return false end
+  local callback = data[key]
   if type(callback) ~= "function" then return false end
   local ok, message = pcall(callback, item)
   if not ok then B.log("error", "LuaItem " .. key .. " : " .. tostring(message)) end
@@ -704,6 +789,13 @@ end
 -- Runs a snippet as the pack would (tests, and the sandbox check).
 function api.run(source)
   return run("snippet.lua", source)
+end
+
+for name, f in pairs(api) do
+  api[name] = function(...)
+    guardDepth()
+    return f(...)
+  end
 end
 
 return api

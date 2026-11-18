@@ -46,22 +46,53 @@ export class PackImages {
   }
 }
 
-export type ImageMods = { disabled: boolean; overlays: string[] };
+/** Story 54.11: PopTracker's grey, the default meaning of `@disabled`: 0 % saturation and 67 % brightness. */
+export const GREY_FILTER = "grayscale(1) brightness(0.67)";
+
+/** One step of an image's modifiers: a filter on what is drawn so far, or an image drawn over it with its own filters. */
+export type ImageModStep = { kind: "filter"; css: string } | { kind: "overlay"; path: string; css: string };
 
 /**
- * PopTracker image modifiers, comma separated: `@disabled` greys the image, `overlay|path` draws another image on
- * top. `@enabled`, `none` and the rest change nothing here.
+ * PopTracker image modifiers (doc/PACKS.md, img_mods), comma separated and applied left to right (story 54.11):
+ * `@disabled`, `grey` / `gray` / `disable`, `dim`, `brightness|x`, `saturation|x|colorspace`, `greyscale` /
+ * `grayscale`, and `overlay|path|filters...` whose filters apply to the overlay only. `@enabled`, `none` and unknown
+ * modifiers change nothing.
  */
-export function parseImageMods(mods: string | null): ImageMods {
-  const result: ImageMods = { disabled: false, overlays: [] };
-  if (mods === null) return result;
+export function parseImageMods(mods: string | null): ImageModStep[] {
+  const steps: ImageModStep[] = [];
+  if (mods === null) return steps;
   for (const raw of mods.split(",")) {
-    const mod = raw.trim();
-    if (mod === "@disabled") result.disabled = true;
-    else if (mod.startsWith("overlay|")) {
-      const path = mod.slice("overlay|".length).trim();
-      if (path !== "") result.overlays.push(path);
+    const [name = "", ...args] = raw.trim().split("|").map((part) => part.trim());
+    if (name === "overlay") {
+      const [path = "", ...filters] = args;
+      if (path !== "") steps.push({ kind: "overlay", path, css: filters.map((filter) => filterCss(filter, [])).filter(Boolean).join(" ") });
+      continue;
     }
+    const css = filterCss(name, args);
+    if (css !== "") steps.push({ kind: "filter", css });
   }
-  return result;
+  return steps;
+}
+
+function filterCss(name: string, args: string[]): string {
+  switch (name) {
+    case "@disabled":
+    case "grey":
+    case "gray":
+    case "disable":
+      return GREY_FILTER;
+    case "dim":
+      return "brightness(0.5)";
+    case "greyscale":
+    case "grayscale":
+      return "grayscale(1)";
+    case "brightness":
+    case "saturation": {
+      const value = Number(args[0]);
+      if (!Number.isFinite(value) || value < 0) return "";
+      return name === "brightness" ? `brightness(${value})` : `saturate(${value})`;
+    }
+    default:
+      return "";
+  }
 }
