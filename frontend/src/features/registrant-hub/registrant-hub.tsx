@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Children, Fragment, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, BookOpen, CalendarDays, CheckCircle, Gamepad2, History, Info, ListChecks, MapPin, Wrench } from "lucide-react";
+import { AlertCircle, AlertTriangle, BookOpen, CalendarDays, CheckCircle, Gamepad2, History, Info, ListChecks, MapPin } from "lucide-react";
 
 import { Markdown } from "@/components/markdown/markdown";
 
@@ -13,9 +13,9 @@ import { fetchHelpGuides, helpGuidePath, type HelpGuideCard } from "@/features/c
 import type { EventStatus } from "@/features/events/event-types";
 import { eventSchedule } from "@/features/events/event-schedule";
 import { eventPhase, eventPhaseLabel, type EventPhase } from "./event-phase";
-import { hubSectionOrder, type HubSectionKey } from "./hub-sections";
-import { HELP_GUIDES_QUERY_KEY, HubRelive, RegistrantHubTools } from "./hub-tools";
-import { RegistrantChecklist } from "./registrant-checklist";
+import { hubMainSections, type HubMainKey } from "./hub-sections";
+import { HELP_GUIDES_QUERY_KEY, HubGame, HubParticipation, HubRelive, HubSideTools, HubSurveys } from "./hub-tools";
+import { checklistReady, RegistrantChecklist } from "./registrant-checklist";
 import {
   fetchPracticalInfo,
   fetchRegistrantChecklist,
@@ -126,15 +126,10 @@ export function RegistrantHub({ event }: Props) {
           vodUrl={event.vodUrl ?? null}
         />
       }
-      tools={
-        <RegistrantHubTools
-          confirmed={data.confirmed}
-          eventId={event.id}
-          eventSlug={event.slug}
-          phase={phase}
-          registrationId={data.registrationId}
-        />
-      }
+      game={<HubGame confirmed={data.confirmed} eventId={event.id} eventSlug={event.slug} phase={phase} registrationId={data.registrationId} />}
+      participation={<HubParticipation confirmed={data.confirmed} phase={phase} registrationId={data.registrationId} />}
+      surveys={<HubSurveys eventId={event.id} eventSlug={event.slug} />}
+      tools={<HubSideTools eventId={event.id} phase={phase} />}
       practicalInfo={practicalInfo ?? null}
       registration={{ registrationId: data.registrationId, confirmed: data.confirmed }}
     />
@@ -149,7 +144,13 @@ type ViewProps = {
   practicalInfo?: PracticalInfo | null;
   /** Story 53.2: null while loading or on a failure (the section then stays out). */
   checklist?: ChecklistItem[] | null;
-  /** Story 53.3: the event's tools, handed in by the gate (they read their own data). */
+  /** Story 53.10: the member's game (main column), handed in by the gate (it reads its own data). */
+  game?: ReactNode;
+  /** Story 53.10: presence and stream (main column), handed in by the gate. */
+  participation?: ReactNode;
+  /** Story 53.10: the organisers' open surveys, for the "À faire maintenant" banner. */
+  surveys?: ReactNode;
+  /** Story 53.3: the small tools of the event (side column), handed in by the gate. */
   tools?: ReactNode;
   /** Story 53.5: the published guides; null while loading or on a failure (the Archipelago one still shows). */
   guides?: HelpGuideCard[] | null;
@@ -157,58 +158,85 @@ type ViewProps = {
   relive?: ReactNode;
 };
 
-export function RegistrantHubView({ event, registration, now, practicalInfo = null, checklist = null, tools, guides = null, relive }: ViewProps) {
+/**
+ * Story 53.10: the registrant space as a dashboard. A compact header with the moment of the event in large; a
+ * "À faire maintenant" banner only when something waits (steps left, an open survey); then two columns on a wide
+ * screen: the main one (the game, the practical info, or "Revivre l'event" afterwards) and the small tools.
+ */
+export function RegistrantHubView({
+  event,
+  registration,
+  now,
+  practicalInfo = null,
+  checklist = null,
+  game,
+  participation,
+  surveys,
+  tools,
+  guides = null,
+  relive,
+}: ViewProps) {
   const phase = eventPhase(event, now);
   const registrationPath = `/evenements/${event.slug}/inscription/${registration.registrationId}`;
+  const context = { eventSlug: event.slug, registrationId: registration.registrationId };
+  // Story 53.6: no checklist once the event is over.
+  const shownChecklist = phase === "after" ? null : checklist;
+  const ready = shownChecklist === null || checklistReady(shownChecklist, context);
 
-  const sections: Record<HubSectionKey, ReactNode> = {
-    checklist:
-      checklist !== null ? (
-        <RegistrantHubSection icon={<ListChecks aria-hidden="true" className="size-5" />} title="Ce qu'il me reste à faire">
-          {/* Story 53.6: during the event the list folds behind its counter, the tools come first. */}
-          <RegistrantChecklist eventSlug={event.slug} folded={phase === "during"} items={checklist} registrationId={registration.registrationId} />
-        </RegistrantHubSection>
-      ) : null,
-    tools: (
-      <RegistrantHubSection icon={<Wrench aria-hidden="true" className="size-5" />} id="outils" title="Les outils de l'event">
-        {tools}
-      </RegistrantHubSection>
-    ),
+  const main: Record<HubMainKey, ReactNode> = {
+    // Story 53.6: nothing to tell the organisers once the event is over.
+    game: phase === "after" ? null : game,
+    participation: phase === "after" ? null : participation,
     practicalInfo: <PracticalInfoSection practicalInfo={practicalInfo} />,
     relive: (
-      <RegistrantHubSection icon={<History aria-hidden="true" className="size-5" />} title="Revivre l'event">
+      <RegistrantHubSection icon={<History aria-hidden="true" className="size-4" />} title="Revivre l'event">
         {relive}
       </RegistrantHubSection>
-    ),
-    links: (
-      <div className="grid gap-6 lg:grid-cols-2">
-        <RegistrantHubSection icon={<Gamepad2 aria-hidden="true" className="size-5" />} title="Mon inscription">
-          <ul className="grid gap-2 text-sm">
-            <li>
-              <Link className="text-accent-text hover:text-accent-text-hover" href={`${registrationPath}/recap`}>
-                Récapitulatif de mon inscription
-              </Link>
-            </li>
-            {registration.confirmed ? (
-              <li>
-                <Link className="text-accent-text hover:text-accent-text-hover" href={`${registrationPath}/session`}>
-                  Ma partie
-                </Link>
-              </li>
-            ) : null}
-          </ul>
-        </RegistrantHubSection>
-        <GuidesSection guides={guides} />
-      </div>
     ),
   };
 
   return (
-    <div className="grid gap-8">
+    <div className="grid gap-6">
       <RegistrantHubHeader event={event} now={now} phase={phase} registration={registration} />
-      {hubSectionOrder(phase).map((key) => (
-        <Fragment key={key}>{sections[key]}</Fragment>
-      ))}
+
+      {/* Story 53.10: what waits for the member, and nothing at all when nothing does. */}
+      <div aria-label="À faire maintenant" className="flex flex-wrap gap-3 empty:hidden" role="region">
+        {shownChecklist !== null && !ready ? (
+          <section className="grid min-w-0 flex-[1_1_22rem] content-start gap-3 rounded-lg border border-warning/50 bg-warning/5 p-4">
+            <h2 className="flex items-center gap-2 font-heading text-sm font-semibold text-foreground">
+              <ListChecks aria-hidden="true" className="size-4 text-warning" />
+              Ce qu&apos;il me reste à faire
+            </h2>
+            {/* Story 53.6: during the event the list folds behind its counter. */}
+            <RegistrantChecklist {...context} folded={phase === "during"} items={shownChecklist} />
+          </section>
+        ) : null}
+        {surveys !== undefined ? (
+          <div className="min-w-0 flex-[1_1_22rem] scroll-mt-24 empty:hidden [&>*]:max-w-none!" id="sondages">
+            {surveys}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+        <div className="grid min-w-0 content-start gap-4">
+          {hubMainSections(phase).map((key) => (
+            <Fragment key={key}>{main[key]}</Fragment>
+          ))}
+        </div>
+
+        <aside aria-label="Mes outils" className="grid min-w-0 scroll-mt-24 content-start gap-4" id="outils">
+          {tools}
+          <RegistrantHubSection icon={<Gamepad2 aria-hidden="true" className="size-4" />} title="Mon inscription">
+            <Link className="w-fit text-sm text-accent-text hover:text-accent-text-hover" href={`${registrationPath}/recap`}>
+              Récapitulatif de mon inscription
+            </Link>
+            {/* Story 53.10: a done list stays at hand, out of the way. */}
+            {shownChecklist !== null && ready ? <RegistrantChecklist {...context} items={shownChecklist} /> : null}
+          </RegistrantHubSection>
+          <GuidesSection guides={guides} />
+        </aside>
+      </div>
     </div>
   );
 }
@@ -216,14 +244,14 @@ export function RegistrantHubView({ event, registration, now, practicalInfo = nu
 /** Story 53.5: the help guides, the Archipelago one first, for the "c'est quoi ce truc ?" moments. */
 function GuidesSection({ guides }: { guides: HelpGuideCard[] | null }) {
   return (
-    <RegistrantHubSection icon={<BookOpen aria-hidden="true" className="size-5" />} title="Les guides">
-      <ul className="grid gap-3 text-sm">
+    <RegistrantHubSection icon={<BookOpen aria-hidden="true" className="size-4" />} title="Les guides">
+      {/* Story 53.10: titles only in the side column; the summary is on the guide (and in the tooltip). */}
+      <ul className="grid gap-2 text-sm">
         {[ARCHIPELAGO_GUIDE_CARD, ...(guides ?? [])].map((guide) => (
-          <li className="grid gap-0.5" key={guide.slug}>
-            <Link className="font-semibold text-accent-text hover:text-accent-text-hover" href={helpGuidePath(guide.slug)}>
+          <li key={guide.slug}>
+            <Link className="text-accent-text hover:text-accent-text-hover" href={helpGuidePath(guide.slug)} title={guide.summary}>
               {guide.title}
             </Link>
-            <span className="text-xs text-muted-foreground">{guide.summary}</span>
           </li>
         ))}
       </ul>
@@ -242,7 +270,7 @@ function PracticalInfoSection({ practicalInfo }: { practicalInfo: PracticalInfo 
   if (markdown === null || markdown.trim() === "") return null;
 
   return (
-    <RegistrantHubSection icon={<Info aria-hidden="true" className="size-5" />} title="Infos pratiques">
+    <RegistrantHubSection icon={<Info aria-hidden="true" className="size-4" />} title="Infos pratiques">
       <Markdown className="text-sm">{markdown}</Markdown>
       {practicalInfo?.updatedAt ? (
         <p className="text-xs text-muted-foreground">Mis à jour le {UPDATED_AT.format(new Date(practicalInfo.updatedAt))}</p>
@@ -266,51 +294,51 @@ const PHASE_TONE: Record<EventPhase, string> = {
 
 function RegistrantHubHeader({ event, registration, phase, now }: HeaderProps) {
   return (
-    <header className="grid gap-5 border-b border-border pb-8">
+    <header className="grid gap-4 border-b border-border pb-6">
       <Link
         className="inline-flex w-fit items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
         href={`/evenements/${event.slug}`}
       >
         &larr; Page de l&apos;événement
       </Link>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="grid gap-1">
-          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Mon event</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid min-w-0 gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mon event</p>
           <h1 className="font-heading text-3xl font-bold leading-tight text-foreground md:text-4xl">{event.title}</h1>
+          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            {event.startsAt !== undefined && event.endsAt !== undefined ? (
+              <li className="flex items-start gap-1.5">
+                <CalendarDays aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                <span>{eventSchedule(event.startsAt, event.endsAt)}</span>
+              </li>
+            ) : null}
+            {event.location !== "" ? (
+              <li className="flex items-start gap-1.5">
+                <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                <span>{event.location}</span>
+              </li>
+            ) : null}
+            {registration.confirmed ? (
+              <li className="flex items-center gap-1.5 font-semibold text-success">
+                <CheckCircle aria-hidden="true" className="size-4" />
+                Inscription confirmée
+              </li>
+            ) : null}
+          </ul>
         </div>
-        <span className={`w-fit rounded border px-3 py-1 text-sm font-semibold ${PHASE_TONE[phase]}`}>
+        {/* Story 53.10: the moment of the event, in large - the first thing to read. */}
+        <p
+          className={`w-fit shrink-0 rounded-lg border-2 px-5 py-2 text-center font-heading text-3xl font-bold leading-tight md:text-4xl ${PHASE_TONE[phase]}`}
+        >
           {eventPhaseLabel(event, now)}
-        </span>
+        </p>
       </div>
-      <ul className="grid gap-2 text-sm text-muted-foreground">
-        {event.startsAt !== undefined && event.endsAt !== undefined ? (
-          <li className="flex items-start gap-2">
-            <CalendarDays aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <span>{eventSchedule(event.startsAt, event.endsAt)}</span>
-          </li>
-        ) : null}
-        {event.location !== "" ? (
-          <li className="flex items-start gap-2">
-            <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <span>{event.location}</span>
-          </li>
-        ) : null}
-      </ul>
-      <RegistrationStatus eventSlug={event.slug} registration={registration} />
+      {registration.confirmed ? null : <RegistrationStatus eventSlug={event.slug} registration={registration} />}
     </header>
   );
 }
 
 function RegistrationStatus({ eventSlug, registration }: { eventSlug: string; registration: RegistrantHubRegistration }) {
-  if (registration.confirmed) {
-    return (
-      <p className="flex items-center gap-2 text-sm font-semibold text-success">
-        <CheckCircle aria-hidden="true" className="size-4" />
-        Inscription confirmée
-      </p>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-warning/50 p-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="flex items-center gap-2 text-sm font-semibold text-warning">
@@ -340,9 +368,10 @@ export function RegistrantHubSection({ title, icon, children, id }: SectionProps
   if (Children.toArray(children).length === 0) return null;
 
   return (
-    <section className="grid scroll-mt-24 content-start gap-4 rounded-lg border border-border bg-surface p-5" id={id}>
-      <h2 className="flex items-center gap-2 font-heading text-lg font-semibold text-foreground">
-        {icon ?? <ListChecks aria-hidden="true" className="size-5" />}
+    // Story 53.10: the same frame as the tools' tiles (border, padding, title size).
+    <section className="grid min-w-0 scroll-mt-24 content-start gap-3 rounded-lg border border-border bg-surface p-4" id={id}>
+      <h2 className="flex items-center gap-2 font-heading text-sm font-semibold text-foreground">
+        {icon ?? <ListChecks aria-hidden="true" className="size-4" />}
         {title}
       </h2>
       {children}
@@ -352,15 +381,22 @@ export function RegistrantHubSection({ title, icon, children, id }: SectionProps
 
 function RegistrantHubSkeleton() {
   return (
-    <div aria-hidden="true" className="grid gap-8">
+    <div aria-hidden="true" className="grid gap-6">
       <div className="grid gap-3 border-b border-border pb-8">
         <div className="h-4 w-40 animate-pulse rounded bg-surface-2" />
         <div className="h-9 w-72 animate-pulse rounded bg-surface-2" />
         <div className="h-4 w-56 animate-pulse rounded bg-surface-2" />
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="h-32 animate-pulse rounded-lg bg-surface-2" />
-        <div className="h-32 animate-pulse rounded-lg bg-surface-2" />
+      {/* Story 53.10: the dashboard grid, main column and tools. */}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+        <div className="grid gap-4">
+          <div className="h-40 animate-pulse rounded-lg bg-surface-2" />
+          <div className="h-32 animate-pulse rounded-lg bg-surface-2" />
+        </div>
+        <div className="grid gap-4">
+          <div className="h-24 animate-pulse rounded-lg bg-surface-2" />
+          <div className="h-24 animate-pulse rounded-lg bg-surface-2" />
+        </div>
       </div>
     </div>
   );
