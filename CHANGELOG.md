@@ -5,6 +5,17 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.71.0] - 2026-11-18
+
+Mise à jour technique, sans nouvelle fonctionnalité. Aucune migration, aucune variable d'environnement.
+
+### Modifié
+
+- **API en Symfony 8.1** (story 33.31), avec les mises à jour mineures des dépendances : Doctrine ORM 3.8,
+  PHPUnit 13.4, PHPStan 2.3, Rector 2.8. Les clients ArchiLAN acceptent Symfony 8 (bridge-client 1.3.0,
+  bridge-client-bundle 1.2.0, orchestrateur-client 1.19.0).
+- **Front** : mises à jour mineures (Tailwind, TanStack Query, Tiptap, Lucide, Recharts).
+
 ## [0.70.2] - 2026-11-18
 
 Correctif du fil des sessions. Une migration (`Version20261118180000`), aucune variable d'environnement.
