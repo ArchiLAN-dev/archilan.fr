@@ -1,6 +1,6 @@
 # Story 53.9: Tous les slots de la partie sur la page session d'un inscrit
 
-**Status:** ready-for-dev (AC 1 livré en hotfix v0.66.2)
+**Status:** review (AC 1 livré en hotfix v0.66.2, le reste le 2026-11-18)
 **Epic:** 53 - Mon event (espace inscrit)
 **Date:** 2026-11-13
 
@@ -52,16 +52,34 @@ d'items et suivi « faisable ». Seules les écritures restent au propriétaire.
 
 ## Tasks
 
-- [ ] Task 1 (AC 5, 6, 7) - `PlayerStateController` : un garde de lecture (propriétaire, admin ou inscrit de
+- [x] Task 1 (AC 5, 6, 7) - `PlayerStateController` : un garde de lecture (propriétaire, admin ou inscrit de
   l'événement) pour les trois GET ; les écritures gardent `ownsSlot`. Tests fonctionnels lecture et écriture.
-- [ ] Task 2 (AC 1, 2) - (ordre et badge « Toi » livrés en v0.66.2 : `ownSlotNames`) `PlayerProgressGrid` : option d'ordre « mes slots d'abord » (noms ou index fournis par
+- [x] Task 2 (AC 1, 2) - (ordre et badge « Toi » livrés en v0.66.2 : `ownSlotNames`) `PlayerProgressGrid` : option d'ordre « mes slots d'abord » (noms ou index fournis par
   l'appelant) et marque visuelle ; `slotHref` toujours défini sur la page session.
-- [ ] Task 3 (AC 3, 4) - fiche de slot d'événement (`EventSlotDetailPage`) : mode lecture seule quand le slot
+- [x] Task 3 (AC 3, 4) - fiche de slot d'événement (`EventSlotDetailPage`) : mode lecture seule quand le slot
   n'est pas à l'inscrit (masque achats, priorités, primes, Passeur, départ ; bandeau) ; sélecteur sur tous les slots.
-- [ ] Task 4 (AC 8, 9) - vérifier la visibilité des sphères, tests front, gates.
+- [x] Task 4 (AC 8, 9) - vérifier la visibilité des sphères, tests front, gates.
 
 ## Dev Notes
 
 - Le propriétaire d'un slot se lit via `/sessions/{id}/slot-owners` (déjà utilisé par la fiche).
 - Sur une grande partie, ouvrir le suivi d'un autre slot ne lance pas de calcul en plus : le démon de session
   calcule déjà tous les slots (story 17.28).
+
+## Dev Agent Record
+
+- **API** : `SessionQuery::isRegistrantOfEventSession` (inscrit actif de l'événement, et la session n'est pas celle
+  d'une run perso ou hebdo). `PlayerStateController::canReadSlot` = propriétaire, admin ou inscrit de l'événement,
+  pour `GET hints`, `GET item-locations` et aussi `GET hints-token` (le direct des indices de la fiche, une lecture).
+  `reachable` était déjà ouvert aux inscrits. Écritures inchangées (`ownsSlot`).
+- **Tests API** (`PlayerStateTest`) : lecture d'un autre slot par un inscrit, par un inscrit sans slot ; refus à
+  l'inscrit d'un autre événement et au participant d'une run privée ; 11 routes d'écriture refusées sur le slot d'un
+  autre (indices, priorité, pelles, primes, Passeur, départ). Les deux anciens tests « lecture refusée à un
+  co-inscrit » (#252) sont remplacés ; celui du slot spectateur du bridge passe sur une écriture.
+- **Front** : toutes les cartes de « Progression des joueurs » ouvrent une fiche. `isReadOnlySlot`
+  (`features/personal-runs/slot-access.ts`) : sur un event, un slot qui n'est ni à l'inscrit ni co-joué par lui
+  s'ouvre en lecture seule (bandeau « Slot de {joueur} - lecture seule », sans achat d'indice, priorité, primes,
+  Passeur, départ ni offres en pelles ; l'onglet Tracker reste réservé à ses slots). Rien qui écrit n'apparaît tant
+  que le slot n'est pas reconnu. Le sélecteur propose tous les slots, les siens en tête marqués « (toi) ».
+- **Sphères** (AC 8) : la fiche d'un autre slot passe par la même route `reachable`, qui applique
+  `spheresVisibility` au lecteur : pas de contournement.

@@ -255,8 +255,9 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        // Hints reveal item + location (spoilers), so only the slot owner (or admin) may read them.
-        if (!$this->ownsSlot($user, $session['id'], $slotIndex)) {
+        // Hints reveal item + location (spoilers): the slot owner (or admin), and on an event session any
+        // registrant of the event (story 53.9). Writes stay with the owner.
+        if (!$this->canReadSlot($user, $session['id'], $session['eventId'], $slotIndex)) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -316,8 +317,8 @@ final readonly class PlayerStateController
         }
 
         // The hints topic carries spoilers (unlike the public reachable/feed overlay topics), so a
-        // subscribe token is issued only for the caller's own slot (or admin).
-        if (!$this->ownsSlot($user, $session['id'], $slotIndex)) {
+        // subscribe token is issued to whoever may read the slot's hints (story 53.9).
+        if (!$this->canReadSlot($user, $session['id'], $session['eventId'], $slotIndex)) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -526,9 +527,9 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        // Item locations expose where a slot's items are (spoilers), so only the slot owner (or admin)
-        // may read them - session-level authorization is not enough (issue #252).
-        if (!$this->ownsSlot($user, $session['id'], $slotIndex)) {
+        // Item locations expose where a slot's items are (spoilers): the slot owner (or admin), and on an
+        // event session any registrant of the event (story 53.9) - a personal run keeps issue #252's rule.
+        if (!$this->canReadSlot($user, $session['id'], $session['eventId'], $slotIndex)) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -666,6 +667,19 @@ final readonly class PlayerStateController
         }
 
         return $this->sessionQuery->doesUserOwnSlot($user->getId(), $sessionId, $slotIndex);
+    }
+
+    /**
+     * Story 53.9: reading a slot (hints, item locations) - its owner or an admin, and on an event session any
+     * active registrant of the event. Writes keep {@see ownsSlot}.
+     */
+    private function canReadSlot(User $user, string $sessionId, string $eventId, int $slotIndex): bool
+    {
+        if ($this->ownsSlot($user, $sessionId, $slotIndex)) {
+            return true;
+        }
+
+        return $this->sessionQuery->isRegistrantOfEventSession($user->getId(), $eventId, $sessionId);
     }
 
     private function isAdmin(User $user): bool
