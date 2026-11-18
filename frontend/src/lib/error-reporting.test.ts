@@ -50,3 +50,28 @@ describe("scrubEvent", () => {
     expect(event.user).toEqual({ id: "u1" });
   });
 });
+
+describe("breadcrumbs and ignored errors", () => {
+  it("keeps only the path and status of a request breadcrumb, and drops console arguments", () => {
+    const event = scrubEvent({
+      type: undefined,
+      breadcrumbs: [
+        { category: "fetch", data: { method: "POST", url: "https://api.archilan.fr/auth/reset?token=abc", status_code: 500 } },
+        { category: "navigation", data: { from: "/compte?token=abc", to: "/confirm?email=eve@example.org" } },
+        { category: "console", data: { arguments: ["secret", { token: "abc" }], logger: "console" } },
+      ],
+    } as ErrorEvent);
+    expect(event.breadcrumbs?.[0]?.data).toEqual({ method: "POST", url: "https://api.archilan.fr/auth/reset", status_code: 500 });
+    expect(event.breadcrumbs?.[1]?.data).toEqual({ from: "/compte", to: "/confirm" });
+    expect(event.breadcrumbs?.[2]?.data).toBeUndefined();
+  });
+
+  it("ignores a dropped connection but not a chunk that failed to load", () => {
+    const ignored = errorReportingOptions("https://k@errors.archilan.fr/2", "", "production")?.ignoreErrors ?? [];
+    const isIgnored = (message: string): boolean =>
+      ignored.some((pattern) => (typeof pattern === "string" ? message.includes(pattern) : pattern.test(message)));
+    expect(isIgnored("Failed to fetch")).toBe(true);
+    expect(isIgnored("TypeError: Load failed")).toBe(true);
+    expect(isIgnored("Failed to fetch dynamically imported module: https://archilan.fr/_next/static/chunks/x.js")).toBe(false);
+  });
+});

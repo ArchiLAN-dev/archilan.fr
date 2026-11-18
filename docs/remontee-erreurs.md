@@ -41,7 +41,7 @@ les exceptions et le contexte des logs.
 3. **Démarrer** : `docker compose up -d bugsink`. Se connecter sur `https://BUGSINK_DOMAIN`, puis retirer
    `CREATE_SUPERUSER` du fichier.
 
-4. **Créer une équipe et quatre projets** : `api`, `front`, `bridge` (le worker partage le projet `api`). Chaque
+4. **Créer une équipe et trois projets** : `api`, `front`, `bridge` (le worker partage le projet `api`). Chaque
    projet donne son DSN.
 
 5. **Poser les DSN** :

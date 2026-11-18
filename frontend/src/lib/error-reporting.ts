@@ -17,20 +17,40 @@ export interface ErrorReportingOptions {
 
 const EMAIL = /[\w.+-]+@[\w-]+\.[\w.-]+/gu;
 
-/** Noise a visitor's browser makes and we cannot fix: dropped connections, extensions, layout loop warnings. */
+/**
+ * Noise a visitor's browser makes and we cannot fix: a dropped connection, an aborted request, a layout loop warning.
+ * Anchored on purpose: a plain string matches as a substring, and "Failed to fetch" would also hide "Failed to fetch
+ * dynamically imported module" - the stale chunks after a deploy, which we do want to see.
+ */
 const IGNORED_ERRORS: (string | RegExp)[] = [
-  "ResizeObserver loop",
-  "Failed to fetch",
-  "NetworkError when attempting to fetch resource",
-  "Load failed",
-  "The operation was aborted",
-  /^AbortError/u,
+  /^ResizeObserver loop/u,
+  /^(TypeError: )?Failed to fetch$/u,
+  /^(TypeError: )?NetworkError when attempting to fetch resource\.?$/u,
+  /^(TypeError: )?Load failed$/u,
+  /^(AbortError: )?The operation was aborted\.?$/u,
 ];
 
 const EXTENSION_URLS = [/^chrome-extension:\/\//u, /^moz-extension:\/\//u, /^safari-(web-)?extension:\/\//u];
 
 function mask(text: string): string {
   return text.replace(EMAIL, "[email]");
+}
+
+function withoutQuery(value: unknown): string | undefined {
+  return typeof value === "string" ? mask(value.split("?")[0] ?? "") : undefined;
+}
+
+function scrubBreadcrumbData(data: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (data === undefined) return undefined;
+  const kept: Record<string, unknown> = {};
+  for (const key of ["url", "from", "to"] as const) {
+    const value = withoutQuery(data[key]);
+    if (value !== undefined) kept[key] = value;
+  }
+  for (const key of ["method", "status_code"] as const) {
+    if (typeof data[key] === "string" || typeof data[key] === "number") kept[key] = data[key];
+  }
+  return Object.keys(kept).length === 0 ? undefined : kept;
 }
 
 /** Keeps a request's method and path only: headers, cookies, body and query string can carry tokens. */
@@ -43,8 +63,11 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
   for (const exception of event.exception?.values ?? []) {
     if (exception.value) exception.value = mask(exception.value);
   }
+  // A fetch, an XHR or a navigation keeps its URL in `data` (a reset or confirmation token in the query string), a
+  // console breadcrumb its arguments: only the path and the status stay.
   for (const breadcrumb of event.breadcrumbs ?? []) {
     if (breadcrumb.message) breadcrumb.message = mask(breadcrumb.message);
+    breadcrumb.data = scrubBreadcrumbData(breadcrumb.data);
   }
   if (event.user) event.user = event.user.id === undefined ? undefined : { id: event.user.id };
 

@@ -80,3 +80,14 @@ afin de voir un incident de prod sans lire les logs des conteneurs.
 - Vérifié de bout en bout contre un Bugsink local : exception d'une commande prod reçue une fois, avec version,
   environnement et e-mail masqué ; 404 ignorée ; erreur du bridge reçue avec son `session_id`.
 - Mise en service : `docs/remontee-erreurs.md`.
+- Revue de code (2026-11-19), corrigée en PR de suivi :
+  - `frontend/Dockerfile` : la suite de l'`ENV` portait un `\n` littéral, le build de l'image du front cassait
+    (vérifié par `docker build --check`) ;
+  - API : les `ApplicationFailure` en 4xx (epic 35), que l'ErrorListener journalise en CRITICAL, sont écartées ;
+    les variables des frames (arguments : mot de passe, jeton) sont vidées ; paramètres du message, tags,
+    breadcrumbs masqués ; un objet du contexte réduit à sa classe ; `register_error_handler: false` (une erreur
+    fatale arrivait deux fois, et les warnings en plus) ;
+  - front : breadcrumbs réduits au chemin et au statut (le jeton d'un lien de réinitialisation passait par
+    `data.url`), erreurs ignorées ancrées (« Failed to fetch » cachait l'échec de chargement d'un chunk après un
+    déploiement), environnement fixé au build (`production` pour un tag, `staging` sinon) ;
+  - test de câblage en `WebTestCase` (AC-T6), qui vérifie aussi le branchement du filtre ; doc : trois projets.
