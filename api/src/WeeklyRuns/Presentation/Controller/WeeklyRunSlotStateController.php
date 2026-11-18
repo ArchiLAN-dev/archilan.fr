@@ -170,12 +170,18 @@ final readonly class WeeklyRunSlotStateController
             return $this->apiAccessGuard->errorResponse('validation_error', 'status invalide (0, 10, 20 ou 30 attendu).', 422);
         }
 
+        // The world the location belongs to: a location id is unique within one game only (see PlayerStateController).
+        $findingRaw = $body['findingPlayer'] ?? null;
+        if (null !== $findingRaw && !is_int($findingRaw)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'findingPlayer doit être un entier.', 422);
+        }
+
         try {
             $bridge = $this->bridgeClientPool->get(
                 $info['externalSessionId'],
                 BridgeEndpoint::baseUrl($info['externalSessionId']),
             );
-            $response = $bridge->slots()->updateHint($slotIndex, $locationId, $status);
+            $response = $bridge->slots()->updateHint($slotIndex, $locationId, $status, $findingRaw);
 
             return new JsonResponse(['data' => [
                 'ok' => true,

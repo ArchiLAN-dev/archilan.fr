@@ -16,7 +16,7 @@ import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
 import { SphereLine } from "@/features/reachability/sphere-line";
-import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
+import type { HintEntry, HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { HINT_STATUS_NAMES, REACHABILITY_INVALID_MESSAGE, REACHABILITY_RETRY_MS, isHintsUpdate, isReachabilityData, reachableAnswerOf } from "@/features/reachability/types";
 import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { SlotSwitcher } from "./admin-slot-switcher";
@@ -440,13 +440,17 @@ export function AdminSlotReachabilityPage({
   }
 
   // Set the AP hint priority/status for a pending hint (optimistic; SSE reconciles).
-  async function handleSetHintStatus(locationId: number, status: number): Promise<void> {
+  async function handleSetHintStatus(hint: HintEntry, status: number): Promise<void> {
+    // A location id is unique within one game only: the hint is the one at this location in this world.
+    const { locationId, findingPlayer } = hint;
     setHints((prev) =>
       prev
         ? {
             ...prev,
             hints: prev.hints.map((h) =>
-              h.locationId === locationId ? { ...h, status, statusName: HINT_STATUS_NAMES[status] ?? h.statusName } : h,
+              h.locationId === locationId && h.findingPlayer === findingPlayer
+                ? { ...h, status, statusName: HINT_STATUS_NAMES[status] ?? h.statusName }
+                : h,
             ),
           }
         : prev,
@@ -454,7 +458,7 @@ export function AdminSlotReachabilityPage({
     await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/hints/${locationId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, findingPlayer }),
     });
   }
 
@@ -744,7 +748,7 @@ export function AdminSlotReachabilityPage({
                 <HintsPanel
                   data={hints}
                   hintFree={hintFree}
-                  onSetStatus={(loc, st) => { void handleSetHintStatus(loc, st); }}
+                  onSetStatus={(hint, st) => { void handleSetHintStatus(hint, st); }}
                   onToggleFree={() => { setHintFree((f) => !f); }}
                 />
               ) : (
