@@ -59,3 +59,14 @@ when@prod:
                 channels: [deprecation]
                 path: php://stderr
                 formatter: monolog.formatter.json
+            # Story 33.32: errors go to Bugsink as well (nothing is sent while SENTRY_DSN is empty). A logged
+            # exception becomes an issue with its stack trace - a caught one too, like a failed feed push - and an
+            # error logged without one becomes an issue from its message.
+            sentry_exceptions:
+                type: service
+                id: Sentry\Monolog\ExceptionToSentryIssueHandler
+                channels: ["!deprecation"]
+            sentry_logs:
+                type: service
+                id: Sentry\Monolog\LogToSentryIssueHandler
+                channels: ["!deprecation"]

@@ -1,0 +1,28 @@
+# Story 33.32: errors reported to Bugsink, which speaks the Sentry protocol. Nothing is sent while SENTRY_DSN is
+# empty (dev, test, and production until it is set).
+sentry:
+    dsn: '%env(default::SENTRY_DSN)%'
+    # Symfony logs an uncaught exception already, and the Monolog handlers (monolog.yaml, prod) report it: the
+    # bundle's own listener would report it a second time. The same goes for a failed Messenger message.
+    register_error_listener: false
+    register_error_handler: true
+    messenger:
+        enabled: false
+    tracing:
+        enabled: false
+    options:
+        environment: '%kernel.environment%'
+        release: '%env(default::SENTRY_RELEASE)%'
+        send_default_pii: false
+        max_request_body_size: 'none'
+        before_send: 'App\Shared\Infrastructure\ErrorReporting\SentryEventScrubber'
+
+services:
+    Sentry\Monolog\ExceptionToSentryIssueHandler:
+        arguments:
+            $hub: '@Sentry\State\HubInterface'
+            $level: !php/const Monolog\Level::Error
+    Sentry\Monolog\LogToSentryIssueHandler:
+        arguments:
+            $hub: '@Sentry\State\HubInterface'
+            $level: !php/const Monolog\Level::Error

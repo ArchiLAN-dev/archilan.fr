@@ -55,6 +55,12 @@ export const env = {
   // Google Search Console HTML-tag verification token. Empty by default (no tag rendered);
   // set it to verify via the meta-tag method without a code change.
   gscVerification: optionalString(process.env.NEXT_PUBLIC_GSC_VERIFICATION),
+  // Story 33.32: where the browser reports its errors (Bugsink, Sentry protocol), and the version it tags them
+  // with. Build-time, like every NEXT_PUBLIC_ value. Empty = nothing is sent.
+  sentryDsn: optionalString(process.env.NEXT_PUBLIC_SENTRY_DSN),
+  sentryRelease: optionalString(process.env.NEXT_PUBLIC_SENTRY_RELEASE),
+  // The environment an error report is tagged with (production, development, test).
+  sentryEnvironment: optionalString(process.env.NODE_ENV) || "development",
 } as const;
 
 /**
@@ -67,4 +73,9 @@ export const serverEnv = {
    * `REVALIDATE_SECRET`. Empty disables the route (503).
    */
   revalidateSecret: (): string => optionalString(process.env.REVALIDATE_SECRET),
+  /**
+   * Story 33.32: where the Next.js server reports its errors. Read at run time, so the image needs no rebuild;
+   * falls back to the browser's DSN baked at build time. Empty = nothing is sent.
+   */
+  sentryDsn: (): string => optionalString(process.env.SENTRY_DSN) || env.sentryDsn,
 } as const;
