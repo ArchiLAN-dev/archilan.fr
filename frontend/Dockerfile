@@ -31,10 +31,17 @@ ARG NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN=archilan
 ARG NEXT_PUBLIC_API_BASE_URL=https://api.archilan.fr
 ARG NEXT_PUBLIC_MERCURE_URL=https://mercure.archilan.fr/.well-known/mercure
 ARG NEXT_PUBLIC_APP_URL=https://archilan.fr
+# Story 33.32 : DSN Bugsink du navigateur (vide = aucun envoi) et version qui étiquette ses erreurs.
+ARG NEXT_PUBLIC_SENTRY_DSN=
+ARG NEXT_PUBLIC_SENTRY_RELEASE=
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
 ENV NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN=$NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN \
     NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
     NEXT_PUBLIC_MERCURE_URL=$NEXT_PUBLIC_MERCURE_URL \
-    NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+    NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+    NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
+    NEXT_PUBLIC_SENTRY_RELEASE=$NEXT_PUBLIC_SENTRY_RELEASE \
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
 RUN pnpm build
 # sharp's native binary dlopens libvips at runtime - a dependency Next's file tracing cannot see,
 # so the standalone output ships sharp without the libvips package and the image optimizer
