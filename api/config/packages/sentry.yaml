@@ -28,3 +28,6 @@ services:
         arguments:
             $hub: '@Sentry\State\HubInterface'
             $level: !php/const Monolog\Level::Error
+            # The log's context (a session id, a status) goes with it: without it, an error logged without an
+            # exception reaches Bugsink as a bare message. The scrubber masks it like the rest.
+            $fillExtraContext: true
