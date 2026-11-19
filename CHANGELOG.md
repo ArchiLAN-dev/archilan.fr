@@ -5,6 +5,26 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.73.1] - 2026-11-19
+
+Correctifs de la remontée d'erreurs et de l'arrêt des sessions. Aucune migration Doctrine, aucune variable
+d'environnement. Avec orchestrateur v0.28.1 et bridge v0.18.1.
+
+### Corrigé
+
+- **Contexte des erreurs dans Bugsink** : une erreur journalisée sans exception arrivait sans son contexte
+  (identifiant de session, statut), qu'il fallait chercher dans les logs du serveur. Il l'accompagne désormais,
+  masqué comme le reste.
+- **Arrêt pris pour un plantage** (orchestrateur v0.28.1) : pendant l'arrêt d'une session, la surveillance pouvait
+  voir le serveur Archipelago arrêté et signaler un plantage, refusé par l'API, en gardant un port réservé pour rien.
+- **Arrêt lent des sessions** (bridge v0.18.1) : le bridge ignorait la demande d'arrêt et n'était tué qu'au bout
+  de 10 secondes. Il s'arrête maintenant tout de suite et proprement.
+
+### Déploiement
+
+- Site 0.73.1 ; orchestrateur 0.28.1 (déjà en place) ; `BRIDGE_IMAGE` en `ghcr.io/archilan-dev/bridge:0.18.1`
+  dans `envs/orchestrateur.env`, puis redémarrer l'orchestrateur. Seuls les bridges lancés ensuite en profitent.
+
 ## [0.73.0] - 2026-11-19
 
 Volumes de session sous contrôle, sauvegardes sur MinIO. Aucune migration Doctrine. Avec orchestrateur v0.28.0.
