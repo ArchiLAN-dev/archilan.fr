@@ -79,6 +79,22 @@ final readonly class DbalAdminTrackerPackQuery implements AdminTrackerPackQueryI
         return $views;
     }
 
+    public function sourceUrlsByGame(): array
+    {
+        $rows = $this->connection->createQueryBuilder()
+            ->select('p.game_id', 'p.source_url')
+            ->from('tracker_pack', 'p')
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $byGame = [];
+        foreach ($rows as $row) {
+            $byGame[self::text($row['game_id'])][] = self::text($row['source_url']);
+        }
+
+        return $byGame;
+    }
+
     /**
      * @param list<string> $packIds
      *
