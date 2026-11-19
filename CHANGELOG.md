@@ -5,6 +5,27 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.73.0] - 2026-11-19
+
+Volumes de session sous contrôle, sauvegardes sur MinIO. Aucune migration Doctrine. Avec orchestrateur v0.28.0.
+
+### Corrigé
+
+- **Volumes de session** (story 17.37) : chaque partie laissait un volume Docker sur le serveur, pour toujours
+  (824 nettoyés à la main le 2026-11-19). L'orchestrateur copie désormais la sauvegarde dans MinIO à chaque arrêt,
+  supprime un volume inutilisé depuis 7 jours, et le reconstruit à la relance, avancement compris.
+- **Sauvegarde et spoiler d'une session** : le job d'archivage ne trouvait jamais rien et les téléchargements admin
+  répondaient toujours vide. Ils lisent maintenant MinIO.
+
+### Déploiement
+
+- Orchestrateur **v0.28.0 d'abord**, puis le site. Nouveaux réglages facultatifs de l'orchestrateur :
+  `SESSION_VOLUME_RETENTION` (secondes, 7 jours par défaut, 0 = jamais) et `VOLUME_COLLECT_INTERVAL` (1 heure).
+- `ARCHIVE_DIR` et le volume `api-archives` sont retirés : la variable peut sortir de `envs/api.env`, et le volume
+  (vide) se supprime avec `docker volume rm archilan-prod_api-archives`.
+- Sauvegardes du nettoyage du 2026-11-19 : procédure de réimport dans `docs/volumes-de-session.md`, pour que ces
+  parties reprennent avec leur avancement.
+
 ## [0.72.0] - 2026-11-19
 
 Remontée des erreurs vers Bugsink, livrée éteinte. Aucune migration Doctrine. Avec bridge v0.18.0 et orchestrateur
