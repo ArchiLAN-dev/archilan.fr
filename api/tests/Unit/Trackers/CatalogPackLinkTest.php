@@ -73,4 +73,13 @@ final class CatalogPackLinkTest extends TestCase
         self::assertFalse($link->sameRepository('https://github.com/Br00ty/other_pack'));
         self::assertFalse($link->sameRepository('not a link'));
     }
+
+    /** Story 54.13: the sheet is edited by anyone, only an https link reaches an admin. */
+    public function testOnlyHttpsLinksAreKept(): void
+    {
+        self::assertNull(CatalogPackLink::fromCatalog('Poptracker', 'data:text/html,<script>alert(1)</script>'));
+        self::assertNull(CatalogPackLink::fromCatalog('Poptracker', 'http://example.org/pack'));
+        self::assertNull(CatalogPackLink::fromCatalog('Poptracker', 'https://www.google.com/url?q=javascript:alert(1)&sa=D'));
+        self::assertNotNull(CatalogPackLink::fromCatalog('Poptracker', 'https://git.ddd.rip/pack'));
+    }
 }

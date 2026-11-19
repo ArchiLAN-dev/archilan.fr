@@ -25,6 +25,10 @@ final readonly class CatalogPackLink
             return null;
         }
         $url = self::unwrapRedirect(trim($url));
+        // The sheet is edited by anyone: only an https link is shown to an admin (no data:, no app schemes).
+        if (!str_starts_with(mb_strtolower($url), 'https://')) {
+            return null;
+        }
         try {
             $source = TrackerPackSource::parse($url);
         } catch (\DomainException) {

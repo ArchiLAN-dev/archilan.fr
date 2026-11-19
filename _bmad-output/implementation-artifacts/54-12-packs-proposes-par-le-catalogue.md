@@ -86,3 +86,5 @@ afin d'équiper les jeux en trackers sans chercher chaque pack à la main.
 - Routes : `GET /api/v1/admin/games/{gameId}/tracker-pack-suggestions`, `GET /api/v1/admin/tracker-pack-suggestions`.
 - Front : `admin-catalog-tracker-packs.tsx` (encart de la fiche, panneau de la liste), import par
   `importTrackerPack`.
+- Revue de sécurité (2026-11-19) : la feuille étant modifiable par tous, `fromCatalog` ne garde qu'un lien en
+  `https://` (ni `data:`, ni schéma applicatif, y compris après dépliage d'une redirection Google).
