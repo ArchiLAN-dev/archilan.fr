@@ -67,6 +67,10 @@ export function createWorkerHost(post: (response: TrackerResponse) => void, opti
   };
 
   const run = async (request: TrackerRequest): Promise<void> => {
+    if (request.type === "ping") {
+      post({ type: "pong", requestId: request.requestId });
+      return;
+    }
     if (request.type === "load") {
       engine?.dispose();
       engine = null;

@@ -36,6 +36,12 @@ framework:
             policy: sliding_window
             limit: 10
             interval: '1 hour'
+        # Story 54.13: the zip of a tracker pack, per address. A browser keeps a zip it fetched (immutable, then
+        # 304), so a whole LAN behind one address stays far below this.
+        tracker_pack_archive:
+            policy: sliding_window
+            limit: 600
+            interval: '10 minutes'
 
 # Tests count in memory, in an unmanaged pool that dies with the container. The client rebuilds the container
 # between two requests, so the suite never trips a limit; a test that disables the reboot gets the real ones.

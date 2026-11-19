@@ -10,7 +10,7 @@ import { PackCredits } from "@/features/trackers/game-tracker-credits";
 import { fetchTrackerArchive, type GameTrackerPack } from "@/features/trackers/tracker-packs-api";
 
 import { createTrackerWorker } from "../engine/create-tracker-worker";
-import { TrackerClient } from "../engine/tracker-client";
+import { TRACKER_HEARTBEAT_MS, TrackerClient } from "../engine/tracker-client";
 import { fetchSlotConnection } from "../tracker-slot-api";
 import type { CompatibilityReport } from "@/features/admin/admin-tracker-packs-api";
 
@@ -68,7 +68,7 @@ type Props = {
 
 const BROWSER_DEPS: TrackerSessionDeps = {
   fetchArchive: fetchTrackerArchive,
-  createClient: ({ onLog, onApSend, onFrame }) => new TrackerClient({ createWorker: createTrackerWorker, onLog, onApSend, onFrame }),
+  createClient: ({ onLog, onApSend, onFrame }) => new TrackerClient({ createWorker: createTrackerWorker, onLog, onApSend, onFrame, heartbeatMs: TRACKER_HEARTBEAT_MS }),
   createApClient: createArchipelagoClient,
   fetchSlotConnection,
 };

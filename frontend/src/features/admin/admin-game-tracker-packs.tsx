@@ -338,7 +338,7 @@ export function TrackerPackRow({ gameId, gameSlug, pack }: { gameId: string; gam
       </div>
 
       <TrackerPackCompatibilityPanel gameSlug={gameSlug} pack={pack} />
-      <TrackerPackUpdates gameId={gameId} pack={pack} />
+      <TrackerPackUpdates gameId={gameId} gameSlug={gameSlug} pack={pack} />
     </li>
   );
 }

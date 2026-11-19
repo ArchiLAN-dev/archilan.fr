@@ -3,6 +3,10 @@ import { unzipSync } from "fflate";
 import { PackError } from "./errors";
 import { parseJsonc } from "./jsonc";
 
+/** Story 54.13: the bounds the API applies at import (`TrackerPackVersion::MAX_UNPACKED_BYTES`, `MAX_FILES`). */
+export const MAX_UNZIPPED_BYTES = 200 * 1024 * 1024;
+export const MAX_ENTRIES = 5000;
+
 /**
  * The files of a pack, unzipped in memory (story 54.4). Paths are relative to the folder holding `manifest.json`
  * (`rootPath` in the zip). As in PopTracker, a file is looked up first under the active variant's folder, then at
@@ -28,11 +32,24 @@ export class PackFiles {
   /** @throws PackError archive_invalid */
   static fromZip(archive: Uint8Array, rootPath: string, variantUid: string): PackFiles {
     let entries: Record<string, Uint8Array>;
+    // Story 54.13: the server's bounds, again here. fflate sizes each output buffer from the size an entry declares:
+    // a zip lying about it gets at most its declared bytes, and the declared total is capped before anything inflates.
+    let declared = 0;
+    let count = 0;
+    let tooBig = false;
     try {
-      entries = unzipSync(archive);
+      entries = unzipSync(archive, {
+        filter: (file) => {
+          declared += file.originalSize;
+          count += 1;
+          if (declared > MAX_UNZIPPED_BYTES || count > MAX_ENTRIES) tooBig = true;
+          return !tooBig;
+        },
+      });
     } catch {
       throw new PackError("archive_invalid", "Le zip du pack est illisible.");
     }
+    if (tooBig) throw new PackError("archive_invalid", "Le zip du pack est trop gros une fois décompressé.");
     const prefix = rootPath === "" ? "" : `${normalizePath(rootPath)}/`;
     const files = new Map<string, Uint8Array>();
     for (const [name, data] of Object.entries(entries)) {

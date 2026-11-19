@@ -11,6 +11,8 @@
 export const LUA_BOOTSTRAP = String.raw`
 local B = __pt_bridge
 __pt_bridge = nil
+local budgets = __pt_budgets
+__pt_budgets = nil
 
 local rawload = load
 local select, type, tostring, pairs, ipairs, error, pcall, setmetatable, rawset =
@@ -28,16 +30,43 @@ io = nil
 -- for each rule that meets it. Every 100 000 instructions, a call chain deeper than MAX_CALL_DEPTH fails the same
 -- way, at once. No real rule goes that deep. Hooks belong to a Lua thread and each call from the engine may run in
 -- its own: guardDepth() sets it at every entry (the api functions, wrapped at the end).
+-- Story 54.13: the same hook holds each call to its time budget, so an endless loop fails instead of holding the
+-- Worker. Each new coroutine gets the hook too: hooks belong to a thread.
 local MAX_CALL_DEPTH = 1000
-local guardDepth
+local CALL_BUDGET = tonumber(budgets.call) or 8
+local FRAME_BUDGET = tonumber(budgets.frame) or 1
+local BUDGET_MESSAGE = "temps de calcul dépassé"
+local guardDepth, startBudget
 do
-  local getinfo, sethook = debug.getinfo, debug.sethook
+  local getinfo, sethook, clock = debug.getinfo, debug.sethook, os.clock
+  local deadline = math.huge
   local function hook()
+    if clock() > deadline then
+      error(BUDGET_MESSAGE .. ", comme une boucle sans fin", 2)
+    end
     if getinfo(MAX_CALL_DEPTH, "l") ~= nil then
       error("récursion sans fin (plus de " .. MAX_CALL_DEPTH .. " appels imbriqués), comme un débordement de pile", 2)
     end
   end
-  guardDepth = function() sethook(hook, "", 100000) end
+  startBudget = function(seconds) deadline = clock() + seconds end
+  guardDepth = function()
+    startBudget(CALL_BUDGET)
+    sethook(hook, "", 100000)
+  end
+  local cocreate, resume = coroutine.create, coroutine.resume
+  coroutine.create = function(f)
+    local co = cocreate(f)
+    sethook(co, hook, "", 100000)
+    return co
+  end
+  local function unwrap(ok, ...)
+    if not ok then error((...), 0) end
+    return ...
+  end
+  coroutine.wrap = function(f)
+    local co = coroutine.create(f)
+    return function(...) return unwrap(resume(co, ...)) end
+  end
 end
 debug = nil
 package = nil
@@ -726,8 +755,13 @@ function api.frame(elapsed)
   for _, name in ipairs({ table.unpack(frameOrder) }) do
     local callback = frameHandlers[name]
     if callback ~= nil then
+      -- Story 54.13: a handler runs every 100 ms: it gets a short budget, and one that blows it is dropped.
+      startBudget(FRAME_BUDGET)
       local ok, message = pcall(callback, elapsed)
-      if not ok then B.log("error", "frame handler " .. tostring(name) .. " : " .. tostring(message)) end
+      if not ok then
+        B.log("error", "frame handler " .. tostring(name) .. " : " .. tostring(message))
+        if find(tostring(message), BUDGET_MESSAGE, 1, true) then scriptHost:RemoveOnFrameHandler(name) end
+      end
     end
   end
 end

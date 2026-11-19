@@ -21,6 +21,19 @@ describe("PackFiles", () => {
     expect(files.text("manifest.json")).toBe("{}");
   });
 
+  it("refuses a zip that declares more than the server's bounds once unzipped (story 54.13)", () => {
+    const zip = zipSync({ "manifest.json": strToU8("{}") }, { level: 0 });
+    // The central directory entry (signature PK) declares 300 MB unzipped.
+    const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+    const central = zip.findIndex((byte, i) => byte === 0x50 && zip[i + 1] === 0x4b && zip[i + 2] === 0x01 && zip[i + 3] === 0x02);
+    view.setUint32(central + 24, 300 * 1024 * 1024, true);
+    expect(() => PackFiles.fromZip(zip, "", "")).toThrow("trop gros");
+
+    const many: Record<string, Uint8Array> = {};
+    for (let i = 0; i <= 5000; i += 1) many[`f${i}`] = strToU8("");
+    expect(() => PackFiles.fromZip(zipSync(many), "", "")).toThrow("trop gros");
+  });
+
   it("refuses an archive that is not a zip", () => {
     expect(() => PackFiles.fromZip(strToU8("not a zip"), "", "")).toThrow(PackError);
   });

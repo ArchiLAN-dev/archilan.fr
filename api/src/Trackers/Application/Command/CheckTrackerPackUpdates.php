@@ -82,20 +82,35 @@ final readonly class CheckTrackerPackUpdates
         $candidates = [];
         $failures = [];
 
+        try {
+            $source = TrackerPackSource::parse($pack->getSourceUrl());
+        } catch (\DomainException) {
+            // A source link stored by 54.1 always parses; nothing to look at otherwise.
+            return null;
+        }
+
+        // Story 54.13: the versions file, and the zip it points at, must stay in the pack's repository.
         $versionsUrl = $pack->getVersionsUrl();
+        if (null !== $versionsUrl && !$source->owns($versionsUrl)) {
+            $this->logger->warning('tracker_pack.versions_url_elsewhere', ['packId' => $pack->getId(), 'versionsUrl' => $versionsUrl]);
+            $versionsUrl = null;
+        }
         if (null !== $versionsUrl) {
             try {
-                $candidates[] = $this->sources->fromVersionsFile($versionsUrl);
+                $fromFile = $this->sources->fromVersionsFile($versionsUrl);
+                if (null !== $fromFile && !$source->owns($fromFile->downloadUrl)) {
+                    $this->logger->warning('tracker_pack.download_url_elsewhere', ['packId' => $pack->getId(), 'downloadUrl' => $fromFile->downloadUrl]);
+                    $fromFile = null;
+                }
+                $candidates[] = $fromFile;
             } catch (ApplicationFailure $e) {
                 $failures[] = $e;
             }
         }
         try {
-            $candidates[] = $this->sources->fromLatestRelease(TrackerPackSource::parse($pack->getSourceUrl()));
+            $candidates[] = $this->sources->fromLatestRelease($source);
         } catch (ApplicationFailure $e) {
             $failures[] = $e;
-        } catch (\DomainException) {
-            // A source link stored by 54.1 always parses; nothing to look at otherwise.
         }
 
         foreach ($failures as $failure) {
@@ -103,7 +118,7 @@ final readonly class CheckTrackerPackUpdates
         }
         $rateLimited = array_find($failures, static fn (ApplicationFailure $f): bool => self::RATE_LIMITED === $f->errorCode());
 
-        if ([] === $candidates && [] !== $failures) {
+        if ([] === $candidates) {
             $pack->recordCheckFailure($failures[0]->errorCode(), $now);
         } else {
             $update = TrackerPackVersions::pickUpdate($current, ...$candidates);

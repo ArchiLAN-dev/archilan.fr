@@ -89,6 +89,16 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: securityHeaders },
       {
+        // Story 54.13: the tracker Worker runs third-party pack scripts. Turbopack starts it from this real file (not a
+        // blob), so this response sets the Worker's own policy, enforced: its own scripts and the Lua WASM, nothing
+        // else. Should a pack escape the Lua sandbox, it still reaches neither the API (another host, the only one
+        // with the session cookie) nor an Archipelago room.
+        source: "/_next/static/chunks/:file(turbopack-worker-.*)",
+        headers: [
+          { key: "Content-Security-Policy", value: "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'" },
+        ],
+      },
+      {
         // Story 40.2: the service worker is revalidated on every check, so a fix reaches browsers at once.
         source: "/sw.js",
         headers: [{ key: "Cache-Control", value: "no-cache" }],

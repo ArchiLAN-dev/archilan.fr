@@ -95,9 +95,12 @@ export type TrackerPackChanges = {
 
 export type TrackerPackActionResult = { ok: true } | { ok: false; message: string };
 
-/** Story 54.3: the version a pack serves after an update or a way back. */
+/**
+ * Story 54.3: the version a pack serves after an update or a way back. Story 54.13: `served` is false when an enabled
+ * pack only keeps the new version, for an admin to try it before serving it.
+ */
 export type ServedVersionResult =
-  | { ok: true; packageVersion: string | null; defaultVariantReset: boolean }
+  | { ok: true; packageVersion: string | null; defaultVariantReset: boolean; served: boolean }
   | { ok: false; message: string };
 
 export type ImportTrackerPackResult =
@@ -291,7 +294,8 @@ async function serveVersion(url: string, body: Record<string, string>): Promise<
     if (!res.ok) return { ok: false, message: errorMessage(json, GENERIC_SERVE_ERROR) };
     const data: unknown = typeof json === "object" && json !== null && "data" in json ? json.data : null;
     if (typeof data === "object" && data !== null && hasNullableStringProp(data, "packageVersion") && hasBooleanProp(data, "defaultVariantReset")) {
-      return { ok: true, packageVersion: data.packageVersion, defaultVariantReset: data.defaultVariantReset };
+      const served = "served" in data && typeof data.served === "boolean" ? data.served : true;
+      return { ok: true, packageVersion: data.packageVersion, defaultVariantReset: data.defaultVariantReset, served };
     }
     return { ok: false, message: GENERIC_SERVE_ERROR };
   } catch {

@@ -15,6 +15,7 @@ import {
   type ServedVersionResult,
   type TrackerPackActionResult,
 } from "./admin-tracker-packs-api";
+import { trackerTrialHref } from "./admin-tracker-pack-compatibility";
 
 const DATE_FORMAT = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Paris" });
 
@@ -26,13 +27,14 @@ const CHECK_ERRORS: Record<string, string> = {
   tracker_pack_url_invalid: "lien hors de GitHub",
 };
 
-type Props = { gameId: string; pack: AdminTrackerPack };
+type Props = { gameId: string; gameSlug: string; pack: AdminTrackerPack };
 
 /**
  * Story 54.3: keeping a pack up to date. The nightly check notes a newer version; an admin reads what changes and
- * applies it, or installs the version at a GitHub link, or goes back to a version the pack kept.
+ * applies it, or installs the version at a GitHub link, or goes back to a version the pack kept. Story 54.13: on an
+ * enabled pack, a new version is only kept; the admin tries it, then serves it.
  */
-export function TrackerPackUpdates({ gameId, pack }: Props) {
+export function TrackerPackUpdates({ gameId, gameSlug, pack }: Props) {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +52,10 @@ export function TrackerPackUpdates({ gameId, pack }: Props) {
         setError(result.message);
         return;
       }
-      if ("defaultVariantReset" in result) {
+      if ("defaultVariantReset" in result && !result.served) {
+        const name = result.packageVersion !== null ? `La version ${result.packageVersion}` : "La version";
+        setNotice(`${name} est installée mais pas encore proposée aux joueurs : essaie-la, puis « Servir cette version ».`);
+      } else if ("defaultVariantReset" in result) {
         const served = result.packageVersion !== null ? `La version ${result.packageVersion} est proposée aux joueurs.` : "Version changée.";
         setNotice(result.defaultVariantReset ? `${served} La variante par défaut n'existe plus dans cette version : la première est ouverte.` : served);
       }
@@ -158,14 +163,24 @@ export function TrackerPackUpdates({ gameId, pack }: Props) {
                 {version.current ? (
                   <span className="text-xs font-semibold text-success">En service</span>
                 ) : (
-                  <button
-                    className="text-xs text-accent-text underline-offset-2 hover:underline disabled:opacity-50"
-                    disabled={busy !== null}
-                    onClick={() => void run(`rollback-${version.id}`, () => rollbackTrackerPack(pack.id, version.id))}
-                    type="button"
-                  >
-                    Revenir à cette version
-                  </button>
+                  <span className="flex flex-wrap items-center gap-3">
+                    <a
+                      className="text-xs text-accent-text underline-offset-2 hover:underline"
+                      href={trackerTrialHref(gameSlug, pack.id, version.id)}
+                      rel="noopener"
+                      target="_blank"
+                    >
+                      Essayer
+                    </a>
+                    <button
+                      className="text-xs text-accent-text underline-offset-2 hover:underline disabled:opacity-50"
+                      disabled={busy !== null}
+                      onClick={() => void run(`rollback-${version.id}`, () => rollbackTrackerPack(pack.id, version.id))}
+                      type="button"
+                    >
+                      Servir cette version
+                    </button>
+                  </span>
                 )}
               </li>
             ))}

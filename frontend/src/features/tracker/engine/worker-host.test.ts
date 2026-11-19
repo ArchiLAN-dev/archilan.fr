@@ -31,6 +31,12 @@ function host() {
 }
 
 describe("the tracker Worker host", () => {
+  it("answers the page's heartbeat, pack loaded or not (story 54.13)", async () => {
+    const { worker, answer } = host();
+    await worker.handle({ type: "ping", requestId: 7 });
+    expect(answer(7)).toEqual({ type: "pong", requestId: 7 });
+  });
+
   it("loads a zipped pack, applies actions and answers each request by its id", async () => {
     const { worker, answer } = host();
     await worker.handle({ type: "load", requestId: 1, archive: miniPackZip(), rootPath: "mini-pack-1.0.0", variantUid: "standard" });

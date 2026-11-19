@@ -38,6 +38,17 @@ final readonly class TrackerPackController
         $user = $this->apiAccessGuard->optionalUser($request);
         $asAdmin = null !== $user && in_array('ROLE_ADMIN', $user->getRoles(), true);
 
+        $fingerprint = $this->archives->fingerprint($versionId, $asAdmin);
+        if (null === $fingerprint) {
+            return $this->apiAccessGuard->errorResponse('tracker_pack_not_found', 'Pack introuvable.', 404);
+        }
+        // Story 54.13: a browser that holds this zip gets a 304, and the object store is not read.
+        $notModified = new Response(null, 200, ['Cache-Control' => 'private, max-age=86400, immutable']);
+        $notModified->setEtag($fingerprint);
+        if ($notModified->isNotModified($request)) {
+            return $notModified;
+        }
+
         $archive = $this->archives->forDownload($versionId, $asAdmin);
         if (null === $archive) {
             return $this->apiAccessGuard->errorResponse('tracker_pack_not_found', 'Pack introuvable.', 404);
