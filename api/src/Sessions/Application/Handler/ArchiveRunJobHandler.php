@@ -6,11 +6,18 @@ namespace App\Sessions\Application\Handler;
 
 use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Application\Port\RunnerCallbackClientInterface;
+use App\Sessions\Application\Port\SessionSaveStorageInterface;
 use App\Shared\Application\Support\BridgeEndpoint;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
+/**
+ * Records where a finished game's files are kept, and the slots' final state. Story 17.37: the save is the one the
+ * orchestrateur copies to durable storage when the game stops (it did so before this job runs: the stop call is
+ * synchronous); the spoiler is in the generated output archive. The job used to copy both from a local workspace the
+ * API never had - it found nothing, every time.
+ */
 #[AsMessageHandler]
 final readonly class ArchiveRunJobHandler
 {
@@ -18,9 +25,8 @@ final readonly class ArchiveRunJobHandler
         private RunnerCallbackClientInterface $callbackClient,
         private LoggerInterface $logger,
         private HttpClientInterface $httpClient,
+        private SessionSaveStorageInterface $saves,
         private string $runnerId,
-        private string $workspaceDir,
-        private string $archiveDir,
     ) {
     }
 
@@ -33,37 +39,15 @@ final readonly class ArchiveRunJobHandler
             'runner_id' => $this->runnerId,
         ]);
 
-        if (!is_dir($this->archiveDir)) {
-            @mkdir($this->archiveDir, 0755, true);
-        }
-
-        $savesDir = $this->workspaceDir.'/'.$sessionId.'/saves';
-        $outputDir = $this->workspaceDir.'/'.$sessionId.'/output';
-
-        $archivedSavePath = null;
-        $saveFiles = is_dir($savesDir) ? (glob($savesDir.'/*.apsave') ?: []) : [];
-        if ([] !== $saveFiles) {
-            $dest = $this->archiveDir.'/'.$sessionId.'.apsave';
-            if (@copy($saveFiles[0], $dest)) {
-                $archivedSavePath = $dest;
-            }
-        }
-
-        $archivedSpoilerPath = null;
-        $spoilerFiles = is_dir($outputDir) ? (glob($outputDir.'/*.archipelago') ?: []) : [];
-        if ([] !== $spoilerFiles) {
-            $dest = $this->archiveDir.'/'.$sessionId.'.archipelago';
-            if (@copy($spoilerFiles[0], $dest)) {
-                $archivedSpoilerPath = $dest;
-            }
-        }
+        $archivedSavePath = $this->saves->locate($sessionId);
 
         $slots = $this->fetchBridgeState($job->bridgePort, $sessionId);
 
         $this->callbackClient->sendCallback($sessionId, [
             'status' => 'archived',
             'archived_save_path' => $archivedSavePath,
-            'archived_spoiler_path' => $archivedSpoilerPath,
+            // The spoiler is read out of the generated output archive, whose key the session already holds.
+            'archived_spoiler_path' => null,
             'slots' => $slots,
         ]);
 
@@ -71,7 +55,6 @@ final readonly class ArchiveRunJobHandler
             'session_id' => $sessionId,
             'runner_id' => $this->runnerId,
             'save_archived' => null !== $archivedSavePath,
-            'spoiler_archived' => null !== $archivedSpoilerPath,
             'slot_count' => count($slots),
         ]);
     }

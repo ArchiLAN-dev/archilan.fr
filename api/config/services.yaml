@@ -155,6 +155,12 @@ services:
         arguments:
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
+    App\Sessions\Application\Port\SessionSaveStorageInterface: '@App\Sessions\Infrastructure\Adapter\MinioSessionSaveStorage'
+
+    App\Sessions\Infrastructure\Adapter\MinioSessionSaveStorage:
+        arguments:
+            $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
+
     App\Sessions\Application\Port\SessionOutputArtifactReaderInterface: '@App\Sessions\Infrastructure\Adapter\MinioZipOutputArtifactReader'
 
     App\Sessions\Infrastructure\Adapter\MinioZipOutputArtifactReader:
@@ -265,8 +271,6 @@ services:
     App\Sessions\Application\Handler\ArchiveRunJobHandler:
         arguments:
             $runnerId: '%env(RUNNER_ID)%'
-            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
-            $archiveDir: '%env(ARCHIVE_DIR)%'
 
     App\Identity\Application\Port\DiscordOAuthClientInterface: '@App\Identity\Infrastructure\Http\DiscordOAuthClient'
 

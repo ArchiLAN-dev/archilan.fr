@@ -172,7 +172,6 @@ services:
             - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
         volumes:
             - api-workspace:/var/archilan/workspace
-            - api-archives:/var/archilan/archives
 
     api-migrations:
         image: ghcr.io/archilan-dev/api-web:${ARCHILAN_VERSION}
@@ -187,7 +186,6 @@ services:
         env_file: envs/api.env
         volumes:
             - api-workspace:/var/archilan/workspace
-            - api-archives:/var/archilan/archives
         networks:
             - default
 
@@ -205,7 +203,6 @@ services:
             SENTRY_RELEASE: ${ARCHILAN_VERSION}
         volumes:
             - api-workspace:/var/archilan/workspace
-            - api-archives:/var/archilan/archives
         networks:
             - default
             - callbacks
@@ -316,5 +313,4 @@ volumes:
     minio-data:
     orchestrateur-data:
     api-workspace:
-    api-archives:
     blind-test-data:
