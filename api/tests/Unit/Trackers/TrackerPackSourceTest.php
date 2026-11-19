@@ -85,4 +85,22 @@ final class TrackerPackSourceTest extends TestCase
 
         TrackerPackSource::parse($url);
     }
+
+    /** Story 54.13: a pack's update links stay in its repository. */
+    public function testOwnsOnlyLinksIntoItsRepository(): void
+    {
+        $source = TrackerPackSource::parse('https://github.com/Owner/Repo');
+
+        self::assertTrue($source->owns('https://raw.githubusercontent.com/owner/repo/refs/heads/main/versions.json'));
+        self::assertTrue($source->owns('https://github.com/Owner/Repo/releases/download/v1/pack.zip'));
+        self::assertTrue($source->owns('https://codeload.github.com/Owner/Repo.git/zip/refs/tags/v1'));
+        self::assertTrue($source->owns('https://api.github.com/repos/Owner/Repo/releases/latest'));
+
+        self::assertFalse($source->owns('https://raw.githubusercontent.com/someone/repo/main/versions.json'));
+        self::assertFalse($source->owns('https://github.com/Owner/Other/releases/download/v1/pack.zip'));
+        self::assertFalse($source->owns('https://example.org/Owner/Repo/versions.json'));
+        self::assertFalse($source->owns('http://github.com/Owner/Repo/versions.json'));
+        self::assertFalse($source->owns('https://user@github.com/Owner/Repo'));
+        self::assertFalse($source->owns('https://github.com/Owner'));
+    }
 }

@@ -223,6 +223,20 @@ final class TrackerPack
     }
 
     /**
+     * Story 54.13: keeps a new version without serving it, so an admin tries it before players get it. The offered
+     * update it covers is dropped all the same: it is installed.
+     *
+     * @throws \DomainException tracker_pack_version_not_found when the version is not one of this pack
+     */
+    public function keepUnserved(TrackerPackVersion $version): void
+    {
+        if ($version->getPackId() !== $this->id) {
+            throw new \DomainException('tracker_pack_version_not_found');
+        }
+        $this->dropUpdateUpTo($version);
+    }
+
+    /**
      * Serves another version of this pack, newer or older. An offered update at or below it is dropped. A default
      * variant the version no longer has goes back to the first one.
      *
@@ -236,12 +250,7 @@ final class TrackerPack
             throw new \DomainException('tracker_pack_version_not_found');
         }
         $this->currentVersionId = $version->getId();
-
-        $update = $this->getAvailableUpdate();
-        $served = $version->getPackageVersion();
-        if (null !== $update && null !== $served && TrackerPackVersions::compare($update->packageVersion, $served) <= 0) {
-            $this->availableUpdate = null;
-        }
+        $this->dropUpdateUpTo($version);
 
         $uids = array_column($version->getVariants(), 'uid');
         if (null !== $this->defaultVariantUid && !in_array($this->defaultVariantUid, $uids, true)) {
@@ -251,5 +260,14 @@ final class TrackerPack
         }
 
         return false;
+    }
+
+    private function dropUpdateUpTo(TrackerPackVersion $version): void
+    {
+        $update = $this->getAvailableUpdate();
+        $installed = $version->getPackageVersion();
+        if (null !== $update && null !== $installed && TrackerPackVersions::compare($update->packageVersion, $installed) <= 0) {
+            $this->availableUpdate = null;
+        }
     }
 }

@@ -36,7 +36,7 @@ const pack: AdminTrackerPack = {
 function render(p: AdminTrackerPack): string {
   return renderToStaticMarkup(
     <QueryClientProvider client={new QueryClient()}>
-      <TrackerPackUpdates gameId="g1" pack={p} />
+      <TrackerPackUpdates gameId="g1" gameSlug="majoras-mask" pack={p} />
     </QueryClientProvider>,
   );
 }
@@ -85,6 +85,8 @@ describe("TrackerPackUpdates (story 54.3)", () => {
     });
     expect(html).toContain("Versions gardées");
     expect(html).toContain("En service");
-    expect(html.match(/Revenir à cette version/g)).toHaveLength(1);
+    // Story 54.13: a kept version is tried, then served.
+    expect(html.match(/Servir cette version/g)).toHaveLength(1);
+    expect(html).toContain('href="/jeux/majoras-mask/tracker?pack=p1&amp;version=v1&amp;essai=1"');
   });
 });

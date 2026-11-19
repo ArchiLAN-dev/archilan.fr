@@ -70,6 +70,31 @@ final readonly class TrackerPackSource
         return sprintf('https://github.com/%s/%s', $this->owner, $this->repo);
     }
 
+    /**
+     * Story 54.13: whether a link a pack gives (its `versions_url`, a download of its versions file) stays in this
+     * repository. A pack must not hand its updates to someone else's repository.
+     */
+    public function owns(string $url): bool
+    {
+        $parts = parse_url(trim($url));
+        if (false === $parts || 'https' !== ($parts['scheme'] ?? null) || isset($parts['user']) || isset($parts['port'])) {
+            return false;
+        }
+        $segments = explode('/', trim($parts['path'] ?? '', '/'));
+        $host = strtolower($parts['host'] ?? '');
+        if ('api.github.com' === $host && 'repos' === $segments[0]) {
+            $segments = array_slice($segments, 1);
+        } elseif (!in_array($host, ['github.com', 'raw.githubusercontent.com', 'codeload.github.com'], true)) {
+            return false;
+        }
+        if (count($segments) < 2) {
+            return false;
+        }
+        $repo = preg_replace('/\.git$/', '', rawurldecode($segments[1])) ?? '';
+
+        return 0 === strcasecmp(rawurldecode($segments[0]), $this->owner) && 0 === strcasecmp($repo, $this->repo);
+    }
+
     /** The source archive GitHub builds for a tag: its content sits under a `{repo}-{version}/` folder. */
     public static function tagArchiveUrl(string $owner, string $repo, string $tag): string
     {

@@ -24,8 +24,9 @@ use Psr\Log\LoggerInterface;
 /**
  * Installs a new version of a pack (story 54.3): the update the check found, or the version at a GitHub link pasted
  * by an admin (for repositories without proper releases). Every check of the import (54.1) applies, plus two: the
- * zip matches the announced sha256, and it is the same pack (`package_uid`). The new version is served at once, and
- * the pack keeps its {@see TrackerPackVersions::KEPT} latest versions; the zips of the others leave the object store
+ * zip matches the announced sha256, and it is the same pack (`package_uid`). The new version is served at once only
+ * while the pack is disabled: an enabled pack keeps serving its version until an admin tries the new one and serves
+ * it (story 54.13), so a taken-over pack repository cannot reach players unseen. The pack keeps its {@see TrackerPackVersions::KEPT} latest versions; the zips of the others leave the object store
  * once the database no longer points at them.
  */
 final readonly class UpgradeTrackerPack
@@ -99,12 +100,12 @@ final readonly class UpgradeTrackerPack
             throw new ConflictException('Cette version est déjà celle proposée aux joueurs.', 'tracker_pack_version_already_served');
         }
         if (null !== $kept) {
-            // The very zip of a version the pack kept: serve that one again rather than keep it twice.
-            $variantReset = $pack->serve($kept);
+            // The very zip of a version the pack kept: that one again rather than a copy.
+            [$served, $variantReset] = $this->offer($pack, $kept);
             $this->packs->flush();
-            $this->logger->info('tracker_pack.upgraded', ['packId' => $pack->getId(), 'adminId' => $adminId, 'packageVersion' => $kept->getPackageVersion(), 'reusedVersionId' => $kept->getId()]);
+            $this->logger->info('tracker_pack.upgraded', ['packId' => $pack->getId(), 'adminId' => $adminId, 'packageVersion' => $kept->getPackageVersion(), 'reusedVersionId' => $kept->getId(), 'served' => $served]);
 
-            return new ServedTrackerPackVersion($kept->getId(), $kept->getPackageVersion(), $variantReset);
+            return new ServedTrackerPackVersion($kept->getId(), $kept->getPackageVersion(), $variantReset, $served);
         }
 
         $inspected = $this->inspector->inspect($archive);
@@ -128,8 +129,8 @@ final readonly class UpgradeTrackerPack
         }
 
         $version = TrackerPackVersion::record($versionId, $pack->getId(), $manifest, $gitTag, $downloadUrl, $sha256, $storageKey, $inspected->rootPath, strlen($archive), $now);
-        $variantReset = $pack->serve($version);
-        $expired = TrackerPackVersions::expired([...$versions, $version], $versionId);
+        [$served, $variantReset] = $this->offer($pack, $version);
+        $expired = TrackerPackVersions::expired([...$versions, $version], $pack->getCurrentVersionId());
         $this->packs->save($pack, $version, $expired);
 
         // After the commit: the database no longer points at these zips.
@@ -148,9 +149,26 @@ final readonly class UpgradeTrackerPack
             'downloadUrl' => $downloadUrl,
             'expired' => count($expired),
             'defaultVariantReset' => $variantReset,
+            'served' => $served,
         ]);
 
-        return new ServedTrackerPackVersion($versionId, $manifest->packageVersion, $variantReset);
+        return new ServedTrackerPackVersion($versionId, $manifest->packageVersion, $variantReset, $served);
+    }
+
+    /**
+     * Story 54.13: serves the version when nobody plays the pack yet, else only keeps it for a try.
+     *
+     * @return array{bool, bool} whether it is served, whether the default variant was reset
+     */
+    private function offer(TrackerPack $pack, TrackerPackVersion $version): array
+    {
+        if ($pack->isEnabled()) {
+            $pack->keepUnserved($version);
+
+            return [false, false];
+        }
+
+        return [true, $pack->serve($version)];
     }
 
     private function failure(string $code): ValidationException

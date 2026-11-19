@@ -34,6 +34,8 @@ export type EngineOptions = {
   onLog?: (log: EngineLog) => void;
   /** Story 54.6: what the pack asks the Archipelago server for, after each batch of events. */
   onApSend?: (packets: ApOutgoing[]) => void;
+  /** Story 54.13: seconds of computing a call into the pack, and a frame handler, may take (8 and 1); tests lower them. */
+  budgets?: { call: number; frame: number };
 };
 
 /** A failure that stops the pack, with what the Worker sends to the page. */
@@ -328,6 +330,7 @@ export class TrackerEngine {
     const lua = await factory.createEngine({ openStandardLibs: true, injectObjects: false, enableProxy: false });
     this.lua = lua;
     lua.global.set("__pt_bridge", this.bridge());
+    lua.global.set("__pt_budgets", this.options.budgets ?? { call: 8, frame: 1 });
     const api: unknown = lua.doStringSync(LUA_BOOTSTRAP);
     if (!isLuaApi(api)) throw new EngineError("lua_error", "Le moteur Lua n'a pas démarré.");
     this.api = api;

@@ -160,11 +160,18 @@ describe("pack updates (story 54.3)", () => {
 
   it("installs the update, or a link, and reports a reset default variant", async () => {
     mockApiFetch.mockResolvedValue(new Response(JSON.stringify({ data: { versionId: "v3", packageVersion: "0.9.5.4", defaultVariantReset: true } }), { status: 200 }));
-    await expect(upgradeTrackerPack("p1")).resolves.toEqual({ ok: true, packageVersion: "0.9.5.4", defaultVariantReset: true });
+    await expect(upgradeTrackerPack("p1")).resolves.toEqual({ ok: true, packageVersion: "0.9.5.4", defaultVariantReset: true, served: true });
     expect(mockApiFetch.mock.lastCall?.[1]).toMatchObject({ body: "{}", method: "POST" });
 
     await upgradeTrackerPack("p1", "https://github.com/o/r/releases/tag/v2");
     expect(mockApiFetch.mock.lastCall?.[1]).toMatchObject({ body: '{"url":"https://github.com/o/r/releases/tag/v2"}' });
+  });
+
+  it("tells a version kept for a try from a served one (story 54.13)", async () => {
+    mockApiFetch.mockResolvedValue(
+      new Response(JSON.stringify({ data: { versionId: "v3", packageVersion: "0.9.5.4", defaultVariantReset: false, served: false } }), { status: 200 }),
+    );
+    await expect(upgradeTrackerPack("p1")).resolves.toEqual({ ok: true, packageVersion: "0.9.5.4", defaultVariantReset: false, served: false });
   });
 
   it("relays why an update or a way back was refused", async () => {
