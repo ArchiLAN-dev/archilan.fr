@@ -5,6 +5,26 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.72.0] - 2026-11-19
+
+Remontée des erreurs vers Bugsink, livrée éteinte. Aucune migration Doctrine. Avec bridge v0.18.0 et orchestrateur
+v0.27.1.
+
+### Ajouté
+
+- **Remontée des erreurs** (story 33.32) : Bugsink auto-hébergé (un conteneur, base dans le Postgres d'ArchiLAN)
+  reçoit les erreurs de l'API, du worker, du serveur Next.js, du navigateur et des bridges, regroupées par problème,
+  avec un mail au premier événement d'un nouveau problème. Sans données personnelles (requête réduite à méthode et
+  chemin, arguments des traces retirés, e-mails masqués) ; les erreurs 4xx sont écartées. Rien n'est envoyé tant que
+  les DSN ne sont pas posés : mise en service dans `docs/remontee-erreurs.md`.
+
+### Déploiement
+
+- Nouvelles variables, toutes facultatives : `SENTRY_DSN` (`envs/api.env`, `envs/frontend.env`),
+  `BRIDGE_SENTRY_DSN` (`envs/orchestrateur.env`), `BUGSINK_DOMAIN` et `envs/bugsink.env` pour le service `bugsink`,
+  variable GitHub `NEXT_PUBLIC_SENTRY_DSN` pour le navigateur.
+- Orchestrateur v0.27.1 : v0.27.0 n'a pas d'image (CVE-2026-78661 dans `golang.org/x/net`, corrigée en v0.27.1).
+
 ## [0.71.0] - 2026-11-18
 
 Mise à jour technique, sans nouvelle fonctionnalité. Aucune migration, aucune variable d'environnement.
