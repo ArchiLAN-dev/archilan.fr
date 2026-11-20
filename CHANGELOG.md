@@ -5,6 +5,37 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.0.0] - 2026-11-20
+
+Première version stable, et première sous licence libre. Aucune migration Doctrine, aucune variable d'environnement.
+Services inchangés.
+
+### Ajouté
+
+- **Licence EUPL-1.2** (© Jean Marius) : le code du site, de l'orchestrateur, du bridge et de l'image Archipelago
+  devient réutilisable, par exemple par une autre association. Les bibliothèques clientes passent sous MIT. Le nom
+  et le logo ArchiLAN, les visuels et les contenus du site restent hors licence (voir le README).
+- **Packs proposés par le catalogue** (story 54.12) : la fiche d'un jeu propose le pack PopTracker indiqué par le
+  catalogue Archipelago, à importer en un clic ; la liste des jeux montre ceux qui ont un pack à installer.
+
+### Sécurité
+
+- **Durcissement des trackers** (story 54.13), suite à une revue de sécurité :
+  - une mise à jour d'un pack déjà proposé aux joueurs est gardée sans être servie : l'admin l'essaie (« Essayer »)
+    puis la sert (« Servir cette version ») ;
+  - les adresses de mise à jour d'un pack doivent rester dans son dépôt GitHub ;
+  - le zip d'un pack : réponse 304 quand le navigateur l'a déjà, limite de téléchargements par adresse ;
+  - les scripts d'un pack ont un budget de temps, et le moteur est arrêté s'il ne répond plus ;
+  - le moteur du tracker tourne sous une CSP appliquée : il ne joint ni l'API ni une room Archipelago, et la page
+    ne transmet à la room que des lectures ;
+  - plafonds du zip côté navigateur, messages des rapports de compatibilité tronqués.
+- Les liens du catalogue communautaire ne sont affichés qu'en `https://`.
+
+### Déploiement
+
+- Site 1.0.0 seul. Après déploiement, sur un pack déjà activé, une mise à jour attend le clic « Servir cette
+  version ».
+
 ## [0.73.1] - 2026-11-19
 
 Correctifs de la remontée d'erreurs et de l'arrêt des sessions. Aucune migration Doctrine, aucune variable
