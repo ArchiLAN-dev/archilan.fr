@@ -155,6 +155,14 @@ l'isolation se fait par **nom de base**, pas par le code.
 
 ---
 
+## Releases
+
+Weekly release train since v1.0.0: prepared Monday 20:00 Paris by a scheduled routine (PR `release/*` to `main`,
+never merged by it), shipped Tuesday on Jean's go, frozen 4 days before an event. Full procedure:
+`docs/processus-de-release.md`.
+
+---
+
 ## Cross-cutting rules
 
 ### No side effects at boundaries
