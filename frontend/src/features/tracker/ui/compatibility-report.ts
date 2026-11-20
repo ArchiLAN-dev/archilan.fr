@@ -13,6 +13,12 @@ import type { PackMessage, TrackerSessionPhase } from "./use-tracker-session";
  */
 const MAX_ERRORS = 50;
 const MAX_APIS = 100;
+/** Story 54.13: an error message is pack text (`error(...)`), cut before it leaves the browser. */
+export const MAX_MESSAGE_LENGTH = 500;
+
+function cut(message: string): string {
+  return message.length > MAX_MESSAGE_LENGTH ? `${message.slice(0, MAX_MESSAGE_LENGTH - 1)}…` : message;
+}
 const UNSUPPORTED_API = /^Fonction non prise en charge : (.+)$/;
 const UNSUPPORTED_WIDGET = /^Élément d'affichage non géré : (.+)$/;
 
@@ -25,7 +31,7 @@ export function compatibilityReport(
   messages: PackMessage[],
 ): CompatibilityReport | null {
   if (phase.kind === "failed") {
-    return { variantUid, status: "failed", errors: [{ kind: "load", message: phase.message }], unsupportedApis: [], engineVersion: ENGINE_VERSION };
+    return { variantUid, status: "failed", errors: [{ kind: "load", message: cut(phase.message) }], unsupportedApis: [], engineVersion: ENGINE_VERSION };
   }
   if (phase.kind !== "ready") return null;
   const apis = new Set<string>();
@@ -33,9 +39,9 @@ export function compatibilityReport(
   for (const { message } of messages) {
     const api = UNSUPPORTED_API.exec(message);
     const widget = UNSUPPORTED_WIDGET.exec(message);
-    if (api !== null) apis.add(api[1] ?? message);
-    else if (widget !== null) apis.add(`widget:${widget[1] ?? ""}`);
-    else if (errors.length < MAX_ERRORS) errors.push({ kind: "error", message });
+    if (api !== null) apis.add(cut(api[1] ?? message));
+    else if (widget !== null) apis.add(cut(`widget:${widget[1] ?? ""}`));
+    else if (errors.length < MAX_ERRORS) errors.push({ kind: "error", message: cut(message) });
   }
   const unsupportedApis = [...apis].slice(0, MAX_APIS);
   const status = errors.length === 0 && unsupportedApis.length === 0 ? "ok" : "warnings";

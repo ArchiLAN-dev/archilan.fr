@@ -33,7 +33,14 @@ export type TrackerClientOptions = {
   onApSend?: (packets: ApOutgoing[]) => void;
   /** Story 54.11: what the pack's frame handlers changed, unasked. */
   onFrame?: (state: StateUpdate) => void;
+  /**
+   * Story 54.13: how often the page checks the Worker still answers, even with nothing to ask (a frame handler stuck
+   * in C code, which the Lua budget cannot stop). Off when absent.
+   */
+  heartbeatMs?: number;
 };
+
+export const TRACKER_HEARTBEAT_MS = 5_000;
 
 export const TRACKER_TIMEOUT_MS = 10_000;
 
@@ -65,6 +72,7 @@ export class TrackerClient {
   private readonly timeoutMs: number;
   private nextRequestId = 1;
   private failure: TrackerClientError | null = null;
+  private heartbeat: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly options: TrackerClientOptions) {
     this.timeoutMs = options.timeoutMs ?? TRACKER_TIMEOUT_MS;
@@ -73,6 +81,12 @@ export class TrackerClient {
     this.worker.onError((message) =>
       this.stop(new TrackerClientError("worker_failed", message || "Le moteur du tracker s'est arrêté.")),
     );
+    if (options.heartbeatMs !== undefined && options.heartbeatMs > 0) {
+      this.heartbeat = setInterval(() => {
+        // A ping no answer comes to kills the Worker through the request timeout.
+        this.send({ type: "ping" }).catch(() => undefined);
+      }, options.heartbeatMs);
+    }
   }
 
   /** The archive is transferred to the Worker: the buffer is unusable afterwards. */
@@ -152,6 +166,7 @@ export class TrackerClient {
   private stop(error: TrackerClientError): void {
     if (this.failure !== null) return;
     this.failure = error;
+    if (this.heartbeat !== null) clearInterval(this.heartbeat);
     this.worker.terminate();
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer);

@@ -15,6 +15,8 @@ import {
   type AdminTrackerPack,
   type TrackerPackChanges,
 } from "./admin-tracker-packs-api";
+import { catalogTrackerPacksQueryKey } from "./admin-catalog-tracker-packs-api";
+import { CatalogTrackerPackSuggestions } from "./admin-catalog-tracker-packs";
 import { hasFailedVariant, TrackerPackCompatibilityPanel } from "./admin-tracker-pack-compatibility";
 import { TrackerPackUpdates } from "./admin-tracker-pack-updates";
 
@@ -40,6 +42,11 @@ export function AdminGameTrackerPacks({ gameId, gameSlug }: Props) {
     e.preventDefault();
     const link = url.trim();
     if (link === "") return;
+    if (await runImport(link)) setUrl("");
+  }
+
+  /** Imports a pack from a link, typed or proposed by the catalog (54.12). True when it was imported. */
+  async function runImport(link: string): Promise<boolean> {
     setError(null);
     setSuccess(null);
     setImporting(true);
@@ -47,9 +54,8 @@ export function AdminGameTrackerPacks({ gameId, gameSlug }: Props) {
       const result = await importTrackerPack(gameId, link);
       if (!result.ok) {
         setError(result.message);
-        return;
+        return false;
       }
-      setUrl("");
       const version = result.packageVersion !== null ? ` v${result.packageVersion}` : "";
       setSuccess(
         result.hasApVariant
@@ -57,6 +63,8 @@ export function AdminGameTrackerPacks({ gameId, gameSlug }: Props) {
           : `« ${result.name} »${version} est importé, sans autotracking Archipelago.`,
       );
       await queryClient.invalidateQueries({ queryKey: trackerPacksQueryKey(gameId) });
+      await queryClient.invalidateQueries({ queryKey: catalogTrackerPacksQueryKey(gameId) });
+      return true;
     } finally {
       setImporting(false);
     }
@@ -71,6 +79,8 @@ export function AdminGameTrackerPacks({ gameId, gameSlug }: Props) {
         Packs PopTracker du jeu. Colle le lien GitHub d&apos;une release, du dépôt (dernière release) ou d&apos;un zip : le site
         télécharge le pack, le vérifie et le garde. Un pack importé reste caché tant qu’il n’est pas proposé aux joueurs.
       </p>
+
+      <CatalogTrackerPackSuggestions busy={importing} gameId={gameId} onImport={(link) => void runImport(link)} />
 
       <form className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]" onSubmit={submit}>
         <label className="sr-only" htmlFor="tracker-pack-url">
@@ -175,6 +185,8 @@ export function TrackerPackRow({ gameId, gameSlug, pack }: { gameId: string; gam
         return;
       }
       await queryClient.invalidateQueries({ queryKey: trackerPacksQueryKey(gameId) });
+      await queryClient.invalidateQueries({ queryKey: catalogTrackerPacksQueryKey(gameId) });
+      return true;
     } finally {
       setSaving(false);
     }
@@ -326,7 +338,7 @@ export function TrackerPackRow({ gameId, gameSlug, pack }: { gameId: string; gam
       </div>
 
       <TrackerPackCompatibilityPanel gameSlug={gameSlug} pack={pack} />
-      <TrackerPackUpdates gameId={gameId} pack={pack} />
+      <TrackerPackUpdates gameId={gameId} gameSlug={gameSlug} pack={pack} />
     </li>
   );
 }

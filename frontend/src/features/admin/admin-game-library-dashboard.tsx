@@ -17,6 +17,7 @@ import {
   type GameSort,
   type GameSortDir,
 } from "./admin-game-library-api";
+import { GamesToEquipPanel } from "./admin-catalog-tracker-packs";
 
 const DEFAULT_FILTERS: AdminGameListFilters = {
   page: 1,
@@ -129,6 +130,8 @@ export function AdminGameLibraryDashboard() {
           {flash.text}
         </p>
       ) : null}
+
+      <GamesToEquipPanel />
 
       <div className="flex flex-wrap gap-3">
         <input

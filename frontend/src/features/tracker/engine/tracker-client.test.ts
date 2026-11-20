@@ -115,4 +115,32 @@ describe("TrackerClient", () => {
     worker.reply({ type: "state", requestId: 1, state: EMPTY_STATE });
     await expect(pending).resolves.toEqual(EMPTY_STATE);
   });
+
+  it("pings a quiet Worker and stops it when the ping goes unanswered (story 54.13)", () => {
+    jest.useFakeTimers();
+    const worker = new FakeWorker();
+    const client = new TrackerClient({ createWorker: () => worker, timeoutMs: 1_000, heartbeatMs: 500 });
+    jest.advanceTimersByTime(500);
+    expect(worker.received).toEqual([{ type: "ping", requestId: 1 }]);
+    worker.reply({ type: "pong", requestId: 1 });
+    jest.advanceTimersByTime(900);
+    expect(worker.terminated).toBe(false);
+
+    // The second ping stays unanswered: the Worker is stuck.
+    jest.advanceTimersByTime(1_200);
+    expect(worker.terminated).toBe(true);
+    return expect(client.image("a.png")).rejects.toMatchObject({ kind: "timeout" });
+  });
+
+  it("relays to the room only the reads a pack may ask for (story 54.13)", () => {
+    const sent: unknown[] = [];
+    const worker = new FakeWorker();
+    new TrackerClient({ createWorker: () => worker, onApSend: (packets) => sent.push(packets) });
+    worker.reply({ type: "apSend", packets: [{ cmd: "Get", keys: ["a"] }, { cmd: "SetNotify", keys: ["b"] }] });
+    worker.reply({ type: "apSend", packets: [{ cmd: "Say", text: "!release" }] });
+    worker.reply({ type: "apSend", packets: [{ cmd: "Get", keys: [1] }] });
+    worker.reply({ type: "apSend", packets: [{ cmd: "Set", keys: ["a"] }] });
+    worker.reply({ type: "apSend", packets: [{ cmd: "Get", keys: ["a"], key: "x", operations: [] }] });
+    expect(sent).toEqual([[{ cmd: "Get", keys: ["a"] }, { cmd: "SetNotify", keys: ["b"] }]]);
+  });
 });

@@ -3,7 +3,7 @@ import { parseItems, type TrackerItem } from "./items";
 import { AccessibilityLevel, compareVersions } from "./levels";
 import { PackFiles } from "./pack-files";
 import { pinKey } from "./protocol";
-import { TrackerEngine } from "./tracker-engine";
+import { TrackerEngine, type EngineOptions } from "./tracker-engine";
 
 /**
  * Story 54.11: parity with PopTracker v0.36.0, one test per behaviour brought in line with its source
@@ -11,10 +11,10 @@ import { TrackerEngine } from "./tracker-engine";
  */
 const MANIFEST = JSON.stringify({ name: "t", package_uid: "t", variants: { standard: {} } });
 
-async function load(init: string, files: Record<string, unknown> = {}): Promise<TrackerEngine> {
+async function load(init: string, files: Record<string, unknown> = {}, options: EngineOptions = {}): Promise<TrackerEngine> {
   const entries: Record<string, string> = { "manifest.json": MANIFEST, "scripts/init.lua": init };
   for (const [path, content] of Object.entries(files)) entries[path] = typeof content === "string" ? content : JSON.stringify(content);
-  const engine = await TrackerEngine.load(PackFiles.fromEntries(entries, "standard"), "standard");
+  const engine = await TrackerEngine.load(PackFiles.fromEntries(entries, "standard"), "standard", options);
   engine.initialState();
   return engine;
 }
@@ -236,6 +236,31 @@ describe("item properties from Lua, as PopTracker (story 54.11, lot 2)", () => {
 });
 
 describe("the engine's guards against slow packs (story 54.11)", () => {
+  it("fails a pack call stuck in a loop once its budget is spent, coroutines too (story 54.13)", async () => {
+    const budgets = { call: 0.2, frame: 0.05 };
+    await expect(load("while true do end", {}, { budgets })).rejects.toThrow("temps de calcul dépassé");
+    await expect(load("coroutine.wrap(function() while true do end end)()", {}, { budgets })).rejects.toThrow("temps de calcul dépassé");
+    await expect(
+      load("local co = coroutine.create(function() while true do end end) local ok, e = coroutine.resume(co) error(e)", {}, { budgets }),
+    ).rejects.toThrow("temps de calcul dépassé");
+  });
+
+  it("drops a frame handler that blows its budget, and keeps the others (story 54.13)", async () => {
+    const engine = await load(
+      `ticks = 0
+      ScriptHost:AddOnFrameHandler("stuck", function() while true do end end)
+      ScriptHost:AddOnFrameHandler("fine", function() ticks = ticks + 1 end)`,
+      {},
+      { budgets: { call: 2, frame: 0.05 } },
+    );
+    engine.frame(0.1);
+    expect(engine.hasFrameHandlers()).toBe(true);
+    expect(engine.logs.some((log) => log.message.includes("frame handler stuck") && log.message.includes("temps de calcul dépassé"))).toBe(true);
+    engine.frame(0.1);
+    expect(engine.logs.filter((log) => log.message.includes("frame handler stuck"))).toHaveLength(1);
+    engine.dispose();
+  });
+
   it("fails at once a rule that calls itself without end, as PopTracker's stack overflow, and logs it", async () => {
     const engine = await load(
       `Tracker:AddLocations("locations.json")

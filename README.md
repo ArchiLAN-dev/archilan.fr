@@ -141,6 +141,25 @@ Les endpoints applicatifs sont versionnés sous `/api/v1`.
 
 ---
 
+## ⚖️ Licence
+
+Le code de ce dépôt est distribué sous la **Licence publique de l'Union européenne (EUPL) v1.2**, voir [`LICENSE`](LICENSE).
+© 2026 Jean Marius.
+
+Vous pouvez l'utiliser, le modifier et l'héberger, par exemple pour une autre association. Une version modifiée que vous
+distribuez ou que vous rendez accessible en ligne reste sous EUPL, avec son code source.
+
+**Ne sont pas couverts par cette licence :**
+
+- le nom et le logo ArchiLAN ;
+- les visuels de `frontend/public/` (logo, photos d'événements, cadres d'avatar, icônes) ;
+- les contenus saisis sur le site (textes, images, succès, récompenses).
+
+Une réutilisation prend son propre nom et son propre habillage. Les dépendances (Archipelago, wasmoon, paquets npm et
+Composer) restent sous leur propre licence.
+
+---
+
 <div align="center">
 
 **ArchiLAN** - association loi 1901, Clermont-Ferrand · La maison francophone d'Archipelago

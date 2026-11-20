@@ -107,7 +107,9 @@ export type TrackerRequest =
   | { type: "bulk"; requestId: number; actions: EngineAction[] }
   | { type: "image"; requestId: number; path: string }
   /** Story 54.6: Archipelago events, applied together with one logic pass at the end. */
-  | { type: "ap"; requestId: number; events: ApEvent[] };
+  | { type: "ap"; requestId: number; events: ApEvent[] }
+  /** Story 54.13: the page's heartbeat; a Worker stuck in the pack never answers it. */
+  | { type: "ping"; requestId: number };
 
 export type TrackerErrorKind =
   | "archive_invalid"
@@ -140,7 +142,8 @@ export type TrackerResponse =
   /** Story 54.6: what the pack asks the Archipelago server for (`Get`, `SetNotify`), sent by the page. */
   | { type: "apSend"; packets: ApOutgoing[] }
   /** Story 54.11: what the pack's frame handlers changed, unasked. */
-  | { type: "frame"; state: StateUpdate };
+  | { type: "frame"; state: StateUpdate }
+  | { type: "pong"; requestId: number };
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -192,12 +195,28 @@ export function isTrackerRequest(value: unknown): value is TrackerRequest {
       return typeof value.path === "string";
     case "ap":
       return Array.isArray(value.events) && value.events.every(isApEvent);
+    case "ping":
+      return true;
     default:
       return isEngineAction(value);
   }
 }
 
-/** Shallow on purpose: the payload comes from our own Worker, only its envelope is checked. */
+/**
+ * Story 54.13: what the pack may have the page send to the Archipelago server, checked again on the page side: only
+ * reads of data storage keys, whatever a Worker the pack escaped into would post.
+ */
+export function isApOutgoing(value: unknown): value is ApOutgoing {
+  return (
+    isObject(value) &&
+    (value.cmd === "Get" || value.cmd === "SetNotify") &&
+    Array.isArray(value.keys) &&
+    value.keys.every((key) => typeof key === "string") &&
+    Object.keys(value).every((key) => key === "cmd" || key === "keys")
+  );
+}
+
+/** Shallow on purpose: the payload comes from our own Worker, only its envelope is checked (apSend aside). */
 export function isTrackerResponse(value: unknown): value is TrackerResponse {
   if (!isObject(value)) return false;
   switch (value.type) {
@@ -216,9 +235,11 @@ export function isTrackerResponse(value: unknown): value is TrackerResponse {
     case "log":
       return typeof value.level === "string" && typeof value.message === "string";
     case "apSend":
-      return Array.isArray(value.packets);
+      return Array.isArray(value.packets) && value.packets.every(isApOutgoing);
     case "frame":
       return isObject(value.state);
+    case "pong":
+      return typeof value.requestId === "number";
     default:
       return false;
   }

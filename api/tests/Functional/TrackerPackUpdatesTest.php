@@ -62,6 +62,20 @@ final class TrackerPackUpdatesTest extends FunctionalTestCase
         self::assertNull($view['lastCheckError']);
     }
 
+    /** Story 54.13: a versions file cannot send the update to another repository. */
+    public function testDownloadOutsideThePackRepositoryIsIgnored(): void
+    {
+        $pack = $this->storePack('0.9.5.3', enabled: true);
+        $this->github[self::VERSIONS_URL] = self::versionsFile('9.9.9', null, 'https://github.com/someone/else/releases/download/v9.9.9/pack.zip');
+        $this->github[self::LATEST] = self::release('v0.9.5.3', '');
+        $this->loginAsAdmin();
+
+        $this->client->request('POST', sprintf('/api/v1/admin/tracker-packs/%s/check-update', $pack->getId()));
+
+        self::assertResponseStatusCodeSame(204);
+        self::assertNull($this->adminView()['availableUpdate']);
+    }
+
     public function testNothingNewLeavesNoUpdate(): void
     {
         $pack = $this->storePack('0.9.5.3');
@@ -105,6 +119,13 @@ final class TrackerPackUpdatesTest extends FunctionalTestCase
         $this->client->request('GET', sprintf('/api/v1/tracker-pack-versions/%s/archive', $view['versionId']));
         self::assertResponseStatusCodeSame(200);
         self::assertSame($zip, $this->client->getResponse()->getContent());
+
+        // Story 54.13: a browser that holds this zip gets a 304, without the zip.
+        $etag = $this->client->getResponse()->headers->get('ETag');
+        self::assertIsString($etag);
+        $this->client->request('GET', sprintf('/api/v1/tracker-pack-versions/%s/archive', $view['versionId']), server: ['HTTP_IF_NONE_MATCH' => $etag]);
+        self::assertResponseStatusCodeSame(304);
+        self::assertSame('', $this->client->getResponse()->getContent());
     }
 
     public function testWrongChecksumBlocksTheUpdate(): void
@@ -160,6 +181,49 @@ final class TrackerPackUpdatesTest extends FunctionalTestCase
         $this->client->jsonRequest('POST', sprintf('/api/v1/admin/tracker-packs/%s/rollback', $pack->getId()), ['versionId' => 'unknown']);
         self::assertResponseStatusCodeSame(404);
         self::assertSame('tracker_pack_version_not_found', $this->errorCode());
+    }
+
+    /** Story 54.13: players keep their version until an admin tried the new one and serves it. */
+    public function testAnEnabledPackKeepsItsVersionUntilAnAdminServesTheNewOne(): void
+    {
+        $pack = $this->storePack('0.9.5.3', enabled: true);
+        $first = $pack->getCurrentVersionId();
+        $zip = TrackerPackZip::sourceArchive('Pack-0.9.5.4', self::manifest('0.9.5.4'));
+        $this->github[self::VERSIONS_URL] = self::versionsFile('0.9.5.2');
+        $this->github[self::LATEST] = self::release('v0.9.5.4', 'Notes');
+        $this->github['https://github.com/o/r/archive/refs/tags/v0.9.5.4.zip'] = new MockResponse($zip);
+        $this->loginAsAdmin();
+        $this->client->request('POST', sprintf('/api/v1/admin/tracker-packs/%s/check-update', $pack->getId()));
+
+        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/tracker-packs/%s/update', $pack->getId()), []);
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        self::assertFalse($data['served']);
+        self::assertIsString($data['versionId']);
+        $view = $this->adminView();
+        self::assertSame($first, $view['versionId']);
+        self::assertSame('0.9.5.3', $view['packageVersion']);
+        // Installed: the offer is gone, the version waits among the kept ones.
+        self::assertNull($view['availableUpdate']);
+        self::assertIsArray($view['versions']);
+        self::assertCount(2, $view['versions']);
+
+        // Players still get the old zip; the admin's trial reads the new one.
+        $adminCookies = $this->client->getCookieJar()->all();
+        $this->client->getCookieJar()->clear();
+        $this->client->request('GET', sprintf('/api/v1/tracker-pack-versions/%s/archive', $data['versionId']));
+        self::assertResponseStatusCodeSame(404);
+        $this->client->request('GET', sprintf('/api/v1/tracker-pack-versions/%s/archive', $first));
+        self::assertResponseStatusCodeSame(200);
+
+        foreach ($adminCookies as $cookie) {
+            $this->client->getCookieJar()->set($cookie);
+        }
+        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/tracker-packs/%s/rollback', $pack->getId()), ['versionId' => $data['versionId']]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('0.9.5.4', $this->adminView()['packageVersion']);
     }
 
     public function testInstallingAKeptZipAgainServesThatVersionWithoutACopy(): void

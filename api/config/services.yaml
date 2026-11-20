@@ -556,6 +556,8 @@ services:
     App\Trackers\Application\Query\AdminTrackerPackQueryInterface: '@App\Trackers\Infrastructure\Dbal\DbalAdminTrackerPackQuery'
     App\Trackers\Application\Query\PublicTrackerPackQueryInterface: '@App\Trackers\Infrastructure\Dbal\DbalPublicTrackerPackQuery'
     App\Trackers\Application\Port\TrackerGameInterface: '@App\Trackers\Infrastructure\Adapter\RepositoryTrackerGame'
+    # Story 54.12: the packs the community catalog names for a game.
+    App\Trackers\Application\Port\TrackerCatalogInterface: '@App\Trackers\Infrastructure\Adapter\GameSelectionTrackerCatalog'
     App\Trackers\Application\Port\TrackerPackFetcherInterface: '@App\Trackers\Infrastructure\Http\GithubTrackerPackFetcher'
     App\Trackers\Application\Port\TrackerPackUpdateSourceInterface: '@App\Trackers\Infrastructure\Http\GithubTrackerPackFetcher'
     App\Trackers\Application\Port\TrackerPackArchiveInspectorInterface: '@App\Trackers\Infrastructure\Adapter\ZipTrackerPackArchiveInspector'
