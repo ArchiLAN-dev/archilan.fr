@@ -2,6 +2,7 @@
   "name": "frontend",
   "version": "0.73.1",
   "private": true,
+  "license": "EUPL-1.2",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

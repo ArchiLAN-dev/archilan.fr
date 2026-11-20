@@ -2,7 +2,7 @@
     "name": "archilan/api",
     "description": "Symfony API starter for archilan.fr.",
     "type": "project",
-    "license": "proprietary",
+    "license": "EUPL-1.2",
     "minimum-stability": "stable",
     "prefer-stable": true,
     "repositories": [
