@@ -95,6 +95,7 @@ services:
     App\Wallet\Domain\Repository\PelleMovementRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrinePelleMovementRepository'
     App\Wallet\Domain\Repository\ShopRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineShopRepository'
     App\Wallet\Domain\Repository\QuestRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineQuestRepository'
+    App\Wallet\Domain\Repository\QuestProgressSnapshotRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineQuestProgressSnapshotRepository'
     App\Wallet\Domain\Repository\BlindTestSettingRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineBlindTestSettingRepository'
     App\Wallet\Domain\Repository\BlindTestLoginCodeRepositoryInterface: '@App\Wallet\Infrastructure\Doctrine\DoctrineBlindTestLoginCodeRepository'
     # Story 49.1: an event's link to Minimapperz, read through its organiser API (one key per event, stored with it).

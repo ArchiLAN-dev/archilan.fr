@@ -9,6 +9,7 @@ use App\Community\Application\Support\QuestMetricProvider;
 use App\Community\Domain\ValueObject\CosmeticReward;
 use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Wallet\Application\Service\QuestWeekPlanner;
+use App\Wallet\Domain\Repository\QuestProgressSnapshotRepositoryInterface;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
@@ -40,6 +41,7 @@ final readonly class MyWeeklyQuests
         private ClockInterface $clock,
         private CosmeticRewardCatalog $cosmetics,
         private CacheInterface $cache,
+        private QuestProgressSnapshotRepositoryInterface $snapshots,
     ) {
     }
 
@@ -80,9 +82,11 @@ final readonly class MyWeeklyQuests
     {
         $week = QuestWeek::containing($this->clock->now());
         $served = $this->planner->served($week);
-        $counts = [] === $served || !$withProgress ? [] : $this->quests->counts($week, ServedQuest::objectivesOf($served), $userId);
+        // Hotfix v1.0.3: the counts the worker kept (every five minutes); counted here only before its first run.
+        $kept = $withProgress ? $this->snapshots->of($week->key, $userId) : null;
+        $counts = [] === $served || !$withProgress || null !== $kept ? [] : $this->quests->counts($week, ServedQuest::objectivesOf($served), $userId);
         [$scopes, $slugs, $units] = $this->scopeNames($served);
-        $mine = array_map(static fn (array $byMember): int => $byMember[$userId] ?? 0, $counts);
+        $mine = $kept ?? array_map(static fn (array $byMember): int => $byMember[$userId] ?? 0, $counts);
         $paid = $this->quests->rewardedQuests($userId, $week);
         $paidTiers = [] === array_filter($served, static fn (ServedQuest $quest): bool => [] !== $quest->tiers) ? [] : $this->quests->rewardedTiers($userId, $week);
 
@@ -138,7 +142,7 @@ final readonly class MyWeeklyQuests
             'renewsAt' => $week->end->format(\DATE_ATOM),
             'progress' => $withProgress,
             'quests' => $quests,
-            'collective' => $this->collective($week, $userId, $withProgress),
+            'collective' => $this->collective($week, $userId, $withProgress, $kept),
             'chest' => $chest,
             'history' => $this->history($week, $earned),
             'streak' => self::streak($chestWeeks, $week),
@@ -252,22 +256,26 @@ final readonly class MyWeeklyQuests
      * Story 41.69: the week's collective quest as the member sees it - the community's total counted now, the
      * member's share, and the share that pays.
      *
+     * @param array<string, int>|null $kept the member's counts the worker kept (hotfix v1.0.3), null to count them
+     *
      * @return array{key: string, label: string, description: string, reward: int, metric: string, unit: string, target: int, total: int|null, mine: int|null, minContribution: int, scope: string|null, gameSlug: string|null, duration: bool, done: bool|null, paid: bool}|null
      */
-    private function collective(QuestWeek $week, string $userId, bool $withProgress): ?array
+    private function collective(QuestWeek $week, string $userId, bool $withProgress, ?array $kept = null): ?array
     {
         $quest = $this->planner->collective($week);
         $objective = $quest?->getObjectives()[0] ?? null;
         if (null === $quest || null === $objective) {
             return null;
         }
-        // Story 41.73: the community's total is the same for everyone - counted once every few minutes.
-        $total = $withProgress ? $this->cache->get(\sprintf('group-total.%s.%s', $week->key, $quest->getId()), function (ItemInterface $item) use ($week, $objective): int {
+        // Story 41.73: the community's total is the same for everyone. Hotfix v1.0.3: the one the worker counts
+        // every five minutes for the public gauge (AwardWeeklyQuests), shown at once; counted here, and kept, only
+        // while the worker has not counted it yet.
+        $total = $this->countedGroupTotal($week, $quest->getId()) ?? ($withProgress ? $this->cache->get(\sprintf('group-total.%s.%s', $week->key, $quest->getId()), function (ItemInterface $item) use ($week, $objective): int {
             $item->expiresAfter(self::GROUP_TOTAL_TTL);
 
             return $this->quests->groupTotal($week, $objective);
-        }) : null;
-        $mine = $withProgress ? $this->quests->counts($week, [$objective], $userId)[$objective->key()][$userId] ?? 0 : null;
+        }) : null);
+        $mine = !$withProgress ? null : (null !== $kept ? $kept[$objective->key()] ?? 0 : $this->quests->counts($week, [$objective], $userId)[$objective->key()][$userId] ?? 0);
         [$scopes, $slugs, $units] = $this->scopeNames([$quest]);
 
         return [
@@ -287,6 +295,18 @@ final readonly class MyWeeklyQuests
             'done' => null === $total ? null : $total >= $objective->target,
             'paid' => $this->quests->groupPaid($userId, $week, $quest->getId()),
         ];
+    }
+
+    /** Hotfix v1.0.3: the collective quest's total as last counted by the worker, null before its first count. */
+    private function countedGroupTotal(QuestWeek $week, string $questId): ?int
+    {
+        foreach ($this->settings->entriesOfWeeks([$week->key])[$week->key] ?? [] as $entry) {
+            if ($entry->getQuestId() === $questId && null !== $entry->getGroupCountedAt()) {
+                return $entry->getGroupTotal();
+            }
+        }
+
+        return null;
     }
 
     /**
