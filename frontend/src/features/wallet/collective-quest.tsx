@@ -14,16 +14,17 @@ export type CollectiveQuestProgress = {
   metric: string;
   unit: string;
   target: number;
-  /** The whole community's count, each check once. */
-  total: number;
-  /** The member's share. */
-  mine: number;
+  /** The whole community's count, each check once. Story 41.73: null until the progress is read. */
+  total: number | null;
+  /** The member's share. Story 41.73: null until the progress is read. */
+  mine: number | null;
   /** The share that pays, once the goal is reached. */
   minContribution: number;
   scope: string | null;
   gameSlug: string | null;
   duration: boolean;
-  done: boolean;
+  /** Story 41.73: null until the progress is read. */
+  done: boolean | null;
   paid: boolean;
 };
 
@@ -47,6 +48,9 @@ export function CollectiveGauge({ total, target, unit, duration, label }: { tota
 
 /** What the member's share says: paid, enough, or how much is left to be paid. */
 export function shareLine(quest: CollectiveQuestProgress): string {
+  if (quest.mine === null) {
+    return quest.paid ? "Récompense reçue." : `Il t'en faut ${formatQuestAmount(quest.minContribution, quest.duration)} pour toucher la récompense.`;
+  }
   const mine = formatQuestAmount(quest.mine, quest.duration);
   if (quest.paid) {
     return `Dont ${mine} de toi : récompense reçue.`;
@@ -58,7 +62,7 @@ export function shareLine(quest: CollectiveQuestProgress): string {
 }
 
 /** Story 41.69: the collective quest on the member's quests, with their share. */
-export function CollectiveQuestRow({ quest }: { quest: CollectiveQuestProgress }) {
+export function CollectiveQuestRow({ quest, failed = false }: { quest: CollectiveQuestProgress; failed?: boolean }) {
   return (
     <section aria-labelledby={`collective-${quest.key}`} className="grid gap-2 rounded-lg border border-border px-3 py-3">
       <div className="flex items-center justify-between gap-3 text-sm">
@@ -84,8 +88,20 @@ export function CollectiveQuestRow({ quest }: { quest: CollectiveQuestProgress }
           <span className="text-foreground"> · {quest.scope}</span>
         ) : null}
       </p>
-      <CollectiveGauge duration={quest.duration} label={`Quête collective · ${quest.label}`} target={quest.target} total={quest.total} unit={quest.unit} />
-      <p className={`text-xs ${quest.mine >= quest.minContribution ? "text-success" : "text-muted-foreground"}`}>{shareLine(quest)}</p>
+      {quest.total === null ? (
+        // Story 41.73: the community's count, once the progress is read.
+        <div className="grid gap-1">
+          <p className="text-right text-xs tabular-nums text-muted-foreground">
+            {failed ? "?" : <span aria-hidden className="inline-block h-3 w-10 animate-pulse rounded bg-surface-2 align-middle motion-reduce:animate-none" />}
+            {" / "}
+            {formatQuestAmount(quest.target, quest.duration)} {quest.unit}
+          </p>
+          <div aria-hidden className={`h-2 rounded-full bg-surface-2 ${failed ? "" : "animate-pulse motion-reduce:animate-none"}`} />
+        </div>
+      ) : (
+        <CollectiveGauge duration={quest.duration} label={`Quête collective · ${quest.label}`} target={quest.target} total={quest.total} unit={quest.unit} />
+      )}
+      <p className={`text-xs ${quest.mine !== null && quest.mine >= quest.minContribution ? "text-success" : "text-muted-foreground"}`}>{shareLine(quest)}</p>
     </section>
   );
 }

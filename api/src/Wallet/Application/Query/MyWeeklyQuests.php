@@ -7,12 +7,15 @@ namespace App\Wallet\Application\Query;
 use App\Community\Application\Support\CosmeticRewardCatalog;
 use App\Community\Application\Support\QuestMetricProvider;
 use App\Community\Domain\ValueObject\CosmeticReward;
+use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use App\Wallet\Domain\ValueObject\ServedQuest;
 use Psr\Clock\ClockInterface;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * The quests of the week as the wallet page shows them (story 41.6): what each pays, whether it is done, whether it
@@ -24,6 +27,11 @@ use Psr\Clock\ClockInterface;
 final readonly class MyWeeklyQuests
 {
     public const int HISTORY_WEEKS = 4;
+    /** Story 41.73: how long a member's progress is kept, and the community's total of the collective quest. */
+    public const int PROGRESS_TTL = 60;
+    public const int GROUP_TOTAL_TTL = 300;
+    /** Story 41.73: past it, a query of the progress is cut and the page says the progress is unavailable. */
+    public const int PROGRESS_TIMEOUT = 10;
 
     public function __construct(
         private WeeklyQuestsQueryInterface $quests,
@@ -31,17 +39,48 @@ final readonly class MyWeeklyQuests
         private QuestRepositoryInterface $settings,
         private ClockInterface $clock,
         private CosmeticRewardCatalog $cosmetics,
+        private CacheInterface $cache,
     ) {
     }
 
     /**
-     * @return array{week: string, renewsAt: string, quests: list<array{key: string, label: string, description: string, reward: int, tiers: list<array{target: int, reward: int, reached: bool, paid: bool}>|null, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int, scope: string|null, gameSlug: string|null, duration: bool}>, cosmetic: array{type: string, key: string, label: string}|null}>, collective: array{key: string, label: string, description: string, reward: int, metric: string, unit: string, target: int, total: int, mine: int, minContribution: int, scope: string|null, gameSlug: string|null, duration: bool, done: bool, paid: bool}|null, chest: array{reward: int, done: int, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>, streak: array{current: int, best: int, thisWeek: bool}}
+     * Story 41.73: the quests of the week without the member's progress, read without the session feed - shown at
+     * once while the progress loads. `progress` is false: the counts are null, a quest is done only once paid.
+     *
+     * @return array{week: string, renewsAt: string, progress: bool, quests: list<array{key: string, label: string, description: string, reward: int, tiers: list<array{target: int, reward: int, reached: bool, paid: bool}>|null, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int|null, scope: string|null, gameSlug: string|null, duration: bool}>, cosmetic: array{type: string, key: string, label: string}|null}>, collective: array{key: string, label: string, description: string, reward: int, metric: string, unit: string, target: int, total: int|null, mine: int|null, minContribution: int, scope: string|null, gameSlug: string|null, duration: bool, done: bool|null, paid: bool}|null, chest: array{reward: int, done: int|null, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>, streak: array{current: int, best: int, thisWeek: bool}}
      */
     public function of(string $userId): array
     {
+        return $this->build($userId, false);
+    }
+
+    /**
+     * Story 41.73: the quests of the week with where the member stands, kept a minute per member, every query cut at
+     * {@see self::PROGRESS_TIMEOUT} seconds.
+     *
+     * @return array{week: string, renewsAt: string, progress: bool, quests: list<array{key: string, label: string, description: string, reward: int, tiers: list<array{target: int, reward: int, reached: bool, paid: bool}>|null, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int|null, scope: string|null, gameSlug: string|null, duration: bool}>, cosmetic: array{type: string, key: string, label: string}|null}>, collective: array{key: string, label: string, description: string, reward: int, metric: string, unit: string, target: int, total: int|null, mine: int|null, minContribution: int, scope: string|null, gameSlug: string|null, duration: bool, done: bool|null, paid: bool}|null, chest: array{reward: int, done: int|null, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>, streak: array{current: int, best: int, thisWeek: bool}}
+     *
+     * @throws ServiceUnavailableException when the counting went past its limit
+     */
+    public function progress(string $userId): array
+    {
+        $week = QuestWeek::containing($this->clock->now());
+
+        return $this->cache->get(\sprintf('progress.%s.%s', $week->key, $userId), function (ItemInterface $item) use ($userId): array {
+            $item->expiresAfter(self::PROGRESS_TTL);
+
+            return $this->quests->within(self::PROGRESS_TIMEOUT, fn (): array => $this->build($userId, true));
+        });
+    }
+
+    /**
+     * @return array{week: string, renewsAt: string, progress: bool, quests: list<array{key: string, label: string, description: string, reward: int, tiers: list<array{target: int, reward: int, reached: bool, paid: bool}>|null, done: bool, paid: bool, objectives: list<array{metric: string, label: string, unit: string, target: int, current: int|null, scope: string|null, gameSlug: string|null, duration: bool}>, cosmetic: array{type: string, key: string, label: string}|null}>, collective: array{key: string, label: string, description: string, reward: int, metric: string, unit: string, target: int, total: int|null, mine: int|null, minContribution: int, scope: string|null, gameSlug: string|null, duration: bool, done: bool|null, paid: bool}|null, chest: array{reward: int, done: int|null, total: int, paid: bool}|null, history: list<array{week: string, startsAt: string, endsAt: string, done: int, served: int, chest: bool, pelles: int}>, streak: array{current: int, best: int, thisWeek: bool}}
+     */
+    private function build(string $userId, bool $withProgress): array
+    {
         $week = QuestWeek::containing($this->clock->now());
         $served = $this->planner->served($week);
-        $counts = [] === $served ? [] : $this->quests->counts($week, ServedQuest::objectivesOf($served), $userId);
+        $counts = [] === $served || !$withProgress ? [] : $this->quests->counts($week, ServedQuest::objectivesOf($served), $userId);
         [$scopes, $slugs, $units] = $this->scopeNames($served);
         $mine = array_map(static fn (array $byMember): int => $byMember[$userId] ?? 0, $counts);
         $paid = $this->quests->rewardedQuests($userId, $week);
@@ -58,7 +97,8 @@ final readonly class MyWeeklyQuests
                     // Story 41.72: a counter's objective counts what its label says.
                     'unit' => $units[$objective->key()] ?? $objective->metric->unitFor($objective->target),
                     'target' => $objective->target,
-                    'current' => $mine[$objective->key()] ?? 0,
+                    // Story 41.73: null until the progress is read.
+                    'current' => $withProgress ? $mine[$objective->key()] ?? 0 : null,
                     // Story 41.18: the game or event the objective aims at, by name.
                     'scope' => $scopes[$objective->key()] ?? null,
                     // Story 41.67: the game aimed at (drawn or named), to link its page.
@@ -74,7 +114,7 @@ final readonly class MyWeeklyQuests
                 'reward' => $quest->getReward(),
                 // Story 41.68: done from the first tier; each tier reached, and paid, on the same bar.
                 'tiers' => $this->tiers($quest, $mine, $isPaid, $paidTiers[$quest->getId()] ?? []),
-                'done' => $isPaid || $quest->isAccomplishedWith($mine),
+                'done' => $isPaid || ($withProgress && $quest->isAccomplishedWith($mine)),
                 'paid' => $isPaid,
                 'objectives' => $objectives,
                 // Story 41.28: the cosmetic it unlocks, besides the pelles.
@@ -85,7 +125,7 @@ final readonly class MyWeeklyQuests
         $chestReward = $this->settings->chestReward();
         $chest = 0 === $chestReward || [] === $quests ? null : [
             'reward' => $chestReward,
-            'done' => \count(array_filter($quests, static fn (array $quest): bool => $quest['done'])),
+            'done' => $withProgress ? \count(array_filter($quests, static fn (array $quest): bool => $quest['done'])) : null,
             'total' => \count($quests),
             'paid' => $this->quests->chestPaid($userId, $week),
         ];
@@ -96,8 +136,9 @@ final readonly class MyWeeklyQuests
         return [
             'week' => $week->key,
             'renewsAt' => $week->end->format(\DATE_ATOM),
+            'progress' => $withProgress,
             'quests' => $quests,
-            'collective' => $this->collective($week, $userId),
+            'collective' => $this->collective($week, $userId, $withProgress),
             'chest' => $chest,
             'history' => $this->history($week, $earned),
             'streak' => self::streak($chestWeeks, $week),
@@ -211,17 +252,22 @@ final readonly class MyWeeklyQuests
      * Story 41.69: the week's collective quest as the member sees it - the community's total counted now, the
      * member's share, and the share that pays.
      *
-     * @return array{key: string, label: string, description: string, reward: int, metric: string, unit: string, target: int, total: int, mine: int, minContribution: int, scope: string|null, gameSlug: string|null, duration: bool, done: bool, paid: bool}|null
+     * @return array{key: string, label: string, description: string, reward: int, metric: string, unit: string, target: int, total: int|null, mine: int|null, minContribution: int, scope: string|null, gameSlug: string|null, duration: bool, done: bool|null, paid: bool}|null
      */
-    private function collective(QuestWeek $week, string $userId): ?array
+    private function collective(QuestWeek $week, string $userId, bool $withProgress): ?array
     {
         $quest = $this->planner->collective($week);
         $objective = $quest?->getObjectives()[0] ?? null;
         if (null === $quest || null === $objective) {
             return null;
         }
-        $total = $this->quests->groupTotal($week, $objective);
-        $mine = $this->quests->counts($week, [$objective], $userId)[$objective->key()][$userId] ?? 0;
+        // Story 41.73: the community's total is the same for everyone - counted once every few minutes.
+        $total = $withProgress ? $this->cache->get(\sprintf('group-total.%s.%s', $week->key, $quest->getId()), function (ItemInterface $item) use ($week, $objective): int {
+            $item->expiresAfter(self::GROUP_TOTAL_TTL);
+
+            return $this->quests->groupTotal($week, $objective);
+        }) : null;
+        $mine = $withProgress ? $this->quests->counts($week, [$objective], $userId)[$objective->key()][$userId] ?? 0 : null;
         [$scopes, $slugs, $units] = $this->scopeNames([$quest]);
 
         return [
@@ -238,7 +284,7 @@ final readonly class MyWeeklyQuests
             'scope' => $scopes[$objective->key()] ?? null,
             'gameSlug' => $slugs[$objective->key()] ?? null,
             'duration' => $objective->metric->isDuration(),
-            'done' => $total >= $objective->target,
+            'done' => null === $total ? null : $total >= $objective->target,
             'paid' => $this->quests->groupPaid($userId, $week, $quest->getId()),
         ];
     }

@@ -424,6 +424,11 @@ services:
 
     # Story 34.10: the frontend's ISR revalidation route, on the Docker network. Either value empty = disabled.
     App\Shared\Application\Port\PublicPageCacheInterface: '@App\Shared\Infrastructure\Http\HttpPublicPageCache'
+
+    # Story 41.73: the weekly quests' progress and collective total, in their own pool (in memory in tests).
+    App\Wallet\Application\Query\MyWeeklyQuests:
+        arguments:
+            $cache: '@weekly_quests.cache'
     App\Shared\Infrastructure\Http\HttpPublicPageCache:
         arguments:
             $frontendInternalUrl: '%env(default:default_empty_string:FRONTEND_INTERNAL_URL)%'

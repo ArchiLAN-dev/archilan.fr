@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Wallet\Infrastructure\Query;
 
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
+use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Infrastructure\Dbal\DbalFeedCounterSource;
 use App\Shared\Infrastructure\Dbal\DbalFoundItemSource;
 use App\Shared\Infrastructure\Dbal\DbalSlotCheckSource;
@@ -16,6 +17,7 @@ use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\DriverException;
 
 /**
  * Counts what each member played over the week (stories 41.6, 41.15) from the session feed (checks, through the
@@ -32,6 +34,9 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
 
     /** Story 41.65: a recap's superlatives pay a quest from three members on; the achievement takes two. */
     public const int MIN_SUPERLATIVE_PLAYERS = 3;
+
+    /** PostgreSQL's `query_canceled`, raised by `statement_timeout` (story 41.73). */
+    private const string QUERY_CANCELED = '57014';
 
     public function __construct(private Connection $connection)
     {
@@ -69,6 +74,24 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
         }
 
         return $counts;
+    }
+
+    public function within(int $seconds, \Closure $read): mixed
+    {
+        try {
+            return $this->connection->transactional(function () use ($seconds, $read): mixed {
+                // SET LOCAL: the limit ends with this transaction, the connection keeps its own afterwards.
+                $this->connection->executeStatement(\sprintf('SET LOCAL statement_timeout = %d', max(1, $seconds) * 1000));
+
+                return $read();
+            });
+        } catch (DriverException $exception) {
+            if (self::QUERY_CANCELED !== $exception->getSQLState()) {
+                throw $exception;
+            }
+
+            throw new ServiceUnavailableException('La progression des quêtes est indisponible pour le moment.', 'quests_progress_unavailable');
+        }
     }
 
     public function groupTotal(QuestWeek $week, QuestObjective $objective): int

@@ -380,7 +380,11 @@ export function hrefFor(item: NotificationItem): string {
   if (item.type === "account_flagged") {
     return "/admin/moderation/signalements";
   }
-  if (item.type === "pelles_adjusted" || item.type === "quests_renewed") {
+  if (item.type === "quests_renewed") {
+    // Story 41.73: the quests have their own page.
+    return "/compte/quetes";
+  }
+  if (item.type === "pelles_adjusted") {
     return "/compte/pelles";
   }
   if (item.type === "cosmetic_unlocked") {

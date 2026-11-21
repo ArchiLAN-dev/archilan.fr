@@ -19,7 +19,8 @@ export type QuestObjectiveProgress = {
   label: string;
   unit: string;
   target: number;
-  current: number;
+  /** Story 41.73: null until the progress is read. */
+  current: number | null;
   scope?: string | null;
   /** Story 41.67: the game aimed at (drawn for the week, maybe), to link its page. */
   gameSlug?: string | null;
@@ -45,7 +46,7 @@ export type WeeklyQuest = {
 export type QuestTierProgress = { target: number; reward: number; reached: boolean; paid: boolean };
 
 /** Story 41.16: the chest for doing every quest of the week; null when there is none. */
-export type QuestChest = { reward: number; done: number; total: number; paid: boolean };
+export type QuestChest = { reward: number; done: number | null; total: number; paid: boolean };
 
 /** Story 41.17: one of the member's weeks before this one. */
 export type QuestWeekHistory = { week: string; startsAt: string; endsAt: string; done: number; served: number; chest: boolean; pelles: number };
@@ -56,6 +57,8 @@ export type QuestStreak = { current: number; best: number; thisWeek: boolean };
 export type WeeklyQuests = {
   week: string;
   renewsAt: string;
+  /** Story 41.73: false on the quests alone, before the progress is read; absent from an older API (read with it). */
+  progress?: boolean;
   quests: WeeklyQuest[];
   /** Story 41.69: the week's collective quest, apart; null (or absent from an older API) without one. */
   collective?: CollectiveQuestProgress | null;
@@ -94,21 +97,32 @@ export function isCollectiveQuest(v: unknown): v is CollectiveQuestProgress {
     hasStringProp(v, "metric") &&
     hasStringProp(v, "unit") &&
     hasNumberProp(v, "target") &&
-    hasNumberProp(v, "total") &&
-    hasNumberProp(v, "mine") &&
+    "total" in v &&
+    (v.total === null || typeof v.total === "number") &&
+    "mine" in v &&
+    (v.mine === null || typeof v.mine === "number") &&
     hasNumberProp(v, "minContribution") &&
     "scope" in v &&
     (v.scope === null || typeof v.scope === "string") &&
     "gameSlug" in v &&
     (v.gameSlug === null || typeof v.gameSlug === "string") &&
     hasBooleanProp(v, "duration") &&
-    hasBooleanProp(v, "done") &&
+    "done" in v &&
+    (v.done === null || typeof v.done === "boolean") &&
     hasBooleanProp(v, "paid")
   );
 }
 
 function isChest(v: unknown): v is QuestChest {
-  return typeof v === "object" && v !== null && hasNumberProp(v, "reward") && hasNumberProp(v, "done") && hasNumberProp(v, "total") && hasBooleanProp(v, "paid");
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasNumberProp(v, "reward") &&
+    "done" in v &&
+    (v.done === null || typeof v.done === "number") &&
+    hasNumberProp(v, "total") &&
+    hasBooleanProp(v, "paid")
+  );
 }
 
 function isObjective(v: unknown): v is QuestObjectiveProgress {
@@ -119,7 +133,8 @@ function isObjective(v: unknown): v is QuestObjectiveProgress {
     hasStringProp(v, "label") &&
     hasStringProp(v, "unit") &&
     hasNumberProp(v, "target") &&
-    hasNumberProp(v, "current") &&
+    "current" in v &&
+    (v.current === null || typeof v.current === "number") &&
     hasBooleanProp(v, "duration") &&
     (!("scope" in v) || v.scope === null || typeof v.scope === "string") &&
     (!("gameSlug" in v) || v.gameSlug === null || typeof v.gameSlug === "string")
@@ -159,6 +174,7 @@ export function isWeeklyQuests(v: unknown): v is WeeklyQuests {
     v !== null &&
     hasStringProp(v, "week") &&
     hasStringProp(v, "renewsAt") &&
+    (!("progress" in v) || typeof v.progress === "boolean") &&
     "quests" in v &&
     Array.isArray(v.quests) &&
     v.quests.every(isQuest) &&
@@ -183,18 +199,42 @@ export async function fetchMyQuests(): Promise<WeeklyQuests | null> {
   }
 }
 
+/** Story 41.73: the quests with the member's progress, read apart because it counts the week's games. Throws when unavailable. */
+export async function fetchMyQuestsProgress(): Promise<WeeklyQuests> {
+  const res = await apiFetch(`${env.apiBaseUrl}/me/quests/progress`);
+  if (!res.ok) throw new Error(`quests progress: ${res.status}`);
+  const payload: unknown = await res.json();
+  if (!isWeeklyQuests(payload)) throw new Error("quests progress: unexpected payload");
+  return payload;
+}
+
+/** Story 41.73: whether these quests still wait for their progress (an older API sends it with them). */
+export function awaitsProgress(quests: WeeklyQuests): boolean {
+  return quests.progress === false;
+}
+
 const renewFormatter = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" });
 
 function useMyQuests() {
   return useQuery({ queryKey: ["my-quests"], queryFn: fetchMyQuests, staleTime: DEFAULT_STALE_TIME, retry: false });
 }
 
-export function WeeklyQuestsPanel() {
-  const { data, isPending, refetch } = useMyQuests();
+/** Story 41.73: the progress apart, under the same key prefix so an admin's change refreshes both. */
+function useMyQuestsProgress() {
+  return useQuery({ queryKey: ["my-quests", "progress"], queryFn: fetchMyQuestsProgress, staleTime: DEFAULT_STALE_TIME, retry: false });
+}
 
-  if (data) return <WeeklyQuestsView quests={data} />;
+/** Story 41.73: the quests as soon as they come, then with their progress. */
+export function WeeklyQuestsPanel() {
+  const { data: quests, isPending, refetch } = useMyQuests();
+  const progress = useMyQuestsProgress();
+  const data = progress.data ?? quests;
+
+  if (data) {
+    return <WeeklyQuestsView onRetryProgress={() => void progress.refetch()} progressFailed={progress.isError} quests={data} />;
+  }
   // Hotfix v1.0.1: the block no longer stays silently empty while the quests load, or when they fail to.
-  if (isPending) {
+  if (isPending || progress.isPending) {
     return (
       <p className="text-sm text-muted-foreground" role="status">
         Chargement des quêtes de la semaine…
@@ -205,7 +245,14 @@ export function WeeklyQuestsPanel() {
   return (
     <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" role="status">
       Impossible de charger les quêtes de la semaine pour le moment.
-      <button className="font-semibold text-accent-text underline" onClick={() => void refetch()} type="button">
+      <button
+        className="font-semibold text-accent-text underline"
+        onClick={() => {
+          void refetch();
+          void progress.refetch();
+        }}
+        type="button"
+      >
         Réessayer
       </button>
     </p>
@@ -223,7 +270,18 @@ export function QuestHistoryPanel() {
  * The quests of the week on « Mon portefeuille » (story 41.6): what each pays, done or not, paid or about to be.
  * Story 41.15: one progress bar per objective.
  */
-export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
+export function WeeklyQuestsView({
+  quests,
+  progressFailed = false,
+  onRetryProgress,
+}: {
+  quests: WeeklyQuests;
+  /** Story 41.73: the progress could not be read; the quests stay shown. */
+  progressFailed?: boolean;
+  onRetryProgress?: () => void;
+}) {
+  const waiting = awaitsProgress(quests);
+
   return (
     <section aria-labelledby="weekly-quests" className="grid gap-3 rounded-xl border border-border p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -232,6 +290,21 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
         </h2>
         <p className="text-xs text-muted-foreground">Nouvelles quêtes le {renewFormatter.format(new Date(quests.renewsAt))}</p>
       </div>
+      {/* Story 41.73: the quests first, their progress when it is counted. */}
+      {waiting && progressFailed ? (
+        <p className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground" role="status">
+          Progression indisponible pour le moment.
+          {onRetryProgress ? (
+            <button className="font-semibold text-accent-text underline" onClick={onRetryProgress} type="button">
+              Réessayer
+            </button>
+          ) : null}
+        </p>
+      ) : waiting ? (
+        <p className="sr-only" role="status">
+          Calcul de ta progression…
+        </p>
+      ) : null}
       {quests.quests.length === 0 && !quests.collective ? (
         <p className="text-sm text-muted-foreground">Pas de quête cette semaine.</p>
       ) : (
@@ -242,6 +315,8 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
                 <span className="flex min-w-0 items-center gap-2">
                   {quest.done ? (
                     <CheckCircle2 aria-hidden className="size-4 shrink-0 text-success" />
+                  ) : waiting && !progressFailed ? (
+                    <Circle aria-hidden className="size-4 shrink-0 animate-pulse text-muted-foreground motion-reduce:animate-none" />
                   ) : (
                     <Circle aria-hidden className="size-4 shrink-0 text-muted-foreground" />
                   )}
@@ -267,16 +342,16 @@ export function WeeklyQuestsView({ quests }: { quests: WeeklyQuests }) {
               ) : null}
               <ul className="grid gap-1.5 pl-6">
                 {quest.objectives.map((objective) => (
-                  <ObjectiveBar done={quest.done} key={objective.metric} objective={objective} tiers={quest.tiers ?? null} />
+                  <ObjectiveBar done={quest.done} failed={progressFailed} key={objective.metric} objective={objective} tiers={quest.tiers ?? null} />
                 ))}
               </ul>
             </li>
           ))}
         </ul>
       )}
-      {quests.chest ? <ChestRow chest={quests.chest} /> : null}
+      {quests.chest ? <ChestRow chest={quests.chest} failed={progressFailed} /> : null}
       {/* Story 41.69: after the chest it does not count for. */}
-      {quests.collective ? <CollectiveQuestRow quest={quests.collective} /> : null}
+      {quests.collective ? <CollectiveQuestRow failed={progressFailed} quest={quests.collective} /> : null}
       {quests.streak && (quests.chest || quests.streak.current > 0) ? <StreakRow streak={quests.streak} /> : null}
     </section>
   );
@@ -313,14 +388,27 @@ export function StreakRow({ streak }: { streak: QuestStreak }) {
  * « 3 / 5 checks », capped at the target: a paid quest shows full even if the week's count is read later. Story
  * 41.68: a quest with tiers goes up to its last tier, each tier marked on the same bar.
  */
-export function ObjectiveBar({ objective, done, tiers = null }: { objective: QuestObjectiveProgress; done: boolean; tiers?: QuestTierProgress[] | null }) {
+export function ObjectiveBar({
+  objective,
+  done,
+  tiers = null,
+  failed = false,
+}: {
+  objective: QuestObjectiveProgress;
+  done: boolean;
+  tiers?: QuestTierProgress[] | null;
+  /** Story 41.73: the progress could not be read - no count, no skeleton. */
+  failed?: boolean;
+}) {
   const steps = tiers && tiers.length > 0 ? tiers : null;
   const top = steps ? (steps[steps.length - 1]?.target ?? objective.target) : objective.target;
   // A tier paid shows reached, even if the week's count is read later.
   const floor = steps ? Math.max(0, ...steps.filter((tier) => tier.paid || tier.reached).map((tier) => tier.target)) : done ? top : 0;
-  const shown = Math.min(Math.max(objective.current, floor), top);
+  const shown = Math.min(Math.max(objective.current ?? 0, floor), top);
   const percent = top > 0 ? Math.round((shown / top) * 100) : 0;
   const reached = shown >= top;
+  // Story 41.73: a count not read yet - a skeleton, unless the quest is paid (full whatever the count).
+  const unknown = objective.current === null && !reached;
 
   return (
     <li className="grid gap-1">
@@ -340,10 +428,25 @@ export function ObjectiveBar({ objective, done, tiers = null }: { objective: Que
             <span className="text-foreground"> · {objective.scope}</span>
           ) : null}
         </span>
-        <span className={`tabular-nums ${reached ? "text-success" : "text-muted-foreground"}`}>
-          {formatQuestAmount(shown, objective.duration)} / {formatQuestAmount(top, objective.duration)} {objective.unit}
-        </span>
+        {unknown ? (
+          <span className="tabular-nums text-muted-foreground">
+            {failed ? "?" : <span aria-hidden className="inline-block h-3 w-8 animate-pulse rounded bg-surface-2 align-middle motion-reduce:animate-none" />}
+            {" / "}
+            {formatQuestAmount(top, objective.duration)} {objective.unit}
+          </span>
+        ) : (
+          <span className={`tabular-nums ${reached ? "text-success" : "text-muted-foreground"}`}>
+            {formatQuestAmount(shown, objective.duration)} / {formatQuestAmount(top, objective.duration)} {objective.unit}
+          </span>
+        )}
       </div>
+      {unknown ? (
+        <div
+          aria-hidden
+          className={`h-1.5 overflow-hidden rounded-full bg-surface-2 ${failed ? "" : "animate-pulse motion-reduce:animate-none"}`}
+          data-testid="objective-skeleton"
+        />
+      ) : (
       <div
         aria-label={objective.scope ? `${objective.label} · ${objective.scope}` : objective.label}
         aria-valuemax={top}
@@ -354,6 +457,7 @@ export function ObjectiveBar({ objective, done, tiers = null }: { objective: Que
       >
         <div className={`h-full rounded-full transition-[width] ${reached ? "bg-success" : "bg-accent"}`} style={{ width: `${percent}%` }} />
       </div>
+      )}
       {steps ? (
         <ol aria-label="Paliers" className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
           {steps.map((tier, index) => (
@@ -371,8 +475,8 @@ export function ObjectiveBar({ objective, done, tiers = null }: { objective: Que
 }
 
 /** Story 41.16: every quest of the week done opens the chest - its reward, and how many quests are left. */
-export function ChestRow({ chest }: { chest: QuestChest }) {
-  const open = chest.done >= chest.total;
+export function ChestRow({ chest, failed = false }: { chest: QuestChest; failed?: boolean }) {
+  const open = chest.paid || (chest.done !== null && chest.done >= chest.total);
 
   return (
     <div className={`flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm ${open ? "border-warning/50 bg-warning/10" : "border-dashed border-border"}`}>
@@ -380,11 +484,21 @@ export function ChestRow({ chest }: { chest: QuestChest }) {
       <span className="min-w-0 flex-1">
         <span className="font-medium text-foreground">Coffre de la semaine</span>
         <span className="block text-xs text-muted-foreground">
-          {open
-            ? chest.paid
-              ? "Ouvert : toutes les quêtes sont faites."
-              : "Toutes les quêtes sont faites : crédité dans quelques minutes."
-            : `Fais toutes les quêtes pour l'ouvrir (${chest.done} / ${chest.total}).`}
+          {open ? (
+            chest.paid ? (
+              "Ouvert : toutes les quêtes sont faites."
+            ) : (
+              "Toutes les quêtes sont faites : crédité dans quelques minutes."
+            )
+          ) : chest.done === null ? (
+            <>
+              Fais toutes les quêtes pour l&apos;ouvrir ({" "}
+              {failed ? "?" : <span aria-hidden className="inline-block h-3 w-4 animate-pulse rounded bg-surface-2 align-middle motion-reduce:animate-none" />} /{" "}
+              {chest.total}).
+            </>
+          ) : (
+            `Fais toutes les quêtes pour l'ouvrir (${chest.done} / ${chest.total}).`
+          )}
         </span>
       </span>
       <PelleAmount amount={chest.reward} className="shrink-0 text-xs font-semibold" kind="gold" signed />

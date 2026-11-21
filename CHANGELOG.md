@@ -5,6 +5,30 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.0.2] - 2026-11-21
+
+Quêtes de la semaine : page dédiée et chargement progressif (story 41.73, en hotfix). Aucune migration Doctrine,
+aucune variable d'environnement. Services inchangés.
+
+### Modifié
+
+- **Page « Quêtes »** (`/compte/quetes`, dans le menu du compte) : les quêtes de la semaine, le coffre, la quête
+  collective, la série, les premiers pas et l'historique. « Pelles » n'en garde qu'un résumé et le lien. La
+  notification des nouvelles quêtes, l'accueil et l'annonce Discord mènent à la nouvelle page.
+- **Chargement progressif** : les quêtes s'affichent tout de suite, la progression arrive ensuite avec un squelette
+  animé à la place des chiffres. Si elle ne peut pas être calculée, les quêtes restent affichées avec « Progression
+  indisponible pour le moment » et un bouton pour réessayer.
+
+### Corrigé
+
+- **Calcul de la progression borné** : la progression d'un membre est gardée une minute, le total de la quête
+  collective (le même pour tous) cinq minutes, et un calcul de plus de 10 secondes est coupé au lieu d'occuper le
+  serveur.
+
+### Déploiement
+
+- Site 1.0.2 seul. L'adresse `/compte/pelles` reste valable.
+
 ## [1.0.1] - 2026-11-21
 
 Correctif des quêtes de la semaine. Une migration Doctrine (un index, construit sans bloquer les écritures), aucune

@@ -170,7 +170,7 @@ describe("quests renewed notification (story 41.17)", () => {
     const notice = item("quests_renewed", { week: "2026-W42", count: 3, maxPelles: 150 });
 
     expect(messageFor(notice)).toBe("Nouvelles quêtes de la semaine : 3 quêtes, jusqu'à 150 pelles");
-    expect(hrefFor(notice)).toBe("/compte/pelles");
+    expect(hrefFor(notice)).toBe("/compte/quetes");
     expect(messageFor(item("quests_renewed", {}))).toBe("Nouvelles quêtes de la semaine");
   });
 
