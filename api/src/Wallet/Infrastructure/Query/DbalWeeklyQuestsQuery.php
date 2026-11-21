@@ -48,13 +48,13 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
             $scope = QuestMetric::Counter === $objective->metric ? null : $this->scope($objective, $week);
             $rows = match ($objective->metric) {
                 QuestMetric::Goals => $this->goals($week, $scope),
-                QuestMetric::Checks => $this->checks($week, $scope),
+                QuestMetric::Checks => $this->checks($week, $scope, $userId),
                 QuestMetric::Weeklies => $this->weeklies($week),
                 QuestMetric::NewPartners => $this->partners($week, 'new'),
                 QuestMetric::ReturningPartners => $this->partners($week, 'returning'),
                 QuestMetric::FriendsPlayedWith => $this->partners($week, 'friends'),
-                QuestMetric::Sessions => $this->perCheck($week, 'COUNT(DISTINCT f.session_id)', $scope),
-                QuestMetric::DistinctGames => $this->perCheck($week, 'COUNT(DISTINCT slot.game_id)', null),
+                QuestMetric::Sessions => $this->perCheck($week, 'COUNT(DISTINCT f.session_id)', $scope, $userId),
+                QuestMetric::DistinctGames => $this->perCheck($week, 'COUNT(DISTINCT slot.game_id)', null, $userId),
                 QuestMetric::ItemsSent => $this->itemsTraded($week, $scope, true),
                 QuestMetric::ItemsReceived => $this->itemsTraded($week, $scope, false),
                 QuestMetric::PlayMinutes => $this->playMinutes($week, $scope),
@@ -450,22 +450,34 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
      *
      * @return list<array<string, mixed>>
      */
-    private function checks(QuestWeek $week, ?array $scope): array
+    private function checks(QuestWeek $week, ?array $scope, ?string $userId = null): array
     {
         $checks = DbalSlotCheckSource::from();
         $player = DbalSlotCheckSource::player();
+        [$member, $memberParams] = $this->member($player, $userId);
         // Story 41.19: a weekly attempt's checks of the week, read in its session feed.
         $weeklies = null === $scope ? 'UNION ALL
-                 SELECT wc.uid, SUM(wc.n) AS n FROM ('.self::weeklyChecks().') wc GROUP BY wc.uid' : '';
+                 SELECT wc.uid, SUM(wc.n) AS n FROM ('.self::weeklyChecks().') wc '.(null === $userId ? '' : 'WHERE wc.uid = :userId').' GROUP BY wc.uid' : '';
 
         return $this->connection->fetchAllAssociative(
             "SELECT uid, SUM(n) AS n FROM (
-                 SELECT {$player} AS uid, COUNT(*) AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ".($scope['sql'] ?? '')." GROUP BY {$player}
+                 SELECT {$player} AS uid, COUNT(*) AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ".($scope['sql'] ?? '').$member." GROUP BY {$player}
                  {$weeklies}
              ) made GROUP BY uid",
-            DbalSlotCheckSource::params() + $this->bounds($week) + ['attemptsFrom' => $this->attemptsFrom($week->start)] + ($scope['params'] ?? []),
+            DbalSlotCheckSource::params() + $this->bounds($week) + ['attemptsFrom' => $this->attemptsFrom($week->start)] + ($scope['params'] ?? []) + $memberParams,
             DbalSlotCheckSource::types() + ($scope['types'] ?? []),
         );
+    }
+
+    /**
+     * Hotfix: one member's counts read only that member's rows, rather than every member's then filtered
+     * (`/me/quests` went past 30 s on a week of a large event).
+     *
+     * @return array{0: string, 1: array<string, string>}
+     */
+    private function member(string $column, ?string $userId): array
+    {
+        return null === $userId ? ['', []] : [" AND {$column} = :userId ", ['userId' => $userId]];
     }
 
     /**
@@ -680,14 +692,15 @@ final readonly class DbalWeeklyQuestsQuery implements WeeklyQuestsQueryInterface
      *
      * @return list<array<string, mixed>>
      */
-    private function perCheck(QuestWeek $week, string $aggregate, ?array $scope): array
+    private function perCheck(QuestWeek $week, string $aggregate, ?array $scope, ?string $userId = null): array
     {
         $checks = DbalSlotCheckSource::from();
         $player = DbalSlotCheckSource::player();
+        [$member, $memberParams] = $this->member($player, $userId);
 
         return $this->connection->fetchAllAssociative(
-            "SELECT {$player} AS uid, {$aggregate} AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ".($scope['sql'] ?? '')." GROUP BY {$player}",
-            DbalSlotCheckSource::params() + $this->bounds($week) + ($scope['params'] ?? []),
+            "SELECT {$player} AS uid, {$aggregate} AS n {$checks} AND f.occurred_at >= :weekStart AND f.occurred_at < :weekEnd ".($scope['sql'] ?? '').$member." GROUP BY {$player}",
+            DbalSlotCheckSource::params() + $this->bounds($week) + ($scope['params'] ?? []) + $memberParams,
             DbalSlotCheckSource::types() + ($scope['types'] ?? []),
         );
     }

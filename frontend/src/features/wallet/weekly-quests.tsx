@@ -190,9 +190,26 @@ function useMyQuests() {
 }
 
 export function WeeklyQuestsPanel() {
-  const { data } = useMyQuests();
+  const { data, isPending, refetch } = useMyQuests();
 
-  return data ? <WeeklyQuestsView quests={data} /> : null;
+  if (data) return <WeeklyQuestsView quests={data} />;
+  // Hotfix v1.0.1: the block no longer stays silently empty while the quests load, or when they fail to.
+  if (isPending) {
+    return (
+      <p className="text-sm text-muted-foreground" role="status">
+        Chargement des quêtes de la semaine…
+      </p>
+    );
+  }
+
+  return (
+    <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" role="status">
+      Impossible de charger les quêtes de la semaine pour le moment.
+      <button className="font-semibold text-accent-text underline" onClick={() => void refetch()} type="button">
+        Réessayer
+      </button>
+    </p>
+  );
 }
 
 /** Story 41.21: the history in a block of its own. Story 41.34: at the foot of the page, after the movements. */

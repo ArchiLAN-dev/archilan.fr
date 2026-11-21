@@ -15,11 +15,13 @@ use Doctrine\ORM\Mapping as ORM;
  * Append-only history. The bridge already builds this exact shape for every AP `ItemSend` (including a
  * solo player's self-finds) and broadcasts it live; this row keeps it so a timeline and per-player
  * check curves can be replayed after the run, not only watched live. Indexed on
- * `(session_id, occurred_at)` for cheap ordering and minute-bucketing.
+ * `(session_id, occurred_at)` for cheap ordering and minute-bucketing, and on `(type, occurred_at)` for the
+ * checks of a period across every session (weekly quests).
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'session_feed_event')]
 #[ORM\Index(name: 'idx_feed_event_session_time', columns: ['session_id', 'occurred_at'])]
+#[ORM\Index(name: 'idx_feed_event_type_time', columns: ['type', 'occurred_at'])]
 final class SessionFeedEvent
 {
     /**

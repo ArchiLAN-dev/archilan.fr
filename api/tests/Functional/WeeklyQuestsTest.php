@@ -15,6 +15,7 @@ use App\Wallet\Application\Command\AwardWeeklyQuests;
 use App\Wallet\Application\Handler\AnnounceQuestsOnDiscordJobHandler;
 use App\Wallet\Application\Message\AnnounceQuestsOnDiscordJob;
 use App\Wallet\Application\Port\QuestAnnouncementChannelInterface;
+use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
 use App\Wallet\Domain\Entity\PelleMovement;
 use App\Wallet\Domain\Entity\QuestDefinition;
 use App\Wallet\Domain\Enum\PelleKind;
@@ -189,6 +190,35 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertSame(20, $this->paid($alice), 'her checks count, her unfinished weekly does not (story 41.33)');
         self::assertSame(20, $this->paid($bob));
         self::assertSame(2, $this->award()->announce($week->next()), 'a weekly with a check makes an active member for the next week');
+    }
+
+    public function testOneMembersCountsAreTheirsInTheCountsOfEveryone(): void
+    {
+        // Hotfix v1.0.1: `/me/quests` reads one member's rows only, the same numbers as for everyone.
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob');
+        $week = QuestWeek::containing(new \DateTimeImmutable(self::IN_THE_WEEK));
+        $this->session('s-1', [['Alice', $alice], ['Bob', $bob]]);
+        $this->session('s-2', [['Alice2', $alice]], gameId: 'game-2');
+        foreach ([['s-1', 'Alice'], ['s-1', 'Alice'], ['s-1', 'Bob'], ['s-2', 'Alice2']] as [$sessionId, $slot]) {
+            $this->check($sessionId, $slot, self::IN_THE_WEEK);
+        }
+        $this->weeklyEntry($bob, checks: 0, goal: false, sessionId: 'weekly-bob');
+        $this->check('weekly-bob', 'Bob', self::IN_THE_WEEK);
+        $this->entityManager->flush();
+        $objectives = [new QuestObjective(QuestMetric::Checks, 1), new QuestObjective(QuestMetric::Sessions, 1), new QuestObjective(QuestMetric::DistinctGames, 1)];
+        $query = self::getContainer()->get(WeeklyQuestsQueryInterface::class);
+        self::assertInstanceOf(WeeklyQuestsQueryInterface::class, $query);
+
+        $everyone = $query->counts($week, $objectives);
+        foreach ([$alice, $bob] as $member) {
+            $id = $member->getId();
+            $expected = array_map(static fn (array $byMember): array => isset($byMember[$id]) ? [$id => $byMember[$id]] : [], $everyone);
+            self::assertSame($expected, $query->counts($week, $objectives, $id));
+        }
+        self::assertSame(3, $everyone[$objectives[0]->key()][$alice->getId()]);
+        self::assertSame(2, $everyone[$objectives[0]->key()][$bob->getId()], 'his check at s-1 and the one of his weekly');
+        self::assertSame(2, $everyone[$objectives[2]->key()][$alice->getId()]);
     }
 
     public function testAWeeklyCountsInTheWeekItsGoalIsReached(): void
