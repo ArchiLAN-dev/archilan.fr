@@ -527,7 +527,7 @@ export function QuestHistory({ weeks }: { weeks: QuestWeekHistory[] }) {
       </div>
       <ul className="divide-y divide-border" role="list">
         {weeks.map((week) => (
-          <li className="flex items-center gap-3 py-2 text-sm" key={week.week}>
+          <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm" key={week.week}>
             <span className="w-32 shrink-0 whitespace-nowrap text-muted-foreground">Sem. du {historyDay.format(new Date(week.startsAt))}</span>
             <span className={`tabular-nums ${week.served > 0 && week.done >= week.served ? "text-success" : "text-foreground"}`}>
               {week.served === 0 ? "Pas de quête" : `${week.done} / ${week.served} quête${week.served > 1 ? "s" : ""}`}

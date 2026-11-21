@@ -248,6 +248,13 @@ html {
   button {
     @apply cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
   }
+  /* Hotfix v1.0.3: a grid without its own columns has one column bounded by the space it has (what grid-cols-1
+     does). Its implicit `auto` track grew to the min-content of its widest child - a row of the quest history, a
+     long quest or partner name, a select - and every grid around it with it, so pages scrolled sideways on a
+     phone. In the base layer, zero specificity: any grid-cols-* utility, responsive ones included, still wins. */
+  :where(.grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @layer components {
