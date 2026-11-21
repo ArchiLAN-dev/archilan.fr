@@ -1,9 +1,10 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { http, HttpResponse } from "msw";
 
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { ChestRow, ObjectiveBar, QuestHistory, StreakRow, WeeklyQuestsView, fetchMyQuests, questMaxReward, type WeeklyQuests } from "./weekly-quests";
+import { ChestRow, ObjectiveBar, QuestHistory, StreakRow, WeeklyQuestsPanel, WeeklyQuestsView, fetchMyQuests, questMaxReward, type WeeklyQuests } from "./weekly-quests";
 import { pelleReasonLabel } from "./wallet-api";
 
 const quests: WeeklyQuests = {
@@ -152,5 +153,36 @@ describe("quest streak", () => {
     expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, streak: { current: 2, best: 2, thisWeek: false } }} />)).toContain("Série : 2 semaines");
     expect(renderToStaticMarkup(<WeeklyQuestsView quests={{ ...quests, chest: null, streak: { current: 0, best: 4, thisWeek: false } }} />)).not.toContain("série");
     expect(renderToStaticMarkup(<WeeklyQuestsView quests={quests} />)).not.toContain("Série");
+  });
+});
+
+/** Hotfix v1.0.1: the quests block says it loads, and says when it failed, instead of staying empty. */
+describe("weekly quests panel", () => {
+  function panel(client: QueryClient): string {
+    return renderToStaticMarkup(
+      <QueryClientProvider client={client}>
+        <WeeklyQuestsPanel />
+      </QueryClientProvider>,
+    );
+  }
+
+  test("says the quests are loading", () => {
+    expect(panel(new QueryClient())).toContain("Chargement des quêtes de la semaine");
+  });
+
+  test("says when they could not be loaded, with a way to retry", () => {
+    const client = new QueryClient();
+    client.setQueryData(["my-quests"], null);
+
+    const html = panel(client);
+    expect(html).toContain("Impossible de charger les quêtes de la semaine");
+    expect(html).toContain("Réessayer");
+  });
+
+  test("shows the quests once loaded", () => {
+    const client = new QueryClient();
+    client.setQueryData(["my-quests"], quests);
+
+    expect(panel(client)).toContain("Quêtes de la semaine");
   });
 });

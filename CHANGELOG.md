@@ -5,6 +5,25 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.0.1] - 2026-11-21
+
+Correctif des quêtes de la semaine. Une migration Doctrine (un index, construit sans bloquer les écritures), aucune
+variable d'environnement. Services inchangés.
+
+### Corrigé
+
+- **Quêtes de la semaine qui ne chargeaient pas** : l'API recalculait à chaque affichage les checks de la semaine de
+  tous les membres pour n'en garder qu'un, en parcourant tout le fil des sessions. Une semaine d'événement, la
+  requête dépassait 30 secondes et était coupée (`/me/quests`, vu dans Bugsink). Elle ne lit plus que les lignes du
+  membre, et le fil est indexé par type et par date.
+- Le bloc des quêtes dit maintenant qu'il charge, et propose de réessayer si le chargement échoue, au lieu de
+  rester vide.
+
+### Déploiement
+
+- Site 1.0.1 seul. La migration crée l'index `idx_feed_event_type_time` en `CONCURRENTLY` : elle peut prendre
+  quelques minutes sur un gros fil, les sessions en cours continuent d'écrire pendant ce temps.
+
 ## [1.0.0] - 2026-11-20
 
 Première version stable, et première sous licence libre. Aucune migration Doctrine, aucune variable d'environnement.
