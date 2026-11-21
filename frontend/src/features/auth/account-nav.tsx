@@ -37,6 +37,7 @@ const GROUPS: NavGroup[] = [
     icon: Settings,
     items: [
       { href: "/compte/adhesion", label: "Adhésion" },
+      { href: "/compte/quetes", label: "Quêtes" },
       { href: "/compte/pelles", label: "Pelles" },
       { href: "/compte/collection", label: "Collection" },
       { href: "/boutique", label: "Boutique" },

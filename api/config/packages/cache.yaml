@@ -20,9 +20,15 @@ framework:
             public_reachability.cache:
                 adapter: cache.app
                 default_lifetime: 604800
+            # Story 41.73: a member's weekly quest progress (1 min) and the collective quest's total (5 min).
+            weekly_quests.cache:
+                adapter: cache.app
+                default_lifetime: 300
 
 # As in rate_limiter.yaml: in memory, gone with the container, so one test never sees another's snapshot.
 when@test:
     services:
         public_reachability.cache:
+            class: Symfony\Component\Cache\Adapter\ArrayAdapter
+        weekly_quests.cache:
             class: Symfony\Component\Cache\Adapter\ArrayAdapter

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Wallet\Application\Query;
 
+use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Wallet\Domain\ValueObject\QuestObjective;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 
@@ -36,6 +37,20 @@ interface WeeklyQuestsQueryInterface
      * members. Not the sum of the members' counts. What a banned or erased member played counts: it happened.
      */
     public function groupTotal(QuestWeek $week, QuestObjective $objective): int;
+
+    /**
+     * Story 41.73: runs a member's reading with every query cut at `$seconds`, so a slow week answers
+     * `quests_progress_unavailable` rather than holding a PHP worker until its own limit.
+     *
+     * @template T
+     *
+     * @param \Closure(): T $read
+     *
+     * @return T
+     *
+     * @throws ServiceUnavailableException when a query went past the limit
+     */
+    public function within(int $seconds, \Closure $read): mixed;
 
     /**
      * Story 41.18: what an objective may aim at - the games played on the site, the events out of draft. Story

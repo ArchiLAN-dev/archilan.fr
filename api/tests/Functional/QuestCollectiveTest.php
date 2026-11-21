@@ -53,7 +53,14 @@ final class QuestCollectiveTest extends FunctionalTestCase
         self::assertNotNull($this->movement(sprintf('quest-group:%s:together:%s', $week->key, $carol->getId())));
 
         $this->loginAs($alice);
+        // Story 41.73: the quests come first, without the community's total nor the member's share.
         $this->client->request('GET', '/api/v1/me/quests');
+        self::assertResponseIsSuccessful();
+        $fast = $this->decodedJsonResponse()['collective'] ?? null;
+        self::assertIsArray($fast);
+        self::assertSame(['total' => null, 'mine' => null, 'done' => null, 'paid' => true], array_intersect_key($fast, array_flip(['total', 'mine', 'done', 'paid'])));
+
+        $this->client->request('GET', '/api/v1/me/quests/progress');
         self::assertResponseIsSuccessful();
         $mine = $this->decodedJsonResponse();
         self::assertCount(1, is_array($mine['quests'] ?? null) ? $mine['quests'] : [], 'the collective quest is not one of the week\'s quests');
