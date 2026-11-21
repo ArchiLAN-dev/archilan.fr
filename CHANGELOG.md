@@ -5,6 +5,29 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.0.3] - 2026-11-21
+
+Quêtes : progression lue sans calcul, et pages sans défilement horizontal sur téléphone (hotfix). **Une migration
+Doctrine** (`Version20261121150000` : tables `quest_progress_count` et `quest_progress_run`). Aucune variable
+d'environnement.
+
+### Corrigé
+
+- **Progression des quêtes indisponible** : en prod, le calcul de la progression d'un membre dépassait encore la limite
+  de 10 secondes, et la page affichait « Progression indisponible » avec des « ? » partout, y compris sur la jauge de la
+  quête collective. La tâche qui paie les quêtes (toutes les 5 minutes) garde désormais les comptes de chaque membre,
+  et la page les lit au lieu de recompter les checks de la semaine. Le total de la quête collective est celui de la
+  jauge publique, affiché dès l'ouverture de la page.
+- **Défilement horizontal sur téléphone** (Pelles, Quêtes, Compte, Amis, Profil, Communauté, Jeux) : une grille sans
+  colonnes explicites prenait la largeur de son élément le plus large (une ligne d'historique, un nom de quête ou de
+  partenaire) et élargissait toute la page. Toute grille de ce type a maintenant une colonne bornée à la largeur de
+  l'écran ; rien ne change sur ordinateur. Les lignes de l'historique des quêtes passent à la ligne si besoin.
+
+### Déploiement
+
+- Site 1.0.3. Jouer la migration. La progression se remplit au premier passage de la tâche planifiée (5 minutes au
+  plus) ; avant, la page calcule comme en 1.0.2.
+
 ## [1.0.2] - 2026-11-21
 
 Quêtes de la semaine : page dédiée et chargement progressif (story 41.73, en hotfix). Aucune migration Doctrine,
