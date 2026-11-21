@@ -16,6 +16,7 @@ use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
 use App\Wallet\Application\Service\QuestWeekPlanner;
 use App\Wallet\Domain\Enum\PelleKind;
 use App\Wallet\Domain\Enum\PelleReason;
+use App\Wallet\Domain\Repository\QuestProgressSnapshotRepositoryInterface;
 use App\Wallet\Domain\Repository\QuestRepositoryInterface;
 use App\Wallet\Domain\ValueObject\QuestWeek;
 use App\Wallet\Domain\ValueObject\ServedQuest;
@@ -41,6 +42,7 @@ final readonly class AwardWeeklyQuests
         private ClockInterface $clock,
         private MessageBusInterface $messageBus,
         private CosmeticRewarder $rewarder,
+        private QuestProgressSnapshotRepositoryInterface $snapshots,
     ) {
     }
 
@@ -100,6 +102,8 @@ final readonly class AwardWeeklyQuests
             return $paid;
         }
         $counts = $this->quests->counts($week, ServedQuest::objectivesOf($served));
+        // Hotfix v1.0.3: the counts kept, so a member's page reads them instead of counting the week's feed.
+        $this->snapshots->record($week->key, $counts, $this->clock->now());
 
         $doneAll = null;
         foreach ($served as $quest) {
@@ -169,13 +173,15 @@ final readonly class AwardWeeklyQuests
         }
         $total = $this->quests->groupTotal($week, $objective);
         $this->planner->recordGroupTotal($week, $quest, $total);
+        // Hotfix v1.0.3: every member's share kept for their page, reached or not.
+        $shares = $this->quests->counts($week, [$objective])[$objective->key()] ?? [];
+        $this->snapshots->record($week->key, [$objective->key() => $shares], $this->clock->now());
         if ($total < $objective->target) {
             return 0;
         }
 
         $threshold = $quest->minContribution ?? $objective->target;
         $paid = 0;
-        $shares = $this->quests->counts($week, [$objective])[$objective->key()] ?? [];
         // A member id made of digits comes back as an integer key.
         foreach (array_map(strval(...), array_keys(array_filter($shares, static fn (int $share): bool => $share >= $threshold))) as $userId) {
             $paid += $this->pay(

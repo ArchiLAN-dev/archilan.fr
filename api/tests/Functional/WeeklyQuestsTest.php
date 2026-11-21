@@ -371,6 +371,31 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertSame(['reward' => 50, 'done' => 0, 'total' => 1, 'paid' => false], $body['chest'] ?? null);
     }
 
+    public function testTheProgressIsReadFromTheWorkersCount(): void
+    {
+        // Hotfix v1.0.3: once the worker counted the week, a member's progress is its count, not the feed's.
+        $this->quest('marathon', 'Marathon', 60, [new QuestObjective(QuestMetric::Checks, 5)]);
+        $member = $this->createUser('member@example.org', ['ROLE_USER'], 'Member');
+        $now = new \DateTimeImmutable()->format(\DATE_ATOM);
+        $this->session('s-now', [['Member', $member]]);
+        $this->check('s-now', 'Member', $now);
+        $this->entityManager->flush();
+        $this->award()->awardWeek(QuestWeek::containing(new \DateTimeImmutable()));
+
+        $this->check('s-now', 'Member', $now);
+        $this->check('s-now', 'Member', $now);
+        $this->entityManager->flush();
+        $quests = self::getContainer()->get(MyWeeklyQuests::class);
+        self::assertInstanceOf(MyWeeklyQuests::class, $quests);
+        $progress = $quests->progress($member->getId());
+        self::assertIsArray($progress['quests'][0] ?? null);
+        self::assertSame(1, $progress['quests'][0]['objectives'][0]['current'] ?? null, 'the worker counted one');
+
+        $nobody = $this->createUser('nobody@example.org', ['ROLE_USER'], 'Nobody');
+        $this->entityManager->flush();
+        self::assertSame(0, $quests->progress($nobody->getId())['quests'][0]['objectives'][0]['current'] ?? null, 'a member without a count reads zero');
+    }
+
     public function testTheProgressIsKeptAMinuteAndTheQuestsNeedNoFeed(): void
     {
         // Story 41.73: the progress of a member is read once a minute, not at every page shown.
