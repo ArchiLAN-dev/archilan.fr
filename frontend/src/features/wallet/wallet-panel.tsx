@@ -10,15 +10,14 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { PelleAmount } from "./pelle-amount";
 import { PelleBalance } from "./pelle-balance";
 import { fetchMyWallet, pelleReasonLabel, type Wallet } from "./wallet-api";
-import { QuestHistoryPanel, WeeklyQuestsPanel } from "./weekly-quests";
-import { WelcomeQuestsPanel } from "./welcome-quests";
+import { QuestsSummary } from "./quests-panel";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
 
 /**
  * « Pelles » (story 41.1 AC5): the gold balance, the pelles held for each event, and the history
- * of every movement. Private: only its owner sees it. Story 41.34: the quests of the week right under the balance,
- * the two histories last.
+ * of every movement. Private: only its owner sees it. Story 41.34: the quests of the week right under the balance.
+ * Story 41.73: a summary of them, their detail and history on « Quêtes ».
  */
 export function WalletPanel() {
   const [page, setPage] = useState(1);
@@ -41,16 +40,10 @@ export function WalletPanel() {
     <div className="grid gap-6">
       <WalletView
         onPage={setPage}
-        quests={
-          <>
-            {/* Story 41.6, then the first steps of a newcomer (story 41.25). */}
-            <WeeklyQuestsPanel />
-            <WelcomeQuestsPanel />
-          </>
-        }
+        // Story 41.73: the quests have their own page; here, a line and the way to it.
+        quests={<QuestsSummary />}
         wallet={data}
       />
-      <QuestHistoryPanel />
     </div>
   );
 }

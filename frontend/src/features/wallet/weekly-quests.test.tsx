@@ -170,9 +170,19 @@ describe("weekly quests panel", () => {
     expect(panel(new QueryClient())).toContain("Chargement des quêtes de la semaine");
   });
 
+  /** A query already failed: kept failed on mount, as after the request. */
+  function failing(): QueryClient {
+    return new QueryClient({ defaultOptions: { queries: { retryOnMount: false } } });
+  }
+
+  function failed(client: QueryClient, queryKey: string[]): void {
+    client.getQueryCache().build(client, { queryKey }).setState({ status: "error", error: new Error("503"), fetchStatus: "idle" });
+  }
+
   test("says when they could not be loaded, with a way to retry", () => {
-    const client = new QueryClient();
+    const client = failing();
     client.setQueryData(["my-quests"], null);
+    failed(client, ["my-quests", "progress"]);
 
     const html = panel(client);
     expect(html).toContain("Impossible de charger les quêtes de la semaine");
@@ -184,5 +194,54 @@ describe("weekly quests panel", () => {
     client.setQueryData(["my-quests"], quests);
 
     expect(panel(client)).toContain("Quêtes de la semaine");
+  });
+
+  /** Story 41.73: the quests at once, their progress after. */
+  const fast: WeeklyQuests = {
+    ...quests,
+    progress: false,
+    quests: quests.quests.map((quest) => ({ ...quest, done: quest.paid, objectives: quest.objectives.map((objective) => ({ ...objective, current: null })) })),
+    chest: { reward: 50, done: null, total: 3, paid: false },
+  };
+
+  test("shows the quests before their progress, with a skeleton for each count", () => {
+    const client = new QueryClient();
+    client.setQueryData(["my-quests"], fast);
+
+    const html = panel(client);
+    expect(html).toContain("Marathon");
+    expect(html).toContain("Calcul de ta progression");
+    expect(html).toContain('data-testid="objective-skeleton"');
+    expect(html).toContain("motion-reduce:animate-none");
+    expect(html).not.toContain("12 / 50");
+    expect(html).not.toContain("Progression indisponible");
+  });
+
+  test("a paid quest shows full before its progress", () => {
+    const html = renderToStaticMarkup(<WeeklyQuestsView quests={fast} />);
+    // « Atteindre un goal » is paid: its bar is full, no skeleton for it.
+    expect(html).toContain("1 / 1 goals");
+  });
+
+  test("keeps the quests when the progress fails, and offers to retry", () => {
+    const client = failing();
+    client.setQueryData(["my-quests"], fast);
+    failed(client, ["my-quests", "progress"]);
+
+    const html = panel(client);
+    expect(html).toContain("Marathon");
+    expect(html).toContain("Progression indisponible pour le moment");
+    expect(html).toContain("Réessayer");
+    expect(html).not.toContain("animate-pulse rounded-full");
+  });
+
+  test("shows the counts once the progress is read", () => {
+    const client = new QueryClient();
+    client.setQueryData(["my-quests"], fast);
+    client.setQueryData(["my-quests", "progress"], { ...quests, progress: true });
+
+    const html = panel(client);
+    expect(html).toContain("12 / 50");
+    expect(html).not.toContain('data-testid="objective-skeleton"');
   });
 });

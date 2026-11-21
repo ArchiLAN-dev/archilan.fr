@@ -49,7 +49,7 @@ final readonly class WalletController
         return new JsonResponse($bronze);
     }
 
-    /** The quests of the week (story 41.6). */
+    /** The quests of the week (story 41.6). Story 41.73: without the progress, shown at once. */
     #[Route('/api/v1/me/quests', name: 'api_wallet_me_quests', methods: ['GET'])]
     public function quests(Request $request): JsonResponse
     {
@@ -59,6 +59,21 @@ final readonly class WalletController
         }
 
         return new JsonResponse($this->quests->of($user->getId()));
+    }
+
+    /**
+     * Story 41.73: the quests of the week with where the member stands. A count past its time limit answers 503
+     * `quests_progress_unavailable` (ApplicationFailureListener).
+     */
+    #[Route('/api/v1/me/quests/progress', name: 'api_wallet_me_quests_progress', methods: ['GET'])]
+    public function questsProgress(Request $request): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        return new JsonResponse($this->quests->progress($user->getId()));
     }
 
     /** Story 41.25: the first steps of a newcomer, null when there are none to show. */

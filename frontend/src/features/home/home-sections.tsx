@@ -207,7 +207,7 @@ export function HomeThisWeek({ runs }: { runs: CurrentWeeklyRun[] }) {
             titres et couleurs de pseudo.
           </p>
         </div>
-        <Link className="inline-flex min-h-11 items-center rounded-lg border border-amber-400/60 px-4 text-sm font-semibold text-amber-400 hover:bg-amber-400/10" href="/compte/pelles">
+        <Link className="inline-flex min-h-11 items-center rounded-lg border border-amber-400/60 px-4 text-sm font-semibold text-amber-400 hover:bg-amber-400/10" href="/compte/quetes">
           Voir les quêtes
         </Link>
       </div>

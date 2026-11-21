@@ -10,11 +10,13 @@ use App\Identity\Domain\Entity\User;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionFeedEvent;
 use App\Sessions\Domain\Entity\SessionSlot;
+use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Tests\Fixtures\Wallet\SpyQuestAnnouncementChannel;
 use App\Wallet\Application\Command\AwardWeeklyQuests;
 use App\Wallet\Application\Handler\AnnounceQuestsOnDiscordJobHandler;
 use App\Wallet\Application\Message\AnnounceQuestsOnDiscordJob;
 use App\Wallet\Application\Port\QuestAnnouncementChannelInterface;
+use App\Wallet\Application\Query\MyWeeklyQuests;
 use App\Wallet\Application\Query\WeeklyQuestsQueryInterface;
 use App\Wallet\Domain\Entity\PelleMovement;
 use App\Wallet\Domain\Entity\QuestDefinition;
@@ -259,7 +261,7 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         self::assertCount(1, $spy->posted);
         self::assertSame([['title' => 'Marathon', 'objectives' => '50 checks et 1 partie', 'reward' => 60, 'tiered' => false]], $spy->posted[0]->quests);
         self::assertSame(60 + 50, $spy->posted[0]->maxPelles());
-        self::assertStringEndsWith('/compte/pelles', $spy->posted[0]->url);
+        self::assertStringEndsWith('/compte/quetes', $spy->posted[0]->url);
     }
 
     public function testTheNewWeekIsAnnouncedOnceToTheMembersWhoPlayedLately(): void
@@ -338,10 +340,22 @@ final class WeeklyQuestsTest extends FunctionalTestCase
         $this->entityManager->flush();
         $this->loginAs($member);
 
+        // Story 41.73: the quests at once, their progress null until it is read.
         $this->client->request('GET', '/api/v1/me/quests');
+        self::assertResponseIsSuccessful();
+        $fast = $this->decodedJsonResponse();
+        self::assertFalse($fast['progress'] ?? null);
+        self::assertIsArray($fast['quests'] ?? null);
+        self::assertIsArray($fast['quests'][0] ?? null);
+        self::assertFalse($fast['quests'][0]['done'] ?? null);
+        self::assertSame([null, null], array_column(is_array($fast['quests'][0]['objectives'] ?? null) ? $fast['quests'][0]['objectives'] : [], 'current'));
+        self::assertSame(['reward' => 50, 'done' => null, 'total' => 1, 'paid' => false], $fast['chest'] ?? null);
+
+        $this->client->request('GET', '/api/v1/me/quests/progress');
 
         self::assertResponseIsSuccessful();
         $body = $this->decodedJsonResponse();
+        self::assertTrue($body['progress'] ?? null);
         self::assertIsString($body['renewsAt'] ?? null);
         $quests = $body['quests'] ?? null;
         self::assertIsArray($quests);
@@ -355,6 +369,45 @@ final class WeeklyQuestsTest extends FunctionalTestCase
             ['metric' => 'sessions', 'label' => 'Parties jouées', 'unit' => 'parties', 'target' => 2, 'current' => 1, 'scope' => null, 'gameSlug' => null, 'duration' => false],
         ], $quests[0]['objectives'] ?? null);
         self::assertSame(['reward' => 50, 'done' => 0, 'total' => 1, 'paid' => false], $body['chest'] ?? null);
+    }
+
+    public function testTheProgressIsKeptAMinuteAndTheQuestsNeedNoFeed(): void
+    {
+        // Story 41.73: the progress of a member is read once a minute, not at every page shown.
+        $this->quest('marathon', 'Marathon', 60, [new QuestObjective(QuestMetric::Checks, 5)]);
+        $member = $this->createUser('member@example.org', ['ROLE_USER'], 'Member');
+        $now = new \DateTimeImmutable()->format(\DATE_ATOM);
+        $this->session('s-now', [['Member', $member]]);
+        $this->check('s-now', 'Member', $now);
+        $this->entityManager->flush();
+        $quests = self::getContainer()->get(MyWeeklyQuests::class);
+        self::assertInstanceOf(MyWeeklyQuests::class, $quests);
+
+        $first = $quests->progress($member->getId());
+        $this->check('s-now', 'Member', $now);
+        $this->entityManager->flush();
+        self::assertSame($first, $quests->progress($member->getId()), 'kept');
+        self::assertIsArray($first['quests'][0] ?? null);
+        self::assertSame(1, $first['quests'][0]['objectives'][0]['current'] ?? null);
+        self::assertNull($quests->of($member->getId())['quests'][0]['objectives'][0]['current'] ?? null, 'the quests alone count nothing');
+    }
+
+    public function testAProgressPastItsTimeLimitIsUnavailable(): void
+    {
+        // Story 41.73: a slow count is cut, and says so, rather than holding a worker for 30 s.
+        $query = self::getContainer()->get(WeeklyQuestsQueryInterface::class);
+        self::assertInstanceOf(WeeklyQuestsQueryInterface::class, $query);
+        $connection = $this->entityManager->getConnection();
+
+        self::assertSame(1, $query->within(5, static fn (): mixed => $connection->fetchOne('SELECT 1')));
+        try {
+            $query->within(1, static fn (): mixed => $connection->fetchOne('SELECT pg_sleep(3)'));
+            self::fail('cut at one second');
+        } catch (ServiceUnavailableException $exception) {
+            self::assertSame('quests_progress_unavailable', $exception->errorCode());
+        }
+        self::assertSame(1, $connection->fetchOne('SELECT 1'), 'the connection is usable again, without the limit');
+        self::assertFalse($connection->isTransactionActive());
     }
 
     /**
