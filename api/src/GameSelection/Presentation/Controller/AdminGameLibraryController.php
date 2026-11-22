@@ -205,6 +205,37 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Notes enregistrées.']]);
     }
 
+    /** Story 56.2: the admin's estimate of the game's pace, used while our finished games do not measure it. */
+    #[Route('/api/v1/admin/games/{gameId}/estimated-pace', name: 'api_admin_game_save_estimated_pace', methods: ['PATCH'])]
+    public function saveEstimatedPace(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $raw = $this->jsonPayload($request)['estimatedChecksPerHour'] ?? null;
+        if (null !== $raw && (!is_int($raw) || $raw < 1 || $raw > Game::MAX_ESTIMATED_CHECKS_PER_HOUR)) {
+            $message = \sprintf('Le rythme est un nombre entier de checks par heure, entre 1 et %d.', Game::MAX_ESTIMATED_CHECKS_PER_HOUR);
+
+            return $this->apiAccessGuard->errorResponse('validation_failed', $message, 422, ['estimatedChecksPerHour' => [$message]]);
+        }
+
+        $result = $this->adminGameLibrary->saveEstimatedPace($gameId, $raw);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('estimated_pace_save_failed', 'L\'enregistrement du rythme a échoué.', 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => null === $raw ? 'Rythme estimé retiré.' : 'Rythme estimé enregistré.']]);
+    }
+
     /** Story 38.30: the test generations of a meta-game add a partner player. */
     #[Route('/api/v1/admin/games/{gameId}/apworld-test-partner', name: 'api_admin_game_apworld_test_partner', methods: ['PATCH'])]
     public function changeTestPartner(Request $request, string $gameId): JsonResponse

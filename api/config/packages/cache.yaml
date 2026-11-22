@@ -24,6 +24,10 @@ framework:
             weekly_quests.cache:
                 adapter: cache.app
                 default_lifetime: 300
+            # Story 56.2: the paces of our finished games, for the slots' estimated durations.
+            game_paces.cache:
+                adapter: cache.app
+                default_lifetime: 3600
 
 # As in rate_limiter.yaml: in memory, gone with the container, so one test never sees another's snapshot.
 when@test:
@@ -31,4 +35,6 @@ when@test:
         public_reachability.cache:
             class: Symfony\Component\Cache\Adapter\ArrayAdapter
         weekly_quests.cache:
+            class: Symfony\Component\Cache\Adapter\ArrayAdapter
+        game_paces.cache:
             class: Symfony\Component\Cache\Adapter\ArrayAdapter

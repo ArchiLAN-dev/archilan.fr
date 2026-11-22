@@ -51,6 +51,13 @@ final class Game
     #[ORM\Column(name: 'test_with_partner', type: 'boolean', options: ['default' => false])]
     private bool $testWithPartner = false;
 
+    /**
+     * Story 56.2: the admin's estimate of the game's pace, in checks per hour, used while our finished games do not
+     * yet measure it (fewer than three slots at goal). Null: no estimate.
+     */
+    #[ORM\Column(name: 'estimated_checks_per_hour', type: 'integer', nullable: true)]
+    private ?int $estimatedChecksPerHour = null;
+
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(type: 'string', length: 32)]
@@ -586,6 +593,22 @@ final class Game
     private function introspection(): GameIntrospection
     {
         return $this->introspection ??= new GameIntrospection($this->id);
+    }
+
+    /** Story 56.2 bounds: a pace no game reaches is a typo, not an estimate. */
+    public const int MAX_ESTIMATED_CHECKS_PER_HOUR = 5000;
+
+    public function getEstimatedChecksPerHour(): ?int
+    {
+        return $this->estimatedChecksPerHour;
+    }
+
+    public function estimatePace(?int $checksPerHour): void
+    {
+        if (null !== $checksPerHour && ($checksPerHour < 1 || $checksPerHour > self::MAX_ESTIMATED_CHECKS_PER_HOUR)) {
+            throw new \InvalidArgumentException('An estimated pace is between 1 and '.self::MAX_ESTIMATED_CHECKS_PER_HOUR.' checks per hour.');
+        }
+        $this->estimatedChecksPerHour = $checksPerHour;
     }
 
     public function getAdminNotes(): ?string
