@@ -44,11 +44,22 @@ afin qu'une release arrive en production sans intervention, et que je sois prév
    - un verrou empêche deux exécutions en même temps ; un mode `--dry-run` dit ce qu'il ferait.
 3. **Version servie** : une route ou un en-tête donne la version de l'API, et la page d'accueil celle du front, pour
    la vérification du critère 2 (à créer si rien n'existe).
-4. **Alertes** : chaque passage qui fait quelque chose (déployé, refusé, échec et retour en arrière) envoie un message
-   sur un webhook Discord (`DEPLOY_WEBHOOK_URL`) avec la version et la raison ; rien quand il n'y a rien à faire.
+4. **Alertes par le bot Discord** (décision de Jean, 2026-11-22, plutôt qu'un webhook) :
+   - le script poste lui-même avec le bot existant : `POST /channels/{DEPLOY_CHANNEL_ID}/messages`, en-tête
+     `Authorization: Bot $DISCORD_BOT_TOKEN`, jeton lu dans `envs/api.env` (aucun nouveau secret, seule variable
+     ajoutée : `DEPLOY_CHANNEL_ID`) ;
+   - jamais par l'API du site : c'est elle qu'on déploie, une API qui ne démarre pas ne doit pas taire l'alerte ;
+   - **un seul message par release** : « Déploiement de vX.Y.Z en cours… » au départ, puis **édité**
+     (`PATCH /channels/{id}/messages/{messageId}`) en « déployé », ou « échec, retour à vX.Y.Z » avec la raison et
+     l'emplacement de la sauvegarde ; un refus (marqueur manuel, event proche, nouvelle majeure) est un message seul ;
+   - **mention d'un rôle staff seulement en cas d'échec ou de refus** (`DEPLOY_ALERT_ROLE_ID`, facultatif), pour ne
+     sonner que quand il faut agir ;
+   - rien quand il n'y a rien à faire ; un envoi Discord qui échoue n'arrête jamais le déploiement (il est écrit
+     dans le journal du script).
 5. **Installation** : `deploy/README.md` (ou `docs/deploiement-continu.md`) avec le timer systemd (toutes les 15
    minutes, par exemple, de 9 h à 22 h), les droits nécessaires, l'emplacement des sauvegardes, et comment couper le
    déploiement automatique (`DEPLOY_PAUSED=1` dans le `.env`).
+   Le bot doit pouvoir lire et écrire dans le salon de déploiement (et mentionner le rôle d'alerte s'il est posé).
 6. Tests du script : au minimum `shellcheck` en CI, et un essai `--dry-run` décrit pour l'opérateur.
 7. Premier passage réel accompagné par l'opérateur.
 
@@ -56,7 +67,7 @@ afin qu'une release arrive en production sans intervention, et que je sois prév
 
 - [ ] Marqueur et doc (critère 1).
 - [ ] Version servie (critère 3).
-- [ ] Script et alertes (critères 2 et 4).
+- [ ] Script et alertes par le bot (critères 2 et 4).
 - [ ] Doc d'installation (critère 5) et `shellcheck` (critère 6).
 - [ ] Premier passage avec l'opérateur (critère 7).
 
