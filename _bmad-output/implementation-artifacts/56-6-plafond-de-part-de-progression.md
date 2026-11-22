@@ -1,6 +1,6 @@
 # Story 56.6 - Plafond de part de progression dans l'image archipelago
 
-**Status:** in-progress (essai fait, image en PR, option a brancher)
+**Status:** review
 **Epic:** 56 - Équilibrage des parties (`_bmad-output/planning-artifacts/epics/epic-56-equilibrage.md`)
 **Date:** 2026-11-21
 **Issue:** #1179
@@ -44,8 +44,8 @@ afin que la partie ne dépende plus du joueur qui a le plus gros monde.
 
 - [x] **Task 1** - Essai sur le banc de génération local (Python 3.12, cf. mémoire `yaml_roundtrip_lossy`).
 - [x] **Task 2** - Hook de génération dans l'image archipelago (après `generate_basic`, avant le remplissage).
-- [ ] **Task 3** - Option côté orchestrateur et réglage par event dans l'API et l'admin.
-- [ ] **Task 4** - Tests et gates.
+- [x] **Task 3** - Option côté orchestrateur et réglage par event dans l'API et l'admin.
+- [x] **Task 4** - Tests et gates.
 
 ## Dev Notes
 
@@ -83,7 +83,13 @@ afin que la partie ne dépende plus du joueur qui a le plus gros monde.
   `Main.distribute_items_restrictive`, donc après tous les `pre_fill`). L'observateur Bridge ne compte pas.
 - `reachable.py` n'est pas touché : il rejoue jusqu'avant le remplissage et lit le placement dans le spoiler.
 
-### Reste (Task 3)
+### Option (Task 3)
 
-- Orchestrateur : passer `ARCHILAN_PROGRESSION_CAP` au conteneur de génération depuis les options de génération.
-- API et admin : réglage par event et par partie privée, éteint par défaut.
+- Jean accepte le coût (2026-11-22). Image mergée (archipelago #57).
+- Orchestrateur (PR archilan-orchestrateur #51) : `progressionCap` sur `POST /sessions/{id}/generate`,
+  `1 < k <= 10`, transmis au conteneur par `ARCHILAN_PROGRESSION_CAP`. Absent = éteint.
+- API : `SessionGenerationConfig::progressionCap` (bool, éteint sur tous les profils, `k` fixé à 2 par
+  `PROGRESSION_CAP_FACTOR`), envoyé à l'orchestrateur seulement quand il est actif. Réglable par override de portée
+  (event par un admin, partie privée par son propriétaire) et sur le profil d'un type.
+- Admin : interrupteur « Plafonner les clés d'un monde géant » dans la section Génération (profil et override).
+- Déploiement : image, orchestrateur, puis API. Une API activée devant un orchestrateur ancien : l'option est ignorée.

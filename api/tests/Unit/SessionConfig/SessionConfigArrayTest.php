@@ -70,4 +70,24 @@ final class SessionConfigArrayTest extends TestCase
         self::assertTrue(SessionConfigOverride::fromArray($array)->race);
         self::assertNull(SessionConfigOverride::fromArray($array)->releaseMode);
     }
+
+    /** Story 56.6: off on every profile, a profile stored before carries none, an override turns it on per scope. */
+    public function testTheProgressionCapIsOffByDefaultAndOverridablePerScope(): void
+    {
+        foreach (SessionType::cases() as $type) {
+            self::assertFalse(SessionConfig::defaultsFor($type)->generation->progressionCap, $type->value);
+        }
+
+        $stored = SessionConfig::defaultsFor(SessionType::Event)->toArray();
+        unset($stored['generation']['progressionCap']);
+        self::assertFalse(SessionConfig::fromArray($stored)->generation->progressionCap);
+
+        $override = SessionConfigOverride::fromArray(['progressionCap' => true]);
+        self::assertSame(['progressionCap' => true], $override->toArray());
+        self::assertFalse($override->isEmpty());
+        $config = SessionConfig::defaultsFor(SessionType::Event)->withOverride($override);
+        self::assertTrue($config->generation->progressionCap);
+        self::assertTrue(SessionConfig::fromArray($config->toArray())->generation->progressionCap);
+        self::assertTrue(SessionConfigOverride::fromConfig($config)->progressionCap);
+    }
 }
