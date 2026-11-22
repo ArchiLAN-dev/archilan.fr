@@ -1,6 +1,6 @@
 # Story 56.1 - Taille et part de progression d'un slot à la génération
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 56 - Équilibrage des parties (`_bmad-output/planning-artifacts/epics/epic-56-equilibrage.md`)
 **Date:** 2026-11-21
 **Issue:** #1174
@@ -49,11 +49,11 @@ afin de repérer le monde qui va bloquer la partie.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** - Image archipelago : script de mesure lancé dans le conteneur isolé, à côté de l'inspection
+- [x] **Task 1** - Image archipelago : script de mesure lancé dans le conteneur isolé, à côté de l'inspection
   existante (vérifier la parité des imports, cf. mémoire `archipelago_script_parity`).
-- [ ] **Task 2** - Orchestrateur : renvoyer les mesures avec la sortie de génération et le résultat de test.
-- [ ] **Task 3** - API : migration `session_slot`, port et adaptateur, enregistrement, commande de mesure.
-- [ ] **Task 4** - Tests et gates.
+- [x] **Task 2** - Orchestrateur : renvoyer les mesures avec la sortie de génération et le résultat de test.
+- [x] **Task 3** - API : migration `session_slot`, port et adaptateur, enregistrement, commande de mesure.
+- [x] **Task 4** - Tests et gates.
 
 ## Dev Notes
 
@@ -61,3 +61,19 @@ afin de repérer le monde qui va bloquer la partie.
   d'import au build.
 - Mémoire `ap_item_ids_per_game` : les ids d'objets sont uniques par jeu seulement ; le flag de progression vient de
   la multidata, pas d'un nom.
+
+## Dev Agent Record
+
+- Image archipelago (PR archilan-archipelago #56) : `slot_measures.measure(multidata)` partagé par
+  `read_multidata.py` (clé `measures`) et `generate_multiworld.py` (ligne stderr `###ARCHILAN-MEASURES###` sur
+  sa propre sortie). COPY + boucle CRLF + garde-fou d'import au build. Vérifié sur une vraie seed à 6 slots
+  (Luigi's Mansion : 34,6 % des emplacements, 40 % des clés des autres).
+- Orchestrateur (PR archilan-orchestrateur #50) : `PreflightGenerateMeasured`, `SlotPreflight.Measures`,
+  `measures` dans `GET /preflight-generations/{id}`. L'inspection relaie déjà le JSON brut.
+- API : colonnes nullables `session_slot.locations_total/own_progression/hosted_progression`
+  (Version20261122100000), `SeedArchiveGatewayInterface::measure`, commande `MeasureSessionSlots` (outcome enum,
+  avertissement journalisé, jamais d'échec de génération), `MeasureSessionSlotsJob` envoyé sur `async` après
+  `RecordSessionGeneratedOutput`, console `app:sessions:measure-slots`, champs dans `SessionSlot::payload()`.
+- Reste (CA 2, côté API) : lire `measures` dans le résultat d'un test de slot demande une version du paquet
+  `archilan/orchestrateur-client` (`SlotPreflightJob`), donc l'accord de Jean. L'orchestrateur les renvoie déjà.
+- Déploiement : image archipelago puis orchestrateur, puis API. Une image plus ancienne laisse les chiffres nuls.
