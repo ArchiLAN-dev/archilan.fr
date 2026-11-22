@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bde6491e267934cd9cd723bc5bd4cf6d",
+    "content-hash": "fb3771129ddd4645c707ccd056b581bc",
     "packages": [
         {
             "name": "archilan/bridge-client",
@@ -97,16 +97,16 @@
         },
         {
             "name": "archilan/orchestrateur-client",
-            "version": "1.19.0",
+            "version": "1.20.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ArchiLAN-dev/archilan-orchestrateur-client.git",
-                "reference": "9aa2b17bb10368b8f4ec2933d31c75661c1bf151"
+                "reference": "981a38f0c28c5b6d12150c39fd5081a92f4ca6a0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-orchestrateur-client/zipball/9aa2b17bb10368b8f4ec2933d31c75661c1bf151",
-                "reference": "9aa2b17bb10368b8f4ec2933d31c75661c1bf151",
+                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-orchestrateur-client/zipball/981a38f0c28c5b6d12150c39fd5081a92f4ca6a0",
+                "reference": "981a38f0c28c5b6d12150c39fd5081a92f4ca6a0",
                 "shasum": ""
             },
             "require": {
@@ -132,14 +132,14 @@
                 }
             },
             "license": [
-                "proprietary"
+                "MIT"
             ],
             "description": "PHP client for the Archilan orchestrateur REST API.",
             "support": {
-                "source": "https://github.com/ArchiLAN-dev/archilan-orchestrateur-client/tree/v1.19.0",
+                "source": "https://github.com/ArchiLAN-dev/archilan-orchestrateur-client/tree/v1.20.0",
                 "issues": "https://github.com/ArchiLAN-dev/archilan-orchestrateur-client/issues"
             },
-            "time": "2026-11-18T22:39:37+00:00"
+            "time": "2026-11-22T17:00:18+00:00"
         },
         {
             "name": "aws/aws-crt-php",

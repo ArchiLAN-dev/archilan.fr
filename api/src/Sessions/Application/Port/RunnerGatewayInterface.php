@@ -155,7 +155,10 @@ interface RunnerGatewayInterface
      * Poll a slot preflight job. Returns null for unknown/expired ids or runner errors (the
      * caller decides whether to retry or give up).
      *
-     * @return array{status: string, error: string}|null status: pending|passed|failed
+     * `measures` (story 56.1): size and progression counts of each slot of a passed test; absent or empty when the
+     * orchestrator does not report them.
+     *
+     * @return array{status: string, error: string, measures?: list<array{name: string, game: string, locations: int, ownProgression: int, hostedProgression: int}>}|null status: pending|passed|failed
      */
     public function getSlotPreflight(string $jobId): ?array;
 

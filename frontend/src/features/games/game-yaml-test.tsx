@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 
 import { GenerationFailureNotice } from "@/features/games/generation-failure-notice";
-import { getGameYamlTest, startGameYamlTest } from "./game-yaml-test-api";
+import { getGameYamlTest, startGameYamlTest, type TestedWorldSize } from "./game-yaml-test-api";
 
 const POLL_MS = 3000;
 /** The orchestrator gives up on a test generation after a few minutes; stop polling well after that. */
@@ -14,7 +14,7 @@ export type GameYamlTestState =
   | { kind: "idle" }
   | { kind: "starting" }
   | { kind: "running"; ticket: string }
-  | { kind: "done"; status: "passed" | "failed"; error: string | null }
+  | { kind: "done"; status: "passed" | "failed"; error: string | null; world?: TestedWorldSize | null }
   | { kind: "error"; message: string };
 
 /**
@@ -36,7 +36,7 @@ export function useGameYamlTest(gameId: string | undefined) {
       const result = await getGameYamlTest(gameId, ticket);
       if (cancelled) return;
       if (result.kind === "result" && (result.status === "passed" || result.status === "failed")) {
-        setState({ kind: "done", status: result.status, error: result.error });
+        setState({ kind: "done", status: result.status, error: result.error, world: result.world });
         return;
       }
       if (result.kind === "gone") {
@@ -90,6 +90,7 @@ export function GameYamlTestOutcome({ state }: { state: GameYamlTestState }) {
       return state.status === "passed" ? (
         <span className="inline-flex items-center gap-1.5 text-sm text-success" role="status">
           <CheckCircle2 aria-hidden className="size-4" /> Génération de test réussie : ce YAML fonctionne.
+          {state.world ? <WorldSizeNote world={state.world} /> : null}
         </span>
       ) : (
         <div className="grid w-full gap-2" role="alert">
@@ -100,4 +101,14 @@ export function GameYamlTestOutcome({ state }: { state: GameYamlTestState }) {
         </div>
       );
   }
+}
+
+/** Story 56.1: how big the tested world is, so a player sees a giant world before an event. */
+export function WorldSizeNote({ world }: { world: TestedWorldSize }) {
+  const fmt = new Intl.NumberFormat("fr-FR");
+  return (
+    <span className="text-muted-foreground">
+      {" "}Ton monde : {fmt.format(world.locations)} emplacements, {fmt.format(world.ownProgression)} objets de progression.
+    </span>
+  );
 }

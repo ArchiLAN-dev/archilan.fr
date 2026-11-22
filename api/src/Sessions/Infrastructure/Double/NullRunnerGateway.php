@@ -28,7 +28,7 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** @var array{playerYaml: string, apworldHash: ?string, requiredFileIds: list<string>}|null The last startSlotPreflight() call (stories 38.14, 44.6 tests). */
     public static ?array $lastSlotPreflight = null;
 
-    /** @var array{status: string, error: string}|null Canned getSlotPreflight() result; null = an unknown job (story 38.14 tests). */
+    /** @var array{status: string, error: string, measures?: list<array{name: string, game: string, locations: int, ownProgression: int, hostedProgression: int}>}|null Canned getSlotPreflight() result; null = an unknown job (story 38.14 tests). */
     public static ?array $slotPreflightResult = ['status' => 'passed', 'error' => ''];
 
     /** When true, startSlotPreflight() reads as a runner that did not answer (story 38.14 tests). */
@@ -211,7 +211,7 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     }
 
     /**
-     * @return array{status: string, error: string}|null
+     * @return array{status: string, error: string, measures?: list<array{name: string, game: string, locations: int, ownProgression: int, hostedProgression: int}>}|null
      */
     public function getSlotPreflight(string $jobId): ?array
     {

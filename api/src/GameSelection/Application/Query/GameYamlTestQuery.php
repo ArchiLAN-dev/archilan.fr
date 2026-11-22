@@ -19,7 +19,7 @@ final readonly class GameYamlTestQuery
     }
 
     /**
-     * @return array{status: string, error: string|null}|null
+     * @return array{status: string, error: string|null, measures: list<array{name: string, game: string, locations: int, ownProgression: int}>}|null
      */
     public function result(string $userId, string $gameId, string $ticket): ?array
     {

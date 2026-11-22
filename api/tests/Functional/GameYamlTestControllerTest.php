@@ -61,6 +61,24 @@ final class GameYamlTestControllerTest extends FunctionalTestCase
         self::assertStringContainsString('Goal is not a valid choice', (string) json_encode($data['error'] ?? null));
     }
 
+    /** Story 56.1: a passed test tells the size of the tested world and its progression. */
+    public function testAPassedTestGivesTheSizeOfTheWorld(): void
+    {
+        NullRunnerGateway::$slotPreflightResult = ['status' => 'passed', 'error' => '', 'measures' => [
+            ['name' => 'Player', 'game' => 'Hollow Knight', 'locations' => 283, 'ownProgression' => 196, 'hostedProgression' => 0],
+        ]];
+        $this->loginAs($this->player);
+        $this->client->jsonRequest('POST', $this->uri(), ['yaml' => self::YAML]);
+        $ticket = $this->ticket();
+
+        $this->client->request('GET', $this->uri().'/'.$ticket);
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->data();
+        self::assertSame('passed', $data['status'] ?? null);
+        self::assertSame([['name' => 'Player', 'game' => 'Hollow Knight', 'locations' => 283, 'ownProgression' => 196]], $data['measures'] ?? null);
+    }
+
     public function testAnotherPlayerCannotReadTheResult(): void
     {
         $this->loginAs($this->player);
