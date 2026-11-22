@@ -1,6 +1,6 @@
 # Story 56.6 - Plafond de part de progression dans l'image archipelago
 
-**Status:** ready-for-dev (essai sur banc en premier)
+**Status:** in-progress (essai fait, image en PR, option a brancher)
 **Epic:** 56 - Équilibrage des parties (`_bmad-output/planning-artifacts/epics/epic-56-equilibrage.md`)
 **Date:** 2026-11-21
 **Issue:** #1179
@@ -42,8 +42,8 @@ afin que la partie ne dépende plus du joueur qui a le plus gros monde.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** - Essai sur le banc de génération local (Python 3.12, cf. mémoire `yaml_roundtrip_lossy`).
-- [ ] **Task 2** - Hook de génération dans l'image archipelago (après `generate_basic`, avant le remplissage).
+- [x] **Task 1** - Essai sur le banc de génération local (Python 3.12, cf. mémoire `yaml_roundtrip_lossy`).
+- [x] **Task 2** - Hook de génération dans l'image archipelago (après `generate_basic`, avant le remplissage).
 - [ ] **Task 3** - Option côté orchestrateur et réglage par event dans l'API et l'admin.
 - [ ] **Task 4** - Tests et gates.
 
@@ -53,3 +53,37 @@ afin que la partie ne dépende plus du joueur qui a le plus gros monde.
   objet au premier emplacement accessible ; aucune pondération par monde.
 - Les objets d'un monde exclu basculent vers du remplissage : vérifier les jeux qui n'en ont pas assez (même famille
   de piège que les 93 coffres exclus d'OoT Remake, issue Mozencaz/OotrR#83).
+
+## Dev Agent Record
+
+### Essai sur banc (2026-11-22)
+
+- Banc : image `archipelago:latest` locale (AP 0.6.8) avec les scripts du dépôt montés, réseau coupé, mesures 56.1.
+- Jeux (officiels, sans ROM) : Stardew Valley (shipsanity everything, cooksanity, craftsanity, friendsanity,
+  museumsanity : 1498 emplacements, 70 % du total), Hollow Knight (203), Timespinner (180), Subnautica (131),
+  Muse Dash (90), DLCQuest (29). Les jeux des derniers events sont des apworlds maison absents du poste.
+- 8 graines sans l'option, 8 avec `k = 2` :
+
+  | | Échecs | Part hébergée du monde géant (min / médiane / max) |
+  |---|---|---|
+  | Sans plafond | 0 / 8 | 46,1 % / 47,4 % / 51,2 % |
+  | `k = 2` | 0 / 8 | 21,8 % / 24,5 % / 25,5 % |
+
+  Part équitable : 16,7 % (6 mondes), plafond visé 33,3 %. Aucun avertissement d'accessibilité.
+- Le garde-fou du remplissage a joué à chaque graine : environ 1000 emplacements exclus sur les 1184 voulus (autant
+  que d'objets de remplissage disponibles). Conséquence à assumer : les deux tiers des checks du monde géant ne
+  donnent plus que du remplissage.
+- Sans l'option : même graine, même placement que l'image actuelle (spoiler comparé, seed 1).
+
+### Image (PR archilan-archipelago #57)
+
+- `progression_cap.py` : `cap_factor` (variable `ARCHILAN_PROGRESSION_CAP`, éteint si absente ou <= 1),
+  `capable_target` (point fixe : exclure baisse le total donc la part équitable), `plan_exclusions` (tirage par
+  graine, garde-fous progression locale et remplissage), `apply_progression_cap`, `install` (enveloppe
+  `Main.distribute_items_restrictive`, donc après tous les `pre_fill`). L'observateur Bridge ne compte pas.
+- `reachable.py` n'est pas touché : il rejoue jusqu'avant le remplissage et lit le placement dans le spoiler.
+
+### Reste (Task 3)
+
+- Orchestrateur : passer `ARCHILAN_PROGRESSION_CAP` au conteneur de génération depuis les options de génération.
+- API et admin : réglage par event et par partie privée, éteint par défaut.
