@@ -1,6 +1,6 @@
 # Story 33.33: Publication automatique des releases
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 33 - Nettoyage et standards
 **Date:** 2026-11-21
 **Origine :** release hebdomadaire mise en place le 2026-11-20 (`docs/processus-de-release.md`). Jean veut que son
@@ -46,12 +46,25 @@ afin de ne plus dérouler à la main le tag, la release GitHub et le retour sur 
 
 ## Tâches
 
-- [ ] `.github/workflows/release.yml` (critères 1 à 6).
-- [ ] Jeton ou `workflow_call` pour les images (critère 4) ; secret documenté si besoin.
-- [ ] Doc (critère 7).
+- [x] `.github/workflows/release.yml` (critères 1 à 6).
+- [x] Images lancées par `workflow_dispatch` sur le tag (seul déclencheur que le `GITHUB_TOKEN` permet) : ni jeton ni secret.
+- [x] Doc (critère 7).
 - [ ] Essai réel (critère 8).
 
 ## Hors périmètre
 
 - Le déploiement en production : story 33.34.
 - Les services (orchestrateur, bridge, archipelago), tagués à la main quand ils ont des commits non publiés.
+
+## Dev Agent Record
+
+- `release.yml` sur `pull_request: closed` vers `main`, filtré sur `merged` et les branches `release/*`, `hotfix/*`.
+- Images : `gh workflow run docker-publish.yml --ref vX.Y.Z`. Un `workflow_dispatch` est le seul événement qu'un
+  `GITHUB_TOKEN` peut déclencher, et sur la ref du tag il donne à `docker-publish.yml` le même `github.ref` qu'un tag
+  poussé (semver, environnement Sentry `production`). Pas de PAT ni de GitHub App à gérer.
+- Retour sur `develop` : merge direct plutôt que merge automatique (désactivé sur le dépôt). Les contrôles requis
+  Backend et Frontend portent sur le commit de tête de la branche, déjà testé sur la PR vers `main` ; un conflit ou un
+  refus laisse la PR ouverte et le résumé le dit. Une PR de retour déjà ouverte (hotfix) est reprise.
+- Ordre : le retour sur `develop` passe avant l'attente des images (une trentaine de minutes) pour ne pas la bloquer.
+- Vérifié en local : extraction de la section du CHANGELOG (1.0.3, et version absente), détection d'un tag existant,
+  YAML valide. L'essai réel (critère 8) se fera sur la release du 2026-11-24.
