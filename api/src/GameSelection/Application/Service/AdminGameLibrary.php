@@ -89,6 +89,25 @@ final readonly class AdminGameLibrary
     }
 
     /**
+     * Story 56.2: the admin's estimate of the game's pace, in checks per hour; null clears it. The controller bounds
+     * the value (1 to Game::MAX_ESTIMATED_CHECKS_PER_HOUR).
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function saveEstimatedPace(string $gameId, ?int $checksPerHour): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $game->estimatePace($checksPerHour);
+        $this->gameRepository->save($game);
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
+    }
+
+    /**
      * Save the admin-only free-text notes for a game (story 3.12). Empty/whitespace clears them.
      *
      * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
@@ -1020,6 +1039,8 @@ final readonly class AdminGameLibrary
             // Story 44.3: the files the world declares, and which ones a failed generation proved needed.
             'requiredFiles' => $game->getRequiredFiles(),
             'adminNotes' => $game->getAdminNotes(),
+            // Story 56.2: the admin's pace estimate, used while our games do not measure it.
+            'estimatedChecksPerHour' => $game->getEstimatedChecksPerHour(),
             'catalogSheetName' => $sync?->getCatalogSheetName(),
             'apworldSourceUrl' => $sync?->getApworldSourceUrl(),
             'apworldDeployedVersion' => $sync?->getApworldDeployedVersion(),

@@ -297,7 +297,10 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
                 <AdminGameTrackerPacks gameId={game.id} gameSlug={game.slug}/>
             </div>
             <div aria-labelledby="tab-notes" hidden={activeTab !== "notes"} id="panel-notes" role="tabpanel">
-                <NotesSection game={game} onUpdate={refreshGame}/>
+                <div className="grid gap-6">
+                    <NotesSection game={game} onUpdate={refreshGame}/>
+                    <EstimatedPaceSection game={game} onUpdate={refreshGame}/>
+                </div>
             </div>
         </div>
     );
@@ -1019,6 +1022,90 @@ function NotesSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGa
                     {success ? <span className="text-sm text-success">Notes enregistrées.</span> : null}
                     {error ? <span className="text-sm text-danger">{error}</span> : null}
                 </div>
+            </div>
+        </Section>
+    );
+}
+
+/** Story 56.2: the bound the API enforces on a pace estimate. */
+export const MAX_ESTIMATED_CHECKS_PER_HOUR = 5000;
+
+/** Story 56.2: the field's text as the API takes it - a whole number of checks per hour, or null when empty. */
+export function parseEstimatedPace(input: string): number | null | "invalid" {
+    const trimmed = input.trim();
+    if (trimmed === "") {
+        return null;
+    }
+    if (!/^\d+$/.test(trimmed)) {
+        return "invalid";
+    }
+    const value = Number(trimmed);
+
+    return value >= 1 && value <= MAX_ESTIMATED_CHECKS_PER_HOUR ? value : "invalid";
+}
+
+export function EstimatedPaceSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+    const [value, setValue] = useState(game.estimatedChecksPerHour?.toString() ?? "");
+    const [submitting, setSubmitting] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function save() {
+        setError(null);
+        setSuccess(false);
+        const parsed = parseEstimatedPace(value);
+        if (parsed === "invalid") {
+            setError(`Un nombre entier de checks par heure, entre 1 et ${MAX_ESTIMATED_CHECKS_PER_HOUR}.`);
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/estimated-pace`, {
+                body: JSON.stringify({estimatedChecksPerHour: parsed}),
+                headers: {"Content-Type": "application/json"},
+                method: "PATCH",
+            });
+            const payload: unknown = await res.json();
+            if (!res.ok) {
+                setError(extractDetails(payload)["estimatedChecksPerHour"]?.[0] ?? "L'enregistrement du rythme a échoué.");
+                return;
+            }
+            if (isGamePayload(payload)) {
+                onUpdate(payload.data);
+                setValue(payload.data.estimatedChecksPerHour?.toString() ?? "");
+                setSuccess(true);
+            }
+        } catch {
+            setError("Impossible de contacter le serveur.");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    return (
+        <Section
+            description="Sert à estimer la durée d'un slot tant que nos parties terminées ne mesurent pas ce jeu (moins de 3 slots au goal). Laisser vide si on ne sait pas."
+            title="Checks par heure estimés"
+        >
+            <div className="flex flex-wrap items-center gap-3">
+                <input
+                    aria-label="Checks par heure estimés"
+                    className="min-h-10 w-32 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent"
+                    inputMode="numeric"
+                    onChange={(e) => setValue(e.target.value)}
+                    placeholder="ex. 60"
+                    value={value}
+                />
+                <button
+                    className="inline-flex min-h-10 items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                    disabled={submitting}
+                    onClick={save}
+                    type="button"
+                >
+                    {submitting ? "Enregistrement…" : "Enregistrer le rythme"}
+                </button>
+                {success ? <span className="text-sm text-success">Rythme enregistré.</span> : null}
+                {error ? <span className="text-sm text-danger">{error}</span> : null}
             </div>
         </Section>
     );

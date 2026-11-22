@@ -1,6 +1,6 @@
 # Story 56.2 - Rythme de référence par jeu et par joueur
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 56 - Équilibrage des parties (`_bmad-output/planning-artifacts/epics/epic-56-equilibrage.md`)
 **Date:** 2026-11-21
 **Issue:** #1175
@@ -42,7 +42,20 @@ afin de comparer des mondes de jeux différents sur la même échelle.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** - Colonne `games.estimated_checks_per_hour` (nullable), champ admin.
-- [ ] **Task 2** - `GamePaceQueryInterface` (Application) et `DbalGamePaceQuery` (Infrastructure), cache.
-- [ ] **Task 3** - Service `SlotDurationEstimate` (Application) : durée, provenance.
-- [ ] **Task 4** - Tests et gates.
+- [x] **Task 1** - Colonne `games.estimated_checks_per_hour` (nullable), champ admin.
+- [x] **Task 2** - `GamePaceQueryInterface` (Application) et `DbalGamePaceQuery` (Infrastructure), cache.
+- [x] **Task 3** - Service `SlotDurationEstimate` (Application) : durée, provenance.
+- [x] **Task 4** - Tests et gates.
+
+## Dev Agent Record
+
+- `game.estimated_checks_per_hour` (Version20261122100001), borné 1 à 5000 (`Game::estimatePace`),
+  `PATCH /api/v1/admin/games/{id}/estimated-pace`, champ dans l'onglet Notes de la fiche jeu admin.
+- `GamePaceQueryInterface` / `DbalGamePaceQuery` : un échantillon par slot au goal (sessions d'event et privées :
+  `checks_done` sur le temps depuis `COALESCE(first_launched_at, started_at)` ; hebdos : `checks_total` sur
+  `completion_time_seconds`). Moins d'une minute = pas un rythme. Joueurs d'un slot via `DbalSlotPlayerSource`
+  (titulaire et co-joueurs).
+- `SlotDurationEstimate` (Application/Service) : médiane dès 3 slots, sinon saisie admin, sinon inconnu ; facteur
+  joueur `1 + (moyenne - 1) x n / (n + 3)` borné 0,5 à 2 (moyenne des joueurs sur un slot partagé) ; résultat
+  `SlotDuration` (heures, provenance, nombre de slots, rythme, facteur). Modèle en cache 1 h (`game_paces.cache`).
+- Pas encore de consommateur : 56.3 (rapport) et 56.5 (avertissement) l'afficheront.
