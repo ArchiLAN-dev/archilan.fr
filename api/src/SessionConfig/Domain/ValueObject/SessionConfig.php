@@ -26,7 +26,7 @@ final readonly class SessionConfig
     }
 
     /**
-     * @return array{server: array<string, scalar|null>, generation: array{plandoOptions: list<string>, race: bool, spoiler: int}}
+     * @return array{server: array<string, scalar|null>, generation: array{plandoOptions: list<string>, race: bool, spoiler: int, progressionCap: bool}}
      */
     public function toArray(): array
     {
@@ -53,7 +53,7 @@ final readonly class SessionConfig
 
         return [
             'server' => $server,
-            'generation' => $this->generation->toGenerationParams(),
+            'generation' => $this->generation->toArray(),
         ];
     }
 
@@ -113,6 +113,8 @@ final readonly class SessionConfig
                 $plando,
                 self::reqBool($generation, 'race'),
                 SpoilerLevel::fromInt(self::reqInt($generation, 'spoiler')),
+                // Story 56.6: a profile stored before carries none.
+                self::optBool($generation, 'progressionCap') ?? false,
             ),
         );
     }
@@ -305,6 +307,7 @@ final readonly class SessionConfig
                 plandoOptions: $o->plandoOptions ?? $this->generation->plandoOptions,
                 race: $o->race ?? $this->generation->race,
                 spoiler: $o->spoiler ?? $this->generation->spoiler,
+                progressionCap: $o->progressionCap ?? $this->generation->progressionCap,
             ),
         );
     }

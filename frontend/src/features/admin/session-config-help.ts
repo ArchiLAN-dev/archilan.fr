@@ -51,4 +51,6 @@ export const sessionConfigHelp: Record<string, string> = {
     "Mode course : la sortie générée est chiffrée pour empêcher de fouiller le seed à l'avance. À utiliser pour les compétitions.",
   spoiler:
     "Niveau du fichier spoiler généré : d'aucun (course équitable) à complet avec les chemins logiques.",
+  progressionCap:
+    "Un monde bien plus grand que les autres ne détient pas plus de deux fois sa part des clés des autres joueurs : une partie de ses emplacements ne reçoit que du remplissage. Évite qu'une partie entière attende un seul joueur, au prix de checks moins utiles dans ce monde.",
 };

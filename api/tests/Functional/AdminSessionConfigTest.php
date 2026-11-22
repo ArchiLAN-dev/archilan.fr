@@ -156,6 +156,20 @@ final class AdminSessionConfigTest extends FunctionalTestCase
         self::assertSame([], $this->overrideData());
     }
 
+    /** Story 56.6: an admin turns the progression cap on for one event, off elsewhere. */
+    public function testOverrideTurnsTheProgressionCapOn(): void
+    {
+        $this->loginAs($this->admin);
+
+        $this->client->jsonRequest('PUT', '/api/v1/admin/session-config/override/tpl-1', ['progressionCap' => true]);
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->overrideData()['progressionCap']);
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/session-config/override/tpl-1');
+        self::assertResponseStatusCodeSame(200);
+        self::assertTrue($this->overrideData()['progressionCap']);
+    }
+
     public function testOverridePutRejectsInvalidWith422(): void
     {
         $this->loginAs($this->admin);

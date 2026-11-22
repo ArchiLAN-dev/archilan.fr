@@ -307,6 +307,12 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
           <div className="sm:max-w-xs">
             <NumberSelectField hint={sessionConfigHelp.spoiler} label="Niveau de spoiler généré" labels={SPOILER_LABELS} onChange={(n) => patchGeneration({ spoiler: n })} options={SPOILER_LEVELS} value={generation.spoiler} />
           </div>
+          <SwitchRow
+            checked={generation.progressionCap ?? false}
+            description={sessionConfigHelp.progressionCap}
+            label="Plafonner les clés d'un monde géant"
+            onChange={(c) => patchGeneration({ progressionCap: c })}
+          />
         </div>
       </Section>
       </div>

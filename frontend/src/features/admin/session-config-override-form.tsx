@@ -93,6 +93,7 @@ const FIELDS: FieldDef[] = [
   { key: "plandoOptions", label: "Plando autorisé", section: "Génération", kind: "plando", fallback: [] },
   { key: "race", label: "Mode course (ROMs chiffrées)", section: "Génération", kind: "bool", fallback: false },
   { key: "spoiler", label: "Niveau de spoiler", section: "Génération", kind: "intselect", options: SPOILER_LEVELS, labels: SPOIL, fallback: 3 },
+  { key: "progressionCap", label: "Plafonner les clés d'un monde géant", section: "Génération", kind: "bool", fallback: false },
 ];
 
 const ERROR_LABELS: Record<string, string> = {
@@ -388,6 +389,7 @@ function flattenProfile(c: SessionConfig): Record<string, OverrideValue> {
     plandoOptions: c.generation.plandoOptions,
     race: c.generation.race,
     spoiler: c.generation.spoiler,
+    progressionCap: c.generation.progressionCap ?? false,
   };
 }
 

@@ -49,6 +49,8 @@ export type SessionGenerationConfig = {
   plandoOptions: string[];
   race: boolean;
   spoiler: number;
+  /** Story 56.6: a giant world hosts at most twice its fair share of the others' progression. Absent on older payloads. */
+  progressionCap?: boolean;
 };
 
 export type SessionConfig = {
