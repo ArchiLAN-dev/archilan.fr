@@ -29,6 +29,46 @@ final readonly class OrchestratorSeedArchiveGateway implements SeedArchiveGatewa
     ) {
     }
 
+    public function measure(string $archive, string $filename): ?array
+    {
+        try {
+            $form = new FormDataPart(['file' => new DataPart($archive, $filename, 'application/octet-stream')]);
+            $response = $this->httpClient->request('POST', $this->url('/multidata/inspect'), [
+                'headers' => $form->getPreparedHeaders()->toArray() + ['Authorization' => 'Bearer '.$this->orchestrateurApiKey],
+                'body' => $form->bodyToIterable(),
+            ]);
+
+            /** @var array<string, mixed> $payload */
+            $payload = $response->toArray(false);
+        } catch (\Throwable $e) {
+            $this->logger->warning('sessions.measure_slots.inspect_failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+
+        $raw = $payload['measures'] ?? null;
+        if (!is_array($raw)) {
+            return null;
+        }
+
+        $measures = [];
+        foreach ($raw as $record) {
+            if (!is_array($record)) {
+                continue;
+            }
+            $name = $record['name'] ?? null;
+            $locations = $record['locations'] ?? null;
+            $own = $record['ownProgression'] ?? null;
+            $hosted = $record['hostedProgression'] ?? null;
+            if (!is_string($name) || '' === $name || !is_int($locations) || !is_int($own) || !is_int($hosted)) {
+                continue;
+            }
+            $measures[] = ['name' => $name, 'locations' => $locations, 'ownProgression' => $own, 'hostedProgression' => $hosted];
+        }
+
+        return $measures;
+    }
+
     public function inspect(string $archive, string $filename): array
     {
         try {
