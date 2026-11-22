@@ -44,7 +44,17 @@ describe("getGameYamlTest", () => {
       ),
     );
 
-    expect(await getGameYamlTest("game-hk", "job.sig")).toEqual({ kind: "result", status: "failed", error: "Goal is not a valid choice" });
+    expect(await getGameYamlTest("game-hk", "job.sig")).toEqual({ kind: "result", status: "failed", error: "Goal is not a valid choice", world: null });
+  });
+
+  it("gives the size of the tested world of a passed test (story 56.1)", async () => {
+    server.use(
+      http.get(`${BASE}/games/game-hk/yaml-test/job.sig`, () =>
+        HttpResponse.json({ data: { status: "passed", error: null, measures: [{ name: "Jean", game: "Hollow Knight", locations: 283, ownProgression: 196 }] } }),
+      ),
+    );
+
+    expect(await getGameYamlTest("game-hk", "job.sig")).toEqual({ kind: "result", status: "passed", error: null, world: { locations: 283, ownProgression: 196 } });
   });
 
   it("reads a 404 as an unknown or expired test", async () => {

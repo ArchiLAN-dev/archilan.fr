@@ -35,8 +35,11 @@ export async function startGameYamlTest(
   }
 }
 
+/** Story 56.1: the tested world's number of locations and its progression items. */
+export type TestedWorldSize = { locations: number; ownProgression: number };
+
 export type GameYamlTestResult =
-  | { kind: "result"; status: "pending" | "running" | "passed" | "failed"; error: string | null }
+  | { kind: "result"; status: "pending" | "running" | "passed" | "failed"; error: string | null; world: TestedWorldSize | null }
   | { kind: "gone" }
   | { kind: "error" };
 
@@ -51,8 +54,19 @@ export async function getGameYamlTest(gameId: string, ticket: string): Promise<G
     if (typeof data !== "object" || data === null || !hasStringProp(data, "status") || !hasNullableStringProp(data, "error")) return { kind: "error" };
     const status = data.status;
     if (status !== "pending" && status !== "running" && status !== "passed" && status !== "failed") return { kind: "error" };
-    return { kind: "result", status, error: data.error };
+    return { kind: "result", status, error: data.error, world: testedWorldSize(data) };
   } catch {
     return { kind: "error" };
   }
+}
+
+/** The first measured world of a passed test (the player's; a meta-game's partner comes after), or null. */
+function testedWorldSize(data: object): TestedWorldSize | null {
+  const measures: unknown = "measures" in data ? data.measures : null;
+  if (!Array.isArray(measures)) return null;
+  const first: unknown = measures[0];
+  if (typeof first !== "object" || first === null) return null;
+  const locations: unknown = "locations" in first ? first.locations : null;
+  const own: unknown = "ownProgression" in first ? first.ownProgression : null;
+  return typeof locations === "number" && typeof own === "number" ? { locations, ownProgression: own } : null;
 }

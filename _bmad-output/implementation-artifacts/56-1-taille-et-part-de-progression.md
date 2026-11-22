@@ -74,6 +74,7 @@ afin de repérer le monde qui va bloquer la partie.
   (Version20261122100000), `SeedArchiveGatewayInterface::measure`, commande `MeasureSessionSlots` (outcome enum,
   avertissement journalisé, jamais d'échec de génération), `MeasureSessionSlotsJob` envoyé sur `async` après
   `RecordSessionGeneratedOutput`, console `app:sessions:measure-slots`, champs dans `SessionSlot::payload()`.
-- Reste (CA 2, côté API) : lire `measures` dans le résultat d'un test de slot demande une version du paquet
-  `archilan/orchestrateur-client` (`SlotPreflightJob`), donc l'accord de Jean. L'orchestrateur les renvoie déjà.
+- CA 2 côté API (2026-11-22, accord de Jean) : `archilan/orchestrateur-client` v1.20.0 (`SlotPreflightJob::$measures`),
+  `getSlotPreflight` et `YamlTestResultQuery` renvoient `measures` ; le test de YAML d'un joueur affiche
+  « Ton monde : N emplacements, M objets de progression ».
 - Déploiement : image archipelago puis orchestrateur, puis API. Une image plus ancienne laisse les chiffres nuls.
