@@ -39,6 +39,8 @@ export type PersonalRunParticipant = {
   // Story 16.23: the player said they are ready (draft only), and whether they can (a game, or a co-played slot).
   ready?: boolean;
   canBeReady?: boolean;
+  // Story 16.27: the owner made them co-organiser. Absent on an older API payload.
+  coOwner?: boolean;
 };
 
 export type ParticipantLevel = {
@@ -147,6 +149,11 @@ export type PersonalRun = {
   // ouvrir autre chose que la reprise - le reste des actions reste gardé par `isOwner`.
   // Falsy sur une charge utile d'API antérieure.
   canStart: boolean;
+  // Story 16.27: the caller is a co-organiser, and pilots the run (owner or co-organiser): launch, stop,
+  // configuration. The spoiler, the invitation link and the participants stay behind `isOwner`. Absent on an
+  // older API payload.
+  isCoOwner?: boolean;
+  canAdminister?: boolean;
   participants: PersonalRunParticipant[];
   sessionId: string | null;
   // Whether the finished run's recap is publicly shareable (story 32.5). Falsy on an older API payload.

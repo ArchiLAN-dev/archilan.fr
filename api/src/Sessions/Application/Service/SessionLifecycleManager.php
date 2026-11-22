@@ -541,7 +541,12 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
 
         if (!$isAdmin) {
             $personalRun = $this->runs->findBySessionId($sessionId);
-            $ownsPersonalRun = $personalRun instanceof Run && $personalRun->isOwnedBy($callerId);
+            // Story 16.27: a co-organiser unblocks the run like its owner.
+            $ownsPersonalRun = $personalRun instanceof Run && $personalRun->isAdministeredBy(
+                $callerId,
+                !$personalRun->isOwnedBy($callerId)
+                    && true === $this->runParticipants->findByRunAndUser($personalRun->getId(), $callerId)?->isCoOwner(),
+            );
             $weeklyEntry = $this->weeklyEntries->findByExternalSessionId($sessionId);
             $ownsWeeklyEntry = $weeklyEntry instanceof WeeklyEntry && $weeklyEntry->getUserId() === $callerId;
 

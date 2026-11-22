@@ -34,6 +34,12 @@ final class RunParticipant
          */
         #[ORM\Column(name: 'ready_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $readyAt = null,
+        /**
+         * Story 16.27: since when the owner made this participant a co-organiser, null when they are not. Carried by
+         * the participation, so leaving the run drops it.
+         */
+        #[ORM\Column(name: 'co_owner_since', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $coOwnerSince = null,
     ) {
     }
 
@@ -63,6 +69,27 @@ final class RunParticipant
     public function getGameSlots(): array
     {
         return $this->gameSlots;
+    }
+
+    /** Story 16.27: may pilot the run while the owner is away. */
+    public function isCoOwner(): bool
+    {
+        return null !== $this->coOwnerSince;
+    }
+
+    public function getCoOwnerSince(): ?\DateTimeImmutable
+    {
+        return $this->coOwnerSince;
+    }
+
+    public function makeCoOwner(\DateTimeImmutable $now): void
+    {
+        $this->coOwnerSince ??= $now;
+    }
+
+    public function revokeCoOwner(): void
+    {
+        $this->coOwnerSince = null;
     }
 
     public function isReady(): bool

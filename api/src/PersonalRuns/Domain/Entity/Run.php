@@ -315,6 +315,16 @@ final class Run
     }
 
     /**
+     * Story 16.27 : qui pilote la partie - le propriétaire, ou un participant qu'il a fait co-organisateur. Piloter,
+     * c'est la lancer, l'arrêter, la resynchroniser et régler sa configuration ; le spoiler, la fin de la partie et
+     * les participants restent au propriétaire (`isOwnedBy`). `$isCoOwner` est lu par l'appelant (AC-D3).
+     */
+    public function isAdministeredBy(string $userId, bool $isCoOwner): bool
+    {
+        return $this->isOwnedBy($userId) || $isCoOwner;
+    }
+
+    /**
      * Qui a le droit de démarrer cette run, dans l'état où elle est (story 16.14).
      *
      * Le propriétaire, toujours. Un participant, **uniquement pour reprendre une run en veille**.
@@ -326,12 +336,14 @@ final class Run
      * rien, elle rallume ce qui existait. Sans ce droit, le propriétaire absent bloque la partie de
      * tout le monde.
      *
+     * Un co-organisateur (story 16.27) démarre comme le propriétaire, premier lancement compris.
+     *
      * `$isParticipant` est passé en paramètre plutôt que résolu ici : le Domaine ne lit pas la base
      * (api/CLAUDE.md, AC-D3). L'appelant applicatif le calcule.
      */
-    public function isStartAllowedFor(string $userId, bool $isParticipant): bool
+    public function isStartAllowedFor(string $userId, bool $isParticipant, bool $isCoOwner = false): bool
     {
-        if ($this->isOwnedBy($userId)) {
+        if ($this->isAdministeredBy($userId, $isCoOwner)) {
             return true;
         }
 
