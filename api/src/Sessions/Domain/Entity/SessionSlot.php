@@ -73,6 +73,12 @@ final class SessionSlot
         /** Progression items of the other slots placed in this slot's world. */
         #[ORM\Column(name: 'hosted_progression', type: Types::INTEGER, nullable: true)]
         private ?int $hostedProgression = null,
+        /**
+         * Story 56.8: the duration the slot was expected to last, frozen when its world was measured, so that it can
+         * be compared with the real one once the goal is reached. Null when the pace or the size was unknown.
+         */
+        #[ORM\Column(name: 'estimated_hours', type: Types::FLOAT, nullable: true)]
+        private ?float $estimatedHours = null,
     ) {
     }
 
@@ -249,6 +255,17 @@ final class SessionSlot
         $this->locationsTotal = $locations;
         $this->ownProgression = $ownProgression;
         $this->hostedProgression = $hostedProgression;
+    }
+
+    /** Story 56.8: the expected duration at generation; a duration that is not positive is no estimate. */
+    public function recordEstimatedHours(?float $hours): void
+    {
+        $this->estimatedHours = null !== $hours && $hours > 0 ? $hours : null;
+    }
+
+    public function getEstimatedHours(): ?float
+    {
+        return $this->estimatedHours;
     }
 
     public function getLocationsTotal(): ?int

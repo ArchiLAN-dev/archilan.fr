@@ -1,5 +1,6 @@
 "use client";
 
+import {asDurationCalibration, type DurationCalibration} from "./event-forecast-api";
 import {ArrowLeft, Info, MessageSquarePlus, RefreshCw, ShieldAlert, StickyNote, type LucideIcon} from "lucide-react";
 import Link from "next/link";
 import type {FormEvent} from "react";
@@ -1107,7 +1108,23 @@ export function EstimatedPaceSection({game, onUpdate}: { game: AdminGame; onUpda
                 {success ? <span className="text-sm text-success">Rythme enregistré.</span> : null}
                 {error ? <span className="text-sm text-danger">{error}</span> : null}
             </div>
+            <CalibrationNote calibration={asDurationCalibration(game.durationCalibration)}/>
         </Section>
+    );
+}
+
+/** Story 56.8: how long the game's slots really took against what was expected at their generation. */
+export function CalibrationNote({calibration}: { calibration: DurationCalibration | null }) {
+    if (calibration === null) {
+        return <p className="mt-3 text-sm text-muted-foreground">Aucun slot terminé à comparer avec sa durée prévue.</p>;
+    }
+    const percent = Math.round(Math.abs(calibration.meanGap) * 100);
+    const direction = percent === 0 ? "comme prévu" : `${percent} % ${calibration.meanGap > 0 ? "de plus" : "de moins"} que prévu`;
+
+    return (
+        <p className="mt-3 text-sm text-muted-foreground">
+            Prévu et réel : les slots terminés ont duré en moyenne {direction} ({calibration.slots} slot{calibration.slots > 1 ? "s" : ""}).
+        </p>
     );
 }
 

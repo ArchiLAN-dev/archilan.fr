@@ -41,7 +41,11 @@ final class MeasureSessionSlotsTest extends FunctionalTestCase
 
     public function testTheCommandRecordsTheMeasuresOfEachSlot(): void
     {
-        $this->generatedSession();
+        // Story 56.8: Alice's game is estimated at 60 checks an hour, Carol's has no pace.
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $game->estimatePace(60);
+        $this->entityManager->flush();
+        $this->generatedSession($game->getId());
         StubSeedArchiveGateway::willMeasure([
             ['name' => 'Alice', 'locations' => 120, 'ownProgression' => 30, 'hostedProgression' => 4],
             ['name' => 'Carol', 'locations' => 900, 'ownProgression' => 25, 'hostedProgression' => 51],
@@ -59,6 +63,9 @@ final class MeasureSessionSlotsTest extends FunctionalTestCase
         $carol = $this->slot('slot-carol');
         self::assertSame([900, 25, 51], [$carol->getLocationsTotal(), $carol->getOwnProgression(), $carol->getHostedProgression()]);
         self::assertSame(51, $carol->payload()['hostedProgression']);
+        // The expected durations are frozen with the measures: 120 checks at 60 an hour.
+        self::assertEqualsWithDelta(2.0, $alice->getEstimatedHours(), 0.001);
+        self::assertNull($carol->getEstimatedHours());
     }
 
     public function testAnUnreadableMultidataLeavesTheSlotsUnmeasured(): void
@@ -105,12 +112,12 @@ final class MeasureSessionSlotsTest extends FunctionalTestCase
         self::assertSame('session-56', $jobs[0]->sessionId);
     }
 
-    private function generatedSession(): void
+    private function generatedSession(string $aliceGameId = 'game-a'): void
     {
         $session = Session::create('session-56', 'event-56', new \DateTimeImmutable());
         $session->markGenerated(self::OUTPUT_KEY);
         $this->entityManager->persist($session);
-        $this->entityManager->persist(SessionSlot::create('slot-alice', 'session-56', 'reg-a', 'game-a', 'Alice', 0));
+        $this->entityManager->persist(SessionSlot::create('slot-alice', 'session-56', 'reg-a', $aliceGameId, 'Alice', 0));
         $this->entityManager->persist(SessionSlot::create('slot-carol', 'session-56', 'reg-c', 'game-c', 'Carol', 1));
         $this->entityManager->flush();
 

@@ -428,6 +428,7 @@ services:
 
     # Story 56.2: the paces of our finished games, kept an hour in their own pool (in memory in tests).
     App\Sessions\Application\Query\GamePaceQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalGamePaceQuery'
+    App\Sessions\Application\Query\SlotForecastQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalSlotForecastQuery'
     App\Sessions\Application\Service\SlotDurationEstimate:
         arguments:
             $cache: '@game_paces.cache'

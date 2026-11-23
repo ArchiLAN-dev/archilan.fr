@@ -18,6 +18,7 @@ use App\GameSelection\Application\Support\InstallStepsReader;
 use App\GameSelection\Domain\Repository\GameFollowRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Query\SlotForecastQueryInterface;
 use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Log\NullLogger;
@@ -57,6 +58,7 @@ trait BuildsAdminGameLibrary
             $candidates ?? new InMemoryApworldCandidateRepository(),
             new RequiredGenerationFiles($runner),
             self::createStub(GameFollowRepositoryInterface::class),
+            self::createStub(SlotForecastQueryInterface::class),
         );
     }
 }

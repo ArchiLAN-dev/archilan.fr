@@ -26,6 +26,7 @@ use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Query\SlotForecastQueryInterface;
 use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Sessions\Application\Support\GenerationFailureParser;
 use App\Sessions\Application\Support\ProvidedGenerationFile;
@@ -58,6 +59,7 @@ final readonly class AdminGameLibrary
         private ApworldCandidateRepositoryInterface $candidates,
         private RequiredGenerationFiles $requiredGenerationFiles,
         private GameFollowRepositoryInterface $follows,
+        private SlotForecastQueryInterface $forecasts,
     ) {
     }
 
@@ -1159,6 +1161,14 @@ final readonly class AdminGameLibrary
         ];
     }
 
+    /** @return array{slots: int, meanGap: float}|null */
+    private function durationCalibration(string $gameId): ?array
+    {
+        $calibration = $this->forecasts->gameCalibration($gameId);
+
+        return null === $calibration ? null : ['slots' => $calibration['slots'], 'meanGap' => round($calibration['meanRatio'] - 1, 3)];
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -1184,6 +1194,8 @@ final readonly class AdminGameLibrary
             'adminNotes' => $game->getAdminNotes(),
             // Story 56.2: the admin's pace estimate, used while our games do not measure it.
             'estimatedChecksPerHour' => $game->getEstimatedChecksPerHour(),
+            // Story 56.8: how far the real durations of its slots were from the expected ones.
+            'durationCalibration' => $this->durationCalibration($game->getId()),
             'catalogSheetName' => $sync?->getCatalogSheetName(),
             'apworldSourceUrl' => $sync?->getApworldSourceUrl(),
             'apworldDeployedVersion' => $sync?->getApworldDeployedVersion(),

@@ -42,6 +42,8 @@ export type AdminGame = {
   adminNotes: string | null;
   // Story 56.2: the admin's pace estimate in checks per hour, used while our games do not measure it. Absent on older payloads.
   estimatedChecksPerHour?: number | null;
+  // Story 56.8: real against expected durations, read through asDurationCalibration.
+  durationCalibration?: unknown;
   // Story 9.38: upload-time solo test-generation verdict of the apworld. Null when never
   // checked or when the runner is unreachable. Absent on older payloads.
   apworldPreflight?: ApworldPreflight | null;
