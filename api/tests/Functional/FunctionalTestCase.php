@@ -100,7 +100,8 @@ abstract class FunctionalTestCase extends WebTestCase
      */
     protected function decodedJsonResponse(): array
     {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
+        // The internal response holds what was sent, a streamed response included (its getContent() is false).
+        $decoded = json_decode($this->client->getInternalResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($decoded);
 
         return $decoded;

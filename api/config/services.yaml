@@ -473,6 +473,7 @@ services:
     # Story 52.4.
     App\Sessions\Domain\Repository\PasseurOpeningRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrinePasseurOpeningRepository'
     App\Sessions\Application\Query\PasseurOpeningQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalPasseurOpeningQuery'
+    App\Sessions\Application\Query\SessionFeedEntriesQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalSessionFeedEntriesQuery'
     # Story 52.6.
     App\Sessions\Domain\Repository\DepartureRequestRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineDepartureRequestRepository'
     App\Sessions\Domain\Repository\SlotPlaySpanRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotPlaySpanRepository'
