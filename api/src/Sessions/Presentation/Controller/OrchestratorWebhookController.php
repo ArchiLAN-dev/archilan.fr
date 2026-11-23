@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
+use App\Sessions\Application\Command\RecordBalanceDryGeneration;
 use App\Sessions\Application\Command\RecordSessionGeneratedOutput;
 use App\Sessions\Application\Service\SessionLifecycleManager;
 use App\Sessions\Application\Service\SessionOrchestrator;
@@ -31,6 +32,7 @@ final readonly class OrchestratorWebhookController
         private SessionOrchestrator $sessionOrchestrator,
         private MarkWeeklyRunGenerated $markWeeklyRunGenerated,
         private RecordSessionGeneratedOutput $recordSessionGeneratedOutput,
+        private RecordBalanceDryGeneration $recordBalanceDryGeneration,
         private OrchestratorWebhookFreshness $freshness,
         private LoggerInterface $logger,
         private string $orchestrateurWebhookSecret,
@@ -76,6 +78,18 @@ final readonly class OrchestratorWebhookController
                     'weeklyRunId' => $weeklyRunId,
                     'error' => is_string($body['error'] ?? null) ? $body['error'] : '',
                 ]);
+            }
+
+            return new JsonResponse(['data' => ['ok' => true]]);
+        }
+
+        // Story 56.3: a dry generation of an event or a private run, never an API session.
+        $balanceReportId = RecordBalanceDryGeneration::reportIdOf($sessionId);
+        if (null !== $balanceReportId) {
+            if ('session.generated' === $event) {
+                $this->recordBalanceDryGeneration->generated($balanceReportId, is_string($body['outputKey'] ?? null) ? $body['outputKey'] : '');
+            } elseif ('session.crashed' === $event) {
+                $this->recordBalanceDryGeneration->crashed($balanceReportId, is_string($body['error'] ?? null) ? $body['error'] : null);
             }
 
             return new JsonResponse(['data' => ['ok' => true]]);

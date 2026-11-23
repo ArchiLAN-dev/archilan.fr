@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Children, Fragment, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, AlertTriangle, BookOpen, CalendarDays, CheckCircle, Gamepad2, History, Info, ListChecks, MapPin } from "lucide-react";
+import { AlertCircle, AlertTriangle, BookOpen, CalendarDays, CheckCircle, Gamepad2, History, Info, ListChecks, MapPin, Scale } from "lucide-react";
 
 import { Markdown } from "@/components/markdown/markdown";
 
@@ -25,6 +25,8 @@ import {
   type PracticalInfo,
 } from "./registrant-hub-api";
 import { useMinuteClock } from "./use-minute-clock";
+import { fetchBalanceReport } from "@/features/personal-runs/balance-api";
+import { BalanceReportView, balanceQueryKey } from "@/features/personal-runs/balance-report";
 
 /** Story 53.1: the plain, serializable slice of the public event the hub needs. */
 export type RegistrantHubEvent = {
@@ -130,6 +132,7 @@ export function RegistrantHub({ event }: Props) {
       participation={<HubParticipation confirmed={data.confirmed} phase={phase} registrationId={data.registrationId} />}
       surveys={<HubSurveys eventId={event.id} eventSlug={event.slug} />}
       tools={<HubSideTools eventId={event.id} phase={phase} />}
+      balance={phase === "after" ? null : <MyBalance eventId={event.id} />}
       practicalInfo={practicalInfo ?? null}
       registration={{ registrationId: data.registrationId, confirmed: data.confirmed }}
     />
@@ -156,6 +159,8 @@ type ViewProps = {
   guides?: HelpGuideCard[] | null;
   /** Story 53.6: "Revivre l'event", handed in by the gate (it reads the member's game). */
   relive?: ReactNode;
+  /** Story 56.3: the member's own lines of the balance report, handed in by the gate (it reads its own data). */
+  balance?: ReactNode;
 };
 
 /**
@@ -175,6 +180,7 @@ export function RegistrantHubView({
   tools,
   guides = null,
   relive,
+  balance,
 }: ViewProps) {
   const phase = eventPhase(event, now);
   const registrationPath = `/evenements/${event.slug}/inscription/${registration.registrationId}`;
@@ -234,6 +240,7 @@ export function RegistrantHubView({
             {/* Story 53.10: a done list stays at hand, out of the way. */}
             {shownChecklist !== null && ready ? <RegistrantChecklist {...context} items={shownChecklist} /> : null}
           </RegistrantHubSection>
+          {balance}
           <GuidesSection guides={guides} />
         </aside>
       </div>
@@ -399,5 +406,26 @@ function RegistrantHubSkeleton() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Story 56.3: the member's own lines of the event's balance report (never the others'), once the organisers ran a
+ * dry generation; nothing before.
+ */
+function MyBalance({ eventId }: { eventId: string }) {
+  const scope = { kind: "mine", eventId } as const;
+  const { data } = useQuery({
+    queryKey: balanceQueryKey(scope),
+    queryFn: () => fetchBalanceReport(scope),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  if (data === undefined || data === null || data.status !== "done" || data.slots.length === 0) return null;
+
+  return (
+    <RegistrantHubSection icon={<Scale aria-hidden="true" className="size-4" />} title="Équilibre de mon monde">
+      <BalanceReportView mine report={data} />
+    </RegistrantHubSection>
   );
 }

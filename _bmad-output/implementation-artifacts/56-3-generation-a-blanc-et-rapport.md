@@ -1,6 +1,6 @@
 # Story 56.3 - Génération à blanc et rapport d'équilibre
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 56 - Équilibrage des parties (`_bmad-output/planning-artifacts/epics/epic-56-equilibrage.md`)
 **Date:** 2026-11-21
 **Issue:** #1176
@@ -45,11 +45,11 @@ afin de corriger un monde trop grand avant le jour J.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** - Orchestrateur : génération sans lancement (option du chemin existant).
-- [ ] **Task 2** - API : commande `RunBalanceDryGeneration`, stockage du dernier résultat, requête du rapport.
-- [ ] **Task 3** - Front : section « Équilibre » du hub admin, rapport d'une partie privée, ligne dans l'espace
+- [x] **Task 1** - Orchestrateur : génération sans lancement (option du chemin existant). Aucun changement : `configure` puis `generate` ne lancent jamais de serveur, il suffit d'une session orchestrateur à part (`balance-{scope}-{id}`).
+- [x] **Task 2** - API : commande `RunBalanceDryGeneration`, stockage du dernier résultat, requête du rapport.
+- [x] **Task 3** - Front : section « Équilibre » du hub admin, rapport d'une partie privée, ligne dans l'espace
   inscrit.
-- [ ] **Task 4** - Tests et gates.
+- [x] **Task 4** - Tests et gates.
 
 ## Dev Notes
 
@@ -57,3 +57,43 @@ afin de corriger un monde trop grand avant le jour J.
   plusieurs. D'où la génération de la partie entière.
 - Mémoire `apworld_required_files` : un jeu qui demande une ROM à la génération ne peut pas être généré à blanc sans
   elle ; le rapport le dit plutôt que d'échouer.
+
+## Dev Agent Record
+
+### Fichiers
+
+- API :
+  - `Sessions/Domain/Entity/BalanceReport` (table `balance_report`, migration `Version20261123100000`) : un rapport par
+    event ou partie privée (`event-{id}`, `run-{id}`), le dernier remplace le précédent ; slots envoyés, empreinte des
+    entrées, mesures, statut (`generating`, `done`, `failed`, `needs_files`).
+  - `Application/Service/BalanceInputs` : les slots lus comme la vraie génération (YAML enregistré ou YAML par
+    défaut, apworld courant) et leur empreinte (joueur, jeu, apworld, sha1 du YAML), qui rend le rapport « à
+    refaire ».
+  - `Application/Command/RunBalanceDryGeneration` : `configure` puis `generate` sur la session orchestrateur
+    `balance-{scope}-{id}`, avec les réglages de génération du périmètre (plafond 56.6 compris). Pas de session API.
+    Un jeu qui lit un fichier à la génération donne `needs_files` sans rien générer. Une génération en cours bloque
+    une nouvelle demande pendant une heure au plus.
+  - `Application/Command/RecordBalanceDryGeneration` + `MeasureBalanceReportJob` : le webhook (`session.generated`,
+    `session.crashed`) garde la clé de sortie et met la mesure en file sur le worker, qui lit la multidata comme 56.1.
+  - `Application/Query/BalanceReportQuery` : lignes, médiane, cible (durée de l'event moins 20 % jusqu'à 56.5,
+    aucune pour une partie privée), alertes `duration_over_median`, `duration_over_target`, `hosted_over_fair`,
+    `hosted_over_half` (part hébergée rapportée à la progression appartenant aux autres slots).
+  - `Presentation/Controller/BalanceReportController` :
+    - `GET|POST /api/v1/admin/events/{eventId}/balance` (admin) ;
+    - `GET|POST /api/v1/runs/{runId}/balance` (propriétaire, co-organisateur 16.27, admin) ;
+    - `GET /api/v1/events/{eventId}/my-balance` (inscrit : ses lignes seulement, sans l'erreur de génération qui peut
+      nommer les autres).
+- Front :
+  - `features/personal-runs/balance-api.ts` et `balance-report.tsx` (`BalanceReportView` pur, `BalancePanel` qui
+    relit toutes les 5 s pendant la génération) ;
+  - page `/admin/evenements/{id}/equilibre`, onglet et entrée « Équilibre » du hub (section Jour J) ;
+  - section « Équilibre de la partie » sur une partie privée en brouillon, pour qui la pilote ;
+  - « Équilibre de mon monde » dans l'espace inscrit, une fois le rapport fait.
+
+### Tests
+
+- `tests/Functional/BalanceReportTest.php` : génération à blanc d'un event (slots envoyés, refus pendant la
+  génération), webhook et mesure, parts et alerte d'hébergement, rapport périmé après un YAML, seuils de durée et
+  slot sans rythme, plantage, ROM, lecture par un joueur et droits sur une partie privée.
+- `frontend/src/features/personal-runs/balance-report.test.tsx` : lecture de la réponse, tableau, alertes, état
+  périmé, durée inconnue, ROM.
