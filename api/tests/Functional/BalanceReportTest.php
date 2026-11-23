@@ -162,6 +162,66 @@ final class BalanceReportTest extends FunctionalTestCase
         self::assertNull($carolRow['medianGap']);
     }
 
+    public function testThePartySimulationShowsWhoWaitsForWhom(): void
+    {
+        $event = $this->createEvent('ArchiLAN', new \DateTimeImmutable('2027-06-01T10:00:00+00:00'), new \DateTimeImmutable('2027-06-02T10:00:00+00:00'));
+        $admin = $this->createUser('admin@example.com', ['ROLE_ADMIN'], 'Admin');
+        $alice = $this->createUser('alice@example.com', displayName: 'Alice');
+        $bob = $this->createUser('bob@example.com', displayName: 'Bob');
+        $carol = $this->createUser('carol@example.com', displayName: 'Carol');
+        $paced = $this->createGame('Paced', 'paced');
+        $paced->estimatePace(10);
+        $unknown = $this->createGame('Unknown', 'unknown');
+        $this->entityManager->flush();
+        foreach ([$alice, $bob] as $user) {
+            $this->createRegistration($event->getId(), $user->getId(), selectedGameIds: [$paced->getId()]);
+        }
+        $this->createRegistration($event->getId(), $carol->getId(), selectedGameIds: [$unknown->getId()]);
+
+        $this->loginAs($admin);
+        $this->client->request('POST', '/api/v1/admin/events/'.$event->getId().'/balance');
+        self::assertResponseStatusCodeSame(202);
+        $measures = [];
+        $slotOf = [];
+        foreach ($this->reportSlots($event->getId()) as $slot) {
+            $slotOf[$slot['userId']] = $slot['slotName'];
+            // Alice 10 h, Bob 20 h at 10 checks an hour; Carol's game has no pace: 50 checks at the median pace, 5 h.
+            $locations = match ($slot['userId']) {
+                $alice->getId() => 100,
+                $bob->getId() => 200,
+                default => 50,
+            };
+            $measures[] = ['name' => $slot['slotName'], 'locations' => $locations, 'ownProgression' => 10, 'hostedProgression' => 0];
+        }
+        [$a, $b, $c] = [$slotOf[$alice->getId()], $slotOf[$bob->getId()], $slotOf[$carol->getId()]];
+        // Bob holds Alice's key, Alice holds Carol's.
+        $spoiler = "Playthrough:\n\n0: {\n}\n1: {\n  Chest ({$b}): Key ({$a})\n}\n2: {\n  Door ({$a}): Gem ({$c})\n}\n\nPaths:\n";
+        $this->generatedOutput($event->getId(), $spoiler);
+        StubSeedArchiveGateway::willMeasure($measures);
+        $this->measureQueuedReport();
+
+        $this->client->request('GET', '/api/v1/admin/events/'.$event->getId().'/balance');
+        self::assertResponseIsSuccessful();
+        $report = $this->data();
+        self::assertEquals(['status' => 'done', 'endHours' => 20.0, 'criticalSlot' => $b], $report['simulation']);
+        self::assertIsArray($report['slots']);
+        // Alice waits 5 h for Bob's key (found halfway through his 20 h), and finds Carol's gem at 12 h 30.
+        self::assertEquals(['finishHours' => 15.0, 'bkHours' => 5.0, 'waitsOn' => [['slotName' => $b, 'hours' => 5.0]], 'paceAssumed' => false], $this->rowOf($report['slots'], $a)['simulation']);
+        self::assertEquals(['finishHours' => 15.0, 'bkHours' => 10.0, 'waitsOn' => [['slotName' => $a, 'hours' => 10.0]], 'paceAssumed' => true], $this->rowOf($report['slots'], $c)['simulation']);
+        self::assertEquals(['finishHours' => 20.0, 'bkHours' => 0.0, 'waitsOn' => [], 'paceAssumed' => false], $this->rowOf($report['slots'], $b)['simulation']);
+
+        // A player reads their own course, not the party's.
+        $this->loginAs($alice);
+        $this->client->request('GET', '/api/v1/events/'.$event->getId().'/my-balance');
+        self::assertResponseIsSuccessful();
+        $mine = $this->data();
+        self::assertNull($mine['simulation']);
+        self::assertIsArray($mine['slots']);
+        $own = $this->rowOf($mine['slots'], $a)['simulation'];
+        self::assertIsArray($own);
+        self::assertEquals(15.0, $own['finishHours']);
+    }
+
     public function testAPlayerSeesOnlyTheirOwnLines(): void
     {
         [$event, $admin, $alice] = $this->eventWithTwoPlayers();
@@ -294,13 +354,16 @@ final class BalanceReportTest extends FunctionalTestCase
         return $report->getSlots();
     }
 
-    private function generatedOutput(string $eventId): void
+    private function generatedOutput(string $eventId, ?string $spoiler = null): void
     {
         $zipPath = tempnam(sys_get_temp_dir(), 'ap563');
         self::assertIsString($zipPath);
         $zip = new \ZipArchive();
         self::assertTrue($zip->open($zipPath, \ZipArchive::OVERWRITE));
         $zip->addFromString('AP_563.archipelago', "\x03multidata");
+        if (null !== $spoiler) {
+            $zip->addFromString('AP_563_Spoiler.txt', $spoiler);
+        }
         $zip->close();
         $contents = file_get_contents($zipPath);
         unlink($zipPath);

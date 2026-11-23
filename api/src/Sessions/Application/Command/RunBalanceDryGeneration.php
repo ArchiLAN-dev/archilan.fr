@@ -13,6 +13,7 @@ use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\SessionConfig\Application\Service\SessionConfigResolver;
 use App\SessionConfig\Domain\Enum\SessionType;
+use App\SessionConfig\Domain\Enum\SpoilerLevel;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Service\BalanceInputs;
 use App\Sessions\Application\Support\SlotNameGenerator;
@@ -146,6 +147,8 @@ final readonly class RunBalanceDryGeneration
             }
 
             $options = $this->configResolver->resolve($type, $configScope)->generation->toGenerationParams();
+            // Story 56.4: the simulation reads the playthrough; no player ever sees this spoiler.
+            $options['spoiler'] = max(SpoilerLevel::WithPlaythrough->value, $options['spoiler']);
             $this->runner->generateSession($orchestratorSessionId, bin2hex(random_bytes(16)), null, $options);
         } catch (\Throwable $e) {
             $this->logger->warning('sessions.balance.dry_generation_unavailable', ['reportId' => $report->getId(), 'error' => $e->getMessage()]);

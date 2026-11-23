@@ -22,6 +22,24 @@ export type BalanceRow = {
   durationSource: string;
   medianGap: number | null;
   alerts: BalanceAlert[];
+  /** Story 56.4: the slot's course in the party simulation; null without one. */
+  simulation: SimulatedSlot | null;
+};
+
+/** Story 56.4: when a slot would end, its time in BK and the slots it waits on most. */
+export type SimulatedSlot = {
+  finishHours: number | null;
+  bkHours: number | null;
+  waitsOn: { slotName: string; hours: number | null }[];
+  /** Its pace is unknown: played at the party's median pace. */
+  paceAssumed: boolean;
+};
+
+/** Story 56.4: `missing` (no playthrough to read), `no_pace` (no slot has a known pace). */
+export type PartySimulation = {
+  status: "done" | "missing" | "no_pace";
+  endHours: number | null;
+  criticalSlot: string | null;
 };
 
 export type BalanceReport = {
@@ -34,6 +52,8 @@ export type BalanceReport = {
   targetHours: number | null;
   medianHours: number | null;
   slotCount: number;
+  /** Story 56.4: null in a player's own view. */
+  simulation: PartySimulation | null;
   slots: BalanceRow[];
 };
 
@@ -46,6 +66,36 @@ function isStatus(value: unknown): value is BalanceStatus {
 
 function isAlert(value: unknown): value is BalanceAlert {
   return typeof value === "string" && ALERTS.includes(value);
+}
+
+const SIMULATION_STATUSES: readonly string[] = ["done", "missing", "no_pace"];
+
+function isSimulationStatus(value: unknown): value is PartySimulation["status"] {
+  return typeof value === "string" && SIMULATION_STATUSES.includes(value);
+}
+
+function parseSimulatedSlot(value: unknown): SimulatedSlot | null {
+  if (typeof value !== "object" || value === null) return null;
+  const waits = "waitsOn" in value && Array.isArray(value.waitsOn) ? value.waitsOn : [];
+  return {
+    finishHours: hasNullableNumberProp(value, "finishHours") ? value.finishHours : null,
+    bkHours: hasNullableNumberProp(value, "bkHours") ? value.bkHours : null,
+    waitsOn: waits.flatMap((w: unknown) =>
+      typeof w === "object" && w !== null && hasStringProp(w, "slotName")
+        ? [{ slotName: w.slotName, hours: hasNullableNumberProp(w, "hours") ? w.hours : null }]
+        : [],
+    ),
+    paceAssumed: hasBooleanProp(value, "paceAssumed") ? value.paceAssumed : false,
+  };
+}
+
+function parsePartySimulation(value: unknown): PartySimulation | null {
+  if (typeof value !== "object" || value === null || !("status" in value) || !isSimulationStatus(value.status)) return null;
+  return {
+    status: value.status,
+    endHours: hasNullableNumberProp(value, "endHours") ? value.endHours : null,
+    criticalSlot: hasNullableStringProp(value, "criticalSlot") ? value.criticalSlot : null,
+  };
 }
 
 function parseRow(value: unknown): BalanceRow | null {
@@ -69,6 +119,7 @@ function parseRow(value: unknown): BalanceRow | null {
     durationSource: duration !== null && hasStringProp(duration, "source") ? duration.source : "unknown",
     medianGap: value.medianGap,
     alerts,
+    simulation: "simulation" in value ? parseSimulatedSlot(value.simulation) : null,
   };
 }
 
@@ -88,6 +139,7 @@ export function parseBalanceReport(json: unknown): BalanceReport | null {
     targetHours: hasNullableNumberProp(data, "targetHours") ? data.targetHours : null,
     medianHours: hasNullableNumberProp(data, "medianHours") ? data.medianHours : null,
     slotCount: hasNumberProp(data, "slotCount") ? data.slotCount : rows.length,
+    simulation: "simulation" in data ? parsePartySimulation(data.simulation) : null,
     slots: rows,
   };
 }

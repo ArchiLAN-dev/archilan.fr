@@ -1,6 +1,6 @@
 # Story 56.4 - Simulateur de partie
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 56 - Équilibrage des parties (`_bmad-output/planning-artifacts/epics/epic-56-equilibrage.md`)
 **Date:** 2026-11-21
 **Issue:** #1177
@@ -41,9 +41,35 @@ afin de juger une partie sur son déroulé et pas seulement sur des tailles.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** - Vérifier, dans le spoiler produit par notre image, la présence de la section des emplacements et
+- [x] **Task 1** - Vérifier, dans le spoiler produit par notre image, la présence de la section des emplacements et
   son format ; sinon l'extraire avec le script de 56.1.
-- [ ] **Task 2** - Domain `PartySimulation` et ses tests.
-- [ ] **Task 3** - Application : assemblage des entrées, cache du résultat avec la génération à blanc.
-- [ ] **Task 4** - Front : colonnes du rapport et slot critique.
-- [ ] **Task 5** - Gates.
+- [x] **Task 2** - Domain `PartySimulation` et ses tests.
+- [x] **Task 3** - Application : assemblage des entrées, cache du résultat avec la génération à blanc.
+- [x] **Task 4** - Front : colonnes du rapport et slot critique.
+- [x] **Task 5** - Gates.
+
+## Dev Agent Record
+
+### Implémentation
+
+- **Entrée (Task 1)** : le parcours du spoiler (« Playthrough », lu par `SpoilerPlaythrough` de 52.7) suffit : il
+  donne, sphère par sphère, qui trouve un objet de progression et pour qui. La section des emplacements n'apporte
+  rien de plus au modèle (elle ne dit pas l'accès), elle n'est pas lue. La génération à blanc force un spoiler de
+  niveau 2 au moins (jamais montré aux joueurs) ; la mesure garde un parcours compact (`sphere`, `finder`,
+  `receiver`) dans `balance_report.playthrough`.
+- **Modèle (`PartySimulation`, Domain pur)** : le temps de jeu d'un slot (56.2) est coupé en parts égales, une de
+  plus que les sphères où il reçoit un objet. La part k attend ses objets des sphères jusqu'à sa k-ième ; un objet
+  qu'il trouve en sphère s part à mi-chemin de la part qui ouvre s. L'attente est du BK, imputée au slot dont l'objet
+  arrive le dernier. Sortie : fin, BK, les deux slots attendus le plus ; fin de partie et slot critique (le dernier à
+  finir).
+- **Rythme inconnu** : le slot joue au rythme médian (emplacements par heure) de la partie, marqué `paceAssumed`.
+  Sans aucun rythme connu, `simulation.status = no_pace` ; sans parcours (rapport d'avant 56.4), `missing`.
+- **Rapport** : colonne « Déroulé simulé » (fin, BK, attend X), encadré « Fin de partie simulée » avec le slot
+  critique et la limite du modèle. Un joueur voit son propre déroulé, pas le résumé de la partie.
+
+### Fichiers
+
+- API : `PartySimulation`, `SimulatedSlot`, `PartySimulationResult`, `BalanceReport` (+ `playthrough`),
+  `RecordBalanceDryGeneration`, `RunBalanceDryGeneration`, `BalanceReportQuery`, migration `Version20261123100003` ;
+  tests `PartySimulationTest` (chaîne, attente croisée, slot autonome), `BalanceReportTest`.
+- Front : `balance-api.ts`, `balance-report.tsx` et son test.
