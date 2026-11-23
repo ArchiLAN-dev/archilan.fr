@@ -1,5 +1,7 @@
 parameters:
     level: max
+    # Story 33.29: kept under var/ so CI can carry the result cache from one run to the next.
+    tmpDir: var/tools-cache/phpstan
     paths:
         - src
         - tests

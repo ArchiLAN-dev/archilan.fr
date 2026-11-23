@@ -1,0 +1,46 @@
+name: API setup
+description: PHP, Composer and the api/ dependencies, shared by the backend jobs (story 33.29).
+
+inputs:
+  coverage:
+    description: Coverage driver for setup-php ("none" or "pcov").
+    required: false
+    default: none
+  composer-token:
+    description: GitHub token for Composer (private packages and rate limits).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # NB: single PHP leg on purpose - CI runs the version the prod image ships
+    # (php:8.5-cli-alpine since story 33.9 M3); composer.json requires ^8.4,
+    # which 8.5 satisfies.
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.5'
+        extensions: ctype, iconv, pdo_pgsql, pgsql, amqp, gd
+        coverage: ${{ inputs.coverage }}
+        tools: composer:v2
+
+    - name: Configure Composer GitHub token
+      shell: bash
+      run: composer config -g github-oauth.github.com ${{ inputs.composer-token }}
+
+    - name: Get Composer cache directory
+      id: composer-cache
+      shell: bash
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+    - name: Cache Composer dependencies
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('api/composer.lock') }}
+        restore-keys: ${{ runner.os }}-composer-
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: api
+      run: composer install --no-interaction --prefer-dist --no-progress

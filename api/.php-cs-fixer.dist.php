@@ -28,4 +28,6 @@ return (new PhpCsFixer\Config())
         'php_unit_test_case_static_method_calls' => ['call_type' => 'self'],
     ])
     ->setFinder($finder)
+    // Story 33.29: kept under var/ so CI can carry the cache from one run to the next.
+    ->setCacheFile(__DIR__.'/var/tools-cache/php-cs-fixer.cache')
 ;
