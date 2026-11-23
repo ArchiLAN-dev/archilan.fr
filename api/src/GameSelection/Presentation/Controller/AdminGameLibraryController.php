@@ -205,6 +205,37 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Notes enregistrées.']]);
     }
 
+    /** Story 56.2: the admin's estimate of the game's pace, used while our finished games do not measure it. */
+    #[Route('/api/v1/admin/games/{gameId}/estimated-pace', name: 'api_admin_game_save_estimated_pace', methods: ['PATCH'])]
+    public function saveEstimatedPace(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $raw = $this->jsonPayload($request)['estimatedChecksPerHour'] ?? null;
+        if (null !== $raw && (!is_int($raw) || $raw < 1 || $raw > Game::MAX_ESTIMATED_CHECKS_PER_HOUR)) {
+            $message = \sprintf('Le rythme est un nombre entier de checks par heure, entre 1 et %d.', Game::MAX_ESTIMATED_CHECKS_PER_HOUR);
+
+            return $this->apiAccessGuard->errorResponse('validation_failed', $message, 422, ['estimatedChecksPerHour' => [$message]]);
+        }
+
+        $result = $this->adminGameLibrary->saveEstimatedPace($gameId, $raw);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('estimated_pace_save_failed', 'L\'enregistrement du rythme a échoué.', 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => null === $raw ? 'Rythme estimé retiré.' : 'Rythme estimé enregistré.']]);
+    }
+
     /** Story 38.30: the test generations of a meta-game add a partner player. */
     #[Route('/api/v1/admin/games/{gameId}/apworld-test-partner', name: 'api_admin_game_apworld_test_partner', methods: ['PATCH'])]
     public function changeTestPartner(Request $request, string $gameId): JsonResponse
@@ -409,6 +440,52 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => null === $subOptions || [] === $subOptions
             ? "Valeurs rendues à l'introspection."
             : 'Valeurs enregistrées.']]);
+    }
+
+    /**
+     * Story 56.5: the game's option presets. Body: `{"presets": [{"name": "Court", "values": {"goal": "dungeons"}}]}`;
+     * an empty list clears them.
+     */
+    #[Route('/api/v1/admin/games/{gameId}/option-presets', name: 'api_admin_game_save_option_presets', methods: ['PUT'])]
+    public function saveOptionPresets(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $result = $this->adminGameLibrary->saveOptionPresets($gameId, is_array($payload) ? ($payload['presets'] ?? null) : null);
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Préréglages invalides.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => $result['game'] ?? []]);
+    }
+
+    /**
+     * Story 56.7: the game's size options, tried in this order by a player's size search. Body:
+     * `{"options": ["goal_tokens"]}`; an empty list clears them.
+     */
+    #[Route('/api/v1/admin/games/{gameId}/size-options', name: 'api_admin_game_save_size_options', methods: ['PUT'])]
+    public function saveSizeOptions(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $result = $this->adminGameLibrary->saveSizeOptions($gameId, is_array($payload) ? ($payload['options'] ?? null) : null);
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Options de taille invalides.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => $result['game'] ?? []]);
     }
 
     #[Route('/api/v1/admin/games/{gameId}/default-yaml', name: 'api_admin_game_save_default_yaml', methods: ['PUT'])]

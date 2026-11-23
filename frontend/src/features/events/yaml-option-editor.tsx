@@ -32,6 +32,8 @@ import {
   type PlandoItemsOption,
   type RangeOption,
   type ToggleOption,
+  applyOptionPreset,
+  type OptionPreset,
 } from "@/lib/archipelago-yaml";
 import { apiErrorMessage } from "@/lib/api-error";
 import { env } from "@/lib/env";
@@ -40,6 +42,9 @@ import { ItemCatalogContext, ItemNameInput } from "@/features/events/item-name-i
 import { buildItemCatalog, ITEM_DICT_OPTION_KEYS, ITEM_LIST_OPTION_KEYS } from "@/lib/item-catalog";
 import { YamlImportDialog } from "@/features/events/yaml-import-dialog";
 import { GameYamlTestOutcome, useGameYamlTest } from "@/features/games/game-yaml-test";
+import { SizeSearchPanel } from "@/features/games/size-search";
+import type { YamlTestContext } from "@/features/games/game-yaml-test-api";
+import { OptionPresetBar } from "@/features/events/option-preset-bar";
 
 /** YAML options whose list items are location names -> get the static-location autocomplete (story 4.14). */
 const LOCATION_OPTION_KEYS = new Set(["priority_locations", "exclude_locations", "start_location_hints"]);
@@ -83,6 +88,12 @@ type YamlOptionEditorProps = {
   onChange?: (yaml: string) => void;
   /** Story 9.57: the game being configured, for the test generation of the YAML shown. */
   gameId?: string;
+  /** Story 56.5: the event or private run the slot belongs to, so the test compares the world with its target. */
+  testContext?: YamlTestContext;
+  /** Story 56.5: the admin's formats for this game (short, medium, long). */
+  optionPresets?: OptionPreset[];
+  /** Story 56.7: the options a size search may change; with a test context, a world past the target can ask for one. */
+  sizeOptions?: string[];
 };
 
 /**
@@ -110,6 +121,9 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
       saveUrl,
       onChange,
       gameId,
+      testContext,
+      optionPresets = [],
+      sizeOptions = [],
     },
     ref,
   ) {
@@ -130,7 +144,8 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
   const [invalidKeys, setInvalidKeys] = useState<Set<string>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
   const itemCatalog = useMemo(() => buildItemCatalog(itemNames, itemGroups), [itemNames, itemGroups]);
-  const yamlTest = useGameYamlTest(gameId);
+  const yamlTest = useGameYamlTest(gameId, testContext);
+  const [presetNote, setPresetNote] = useState<string | null>(null);
 
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => {
     const base = parseDefaultYaml(defaultYaml ?? "", optionTypes);
@@ -173,6 +188,20 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
     setInvalidKeys(new Set());
     onChange?.(serializeToYaml(imported));
     markDirty();
+  }
+
+  // Story 56.5: a preset rewrites the options it names; the player can change any value afterwards.
+  function applyPreset(preset: OptionPreset) {
+    if (!parsed) return;
+    const result = applyOptionPreset(parsed, preset);
+    setParsed(result.parsed);
+    onChange?.(serializeToYaml(result.parsed));
+    markDirty();
+    setPresetNote(
+      result.applied.length === 0
+        ? `« ${preset.name} » ne change aucune option de ce YAML.`
+        : `« ${preset.name} » appliqué : ${result.applied.join(", ")}. Tu peux encore modifier chaque valeur.`,
+    );
   }
 
   function updateOption(updated: GameOption) {
@@ -301,6 +330,9 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
     <div className="card-glow rounded-lg border border-border p-4 sm:p-5">
       {parsed ? (
         <>
+          {effectivelyOpen && optionPresets.length > 0 ? (
+            <OptionPresetBar note={presetNote} presets={optionPresets} onApply={applyPreset} />
+          ) : null}
           <div className="grid gap-2">
             <div className="grid gap-2 sm:flex sm:items-center sm:gap-3">
               <label className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold text-foreground">
@@ -497,6 +529,20 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
           ) : null}
         </div>
         <GameYamlTestOutcome state={yamlTest.state} />
+        {gameId !== undefined &&
+        testContext !== undefined &&
+        effectivelyOpen &&
+        sizeOptions.length > 0 &&
+        yamlTest.state.kind === "done" &&
+        yamlTest.state.world?.overTarget === true ? (
+          <SizeSearchPanel
+            context={testContext}
+            currentYaml={() => (parsed ? serializeToYaml(parsed) : rawYaml)}
+            gameId={gameId}
+            labelOf={(key) => parsed?.options.find((o) => o.key === key)?.label ?? key}
+            onApply={(option, value) => applyPreset({ name: "Réglage proposé", values: { [option]: value } })}
+          />
+        ) : null}
       </div>
 
       {importBase !== null && importOpen ? (

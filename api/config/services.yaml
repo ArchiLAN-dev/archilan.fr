@@ -426,6 +426,13 @@ services:
     # Story 34.10: the frontend's ISR revalidation route, on the Docker network. Either value empty = disabled.
     App\Shared\Application\Port\PublicPageCacheInterface: '@App\Shared\Infrastructure\Http\HttpPublicPageCache'
 
+    # Story 56.2: the paces of our finished games, kept an hour in their own pool (in memory in tests).
+    App\Sessions\Application\Query\GamePaceQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalGamePaceQuery'
+    App\Sessions\Application\Query\SlotForecastQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalSlotForecastQuery'
+    App\Sessions\Application\Service\SlotDurationEstimate:
+        arguments:
+            $cache: '@game_paces.cache'
+
     # Story 41.73: the weekly quests' progress and collective total, in their own pool (in memory in tests).
     App\Wallet\Application\Query\MyWeeklyQuests:
         arguments:
@@ -443,6 +450,9 @@ services:
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
+    # Story 56.3: the last dry generation of each event and private run.
+    App\Sessions\Domain\Repository\BalanceReportRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineBalanceReportRepository'
+    App\GameSelection\Domain\Repository\SizeSearchRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineSizeSearchRepository'
     App\Sessions\Domain\Repository\ItemBountyRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineItemBountyRepository'
 
     App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotCoPlayerRepository'
@@ -658,6 +668,13 @@ when@test:
 
         App\Shared\Infrastructure\Double\NullMinioStorage:
             public: true
+
+        # Story 56.2: read by the tests before a page consumes it (stories 56.3 and 56.5).
+        App\Sessions\Application\Service\SlotDurationEstimate:
+            public: true
+            autowire: true
+            arguments:
+                $cache: '@game_paces.cache'
 
         App\Streaming\Application\Port\TwitchApiClientInterface:
             class: App\Streaming\Infrastructure\Double\NullTwitchApiClient

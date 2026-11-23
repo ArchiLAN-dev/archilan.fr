@@ -438,7 +438,18 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         try {
             $job = $this->client->preflight()->get($jobId);
 
-            return ['status' => $job->status, 'error' => $job->error];
+            $measures = [];
+            foreach ($job->measures as $measure) {
+                $measures[] = [
+                    'name' => $measure->name,
+                    'game' => $measure->game,
+                    'locations' => $measure->locations,
+                    'ownProgression' => $measure->ownProgression,
+                    'hostedProgression' => $measure->hostedProgression,
+                ];
+            }
+
+            return ['status' => $job->status, 'error' => $job->error, 'measures' => $measures];
         } catch (\Throwable $e) {
             $this->logger->warning('runner.slot_preflight_poll_failed', ['jobId' => $jobId, 'error' => $e->getMessage()]);
 

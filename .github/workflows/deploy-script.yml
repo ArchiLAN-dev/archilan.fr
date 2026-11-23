@@ -1,0 +1,29 @@
+name: Deploy script
+
+# Story 33.34: the continuous deployment script runs on the production machine, never in CI. CI only lints it.
+on:
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/deploy-script.yml'
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'deploy/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: shellcheck
+        run: shellcheck --version && shellcheck deploy/archilan-deploy.sh

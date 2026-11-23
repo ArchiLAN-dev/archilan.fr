@@ -35,15 +35,35 @@ export async function startGameYamlTest(
   }
 }
 
+/**
+ * Story 56.1: the tested world's number of locations and its progression items. Story 56.5: how long it should take
+ * this player (null without a known pace) and the target of the event or run it was read for.
+ */
+export type TestedWorldSize = {
+  locations: number;
+  ownProgression: number;
+  hours?: number | null;
+  targetHours?: number | null;
+  overTarget?: boolean;
+};
+
+/** Story 56.5: the event or private run a test is read for, which gives the target. */
+export type YamlTestContext = { eventId: string } | { runId: string };
+
+function contextQuery(context: YamlTestContext | undefined): string {
+  if (context === undefined) return "";
+  return "eventId" in context ? `?eventId=${encodeURIComponent(context.eventId)}` : `?runId=${encodeURIComponent(context.runId)}`;
+}
+
 export type GameYamlTestResult =
-  | { kind: "result"; status: "pending" | "running" | "passed" | "failed"; error: string | null }
+  | { kind: "result"; status: "pending" | "running" | "passed" | "failed"; error: string | null; world: TestedWorldSize | null }
   | { kind: "gone" }
   | { kind: "error" };
 
 /** Story 9.57: where a test stands. `gone` = unknown or expired (the orchestrator keeps them 30 minutes). */
-export async function getGameYamlTest(gameId: string, ticket: string): Promise<GameYamlTestResult> {
+export async function getGameYamlTest(gameId: string, ticket: string, context?: YamlTestContext): Promise<GameYamlTestResult> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/games/${encodeURIComponent(gameId)}/yaml-test/${encodeURIComponent(ticket)}`);
+    const res = await apiFetch(`${env.apiBaseUrl}/games/${encodeURIComponent(gameId)}/yaml-test/${encodeURIComponent(ticket)}${contextQuery(context)}`);
     if (res.status === 404) return { kind: "gone" };
     if (!res.ok) return { kind: "error" };
     const json: unknown = await res.json();
@@ -51,8 +71,31 @@ export async function getGameYamlTest(gameId: string, ticket: string): Promise<G
     if (typeof data !== "object" || data === null || !hasStringProp(data, "status") || !hasNullableStringProp(data, "error")) return { kind: "error" };
     const status = data.status;
     if (status !== "pending" && status !== "running" && status !== "passed" && status !== "failed") return { kind: "error" };
-    return { kind: "result", status, error: data.error };
+    return { kind: "result", status, error: data.error, world: testedWorldSize(data) };
   } catch {
     return { kind: "error" };
   }
+}
+
+/** The first measured world of a passed test (the player's; a meta-game's partner comes after), or null. */
+function testedWorldSize(data: object): TestedWorldSize | null {
+  const measures: unknown = "measures" in data ? data.measures : null;
+  if (!Array.isArray(measures)) return null;
+  const first: unknown = measures[0];
+  if (typeof first !== "object" || first === null) return null;
+  const locations: unknown = "locations" in first ? first.locations : null;
+  const own: unknown = "ownProgression" in first ? first.ownProgression : null;
+  if (typeof locations !== "number" || typeof own !== "number") return null;
+  const estimate: unknown = "estimate" in data ? data.estimate : null;
+  if (typeof estimate !== "object" || estimate === null) return { locations, ownProgression: own };
+  const hours: unknown = "hours" in estimate ? estimate.hours : null;
+  const target: unknown = "targetHours" in estimate ? estimate.targetHours : null;
+  const over: unknown = "overTarget" in estimate ? estimate.overTarget : false;
+  return {
+    locations,
+    ownProgression: own,
+    hours: typeof hours === "number" ? hours : null,
+    targetHours: typeof target === "number" ? target : null,
+    overTarget: over === true,
+  };
 }

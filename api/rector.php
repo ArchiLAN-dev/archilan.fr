@@ -40,4 +40,6 @@ return RectorConfig::configure()
         // A file whose job is to NAME forbidden classes has to hold them as data.
         StringClassNameToClassConstantRector::class,
     ])
-    ->withPhpSets(php84: true);
+    ->withPhpSets(php84: true)
+    // Story 33.29: kept under var/ so CI can carry the cache from one run to the next.
+    ->withCache(__DIR__.'/var/tools-cache/rector');

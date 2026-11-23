@@ -180,6 +180,38 @@ export async function setRunReady(runId: string, ready: boolean): Promise<string
   }
 }
 
+/** Story 16.27: the owner names or removes a co-organiser. Null on success, else the message to show. */
+export async function setRunCoOwner(runId: string, userId: string, coOwner: boolean): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/participants/${userId}/co-owner`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ coOwner }),
+    });
+    if (res.ok) return null;
+    const payload: unknown = await res.json().catch(() => null);
+    return errorMessageOf(payload) ?? "Impossible de changer les droits de ce joueur.";
+  } catch {
+    return "Impossible de joindre le serveur.";
+  }
+}
+
+/** Story 56.5: null once saved, the API's message otherwise. */
+export async function setRunTargetHours(runId: string, targetHours: number | null): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/target-hours`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetHours }),
+    });
+    if (res.ok) return null;
+    const payload: unknown = await res.json().catch(() => null);
+    return errorMessageOf(payload) ?? "Impossible d'enregistrer la durée cible.";
+  } catch {
+    return "Impossible de joindre le serveur.";
+  }
+}
+
 function errorMessageOf(payload: unknown): string | null {
   if (typeof payload !== "object" || payload === null || !("error" in payload)) return null;
   const error = payload.error;
@@ -402,6 +434,10 @@ export type GameSelectionGame = {
   /** Story 9.58: sent with the games the member holds, like the locations; read through asItemNames/asItemGroups. */
   itemNames?: unknown;
   itemGroups?: unknown;
+  /** Story 56.5: the admin's formats, read through asOptionPresets. */
+  optionPresets?: unknown;
+  /** Story 56.7: read through asSizeOptions. */
+  sizeOptions?: unknown;
   coverImageUrl: string | null;
   coverImageAlt: string;
   platforms: string[];

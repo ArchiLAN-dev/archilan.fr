@@ -1,0 +1,172 @@
+name: Release
+
+# Story 33.33: merging a release/* or hotfix/* PR into main publishes the release. The merge is the go; this
+# workflow then does what used to be done by hand (docs/processus-de-release.md, "Publier"):
+#   1. reads the version in frontend/package.json and its section in CHANGELOG.md;
+#   2. tags the merge commit vX.Y.Z (annotated) and creates the GitHub release with that section;
+#   3. starts docker-publish.yml on the tag and waits for it;
+#   4. opens the PR back to develop and merges it, deleting the branch.
+#
+# A tag pushed with GITHUB_TOKEN starts no workflow, so docker-publish.yml would never see it. A
+# workflow_dispatch is the exception GitHub makes for that token: the images are dispatched on the tag ref, which
+# gives docker-publish.yml the same github.ref (refs/tags/vX.Y.Z) a pushed tag would.
+#
+# The PR back to develop has the release branch's head commit, whose Backend and Frontend checks already ran on
+# the PR to main, so it can merge at once; a PR opened with GITHUB_TOKEN would not start them again anyway.
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+  actions: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish
+    if: >-
+      github.event.pull_request.merged == true &&
+      (startsWith(github.event.pull_request.head.ref, 'release/') ||
+       startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout the merge commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Read the version and its changelog section
+        id: version
+        run: |
+          version=$(node -p "require('./frontend/package.json').version")
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::frontend/package.json has no X.Y.Z version (found '$version')."
+            exit 1
+          fi
+          tag="v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "::error::The tag $tag already exists: bump frontend/package.json in the release PR."
+            exit 1
+          fi
+          # The section runs from its "## [X.Y.Z]" heading to the next "## [" heading.
+          awk -v v="$version" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
+            echo "::error::CHANGELOG.md has no section '## [$version]'."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Tag the merge commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.tag }}" "$MERGE_SHA" -m "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      - name: Create the GitHub release
+        id: release
+        run: |
+          url=$(gh release create "${{ steps.version.outputs.tag }}" --title "${{ steps.version.outputs.tag }}" \
+            --notes-file "$RUNNER_TEMP/notes.md" --verify-tag)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Open and merge the PR back to develop
+        id: back
+        run: |
+          body="Retour de ${{ steps.version.outputs.tag }} sur develop (ouverte par le workflow Release, PR #$PR_NUMBER)."
+          # A hotfix may already have its PR to develop, opened by hand: use it.
+          url=$(gh pr list --base develop --head "$HEAD_REF" --state open --json url -q '.[0].url // empty')
+          if [ -z "$url" ] && ! url=$(gh pr create --base develop --head "$HEAD_REF" \
+              --title "Retour de ${{ steps.version.outputs.tag }} sur develop" --body "$body" 2>&1); then
+            echo "state=not-opened" >> "$GITHUB_OUTPUT"
+            echo "detail=$url" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          # GitHub needs a moment to compute mergeability after the PR is opened.
+          for i in 1 2 3 4 5 6; do
+            state=$(gh pr view "$url" --json mergeable -q .mergeable)
+            [ "$state" != "UNKNOWN" ] && break
+            sleep 10
+          done
+          if [ "$state" = "CONFLICTING" ]; then
+            echo "state=conflict" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if gh pr merge "$url" --merge --delete-branch; then
+            echo "state=merged" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=open" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish the images
+        id: images
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          gh workflow run docker-publish.yml --ref "$tag"
+          # The dispatch returns no run id: find the run on that tag.
+          run_id=""
+          for i in $(seq 1 30); do
+            run_id=$(gh run list --workflow docker-publish.yml --branch "$tag" --event workflow_dispatch \
+              --limit 1 --json databaseId -q '.[0].databaseId // empty')
+            [ -n "$run_id" ] && break
+            sleep 10
+          done
+          if [ -z "$run_id" ]; then
+            echo "::error::No docker-publish.yml run started on $tag."
+            echo "state=not-started" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "url=${{ github.server_url }}/${{ github.repository }}/actions/runs/$run_id" >> "$GITHUB_OUTPUT"
+          if gh run watch "$run_id" --interval 30 --exit-status > /dev/null; then
+            echo "state=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=failure" >> "$GITHUB_OUTPUT"
+            echo "::error::The images of $tag were not published: see the docker-publish.yml run."
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Release ${{ steps.version.outputs.tag || '(version illisible)' }}"
+            echo
+            echo "- Release GitHub : ${{ steps.release.outputs.url || 'non créée' }}"
+            case "${{ steps.back.outputs.state }}" in
+              merged)     echo "- Retour sur develop : mergé (${{ steps.back.outputs.url }}), branche supprimée" ;;
+              conflict)   echo "- Retour sur develop : **en conflit**, PR laissée ouverte (${{ steps.back.outputs.url }}). Résoudre le conflit puis merger." ;;
+              open)       echo "- Retour sur develop : **non mergé**, PR laissée ouverte (${{ steps.back.outputs.url }}). Merger à la main." ;;
+              not-opened) echo "- Retour sur develop : **PR non ouverte** : ${{ steps.back.outputs.detail }}" ;;
+              *)          echo "- Retour sur develop : non fait" ;;
+            esac
+            case "${{ steps.images.outputs.state }}" in
+              success) echo "- Images api-web, api-worker, frontend : publiées (${{ steps.images.outputs.url }})" ;;
+              failure) echo "- Images : **échec** (${{ steps.images.outputs.url }}). Corriger puis relancer les jobs en échec du run docker-publish (pas ce workflow : le tag existe déjà)." ;;
+              *)       echo "- Images : non publiées" ;;
+            esac
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.back.outputs.state }}" != "merged" ] && [ -n "${{ steps.version.outputs.tag }}" ]; then
+            echo "::warning::The PR back to develop was not merged: see the run summary."
+          fi

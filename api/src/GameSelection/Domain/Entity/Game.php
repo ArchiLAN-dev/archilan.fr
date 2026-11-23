@@ -11,6 +11,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_games_slug', columns: ['slug'])]
 final class Game
 {
+    /** Story 56.5: short, medium, long. */
+    public const int MAX_OPTION_PRESETS = 3;
+    public const int MAX_SIZE_OPTIONS = 5;
     public const string AVAILABILITY_AVAILABLE = 'available';
     public const string AVAILABILITY_UNAVAILABLE = 'unavailable';
     public const string AVAILABILITY_EXPERIMENTAL = 'experimental';
@@ -50,6 +53,13 @@ final class Game
      */
     #[ORM\Column(name: 'test_with_partner', type: 'boolean', options: ['default' => false])]
     private bool $testWithPartner = false;
+
+    /**
+     * Story 56.2: the admin's estimate of the game's pace, in checks per hour, used while our finished games do not
+     * yet measure it (fewer than three slots at goal). Null: no estimate.
+     */
+    #[ORM\Column(name: 'estimated_checks_per_hour', type: 'integer', nullable: true)]
+    private ?int $estimatedChecksPerHour = null;
 
     public function __construct(
         #[ORM\Id]
@@ -132,6 +142,20 @@ final class Game
          */
         #[ORM\Column(name: 'platform_families', type: 'json', nullable: true)]
         private ?array $platformFamilies = null,
+        /**
+         * Story 56.5: up to three named sets of option values (short, medium, long) a player applies to a YAML.
+         *
+         * @var list<array{name: string, values: array<string, int|string|bool>}>|null
+         */
+        #[ORM\Column(name: 'option_presets', type: 'json', nullable: true)]
+        private ?array $optionPresets = null,
+        /**
+         * Story 56.7: the numeric options an admin says change the size of the world, tried in this order.
+         *
+         * @var list<string>|null
+         */
+        #[ORM\Column(name: 'size_options', type: 'json', nullable: true)]
+        private ?array $sizeOptions = null,
     ) {
     }
 
@@ -374,6 +398,55 @@ final class Game
     }
 
     /**
+     * Story 56.5: the presets a player can apply, in the admin's order.
+     *
+     * @return list<array{name: string, values: array<string, int|string|bool>}>
+     */
+    public function getOptionPresets(): array
+    {
+        return $this->optionPresets ?? [];
+    }
+
+    /**
+     * Story 56.5: replaces the presets; the caller checks each value against the option table. An empty list clears
+     * them.
+     *
+     * @param list<array{name: string, values: array<string, int|string|bool>}> $presets
+     */
+    public function defineOptionPresets(array $presets, \DateTimeImmutable $now): void
+    {
+        if (count($presets) > self::MAX_OPTION_PRESETS) {
+            throw new \DomainException('game_option_presets_too_many');
+        }
+        $this->optionPresets = [] === $presets ? null : $presets;
+        $this->updatedAt = $now;
+    }
+
+    /**
+     * Story 56.7: the options that change the size of the world, in the admin's order.
+     *
+     * @return list<string>
+     */
+    public function getSizeOptions(): array
+    {
+        return $this->sizeOptions ?? [];
+    }
+
+    /**
+     * Story 56.7: replaces the size options; the caller checks each is a numeric option. An empty list clears them.
+     *
+     * @param list<string> $optionKeys
+     */
+    public function designateSizeOptions(array $optionKeys, \DateTimeImmutable $now): void
+    {
+        if (count($optionKeys) > self::MAX_SIZE_OPTIONS) {
+            throw new \DomainException('game_size_options_too_many');
+        }
+        $this->sizeOptions = [] === $optionKeys ? null : $optionKeys;
+        $this->updatedAt = $now;
+    }
+
+    /**
      * The option table as every reader should see it: introspection, with the admin curation laid
      * over it per sub-setting (story 9.52).
      *
@@ -586,6 +659,22 @@ final class Game
     private function introspection(): GameIntrospection
     {
         return $this->introspection ??= new GameIntrospection($this->id);
+    }
+
+    /** Story 56.2 bounds: a pace no game reaches is a typo, not an estimate. */
+    public const int MAX_ESTIMATED_CHECKS_PER_HOUR = 5000;
+
+    public function getEstimatedChecksPerHour(): ?int
+    {
+        return $this->estimatedChecksPerHour;
+    }
+
+    public function estimatePace(?int $checksPerHour): void
+    {
+        if (null !== $checksPerHour && ($checksPerHour < 1 || $checksPerHour > self::MAX_ESTIMATED_CHECKS_PER_HOUR)) {
+            throw new \InvalidArgumentException('An estimated pace is between 1 and '.self::MAX_ESTIMATED_CHECKS_PER_HOUR.' checks per hour.');
+        }
+        $this->estimatedChecksPerHour = $checksPerHour;
     }
 
     public function getAdminNotes(): ?string

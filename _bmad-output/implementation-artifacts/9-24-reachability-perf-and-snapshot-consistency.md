@@ -1,6 +1,6 @@
 # Story 9.24: Reachability - speed up the compute and fix the snapshot-consistency race
 
-**Status:** ready-for-dev
+**Status:** done
 **Epic:** 9 - Archipelago Session Management
 **Date:** 2026-06-11
 **Repo:** `Archipelago-Bridge` (Python) - and `archilan-archipelago` (the AP/reachable image)
@@ -128,3 +128,11 @@ claude-opus-4-8 (Claude Code).
 | Date       | Change |
 |------------|--------|
 | 2026-06-11 | Story created from the reachability deep-dive: (A) per-call ephemeral-container reload is the ~10 s bottleneck (a long-lived daemon path already exists for non-Docker mode), (B) `last_computed` is marked with the post-await current state instead of the computed snapshot → items grabbed during a compute go stale by one step. Task 1 (race fix) implemented immediately; Tasks 2-4 (Docker reachability worker) scoped for follow-up. Status → ready-for-dev. |
+
+## Clôture (2026-11-23)
+
+Livrée, le fichier était resté en ready-for-dev :
+- AC 1 (course) : `last_computed` prend la clé du calcul effectivement fait, PR bridge #6 ;
+- AC 2 (perf) : un démon de suivi par partie, qui garde le monde chargé, remplace le conteneur éphémère par calcul
+  (story 17.28). Depuis la story 50.6, le bridge l'interroge par le socket Unix que le conteneur du serveur AP ouvre
+  (`adapters/reachable_socket.py`), sans accès Docker.

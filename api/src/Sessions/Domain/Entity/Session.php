@@ -468,6 +468,11 @@ final class Session
         return $this->bridgePort;
     }
 
+    public function getCreatedAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
     public function getFinishedAt(): ?\DateTimeImmutable
     {
         return $this->finishedAt;

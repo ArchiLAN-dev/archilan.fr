@@ -21,10 +21,37 @@ final class StubSeedArchiveGateway implements SeedArchiveGatewayInterface
     /** @var list<array{sessionId: string, outputKey: string, slotNames: list<array{name: string, game: string}>}> */
     private static array $launches = [];
 
+    /** @var list<array{name: string, locations: int, ownProgression: int, hostedProgression: int}>|null */
+    private static ?array $nextMeasures = null;
+
+    /** @var list<string> the file names measure() was handed (story 56.1) */
+    private static array $measured = [];
+
     public static function reset(): void
     {
         self::$nextInspection = null;
         self::$launches = [];
+        self::$nextMeasures = null;
+        self::$measured = [];
+    }
+
+    /** @param list<array{name: string, locations: int, ownProgression: int, hostedProgression: int}>|null $measures */
+    public static function willMeasure(?array $measures): void
+    {
+        self::$nextMeasures = $measures;
+    }
+
+    /** @return list<string> */
+    public static function measured(): array
+    {
+        return self::$measured;
+    }
+
+    public function measure(string $archive, string $filename): ?array
+    {
+        self::$measured[] = $filename;
+
+        return self::$nextMeasures;
     }
 
     /**

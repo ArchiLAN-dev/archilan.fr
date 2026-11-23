@@ -28,6 +28,16 @@ interface SeedArchiveGatewayInterface
     public function inspect(string $archive, string $filename): array;
 
     /**
+     * Story 56.1: the size of each player slot's world and the progression it carries, read from an output archive
+     * (or a bare multidata) by the same network-disabled container as {@see inspect()}.
+     *
+     * Null when the archive cannot be read or the image does not report measures (an image older than the story).
+     *
+     * @return list<array{name: string, locations: int, ownProgression: int, hostedProgression: int}>|null
+     */
+    public function measure(string $archive, string $filename): ?array;
+
+    /**
      * Launch a session on a pre-generated archive read from object storage. No generation runs.
      *
      * @param list<array{name: string, game: string}> $slotNames     the multiworld roster, ordered by

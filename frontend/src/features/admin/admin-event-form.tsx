@@ -32,6 +32,8 @@ export type EventFormInput = {
   eveReminderEnabled: boolean;
   /** Story 47.5: always sent, like the slug; empty switches local broadcasting off. */
   mediaServerHost: string;
+  /** Story 56.5: hours a world should last; null = the event's length minus 20 %. */
+  targetHours: number | null;
 };
 
 export type EventField =
@@ -47,7 +49,8 @@ export type EventField =
   | "registrationClosesAt"
   | "helloassoFormSlug"
   | "practicalInfo"
-  | "mediaServerHost";
+  | "mediaServerHost"
+  | "targetHours";
 
 export type FieldErrors = Partial<Record<EventField, string>>;
 
@@ -73,6 +76,9 @@ export type AdminEventFormData = {
   eveReminderEnabled?: boolean;
   /** Story 47.5: the LAN media server the players publish to; absent from an older API answer, which reads as none. */
   mediaServerHost?: string | null;
+  /** Story 56.5: the target the admin set (null = default) and the one that applies. */
+  targetHours?: number | null;
+  effectiveTargetHours?: number | null;
 };
 
 /** Story 53.4: the headings offered on a first click, so the organisers do not start from a blank page. */
@@ -154,6 +160,7 @@ export function EventForm({
         practicalInfo: String(form.get("practicalInfo") ?? ""),
         eveReminderEnabled: form.get("eveReminderEnabled") === "on",
         mediaServerHost: String(form.get("mediaServerHost") ?? "").trim(),
+        targetHours: targetHoursValue(String(form.get("targetHours") ?? "")),
       });
 
       if (mode === "create") {
@@ -341,6 +348,30 @@ export function EventForm({
         </label>
       </fieldset>
 
+      {/* Story 56.5: what each world is measured against, in the YAML test and the balance report. */}
+      <fieldset className="grid gap-2 rounded-lg border border-border p-4">
+        <legend className="px-1 text-sm font-semibold text-foreground">Durée cible d&apos;un monde</legend>
+        <label className="grid gap-1 text-sm text-foreground">
+          <span>Heures de jeu visées</span>
+          <input
+            aria-invalid={errors.targetHours ? true : undefined}
+            className="w-32 rounded border border-border bg-surface px-3 py-2 text-sm text-foreground"
+            defaultValue={event?.targetHours ?? ""}
+            inputMode="numeric"
+            max={2000}
+            min={1}
+            name="targetHours"
+            placeholder={event?.effectiveTargetHours != null ? String(Math.round(event.effectiveTargetHours)) : ""}
+            type="number"
+          />
+        </label>
+        <p className="text-xs text-muted-foreground">
+          Le test d&apos;un YAML et le rapport d&apos;équilibre préviennent un joueur dont le monde dépasse. Vide : la durée
+          de l&apos;événement moins 20 %.
+        </p>
+        {errors.targetHours ? <span className="text-xs text-danger">{errors.targetHours}</span> : null}
+      </fieldset>
+
       {/* Story 47.5: the players send their screen to this server on the LAN (ops/lan-media), each with their own key. */}
       <fieldset className="grid gap-2 rounded-lg border border-border p-4">
         <legend className="px-1 text-sm font-semibold text-foreground">Diffusion locale</legend>
@@ -449,6 +480,7 @@ export function fieldErrorsFromPayload(payload: unknown): FieldErrors {
     helloassoFormSlug: firstDetail(details, "helloassoFormSlug"),
     practicalInfo: firstDetail(details, "practicalInfo"),
     mediaServerHost: firstDetail(details, "mediaServerHost"),
+    targetHours: firstDetail(details, "targetHours"),
   };
 }
 
@@ -635,4 +667,10 @@ function GalleryManager({
       </div>
     </div>
   );
+}
+
+/** Story 56.5: a whole number of hours, or null (the default target) for anything else. */
+export function targetHoursValue(raw: string): number | null {
+  const hours = Number.parseInt(raw.trim(), 10);
+  return Number.isFinite(hours) && hours > 0 ? hours : null;
 }

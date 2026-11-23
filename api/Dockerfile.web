@@ -46,6 +46,11 @@ ENV APP_ENV=prod \
     APP_DEBUG=0 \
     SERVER_NAME=":80"
 
+# Story 33.34: the version this image carries (the release tag, without the v), read by GET /api/v1/version.
+# Last so a new version only rebuilds this layer.
+ARG APP_VERSION=
+ENV APP_VERSION=$APP_VERSION
+
 EXPOSE 80
 
 CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]

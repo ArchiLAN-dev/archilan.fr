@@ -30,6 +30,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { fetchPersonalRun, setRunArchivedForMe, setRunRecapVisibility, type PersonalRunResult } from "./personal-runs-api";
 import { IdleBanner } from "./idle-banner";
 import { PersonalRunStart } from "./personal-run-start";
+import { CoOwnerBadge, CoOwnerToggle } from "./run-co-owner";
 import { ReadinessSummary, ReadyBadge, ReadyToggle } from "./run-readiness";
 import { ImportedSeedPanel } from "./imported-seed-panel";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
@@ -61,6 +62,8 @@ import { RunBronzeCard } from "@/features/wallet/run-bronze";
 import { PasseurJournal } from "@/features/passeur/passeur-journal";
 import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
 import { DeparturesPanel } from "@/features/departures/departures";
+import { BalancePanel } from "./balance-report";
+import { RunTargetHoursForm } from "./run-target-hours";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -134,9 +137,16 @@ function ParticipantList({
   participants,
   nudges = null,
   myUserId = null,
+  ownerId = null,
+  canNameCoOwners = false,
+  onCoOwnerChanged,
 }: {
   runId: string;
   participants: PersonalRunParticipant[];
+  // Story 16.27: the owner names co-organisers among the other participants.
+  ownerId?: string | null;
+  canNameCoOwners?: boolean;
+  onCoOwnerChanged?: () => void;
   // Story 43.12: who the caller may nudge, while the run is being played.
   nudges?: RunNudges | null;
   myUserId?: string | null;
@@ -180,6 +190,7 @@ function ParticipantList({
                   playing={p.playing}
                 />
                 <ReadyBadge participant={p} />
+                <CoOwnerBadge participant={p} />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 Depuis le{" "}
@@ -202,6 +213,9 @@ function ParticipantList({
             ) : (
               <span className="shrink-0 text-xs text-muted-foreground/60">Sans jeux</span>
             )}
+            {canNameCoOwners && p.userId !== ownerId && onCoOwnerChanged !== undefined ? (
+              <CoOwnerToggle onChanged={onCoOwnerChanged} participant={p} runId={runId} />
+            ) : null}
             {nudges !== null ? (
               <RunNudgeButton isMe={p.userId === myUserId} player={nudges.players.find((n) => n.userId === p.userId)} runId={runId} />
             ) : null}
@@ -694,13 +708,15 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
   const sessionLive = run.sessionId !== null && (run.status === "active" || run.status === "idle");
 
   // Tabs adapt to role + lifecycle; "Vue d'ensemble" and "Participants" are always present.
+  // Story 16.27: the owner, or a participant they made co-organiser, pilots the run.
+  const administers = run.isOwner || run.canAdminister === true;
   const tabs: { key: RunTab; label: string }[] = [
     { key: "overview", label: "Vue d'ensemble" },
     ...(sessionLive ? [{ key: "progress" as const, label: "Progression" }] : []),
     { key: "participants", label: "Participants" },
     { key: "streams", label: "Streams" },
     ...(sessionLive && (run.isOwner || isAdmin) ? [{ key: "overlay" as const, label: "Overlay Stream" }] : []),
-    ...(run.isOwner || isAdmin ? [{ key: "settings" as const, label: "Réglages" }] : []),
+    ...(administers || isAdmin ? [{ key: "settings" as const, label: "Réglages" }] : []),
   ];
   const activeTab: RunTab = tabs.some((t) => t.key === tab) ? tab : "overview";
 
@@ -880,7 +896,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
         {/* Story 16.19 : une interface identique à celle du propriétaire invite à oublier de qui est
             la partie qu'on modifie. */}
-        {activeTab === "settings" && !run.isOwner && isAdmin && (
+        {activeTab === "settings" && !administers && isAdmin && (
           <section className="mb-4 flex items-start gap-2 rounded-lg border border-accent-warm/40 bg-accent-warm/5 p-4 text-sm">
             <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-accent-warm" />
             <p className="text-muted-foreground">
@@ -904,7 +920,14 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           </section>
         )}
 
-        {activeTab === "settings" && (run.isOwner || isAdmin) && (
+        {/* Story 56.5: what each world of the party is measured against, set before the launch. */}
+        {activeTab === "settings" && administers && run.status === "draft" && (
+          <section className="mb-4 rounded-lg border border-border bg-surface p-4">
+            <RunTargetHoursForm onSaved={() => void runQuery.refetch()} runId={run.id} targetHours={run.targetHours ?? null} />
+          </section>
+        )}
+
+        {activeTab === "settings" && (administers || isAdmin) && (
           <section className="rounded-lg border border-border bg-surface p-4">
             <h2 className="mb-3 text-sm font-semibold text-foreground">Configuration avancée (override)</h2>
             <SessionConfigOverrideForm
@@ -952,8 +975,9 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           </div>
         )}
 
-        {/* Status-conditional panels - owner actions */}
-        {activeTab === "overview" && run.isOwner && (
+        {/* Status-conditional panels - owner actions, and a co-organiser's (story 16.27): cancelling,
+            deleting and finishing stay with the owner. */}
+        {activeTab === "overview" && administers && (
           <section className="grid min-w-0 grid-cols-1 gap-4">
             {/* DRAFT */}
             {run.status === "draft" && (
@@ -980,7 +1004,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                   onStarted={refreshRun}
                   runId={runId}
                 />
-                <div className="flex gap-2">
+                {run.isOwner && <div className="flex gap-2">
                   <button
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded border border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface"
                     onClick={() => setShowArchiveDialog(true)}
@@ -997,7 +1021,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     <Trash2 aria-hidden className="size-4" />
                     Supprimer
                   </button>
-                </div>
+                </div>}
               </>
             )}
 
@@ -1024,7 +1048,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     </button>
                   )}
                 </div>
-                <div className="flex gap-2">
+                {run.isOwner && <div className="flex gap-2">
                   <button
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded border border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface"
                     onClick={() => setShowArchiveDialog(true)}
@@ -1041,7 +1065,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     <Trash2 aria-hidden className="size-4" />
                     Supprimer
                   </button>
-                </div>
+                </div>}
               </div>
             )}
 
@@ -1060,15 +1084,15 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     slots={runConnectionSlots(run)}
                     uri={run.connectionUri ?? null}
                   />
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <button
+                  <div className={`grid gap-2 ${run.isOwner ? "sm:grid-cols-2" : ""}`}>
+                    {run.isOwner && <button
                       className="inline-flex w-full items-center justify-center gap-2 rounded border border-[color:var(--color-accent)]/40 bg-[color:var(--color-accent)]/10 px-4 py-3 text-sm font-semibold text-[color:var(--color-accent-text)] transition-colors hover:bg-[color:var(--color-accent)]/20"
                       onClick={() => setShowFinishDialog(true)}
                       type="button"
                     >
                       <Flag aria-hidden className="size-4" />
                       Terminer la partie
-                    </button>
+                    </button>}
                     <button
                       className="inline-flex w-full items-center justify-center gap-2 rounded border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 px-4 py-3 text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/20"
                       onClick={() => setShowStopDialog(true)}
@@ -1140,7 +1164,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             )}
 
             {/* CANCELLED */}
-            {run.status === "cancelled" && (
+            {run.status === "cancelled" && run.isOwner && (
               <div className="grid gap-3">
                 <div className="rounded-lg border border-border bg-surface p-4 text-center">
                   <p className="text-sm text-muted-foreground">Cette partie est annulée.</p>
@@ -1167,6 +1191,14 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           </section>
         )}
 
+        {/* Story 56.3: before the launch, its organisers measure the party's balance with a dry generation. */}
+        {activeTab === "overview" && administers && run.status === "draft" && run.importedSeed !== true && (
+          <section className="grid min-w-0 gap-3 rounded-lg border border-border bg-surface p-4">
+            <h2 className="font-heading text-sm font-semibold text-foreground">Équilibre de la partie</h2>
+            <BalancePanel canGenerate scope={{ kind: "run", runId }} />
+          </section>
+        )}
+
         {/* Non-owner: show status message when not configurable */}
         {/* Ligne d'état pour qui ne pilote rien ici. Elle excluait draft et idle parce que la carte
             « mes jeux » couvrait ces deux états - mais elle n'apparaît que pour le propriétaire ou un
@@ -1174,7 +1206,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             l'un ni l'autre : sur une partie en brouillon ou en veille, sa vue d'ensemble était
             entièrement vide. */}
         {activeTab === "overview"
-          && showsRunStatusLine(run.isOwner, myParticipant !== null, run.status) && (
+          && showsRunStatusLine(administers, myParticipant !== null, run.status) && (
           <section className="grid gap-2 rounded-lg border border-border bg-surface p-4">
             <p className="text-sm text-muted-foreground">
               {run.status === "draft" && "Cette partie n'est pas encore lancée."}
@@ -1224,7 +1256,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
         {/* Active: connection info for non-owner participants */}
         {activeTab === "overview" &&
-          !run.isOwner &&
+          !administers &&
           run.status === "active" &&
           run.connectionHost !== null &&
           run.connectionPort !== null && (
@@ -1277,7 +1309,15 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               )}
               <ReadinessSummary className="ml-2 font-normal" readiness={run.readiness} />
             </h2>
-            <ParticipantList myUserId={myUserId} nudges={nudges} participants={run.participants} runId={run.id} />
+            <ParticipantList
+              canNameCoOwners={run.isOwner && run.status !== "completed" && run.status !== "cancelled"}
+              myUserId={myUserId}
+              nudges={nudges}
+              onCoOwnerChanged={refreshRun}
+              ownerId={run.ownerId}
+              participants={run.participants}
+              runId={run.id}
+            />
             {nudges !== null && myUserId !== null && nudges.players.some((n) => n.userId === myUserId) ? (
               <RunNudgeMute nudges={nudges} runId={run.id} />
             ) : null}

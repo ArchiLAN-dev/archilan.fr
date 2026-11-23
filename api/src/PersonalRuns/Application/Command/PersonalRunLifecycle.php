@@ -90,10 +90,12 @@ final readonly class PersonalRunLifecycle
 
         // L'appartenance n'est lue que pour un appelant qui n'est pas le propriétaire : inutile de
         // payer la requête dans le cas courant.
-        $isParticipant = !$run->isOwnedBy($callerId)
-            && $this->participants->findByRunAndUser($runId, $callerId) instanceof RunParticipant;
+        $participant = $run->isOwnedBy($callerId) ? null : $this->participants->findByRunAndUser($runId, $callerId);
+        $isParticipant = $participant instanceof RunParticipant;
+        // Story 16.27: a co-organiser starts like the owner, first launch included.
+        $isCoOwner = $participant instanceof RunParticipant && $participant->isCoOwner();
 
-        if (!$run->isStartAllowedFor($callerId, $isParticipant)) {
+        if (!$run->isStartAllowedFor($callerId, $isParticipant, $isCoOwner)) {
             throw new ForbiddenException('Accès refusé.');
         }
 
@@ -150,7 +152,7 @@ final readonly class PersonalRunLifecycle
             throw new NotFoundException('Run introuvable.');
         }
 
-        if (!$run->isOwnedBy($callerId)) {
+        if (!$this->isAdministeredBy($run, $callerId)) {
             throw new ForbiddenException('Accès refusé.');
         }
 
@@ -254,7 +256,8 @@ final readonly class PersonalRunLifecycle
     }
 
     /**
-     * The launcher provides the files (provisional rule of epic 44): a participant resuming the run does not.
+     * The launcher provides the files (provisional rule of epic 44), or a co-organiser (story 16.27): a participant
+     * resuming the run does not.
      * Handed over before anything changes, so a refused file leaves the run as it was.
      *
      * @param list<ProvidedGenerationFile> $files
@@ -266,7 +269,7 @@ final readonly class PersonalRunLifecycle
         if ([] === $files) {
             return [];
         }
-        if (!$run->isOwnedBy($callerId)) {
+        if (!$this->isAdministeredBy($run, $callerId)) {
             throw new ForbiddenException('Seul le lanceur de la partie peut fournir un fichier.');
         }
         if ($run->isImportedSeed()) {
@@ -278,5 +281,16 @@ final readonly class PersonalRunLifecycle
         } catch (RequiredGenerationFileRefusedException) {
             throw new ValidationException('Le fichier n\'a pas pu être transmis pour la génération.', ['requiredFiles' => ['Le fichier n\'a pas pu être transmis. Réessaie dans un instant.']], 'required_file_refused');
         }
+    }
+
+    /** Story 16.27: the owner, or a participant they made co-organiser. */
+    private function isAdministeredBy(Run $run, string $callerId): bool
+    {
+        if ($run->isOwnedBy($callerId)) {
+            return true;
+        }
+        $participant = $this->participants->findByRunAndUser($run->getId(), $callerId);
+
+        return $run->isAdministeredBy($callerId, $participant instanceof RunParticipant && $participant->isCoOwner());
     }
 }

@@ -28,8 +28,11 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** @var array{playerYaml: string, apworldHash: ?string, requiredFileIds: list<string>}|null The last startSlotPreflight() call (stories 38.14, 44.6 tests). */
     public static ?array $lastSlotPreflight = null;
 
-    /** @var array{status: string, error: string}|null Canned getSlotPreflight() result; null = an unknown job (story 38.14 tests). */
+    /** @var array{status: string, error: string, measures?: list<array{name: string, game: string, locations: int, ownProgression: int, hostedProgression: int}>}|null Canned getSlotPreflight() result; null = an unknown job (story 38.14 tests). */
     public static ?array $slotPreflightResult = ['status' => 'passed', 'error' => ''];
+
+    /** @var (\Closure(string): int)|null Story 56.7 tests: the world size a YAML generates; sets the next result. */
+    public static ?\Closure $slotPreflightSizer = null;
 
     /** When true, startSlotPreflight() reads as a runner that did not answer (story 38.14 tests). */
     public static bool $slotPreflightUnavailable = false;
@@ -66,6 +69,7 @@ final class NullRunnerGateway implements RunnerGatewayInterface
 
     public static function reset(): void
     {
+        self::$slotPreflightSizer = null;
         self::$declaredFiles = [];
         self::$officialDeclaredFiles = null;
         self::$apworldPreflightRuns = [];
@@ -206,12 +210,16 @@ final class NullRunnerGateway implements RunnerGatewayInterface
             return null;
         }
         self::$lastSlotPreflight = ['playerYaml' => $playerYaml, 'apworldHash' => $apworldHash, 'requiredFileIds' => $requiredFileIds];
+        if (null !== self::$slotPreflightSizer) {
+            $locations = (self::$slotPreflightSizer)($playerYaml);
+            self::$slotPreflightResult = ['status' => 'passed', 'error' => '', 'measures' => [['name' => 'Player', 'game' => 'Null', 'locations' => $locations, 'ownProgression' => 1, 'hostedProgression' => 0]]];
+        }
 
         return 'null-preflight-job';
     }
 
     /**
-     * @return array{status: string, error: string}|null
+     * @return array{status: string, error: string, measures?: list<array{name: string, game: string, locations: int, ownProgression: int, hostedProgression: int}>}|null
      */
     public function getSlotPreflight(string $jobId): ?array
     {

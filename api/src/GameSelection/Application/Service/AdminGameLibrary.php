@@ -26,6 +26,7 @@ use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Sessions\Application\Exception\RequiredGenerationFileRefusedException;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Query\SlotForecastQueryInterface;
 use App\Sessions\Application\Service\RequiredGenerationFiles;
 use App\Sessions\Application\Support\GenerationFailureParser;
 use App\Sessions\Application\Support\ProvidedGenerationFile;
@@ -58,6 +59,7 @@ final readonly class AdminGameLibrary
         private ApworldCandidateRepositoryInterface $candidates,
         private RequiredGenerationFiles $requiredGenerationFiles,
         private GameFollowRepositoryInterface $follows,
+        private SlotForecastQueryInterface $forecasts,
     ) {
     }
 
@@ -84,6 +86,25 @@ final readonly class AdminGameLibrary
         $this->gameRepository->save($game);
 
         $this->logger->info('game.tutorial_saved', ['gameId' => $gameId, 'stepCount' => count($result['steps'])]);
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
+    }
+
+    /**
+     * Story 56.2: the admin's estimate of the game's pace, in checks per hour; null clears it. The controller bounds
+     * the value (1 to Game::MAX_ESTIMATED_CHECKS_PER_HOUR).
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function saveEstimatedPace(string $gameId, ?int $checksPerHour): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $game->estimatePace($checksPerHour);
+        $this->gameRepository->save($game);
 
         return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
     }
@@ -288,6 +309,146 @@ final readonly class AdminGameLibrary
         ]);
 
         return ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+    }
+
+    /**
+     * Story 56.5: replaces a game's option presets (short, medium, long). Each value is checked against the game's
+     * option table: a toggle takes a boolean, a choice one of its values, a range an integer within its bounds. Other
+     * options (free text, plando, item links) are not preset. An empty list clears them.
+     *
+     * @return array{found: bool, errors: array<string, list<string>>, game?: array<string, mixed>}
+     */
+    public function saveOptionPresets(string $gameId, mixed $raw): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $errors = new ValidationErrors();
+        $types = $game->getEffectiveOptionTypes() ?? [];
+        $presets = [];
+        $names = [];
+        if (!is_array($raw) || !array_is_list($raw)) {
+            $errors->add('presets', 'Les préréglages sont une liste.');
+            $raw = [];
+        }
+        if (count($raw) > Game::MAX_OPTION_PRESETS) {
+            $errors->add('presets', sprintf('Au plus %d préréglages par jeu.', Game::MAX_OPTION_PRESETS));
+        }
+        foreach ($raw as $entry) {
+            $name = is_array($entry) && is_string($entry['name'] ?? null) ? trim($entry['name']) : '';
+            if ('' === $name || mb_strlen($name) > 40) {
+                $errors->add('name', 'Chaque préréglage a un nom de 1 à 40 caractères.');
+                continue;
+            }
+            if (isset($names[mb_strtolower($name)])) {
+                $errors->add('name', sprintf('Le nom "%s" est utilisé deux fois.', $name));
+                continue;
+            }
+            $names[mb_strtolower($name)] = true;
+
+            $values = [];
+            foreach (is_array($entry['values'] ?? null) ? $entry['values'] : [] as $key => $value) {
+                $key = (string) $key;
+                $problem = self::presetValueProblem($types[$key] ?? null, $value);
+                if (null !== $problem) {
+                    $errors->add('values', sprintf('%s, "%s" : %s', $name, $key, $problem));
+                    continue;
+                }
+                if (is_int($value) || is_string($value) || is_bool($value)) {
+                    $values[$key] = $value;
+                }
+            }
+            if ([] === $values) {
+                $errors->add('values', sprintf('"%s" ne règle aucune option.', $name));
+                continue;
+            }
+            $presets[] = ['name' => $name, 'values' => $values];
+        }
+
+        $errs = $errors->toArray();
+        if ([] !== $errs) {
+            return ['found' => true, 'errors' => $errs];
+        }
+
+        $game->defineOptionPresets($presets, $this->clock->now());
+        $this->gameRepository->save($game);
+        $this->logger->info('game.option_presets_saved', ['gameId' => $gameId, 'presets' => count($presets)]);
+
+        return ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+    }
+
+    /**
+     * Story 56.7: the numeric options that change the size of the world, in the order a search tries them. An empty
+     * list clears them.
+     *
+     * @return array{found: bool, errors: array<string, list<string>>, game?: array<string, mixed>}
+     */
+    public function saveSizeOptions(string $gameId, mixed $raw): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $errors = new ValidationErrors();
+        $types = $game->getEffectiveOptionTypes() ?? [];
+        $keys = [];
+        if (!is_array($raw) || !array_is_list($raw)) {
+            $errors->add('options', 'Les options de taille sont une liste.');
+            $raw = [];
+        }
+        if (count($raw) > Game::MAX_SIZE_OPTIONS) {
+            $errors->add('options', sprintf('Au plus %d options de taille par jeu.', Game::MAX_SIZE_OPTIONS));
+        }
+        foreach ($raw as $key) {
+            if (!is_string($key) || in_array($key, $keys, true)) {
+                continue;
+            }
+            $spec = $types[$key] ?? null;
+            $type = is_array($spec) && is_string($spec['type'] ?? null) ? $spec['type'] : (isset($spec['min'], $spec['max']) ? 'range' : '');
+            if ('range' !== $type || !is_int($spec['min'] ?? null) || !is_int($spec['max'] ?? null)) {
+                $errors->add('options', sprintf('"%s" n\'est pas une option numérique de ce jeu.', $key));
+                continue;
+            }
+            $keys[] = $key;
+        }
+
+        $errs = $errors->toArray();
+        if ([] !== $errs) {
+            return ['found' => true, 'errors' => $errs];
+        }
+
+        $game->designateSizeOptions($keys, $this->clock->now());
+        $this->gameRepository->save($game);
+        $this->logger->info('game.size_options_saved', ['gameId' => $gameId, 'options' => $keys]);
+
+        return ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+    }
+
+    /**
+     * Why a preset value does not fit its option, or null when it does.
+     *
+     * @param array<string, mixed>|null $spec
+     */
+    private static function presetValueProblem(?array $spec, mixed $value): ?string
+    {
+        if (null === $spec) {
+            return 'option inconnue de ce jeu.';
+        }
+        $type = is_string($spec['type'] ?? null) ? $spec['type'] : (isset($spec['min'], $spec['max']) ? 'range' : '');
+        $min = is_int($spec['min'] ?? null) ? $spec['min'] : null;
+        $max = is_int($spec['max'] ?? null) ? $spec['max'] : null;
+
+        return match ($type) {
+            'toggle' => is_bool($value) ? null : 'oui ou non attendu.',
+            'choice' => is_string($value) && is_array($spec['values'] ?? null) && in_array($value, $spec['values'], true) ? null : 'une des valeurs du choix attendue.',
+            'range' => is_int($value) && null !== $min && null !== $max && $value >= $min && $value <= $max
+                ? null
+                : sprintf('un nombre entre %s et %s attendu.', $min ?? '?', $max ?? '?'),
+            default => "ce type d'option ne se prérègle pas.",
+        };
     }
 
     /**
@@ -1000,6 +1161,14 @@ final readonly class AdminGameLibrary
         ];
     }
 
+    /** @return array{slots: int, meanGap: float}|null */
+    private function durationCalibration(string $gameId): ?array
+    {
+        $calibration = $this->forecasts->gameCalibration($gameId);
+
+        return null === $calibration ? null : ['slots' => $calibration['slots'], 'meanGap' => round($calibration['meanRatio'] - 1, 3)];
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -1013,6 +1182,9 @@ final readonly class AdminGameLibrary
             // The curation on its own, beside the merged table above: the admin screen has to show
             // which sub-settings it decided, and which ones the apworld declared by itself.
             'dictOptionValues' => $game->getDictOptionValues(),
+            // Story 56.5: the presets a player applies to their YAML.
+            'optionPresets' => $game->getOptionPresets(),
+            'sizeOptions' => $game->getSizeOptions(),
             'locationNames' => $game->getLocationNames(),
             // Story 9.58: the item hints, for the weekly template editor.
             'itemNames' => $game->getItemNames(),
@@ -1020,6 +1192,10 @@ final readonly class AdminGameLibrary
             // Story 44.3: the files the world declares, and which ones a failed generation proved needed.
             'requiredFiles' => $game->getRequiredFiles(),
             'adminNotes' => $game->getAdminNotes(),
+            // Story 56.2: the admin's pace estimate, used while our games do not measure it.
+            'estimatedChecksPerHour' => $game->getEstimatedChecksPerHour(),
+            // Story 56.8: how far the real durations of its slots were from the expected ones.
+            'durationCalibration' => $this->durationCalibration($game->getId()),
             'catalogSheetName' => $sync?->getCatalogSheetName(),
             'apworldSourceUrl' => $sync?->getApworldSourceUrl(),
             'apworldDeployedVersion' => $sync?->getApworldDeployedVersion(),

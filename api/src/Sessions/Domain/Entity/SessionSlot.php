@@ -58,6 +58,27 @@ final class SessionSlot
 
         #[ORM\Column(name: 'collected_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $collectedAt = null,
+
+        /**
+         * Story 56.1: the size of the slot's world and the progression it carries, read from the generation's
+         * multidata. Null until measured (a session generated before the story, or an unreadable archive).
+         */
+        #[ORM\Column(name: 'locations_total', type: Types::INTEGER, nullable: true)]
+        private ?int $locationsTotal = null,
+
+        /** Progression items that belong to this slot, wherever they were placed. */
+        #[ORM\Column(name: 'own_progression', type: Types::INTEGER, nullable: true)]
+        private ?int $ownProgression = null,
+
+        /** Progression items of the other slots placed in this slot's world. */
+        #[ORM\Column(name: 'hosted_progression', type: Types::INTEGER, nullable: true)]
+        private ?int $hostedProgression = null,
+        /**
+         * Story 56.8: the duration the slot was expected to last, frozen when its world was measured, so that it can
+         * be compared with the real one once the goal is reached. Null when the pace or the size was unknown.
+         */
+        #[ORM\Column(name: 'estimated_hours', type: Types::FLOAT, nullable: true)]
+        private ?float $estimatedHours = null,
     ) {
     }
 
@@ -225,6 +246,43 @@ final class SessionSlot
         return $this->collectedAt;
     }
 
+    /** Story 56.1: the measures of the generation; negative counts are not measures and are refused. */
+    public function recordMeasures(int $locations, int $ownProgression, int $hostedProgression): void
+    {
+        if ($locations < 0 || $ownProgression < 0 || $hostedProgression < 0) {
+            throw new \InvalidArgumentException('A slot measure cannot be negative.');
+        }
+        $this->locationsTotal = $locations;
+        $this->ownProgression = $ownProgression;
+        $this->hostedProgression = $hostedProgression;
+    }
+
+    /** Story 56.8: the expected duration at generation; a duration that is not positive is no estimate. */
+    public function recordEstimatedHours(?float $hours): void
+    {
+        $this->estimatedHours = null !== $hours && $hours > 0 ? $hours : null;
+    }
+
+    public function getEstimatedHours(): ?float
+    {
+        return $this->estimatedHours;
+    }
+
+    public function getLocationsTotal(): ?int
+    {
+        return $this->locationsTotal;
+    }
+
+    public function getOwnProgression(): ?int
+    {
+        return $this->ownProgression;
+    }
+
+    public function getHostedProgression(): ?int
+    {
+        return $this->hostedProgression;
+    }
+
     public function isWasReleased(): bool
     {
         return $this->wasReleased;
@@ -245,6 +303,9 @@ final class SessionSlot
             'itemsReceived' => $this->itemsReceived,
             'goalReachedAt' => $this->goalReachedAt?->format(\DateTimeInterface::ATOM),
             'wasReleased' => $this->wasReleased,
+            'locationsTotal' => $this->locationsTotal,
+            'ownProgression' => $this->ownProgression,
+            'hostedProgression' => $this->hostedProgression,
         ];
     }
 }

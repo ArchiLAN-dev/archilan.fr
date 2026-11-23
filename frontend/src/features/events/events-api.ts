@@ -7,7 +7,7 @@
 
 import { parseNeedsReview } from "@/features/games/slot-needs-review";
 import { apiFetch } from "@/lib/apiFetch";
-import { asLocationNames, asOptionTypesMap, type OptionTypesMap } from "@/lib/archipelago-yaml";
+import { asLocationNames, asOptionTypesMap, type OptionTypesMap, asOptionPresets, asSizeOptions, type OptionPreset } from "@/lib/archipelago-yaml";
 import { asItemGroups, asItemNames } from "@/lib/item-catalog";
 import { env } from "@/lib/env";
 import { parsePatchFiles, type PatchFile } from "@/lib/patch-files";
@@ -389,9 +389,15 @@ export type SlotYamlGame = {
   /** Story 9.58: the game's item names and groups, for the slot's YAML editor. */
   itemNames: string[] | null;
   itemGroups: Record<string, string[]> | null;
+  /** Story 56.5: the admin's formats for this game, applied in one click. */
+  optionPresets: OptionPreset[];
+  /** Story 56.7: the options a size search may change. */
+  sizeOptions: string[];
 };
 
 export type SlotYamlData = {
+  /** Story 56.5: the YAML test reads the event's target. */
+  eventId: string | null;
   eventTitle: string;
   registrationOpen: boolean;
   slot: SlotYamlSlot;
@@ -451,6 +457,8 @@ function parseSlotYamlData(payload: unknown, targetSlotId: string): SlotYamlData
     locationNames: asLocationNames(Reflect.get(rawGame, "locationNames")),
     itemNames: asItemNames(Reflect.get(rawGame, "itemNames")),
     itemGroups: asItemGroups(Reflect.get(rawGame, "itemGroups")),
+    optionPresets: asOptionPresets(Reflect.get(rawGame, "optionPresets")),
+    sizeOptions: asSizeOptions(Reflect.get(rawGame, "sizeOptions")),
   };
 
   // Compute slot label - need sibling count for same game
@@ -458,6 +466,7 @@ function parseSlotYamlData(payload: unknown, targetSlotId: string): SlotYamlData
   const slotLabel = sameGameCount > 1 ? `${slot.gameName} (monde ${slot.slotOrder})` : slot.gameName;
 
   return {
+    eventId: hasStringProp(d, "eventId") ? d.eventId : null,
     eventTitle: d.eventTitle,
     registrationOpen: hasBooleanProp(d, "registrationOpen") ? d.registrationOpen : true,
     slot,

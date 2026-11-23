@@ -49,6 +49,7 @@ final readonly class SessionConfigOverride
         public ?int $passeurSharePercent = null,
         public ?int $passeurDailyLimit = null,
         public ?int $passeurMinBlockedMinutes = null,
+        public ?bool $progressionCap = null,
     ) {
     }
 
@@ -87,6 +88,7 @@ final readonly class SessionConfigOverride
             passeurSharePercent: $c->server->passeurSharePercent,
             passeurDailyLimit: $c->server->passeurDailyLimit,
             passeurMinBlockedMinutes: $c->server->passeurMinBlockedMinutes,
+            progressionCap: $c->generation->progressionCap,
         );
     }
 
@@ -136,6 +138,9 @@ final readonly class SessionConfigOverride
         }
         if (null !== $this->spoiler) {
             $out['spoiler'] = $this->spoiler->value;
+        }
+        if (null !== $this->progressionCap) {
+            $out['progressionCap'] = $this->progressionCap;
         }
         if (null !== $this->pelleHints) {
             $out['pelleHints'] = $this->pelleHints;
@@ -217,6 +222,7 @@ final readonly class SessionConfigOverride
             passeurSharePercent: self::bounded($data, 'passeurSharePercent', 0, 100, 'invalid_passeur_setting'),
             passeurDailyLimit: self::bounded($data, 'passeurDailyLimit', 1, SessionServerConfig::MAX_PASSEUR_DAILY_LIMIT, 'invalid_passeur_setting'),
             passeurMinBlockedMinutes: self::bounded($data, 'passeurMinBlockedMinutes', 0, SessionServerConfig::MAX_PASSEUR_MIN_BLOCKED_MINUTES, 'invalid_passeur_setting'),
+            progressionCap: isset($data['progressionCap']) && is_bool($data['progressionCap']) ? $data['progressionCap'] : null,
         );
     }
 
@@ -268,6 +274,7 @@ final readonly class SessionConfigOverride
             && null === $this->passeurFloorPercent
             && null === $this->passeurSharePercent
             && null === $this->passeurDailyLimit
-            && null === $this->passeurMinBlockedMinutes;
+            && null === $this->passeurMinBlockedMinutes
+            && null === $this->progressionCap;
     }
 }

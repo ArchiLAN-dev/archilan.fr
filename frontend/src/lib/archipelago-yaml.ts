@@ -1051,3 +1051,55 @@ function serializeOption(opt: GameOption): unknown {
   for (const e of opt.entries) w[e.key] = e.weight;
   return w;
 }
+
+// ─── Story 56.5: option presets ────────────────────────────────────────────────
+
+/** An admin's named set of option values (short, medium, long) for one game. */
+export type OptionPreset = { name: string; values: Record<string, number | string | boolean> };
+
+export function isOptionPreset(value: unknown): value is OptionPreset {
+  if (typeof value !== "object" || value === null) return false;
+  if (!("name" in value) || typeof value.name !== "string") return false;
+  if (!("values" in value) || typeof value.values !== "object" || value.values === null || Array.isArray(value.values)) return false;
+  return Object.values(value.values).every((v) => typeof v === "number" || typeof v === "string" || typeof v === "boolean");
+}
+
+/** Story 56.7: the option keys an admin says change the size of the world. */
+export function asSizeOptions(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+export function asOptionPresets(value: unknown): OptionPreset[] {
+  return Array.isArray(value) ? value.filter(isOptionPreset) : [];
+}
+
+/**
+ * Story 56.5: sets each option a preset names to its value, as a certain roll (all the weight on that value). Options
+ * the preset does not name keep the player's settings; a value the option does not offer is left out. Returns the
+ * labels of the options changed.
+ */
+export function applyOptionPreset(parsed: ParsedYaml, preset: OptionPreset): { parsed: ParsedYaml; applied: string[] } {
+  const applied: string[] = [];
+  const options = parsed.options.map((option): GameOption => {
+    if (!(option.key in preset.values)) return option;
+    const value = preset.values[option.key];
+    if (option.type === "toggle" && typeof value === "boolean") {
+      applied.push(option.label);
+      return { ...option, weightTrue: value ? 50 : 0, weightFalse: value ? 0 : 50 };
+    }
+    if (option.type === "choice" && typeof value === "string" && option.choices.some((c) => c.value === value)) {
+      applied.push(option.label);
+      return { ...option, choices: option.choices.map((c) => ({ ...c, weight: c.value === value ? 50 : 0 })) };
+    }
+    if (option.type === "range" && typeof value === "number" && value >= option.min && value <= option.max) {
+      applied.push(option.label);
+      const key = String(value);
+      const zeroed = option.entries.map((e) => ({ ...e, weight: e.key === key ? 50 : 0 }));
+      return zeroed.some((e) => e.key === key)
+        ? { ...option, entries: zeroed }
+        : { ...option, entries: [...zeroed, { id: uid(), key, weight: 50, isCustom: true }] };
+    }
+    return option;
+  });
+  return { parsed: { ...parsed, options }, applied };
+}

@@ -187,9 +187,12 @@ export function SlotYamlGate({
         itemGroups={data.game.itemGroups}
         itemNames={data.game.itemNames}
         locationNames={data.game.locationNames}
+        optionPresets={data.game.optionPresets}
+        sizeOptions={data.game.sizeOptions}
         optionTypes={data.game.optionTypes}
         playerYaml={data.slot.playerYaml}
         registrationId={registrationId}
+        testContext={data.eventId === null ? undefined : { eventId: data.eventId }}
         registrationOpen={data.registrationOpen}
         slotId={slotId}
         onDirty={() => undefined}

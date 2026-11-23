@@ -8,6 +8,7 @@ use App\Identity\Domain\Repository\AdminUserActionAuditRepositoryInterface;
 use App\PersonalRuns\Application\Service\PersonalRunConfigOverride;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\SessionConfig\Application\Command\ClearSessionConfigOverride;
 use App\SessionConfig\Application\Command\SetSessionConfigOverride;
@@ -37,6 +38,7 @@ final class PersonalRunConfigOverrideTest extends TestCase
             new ClearSessionConfigOverride($overrides),
             $profiles,
             new AdminRunActionTrace(self::createStub(AdminUserActionAuditRepositoryInterface::class), new MockClock()),
+            self::createStub(RunParticipantRepositoryInterface::class),
         );
     }
 

@@ -45,15 +45,67 @@ jobs:
             api:
               - 'api/**'
               - '.github/workflows/backend.yml'
+              - '.github/actions/api-setup/**'
 
-  checks:
-    name: Backend checks
+  # Story 33.29: static analysis and tests run side by side; the slower of the two sets the pace.
+  static:
+    name: Backend static analysis
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
-    # NB: single PHP leg on purpose - CI runs the version the prod image ships
-    # (php:8.5-cli-alpine since story 33.9 M3); composer.json requires ^8.4,
-    # which 8.5 satisfies.
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: API setup
+        uses: ./.github/actions/api-setup
+        with:
+          composer-token: ${{ secrets.COMPOSER_GITHUB_TOKEN }}
+
+      - name: Validate Composer
+        run: composer validate
+
+      # PHPStan, PHP CS Fixer and Rector keep their caches under api/var/tools-cache. Each run saves its own
+      # (keyed by commit) and starts from the latest one with the same dependencies and configuration: the
+      # tools work out by themselves which files changed since.
+      - name: Cache the analysis tools
+        uses: actions/cache@v6
+        with:
+          path: api/var/tools-cache
+          key: ${{ runner.os }}-tools-${{ hashFiles('api/composer.lock', 'api/phpstan.neon', 'api/.php-cs-fixer.dist.php', 'api/rector.php') }}-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-tools-${{ hashFiles('api/composer.lock', 'api/phpstan.neon', 'api/.php-cs-fixer.dist.php', 'api/rector.php') }}-
+
+      # HARD GATE since A5. The backlog it was waiting on (the symfony/yaml low CVE and
+      # friends) is cleared - `composer audit` reports no advisories. A supply-chain alarm
+      # that cannot fail the build protects nothing, so it now blocks. If a new advisory
+      # lands on a dependency, this goes red until it is triaged - that is the job.
+      - name: Composer audit (known vulnerabilities)
+        run: composer audit
+
+      - name: PHPStan
+        run: composer phpstan
+
+      - name: PHP CS Fixer
+        run: composer cs-fixer
+
+      - name: Architecture
+        run: composer arch
+
+      # HARD GATE since A5, and now also a leg of `composer gates` (local/CI parity, story 33.1).
+      # It was advisory from 33.13 until the baseline proved it stays clean between stories -
+      # 33.14 and 33.20 finished making that true, and it has been clean since.
+      - name: Rector (dry-run)
+        run: composer rector
+
+  tests:
+    name: Backend tests
+    needs: changes
+    if: ${{ needs.changes.outputs.api == 'true' }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: api
@@ -77,56 +129,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      # Coverage costs time: measured on pushes to develop and main only, not on PRs (story 33.29). A drop
+      # under the floor then shows on develop, after the merge - the accepted price.
+      - name: API setup
+        uses: ./.github/actions/api-setup
         with:
-          php-version: '8.5'
-          extensions: ctype, iconv, pdo_pgsql, pgsql, amqp, gd
-          coverage: pcov
-          tools: composer:v2
+          coverage: ${{ github.event_name == 'pull_request' && 'none' || 'pcov' }}
+          composer-token: ${{ secrets.COMPOSER_GITHUB_TOKEN }}
 
-      - name: Configure Composer GitHub token
-        run: composer config -g github-oauth.github.com ${{ secrets.COMPOSER_GITHUB_TOKEN }}
+      # ParaTest, 8 workers (story 33.26), each on its own database archilan_test1..8, created on first use
+      # by BuildSchemaOnceSubscriber. ParaTest is stricter than the serial runner; `composer test` stays serial.
+      - name: PHPUnit (ParaTest)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: composer test:parallel
 
-      - name: Validate Composer
-        run: composer validate
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v6
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-${{ hashFiles('api/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
-
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
-
-      # HARD GATE since A5. The backlog it was waiting on (the symfony/yaml low CVE and
-      # friends) is cleared - `composer audit` reports no advisories. A supply-chain alarm
-      # that cannot fail the build protects nothing, so it now blocks. If a new advisory
-      # lands on a dependency, this goes red until it is triaged - that is the job.
-      - name: Composer audit (known vulnerabilities)
-        run: composer audit
-
-      - name: PHPStan
-        run: composer phpstan
-
-      - name: PHP CS Fixer
-        run: composer cs-fixer
-
-      - name: Architecture
-        run: composer arch
-
-      - name: PHPUnit with coverage
-        run: composer test -- --coverage-clover coverage.xml --coverage-html coverage-html
+      - name: PHPUnit (ParaTest) with coverage
+        if: ${{ github.event_name != 'pull_request' }}
+        run: composer test:parallel -- --coverage-clover coverage.xml --coverage-html coverage-html
 
       # Hard gate. Baseline measured at 67.84% (first CI run); floor set just below
       # with margin. Raise MIN over time as coverage grows.
       - name: Coverage floor
+        if: ${{ github.event_name != 'pull_request' }}
         env:
           MIN: '65'
         run: |
@@ -144,13 +168,8 @@ jobs:
       # unit/functional testsuite split it introduced is independent and stays). Full evidence:
       # implementation-artifacts/33-24-infection-timeouts-and-msi-floor.md.
 
-      # HARD GATE since A5, and now also a leg of `composer gates` (local/CI parity, story 33.1).
-      # It was advisory from 33.13 until the baseline proved it stays clean between stories -
-      # 33.14 and 33.20 finished making that true, and it has been clean since.
-      - name: Rector (dry-run)
-        run: composer rector
-
       - name: Upload coverage report
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
@@ -159,17 +178,19 @@ jobs:
 
   backend:
     # Required status check. Always runs (if: always) so it is always reported to branch protection,
-    # and is green when api/ is unchanged (heavy `checks` job skipped) or when the checks pass.
+    # and is green when api/ is unchanged (both jobs skipped) or when both pass.
     name: Backend
-    needs: [changes, checks]
+    needs: [changes, static, tests]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Gate on backend checks
+      - name: Gate on backend jobs
         run: |
-          result="${{ needs.checks.result }}"
-          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
-            echo "Backend checks did not pass (result=$result)"
-            exit 1
-          fi
-          echo "Backend gate OK (api changed: ${{ needs.changes.outputs.api }}; checks: $result)"
+          summary="changes: ${{ needs.changes.result }}; static: ${{ needs.static.result }}; tests: ${{ needs.tests.result }}"
+          for result in "${{ needs.changes.result }}" "${{ needs.static.result }}" "${{ needs.tests.result }}"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "Backend jobs did not pass ($summary)"
+              exit 1
+            fi
+          done
+          echo "Backend gate OK (api changed: ${{ needs.changes.outputs.api }}; $summary)"

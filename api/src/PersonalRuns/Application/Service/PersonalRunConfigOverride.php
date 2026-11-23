@@ -7,6 +7,8 @@ namespace App\PersonalRuns\Application\Service;
 use App\Identity\Domain\Entity\AdminUserActionAudit;
 use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\SessionConfig\Application\Command\ClearSessionConfigOverride;
 use App\SessionConfig\Application\Command\SetSessionConfigOverride;
@@ -16,7 +18,8 @@ use App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface;
 
 /**
  * Owner-managed config override for a private run. The override is keyed by the run id (the stable
- * key the resolver uses for private sessions), and only the run's owner may read/change it.
+ * key the resolver uses for private sessions), and only the run's owner, or a co-organiser (story 16.27), may
+ * read/change it.
  */
 final readonly class PersonalRunConfigOverride
 {
@@ -34,6 +37,7 @@ final readonly class PersonalRunConfigOverride
         private ClearSessionConfigOverride $clearOverride,
         private SessionConfigProfileRepositoryInterface $profiles,
         private AdminRunActionTrace $trace,
+        private RunParticipantRepositoryInterface $participants,
     ) {
     }
 
@@ -74,7 +78,7 @@ final readonly class PersonalRunConfigOverride
             unset($override[$field]);
         }
         $this->setOverride->execute($runId, $override);
-        $this->trace->record($run, $userId, AdminUserActionAudit::ACTION_RUN_CONFIG_OVERRIDE);
+        $this->traceAdmin($run, $userId);
 
         return ['found' => true, 'authorized' => true, 'override' => $this->stripLocked($this->query->execute($runId)), 'profile' => $this->privateProfile()];
     }
@@ -95,7 +99,7 @@ final readonly class PersonalRunConfigOverride
         }
 
         $this->clearOverride->execute($runId);
-        $this->trace->record($run, $userId, AdminUserActionAudit::ACTION_RUN_CONFIG_OVERRIDE);
+        $this->traceAdmin($run, $userId);
 
         return ['found' => true, 'authorized' => true];
     }
@@ -134,7 +138,29 @@ final readonly class PersonalRunConfigOverride
     {
         $run = $this->runs->findById($runId);
 
-        return $run instanceof Run && ($run->isOwnedBy($userId) || $isAdmin) ? $run : null;
+        if (!$run instanceof Run) {
+            return null;
+        }
+
+        return $run->isAdministeredBy($userId, $this->isCoOwner($run, $userId)) || $isAdmin ? $run : null;
+    }
+
+    private function isCoOwner(Run $run, string $userId): bool
+    {
+        if ($run->isOwnedBy($userId)) {
+            return false;
+        }
+        $participant = $this->participants->findByRunAndUser($run->getId(), $userId);
+
+        return $participant instanceof RunParticipant && $participant->isCoOwner();
+    }
+
+    /** A co-organiser changes the run on their own right: only an admin acting for someone else leaves a trace. */
+    private function traceAdmin(Run $run, string $userId): void
+    {
+        if (!$this->isCoOwner($run, $userId)) {
+            $this->trace->record($run, $userId, AdminUserActionAudit::ACTION_RUN_CONFIG_OVERRIDE);
+        }
     }
 
     /**

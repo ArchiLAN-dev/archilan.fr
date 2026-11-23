@@ -55,6 +55,8 @@ export const metadata: Metadata = {
   },
   // Google Search Console meta-tag verification, only when the token env is set.
   ...(env.gscVerification ? { verification: { google: env.gscVerification } } : {}),
+  // Story 33.34: the deployment script checks the new release is the one served.
+  other: { "archilan-version": env.appVersion || "dev" },
 };
 
 export default function RootLayout({

@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Sessions;
 
 use App\Sessions\Application\Command\RecordSessionGeneratedOutput;
+use App\Sessions\Application\Message\MeasureSessionSlotsJob;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 final class RecordSessionGeneratedOutputTest extends TestCase
 {
@@ -20,7 +23,12 @@ final class RecordSessionGeneratedOutputTest extends TestCase
         $repo->expects(self::once())->method('persist')->with($session);
         $repo->expects(self::once())->method('flush');
 
-        new RecordSessionGeneratedOutput($repo)->execute('sess-1', 'sess-1/output/archive.zip');
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::once())->method('dispatch')
+            ->with(self::callback(static fn (object $m): bool => $m instanceof MeasureSessionSlotsJob && 'sess-1' === $m->sessionId))
+            ->willReturnCallback(static fn (object $m): Envelope => new Envelope($m));
+
+        new RecordSessionGeneratedOutput($repo, $bus)->execute('sess-1', 'sess-1/output/archive.zip');
 
         self::assertSame('sess-1/output/archive.zip', $session->getGeneratedOutputKey());
     }
@@ -32,7 +40,10 @@ final class RecordSessionGeneratedOutputTest extends TestCase
         $repo->expects(self::never())->method('persist');
         $repo->expects(self::never())->method('flush');
 
-        new RecordSessionGeneratedOutput($repo)->execute('sess-1', '');
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::never())->method('dispatch');
+
+        new RecordSessionGeneratedOutput($repo, $bus)->execute('sess-1', '');
     }
 
     public function testNoOpWhenSessionMissing(): void
@@ -41,7 +52,9 @@ final class RecordSessionGeneratedOutputTest extends TestCase
         $repo->method('findById')->willReturn(null);
         $repo->expects(self::never())->method('persist');
         $repo->expects(self::never())->method('flush');
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::never())->method('dispatch');
 
-        new RecordSessionGeneratedOutput($repo)->execute('sess-1', 'sess-1/output/archive.zip');
+        new RecordSessionGeneratedOutput($repo, $bus)->execute('sess-1', 'sess-1/output/archive.zip');
     }
 }

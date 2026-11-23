@@ -206,7 +206,9 @@ final readonly class PersonalRunDrafts
                 ...$this->payload($run, $callerId, $participants, $isParticipant),
                 'archived' => $this->archives->find($run->getId(), $callerId) instanceof RunArchive,
                 // Story 44.3: what the launcher may be asked to provide before the generation.
-                'generationFiles' => $isOwner ? $this->generationFiles($run) : [],
+                // A co-organiser may launch, so may provide them too (story 16.27).
+                'generationFiles' => $isOwner || in_array($callerId, array_column(array_filter($participants, static fn (array $p): bool => $p['coOwner']), 'userId'), true)
+                    ? $this->generationFiles($run) : [],
             ],
         ];
     }
@@ -436,7 +438,7 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool, ready: bool, canBeReady: bool}>
+     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool, ready: bool, canBeReady: bool, coOwner: bool}>
      */
     private function getParticipants(string $runId, string $viewerId): array
     {
@@ -494,6 +496,8 @@ final readonly class PersonalRunDrafts
                 'playing' => isset($playing[$p->getUserId()]),
                 'canBeReady' => null !== $readiness && isset($readiness[$p->getUserId()]),
                 'ready' => null !== $readiness && isset($readiness[$p->getUserId()]) && $p->isReady(),
+                // Story 16.27: pilots the run with the owner.
+                'coOwner' => $p->isCoOwner(),
             ];
         }, $participants);
     }
@@ -512,8 +516,8 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @param list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool, ready: bool, canBeReady: bool}> $participants
-     * @param bool                                                                                                                                                                                                                                                                                                                                                                $isParticipant l'appelant est-il rattaché à la run sans en être propriétaire (story 16.14)
+     * @param list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, avatarAnimatedUrl: string|null, avatarFraming: array{x: int, y: int, zoom: int}|null, avatarFrame: string|null, nameStyle: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool, ready: bool, canBeReady: bool, coOwner: bool}> $participants
+     * @param bool                                                                                                                                                                                                                                                                                                                                                                               $isParticipant l'appelant est-il rattaché à la run sans en être propriétaire (story 16.14)
      *
      * @return array<string, mixed>
      */
@@ -521,6 +525,14 @@ final readonly class PersonalRunDrafts
     {
         $isActive = Run::STATUS_ACTIVE === $run->getStatus();
         $isOwner = null !== $callerId && $run->isOwnedBy($callerId);
+        // Story 16.27: a participant the owner made co-organiser pilots the run (launch, stop, config, server
+        // admin password); the spoiler, the invitation link and the participants stay with the owner.
+        $isCoOwner = !$isOwner && null !== $callerId && in_array(
+            $callerId,
+            array_column(array_filter($participants, static fn (array $p): bool => $p['coOwner']), 'userId'),
+            true,
+        );
+        $canAdminister = $isOwner || $isCoOwner;
 
         // Story 9.42 (advisory launch warning): count slots whose solo test generation
         // failed across all participants. Never blocks anything. Draft runs only - the
@@ -560,7 +572,7 @@ final readonly class PersonalRunDrafts
 
                     // Owner-only bounded excerpt of the failed generation's stderr (story 9.40) -
                     // the full raw log stays admin-only via /admin/sessions/{id}/logs.
-                    if ($isOwner && Session::STATUS_FAILED === $session->getStatus()) {
+                    if ($canAdminister && Session::STATUS_FAILED === $session->getStatus()) {
                         $logs = $session->getLastLogs();
                         if (null !== $logs && '' !== trim($logs)) {
                             $generationLogExcerpt = mb_substr($logs, -2000);
@@ -568,7 +580,7 @@ final readonly class PersonalRunDrafts
                     }
                 }
 
-                if ($isActive && $isOwner) {
+                if ($isActive && $canAdminister) {
                     $adminPassword = $session->getAdminPassword();
                 }
             }
@@ -579,6 +591,8 @@ final readonly class PersonalRunDrafts
             'ownerId' => $run->getOwnerId(),
             'title' => $run->getTitle(),
             'status' => $run->getStatus(),
+            // Story 56.5: the target the organisers set, null when there is none.
+            'targetHours' => $run->getTargetHours(),
             'inviteToken' => $isOwner ? $run->getInviteToken() : null,
             'gameSelectionConfig' => $run->getGameSelectionConfig(),
             'connectionHost' => $isActive ? $run->getConnectionHost() : null,
@@ -595,7 +609,9 @@ final readonly class PersonalRunDrafts
             // garde une dizaine d'éléments sur `isOwner` - réglages, override, lien d'invitation,
             // renommage, spoiler : élargir ce booléen pour faire apparaître le bouton de reprise les
             // ouvrirait tous d'un coup. D'où un drapeau séparé.
-            'canStart' => null !== $callerId && $run->isStartAllowedFor($callerId, $isParticipant),
+            'canStart' => null !== $callerId && $run->isStartAllowedFor($callerId, $isParticipant, $isCoOwner),
+            'isCoOwner' => $isCoOwner,
+            'canAdminister' => $canAdminister,
             'participants' => $participants,
             // Story 16.23: « 3 / 4 prêts », null once launched.
             'readiness' => Run::STATUS_DRAFT === $run->getStatus() ? self::readiness($participants) : null,

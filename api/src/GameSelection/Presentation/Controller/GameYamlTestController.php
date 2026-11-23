@@ -58,7 +58,16 @@ final readonly class GameYamlTestController
             return $user;
         }
 
-        $result = $this->yamlTests->result($user->getId(), $gameId, $ticket);
+        // Story 56.5: read for an event or a private run, the result carries its target.
+        $eventId = $request->query->get('eventId');
+        $runId = $request->query->get('runId');
+        $result = $this->yamlTests->result(
+            $user->getId(),
+            $gameId,
+            $ticket,
+            is_string($eventId) && '' !== $eventId ? $eventId : null,
+            is_string($runId) && '' !== $runId ? $runId : null,
+        );
         if (null === $result) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Test introuvable ou expiré : relance-le.', 404);
         }

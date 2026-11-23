@@ -15,6 +15,7 @@ import { fetchSlotOwners, type SlotOwners } from "@/features/reachability/reacha
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
+import { newlyReceived } from "@/features/reachability/received-items";
 import { SphereLine } from "@/features/reachability/sphere-line";
 import type { HintEntry, HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { HINT_STATUS_NAMES, REACHABILITY_INVALID_MESSAGE, REACHABILITY_RETRY_MS, isHintsUpdate, isReachabilityData, reachableAnswerOf } from "@/features/reachability/types";
@@ -232,18 +233,7 @@ export function AdminSlotReachabilityPage({
           if (prevItemsRef.current.size === 0) {
             prevItemsRef.current = new Map(data.items_received.map((i) => [i.id, i.count]));
           } else {
-            const itemFlagsMap = new Map<number, number>(
-              [...data.reachable_unchecked, ...data.reachable_checked, ...data.unreachable_unchecked]
-                .filter((c) => c.item != null)
-                .map((c) => [c.item!.id, c.item!.flags])
-            );
-            const newItems: { name: string; flags: number }[] = [];
-            for (const item of data.items_received) {
-              const prevCount = prevItemsRef.current.get(item.id) ?? 0;
-              for (let k = 0; k < item.count - prevCount; k++) {
-                newItems.push({ name: item.name, flags: itemFlagsMap.get(item.id) ?? 0 });
-              }
-            }
+            const newItems = newlyReceived(prevItemsRef.current, data);
             prevItemsRef.current = new Map(data.items_received.map((i) => [i.id, i.count]));
             if (newItems.length > 0) {
               const base = Date.now();
