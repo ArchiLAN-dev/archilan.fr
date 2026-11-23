@@ -310,6 +310,98 @@ final readonly class AdminGameLibrary
     }
 
     /**
+     * Story 56.5: replaces a game's option presets (short, medium, long). Each value is checked against the game's
+     * option table: a toggle takes a boolean, a choice one of its values, a range an integer within its bounds. Other
+     * options (free text, plando, item links) are not preset. An empty list clears them.
+     *
+     * @return array{found: bool, errors: array<string, list<string>>, game?: array<string, mixed>}
+     */
+    public function saveOptionPresets(string $gameId, mixed $raw): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $errors = new ValidationErrors();
+        $types = $game->getEffectiveOptionTypes() ?? [];
+        $presets = [];
+        $names = [];
+        if (!is_array($raw) || !array_is_list($raw)) {
+            $errors->add('presets', 'Les préréglages sont une liste.');
+            $raw = [];
+        }
+        if (count($raw) > Game::MAX_OPTION_PRESETS) {
+            $errors->add('presets', sprintf('Au plus %d préréglages par jeu.', Game::MAX_OPTION_PRESETS));
+        }
+        foreach ($raw as $entry) {
+            $name = is_array($entry) && is_string($entry['name'] ?? null) ? trim($entry['name']) : '';
+            if ('' === $name || mb_strlen($name) > 40) {
+                $errors->add('name', 'Chaque préréglage a un nom de 1 à 40 caractères.');
+                continue;
+            }
+            if (isset($names[mb_strtolower($name)])) {
+                $errors->add('name', sprintf('Le nom "%s" est utilisé deux fois.', $name));
+                continue;
+            }
+            $names[mb_strtolower($name)] = true;
+
+            $values = [];
+            foreach (is_array($entry['values'] ?? null) ? $entry['values'] : [] as $key => $value) {
+                $key = (string) $key;
+                $problem = self::presetValueProblem($types[$key] ?? null, $value);
+                if (null !== $problem) {
+                    $errors->add('values', sprintf('%s, "%s" : %s', $name, $key, $problem));
+                    continue;
+                }
+                if (is_int($value) || is_string($value) || is_bool($value)) {
+                    $values[$key] = $value;
+                }
+            }
+            if ([] === $values) {
+                $errors->add('values', sprintf('"%s" ne règle aucune option.', $name));
+                continue;
+            }
+            $presets[] = ['name' => $name, 'values' => $values];
+        }
+
+        $errs = $errors->toArray();
+        if ([] !== $errs) {
+            return ['found' => true, 'errors' => $errs];
+        }
+
+        $game->defineOptionPresets($presets, $this->clock->now());
+        $this->gameRepository->save($game);
+        $this->logger->info('game.option_presets_saved', ['gameId' => $gameId, 'presets' => count($presets)]);
+
+        return ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+    }
+
+    /**
+     * Why a preset value does not fit its option, or null when it does.
+     *
+     * @param array<string, mixed>|null $spec
+     */
+    private static function presetValueProblem(?array $spec, mixed $value): ?string
+    {
+        if (null === $spec) {
+            return 'option inconnue de ce jeu.';
+        }
+        $type = is_string($spec['type'] ?? null) ? $spec['type'] : (isset($spec['min'], $spec['max']) ? 'range' : '');
+        $min = is_int($spec['min'] ?? null) ? $spec['min'] : null;
+        $max = is_int($spec['max'] ?? null) ? $spec['max'] : null;
+
+        return match ($type) {
+            'toggle' => is_bool($value) ? null : 'oui ou non attendu.',
+            'choice' => is_string($value) && is_array($spec['values'] ?? null) && in_array($value, $spec['values'], true) ? null : 'une des valeurs du choix attendue.',
+            'range' => is_int($value) && null !== $min && null !== $max && $value >= $min && $value <= $max
+                ? null
+                : sprintf('un nombre entre %s et %s attendu.', $min ?? '?', $max ?? '?'),
+            default => "ce type d'option ne se prérègle pas.",
+        };
+    }
+
+    /**
      * Set or clear the admin platform override (story 9.47). IGDB lists every platform the
      * game was released on; the Archipelago world often supports only one, and the catalog
      * should advertise the latter. Passing null restores the IGDB-derived list.
@@ -1032,6 +1124,8 @@ final readonly class AdminGameLibrary
             // The curation on its own, beside the merged table above: the admin screen has to show
             // which sub-settings it decided, and which ones the apworld declared by itself.
             'dictOptionValues' => $game->getDictOptionValues(),
+            // Story 56.5: the presets a player applies to their YAML.
+            'optionPresets' => $game->getOptionPresets(),
             'locationNames' => $game->getLocationNames(),
             // Story 9.58: the item hints, for the weekly template editor.
             'itemNames' => $game->getItemNames(),

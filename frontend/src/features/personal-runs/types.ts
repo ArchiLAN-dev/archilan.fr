@@ -132,6 +132,8 @@ export type PersonalRun = {
   id: string;
   ownerId: string;
   title: string;
+  /** Story 56.5: how long a world should last in this party, in hours; null = no target. */
+  targetHours?: number | null;
   status: PersonalRunStatus;
   inviteToken: string | null;
   gameSelectionConfig: PersonalRunGame[] | null;

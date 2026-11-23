@@ -124,6 +124,8 @@ final readonly class RegistrationGameSelection
                 // does not, and sent for every configured game they can run PHP out of memory.
                 'defaultYaml' => $held ? $game->getDefaultYaml() : null,
                 'optionTypes' => $held ? $game->getEffectiveOptionTypes() : null,
+                // Story 56.5: the formats the player can apply in one click.
+                'optionPresets' => $held ? $game->getOptionPresets() : [],
                 'locationNames' => $held ? $game->getLocationNames() : null,
                 'itemNames' => $held ? $game->getItemNames() : null,
                 'itemGroups' => $held ? $game->getItemGroups() : null,

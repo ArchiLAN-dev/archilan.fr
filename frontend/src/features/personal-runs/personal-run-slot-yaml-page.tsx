@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { asOptionPresets } from "@/lib/archipelago-yaml";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, Check, CheckCircle, FolderDown, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -267,8 +268,10 @@ export function PersonalRunSlotYamlPage({
         itemNames={asItemNames(data.game.itemNames)}
         locationNames={data.game.locationNames ?? null}
         onChange={setCurrentYaml}
+        optionPresets={asOptionPresets(data.game.optionPresets)}
         optionTypes={data.game.optionTypes}
         playerYaml={editorYaml}
+        testContext={{ runId }}
       />
 
       <div className="grid gap-2">

@@ -10,6 +10,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 final class Event
 {
+    /** Story 56.5: the default target leaves a fifth of the event for the rest (meals, sleep, ends of game). */
+    public const float DEFAULT_TARGET_MARGIN = 0.2;
+    public const int MAX_TARGET_HOURS = 2000;
     public const string STATUS_DRAFT = 'draft';
     public const string STATUS_PUBLISHED = 'published';
     public const string STATUS_IN_PROGRESS = 'in-progress';
@@ -112,6 +115,9 @@ final class Event
         /** Story 47.5: the LAN media server (MediaMTX) the players publish to; null = no local broadcasting. */
         #[ORM\Column(name: 'media_server_host', type: 'string', length: 253, nullable: true)]
         private ?string $mediaServerHost = null,
+        /** Story 56.5: how long a world should last at this event, in hours; null = the event's length minus 20 %. */
+        #[ORM\Column(name: 'target_hours', type: 'integer', nullable: true)]
+        private ?int $targetHours = null,
     ) {
     }
 
@@ -350,6 +356,37 @@ final class Event
         }
         $this->mediaServerHost = $host;
         $this->updatedAt = $now;
+    }
+
+    /** Story 56.5: the target a world is measured against; null or 0 goes back to the default. */
+    public function aimFor(?int $hours, \DateTimeImmutable $now): void
+    {
+        $hours = null === $hours || $hours <= 0 ? null : $hours;
+        if (null !== $hours && $hours > self::MAX_TARGET_HOURS) {
+            throw new \DomainException('event_target_hours_invalid');
+        }
+        if ($hours === $this->targetHours) {
+            return;
+        }
+        $this->targetHours = $hours;
+        $this->updatedAt = $now;
+    }
+
+    /** The target the admin set, null when the default applies. */
+    public function getTargetHours(): ?int
+    {
+        return $this->targetHours;
+    }
+
+    /** Story 56.5: the target in hours, the admin's or the event's length minus 20 %; null for an event of no length. */
+    public function targetHours(): ?float
+    {
+        if (null !== $this->targetHours) {
+            return (float) $this->targetHours;
+        }
+        $hours = ($this->endsAt->getTimestamp() - $this->startsAt->getTimestamp()) / 3600;
+
+        return $hours > 0 ? $hours * (1 - self::DEFAULT_TARGET_MARGIN) : null;
     }
 
     public function getMediaServerHost(): ?string

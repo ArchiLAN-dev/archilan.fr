@@ -1,7 +1,7 @@
 import type { InstallStep } from "@/features/games/install-steps-editor";
 import { requiredFilesForm } from "@/features/games/required-file-check";
 import type { GameRequiredFile } from "@/features/games/required-files";
-import type { OptionTypesMap } from "@/lib/archipelago-yaml";
+import type { OptionTypesMap, OptionPreset } from "@/lib/archipelago-yaml";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
@@ -62,6 +62,8 @@ export type AdminGame = {
   // Story 9.52: the curation alone. What the admin decided, as opposed to what the apworld
   // declared, so the screen can show which is which and offer to hand an option back.
   dictOptionValues?: Record<string, Record<string, { values: string[]; closed: boolean }>> | null;
+  // Story 56.5: the formats (short, medium, long) a player applies to their YAML.
+  optionPresets?: OptionPreset[];
   // Story 44.3: the files the world declares, and which ones a failed generation proved needed.
   requiredFiles?: GameRequiredFile[];
 };
@@ -101,6 +103,27 @@ export async function saveDictOptionValues(
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ option, values }),
+    });
+    const payload: unknown = await res.json();
+    if (res.status === 422) {
+      return { kind: "invalid", message: readPlatformDetail(payload) };
+    }
+    if (!res.ok || !isAdminGamePayload(payload)) {
+      return { kind: "error", message: "L'enregistrement a échoué." };
+    }
+    return { kind: "saved", game: payload.data, warning: null };
+  } catch {
+    return { kind: "error", message: "Impossible de contacter le serveur." };
+  }
+}
+
+/** Story 56.5: replaces the game's option presets; an empty list clears them. */
+export async function saveOptionPresets(gameId: string, presets: OptionPreset[]): Promise<DefaultYamlResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/option-presets`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ presets }),
     });
     const payload: unknown = await res.json();
     if (res.status === 422) {

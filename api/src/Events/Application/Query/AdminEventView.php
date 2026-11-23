@@ -49,6 +49,9 @@ final readonly class AdminEventView
         public bool $eveReminderEnabled = true,
         /** Story 47.5: the LAN media server the players publish to, null when local broadcasting is off. */
         public ?string $mediaServerHost = null,
+        /** Story 56.5: the target the admin set (null = default) and the one that applies. */
+        public ?int $targetHours = null,
+        public ?float $effectiveTargetHours = null,
     ) {
     }
 }

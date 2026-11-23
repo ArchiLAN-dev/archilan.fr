@@ -24,7 +24,7 @@ use App\Sessions\Domain\Repository\BalanceReportRepositoryInterface;
  * the others' progression it hosts and its fair share (`locations ÷ all locations`, story 56.1). Alerts, never a
  * block:
  * - `duration_over_median`: more than twice the party's median duration;
- * - `duration_over_target`: longer than the target (the event's length minus 20 % until story 56.5);
+ * - `duration_over_target`: longer than the event's target (story 56.5: the admin's, or its length minus 20 %);
  * - `hosted_over_fair`: hosts more than twice its fair share;
  * - `hosted_over_half`: hosts more than half of the others' progression.
  *
@@ -35,8 +35,6 @@ final readonly class BalanceReportQuery
     public const float MEDIAN_ALERT_RATIO = 2.0;
     public const float FAIR_SHARE_ALERT_RATIO = 2.0;
     public const float OTHERS_SHARE_ALERT = 0.5;
-    /** Until story 56.5: the target is the event's length minus this share. */
-    public const float TARGET_MARGIN = 0.2;
 
     public function __construct(
         private BalanceReportRepositoryInterface $reports,
@@ -81,7 +79,7 @@ final readonly class BalanceReportQuery
             return ['found' => true, 'authorized' => false];
         }
 
-        return ['found' => true, 'authorized' => true, 'report' => $this->build(BalanceReport::SCOPE_RUN, $runId, null, null)];
+        return ['found' => true, 'authorized' => true, 'report' => $this->build(BalanceReport::SCOPE_RUN, $runId, null === $run->getTargetHours() ? null : (float) $run->getTargetHours(), null)];
     }
 
     /**
@@ -102,9 +100,7 @@ final readonly class BalanceReportQuery
 
     public static function targetOf(Event $event): ?float
     {
-        $hours = ($event->getEndsAt()->getTimestamp() - $event->getStartsAt()->getTimestamp()) / 3600;
-
-        return $hours > 0 ? $hours * (1 - self::TARGET_MARGIN) : null;
+        return $event->targetHours();
     }
 
     /**
