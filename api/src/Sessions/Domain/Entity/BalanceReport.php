@@ -31,6 +31,7 @@ final class BalanceReport
      * @param list<array{slotName: string, playerName: string, userId: string, gameId: string, gameName: string}> $slots
      * @param list<array{name: string, locations: int, ownProgression: int, hostedProgression: int}>|null         $measures
      * @param list<string>                                                                                        $missingFiles
+     * @param list<array{sphere: int, finder: string, receiver: string}>|null                                     $playthrough
      */
     private function __construct(
         #[ORM\Id]
@@ -58,6 +59,9 @@ final class BalanceReport
         private ?string $outputKey = null,
         #[ORM\Column(name: 'missing_files', type: Types::JSON)]
         private array $missingFiles = [],
+        // Story 56.4: the spoiler's progression, sphere by sphere (who finds, for whom), for the party simulation.
+        #[ORM\Column(type: Types::JSON, nullable: true)]
+        private ?array $playthrough = null,
     ) {
     }
 
@@ -90,6 +94,7 @@ final class BalanceReport
         $this->error = null;
         $this->outputKey = null;
         $this->missingFiles = [];
+        $this->playthrough = null;
     }
 
     /** @param list<string> $gameNames */
@@ -105,11 +110,15 @@ final class BalanceReport
         $this->outputKey = $outputKey;
     }
 
-    /** @param list<array{name: string, locations: int, ownProgression: int, hostedProgression: int}> $measures */
-    public function complete(array $measures, \DateTimeImmutable $now): void
+    /**
+     * @param list<array{name: string, locations: int, ownProgression: int, hostedProgression: int}> $measures
+     * @param list<array{sphere: int, finder: string, receiver: string}>|null                        $playthrough null when the spoiler has none
+     */
+    public function complete(array $measures, \DateTimeImmutable $now, ?array $playthrough = null): void
     {
         $this->status = self::STATUS_DONE;
         $this->measures = $measures;
+        $this->playthrough = $playthrough;
         $this->finishedAt = $now;
         $this->error = null;
     }
@@ -119,6 +128,12 @@ final class BalanceReport
         $this->status = self::STATUS_FAILED;
         $this->error = $error;
         $this->finishedAt = $now;
+    }
+
+    /** @return list<array{sphere: int, finder: string, receiver: string}>|null */
+    public function getPlaythrough(): ?array
+    {
+        return $this->playthrough;
     }
 
     public function isGenerating(): bool

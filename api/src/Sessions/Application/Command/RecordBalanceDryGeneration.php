@@ -7,9 +7,12 @@ namespace App\Sessions\Application\Command;
 use App\Sessions\Application\Message\MeasureBalanceReportJob;
 use App\Sessions\Application\Port\SeedArchiveGatewayInterface;
 use App\Sessions\Application\Port\SessionOutputArtifactReaderInterface;
+use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
+use App\Sessions\Application\Port\SpoilerArtifact;
 use App\Sessions\Application\Support\GenerationFailureParser;
 use App\Sessions\Domain\Entity\BalanceReport;
 use App\Sessions\Domain\Repository\BalanceReportRepositoryInterface;
+use App\Sessions\Domain\Service\SpoilerPlaythrough;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -26,6 +29,7 @@ final readonly class RecordBalanceDryGeneration
         private BalanceReportRepositoryInterface $reports,
         private SessionOutputArtifactReaderInterface $outputs,
         private SeedArchiveGatewayInterface $archives,
+        private SessionSpoilerArtifactReaderInterface $spoilers,
         private MessageBusInterface $bus,
         private ClockInterface $clock,
         private LoggerInterface $logger,
@@ -91,7 +95,7 @@ final readonly class RecordBalanceDryGeneration
             return;
         }
 
-        $report->complete(self::normalized($measures), $this->clock->now());
+        $report->complete(self::normalized($measures), $this->clock->now(), $this->playthrough($outputKey, $report));
         $this->reports->save($report);
     }
 
@@ -108,6 +112,29 @@ final readonly class RecordBalanceDryGeneration
         }
 
         return $normalized;
+    }
+
+    /**
+     * Story 56.4: who finds which progression item for whom, sphere by sphere; null without a playthrough.
+     *
+     * @return list<array{sphere: int, finder: string, receiver: string}>|null
+     */
+    private function playthrough(string $outputKey, BalanceReport $report): ?array
+    {
+        $spoiler = $this->spoilers->extractSpoiler($outputKey);
+        if (!$spoiler instanceof SpoilerArtifact) {
+            return null;
+        }
+        $steps = SpoilerPlaythrough::parse($spoiler->contents, array_column($report->getSlots(), 'slotName'));
+        if (null === $steps) {
+            return null;
+        }
+        $compact = [];
+        foreach ($steps as $step) {
+            $compact[] = ['sphere' => $step->sphere, 'finder' => $step->finder, 'receiver' => $step->receiver];
+        }
+
+        return $compact;
     }
 
     private function find(string $reportId): ?BalanceReport

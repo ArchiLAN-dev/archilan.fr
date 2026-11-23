@@ -16,6 +16,8 @@ use App\Sessions\Application\Service\BalanceInputs;
 use App\Sessions\Application\Service\SlotDurationEstimate;
 use App\Sessions\Domain\Entity\BalanceReport;
 use App\Sessions\Domain\Repository\BalanceReportRepositoryInterface;
+use App\Sessions\Domain\Service\PartySimulation;
+use App\Sessions\Domain\ValueObject\PartySimulationResult;
 
 /**
  * Story 56.3: the balance report of the last dry generation of an event or a private run.
@@ -29,6 +31,11 @@ use App\Sessions\Domain\Repository\BalanceReportRepositoryInterface;
  * - `hosted_over_half`: hosts more than half of the others' progression.
  *
  * `stale`: the registrations no longer match what was generated (a YAML saved, a slot or a registration added).
+ *
+ * Story 56.4: the party simulation (`PartySimulation`) from the playthrough kept with the report - per slot, when it
+ * would end, its time in BK and the slots it waits on most; for the party, its end and its critical slot. A slot
+ * whose pace is unknown plays at the party's median pace (`paceAssumed`). `simulation.status`: `done`, `missing` (no
+ * playthrough: a report from before 56.4, or a spoiler without one) or `no_pace` (no slot has a known pace).
  */
 final readonly class BalanceReportQuery
 {
@@ -116,7 +123,8 @@ final readonly class BalanceReportQuery
         $current = $this->inputs->forScope($scopeType, $scopeId)['slots'];
         $stale = BalanceInputs::fingerprint($current) !== $report->getFingerprint();
 
-        $rows = $this->rows($report, $targetHours);
+        [$simulation, $assumed, $simulationStatus] = $this->simulate($report);
+        $rows = $this->rows($report, $targetHours, $simulation, $assumed);
         if (null !== $onlyUserId) {
             $rows = array_values(array_filter($rows, static fn (array $r): bool => $r['userId'] === $onlyUserId));
         }
@@ -132,14 +140,78 @@ final readonly class BalanceReportQuery
             'targetHours' => self::round($targetHours),
             'medianHours' => self::round($this->medianHours($report)),
             'slotCount' => count($report->getSlots()),
+            // A player reads their own course, not the party's critical slot.
+            'simulation' => null === $onlyUserId ? [
+                'status' => $simulationStatus,
+                'endHours' => $simulation instanceof PartySimulationResult ? self::round($simulation->endHours) : null,
+                'criticalSlot' => $simulation?->criticalSlot,
+            ] : null,
             'slots' => $rows,
         ];
     }
 
     /**
+     * @return array{PartySimulationResult|null, array<string, true>, string} the simulation, the slots played at the
+     *                                                                        median pace, its status
+     */
+    private function simulate(BalanceReport $report): array
+    {
+        $playthrough = $report->getPlaythrough();
+        if (BalanceReport::STATUS_DONE !== $report->getStatus() || null === $playthrough) {
+            return [null, [], 'missing'];
+        }
+        $locations = [];
+        foreach ($report->getMeasures() ?? [] as $measure) {
+            $locations[$measure['name']] = $measure['locations'];
+        }
+
+        $hours = [];
+        $paces = [];
+        foreach ($report->getSlots() as $slot) {
+            $count = $locations[$slot['slotName']] ?? null;
+            $h = $this->durations->forSlot($slot['gameId'], [$slot['userId']], $count)->hours;
+            $hours[$slot['slotName']] = $h;
+            if (null !== $h && $h > 0 && null !== $count) {
+                $paces[] = $count / $h;
+            }
+        }
+        $medianPace = self::median($paces);
+        if (null === $medianPace || $medianPace <= 0) {
+            return [null, [], 'no_pace'];
+        }
+
+        $work = [];
+        $assumed = [];
+        foreach ($hours as $name => $h) {
+            if (null !== $h) {
+                $work[$name] = $h;
+                continue;
+            }
+            $assumed[$name] = true;
+            $work[$name] = ($locations[$name] ?? 0) / $medianPace;
+        }
+
+        return [PartySimulation::run($work, $playthrough), $assumed, 'done'];
+    }
+
+    /** @param list<float> $values */
+    private static function median(array $values): ?float
+    {
+        if ([] === $values) {
+            return null;
+        }
+        sort($values);
+        $n = count($values);
+
+        return 0 === $n % 2 ? ($values[intdiv($n, 2) - 1] + $values[intdiv($n, 2)]) / 2 : $values[intdiv($n, 2)];
+    }
+
+    /**
+     * @param array<string, true> $assumed
+     *
      * @return list<array<string, mixed>>
      */
-    private function rows(BalanceReport $report, ?float $targetHours): array
+    private function rows(BalanceReport $report, ?float $targetHours, ?PartySimulationResult $simulation, array $assumed): array
     {
         $measures = [];
         foreach ($report->getMeasures() ?? [] as $measure) {
@@ -193,10 +265,28 @@ final readonly class BalanceReportQuery
                 'duration' => $duration->payload(),
                 'medianGap' => self::round($medianGap),
                 'alerts' => $alerts,
+                'simulation' => self::simulatedRow($simulation, $slot['slotName'], isset($assumed[$slot['slotName']])),
             ];
         }
 
         return $rows;
+    }
+
+    /**
+     * @return array{finishHours: float|null, bkHours: float|null, waitsOn: list<array{slotName: string, hours: float|null}>, paceAssumed: bool}|null
+     */
+    private static function simulatedRow(?PartySimulationResult $simulation, string $slotName, bool $assumed): ?array
+    {
+        $slot = $simulation?->slots[$slotName] ?? null;
+        if (null === $slot) {
+            return null;
+        }
+        $waits = [];
+        foreach ($slot->waitsOn as $name => $hours) {
+            $waits[] = ['slotName' => $name, 'hours' => self::round($hours)];
+        }
+
+        return ['finishHours' => self::round($slot->finishHours), 'bkHours' => self::round($slot->bkHours), 'waitsOn' => $waits, 'paceAssumed' => $assumed];
     }
 
     private function medianHours(BalanceReport $report): ?float

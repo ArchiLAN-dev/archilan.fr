@@ -14,6 +14,7 @@ function report(overrides: Partial<BalanceReport> = {}): BalanceReport {
     targetHours: 19.2,
     medianHours: 6,
     slotCount: 2,
+    simulation: { status: "done", endHours: 31.5, criticalSlot: "BobGiant" },
     slots: [
       {
         slotName: "BobGiant",
@@ -29,6 +30,7 @@ function report(overrides: Partial<BalanceReport> = {}): BalanceReport {
         durationSource: "admin",
         medianGap: 4,
         alerts: ["duration_over_median", "hosted_over_half"],
+        simulation: { finishHours: 31.5, bkHours: 7.5, waitsOn: [{ slotName: "AliceShort", hours: 7.5 }], paceAssumed: true },
       },
     ],
     ...overrides,
@@ -59,6 +61,7 @@ describe("story 56.3: balance report", () => {
             medianGap: 1,
             duration: { hours: 2.5, source: "measured" },
             alerts: ["hosted_over_fair", "made_up"],
+            simulation: { finishHours: 4, bkHours: 1.5, waitsOn: [{ slotName: "B", hours: 1.5 }, { nope: 1 }], paceAssumed: false },
           },
           { slotName: "broken" },
         ],
@@ -70,6 +73,8 @@ describe("story 56.3: balance report", () => {
     expect(parsed?.slots).toHaveLength(1);
     expect(parsed?.slots[0]?.hours).toBe(2.5);
     expect(parsed?.slots[0]?.alerts).toEqual(["hosted_over_fair"]);
+    expect(parsed?.slots[0]?.simulation).toEqual({ finishHours: 4, bkHours: 1.5, waitsOn: [{ slotName: "B", hours: 1.5 }], paceAssumed: false });
+    expect(parsed?.simulation).toBeNull();
     expect(parseBalanceReport({ data: { status: "exploded" } })).toBeNull();
   });
 
@@ -92,6 +97,21 @@ describe("story 56.3: balance report", () => {
     expect(html).toContain("À refaire");
     expect(renderToStaticMarkup(<BalanceReportView report={report({ slots: [{ ...report().slots[0]!, hours: null, durationSource: "unknown", alerts: [] }] })} />)).toContain("durée inconnue");
     expect(html).not.toContain("Durée médiane");
+  });
+
+  it("shows the simulated course and the party's critical slot (story 56.4)", () => {
+    const html = renderToStaticMarkup(<BalanceReportView report={report()} />);
+
+    expect(html).toContain("Fin de partie simulée vers 32 h");
+    expect(html).toContain("la partie attend <span class=\"font-semibold\">Bob</span> (Giant)");
+    expect(html).toContain("fin vers 32 h");
+    expect(html).toContain("BK 7,5 h (rythme médian supposé)");
+    expect(html).toContain("attend AliceShort (7,5 h)");
+    expect(renderToStaticMarkup(<BalanceReportView report={report({ simulation: { status: "missing", endHours: null, criticalSlot: null } })} />)).toContain(
+      "Pas de déroulé simulé",
+    );
+    // A player reads their own course, never the party's summary.
+    expect(renderToStaticMarkup(<BalanceReportView mine report={report()} />)).not.toContain("Fin de partie simulée");
   });
 
   it("names the games that need a ROM instead of a table", () => {

@@ -11,6 +11,7 @@ import {
   type BalanceReport,
   type BalanceRow,
   type BalanceScope,
+  type SimulatedSlot,
 } from "./balance-api";
 
 /** Story 56.3: polled while the orchestrator generates, quiet otherwise. */
@@ -86,9 +87,10 @@ export function BalanceReportView({ report, mine = false }: ViewProps) {
           {report.targetHours !== null ? `, durée visée ${hours(report.targetHours)}` : ""}.
         </p>
       )}
+      {report.status === "done" && !mine && report.simulation !== null && <SimulationSummary report={report} />}
       {report.status === "done" && report.slots.length > 0 && (
         <div className="min-w-0 overflow-x-auto">
-          <table className="w-full min-w-[40rem] text-left text-sm">
+          <table className="w-full min-w-[48rem] text-left text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr>
                 <th className="py-1 pr-3 font-medium">Joueur</th>
@@ -96,7 +98,8 @@ export function BalanceReportView({ report, mine = false }: ViewProps) {
                 <th className="py-1 pr-3 font-medium">Taille</th>
                 <th className="py-1 pr-3 font-medium">Durée estimée</th>
                 <th className="py-1 pr-3 font-medium">Écart à la médiane</th>
-                <th className="py-1 font-medium">Progression des autres hébergée</th>
+                <th className="py-1 pr-3 font-medium">Progression des autres hébergée</th>
+                <th className="py-1 font-medium">Déroulé simulé</th>
               </tr>
             </thead>
             <tbody>
@@ -125,7 +128,7 @@ function BalanceLine({ row }: { row: BalanceRow }) {
         {row.hours !== null && <span className="block text-xs text-muted-foreground">{SOURCE_LABELS[row.durationSource] ?? row.durationSource}</span>}
       </td>
       <td className="py-2 pr-3 text-foreground">{row.medianGap === null ? "-" : `x${row.medianGap.toFixed(1).replace(".", ",")}`}</td>
-      <td className="py-2 text-foreground">
+      <td className="py-2 pr-3 text-foreground">
         {percent(row.othersShare)}
         <span className="block text-xs text-muted-foreground">part équitable {percent(row.fairShare)}</span>
         {row.alerts.length > 0 && (
@@ -139,7 +142,61 @@ function BalanceLine({ row }: { row: BalanceRow }) {
           </ul>
         )}
       </td>
+      <td className="py-2 text-foreground">
+        <SimulatedCell simulation={row.simulation} />
+      </td>
     </tr>
+  );
+}
+
+/** Story 56.4: when the party ends, which slot it waits for, and what the model leaves out. */
+function SimulationSummary({ report }: { report: BalanceReport }) {
+  const simulation = report.simulation;
+  if (simulation === null) return null;
+  if (simulation.status === "missing") {
+    return <p className="text-xs text-muted-foreground">Pas de déroulé simulé : refais la génération à blanc pour l&apos;obtenir.</p>;
+  }
+  if (simulation.status === "no_pace") {
+    return <p className="text-xs text-muted-foreground">Pas de déroulé simulé : aucun jeu de la partie n&apos;a de rythme connu.</p>;
+  }
+  const critical = report.slots.find((row) => row.slotName === simulation.criticalSlot);
+  return (
+    <div className="grid gap-1 rounded-md border border-border bg-surface p-3 text-sm">
+      <p className="text-foreground">
+        Fin de partie simulée vers {hours(simulation.endHours)}
+        {critical !== undefined ? (
+          <>
+            {" "}
+            : la partie attend <span className="font-semibold">{critical.playerName}</span> ({critical.gameName}).
+          </>
+        ) : (
+          "."
+        )}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Un ordre de grandeur pour comparer les slots : le modèle suit les sphères du spoiler au rythme de chacun et ignore
+        les déplacements dans un jeu, les indices et les choix des joueurs.
+      </p>
+    </div>
+  );
+}
+
+function SimulatedCell({ simulation }: { simulation: SimulatedSlot | null }) {
+  if (simulation === null) return <>-</>;
+  const waits = simulation.waitsOn.filter((w) => w.hours !== null && w.hours > 0);
+  return (
+    <>
+      fin vers {hours(simulation.finishHours)}
+      <span className="block text-xs text-muted-foreground">
+        BK {hours(simulation.bkHours)}
+        {simulation.paceAssumed ? " (rythme médian supposé)" : ""}
+      </span>
+      {waits.length > 0 && (
+        <span className="block text-xs text-muted-foreground">
+          attend {waits.map((w) => `${w.slotName} (${hours(w.hours)})`).join(", ")}
+        </span>
+      )}
+    </>
   );
 }
 
