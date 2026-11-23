@@ -5,6 +5,63 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.1.0] - 2026-11-24
+
+Équilibrage des parties (epic 56), co-organisateurs d'une partie privée, couleur des objets reçus, publication et
+déploiement automatiques du site, et deux correctifs vus dans Bugsink. **Neuf migrations Doctrine**
+(`Version20261122100000` à `Version20261123100005`). Trois variables d'environnement facultatives pour le déploiement
+continu (`DEPLOY_PAUSED`, `DEPLOY_CHANNEL_ID`, `DEPLOY_ALERT_ROLE_ID`). **Image Archipelago 0.22.0, orchestrateur
+0.29.0 et bridge 0.19.0 à déployer avant le site.**
+
+### Ajouté
+
+- **Équilibrage des parties** (epic 56) : un monde géant finit par héberger les objets de progression des autres et
+  bloque toute la partie. Les admins le voient avant le lancement, et peuvent le corriger :
+  - à la génération, chaque slot reçoit sa taille, sa durée estimée et la part des objets de progression des
+    autres qu'il héberge (56.1) ; la durée vient d'un rythme de référence par jeu et par joueur (56.2) ;
+  - « Générer à blanc » produit un rapport d'équilibre d'un event ou d'une partie sans rien lancer (56.3), avec une
+    simulation du déroulé qui désigne le slot critique (56.4) ;
+  - durée cible par event (sa durée moins 20 % par défaut) ou par partie, avertissement au test du YAML quand un
+    slot la dépasse, et jusqu'à trois préréglages par jeu (56.5) ;
+  - réglage de génération « Plafond de progression », éteint par défaut : un monde géant n'héberge plus qu'une part
+    bornée de la progression des autres (56.6) ;
+  - réglage automatique : l'admin choisit jusqu'à cinq options de taille d'un jeu, et l'outil cherche par
+    générations successives la valeur qui tient dans la durée cible (56.7) ;
+  - pendant un event, page Équilibre : heure de fin prévue de chaque slot au rythme réel, slots à libérer avant la
+    fin, et écart moyen entre estimé et réel par jeu sur la fiche admin (56.8).
+- **Co-organisateurs d'une partie privée** (story 16.27) : le propriétaire nomme un ou plusieurs participants qui
+  peuvent lancer, arrêter et configurer la partie en son absence. Le spoiler, la fin de partie et la liste des
+  participants restent au propriétaire.
+- **Publication automatique des releases** (story 33.33) : merger une PR `release/*` ou `hotfix/*` dans `main` pose
+  le tag, crée la release GitHub, ramène `main` dans `develop` et publie les images.
+- **Déploiement continu du site** (story 33.34) : un script lancé par un timer sur la machine de prod déploie la
+  dernière release, avec sauvegarde de la base, vérification de santé, retour en arrière en cas d'échec et alerte
+  par le bot Discord. Il refuse une release marquée « Déploiement manuel », une nouvelle majeure, et tout
+  déploiement autour du début d'un event.
+
+### Modifié
+
+- **Objets reçus en couleur** (story 27.14) : les notifications « objet reçu » des pages de slot retrouvent la
+  couleur de l'objet (progression, utile, piège), perdue quand la vue joueur a cessé de montrer le contenu des
+  emplacements.
+- CI backend en deux tâches parallèles et tests sur 8 processus : environ 3 minutes au lieu de 9 (story 33.29).
+
+### Corrigé
+
+- **Fil d'une longue partie indisponible** : sur une partie asynchrone de plusieurs dizaines de milliers
+  d'événements, le fil dépassait la mémoire de l'API. Il est désormais lu et envoyé entrée par entrée.
+- **Génération Beat Saber en échec** sur une chanson dont la clé BeatSaver ressemble à un nombre (`352e9`) : la clé
+  partait au générateur sous la forme `352000000000.0`. Elle reste la chaîne écrite par le joueur.
+
+### Déploiement
+
+- **Déploiement manuel** : dans l'ordre, l'image Archipelago 0.22.0 (`AP_IMAGE`), l'orchestrateur 0.29.0, le bridge
+  0.19.0 (`BRIDGE_IMAGE`), puis le site 1.1.0 et ses neuf migrations. Sans l'image et l'orchestrateur, les mesures de
+  slot restent vides. Une session générée avant cette version n'a pas de mesures : `php bin/console
+  app:sessions:measure-slots <sessionId>` la mesure depuis son archive.
+- Déploiement continu : installer le script et son timer (`docs/deploiement-continu.md`) et poser
+  `DEPLOY_CHANNEL_ID` (salon privé du staff), et `DEPLOY_ALERT_ROLE_ID` si un rôle doit être prévenu des échecs.
+
 ## [1.0.3] - 2026-11-21
 
 Quêtes : progression lue sans calcul, et pages sans défilement horizontal sur téléphone (hotfix). **Une migration
