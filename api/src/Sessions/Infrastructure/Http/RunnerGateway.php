@@ -571,7 +571,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         try {
             // PARSE_OBJECT_FOR_MAP, then collapse back: the only thing kept as an object is the
             // *empty* mapping, which PHP arrays cannot express. See preserveEmptyMappings().
-            $parsed = $this->preserveEmptyMappings(Yaml::parse($rawYaml, Yaml::PARSE_OBJECT_FOR_MAP));
+            $parsed = $this->preserveEmptyMappings(Yaml::parse(self::quoteExponentScalars($rawYaml), Yaml::PARSE_OBJECT_FOR_MAP));
         } catch (ParseException $e) {
             $this->logger->error('runner.player_yaml_parse_failed', [
                 'slotName' => $slotName,
@@ -621,6 +621,33 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
      * back: callers keep working on arrays, and the empty objects ride through to the dumper, which
      * writes them as mappings again (see the dump flags on `PlayerYaml`).
      */
+    /**
+     * Quotes the plain scalars Archipelago reads as text and Symfony as a number.
+     *
+     * Archipelago reads YAML 1.1 (PyYAML), where a float needs a dot and a signed exponent: `352e9`, `1E-3` or
+     * `1.5e3` stay strings. Symfony reads them as floats, and the re-dump wrote `352000000000.0`. A Beat Saber
+     * song's `levelid` (a hexadecimal BeatSaver key) then failed the world's schema: "should be instance of 'str'".
+     * Quoted, they parse as the same string on both sides. Block values only (`key: value`, `- value`), the shape
+     * the player YAMLs use.
+     */
+    private static function quoteExponentScalars(string $yaml): string
+    {
+        $quoted = preg_replace_callback(
+            '/^(\s*(?:-\s+)*(?:(?:\'[^\']*\'|"[^"]*"|[^\'"#\s-][^:#]*?)\s*:\s+)?(?:-\s+)?)([-+]?[0-9][0-9_]*(?:\.[0-9_]*)?[eE][-+]?[0-9]+)([ \t]*(?:#.*)?)$/m',
+            static function (array $m): string {
+                // PyYAML's own float: a dot, then a signed exponent. Left alone, Symfony reads it the same way.
+                if (1 === preg_match('/\.[0-9_]*[eE][-+][0-9]+$/', $m[2])) {
+                    return $m[0];
+                }
+
+                return $m[1]."'".$m[2]."'".$m[3];
+            },
+            $yaml,
+        );
+
+        return $quoted ?? $yaml;
+    }
+
     private function preserveEmptyMappings(mixed $value): mixed
     {
         if ($value instanceof \stdClass) {
