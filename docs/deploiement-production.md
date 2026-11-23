@@ -45,6 +45,10 @@ au pare-feu tant que la phase 2 de la story 37.7 n'est pas passée.
 
 ## Déployer une version
 
+Depuis la story 33.34, le site (`api-web`, `api-worker`, `api-migrations`, `frontend`) se déploie seul : voir
+[`deploiement-continu.md`](deploiement-continu.md). Les commandes ci-dessous restent celles d'un déploiement à la
+main (release marquée « Déploiement manuel », orchestrateur, bridge, image Archipelago, ou `DEPLOY_PAUSED=1`).
+
 ```bash
 # .env de production - remplacer par le dernier tag de chaque dépôt
 ARCHILAN_VERSION=0.57.1

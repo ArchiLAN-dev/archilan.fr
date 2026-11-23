@@ -13,7 +13,10 @@ Depuis la v1.0.0 (2026-11-20), archilan.fr sort à rythme fixe.
   (dates lues sur `https://api.archilan.fr/api/v1/events`, champ `startsAt`). Seuls les hotfix passent.
 - **Hotfix** : hors calendrier, `hotfix/*` depuis `main` avec la version de patch et sa section du CHANGELOG, PR vers
   `main`. Son merge publie la release comme pour une release du mardi.
-- Le déploiement en production reste manuel, par l'opérateur, à partir de la section « Déploiement » du CHANGELOG.
+- **Déploiement automatique du site** (story 33.34) : le script `deploy/archilan-deploy.sh` de la machine déploie
+  seul la dernière release (`api-web`, `api-worker`, `api-migrations`, `frontend`), sauf si elle porte le marqueur
+  « Déploiement manuel », change de majeure, ou tombe près d'un event. Voir [`deploiement-continu.md`](deploiement-continu.md).
+  L'orchestrateur, le bridge et l'image Archipelago restent déployés à la main.
 
 ## Les jalons
 
@@ -36,6 +39,13 @@ s'il manque, pour toujours en avoir quatre d'avance.
      tiret long (`—`) ni demi-cadratin (`–`). Une phrase d'intro (migrations Doctrine, variables d'environnement,
      versions des services), puis `### Ajouté`, `### Modifié`, `### Corrigé`, `### Sécurité` selon le contenu, et
      toujours `### Déploiement`. Chaque entrée cite sa story. S'inspirer des sections précédentes ;
+   - **marqueur de déploiement manuel** : quand la release demande quoi que ce soit de plus que tirer les images du
+     site et jouer les migrations, la section `### Déploiement` porte une ligne qui **commence par**
+     `**Déploiement manuel**`, suivie de ce qu'il faut faire. Le script de déploiement continu refuse alors de
+     déployer seul et prévient. Cas typiques : une variable d'environnement à poser ou changer, un service
+     (orchestrateur, bridge, image Archipelago) à déployer avant ou avec le site, une commande de rattrapage à
+     lancer, une migration longue ou risquée à surveiller. Dans le doute, mettre le marqueur. Exemple :
+     `- **Déploiement manuel** : orchestrateur v0.29.0 d'abord, puis le site.` ;
    - `frontend/package.json` : champ `version`.
 4. PR `release/vX.Y.Z` vers `main`, titre `Release vX.Y.Z`, corps = la section du CHANGELOG.
 
