@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { EventForecastPanel } from "@/features/admin/event-forecast";
 import { BalancePanel } from "@/features/personal-runs/balance-report";
 
 export const metadata: Metadata = {
@@ -20,9 +21,11 @@ export default async function EventBalancePage({ params }: Props) {
         <h1 className="font-heading text-lg font-semibold text-foreground">Équilibre</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           Génère la partie à blanc avec les inscriptions et les YAML du moment, pour repérer un monde trop long ou
-          qui garde les clés des autres. Rien n&apos;est lancé et les joueurs ne voient que leur ligne.
+          qui garde les clés des autres. Rien n&apos;est lancé et les joueurs ne voient que leur ligne. Pendant la
+          partie, la prévision en direct dit quand chaque slot devrait finir et lesquels libérer.
         </p>
       </header>
+      <EventForecastPanel eventId={eventId} />
       <BalancePanel canGenerate scope={{ kind: "event", eventId }} />
     </section>
   );

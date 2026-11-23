@@ -6,6 +6,8 @@ namespace App\Sessions\Application\Command;
 
 use App\Sessions\Application\Port\SeedArchiveGatewayInterface;
 use App\Sessions\Application\Port\SessionOutputArtifactReaderInterface;
+use App\Sessions\Application\Query\SlotForecastQueryInterface;
+use App\Sessions\Application\Service\SlotDurationEstimate;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
@@ -18,6 +20,9 @@ use Psr\Log\LoggerInterface;
  * Archipelago container (the API never unpickles). Slots are matched by name, the one thing a multidata and a
  * session share. An archive that cannot be read leaves the slots unmeasured, with a warning: a measure never
  * stands in the way of a generation.
+ *
+ * Story 56.8: the duration each slot is expected to last is frozen at the same time, for the comparison with the real
+ * one at the end.
  */
 final readonly class MeasureSessionSlots
 {
@@ -27,6 +32,8 @@ final readonly class MeasureSessionSlots
         private SessionOutputArtifactReaderInterface $outputs,
         private SeedArchiveGatewayInterface $archives,
         private LoggerInterface $logger,
+        private SlotDurationEstimate $durations,
+        private SlotForecastQueryInterface $forecasts,
     ) {
     }
 
@@ -58,6 +65,7 @@ final readonly class MeasureSessionSlots
             $byName[$measure['name']] = $measure;
         }
 
+        $players = $this->forecasts->slotPlayers($sessionId);
         foreach ($this->slots->findBySessionId($sessionId) as $slot) {
             $measure = $byName[$slot->getSlotName()] ?? null;
             if (null === $measure) {
@@ -67,6 +75,9 @@ final readonly class MeasureSessionSlots
                 max(0, $measure['locations']),
                 max(0, $measure['ownProgression']),
                 max(0, $measure['hostedProgression']),
+            );
+            $slot->recordEstimatedHours(
+                $this->durations->forSlot($slot->getGameId(), $players[$slot->getId()] ?? [], $slot->getLocationsTotal())->hours,
             );
             $this->slots->persist($slot);
         }
