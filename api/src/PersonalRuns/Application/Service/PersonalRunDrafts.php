@@ -591,6 +591,8 @@ final readonly class PersonalRunDrafts
             'ownerId' => $run->getOwnerId(),
             'title' => $run->getTitle(),
             'status' => $run->getStatus(),
+            // Story 56.5: the target the organisers set, null when there is none.
+            'targetHours' => $run->getTargetHours(),
             'inviteToken' => $isOwner ? $run->getInviteToken() : null,
             'gameSelectionConfig' => $run->getGameSelectionConfig(),
             'connectionHost' => $isActive ? $run->getConnectionHost() : null,

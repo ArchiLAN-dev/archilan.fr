@@ -63,6 +63,7 @@ import { PasseurJournal } from "@/features/passeur/passeur-journal";
 import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
 import { DeparturesPanel } from "@/features/departures/departures";
 import { BalancePanel } from "./balance-report";
+import { RunTargetHoursForm } from "./run-target-hours";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -916,6 +917,13 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               participants={run.participants}
               runId={run.id}
             />
+          </section>
+        )}
+
+        {/* Story 56.5: what each world of the party is measured against, set before the launch. */}
+        {activeTab === "settings" && administers && run.status === "draft" && (
+          <section className="mb-4 rounded-lg border border-border bg-surface p-4">
+            <RunTargetHoursForm onSaved={() => void runQuery.refetch()} runId={run.id} targetHours={run.targetHours ?? null} />
           </section>
         )}
 

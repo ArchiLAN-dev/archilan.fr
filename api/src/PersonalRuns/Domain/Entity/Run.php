@@ -13,6 +13,8 @@ final class Run
     /** Archipelago's SlotType: 0 spectator, 1 player, 2 item-link group. Only 1 is a seat. */
     public const int IMPORTED_SLOT_TYPE_PLAYER = 1;
 
+    /** Story 56.5: the longest target a private party may set, in hours. */
+    public const int MAX_TARGET_HOURS = 2000;
     public const string STATUS_DRAFT = 'draft';
     public const string STATUS_STARTING = 'starting';
     public const string STATUS_ACTIVE = 'active';
@@ -116,6 +118,9 @@ final class Run
         /** Story 43.17: the latest member to join from the listing, which keeps it alive. */
         #[ORM\Column(name: 'last_arrival_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $lastArrivalAt = null,
+        /** Story 56.5: how long a world should last in this party, in hours; null = no target. */
+        #[ORM\Column(name: 'target_hours', type: 'integer', nullable: true)]
+        private ?int $targetHours = null,
     ) {
     }
 
@@ -307,6 +312,22 @@ final class Run
     {
         $this->title = trim($title);
         $this->updatedAt = $now;
+    }
+
+    /** Story 56.5: the target a world of this party is measured against; null or 0 removes it. */
+    public function aimFor(?int $hours, \DateTimeImmutable $now): void
+    {
+        $hours = null === $hours || $hours <= 0 ? null : $hours;
+        if (null !== $hours && $hours > self::MAX_TARGET_HOURS) {
+            throw new \DomainException('run_target_hours_invalid');
+        }
+        $this->targetHours = $hours;
+        $this->updatedAt = $now;
+    }
+
+    public function getTargetHours(): ?int
+    {
+        return $this->targetHours;
     }
 
     public function isOwnedBy(string $userId): bool

@@ -64,10 +64,13 @@ final class BalanceReportTest extends FunctionalTestCase
         $measures = [];
         $bobSlot = '';
         $aliceSlot = '';
+        // Whatever the order of the slots: 2 then 3 for the two small worlds, 35 for Bob (40 in all).
+        $smallWorlds = 0;
         foreach ($this->reportSlots($event->getId()) as $slot) {
             $isBob = $slot['userId'] === $bob->getId();
             // Bob's giant world hosts most of the others' keys.
-            $measures[] = ['name' => $slot['slotName'], 'locations' => $isBob ? 800 : 100, 'ownProgression' => 20, 'hostedProgression' => $isBob ? 35 : (0 === count($measures) ? 2 : 3)];
+            $hosted = $isBob ? 35 : (0 === $smallWorlds++ ? 2 : 3);
+            $measures[] = ['name' => $slot['slotName'], 'locations' => $isBob ? 800 : 100, 'ownProgression' => 20, 'hostedProgression' => $hosted];
             if ($isBob) {
                 $bobSlot = $slot['slotName'];
             } else {

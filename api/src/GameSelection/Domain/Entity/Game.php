@@ -11,6 +11,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_games_slug', columns: ['slug'])]
 final class Game
 {
+    /** Story 56.5: short, medium, long. */
+    public const int MAX_OPTION_PRESETS = 3;
     public const string AVAILABILITY_AVAILABLE = 'available';
     public const string AVAILABILITY_UNAVAILABLE = 'unavailable';
     public const string AVAILABILITY_EXPERIMENTAL = 'experimental';
@@ -139,6 +141,13 @@ final class Game
          */
         #[ORM\Column(name: 'platform_families', type: 'json', nullable: true)]
         private ?array $platformFamilies = null,
+        /**
+         * Story 56.5: up to three named sets of option values (short, medium, long) a player applies to a YAML.
+         *
+         * @var list<array{name: string, values: array<string, int|string|bool>}>|null
+         */
+        #[ORM\Column(name: 'option_presets', type: 'json', nullable: true)]
+        private ?array $optionPresets = null,
     ) {
     }
 
@@ -377,6 +386,31 @@ final class Game
         }
 
         $this->dictOptionValues = [] === $current ? null : $current;
+        $this->updatedAt = $now;
+    }
+
+    /**
+     * Story 56.5: the presets a player can apply, in the admin's order.
+     *
+     * @return list<array{name: string, values: array<string, int|string|bool>}>
+     */
+    public function getOptionPresets(): array
+    {
+        return $this->optionPresets ?? [];
+    }
+
+    /**
+     * Story 56.5: replaces the presets; the caller checks each value against the option table. An empty list clears
+     * them.
+     *
+     * @param list<array{name: string, values: array<string, int|string|bool>}> $presets
+     */
+    public function defineOptionPresets(array $presets, \DateTimeImmutable $now): void
+    {
+        if (count($presets) > self::MAX_OPTION_PRESETS) {
+            throw new \DomainException('game_option_presets_too_many');
+        }
+        $this->optionPresets = [] === $presets ? null : $presets;
         $this->updatedAt = $now;
     }
 

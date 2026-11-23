@@ -89,6 +89,7 @@ final readonly class AdminEventDrafts
         $event->writePracticalInfo($parsed['practicalInfo'], $this->clock->now());
         $event->switchEveReminder($parsed['eveReminderEnabled'], $this->clock->now());
         $event->pointMediaServer($parsed['mediaServerHost'], $this->clock->now());
+        $event->aimFor($parsed['targetHours'], $this->clock->now());
         $this->eventRepository->save($event);
         $this->publicPages->eventChanged($event->getId());
 
@@ -153,6 +154,9 @@ final readonly class AdminEventDrafts
         }
         if ($parsed['mediaServerHostProvided']) {
             $event->pointMediaServer($parsed['mediaServerHost'], $this->clock->now());
+        }
+        if ($parsed['targetHoursProvided']) {
+            $event->aimFor($parsed['targetHours'], $this->clock->now());
         }
         $this->eventRepository->save($event);
         $this->publicPages->eventChanged($event->getId());
@@ -223,7 +227,7 @@ final readonly class AdminEventDrafts
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool, mediaServerHost: string|null, mediaServerHostProvided: bool}
+     * @return array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool, mediaServerHost: string|null, mediaServerHostProvided: bool, targetHours: int|null, targetHoursValid: bool, targetHoursProvided: bool}
      */
     private function parse(array $input): array
     {
@@ -254,11 +258,15 @@ final readonly class AdminEventDrafts
             // Story 47.5: a save that does not send it keeps it; blank removes it.
             'mediaServerHost' => is_string($input['mediaServerHost'] ?? null) && '' !== trim($input['mediaServerHost']) ? strtolower(trim($input['mediaServerHost'])) : null,
             'mediaServerHostProvided' => array_key_exists('mediaServerHost', $input),
+            // Story 56.5: a save that does not send it keeps it; null goes back to the default.
+            'targetHours' => is_int($input['targetHours'] ?? null) ? $input['targetHours'] : null,
+            'targetHoursValid' => null === ($input['targetHours'] ?? null) || is_int($input['targetHours']),
+            'targetHoursProvided' => array_key_exists('targetHours', $input),
         ];
     }
 
     /**
-     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool, mediaServerHost: string|null, mediaServerHostProvided: bool} $input
+     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool, mediaServerHost: string|null, mediaServerHostProvided: bool, targetHours: int|null, targetHoursValid: bool, targetHoursProvided: bool} $input
      *
      * @return array{title: string, description: string, startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable, venue: string, capacity: int, registrationOpensAt: \DateTimeImmutable, registrationClosesAt: \DateTimeImmutable, isPublic: bool}|null
      */
@@ -288,7 +296,7 @@ final readonly class AdminEventDrafts
     }
 
     /**
-     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool, mediaServerHost: string|null, mediaServerHostProvided: bool} $input
+     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, helloassoFormSlugProvided: bool, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>, practicalInfo: string|null, practicalInfoProvided: bool, eveReminderEnabled: bool, eveReminderEnabledProvided: bool, mediaServerHost: string|null, mediaServerHostProvided: bool, targetHours: int|null, targetHoursValid: bool, targetHoursProvided: bool} $input
      *
      * @return array<string, list<string>>
      */
@@ -342,6 +350,10 @@ final readonly class AdminEventDrafts
                 // The slug goes as is into the checkout widget's address: anything else breaks the billetterie.
                 $errors->add('helloassoFormSlug', "Le slug ne contient que des minuscules, chiffres et tirets (la fin de l'adresse du formulaire HelloAsso, ex. archilan-4).");
             }
+        }
+
+        if (!$input['targetHoursValid'] || (null !== $input['targetHours'] && ($input['targetHours'] < 1 || $input['targetHours'] > Event::MAX_TARGET_HOURS))) {
+            $errors->add('targetHours', sprintf("La durée cible est un nombre d'heures entre 1 et %d.", Event::MAX_TARGET_HOURS));
         }
 
         if (null !== $input['mediaServerHost'] && !Event::isValidMediaServerHost($input['mediaServerHost'])) {
@@ -446,6 +458,8 @@ final readonly class AdminEventDrafts
             $event->getPracticalInfoUpdatedAt()?->format(\DateTimeInterface::ATOM),
             $event->isEveReminderEnabled(),
             $event->getMediaServerHost(),
+            $event->getTargetHours(),
+            null === $event->targetHours() ? null : round($event->targetHours(), 1),
         );
     }
 

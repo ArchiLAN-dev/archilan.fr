@@ -442,6 +442,29 @@ final readonly class AdminGameLibraryController
             : 'Valeurs enregistrées.']]);
     }
 
+    /**
+     * Story 56.5: the game's option presets. Body: `{"presets": [{"name": "Court", "values": {"goal": "dungeons"}}]}`;
+     * an empty list clears them.
+     */
+    #[Route('/api/v1/admin/games/{gameId}/option-presets', name: 'api_admin_game_save_option_presets', methods: ['PUT'])]
+    public function saveOptionPresets(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $result = $this->adminGameLibrary->saveOptionPresets($gameId, is_array($payload) ? ($payload['presets'] ?? null) : null);
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Préréglages invalides.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => $result['game'] ?? []]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}/default-yaml', name: 'api_admin_game_save_default_yaml', methods: ['PUT'])]
     public function saveDefaultYaml(Request $request, string $gameId): JsonResponse
     {
