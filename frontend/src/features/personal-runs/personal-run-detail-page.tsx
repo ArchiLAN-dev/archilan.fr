@@ -62,6 +62,7 @@ import { RunBronzeCard } from "@/features/wallet/run-bronze";
 import { PasseurJournal } from "@/features/passeur/passeur-journal";
 import { PasseurNoticeCard } from "@/features/passeur/passeur-notice";
 import { DeparturesPanel } from "@/features/departures/departures";
+import { BalancePanel } from "./balance-report";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
 
@@ -1179,6 +1180,14 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 </button>
               </div>
             )}
+          </section>
+        )}
+
+        {/* Story 56.3: before the launch, its organisers measure the party's balance with a dry generation. */}
+        {activeTab === "overview" && administers && run.status === "draft" && run.importedSeed !== true && (
+          <section className="grid min-w-0 gap-3 rounded-lg border border-border bg-surface p-4">
+            <h2 className="font-heading text-sm font-semibold text-foreground">Équilibre de la partie</h2>
+            <BalancePanel canGenerate scope={{ kind: "run", runId }} />
           </section>
         )}
 

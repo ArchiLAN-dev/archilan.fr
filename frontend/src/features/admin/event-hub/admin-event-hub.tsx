@@ -10,6 +10,7 @@ import {
   MonitorUp,
   Pencil,
   QrCode,
+  Scale,
   Server,
   ShieldAlert,
   Shovel,
@@ -160,6 +161,10 @@ export function hubSections({ event, localStreams = null, onConfigurePrivateAcce
     {
       title: "Jour J",
       entries: [
+        // Story 56.3: a dry generation of the whole party, to read its balance before the day.
+        event.gameSelectionEnabled
+          ? { kind: "link", label: "Équilibre", href: `${base}/equilibre`, icon: Scale }
+          : { kind: "note", label: "Équilibre", icon: Scale, state: "Activer d'abord la sélection de jeux" },
         run,
         // Story 47.9: the LAN media server and its régie agent, set on the event's page.
         { kind: "link", label: "Serveur média", href: `${base}/modifier`, icon: MonitorUp, state: mediaServerHubState(localStreams) },
