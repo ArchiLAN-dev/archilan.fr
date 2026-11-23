@@ -10,7 +10,7 @@ projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 Équilibrage des parties (epic 56), co-organisateurs d'une partie privée, couleur des objets reçus, publication et
 déploiement automatiques du site, et deux correctifs vus dans Bugsink. **Neuf migrations Doctrine**
 (`Version20261122100000` à `Version20261123100005`). Trois variables d'environnement facultatives pour le déploiement
-continu (`DEPLOY_PAUSED`, `DEPLOY_CHANNEL_ID`, `DEPLOY_ALERT_ROLE_ID`). **Image Archipelago 0.22.0, orchestrateur
+continu (`DEPLOY_PAUSED`, `DEPLOY_CHANNEL_ID`, `DEPLOY_ALERT_ROLE_ID`). **Image Archipelago 0.22.1, orchestrateur
 0.29.0 et bridge 0.19.0 à déployer avant le site.**
 
 ### Ajouté
@@ -52,10 +52,13 @@ continu (`DEPLOY_PAUSED`, `DEPLOY_CHANNEL_ID`, `DEPLOY_ALERT_ROLE_ID`). **Image 
   d'événements, le fil dépassait la mémoire de l'API. Il est désormais lu et envoyé entrée par entrée.
 - **Génération Beat Saber en échec** sur une chanson dont la clé BeatSaver ressemble à un nombre (`352e9`) : la clé
   partait au générateur sous la forme `352000000000.0`. Elle reste la chaîne écrite par le joueur.
+- **Apworlds en échec à cause de l'image** (image Archipelago 0.22.1) : Super Metroid ne trouvait pas ses presets
+  (l'apworld était extrait hors de la disposition d'une installation Archipelago) ; Raccoin échouait sur son option
+  de personnage aléatoire, retirée par le contournement du nom réservé `random`. Les deux génèrent à nouveau.
 
 ### Déploiement
 
-- **Déploiement manuel** : dans l'ordre, l'image Archipelago 0.22.0 (`AP_IMAGE`), l'orchestrateur 0.29.0, le bridge
+- **Déploiement manuel** : dans l'ordre, l'image Archipelago 0.22.1 (`AP_IMAGE`), l'orchestrateur 0.29.0, le bridge
   0.19.0 (`BRIDGE_IMAGE`), puis le site 1.1.0 et ses neuf migrations. Sans l'image et l'orchestrateur, les mesures de
   slot restent vides. Une session générée avant cette version n'a pas de mesures : `php bin/console
   app:sessions:measure-slots <sessionId>` la mesure depuis son archive.
