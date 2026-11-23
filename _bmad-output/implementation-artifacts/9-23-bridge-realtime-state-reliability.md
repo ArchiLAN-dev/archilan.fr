@@ -1,6 +1,6 @@
 # Story 9.23: Bridge - realtime state reliability (checks_done lands on the players topic, not just the apsave sweep)
 
-**Status:** ready-for-dev
+**Status:** done
 **Epic:** 9 - Archipelago Session Management
 **Date:** 2026-06-11
 **Repo:** `Archipelago-Bridge` (Python)
@@ -133,3 +133,11 @@ claude-opus-4-8 (Claude Code).
 | Date       | Change |
 |------------|--------|
 | 2026-06-11 | Story created from a live prod diagnosis: bridge + API both correct (checks_done=14), only the open UI stale; `players-push` didn't move the UI but the following `reachable-push` did. Root causes: (1) `_track_item_send` doesn't reliably bump `checks_done` for some games (LM) so checks only surface via the apsave; (2) the reachable sweep updates state from the Docker parse but ends on a `pass` instead of pushing the `players` topic; (3) the in-process apsave parse can't import `NetUtils` (absent from the bridge image) → degraded reconcile cycles. Scope: push `players` on checks change, reliable WS check tracking, robust apsave reconcile. Status → ready-for-dev. |
+
+## Clôture (2026-11-23)
+
+Livrée dans le bridge, le fichier était resté en ready-for-dev :
+- AC 1 : la passe de suivi appelle `notify_state_changed()` quand des slots ont changé (`core/loops.py`), PR bridge #4 ;
+- AC 2 : `_track_item_send` lit d'abord le `NetworkItem` structuré (indépendant du jeu), PR bridge #4 ;
+- AC 3 : le `.apsave` se lit sans `NetUtils`, par une liste fermée des classes attendues (`core/save_parser.py`, story 50.1) ;
+- pousser les indices (tâche 4), PR bridge #5.
