@@ -378,6 +378,54 @@ final readonly class AdminGameLibrary
     }
 
     /**
+     * Story 56.7: the numeric options that change the size of the world, in the order a search tries them. An empty
+     * list clears them.
+     *
+     * @return array{found: bool, errors: array<string, list<string>>, game?: array<string, mixed>}
+     */
+    public function saveSizeOptions(string $gameId, mixed $raw): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $errors = new ValidationErrors();
+        $types = $game->getEffectiveOptionTypes() ?? [];
+        $keys = [];
+        if (!is_array($raw) || !array_is_list($raw)) {
+            $errors->add('options', 'Les options de taille sont une liste.');
+            $raw = [];
+        }
+        if (count($raw) > Game::MAX_SIZE_OPTIONS) {
+            $errors->add('options', sprintf('Au plus %d options de taille par jeu.', Game::MAX_SIZE_OPTIONS));
+        }
+        foreach ($raw as $key) {
+            if (!is_string($key) || in_array($key, $keys, true)) {
+                continue;
+            }
+            $spec = $types[$key] ?? null;
+            $type = is_array($spec) && is_string($spec['type'] ?? null) ? $spec['type'] : (isset($spec['min'], $spec['max']) ? 'range' : '');
+            if ('range' !== $type || !is_int($spec['min'] ?? null) || !is_int($spec['max'] ?? null)) {
+                $errors->add('options', sprintf('"%s" n\'est pas une option numérique de ce jeu.', $key));
+                continue;
+            }
+            $keys[] = $key;
+        }
+
+        $errs = $errors->toArray();
+        if ([] !== $errs) {
+            return ['found' => true, 'errors' => $errs];
+        }
+
+        $game->designateSizeOptions($keys, $this->clock->now());
+        $this->gameRepository->save($game);
+        $this->logger->info('game.size_options_saved', ['gameId' => $gameId, 'options' => $keys]);
+
+        return ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+    }
+
+    /**
      * Why a preset value does not fit its option, or null when it does.
      *
      * @param array<string, mixed>|null $spec
@@ -1126,6 +1174,7 @@ final readonly class AdminGameLibrary
             'dictOptionValues' => $game->getDictOptionValues(),
             // Story 56.5: the presets a player applies to their YAML.
             'optionPresets' => $game->getOptionPresets(),
+            'sizeOptions' => $game->getSizeOptions(),
             'locationNames' => $game->getLocationNames(),
             // Story 9.58: the item hints, for the weekly template editor.
             'itemNames' => $game->getItemNames(),

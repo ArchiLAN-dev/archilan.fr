@@ -465,6 +465,29 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $result['game'] ?? []]);
     }
 
+    /**
+     * Story 56.7: the game's size options, tried in this order by a player's size search. Body:
+     * `{"options": ["goal_tokens"]}`; an empty list clears them.
+     */
+    #[Route('/api/v1/admin/games/{gameId}/size-options', name: 'api_admin_game_save_size_options', methods: ['PUT'])]
+    public function saveSizeOptions(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $result = $this->adminGameLibrary->saveSizeOptions($gameId, is_array($payload) ? ($payload['options'] ?? null) : null);
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Options de taille invalides.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => $result['game'] ?? []]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}/default-yaml', name: 'api_admin_game_save_default_yaml', methods: ['PUT'])]
     public function saveDefaultYaml(Request $request, string $gameId): JsonResponse
     {

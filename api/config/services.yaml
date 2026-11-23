@@ -451,6 +451,7 @@ services:
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
     # Story 56.3: the last dry generation of each event and private run.
     App\Sessions\Domain\Repository\BalanceReportRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineBalanceReportRepository'
+    App\GameSelection\Domain\Repository\SizeSearchRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineSizeSearchRepository'
     App\Sessions\Domain\Repository\ItemBountyRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineItemBountyRepository'
 
     App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotCoPlayerRepository'

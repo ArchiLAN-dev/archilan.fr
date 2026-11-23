@@ -1064,6 +1064,11 @@ export function isOptionPreset(value: unknown): value is OptionPreset {
   return Object.values(value.values).every((v) => typeof v === "number" || typeof v === "string" || typeof v === "boolean");
 }
 
+/** Story 56.7: the option keys an admin says change the size of the world. */
+export function asSizeOptions(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
 export function asOptionPresets(value: unknown): OptionPreset[] {
   return Array.isArray(value) ? value.filter(isOptionPreset) : [];
 }

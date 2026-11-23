@@ -436,6 +436,8 @@ export type GameSelectionGame = {
   itemGroups?: unknown;
   /** Story 56.5: the admin's formats, read through asOptionPresets. */
   optionPresets?: unknown;
+  /** Story 56.7: read through asSizeOptions. */
+  sizeOptions?: unknown;
   coverImageUrl: string | null;
   coverImageAlt: string;
   platforms: string[];

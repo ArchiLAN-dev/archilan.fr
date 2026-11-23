@@ -64,6 +64,8 @@ export type AdminGame = {
   dictOptionValues?: Record<string, Record<string, { values: string[]; closed: boolean }>> | null;
   // Story 56.5: the formats (short, medium, long) a player applies to their YAML.
   optionPresets?: OptionPreset[];
+  // Story 56.7: the numeric options a player's size search may change, in order.
+  sizeOptions?: string[];
   // Story 44.3: the files the world declares, and which ones a failed generation proved needed.
   requiredFiles?: GameRequiredFile[];
 };
@@ -103,6 +105,27 @@ export async function saveDictOptionValues(
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ option, values }),
+    });
+    const payload: unknown = await res.json();
+    if (res.status === 422) {
+      return { kind: "invalid", message: readPlatformDetail(payload) };
+    }
+    if (!res.ok || !isAdminGamePayload(payload)) {
+      return { kind: "error", message: "L'enregistrement a échoué." };
+    }
+    return { kind: "saved", game: payload.data, warning: null };
+  } catch {
+    return { kind: "error", message: "Impossible de contacter le serveur." };
+  }
+}
+
+/** Story 56.7: replaces the game's size options; an empty list clears them. */
+export async function saveSizeOptions(gameId: string, options: string[]): Promise<DefaultYamlResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/size-options`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ options }),
     });
     const payload: unknown = await res.json();
     if (res.status === 422) {
