@@ -52,6 +52,7 @@ framework:
             # Story 56.1: the slots of a generated session measured from its multidata, out of the webhook.
             'App\Sessions\Application\Message\MeasureSessionSlotsJob': async
             'App\Sessions\Application\Message\MeasureBalanceReportJob': async
+            'App\GameSelection\Application\Message\RunSizeSearchStepJob': async
             'App\Communications\Application\Message\SurveyNoticeMessage': async
             'App\Communications\Application\Message\PasswordResetMessage': async
             'App\Communications\Application\Message\EmailConfirmationMessage': async

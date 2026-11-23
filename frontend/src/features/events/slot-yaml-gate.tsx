@@ -188,6 +188,7 @@ export function SlotYamlGate({
         itemNames={data.game.itemNames}
         locationNames={data.game.locationNames}
         optionPresets={data.game.optionPresets}
+        sizeOptions={data.game.sizeOptions}
         optionTypes={data.game.optionTypes}
         playerYaml={data.slot.playerYaml}
         registrationId={registrationId}

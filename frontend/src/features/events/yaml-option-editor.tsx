@@ -42,6 +42,7 @@ import { ItemCatalogContext, ItemNameInput } from "@/features/events/item-name-i
 import { buildItemCatalog, ITEM_DICT_OPTION_KEYS, ITEM_LIST_OPTION_KEYS } from "@/lib/item-catalog";
 import { YamlImportDialog } from "@/features/events/yaml-import-dialog";
 import { GameYamlTestOutcome, useGameYamlTest } from "@/features/games/game-yaml-test";
+import { SizeSearchPanel } from "@/features/games/size-search";
 import type { YamlTestContext } from "@/features/games/game-yaml-test-api";
 import { OptionPresetBar } from "@/features/events/option-preset-bar";
 
@@ -91,6 +92,8 @@ type YamlOptionEditorProps = {
   testContext?: YamlTestContext;
   /** Story 56.5: the admin's formats for this game (short, medium, long). */
   optionPresets?: OptionPreset[];
+  /** Story 56.7: the options a size search may change; with a test context, a world past the target can ask for one. */
+  sizeOptions?: string[];
 };
 
 /**
@@ -120,6 +123,7 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
       gameId,
       testContext,
       optionPresets = [],
+      sizeOptions = [],
     },
     ref,
   ) {
@@ -525,6 +529,20 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
           ) : null}
         </div>
         <GameYamlTestOutcome state={yamlTest.state} />
+        {gameId !== undefined &&
+        testContext !== undefined &&
+        effectivelyOpen &&
+        sizeOptions.length > 0 &&
+        yamlTest.state.kind === "done" &&
+        yamlTest.state.world?.overTarget === true ? (
+          <SizeSearchPanel
+            context={testContext}
+            currentYaml={() => (parsed ? serializeToYaml(parsed) : rawYaml)}
+            gameId={gameId}
+            labelOf={(key) => parsed?.options.find((o) => o.key === key)?.label ?? key}
+            onApply={(option, value) => applyPreset({ name: "Réglage proposé", values: { [option]: value } })}
+          />
+        ) : null}
       </div>
 
       {importBase !== null && importOpen ? (

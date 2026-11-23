@@ -4,13 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Query;
 
-use App\Events\Domain\Entity\Event;
-use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\GameSelection\Application\Support\GameYamlTestTicket;
-use App\PersonalRuns\Domain\Entity\Run;
-use App\PersonalRuns\Domain\Entity\RunParticipant;
-use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
-use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\GameSelection\Application\Support\YamlTestTarget;
 use App\Sessions\Application\Service\SlotDurationEstimate;
 
 /**
@@ -27,9 +22,7 @@ final readonly class GameYamlTestQuery
         private GameYamlTestTicket $tickets,
         private YamlTestResultQuery $results,
         private SlotDurationEstimate $durations,
-        private EventRepositoryInterface $events,
-        private RunRepositoryInterface $runs,
-        private RunParticipantRepositoryInterface $participants,
+        private YamlTestTarget $targets,
     ) {
     }
 
@@ -47,7 +40,7 @@ final readonly class GameYamlTestQuery
         // A solo test generates one world: the player's.
         $locations = [] === $result['measures'] ? null : $result['measures'][0]['locations'];
         $duration = $this->durations->forSlot($gameId, [$userId], $locations);
-        $target = $this->targetHours($userId, $eventId, $runId);
+        $target = $this->targets->hours($userId, $eventId, $runId);
         $hours = null === $duration->hours ? null : round($duration->hours, 1);
 
         return [...$result, 'estimate' => [
@@ -57,27 +50,5 @@ final readonly class GameYamlTestQuery
             'targetHours' => null === $target ? null : round($target, 1),
             'overTarget' => null !== $hours && null !== $target && $hours > $target,
         ]];
-    }
-
-    private function targetHours(string $userId, ?string $eventId, ?string $runId): ?float
-    {
-        if (null !== $eventId) {
-            $event = $this->events->findById($eventId);
-
-            return $event instanceof Event ? $event->targetHours() : null;
-        }
-        if (null !== $runId) {
-            $run = $this->runs->findById($runId);
-            if (!$run instanceof Run) {
-                return null;
-            }
-            // A run's target is read by the people in it only.
-            $isIn = $run->isOwnedBy($userId) || $this->participants->findByRunAndUser($runId, $userId) instanceof RunParticipant;
-            $hours = $run->getTargetHours();
-
-            return $isIn && null !== $hours ? (float) $hours : null;
-        }
-
-        return null;
     }
 }

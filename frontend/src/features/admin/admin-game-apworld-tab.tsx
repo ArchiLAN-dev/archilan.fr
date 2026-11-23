@@ -35,6 +35,7 @@ import {
 } from "./admin-games-api";
 import { AdminGameRequiredFiles } from "./admin-game-required-files";
 import { OptionPresetsCard } from "./admin-game-option-presets";
+import { SizeOptionsCard } from "./admin-game-size-options";
 import { passedWithFilesLabel, TEST_FILES_INTRO, testFilesBlocker, testFilesOfGame } from "./admin-game-test-files";
 import { ApworldCandidateStatus } from "./apworld-candidate-status";
 import { ApworldTestProgress } from "./apworld-test-progress";
@@ -58,6 +59,7 @@ export function ApworldTab({ game, onUpdate }: Props) {
       {game.isApworldReady ? <TemplateCard game={game} onUpdate={onUpdate} /> : null}
       {game.isApworldReady ? <DictValuesCard game={game} onUpdate={onUpdate} /> : null}
       {game.isApworldReady ? <OptionPresetsCard game={game} onUpdate={onUpdate} /> : null}
+      {game.isApworldReady ? <SizeOptionsCard game={game} onUpdate={onUpdate} /> : null}
     </div>
   );
 }

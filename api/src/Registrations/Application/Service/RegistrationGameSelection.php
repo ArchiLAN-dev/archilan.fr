@@ -126,6 +126,7 @@ final readonly class RegistrationGameSelection
                 'optionTypes' => $held ? $game->getEffectiveOptionTypes() : null,
                 // Story 56.5: the formats the player can apply in one click.
                 'optionPresets' => $held ? $game->getOptionPresets() : [],
+                'sizeOptions' => $held ? $game->getSizeOptions() : [],
                 'locationNames' => $held ? $game->getLocationNames() : null,
                 'itemNames' => $held ? $game->getItemNames() : null,
                 'itemGroups' => $held ? $game->getItemGroups() : null,
