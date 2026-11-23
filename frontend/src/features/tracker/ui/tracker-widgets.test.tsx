@@ -5,7 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 import { AccessibilityLevel, Highlight } from "../engine/levels";
-import type { EngineAction, StateUpdate } from "../engine/protocol";
+import type { EngineAction, LoadedPack, StateUpdate } from "../engine/protocol";
 import { PackImages } from "./pack-images";
 import { INITIAL_STATE, section, TEST_PACK } from "./test-pack";
 import { TrackerContextProvider, type TrackerScreenContext } from "./tracker-context";
@@ -53,6 +53,7 @@ async function render(
   settings: TrackerSettings = DEFAULT_SETTINGS,
   layout = "tracker_default",
   board = false,
+  pack: LoadedPack = TEST_PACK,
 ) {
   const view = mergeView(mergeView(EMPTY_VIEW, INITIAL_STATE), { items: {}, sections: {}, locations: {}, ...update });
   const images = new PackImages(
@@ -61,10 +62,10 @@ async function render(
     () => undefined,
   );
   const context: TrackerScreenContext = {
-    pack: TEST_PACK,
+    pack,
     view,
-    itemsByCode: indexItemsByCode(TEST_PACK.items),
-    itemsById: new Map(TEST_PACK.items.map((item) => [item.id, item])),
+    itemsByCode: indexItemsByCode(pack.items),
+    itemsById: new Map(pack.items.map((item) => [item.id, item])),
     settings,
     images,
     act: (action) => acted.push(action),
@@ -333,6 +334,31 @@ describe("map pins and the location popover", () => {
     expect(pin.style.background).toContain("conic-gradient");
   });
 
+  it("draws a trapezoid pin inside its square button, as PopTracker does (story 54.14)", async () => {
+    const pack = withWoodfall({ shape: "trapezoid" });
+    await render({ sections: { 10: section(AccessibilityLevel.Normal, 1) } }, DEFAULT_SETTINGS, "tracker_default", false, pack);
+    const pin = byLabel("Woodfall : En partie : faisable, pas encore");
+    // The button stays square and unclipped: click area, outline and hint are those of the other pins.
+    expect(pin.style.clipPath).toBe("");
+    expect(pin.style.background).toBe("transparent");
+    expect(pin.style.borderWidth).toBe("0px");
+    const border = pin.querySelector<HTMLElement>('[data-trapezoid="border"]');
+    const fill = pin.querySelector<HTMLElement>('[data-trapezoid="fill"]');
+    expect(border?.style.clipPath).toBe("polygon(0 100%, 25% 0, 75% 0, 100% 100%)");
+    // The test map's 20 px pins with a 2 px border: the fill's top runs from 5 px to 11 px of its 16 px.
+    expect(fill?.style.clipPath).toBe("polygon(0 100%, 5px 0, 11px 0, 100% 100%)");
+    expect(fill?.style.background).toContain("conic-gradient");
+  });
+
+  it("takes the map's location_shape when the location has none (story 54.14)", async () => {
+    const pack: LoadedPack = { ...TEST_PACK, maps: TEST_PACK.maps.map((map) => ({ ...map, locationShape: "trapezoid" })) };
+    await render({}, DEFAULT_SETTINGS, "tracker_default", false, pack);
+    expect(byLabel("Woodfall : Pas encore").querySelector('[data-trapezoid="fill"]')).not.toBeNull();
+    // Swamp keeps its own shape.
+    expect(byLabel("Swamp : Faisable").querySelector("[data-trapezoid]")).toBeNull();
+    expect(byLabel("Swamp : Faisable").className).toContain("rotate-45");
+  });
+
   it("follows the settings: sequence breaks and what is done", async () => {
     await render(
       {
@@ -382,3 +408,14 @@ describe("map pins and the location popover", () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 });
+
+function withWoodfall(spot: { shape: string }): LoadedPack {
+  return {
+    ...TEST_PACK,
+    locations: TEST_PACK.locations.map((location) =>
+      location.name === "Woodfall"
+        ? { ...location, mapLocations: location.mapLocations.map((mapLocation) => ({ ...mapLocation, ...spot })) }
+        : location,
+    ),
+  };
+}
