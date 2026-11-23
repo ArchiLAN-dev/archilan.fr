@@ -3,7 +3,7 @@
 ## Quality gates (non-negotiable)
 
 ```bash
-composer gates   # runs the four gates below - identical to CI (same composer scripts)
+composer gates   # runs the four gates below - same legs as CI (CI runs phpunit on ParaTest, story 33.29)
 ```
 
 What it runs, in order:
@@ -200,10 +200,11 @@ Project convention, NOT enforced by the preset (the risky `declare_strict_types`
 ~33 s for all 1814 tests, against ~2 min 20 serial. Override with
 `composer test:parallel -- --processes=16`. Each worker gets its own database
 (`archilan_test1`..`archilan_test8`, created automatically on first use); those databases persisting
-between runs is normal. **`composer test` and `composer gates` stay serial on purpose** - they must
-remain byte-identical to what CI runs. Parallel is stricter than serial, so it is a safe local
-addition, not a replacement. `composer gates:fast` is `composer gates` with `test:parallel` as its
-last leg; root `./scripts/gates.sh` runs it next to `pnpm gates`.
+between runs is normal. **CI runs `test:parallel`** since story 33.29 (PRs without coverage, pushes to
+`develop`/`main` with coverage and its 65 % floor). `composer test` and `composer gates` stay serial: the
+reference run when an order-dependent test is in doubt. `composer gates:fast` is `composer gates` with
+`test:parallel` as its last leg, the same legs CI runs; root `./scripts/gates.sh` runs it next to
+`pnpm gates`.
 
 **Two parallel runs at once:** ParaTest sets `TEST_TOKEN` itself (1..N), so two parallel runs would
 share `archilan_test1..8` and destroy each other's schema. `TEST_DB_PREFIX` namespaces a whole run:

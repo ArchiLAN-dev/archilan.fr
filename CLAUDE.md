@@ -15,7 +15,8 @@ Both files are loaded automatically by the agent runtime. Do not skip them.
 
 ## Quality gates - must all pass before any task is marked complete
 
-One command per side, identical to CI (CI invokes the same underlying scripts):
+One command per side, with the same legs as CI (CI invokes the same underlying scripts; since story 33.29 it runs
+phpunit on ParaTest, as `composer gates:fast` does):
 
 ```
 # API (from api/)
@@ -50,9 +51,9 @@ when anything else touches `archilan_test`): `api/scripts/test-isolated.sh` - se
 
 **Fast local loop - use this before a PR:** `./scripts/gates.sh` runs both sides at once, with
 phpunit on ParaTest (8 workers, `composer gates:fast`): ~2 min against 12+ min for the two
-serial commands one after the other (measured 2026-11-02). Same legs as CI; only phpunit's runner
-differs, and ParaTest is stricter than serial (story 33.26). `--serial` keeps phpunit
-byte-identical to CI, `--api` / `--front` run one side. Its databases are
+serial commands one after the other (measured 2026-11-02). Same legs and same phpunit runner as CI
+(ParaTest since story 33.29; stricter than serial, story 33.26). `--serial` runs phpunit serially
+when an order-dependent test is in doubt, `--api` / `--front` run one side. Its databases are
 `archilan_test_gates1..8` (`GATES_DB_PREFIX` to change, e.g. one per worktree). The Stop hook
 also runs phpunit on ParaTest, on `archilan_test_stophook1..8`.
 

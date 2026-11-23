@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Quality gates, both sides at once - the fast local loop.
 #
-#   ./scripts/gates.sh            api + frontend in parallel, phpunit on ParaTest (8 workers)
-#   ./scripts/gates.sh --serial   api + frontend in parallel, phpunit serial (byte-identical to CI)
+#   ./scripts/gates.sh            api + frontend in parallel, phpunit on ParaTest (8 workers), as CI does
+#   ./scripts/gates.sh --serial   api + frontend in parallel, phpunit serial
 #   ./scripts/gates.sh --api      api only (combine with --serial)
 #   ./scripts/gates.sh --front    frontend only
 #
-# Same legs as CI on each side (composer gates / pnpm gates); only phpunit's runner differs by default, and
-# ParaTest is stricter than serial (story 33.26), so a green fast run is a safe signal before a PR. Use --serial
-# when a doubt remains about an order-dependent test.
+# Same legs as CI on each side (composer gates:fast / pnpm gates); CI runs phpunit on ParaTest too since story
+# 33.29. ParaTest is stricter than serial (story 33.26). Use --serial when a doubt remains about an
+# order-dependent test.
 #
 # The api suite runs on its own databases: archilan_test_gates1..8 with ParaTest, archilan_test_gates serial.
 # Override the namespace with GATES_DB_PREFIX (e.g. one per worktree) so two runs never share a schema.
