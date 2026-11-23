@@ -8,7 +8,7 @@ import type { LoadedLocation, LoadedMap } from "../engine/protocol";
 import type { MapLocation } from "../engine/locations";
 import { LocationDetail } from "./location-detail";
 import { usePackImage, useTracker } from "./tracker-context";
-import { HINT_LABELS, locationHighlight, locationMarks, pinBackground, pinCategory, pinLabel, pinShown, type PinCategory, type TrackerView } from "./tracker-view";
+import { HINT_LABELS, locationHighlight, locationMarks, pinBackground, pinCategory, pinLabel, pinShape, pinShown, type PinCategory, type TrackerView } from "./tracker-view";
 
 /**
  * A pack map with its pins (story 54.5, decision 5): the image at its own pixel size, pins at the pack's
@@ -318,7 +318,9 @@ export function MapPin({ pin, map, minHit, selected, onSelect, only }: PinProps)
   // Enlarged with an invisible frame, so that pins do not cover each other when the map is zoomed out.
   const hit = Math.max(0, (minHit - size) / 2);
   const border = pin.spot.borderThickness ?? map.locationBorderThickness ?? DEFAULT_BORDER;
-  const diamond = (pin.spot.shape ?? map.locationShape) === "diamond";
+  const shape = pinShape(pin.spot.shape ?? map.locationShape);
+  const diamond = shape === "diamond";
+  const trapezoid = shape === "trapezoid";
   const hint = HINT_LABELS[locationHighlight(pin.location, view)];
   return (
     <button
@@ -338,13 +340,15 @@ export function MapPin({ pin, map, minHit, selected, onSelect, only }: PinProps)
         width: diamond ? size / Math.SQRT2 : size,
         height: diamond ? size / Math.SQRT2 : size,
         margin: diamond ? (size - size / Math.SQRT2) / 2 : 0,
-        borderWidth: border,
-        background: pinBackground(marks),
+        // Story 54.14: a trapezoid draws its border and its fill in the layers below, the button stays square.
+        borderWidth: trapezoid ? 0 : border,
+        background: trapezoid ? "transparent" : pinBackground(marks),
         ["--pin-hit" as string]: `${hit}px`,
       }}
       title={pin.location.name}
       type="button"
     >
+      {trapezoid ? <TrapezoidLayers border={border} marks={marks} size={size} /> : null}
       {hint === null ? null : (
         <span
           aria-hidden="true"
@@ -353,6 +357,40 @@ export function MapPin({ pin, map, minHit, selected, onSelect, only }: PinProps)
         />
       )}
     </button>
+  );
+}
+
+type TrapezoidProps = { size: number; border: number; marks: number };
+
+/**
+ * Story 54.14: a pin in PopTracker's trapezoid: the bottom across the whole width, the top from a quarter to three
+ * quarters of it (`drawTrapezoid`). The border is the trapezoid in the border colour, the fill a smaller one on top,
+ * both cut with `clip-path` inside the square button, so the click area, the outline and the hint stay whole.
+ */
+export function TrapezoidLayers({ size, border, marks }: TrapezoidProps) {
+  const inner = Math.max(0, size - 2 * border);
+  // As PopTracker: the fill's top starts where the border's inner edge does.
+  const left = Math.min(inner / 2, size / 4);
+  const right = Math.max(inner / 2, (3 * size) / 4 - 2 * border);
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-background"
+        data-trapezoid="border"
+        style={{ clipPath: "polygon(0 100%, 25% 0, 75% 0, 100% 100%)" }}
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute"
+        data-trapezoid="fill"
+        style={{
+          inset: border,
+          background: pinBackground(marks, "trapezoid"),
+          clipPath: `polygon(0 100%, ${left}px 0, ${right}px 0, 100% 100%)`,
+        }}
+      />
+    </>
   );
 }
 

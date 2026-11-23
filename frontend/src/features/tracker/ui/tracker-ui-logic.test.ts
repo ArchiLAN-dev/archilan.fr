@@ -24,6 +24,7 @@ import {
   mergeView,
   PinMark,
   pinBackground,
+  pinShape,
   pinLabel,
   rootLayoutName,
 } from "./tracker-view";
@@ -293,6 +294,22 @@ describe("PopTracker's pins (story 54.9)", () => {
     expect(pinBackground(PinMark.Reachable | PinMark.Unreachable)).toBe(
       "conic-gradient(from -45deg, var(--color-tracker-none) 0 25%, var(--color-tracker-normal) 0 50%, var(--color-tracker-normal) 0 75%, var(--color-tracker-none) 0 100%)",
     );
+  });
+
+  it("cuts a trapezoid from its centre to its corners (story 54.14)", () => {
+    // Top corners at ±atan(1/2), bottom ones at ±135°, clockwise from the top.
+    expect(pinBackground(PinMark.Reachable | PinMark.Unreachable, "trapezoid")).toBe(
+      "conic-gradient(from -26.565deg, var(--color-tracker-none) 0 53.13deg, var(--color-tracker-normal) 0 161.565deg, var(--color-tracker-normal) 0 251.565deg, var(--color-tracker-none) 0 360deg)",
+    );
+    expect(pinBackground(PinMark.Reachable, "trapezoid")).toBe("var(--color-tracker-normal)");
+  });
+
+  it("knows PopTracker's three pin shapes, and squares anything else (story 54.14)", () => {
+    expect(pinShape("trapezoid")).toBe("trapezoid");
+    expect(pinShape("diamond")).toBe("diamond");
+    expect(pinShape("rect")).toBe("rect");
+    expect(pinShape("hexagon")).toBe("rect");
+    expect(pinShape(null)).toBe("rect");
   });
 });
 

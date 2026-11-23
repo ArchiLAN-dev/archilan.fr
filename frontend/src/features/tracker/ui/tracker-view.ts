@@ -140,10 +140,35 @@ const MARK_LABELS: [number, string][] = [
   [PinMark.Unreachable, "pas encore"],
 ];
 
-/** The background of a pin: one colour, or its quarters cut along the diagonals. */
-export function pinBackground(marks: number): string {
+/** Story 54.14: the shapes PopTracker 0.35.4 draws a pin in; anything else is its default square. */
+export type PinShape = "rect" | "diamond" | "trapezoid";
+
+export function pinShape(shape: string | null | undefined): PinShape {
+  return shape === "diamond" || shape === "trapezoid" ? shape : "rect";
+}
+
+/**
+ * Story 54.14: where the parts of a split trapezoid meet its corners, in degrees clockwise from the top, seen from
+ * its centre. Its top runs from a quarter to three quarters of the width: the top corners are at ±atan(1/2), the
+ * bottom ones at ±135°, as PopTracker cuts it (`drawTrapezoid`).
+ */
+const TRAPEZOID_TOP_CORNER = (Math.atan(0.5) * 180) / Math.PI;
+
+function degrees(value: number): string {
+  return `${Number(value.toFixed(3))}deg`;
+}
+
+/**
+ * The background of a pin: one colour, or its quarters cut from the centre to its corners (along the diagonals for a
+ * square or a diamond, to the corners of the trapezoid for a trapezoid).
+ */
+export function pinBackground(marks: number, shape: PinShape = "rect"): string {
   const [top, left, bottom, right] = (PIN_PARTS[marks] ?? PIN_PARTS[0]!).map((mark) => MARK_COLORS[mark] ?? MARK_COLORS[0]!);
   if (top === left && left === bottom && bottom === right) return top ?? "";
+  if (shape === "trapezoid") {
+    const corner = TRAPEZOID_TOP_CORNER;
+    return `conic-gradient(from ${degrees(-corner)}, ${top} 0 ${degrees(2 * corner)}, ${right} 0 ${degrees(135 + corner)}, ${bottom} 0 ${degrees(225 + corner)}, ${left} 0 360deg)`;
+  }
   return `conic-gradient(from -45deg, ${top} 0 25%, ${right} 0 50%, ${bottom} 0 75%, ${left} 0 100%)`;
 }
 
