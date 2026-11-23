@@ -8,6 +8,7 @@ use App\Sessions\Application\Query\SessionFeedQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\StreamedJsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class SessionFeedController
@@ -19,7 +20,7 @@ final readonly class SessionFeedController
     }
 
     #[Route('/api/v1/parties/{sessionId}/feed', methods: ['GET'])]
-    public function feed(Request $request, string $sessionId): JsonResponse
+    public function feed(Request $request, string $sessionId): JsonResponse|StreamedJsonResponse
     {
         // Optional auth, same rule as the recap: an event or published personal-run feed is public,
         // a private personal-run feed is served only to its owner/participants (story 32.6).
@@ -29,6 +30,7 @@ final readonly class SessionFeedController
             return $this->apiAccessGuard->errorResponse('feed_not_found', 'Feed introuvable ou accès non autorisé.', 404);
         }
 
-        return new JsonResponse(['data' => $events]);
+        // Streamed: a long run's feed is encoded entry by entry, never held whole in memory.
+        return new StreamedJsonResponse(['data' => $events]);
     }
 }

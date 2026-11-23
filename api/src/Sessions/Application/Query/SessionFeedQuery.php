@@ -7,7 +7,6 @@ namespace App\Sessions\Application\Query;
 use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Sessions\Domain\Entity\PasseurOpening;
 use App\Sessions\Domain\Entity\SessionFeedEvent;
-use App\Sessions\Domain\Repository\SessionFeedEventRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 
 /**
@@ -24,16 +23,19 @@ final readonly class SessionFeedQuery
 {
     public function __construct(
         private SessionRepositoryInterface $sessions,
-        private SessionFeedEventRepositoryInterface $events,
+        private SessionFeedEntriesQueryInterface $feed,
         private SessionRecapAudience $audience,
         private PasseurOpeningQueryInterface $passeur,
     ) {
     }
 
     /**
-     * @return list<array<string, mixed>>|null
+     * The entries come one at a time ({@see SessionFeedEntriesQueryInterface}): the access check runs now, the
+     * rows are read while the response is encoded.
+     *
+     * @return iterable<int, array<string, mixed>>|null
      */
-    public function execute(string $sessionId, ?string $viewerId = null): ?array
+    public function execute(string $sessionId, ?string $viewerId = null): ?iterable
     {
         $session = $this->sessions->findById($sessionId);
         if (null === $session || !$this->audience->canView($session, $viewerId)) {
@@ -48,30 +50,21 @@ final readonly class SessionFeedQuery
             }
         }
 
-        return array_map(
-            static fn (SessionFeedEvent $event): array => [
-                'id' => $event->getId(),
-                'type' => $event->getType(),
-                'text' => $event->getText(),
-                'occurredAt' => $event->getOccurredAt()->format(\DateTimeInterface::ATOM),
-                'item' => ['id' => $event->getItemId(), 'name' => $event->getItemName(), 'flags' => $event->getItemFlags()],
-                'location' => ['id' => $event->getLocationId(), 'name' => $event->getLocationName()],
-                'sender' => [
-                    'slot' => $event->getSenderSlot(),
-                    'name' => $event->getSenderName(),
-                    'game' => $event->getSenderGame(),
-                ],
-                'receiver' => [
-                    'slot' => $event->getReceiverSlot(),
-                    'name' => $event->getReceiverName(),
-                    'game' => $event->getReceiverGame(),
-                ],
-                // Story 32.25: who probably died with the sender of a death_link; empty otherwise.
-                'victims' => $event->getVictimNames(),
-                'passeur' => SessionFeedEvent::TYPE_ITEM_RECEIVED === $event->getType()
-                    && isset($opened[$event->getSenderSlot().':'.$event->getLocationId()]),
-            ],
-            $this->events->findBySessionId($sessionId),
-        );
+        return $this->entries($sessionId, $opened);
+    }
+
+    /**
+     * @param array<string, true> $opened
+     *
+     * @return \Generator<int, array<string, mixed>>
+     */
+    private function entries(string $sessionId, array $opened): \Generator
+    {
+        foreach ($this->feed->forSession($sessionId) as $entry) {
+            $entry['passeur'] = SessionFeedEvent::TYPE_ITEM_RECEIVED === $entry['type']
+                && isset($opened[$entry['sender']['slot'].':'.$entry['location']['id']]);
+
+            yield $entry;
+        }
     }
 }

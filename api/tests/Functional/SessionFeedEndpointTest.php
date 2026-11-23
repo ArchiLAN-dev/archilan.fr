@@ -9,6 +9,7 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionFeedEvent;
+use Symfony\Component\HttpFoundation\StreamedJsonResponse;
 
 final class SessionFeedEndpointTest extends FunctionalTestCase
 {
@@ -172,6 +173,21 @@ final class SessionFeedEndpointTest extends FunctionalTestCase
         $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
         self::assertCount(1, $data);
+        // Streamed entry by entry (a long run's feed went past the memory limit), with the same shape as before.
+        self::assertInstanceOf(StreamedJsonResponse::class, $this->client->getResponse());
+        self::assertIsArray($data[0]);
+        unset($data[0]['id']);
+        self::assertSame([
+            'type' => 'item-received',
+            'text' => 'Owner found their Key',
+            'occurredAt' => '2026-05-01T10:00:30+00:00',
+            'item' => ['id' => 7, 'name' => 'Key', 'flags' => 1],
+            'location' => ['id' => 3, 'name' => 'Basement'],
+            'sender' => ['slot' => 1, 'name' => 'Owner', 'game' => "Luigi's Mansion"],
+            'receiver' => ['slot' => 1, 'name' => 'Owner', 'game' => "Luigi's Mansion"],
+            'victims' => [],
+            'passeur' => false,
+        ], $data[0]);
 
         // Participant sees it.
         $this->loginAs($participant);
