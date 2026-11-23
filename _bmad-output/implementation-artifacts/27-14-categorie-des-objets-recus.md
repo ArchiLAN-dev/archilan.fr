@@ -1,6 +1,6 @@
 # Story 27.14: Les objets reçus portent leur catégorie
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 27 - Configuration des sessions
 **Date:** 2026-10-24
 **Origine :** revue de la story 27.13, le 2026-10-24 ; Jean a demandé la story le même jour.
@@ -40,11 +40,11 @@ afin de repérer d'un coup d'œil ce qui compte, sans que la page révèle le co
 
 ## Tâches
 
-- [ ] Bridge : tuple à 4 éléments dans `ap_client.py`, `save_parser.py` (les deux chemins), `state.py`
+- [x] Bridge : tuple à 4 éléments dans `ap_client.py`, `save_parser.py` (les deux chemins), `state.py`
       (`record_received_item`) ; tests (`test_item_send_tracking.py`, `test_domain.py`).
-- [ ] archipelago : `reachable.py` (`compute` des deux classes) ; test de parité existant étendu.
-- [ ] Front : type `items_received[].flags` optionnel dans la garde de type, lecture dans les trois pages ; test.
-- [ ] API : cas `flags` dans `ReachabilityForPlayerTest`.
+- [x] archipelago : `reachable.py` (`compute` des deux classes) ; test de parité existant étendu.
+- [x] Front : type `items_received[].flags` optionnel dans la garde de type, lecture dans les trois pages ; test.
+- [x] API : cas `flags` dans `ReachabilityForPlayerTest`.
 
 ## Mise en prod
 
@@ -57,3 +57,29 @@ autre ordre rien ne casse : les toasts restent simplement sans couleur jusqu'au 
   front et l'API sont dans le monorepo. Un tag par service, comme d'habitude.
 - Vérifier l'ordre réel des champs d'un `NetworkItem` lu dans le `.apsave` avant de lire `flags` par position
   (`item`, `location`, `player`, `flags` côté AP) ; le code lit déjà par attribut quand il existe.
+
+## Dev Agent Record
+
+### Implémentation
+
+- **Bridge** (Archipelago-Bridge #32) :
+  - les tuples `(item, player, location)` de `_received_items` ne changent pas, puisque `rest_checks` et
+    `rest_passeur` les dépaquettent et les comparent en ensembles ;
+  - les flags vivent dans `PlayerState._received_flags`, qui fait le OU par objet. Ils se remplissent depuis le
+    paquet `ReceivedItems` (complet comme incrémental), depuis le `.apsave` (`NetworkItem` lu comme
+    `item, location, player, flags`) et lors de la fusion d'un état sauvegardé ;
+  - le payload envoyé à `reachable.py` reçoit `[item, player, location, flags]` (`received_items_with_flags`).
+  - Écart assumé avec la tâche telle qu'écrite (« tuple à 4 éléments ») : le contrat de l'AC 1 est tenu là où il
+    compte, dans le payload, sans toucher les autres lecteurs.
+- **archipelago** (archilan-archipelago #58) : `_entry_flags` lit le 4e élément, l'attribut `flags` d'un
+  `NetworkItem`, ou 0. `items_received[].flags` est le OU par objet.
+- **Front** : `newlyReceived` (`reachability/received-items.ts`) remplace le bloc recopié dans les trois pages
+  (partie privée, hebdo, admin). Il lit `items_received[].flags` et, à défaut, l'objet placé dans un emplacement
+  (résultat brut d'un ancien passage, page admin). Le type `ItemEntry.flags` est optionnel.
+- **API** : aucun code, et `ReachabilityForPlayerTest` vérifie que `flags` reste dans la vue joueur. Rien ne revient
+  dans `item` côté joueur.
+
+### Mise en prod
+
+Image archipelago, puis bridge, puis site. Dans un autre ordre rien ne casse : les toasts restent neutres jusqu'au
+bout de la chaîne.

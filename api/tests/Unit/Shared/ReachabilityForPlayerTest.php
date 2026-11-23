@@ -14,7 +14,8 @@ final class ReachabilityForPlayerTest extends TestCase
         'reachable_checked' => [['id' => 2, 'name' => 'Shop', 'item' => ['id' => 8, 'name' => 'Bow']]],
         'unreachable_unchecked' => [['id' => 3, 'name' => 'Boss', 'item' => ['id' => 7, 'name' => 'Triforce']]],
         'checked_unreachable' => [],
-        'items_received' => [['id' => 8, 'name' => 'Bow', 'count' => 1]],
+        // Story 27.14: a received item carries its AP flags; they are the player's own and stay in their view.
+        'items_received' => [['id' => 8, 'name' => 'Bow', 'count' => 1, 'flags' => 1]],
         'spheres' => [['index' => 0, 'status' => 'past', 'locations' => [['id' => 2, 'name' => 'Shop', 'item' => ['id' => 8, 'name' => 'Bow']]]]],
     ];
 

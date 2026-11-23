@@ -18,6 +18,8 @@ export type ItemEntry = {
   id: number;
   name: string;
   count: number;
+  /** Story 27.14: the AP flags (progression, useful, trap) of a received item; absent from an older pass. */
+  flags?: number;
 };
 
 export type ItemLocation = {
