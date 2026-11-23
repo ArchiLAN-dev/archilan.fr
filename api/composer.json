@@ -46,7 +46,7 @@
         "symfony/http-client": "8.1.*",
         "symfony/lock": "8.1.*",
         "symfony/mailer": "8.1.*",
-        "symfony/mercure-bundle": "^0.7.0",
+        "symfony/mercure-bundle": "^0.4.3",
         "symfony/messenger": "8.1.*",
         "symfony/monolog-bundle": ">=4.1.0",
         "symfony/property-access": "8.1.*",
