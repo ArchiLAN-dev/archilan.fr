@@ -1,6 +1,6 @@
 # Story 33.34: Déploiement continu du site
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 33 - Nettoyage et standards
 **Date:** 2026-11-21
 **Origine :** release hebdomadaire mise en place le 2026-11-20. Jean veut aller jusqu'au déploiement automatique.
@@ -65,12 +65,30 @@ afin qu'une release arrive en production sans intervention, et que je sois prév
 
 ## Tâches
 
-- [ ] Marqueur et doc (critère 1).
-- [ ] Version servie (critère 3).
-- [ ] Script et alertes par le bot (critères 2 et 4).
-- [ ] Doc d'installation (critère 5) et `shellcheck` (critère 6).
+- [x] Marqueur et doc (critère 1).
+- [x] Version servie (critère 3).
+- [x] Script et alertes par le bot (critères 2 et 4).
+- [x] Doc d'installation (critère 5) et `shellcheck` (critère 6).
 - [ ] Premier passage avec l'opérateur (critère 7).
 
-## Décision ouverte
+## Dev Agent Record
 
-- Canal des alertes : webhook Discord proposé par défaut ; à confirmer par Jean (sinon mail).
+- Critère 1 : marqueur `**Déploiement manuel**` décrit dans `docs/processus-de-release.md` (lu par la routine du lundi).
+- Critère 3 : `GET /api/v1/version` (`APP_VERSION`, bakée dans `api-web` et `api-worker` par `docker-publish.yml`) ;
+  `<meta name="archilan-version">` sur toutes les pages (`NEXT_PUBLIC_APP_VERSION`). Hors image : `dev`.
+- Critères 2 et 4 : `deploy/archilan-deploy.sh`. Écarts assumés :
+  - gel de 2 jours avant à 3 jours après `startsAt` seulement : les ArchiWAN durent un mois (Zelda jusqu'au 12/12),
+    geler jusqu'à `endsAt` bloquerait les releases des semaines entières ;
+  - migrations jouées avant la relance des services, pour qu'un échec laisse l'ancienne version servir ;
+  - images tirées avant tout changement : non publiées = nouvel essai silencieux au passage suivant ;
+  - une alerte par version (`.deploy-state`), pas une toutes les 15 minutes.
+- Critère 5 : `docs/deploiement-continu.md`, `deploy/archilan-deploy.{service,timer}`, `.env.prod.example`.
+- Critère 6 : `shellcheck` dans `.github/workflows/deploy-script.yml`. Essai local dans un conteneur Alpine avec docker
+  simulé, contre la vraie release GitHub et la vraie API : à jour, nouvelle version, majeure, pause, migrations en
+  échec, vérification en échec avec retour en arrière, version déjà écartée, fenêtre de gel.
+- Reste : critère 7, premier passage réel avec l'opérateur, après une release qui contient la story (la v1.0.3 en
+  place ne sert pas encore `/api/v1/version`).
+
+## Décision tranchée
+
+- Canal des alertes : le bot Discord du site (Jean, 2026-11-22).

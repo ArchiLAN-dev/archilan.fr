@@ -1,0 +1,11 @@
+# Story 33.34 : toutes les 15 minutes de 9 h à 22 h (heure de la machine), jamais la nuit.
+[Unit]
+Description=archilan.fr - déploiement continu du site, toutes les 15 minutes en journée
+
+[Timer]
+OnCalendar=*-*-* 09..21:00/15:00
+OnCalendar=*-*-* 22:00:00
+Persistent=false
+
+[Install]
+WantedBy=timers.target

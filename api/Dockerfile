@@ -39,5 +39,10 @@ COPY . .
 RUN composer run-script post-install-cmd --no-interaction 2>/dev/null || true \
     && php bin/console cache:warmup --env=prod
 
+# Story 33.34: the version this image carries (the release tag, without the v), read by GET /api/v1/version.
+# Last so a new version only rebuilds this layer.
+ARG APP_VERSION=
+ENV APP_VERSION=$APP_VERSION
+
 CMD ["php", "bin/console", "messenger:consume", "async", "scheduler_default", \
      "--time-limit=3600", "--memory-limit=128M", "-vv"]

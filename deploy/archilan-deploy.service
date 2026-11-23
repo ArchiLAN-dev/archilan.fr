@@ -1,0 +1,12 @@
+# Story 33.34 : un passage du déploiement continu. Lancé par archilan-deploy.timer.
+# Remplacer /opt/archilan par le dossier qui contient docker-compose.yaml et son .env (docs/deploiement-continu.md).
+[Unit]
+Description=archilan.fr - déploiement continu du site
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/archilan/archilan-deploy.sh --dir /opt/archilan
+# Un passage complet (pull, sauvegarde, migrations, vérification) tient largement en 30 minutes.
+TimeoutStartSec=1800
