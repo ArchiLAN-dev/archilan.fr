@@ -8,6 +8,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Mercure protocol 1.0 and grant-based tokens: a migration with the hub image, not a bump (#1203).
+      - dependency-name: symfony/mercure-bundle
+        versions: [">=0.5"]
     groups:
       composer-minor-patch:
         update-types:
