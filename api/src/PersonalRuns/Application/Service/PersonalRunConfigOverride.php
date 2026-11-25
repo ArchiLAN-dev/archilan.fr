@@ -46,7 +46,7 @@ final readonly class PersonalRunConfigOverride
      */
     public function get(string $runId, string $userId, bool $isAdmin = false): array
     {
-        $run = $this->guard($runId, $userId, $isAdmin);
+        [$run] = $this->guard($runId, $userId, $isAdmin);
         if (!$run instanceof Run) {
             return $this->denial($runId, $userId);
         }
@@ -63,7 +63,7 @@ final readonly class PersonalRunConfigOverride
      */
     public function set(string $runId, string $userId, array $override, bool $isAdmin = false): array
     {
-        $run = $this->guard($runId, $userId, $isAdmin);
+        [$run, $asAdmin] = $this->guard($runId, $userId, $isAdmin);
         if (!$run instanceof Run) {
             return $this->denial($runId, $userId);
         }
@@ -78,7 +78,9 @@ final readonly class PersonalRunConfigOverride
             unset($override[$field]);
         }
         $this->setOverride->execute($runId, $override);
-        $this->traceAdmin($run, $userId);
+        if ($asAdmin) {
+            $this->trace->record($run, $userId, AdminUserActionAudit::ACTION_RUN_CONFIG_OVERRIDE);
+        }
 
         return ['found' => true, 'authorized' => true, 'override' => $this->stripLocked($this->query->execute($runId)), 'profile' => $this->privateProfile()];
     }
@@ -88,7 +90,7 @@ final readonly class PersonalRunConfigOverride
      */
     public function clear(string $runId, string $userId, bool $isAdmin = false): array
     {
-        $run = $this->guard($runId, $userId, $isAdmin);
+        [$run, $asAdmin] = $this->guard($runId, $userId, $isAdmin);
         if (!$run instanceof Run) {
             return $this->denial($runId, $userId);
         }
@@ -99,7 +101,9 @@ final readonly class PersonalRunConfigOverride
         }
 
         $this->clearOverride->execute($runId);
-        $this->traceAdmin($run, $userId);
+        if ($asAdmin) {
+            $this->trace->record($run, $userId, AdminUserActionAudit::ACTION_RUN_CONFIG_OVERRIDE);
+        }
 
         return ['found' => true, 'authorized' => true];
     }
@@ -133,16 +137,23 @@ final readonly class PersonalRunConfigOverride
     /**
      * Story 16.19 : un administrateur règle la partie d'un autre membre pour le dépanner. Le rôle
      * ouvre la porte, il ne lève pas les règles d'état - `isTerminal()` bloque les deux pareil.
+     *
+     * Renvoie la partie (null si refusé) et si l'accès passe par le rôle admin seul : c'est ce cas, et lui seul,
+     * qui laisse une trace. Le co-organisateur est lu une seule fois (corrigé après la revue de la 1.1.0).
+     *
+     * @return array{0: ?Run, 1: bool}
      */
-    private function guard(string $runId, string $userId, bool $isAdmin = false): ?Run
+    private function guard(string $runId, string $userId, bool $isAdmin = false): array
     {
         $run = $this->runs->findById($runId);
-
         if (!$run instanceof Run) {
-            return null;
+            return [null, false];
+        }
+        if ($run->isAdministeredBy($userId, $this->isCoOwner($run, $userId))) {
+            return [$run, false];
         }
 
-        return $run->isAdministeredBy($userId, $this->isCoOwner($run, $userId)) || $isAdmin ? $run : null;
+        return $isAdmin ? [$run, true] : [null, false];
     }
 
     private function isCoOwner(Run $run, string $userId): bool
@@ -153,14 +164,6 @@ final readonly class PersonalRunConfigOverride
         $participant = $this->participants->findByRunAndUser($run->getId(), $userId);
 
         return $participant instanceof RunParticipant && $participant->isCoOwner();
-    }
-
-    /** A co-organiser changes the run on their own right: only an admin acting for someone else leaves a trace. */
-    private function traceAdmin(Run $run, string $userId): void
-    {
-        if (!$this->isCoOwner($run, $userId)) {
-            $this->trace->record($run, $userId, AdminUserActionAudit::ACTION_RUN_CONFIG_OVERRIDE);
-        }
     }
 
     /**

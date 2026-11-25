@@ -61,16 +61,19 @@ final readonly class StartSizeSearch
 
         $now = $this->clock->now();
         $round = bin2hex(random_bytes(8));
-        $search = $this->searches->findById(SizeSearch::idFor($userId, $gameId));
-        if ($search instanceof SizeSearch) {
+        $id = SizeSearch::idFor($userId, $gameId);
+        // Under the search's lock: a step of the previous round still running finishes first, then sees the new round.
+        $restarted = false;
+        $this->searches->withLock($id, static function (SizeSearch $search) use ($round, $yaml, $target, $options, $now, &$restarted): void {
             $search->restart($round, $yaml, $target, $options, $now);
-        } else {
-            $search = SizeSearch::start($userId, $gameId, $round, $yaml, $target, $options, $now);
+            $restarted = true;
+        });
+        if (!$restarted) {
+            $this->searches->save(SizeSearch::start($userId, $gameId, $round, $yaml, $target, $options, $now));
         }
-        $this->searches->save($search);
-        $this->bus->dispatch(new RunSizeSearchStepJob($search->getId(), $round));
+        $this->bus->dispatch(new RunSizeSearchStepJob($id, $round));
 
-        return new SizeSearchStart(SizeSearchOutcome::Started, $search->getId());
+        return new SizeSearchStart(SizeSearchOutcome::Started, $id);
     }
 
     /**

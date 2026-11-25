@@ -105,8 +105,26 @@ final class BalanceReport
         $this->finishedAt = $now;
     }
 
+    /**
+     * The generation this report waits for, carried in its orchestrator session id: the time it was (re)started.
+     * Fixed after the 1.1.0 review: a late result of an earlier generation no longer lands on a restarted report.
+     */
+    public function attempt(): string
+    {
+        return (string) $this->requestedAt->getTimestamp();
+    }
+
+    /** Whether a result of the generation `$attempt` is still awaited; null is a generation started before 1.1.1. */
+    public function awaits(?string $attempt): bool
+    {
+        return self::STATUS_GENERATING === $this->status && (null === $attempt || $attempt === $this->attempt());
+    }
+
     public function recordOutput(string $outputKey): void
     {
+        if (self::STATUS_GENERATING !== $this->status) {
+            return;
+        }
         $this->outputKey = $outputKey;
     }
 
@@ -116,6 +134,9 @@ final class BalanceReport
      */
     public function complete(array $measures, \DateTimeImmutable $now, ?array $playthrough = null): void
     {
+        if (self::STATUS_GENERATING !== $this->status) {
+            return;
+        }
         $this->status = self::STATUS_DONE;
         $this->measures = $measures;
         $this->playthrough = $playthrough;
@@ -125,6 +146,9 @@ final class BalanceReport
 
     public function fail(string $error, \DateTimeImmutable $now): void
     {
+        if (self::STATUS_GENERATING !== $this->status) {
+            return;
+        }
         $this->status = self::STATUS_FAILED;
         $this->error = $error;
         $this->finishedAt = $now;
