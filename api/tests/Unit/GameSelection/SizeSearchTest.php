@@ -69,14 +69,39 @@ final class SizeSearchTest extends TestCase
 
     public function testTheSearchStopsAfterSixGenerations(): void
     {
-        // Never close enough: from 1 h straight to 30 h.
+        // Never within the tolerance: from 1 h straight to 30 h.
         $search = $this->search(10.0, [['key' => 'tokens', 'min' => 1, 'max' => 1000, 'current' => 1000]]);
 
         $tried = $this->playOut($search, static fn (int $v): float => $v < 500 ? 1.0 : 30.0);
 
         self::assertCount(SizeSearch::MAX_TRIES, $tried);
-        self::assertSame(SizeSearch::STATUS_NOT_FOUND, $search->getStatus());
         self::assertCount(SizeSearch::MAX_TRIES, $search->getTries());
+        // Nothing within the tolerance, but 1 h does fit: the longest try under the target is proposed.
+        self::assertSame(SizeSearch::STATUS_FOUND, $search->getStatus());
+        self::assertSame(1.0, $search->getProposal()['hours'] ?? null);
+    }
+
+    public function testAValueUnderTheTargetIsProposedWhenNoneLandsWithinTheTolerance(): void
+    {
+        // Fixed after the 1.1.0 review: a world that jumps from 8.5 h to 12 h never lands within 10 % of 10 h, but
+        // 8.5 h already fits. The search used to end on "nothing found".
+        $search = $this->search(10.0, [['key' => 'tokens', 'min' => 40, 'max' => 200, 'current' => 200]]);
+
+        $tried = $this->playOut($search, static fn (int $v): float => $v <= 85 ? $v / 10 : $v / 10 + 3);
+
+        self::assertSame([40, 120, 80, 100, 90, 85], $tried);
+        self::assertSame(SizeSearch::STATUS_FOUND, $search->getStatus());
+        self::assertSame(['option' => 'tokens', 'from' => 200, 'value' => 85, 'hours' => 8.5], $search->getProposal());
+    }
+
+    public function testNothingIsProposedWhenEveryTryIsOverTheTarget(): void
+    {
+        $search = $this->search(4.0, [['key' => 'tokens', 'min' => 1, 'max' => 10, 'current' => 5]]);
+
+        $this->playOut($search, static fn (int $v): float => 6.0 + $v);
+
+        self::assertSame(SizeSearch::STATUS_NOT_FOUND, $search->getStatus());
+        self::assertNull($search->getProposal());
     }
 
     public function testThePlayersOwnValueIsNeverTried(): void

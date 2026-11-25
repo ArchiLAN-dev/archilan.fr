@@ -14,8 +14,8 @@ use Doctrine\ORM\Mapping as ORM;
  * One size option at a time (the ones an admin designated, in their order). Its minimum is tried first: shorter than
  * the target, the option grows the world, and the search halves the gap between the minimum and the player's value;
  * still too long, its maximum is tried, for an option that shrinks the world as it grows. A try within the tolerance
- * of the target is the proposal; at most `MAX_TRIES` generations in all, then the search says it found nothing. A
- * generation that fails gives up the option it was trying.
+ * of the target is the proposal; at most `MAX_TRIES` generations in all, then the longest try under the target is
+ * proposed, or the search says it found nothing. A generation that fails gives up the option it was trying.
  *
  * Pure: the caller runs each generation and reports its duration. Nothing touches the player's YAML: the proposal
  * waits for their agreement.
@@ -129,7 +129,7 @@ final class SizeSearch
     {
         while (self::STATUS_RUNNING === $this->status) {
             if (count($this->tries) >= self::MAX_TRIES || !isset($this->options[$this->plan['index']])) {
-                $this->finish(self::STATUS_NOT_FOUND, $now);
+                $this->finishWithBestFit($now);
 
                 return null;
             }
@@ -295,6 +295,32 @@ final class SizeSearch
     private function tried(string $key, int $value): bool
     {
         return array_any($this->tries, fn ($try) => $try['option'] === $key && $try['value'] === $value);
+    }
+
+    /**
+     * Fixed after the 1.1.0 review: no try landed within the tolerance, but one that brings the world under the target
+     * still answers the player's question. The longest of those is proposed; without any, the search found nothing.
+     */
+    private function finishWithBestFit(\DateTimeImmutable $now): void
+    {
+        $best = null;
+        foreach ($this->tries as $try) {
+            if (null === $try['hours'] || $try['hours'] > $this->targetHours) {
+                continue;
+            }
+            $option = array_find($this->options, static fn (array $o): bool => $o['key'] === $try['option']);
+            if (null === $option || (null !== $best && $best['hours'] >= $try['hours'])) {
+                continue;
+            }
+            $best = ['option' => $try['option'], 'from' => $option['current'], 'value' => $try['value'], 'hours' => $try['hours']];
+        }
+        if (null === $best) {
+            $this->finish(self::STATUS_NOT_FOUND, $now);
+
+            return;
+        }
+        $this->proposal = $best;
+        $this->finish(self::STATUS_FOUND, $now);
     }
 
     private function finish(string $status, \DateTimeImmutable $now): void

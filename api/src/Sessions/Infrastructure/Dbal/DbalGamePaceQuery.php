@@ -47,10 +47,21 @@ final readonly class DbalGamePaceQuery implements GamePaceQueryInterface
         return $estimates;
     }
 
-    /** @return list<PaceSample> */
+    /**
+     * The time a slot took to reach its goal: the play time its spans measured up to the goal (story 32.26), so the
+     * nights and pauses of an asynchronous run do not count as play. A slot with no span (played before the
+     * heartbeat existed, or never seen connected) falls back to the time from the first launch to the goal.
+     *
+     * @return list<PaceSample>
+     */
     private function sessionSamples(): array
     {
-        $seconds = 'EXTRACT(EPOCH FROM (ss.goal_reached_at - COALESCE(s.first_launched_at, s.started_at)))';
+        $played = '(SELECT SUM(EXTRACT(EPOCH FROM (LEAST(p.last_seen_at, ss.goal_reached_at) - p.started_at)))
+                      FROM session_slot_play_span p
+                     WHERE p.session_id = ss.session_id
+                       AND p.slot_name = ss.slot_name
+                       AND p.started_at < ss.goal_reached_at)';
+        $seconds = 'COALESCE('.$played.', EXTRACT(EPOCH FROM (ss.goal_reached_at - COALESCE(s.first_launched_at, s.started_at))))';
         $qb = $this->connection->createQueryBuilder();
         $rows = $qb
             ->select('ss.id AS slot_id', 'ss.game_id', 'ss.checks_done', $seconds.' AS seconds', 'sp.'.DbalSlotPlayerSource::USER_COLUMN.' AS user_id')

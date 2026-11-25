@@ -84,12 +84,12 @@ final readonly class OrchestratorWebhookController
         }
 
         // Story 56.3: a dry generation of an event or a private run, never an API session.
-        $balanceReportId = RecordBalanceDryGeneration::reportIdOf($sessionId);
-        if (null !== $balanceReportId) {
+        $balance = RecordBalanceDryGeneration::parseSessionId($sessionId);
+        if (null !== $balance) {
             if ('session.generated' === $event) {
-                $this->recordBalanceDryGeneration->generated($balanceReportId, is_string($body['outputKey'] ?? null) ? $body['outputKey'] : '');
+                $this->recordBalanceDryGeneration->generated($balance->reportId, $balance->attempt, is_string($body['outputKey'] ?? null) ? $body['outputKey'] : '');
             } elseif ('session.crashed' === $event) {
-                $this->recordBalanceDryGeneration->crashed($balanceReportId, is_string($body['error'] ?? null) ? $body['error'] : null);
+                $this->recordBalanceDryGeneration->crashed($balance->reportId, $balance->attempt, is_string($body['error'] ?? null) ? $body['error'] : null);
             }
 
             return new JsonResponse(['data' => ['ok' => true]]);

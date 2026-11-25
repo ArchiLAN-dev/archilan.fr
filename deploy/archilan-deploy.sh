@@ -121,7 +121,14 @@ freezing_event() {
     events=$(curl -sS --fail --max-time 20 "https://$api_domain/api/v1/events") || return 2
     now=$(date -u +%s)
     printf '%s' "$events" | jq -r --argjson now "$now" --argjson before "$FREEZE_BEFORE_SECONDS" --argjson after "$FREEZE_AFTER_SECONDS" '
-        def epoch: sub("\\.[0-9]+"; "") | sub("\\+00:00$"; "Z") | fromdateiso8601;
+        # Any offset, not only +00:00 (fixed after the 1.1.0 review): fromdateiso8601 reads only "Z".
+        def epoch: sub("\\.[0-9]+"; "")
+          | capture("^(?<at>.+T[0-9]{2}:[0-9]{2}:[0-9]{2})(?<tz>Z|[+-][0-9]{2}:?[0-9]{2})$")
+          | (.at + "Z" | fromdateiso8601) as $utc
+          | if .tz == "Z" then $utc
+            else ((.tz[1:3] | tonumber) * 3600 + (.tz[-2:] | tonumber) * 60) as $offset
+              | if .tz[0:1] == "+" then $utc - $offset else $utc + $offset end
+            end;
         [.data[]? | select(.startsAt != null) | . as $e | ($e.startsAt | epoch) as $s
          | select($now >= $s - $before and $now <= $s + $after) | "\($e.title) (\($e.startsAt))"] | first // empty
     ' || return 2
