@@ -48,8 +48,15 @@ final readonly class RunSizeSearchStepJobHandler
 
     public function __invoke(RunSizeSearchStepJob $job): void
     {
-        $search = $this->searches->findById($job->searchId);
-        if (!$search instanceof SizeSearch || !$search->isRunning() || $search->getRound() !== $job->round) {
+        // Fixed after the 1.1.0 review: one step at a time per search, and never over a restarted one.
+        $this->searches->withLock($job->searchId, function (SizeSearch $search) use ($job): void {
+            $this->step($search, $job);
+        });
+    }
+
+    private function step(SizeSearch $search, RunSizeSearchStepJob $job): void
+    {
+        if (!$search->isRunning() || $search->getRound() !== $job->round) {
             return;
         }
         $game = $this->games->findById($search->getGameId());

@@ -54,6 +54,14 @@ final class TargetDurationAndPresetsTest extends FunctionalTestCase
 
         $this->client->jsonRequest('PATCH', $url, [...$this->eventPayload(), 'targetHours' => null]);
         self::assertNull($this->data()['targetHours']);
+
+        // 0 goes back to the default too, as the domain says (fixed after the 1.1.0 review).
+        $this->client->jsonRequest('PATCH', $url, [...$this->eventPayload(), 'targetHours' => 12]);
+        $this->client->jsonRequest('PATCH', $url, [...$this->eventPayload(), 'targetHours' => 0]);
+        self::assertResponseIsSuccessful();
+        self::assertNull($this->data()['targetHours']);
+        $this->client->jsonRequest('PATCH', $url, [...$this->eventPayload(), 'targetHours' => -1]);
+        self::assertResponseStatusCodeSame(422);
     }
 
     public function testThePlayersTestSaysItsDurationAgainstTheEventsTarget(): void
@@ -104,8 +112,12 @@ final class TargetDurationAndPresetsTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
 
         $this->loginAs($owner);
-        $this->client->jsonRequest('PUT', $url, ['targetHours' => 0]);
+        $this->client->jsonRequest('PUT', $url, ['targetHours' => -1]);
         self::assertResponseStatusCodeSame(422);
+        // 0 removes it, as null does (fixed after the 1.1.0 review).
+        $this->client->jsonRequest('PUT', $url, ['targetHours' => 0]);
+        self::assertResponseIsSuccessful();
+        self::assertNull($this->data()['targetHours']);
         $this->client->jsonRequest('PUT', $url, ['targetHours' => 6]);
         self::assertResponseIsSuccessful();
         $this->client->request('GET', sprintf('/api/v1/runs/%s', $run->getId()));
@@ -130,6 +142,23 @@ final class TargetDurationAndPresetsTest extends FunctionalTestCase
         $estimate = $this->data()['estimate'];
         self::assertIsArray($estimate);
         self::assertNull($estimate['targetHours']);
+    }
+
+    public function testAFinishedRunKeepsItsTarget(): void
+    {
+        // Fixed after the 1.1.0 review: the target a run was played with does not change afterwards.
+        $owner = $this->createUser('owner@example.org');
+        $run = Run::create($owner->getId(), 'Test Run', new \DateTimeImmutable());
+        $run->aimFor(6, new \DateTimeImmutable());
+        $run->cancel(new \DateTimeImmutable());
+        $this->entityManager->persist($run);
+        $this->entityManager->flush();
+
+        $this->loginAs($owner);
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/runs/%s/target-hours', $run->getId()), ['targetHours' => 12]);
+        self::assertResponseStatusCodeSame(409);
+        $this->client->request('GET', sprintf('/api/v1/runs/%s', $run->getId()));
+        self::assertSame(6, $this->data()['targetHours']);
     }
 
     public function testAnAdminDefinesPresetsCheckedAgainstTheOptions(): void

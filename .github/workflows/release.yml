@@ -97,12 +97,14 @@ jobs:
           body="Retour de ${{ steps.version.outputs.tag }} sur develop (ouverte par le workflow Release, PR #$PR_NUMBER)."
           # A hotfix may already have its PR to develop, opened by hand: use it.
           url=$(gh pr list --base develop --head "$HEAD_REF" --state open --json url -q '.[0].url // empty')
+          # stderr apart: a warning next to the URL, or a multi-line error, would break the one-line outputs below.
           if [ -z "$url" ] && ! url=$(gh pr create --base develop --head "$HEAD_REF" \
-              --title "Retour de ${{ steps.version.outputs.tag }} sur develop" --body "$body" 2>&1); then
+              --title "Retour de ${{ steps.version.outputs.tag }} sur develop" --body "$body" 2> "$RUNNER_TEMP/pr-create.err"); then
             echo "state=not-opened" >> "$GITHUB_OUTPUT"
-            echo "detail=$url" >> "$GITHUB_OUTPUT"
+            echo "detail=$(tr '\r\n' '  ' < "$RUNNER_TEMP/pr-create.err" | cut -c1-500)" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          url=$(printf '%s\n' "$url" | grep -Eo 'https://[^[:space:]]+' | tail -n 1)
           echo "url=$url" >> "$GITHUB_OUTPUT"
           # GitHub needs a moment to compute mergeability after the PR is opened.
           for i in 1 2 3 4 5 6; do
@@ -122,6 +124,8 @@ jobs:
 
       - name: Publish the images
         id: images
+        # The images follow the tag and the release, whatever became of the PR back to develop.
+        if: ${{ !cancelled() && steps.release.outcome == 'success' }}
         run: |
           tag="${{ steps.version.outputs.tag }}"
           gh workflow run docker-publish.yml --ref "$tag"
@@ -149,24 +153,33 @@ jobs:
 
       - name: Summary
         if: always()
+        # Through env, never pasted into the script: an error message may hold quotes, backticks or $( ).
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
+          BACK_STATE: ${{ steps.back.outputs.state }}
+          BACK_URL: ${{ steps.back.outputs.url }}
+          BACK_DETAIL: ${{ steps.back.outputs.detail }}
+          IMAGES_STATE: ${{ steps.images.outputs.state }}
+          IMAGES_URL: ${{ steps.images.outputs.url }}
         run: |
           {
-            echo "## Release ${{ steps.version.outputs.tag || '(version illisible)' }}"
+            echo "## Release ${TAG:-(version illisible)}"
             echo
-            echo "- Release GitHub : ${{ steps.release.outputs.url || 'non créée' }}"
-            case "${{ steps.back.outputs.state }}" in
-              merged)     echo "- Retour sur develop : mergé (${{ steps.back.outputs.url }}), branche supprimée" ;;
-              conflict)   echo "- Retour sur develop : **en conflit**, PR laissée ouverte (${{ steps.back.outputs.url }}). Résoudre le conflit puis merger." ;;
-              open)       echo "- Retour sur develop : **non mergé**, PR laissée ouverte (${{ steps.back.outputs.url }}). Merger à la main." ;;
-              not-opened) echo "- Retour sur develop : **PR non ouverte** : ${{ steps.back.outputs.detail }}" ;;
+            echo "- Release GitHub : ${RELEASE_URL:-non créée}"
+            case "$BACK_STATE" in
+              merged)     echo "- Retour sur develop : mergé ($BACK_URL), branche supprimée" ;;
+              conflict)   echo "- Retour sur develop : **en conflit**, PR laissée ouverte ($BACK_URL). Résoudre le conflit puis merger." ;;
+              open)       echo "- Retour sur develop : **non mergé**, PR laissée ouverte ($BACK_URL). Merger à la main." ;;
+              not-opened) echo "- Retour sur develop : **PR non ouverte** : $BACK_DETAIL" ;;
               *)          echo "- Retour sur develop : non fait" ;;
             esac
-            case "${{ steps.images.outputs.state }}" in
-              success) echo "- Images api-web, api-worker, frontend : publiées (${{ steps.images.outputs.url }})" ;;
-              failure) echo "- Images : **échec** (${{ steps.images.outputs.url }}). Corriger puis relancer les jobs en échec du run docker-publish (pas ce workflow : le tag existe déjà)." ;;
+            case "$IMAGES_STATE" in
+              success) echo "- Images api-web, api-worker, frontend : publiées ($IMAGES_URL)" ;;
+              failure) echo "- Images : **échec** ($IMAGES_URL). Corriger puis relancer les jobs en échec du run docker-publish (pas ce workflow : le tag existe déjà)." ;;
               *)       echo "- Images : non publiées" ;;
             esac
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.back.outputs.state }}" != "merged" ] && [ -n "${{ steps.version.outputs.tag }}" ]; then
+          if [ "$BACK_STATE" != "merged" ] && [ -n "$TAG" ]; then
             echo "::warning::The PR back to develop was not merged: see the run summary."
           fi

@@ -7,6 +7,7 @@ namespace App\Tests\Functional;
 use App\GameSelection\Application\Handler\RunSizeSearchStepJobHandler;
 use App\GameSelection\Application\Message\RunSizeSearchStepJob;
 use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\SizeSearch;
 use App\Sessions\Infrastructure\Double\NullRunnerGateway;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
@@ -87,6 +88,34 @@ final class SizeSearchTest extends FunctionalTestCase
         $this->loginAs($this->createUser('other@example.org'));
         $this->client->request('GET', sprintf('/api/v1/games/%s/size-search/%s', $game->getId(), $searchId));
         self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testAStepNeverWritesOverASearchRestartedMeanwhile(): void
+    {
+        // Fixed after the 1.1.0 review: the worker's copy predates a restart made elsewhere; the step reads the
+        // search again under its lock, sees the new round and leaves it alone.
+        $event = $this->createEvent('ArchiLAN', new \DateTimeImmutable('2027-06-01T10:00:00+00:00'), new \DateTimeImmutable('2027-06-02T10:00:00+00:00'));
+        $game = $this->hollowKnight();
+        $game->designateSizeOptions(['GrubHuntGoal'], new \DateTimeImmutable());
+        $this->entityManager->flush();
+        $this->loginAs($this->createUser('player@example.org'));
+        $this->client->jsonRequest('POST', sprintf('/api/v1/games/%s/size-search', $game->getId()), ['yaml' => self::YAML, 'eventId' => $event->getId()]);
+        self::assertResponseStatusCodeSame(202);
+        $searchId = $this->data()['searchId'];
+        self::assertIsString($searchId);
+
+        $stale = $this->entityManager->find(SizeSearch::class, $searchId);
+        self::assertInstanceOf(SizeSearch::class, $stale);
+        $this->entityManager->getConnection()->update('size_search', ['round' => 'restarted'], ['id' => $searchId]);
+
+        $this->runQueuedSteps();
+
+        $row = $this->entityManager->getConnection()->fetchAssociative('SELECT round, tries, pending FROM size_search WHERE id = ?', [$searchId]);
+        self::assertIsArray($row);
+        self::assertSame('restarted', $row['round']);
+        self::assertSame('[]', $row['tries']);
+        self::assertNull($row['pending']);
+        self::assertNull(NullRunnerGateway::$lastSlotPreflight, 'no generation started for the old round');
     }
 
     public function testASearchNeedsSizeOptionsATargetAndAPace(): void

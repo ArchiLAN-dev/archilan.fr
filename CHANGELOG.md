@@ -5,6 +5,29 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.1.1] - 2026-11-25
+
+Correctifs issus de la revue de la 1.1.0 (équilibrage, durée cible, publication et déploiement automatiques). Aucune
+migration, aucune variable d'environnement, aucun service satellite à redéployer.
+
+### Corrigé
+
+- **Rythme de référence d'un jeu** : il se calcule sur le temps réellement joué (plages de jeu du slot) et non plus
+  sur le temps écoulé depuis le lancement ; une partie jouée sur cinq soirées ne fait plus croire à un jeu cinq fois
+  plus lent. Sans plage de jeu, le temps écoulé reste la mesure de repli.
+- **Génération à blanc relancée** : le résultat tardif d'une génération précédente ne remplace plus le rapport en
+  cours, et un rapport terminé ne change plus.
+- **Réglage automatique de la taille** : quand aucun essai ne tombe dans la tolérance, la plus longue valeur sous la
+  durée cible est proposée au lieu de « aucune valeur trouvée ». Une relance pendant un essai ne se fait plus écraser
+  par l'étape en cours (verrou sur la recherche).
+- **Durée cible** : 0 enlève la durée cible d'un event ou d'une partie, comme vide ; une partie terminée ou annulée
+  garde la sienne (409).
+- **Réglages d'une partie par un admin** : le co-organisateur n'est plus lu deux fois, la trace d'audit reste
+  réservée à l'admin qui agit sans être organisateur.
+- **Publication automatique** : un message d'erreur de `gh` ne casse plus les sorties de l'étape ni le résumé du run,
+  et les images se publient même quand le retour sur develop échoue.
+- **Déploiement continu** : le gel autour d'un event lit les dates quel que soit leur fuseau, pas seulement `+00:00`.
+
 ## [1.1.0] - 2026-11-24
 
 Équilibrage des parties (epic 56), co-organisateurs d'une partie privée, couleur des objets reçus, publication et

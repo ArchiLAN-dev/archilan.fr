@@ -35,10 +35,11 @@ final readonly class RunTargetHoursController
         }
 
         return match ($this->setTargetHours->set($runId, $user->getId(), $hours)) {
-            SetRunTargetHoursOutcome::Done => new JsonResponse(['data' => ['targetHours' => $hours]]),
+            SetRunTargetHoursOutcome::Done => new JsonResponse(['data' => ['targetHours' => 0 === $hours ? null : $hours]]),
             SetRunTargetHoursOutcome::NotFound => $this->apiAccessGuard->errorResponse('not_found', 'Partie introuvable.', 404),
             SetRunTargetHoursOutcome::Forbidden => $this->apiAccessGuard->errorResponse('forbidden', 'Seuls les organisateurs de la partie règlent sa durée cible.', 403),
-            SetRunTargetHoursOutcome::Invalid => $this->apiAccessGuard->errorResponse('validation_failed', sprintf('La durée cible est un nombre d\'heures entre 1 et %d.', Run::MAX_TARGET_HOURS), 422),
+            SetRunTargetHoursOutcome::Invalid => $this->apiAccessGuard->errorResponse('validation_failed', sprintf('La durée cible est un nombre d\'heures entre 1 et %d (0 ou null pour l\'enlever).', Run::MAX_TARGET_HOURS), 422),
+            SetRunTargetHoursOutcome::RunTerminal => $this->apiAccessGuard->errorResponse('run_terminal', 'La partie est terminée ou annulée : sa durée cible ne change plus.', 409),
         };
     }
 }
