@@ -12,7 +12,8 @@ use Psr\Clock\ClockInterface;
 
 /**
  * Story 56.5: the organisers of a private run (owner or co-organiser, story 16.27) set how long a world should last
- * in it; the YAML test and the balance report measure each world against it. Null removes it.
+ * in it; the YAML test and the balance report measure each world against it. Null or 0 removes it, as `Run::aimFor`
+ * says. A finished or cancelled run keeps its target, as it keeps its config (`SetRunCoOwner` likewise).
  */
 final readonly class SetRunTargetHours
 {
@@ -33,7 +34,10 @@ final readonly class SetRunTargetHours
         if (!$run->isAdministeredBy($callerId, $participant instanceof RunParticipant && $participant->isCoOwner())) {
             return SetRunTargetHoursOutcome::Forbidden;
         }
-        if (null !== $hours && ($hours < 1 || $hours > Run::MAX_TARGET_HOURS)) {
+        if ($run->isTerminal()) {
+            return SetRunTargetHoursOutcome::RunTerminal;
+        }
+        if (null !== $hours && ($hours < 0 || $hours > Run::MAX_TARGET_HOURS)) {
             return SetRunTargetHoursOutcome::Invalid;
         }
 

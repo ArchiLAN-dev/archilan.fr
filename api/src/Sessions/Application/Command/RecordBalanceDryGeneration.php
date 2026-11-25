@@ -25,6 +25,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 final readonly class RecordBalanceDryGeneration
 {
+    private const string ATTEMPT_SEPARATOR = '-a';
+
     public function __construct(
         private BalanceReportRepositoryInterface $reports,
         private SessionOutputArtifactReaderInterface $outputs,
@@ -36,17 +38,31 @@ final readonly class RecordBalanceDryGeneration
     ) {
     }
 
-    /** The report id behind an orchestrator session id, or null when it is not a dry generation. */
-    public static function reportIdOf(string $orchestratorSessionId): ?string
+    /** The orchestrator session id of one generation of a report: `balance-{reportId}-a{attempt}`. */
+    public static function orchestratorSessionId(BalanceReport $report): string
     {
-        return str_starts_with($orchestratorSessionId, RunBalanceDryGeneration::ORCHESTRATOR_SESSION_PREFIX)
-            ? substr($orchestratorSessionId, \strlen(RunBalanceDryGeneration::ORCHESTRATOR_SESSION_PREFIX))
-            : null;
+        return RunBalanceDryGeneration::ORCHESTRATOR_SESSION_PREFIX.$report->getId().self::ATTEMPT_SEPARATOR.$report->attempt();
     }
 
-    public function generated(string $reportId, string $outputKey): void
+    /**
+     * The report and the generation behind an orchestrator session id, or null when it is not a dry generation.
+     */
+    public static function parseSessionId(string $orchestratorSessionId): ?BalanceGenerationRef
     {
-        $report = $this->find($reportId);
+        if (!str_starts_with($orchestratorSessionId, RunBalanceDryGeneration::ORCHESTRATOR_SESSION_PREFIX)) {
+            return null;
+        }
+        $rest = substr($orchestratorSessionId, \strlen(RunBalanceDryGeneration::ORCHESTRATOR_SESSION_PREFIX));
+        if (1 === preg_match('/^(.+)'.self::ATTEMPT_SEPARATOR.'(\d+)$/', $rest, $m)) {
+            return new BalanceGenerationRef($m[1], $m[2]);
+        }
+
+        return new BalanceGenerationRef($rest, null);
+    }
+
+    public function generated(string $reportId, ?string $attempt, string $outputKey): void
+    {
+        $report = $this->awaiting($reportId, $attempt);
         if (!$report instanceof BalanceReport) {
             return;
         }
@@ -61,9 +77,9 @@ final readonly class RecordBalanceDryGeneration
         $this->bus->dispatch(new MeasureBalanceReportJob($report->getId()));
     }
 
-    public function crashed(string $reportId, ?string $reason): void
+    public function crashed(string $reportId, ?string $attempt, ?string $reason): void
     {
-        $report = $this->find($reportId);
+        $report = $this->awaiting($reportId, $attempt);
         if (!$report instanceof BalanceReport) {
             return;
         }
@@ -75,7 +91,7 @@ final readonly class RecordBalanceDryGeneration
     {
         $report = $this->find($reportId);
         $outputKey = $report?->getOutputKey();
-        if (!$report instanceof BalanceReport || null === $outputKey) {
+        if (!$report instanceof BalanceReport || null === $outputKey || !$report->isGenerating()) {
             return;
         }
 
@@ -135,6 +151,19 @@ final readonly class RecordBalanceDryGeneration
         }
 
         return $compact;
+    }
+
+    /** The report, when it still waits for the result of generation `$attempt`; a late or stray result is dropped. */
+    private function awaiting(string $reportId, ?string $attempt): ?BalanceReport
+    {
+        $report = $this->find($reportId);
+        if ($report instanceof BalanceReport && !$report->awaits($attempt)) {
+            $this->logger->info('sessions.balance.stale_result_ignored', ['reportId' => $reportId, 'attempt' => $attempt]);
+
+            return null;
+        }
+
+        return $report;
     }
 
     private function find(string $reportId): ?BalanceReport

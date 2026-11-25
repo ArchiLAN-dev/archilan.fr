@@ -131,7 +131,7 @@ final readonly class RunBalanceDryGeneration
         }
         $this->reports->save($report);
 
-        $orchestratorSessionId = self::ORCHESTRATOR_SESSION_PREFIX.$report->getId();
+        $orchestratorSessionId = RecordBalanceDryGeneration::orchestratorSessionId($report);
         try {
             $configured = $this->runner->configureSession($orchestratorSessionId, array_map(
                 static fn (array $s, string $name): array => ['slotName' => $name, 'apworldHash' => $s['apworldHash'], 'playerYaml' => $s['playerYaml']],

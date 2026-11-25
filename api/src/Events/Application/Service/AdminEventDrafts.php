@@ -352,8 +352,9 @@ final readonly class AdminEventDrafts
             }
         }
 
-        if (!$input['targetHoursValid'] || (null !== $input['targetHours'] && ($input['targetHours'] < 1 || $input['targetHours'] > Event::MAX_TARGET_HOURS))) {
-            $errors->add('targetHours', sprintf("La durée cible est un nombre d'heures entre 1 et %d.", Event::MAX_TARGET_HOURS));
+        // 0 goes back to the default, as `Event::aimFor` says (fixed after the 1.1.0 review).
+        if (!$input['targetHoursValid'] || (null !== $input['targetHours'] && ($input['targetHours'] < 0 || $input['targetHours'] > Event::MAX_TARGET_HOURS))) {
+            $errors->add('targetHours', sprintf("La durée cible est un nombre d'heures entre 1 et %d (0 ou vide pour la durée par défaut).", Event::MAX_TARGET_HOURS));
         }
 
         if (null !== $input['mediaServerHost'] && !Event::isValidMediaServerHost($input['mediaServerHost'])) {
