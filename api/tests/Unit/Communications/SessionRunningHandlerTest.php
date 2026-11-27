@@ -10,6 +10,7 @@ use App\Communications\Application\Service\ArchilanMailer;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -206,6 +207,7 @@ final class SessionRunningHandlerTest extends TestCase
             $innerMailer ?? $this->innerMailer,
             new NullLogger(),
             'noreply@archilan.fr',
+            new MockClock(),
         );
 
         return new SessionRunningHandler(

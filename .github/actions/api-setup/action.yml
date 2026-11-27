@@ -20,7 +20,7 @@ runs:
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.5'
-        extensions: ctype, iconv, pdo_pgsql, pgsql, amqp, gd
+        extensions: ctype, iconv, pdo_pgsql, pgsql, amqp, gd, zip
         coverage: ${{ inputs.coverage }}
         tools: composer:v2
 

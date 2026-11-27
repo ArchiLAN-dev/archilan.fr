@@ -7,6 +7,7 @@ namespace App\Sessions\Application\Service;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Message\NotifySlotUnblockedJob;
+use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SlotBlockEpisode;
 use App\Sessions\Domain\Entity\SlotBlockRelease;
 use App\Sessions\Domain\Enum\SlotBlockDecision;
@@ -66,6 +67,25 @@ final readonly class SlotBlockTracker
             return;
         }
 
+        // #1227: read and written under the session's lock, so a concurrent push reads the episodes this one opens.
+        // The notifications leave after the commit.
+        $unblocked = $this->episodes->withSessionLock(
+            $sessionId,
+            fn (): array => $this->followEpisodes($sessionId, $slots, $session, $silent),
+        );
+
+        foreach ($unblocked as $job) {
+            $this->messageBus->dispatch($job);
+        }
+    }
+
+    /**
+     * @param array<array-key, mixed> $slots
+     *
+     * @return list<NotifySlotUnblockedJob>
+     */
+    private function followEpisodes(string $sessionId, array $slots, ?Session $session, bool $silent): array
+    {
         $now = $this->clock->now();
         $open = [];
         foreach ($this->episodes->findBySessionId($sessionId) as $episode) {
@@ -119,9 +139,7 @@ final readonly class SlotBlockTracker
 
         $this->episodes->flush();
 
-        foreach ($unblocked as $job) {
-            $this->messageBus->dispatch($job);
-        }
+        return $unblocked;
     }
 
     /**
