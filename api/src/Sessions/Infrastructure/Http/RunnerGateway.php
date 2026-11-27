@@ -651,9 +651,24 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
     private function preserveEmptyMappings(mixed $value): mixed
     {
         if ($value instanceof \stdClass) {
-            $properties = get_object_vars($value);
+            $properties = array_map($this->preserveEmptyMappings(...), get_object_vars($value));
+            if ([] === $properties) {
+                return $value;
+            }
+            // A mapping whose keys read 0, 1, 2... collapses to a PHP list, which the dumper writes as a sequence.
+            // A weighted option `vog_area_hints: {0: 50}` (value 0, weight 50) then reached the generator as
+            // `- 50`, a list it draws 50 from: "50 is higher than maximum 30" (#1226). Kept an object, it stays
+            // a mapping.
+            if (array_is_list($properties)) {
+                $mapping = new \stdClass();
+                foreach ($properties as $index => $property) {
+                    $mapping->{$index} = $property;
+                }
 
-            return [] === $properties ? $value : array_map($this->preserveEmptyMappings(...), $properties);
+                return $mapping;
+            }
+
+            return $properties;
         }
 
         if (is_array($value)) {

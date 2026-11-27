@@ -5,6 +5,26 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [1.1.2] - 2026-11-27
+
+Correctifs des erreurs remontées par Bugsink. Aucune migration, aucune variable d'environnement. **L'image `api-worker`
+change** (extensions PHP `zip` et `gd`). **Image Archipelago 0.22.3 recommandée** (suivi : objets verrouillés comptés
+une seule fois), indépendante du site.
+
+### Corrigé
+
+- **Mesure des slots** (#1224) : l'image du worker n'avait pas l'extension `zip`, toutes les mesures de slots de
+  l'équilibrage échouaient depuis la 1.1.0 (`Class "ZipArchive" not found`). `zip` et `gd` sont installées, et
+  `composer.json` les exige : une image sans elles ne se construit plus.
+- **YAML envoyé au générateur** (#1226) : une option pondérée dont les clés valent 0, 1, 2... (`vog_area_hints: {0:
+  50}`, valeur 0 de poids 50) partait en liste (`- 50`) et le générateur tirait 50 (« 50 is higher than maximum 30 »).
+  Elle reste un mapping.
+- **Suivi des blocages** (#1227) : deux envois simultanés de l'état des joueurs ouvraient chacun un épisode pour le
+  même slot (clé en double). Les épisodes d'une session se lisent et s'écrivent sous un verrou.
+- **Mails** (#1229) : un refus SMTP passager (4xx, comme « 421 Service not available ») est retenté deux fois, à 2 puis
+  5 secondes ; un refus définitif ne l'est pas.
+- **En-têtes de sécurité** (#1228) : plus d'avertissement « headers already sent » quand la réponse est déjà partie.
+
 ## [1.1.1] - 2026-11-25
 
 Correctifs issus de la revue de la 1.1.0 (équilibrage, durée cible, publication et déploiement automatiques). Aucune

@@ -73,6 +73,18 @@ final class SlotBlockTrackerTest extends TestCase
         self::assertCount(1, $this->bus->messages, 'a duplicate push does not notify twice');
     }
 
+    public function testTheEpisodesAreFollowedUnderTheSessionLock(): void
+    {
+        // #1227: two concurrent pushes each opened an episode for the same slot; under the lock the second reads it.
+        $tracker = $this->tracker($this->privateRun());
+
+        $tracker->track('session-1', $this->payload(reachableNow: 0));
+        $tracker->track('session-1', $this->payload(reachableNow: 0));
+
+        self::assertSame(2, $this->episodes->locks);
+        self::assertCount(1, $this->episodes->all);
+    }
+
     public function testAShortBlockIsForgottenWithoutNotification(): void
     {
         $tracker = $this->tracker($this->privateRun());
@@ -307,6 +319,8 @@ final class InMemorySlotBlockEpisodes implements SlotBlockEpisodeRepositoryInter
     /** @var array<string, SlotBlockEpisode> */
     public array $all = [];
 
+    public int $locks = 0;
+
     public function findBySessionId(string $sessionId): array
     {
         return array_values(array_filter($this->all, static fn (SlotBlockEpisode $episode): bool => $episode->getSessionId() === $sessionId));
@@ -324,6 +338,13 @@ final class InMemorySlotBlockEpisodes implements SlotBlockEpisodeRepositoryInter
 
     public function flush(): void
     {
+    }
+
+    public function withSessionLock(string $sessionId, \Closure $work): mixed
+    {
+        ++$this->locks;
+
+        return $work();
     }
 }
 

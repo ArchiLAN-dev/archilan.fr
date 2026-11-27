@@ -22,6 +22,7 @@ use App\Communications\Application\Service\ArchilanMailer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
 
@@ -131,7 +132,7 @@ final class HtmlEmailsTest extends TestCase
             $sent = $email;
         });
 
-        $handler = new RegistrationConfirmationHandler(new ArchilanMailer($mailer, new NullLogger(), 'noreply@archilan.fr'), self::SITE.'/');
+        $handler = new RegistrationConfirmationHandler(new ArchilanMailer($mailer, new NullLogger(), 'noreply@archilan.fr', new MockClock()), self::SITE.'/');
         $handler(new RegistrationConfirmationMessage('a@example.org', 'Alice', 'ArchiLAN #4', 'demain', 'Lille', [], 'e1', 'r1'));
 
         self::assertInstanceOf(Email::class, $sent);
