@@ -18,13 +18,18 @@ RUN apk upgrade --no-cache  # rebuild 2026-11-17 : CVE-2026-105437 (git -> 2.54.
 RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size = 200M" >> /usr/local/etc/php/conf.d/uploads.ini
 
+# zip et gd : le worker lit les archives de sortie (MeasureSessionSlotsJob, epic 56) et les images, comme
+# l'image web. Sans zip, toutes les mesures de slots echouaient en prod (#1224). composer.json exige ext-zip et
+# ext-gd : composer install echoue au build si une extension manque, au lieu d'une erreur au premier job.
 RUN apk add --no-cache --virtual .build-deps \
-        $PHPIZE_DEPS rabbitmq-c-dev postgresql-dev icu-dev \
-    && docker-php-ext-install pdo_pgsql intl bcmath \
+        $PHPIZE_DEPS rabbitmq-c-dev postgresql-dev icu-dev libzip-dev libpng-dev libjpeg-turbo-dev \
+        libwebp-dev freetype-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype \
+    && docker-php-ext-install pdo_pgsql intl bcmath zip gd \
     && pecl install amqp \
     && docker-php-ext-enable amqp \
     && apk del .build-deps \
-    && apk add --no-cache git rabbitmq-c postgresql-libs icu-libs
+    && apk add --no-cache git rabbitmq-c postgresql-libs icu-libs libzip libpng libjpeg-turbo libwebp freetype
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

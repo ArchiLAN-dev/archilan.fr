@@ -27,6 +27,10 @@ final readonly class SecurityHeadersListener
         $headers->set('X-Content-Type-Options', 'nosniff');
         $headers->set('Strict-Transport-Security', self::HSTS);
         $headers->remove('X-Powered-By');
-        header_remove('X-Powered-By');
+        // #1228: header_remove() warns once the headers are out (seen on a tracker pack archive under FrankenPHP's
+        // worker mode). There is nothing left to remove then: the prod image already sets expose_php = Off.
+        if (!headers_sent()) {
+            header_remove('X-Powered-By');
+        }
     }
 }

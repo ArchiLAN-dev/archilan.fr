@@ -33,4 +33,17 @@ final readonly class DoctrineSlotBlockEpisodeRepository implements SlotBlockEpis
     {
         $this->entityManager->flush();
     }
+
+    public function withSessionLock(string $sessionId, \Closure $work): mixed
+    {
+        return $this->entityManager->wrapInTransaction(function () use ($sessionId, $work): mixed {
+            // Released by the commit (or the rollback): a transaction-scoped advisory lock, one per session.
+            $this->entityManager->getConnection()->createQueryBuilder()
+                ->select('pg_advisory_xact_lock(hashtext(:lock))')
+                ->setParameter('lock', 'slot_block_episode:'.$sessionId)
+                ->executeQuery();
+
+            return $work();
+        });
+    }
 }
