@@ -25,6 +25,11 @@ une seule fois), indépendante du site.
   5 secondes ; un refus définitif ne l'est pas.
 - **En-têtes de sécurité** (#1228) : plus d'avertissement « headers already sent » quand la réponse est déjà partie.
 
+### Sécurité
+
+- **Symfony 8.1.12** : corrige les CVE publiées le 2026-11-26 (doctrine-bridge, expression-language, framework-bundle,
+  http-client, http-kernel, mailer, routing, security-core, security-http, serializer) qui bloquaient l'audit Composer.
+
 ## [1.1.1] - 2026-11-25
 
 Correctifs issus de la revue de la 1.1.0 (équilibrage, durée cible, publication et déploiement automatiques). Aucune
